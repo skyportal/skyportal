@@ -1,6 +1,7 @@
 import ast
 import time
 from io import StringIO
+from typing import Any
 
 import arrow
 import numpy as np
@@ -12,6 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
 from sqlalchemy.orm import (
     scoped_session,
@@ -41,7 +43,7 @@ from ...models import (
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 
 log = make_log("api/instrument")
 env, cfg = load_env()
@@ -57,128 +59,130 @@ cache = Cache(
 Session = scoped_session(sessionmaker())
 
 
+class InstrumentPostBody(BaseModel):
+    """Request body for creating an instrument.
+
+    Pass-through blob fields (sensitivity/configuration/field/reference data)
+    are typed permissively; the handler and marshmallow schema enforce the
+    real validation rules.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Instrument name.")
+    type: str | None = Field(
+        default=None,
+        description="Instrument type, one of Imager, Spectrograph, or Imaging "
+        "Spectrograph.",
+    )
+    band: str | None = Field(
+        default=None,
+        description="The spectral band covered by the instrument (e.g., Optical, IR).",
+    )
+    telescope_id: int | None = Field(
+        default=None,
+        description="The ID of the Telescope that hosts the Instrument.",
+    )
+    filters: list | None = Field(
+        default=None,
+        description="List of filters on the instrument. If the instrument has no "
+        "filters (e.g., because it is a spectrograph), leave blank or pass the "
+        "empty list.",
+    )
+    sensitivity_data: dict[str, Any] | str | None = Field(
+        default=None,
+        description="List of filters and associated limiting magnitude and exposure "
+        "time. Sensitivity_data filters must be a subset of the instrument filters. "
+        "Limiting magnitude assumed to be AB magnitude.",
+    )
+    configuration_data: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Instrument configuration properties such as instrument overhead, "
+        "filter change time, readout, etc.",
+    )
+    field_data: dict[str, Any] | str | None = Field(
+        default=None, description="List of ID, RA, and Dec for each field."
+    )
+    field_region: str | None = Field(
+        default=None,
+        description="Serialized version of a regions.Region describing the shape of "
+        "the instrument field. Note: should only include field_region or "
+        "field_fov_type.",
+    )
+    references: dict[str, Any] | str | None = Field(
+        default=None,
+        description="List of filter, and limiting magnitude for each reference.",
+    )
+    field_fov_type: str | None = Field(
+        default=None,
+        description="Option for instrument field shape. Must be either circle or "
+        "rectangle. Note: should only include field_region or field_fov_type.",
+    )
+    field_fov_attributes: list | float | str | None = Field(
+        default=None,
+        description="Option for instrument field shape parameters. Single float "
+        "radius in degrees in case of circle or list of two floats (height and "
+        "width) in case of a rectangle.",
+    )
+    api_classname: str | None = Field(
+        default=None, description="Name of the instrument's API class."
+    )
+    api_classname_obsplan: str | None = Field(
+        default=None,
+        description="Name of the instrument's ObservationPlan API class.",
+    )
+    listener_classname: str | None = Field(
+        default=None, description="Name of the instrument's listener class."
+    )
+    treasuremap_id: int | None = Field(
+        default=None, description="treasuremap.space API ID for this instrument."
+    )
+    tns_id: int | None = Field(
+        default=None, description="TNS API ID for this instrument."
+    )
+    across_id: str | None = Field(
+        default=None, description="NASA ACROSS instrument UUID."
+    )
+    region: str | None = Field(
+        default=None, description="Instrument astropy.regions representation."
+    )
+    status: dict[str, Any] | None = Field(
+        default=None,
+        description="JSON describing the latest status of the instrument.",
+    )
+    last_status_update: str | None = Field(
+        default=None, description="The time at which the status was last updated."
+    )
+    has_fields: bool | None = Field(
+        default=None, description="Whether the instrument has fields or not."
+    )
+    has_region: bool | None = Field(
+        default=None, description="Whether the instrument has a region or not."
+    )
+
+
+class InstrumentPutBody(InstrumentPostBody):
+    """Request body for updating an instrument (same shape as the post body)."""
+
+
+class InstrumentPostResponse(BaseModel):
+    """Data payload returned when creating an instrument."""
+
+    id: int = Field(description="New instrument ID")
+
+
 class InstrumentHandler(BaseHandler):
     @auth_or_token
-    @format_doc(ALLOWED_BANDPASSES=list(ALLOWED_BANDPASSES))
-    async def post(self):
+    async def post(self, *, body: InstrumentPostBody = None) -> InstrumentPostResponse:
         """
         ---
         summary: Add an instrument
         description: Add a new instrument
         tags:
           - instruments
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                - $ref: "#/components/schemas/InstrumentNoID"
-                - type: object
-                  properties:
-                    filters:
-                      type: array
-                      items:
-                        type: string
-                        enum: {ALLOWED_BANDPASSES}
-                      description: >-
-                        List of filters on the instrument. If the instrument
-                        has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list.
-                      default: []
-                    sensitivity_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          properties:
-                            limiting_magnitude:
-                              type: number
-                            magsys:
-                              type: string
-                            exposure_time:
-                              type: number
-                              description: |
-                                Exposure time in seconds.
-                      description: |
-                        List of filters and associated limiting magnitude and exposure time.
-                        Sensitivity_data filters must be a subset of the instrument filters.
-                        Limiting magnitude assumed to be AB magnitude.
-                    configuration_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          properties:
-                            filt_change_time:
-                              type: number
-                              description: |
-                                Time in seconds to change filters
-                            readout:
-                              type: number
-                              description: |
-                                Time in seconds to readout camera
-                            overhead_per_exposure:
-                              type: number
-                              description: |
-                                Non-readout overheads, e.g. instrument settling times, in seconds.
-                            slew_rate:
-                              type: number
-                              description: |
-                                Slew rate for the telescope in deg/s.
-                      description: |
-                        Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
-                    field_data:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of ID, RA, and Dec for each field.
-                    field_region:
-                      type: str
-                      description: |
-                        Serialized version of a regions.Region describing
-                        the shape of the instrument field. Note: should
-                        only include field_region or field_fov_type.
-                    references:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of filter, and limiting magnitude for each reference.
-                    field_fov_type:
-                      type: str
-                      description: |
-                        Option for instrument field shape. Must be either
-                        circle or rectangle. Note: should only
-                        include field_region or field_fov_type.
-                    field_fov_attributes:
-                      type: list
-                      description: |
-                        Option for instrument field shape parameters.
-                        Single float radius in degrees in case of circle or
-                        list of two floats (height and width) in case of
-                        a rectangle.
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New instrument ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(InstrumentPostBody)
+        data = body.model_dump(exclude_unset=True)
         telescope_id = data.get("telescope_id")
         try:
             telescope_id = int(telescope_id) if telescope_id is not None else None
@@ -769,7 +773,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    async def put(self, instrument_id: int):
+    async def put(self, instrument_id: int, *, body: InstrumentPutBody = None):
         """
         ---
         summary: Update an instrument
@@ -782,27 +786,18 @@ class InstrumentHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: InstrumentNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Instrument'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(InstrumentPutBody)
+        data = body.model_dump(exclude_unset=True)
         data["id"] = instrument_id
         async with self.AsyncSession() as session:
             instrument = await session.scalar(

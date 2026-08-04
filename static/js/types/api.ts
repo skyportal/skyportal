@@ -175,9 +175,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AllocationNoID"];
+                    "application/json": components["schemas"]["AllocationPutBody"];
                 };
             };
             responses: {
@@ -290,9 +290,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AllocationNoID"];
+                    "application/json": components["schemas"]["AllocationPostBody"];
                 };
             };
             responses: {
@@ -302,10 +302,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New allocation ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["AllocationPostResponse"];
                         };
                     };
                 };
@@ -416,14 +413,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        default_analysis_parameters?: Record<string, never>;
-                        source_filter?: Record<string, never>;
-                        daily_limit?: number;
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["DefaultAnalysisPatchBody"];
                 };
             };
             responses: {
@@ -505,26 +497,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Dictionary of parameters to be passed thru to the analysis */
-                        default_analysis_parameters?: {
-                            [key: string]: string;
-                        };
-                        /** @description Dictionary of filters to apply to the input data */
-                        source_filter?: {
-                            [key: string]: string;
-                        };
-                        /** @description Maximum number of analyses to run per day */
-                        daily_limit?: number;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view analysis results. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["DefaultAnalysisPostBody"];
                 };
             };
             responses: {
@@ -637,75 +612,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** @description Unique name/identifier of the analysis service. */
-                        name?: string;
-                        /** @description Display name of the analysis service. */
-                        display_name?: string;
-                        /** @description Description of the analysis service. */
-                        description?: string;
-                        /** @description Semantic version (or githash) of the analysis service. */
-                        version?: string;
-                        /**
-                         * @description Name of person responsible for the service (ie. the maintainer).
-                         *     This person does not need to be part of this SkyPortal instance.
-                         */
-                        contact_name?: string;
-                        /** @description Email address of the person responsible for the service. */
-                        contact_email?: string;
-                        /**
-                         * @description URL to running service accessible to this SkyPortal instance.
-                         *     For example, http://localhost:5000/analysis/<service_name>.
-                         */
-                        url?: string;
-                        /**
-                         * @description Optional URL parameters that can be passed to the service, along
-                         *     with a list of possible values (to be used in a dropdown UI)
-                         */
-                        optional_analysis_parameters?: {
-                            [key: string]: string[];
-                        };
-                        /**
-                         * @description Service authentication method. One of: 'none', 'header_token', 'api_key', 'HTTPBasicAuth', 'HTTPDigestAuth', 'OAuth1'.
-                         *     See https://docs.python-requests.org/en/master/user/authentication/
-                         */
-                        authentication_type?: string;
-                        /** @description Authentication secrets for the service. Not needed if authentication_type is "none". */
-                        authinfo?: Record<string, never>;
-                        /** @description Whether the service is enabled or not. */
-                        enabled?: boolean;
-                        /** @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis' */
-                        analysis_type?: string;
-                        /**
-                         * @description List of input data types that the service requires. Zero to many of:
-                         *     'photometry', 'spectra', 'redshift', 'annotations', 'comments', 'classifications'
-                         */
-                        input_data_types?: string[];
-                        /**
-                         * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
-                         * @default 3600
-                         */
-                        timeout?: number;
-                        /**
-                         * @description Establishes that analysis results on the resource should be considered a summary
-                         * @default false
-                         */
-                        is_summary?: boolean;
-                        /**
-                         * @description Show this analysis service on the analysis dropdown of the resource
-                         * @default true
-                         */
-                        display_on_resource_dropdown?: boolean;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to use the Analysis Service.
-                         */
-                        group_ids?: number[];
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -777,81 +684,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** @description Unique name/identifier of the analysis service. */
-                        name: string;
-                        /** @description Display name of the analysis service. */
-                        display_name?: string;
-                        /** @description Description of the analysis service. */
-                        description?: string;
-                        /** @description Semantic version (or githash) of the analysis service. */
-                        version?: string;
-                        /**
-                         * @description Name of person responsible for the service (ie. the maintainer).
-                         *     This person does not need to be part of this SkyPortal instance.
-                         */
-                        contact_name?: string;
-                        /** @description Email address of the person responsible for the service. */
-                        contact_email?: string;
-                        /**
-                         * @description URL to running service accessible to this SkyPortal instance.
-                         *     For example, http://localhost:5000/analysis/<service_name>.
-                         */
-                        url: string;
-                        /**
-                         * @description Optional URL parameters that can be passed to the service, along
-                         *     with a list of possible values (to be used in a dropdown UI)
-                         */
-                        optional_analysis_parameters?: {
-                            [key: string]: string[];
-                        };
-                        /**
-                         * @description Service authentication method. One of: 'none', 'header_token', 'api_key', 'HTTPBasicAuth', 'HTTPDigestAuth', 'OAuth1'.
-                         *     See https://docs.python-requests.org/en/master/user/authentication/
-                         */
-                        authentication_type: string;
-                        /**
-                         * @description Authentication secrets for the service. Not needed if authentication_type is "none".
-                         *     This should be a string that can be parsed by the python json.loads() function and
-                         *     should contain the key `authentication_type`. Values of this key will be used
-                         *     to POST into the remote analysis service.
-                         */
-                        _authinfo?: Record<string, never>;
-                        /** @description Whether the service is enabled or not. */
-                        enabled?: boolean;
-                        /** @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis' */
-                        analysis_type: string;
-                        /**
-                         * @description List of input data types that the service requires. Zero to many of:
-                         *     'photometry', 'spectra', 'redshift', 'annotations', 'comments', 'classifications'
-                         */
-                        input_data_types: string[];
-                        /**
-                         * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
-                         * @default 3600
-                         */
-                        timeout?: number;
-                        /**
-                         * @description Establishes that analysis results on the resource should be considered a summary
-                         * @default false
-                         */
-                        is_summary?: boolean;
-                        /**
-                         * @description Show this analysis service on the analysis dropdown of the resource
-                         * @default true
-                         */
-                        display_on_resource_dropdown?: boolean;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to use the Analysis Service. Defaults to all of requesting
-                         *     user's groups.
-                         */
-                        group_ids?: number[];
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -907,24 +740,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Results data of this analysis */
-                        results?: Record<string, never>;
-                        /** @description Whether to render the parameters of this analysis */
-                        show_parameters?: boolean;
-                        /** @description Whether to render the plots of this analysis */
-                        show_plots?: boolean;
-                        /** @description Whether to render the corner plots of this analysis */
-                        show_corner?: boolean;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view analysis results. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnalysisUploadBody"];
                 };
             };
             responses: {
@@ -1105,28 +923,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Whether to render the parameters of this analysis */
-                        show_parameters?: boolean;
-                        /** @description Whether to render the plots of this analysis */
-                        show_plots?: boolean;
-                        /** @description Whether to render the corner plots of this analysis */
-                        show_corner?: boolean;
-                        /** @description Filters to apply to the input data */
-                        input_filters?: unknown[];
-                        /** @description Dictionary of parameters to be passed thru to the analysis */
-                        analysis_parameters?: {
-                            [key: string]: string;
-                        };
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view analysis results. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnalysisPostBody"];
                 };
             };
             responses: {
@@ -1347,28 +1146,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Whether to render the parameters of this analysis */
-                        show_parameters?: boolean;
-                        /** @description Whether to render the plots of this analysis */
-                        show_plots?: boolean;
-                        /** @description Whether to render the corner plots of this analysis */
-                        show_corner?: boolean;
-                        /** @description Filters to apply to the input data */
-                        input_filters?: unknown[];
-                        /** @description Dictionary of parameters to be passed thru to the analysis */
-                        analysis_parameters?: {
-                            [key: string]: string;
-                        };
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view analysis results. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnalysisPostBody"];
                 };
             };
             responses: {
@@ -1719,11 +1499,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -1853,11 +1629,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -1891,11 +1663,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -1977,11 +1745,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -2051,11 +1815,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -2328,13 +2088,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        group_ids: number[];
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -2499,11 +2253,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -2545,18 +2295,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        name: string;
-                        /** @description A registered BrokerAPI provider class name. */
-                        broker_classname: string;
-                        /** @description Endpoints/credentials for this broker instance. */
-                        altdata?: Record<string, never>;
-                        active?: boolean;
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -3322,19 +3061,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Name of telescope to assign this catalog to.
-                         *     Use the same name as your nickname
-                         *     for the Neil Gehrels Swift Observatory.
-                         *     Defaults to Swift.
-                         */
-                        telescope_name?: number;
-                        /** @description If provided, save to these group IDs. */
-                        groupIDs?: number[];
-                    };
+                    "application/json": components["schemas"]["SwiftLSXPSQueryPostBody"];
                 };
             };
             responses: {
@@ -3383,22 +3112,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Name of telescope to assign this catalog to.
-                         *     Use the same name as your nickname
-                         *     for Gaia. Defaults to Gaia.
-                         */
-                        telescope_name?: string;
-                        /** @description If provided, save to these group IDs. */
-                        groupIDs?: number[];
-                        /** @description Arrow parsable string. Filter by start date. */
-                        startDate?: string;
-                        /** @description Arrow parsable string. Filter by end date. */
-                        endDate?: string;
-                    };
+                    "application/json": components["schemas"]["GaiaPhotometricAlertsQueryPostBody"];
                 };
             };
             responses: {
@@ -3446,9 +3162,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CatalogQueryPost"];
+                    "application/json": components["schemas"]["CatalogQueryPostBody"];
                 };
             };
             responses: {
@@ -3499,12 +3215,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Upvote or downvote a classification */
-                        vote: number;
-                    };
+                    "application/json": components["schemas"]["ClassificationVotePostBody"];
                 };
             };
             responses: {
@@ -3664,15 +3377,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ClassificationNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view classification.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["ClassificationPutBody"];
                 };
             };
             responses: {
@@ -3708,12 +3415,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Add label associated with classification. */
-                        label?: boolean | null;
-                    };
+                    "application/json": components["schemas"]["ClassificationDeleteBody"];
                 };
             };
             responses: {
@@ -3804,32 +3508,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        obj_id: string;
-                        classification: string;
-                        /** @description String describing the source of this classification. */
-                        origin?: string;
-                        taxonomy_id: number;
-                        /**
-                         * @description User-assigned probability of this classification on this
-                         *     taxonomy. If multiple classifications are given for the
-                         *     same source by the same user, the sum of the
-                         *     classifications ought to equal unity. Only individual
-                         *     probabilities are checked.
-                         */
-                        probability?: number | null;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view classification. Defaults to the public group.
-                         */
-                        group_ids?: number[];
-                        /** @description Add vote associated with classification. */
-                        vote?: boolean | null;
-                        /** @description Add label associated with classification. */
-                        label?: boolean | null;
-                    };
+                    "application/json": components["schemas"]["ClassificationPostBody"];
                 };
             };
             responses: {
@@ -4482,11 +4163,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["DefaultSurveyEfficiencyPost"];
-                };
-            };
+            requestBody?: never;
             responses: {
                 200: {
                     headers: {
@@ -4494,10 +4171,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New default survey efficiency request ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["DefaultSurveyEfficiencyPostResponse"];
                         };
                     };
                 };
@@ -5920,15 +5594,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CommentNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["CommentPutBody"];
                 };
             };
             responses: {
@@ -5937,9 +5605,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Comment"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -6077,15 +5743,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CommentNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["CommentPutBody"];
                 };
             };
             responses: {
@@ -6094,9 +5754,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Comment"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -6133,24 +5791,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        text: string;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment. Defaults to the public group.
-                         */
-                        group_ids?: number[];
-                        attachment?: {
-                            /**
-                             * Format: byte
-                             * @description base64-encoded file contents
-                             */
-                            body?: string;
-                            name?: string;
-                        };
-                    };
+                    "application/json": components["schemas"]["CommentPostBody"];
                 };
             };
             responses: {
@@ -6160,10 +5803,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New comment ID */
-                                comment_id?: number;
-                            };
+                            data?: components["schemas"]["CommentPostResponse"];
                         };
                     };
                 };
@@ -6244,24 +5884,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        text: string;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment. Defaults to the public group.
-                         */
-                        group_ids?: number[];
-                        attachment?: {
-                            /**
-                             * Format: byte
-                             * @description base64-encoded file contents
-                             */
-                            body?: string;
-                            name?: string;
-                        };
-                    };
+                    "application/json": components["schemas"]["CommentPostBody"];
                 };
             };
             responses: {
@@ -6271,10 +5896,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New comment ID */
-                                comment_id?: number;
-                            };
+                            data?: components["schemas"]["CommentPostResponse"];
                         };
                     };
                 };
@@ -10140,9 +9762,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorNoID"];
+                    "application/json": components["schemas"]["MMADetectorPatchBody"];
                 };
             };
             responses: {
@@ -10151,9 +9773,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetector"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -10221,9 +9841,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorNoID"];
+                    "application/json": components["schemas"]["MMADetectorPostBody"];
                 };
             };
             responses: {
@@ -10233,19 +9853,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New mmadetector ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["MMADetectorPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -10346,9 +9955,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorSpectrumPost"];
+                    "application/json": components["schemas"]["MMADetectorSpectrumPatchBody"];
                 };
             };
             responses: {
@@ -10357,9 +9966,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetectorSpectrum"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -10422,9 +10029,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorSpectrumPost"];
+                    "application/json": components["schemas"]["MMADetectorSpectrumPostBody"];
                 };
             };
             responses: {
@@ -10434,19 +10041,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New mmadetector spectrum ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["MMADetectorSpectrumPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -10547,9 +10143,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorTimeIntervalNoID"];
+                    "application/json": components["schemas"]["MMADetectorTimeIntervalPatchBody"];
                 };
             };
             responses: {
@@ -10558,9 +10154,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetectorTimeInterval"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -10620,9 +10214,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MMADetectorTimeIntervalNoID"];
+                    "application/json": components["schemas"]["MMADetectorTimeIntervalPostBody"];
                 };
             };
             responses: {
@@ -10632,19 +10226,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New mmadetector data time_interval ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["MMADetectorTimeIntervalPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -11329,9 +10912,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["InstrumentNoID"];
+                    "application/json": components["schemas"]["InstrumentPutBody"];
                 };
             };
             responses: {
@@ -11340,9 +10923,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Instrument"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -11460,64 +11041,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["InstrumentNoID"] & {
-                        /**
-                         * @description List of filters on the instrument. If the instrument has no filters (e.g., because it is a spectrograph), leave blank or pass the empty list.
-                         * @default []
-                         */
-                        filters?: ("bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti")[];
-                        /**
-                         * @description List of filters and associated limiting magnitude and exposure time.
-                         *     Sensitivity_data filters must be a subset of the instrument filters.
-                         *     Limiting magnitude assumed to be AB magnitude.
-                         */
-                        sensitivity_data?: {
-                            filter_name?: {
-                                limiting_magnitude?: number;
-                                magsys?: string;
-                                /** @description Exposure time in seconds. */
-                                exposure_time?: number;
-                            };
-                        };
-                        /** @description Instrument configuration properties such as instrument overhead, filter change time, readout, etc. */
-                        configuration_data?: {
-                            filter_name?: {
-                                /** @description Time in seconds to change filters */
-                                filt_change_time?: number;
-                                /** @description Time in seconds to readout camera */
-                                readout?: number;
-                                /** @description Non-readout overheads, e.g. instrument settling times, in seconds. */
-                                overhead_per_exposure?: number;
-                                /** @description Slew rate for the telescope in deg/s. */
-                                slew_rate?: number;
-                            };
-                        };
-                        /** @description List of ID, RA, and Dec for each field. */
-                        field_data?: Record<string, never>;
-                        /**
-                         * @description Serialized version of a regions.Region describing
-                         *     the shape of the instrument field. Note: should
-                         *     only include field_region or field_fov_type.
-                         */
-                        field_region?: Record<string, never>;
-                        /** @description List of filter, and limiting magnitude for each reference. */
-                        references?: Record<string, never>;
-                        /**
-                         * @description Option for instrument field shape. Must be either
-                         *     circle or rectangle. Note: should only
-                         *     include field_region or field_fov_type.
-                         */
-                        field_fov_type?: Record<string, never>;
-                        /**
-                         * @description Option for instrument field shape parameters.
-                         *     Single float radius in degrees in case of circle or
-                         *     list of two floats (height and width) in case of
-                         *     a rectangle.
-                         */
-                        field_fov_attributes?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["InstrumentPostBody"];
                 };
             };
             responses: {
@@ -11527,19 +11053,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New instrument ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["InstrumentPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -16539,12 +16054,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Add label associated with classification. */
-                        label?: boolean | null;
-                    };
+                    "application/json": components["schemas"]["ObjClassificationDeleteBody"];
                 };
             };
             responses: {
@@ -17190,38 +16702,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description The name of the catalog key, associated with a
-                         *     catalog cross match,
-                         *     from which the data should be retrieved.
-                         *     Default is "gaiadr3.gaia_source".
-                         */
-                        catalog?: string;
-                        /**
-                         * @description Crossmatch radius (in arcseconds) to retrieve Gaia sources
-                         *     If not specified (or None) will use the default from
-                         *     the config file, or 2 arcsec if not specified in the config.
-                         */
-                        crossmatchRadius?: number;
-                        /**
-                         * @description Crossmatch limiting magnitude (for Gaia G mag).
-                         *     Will ignore sources fainter than this magnitude.
-                         *     If not specified, will use the default value in
-                         *     the config file, or None if not specified in the config.
-                         *     If value is cast to False (0, False or None),
-                         *     will take sources of any magnitude.
-                         */
-                        crossmatchLimmag?: number;
-                        /**
-                         * @description List of group IDs corresponding to which groups
-                         *     should be able to view annotation.
-                         *     Defaults to all of requesting user's groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["GaiaQueryBody"];
                 };
             };
             responses: {
@@ -17230,9 +16713,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Annotation"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -17275,28 +16756,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description The name of the catalog key, associated with a
-                         *     catalog cross match,
-                         *     from which the data should be retrieved.
-                         *     Default is allwise_p3as_psd.
-                         */
-                        catalog?: string;
-                        /**
-                         * @description Crossmatch radius (in arcseconds) to retrieve photoz's
-                         *     Default is 2.
-                         */
-                        crossmatchRadius?: number;
-                        /**
-                         * @description List of group IDs corresponding to which groups
-                         *     should be able to view annotation.
-                         *     Defaults to all of requesting user's groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["IRSAQueryWISEBody"];
                 };
             };
             responses: {
@@ -17305,9 +16767,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Annotation"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -17351,28 +16811,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description The name of the catalog key, associated with a
-                         *     catalog cross match,
-                         *     from which the data should be retrieved.
-                         *     Default is VII/290.
-                         */
-                        catalog?: string;
-                        /**
-                         * @description Crossmatch radius (in arcseconds) to retrieve photoz's
-                         *     Default is 2.
-                         */
-                        crossmatchRadius?: number;
-                        /**
-                         * @description List of group IDs corresponding to which groups
-                         *     should be able to view annotation.
-                         *     Defaults to all of requesting user's groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["VizierQueryBody"];
                 };
             };
             responses: {
@@ -17381,9 +16822,62 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Annotation"];
-                        };
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{obj_id}/annotations/datalab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Datalab annotations
+         * @description get photo-z's (or, for DESI catalogs, spectroscopic redshifts) of
+         *     nearby sources and post them as an annotation based on cross-matches
+         *     to some catalog (default is LegacySurvey DR10).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the object to retrieve photoz's for */
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DatalabQueryBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -17425,36 +16919,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description The name of the catalog key, used when posting annotations.
-                         *     Default is ps1.dr2. This is not used for the query, which will always query DR2.
-                         */
-                        catalog?: string;
-                        /**
-                         * @description Crossmatch radius (in arcseconds) to retrieve PS1 sources
-                         *     Default is 2.
-                         */
-                        crossmatchRadius?: number;
-                        /**
-                         * @description Crossmatch minimum number of detections to retrieve PS1 sources
-                         *     Default is 1.
-                         */
-                        crossmatchMinDetections?: number;
-                        /**
-                         * @description Crossmatch number of sources (maximum) to retrieve from PS1
-                         *     Default is 1, max is 5.
-                         */
-                        crossmatchNumber?: number;
-                        /**
-                         * @description List of group IDs corresponding to which groups
-                         *     should be able to view annotation.
-                         *     Defaults to all of requesting user's groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["PS1QueryBody"];
                 };
             };
             responses: {
@@ -17463,9 +16930,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Annotation"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -18802,20 +18267,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Restrict to sources saved to this group. */
-                        group_id?: number;
-                        /** @description Restrict to these object IDs (also accepts a comma-separated string). */
-                        obj_ids?: string[];
-                        /** @description Restrict to sources with any of these (non-ML) classifications. */
-                        classifications?: string[];
-                        /** @description Only count classifications at or above this probability. */
-                        classificationProbThreshold?: number;
-                        /** @description Max sources to fetch spectra for (default 200, capped at 1000). */
-                        maxSources?: number;
-                    };
+                    "application/json": components["schemas"]["BulkSpectraPostBody"];
                 };
             };
             responses: {
@@ -18904,9 +18358,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumPost"];
+                    "application/json": components["schemas"]["SpectrumPostBody"];
                 };
             };
             responses: {
@@ -18915,9 +18369,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Spectrum"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -19119,9 +18571,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumPost"];
+                    "application/json": components["schemas"]["SpectrumPostBody"];
                 };
             };
             responses: {
@@ -19131,19 +18583,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New spectrum ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SpectrumPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -19174,9 +18615,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumAsciiFileParseJSON"];
+                    "application/json": components["schemas"]["SpectrumASCIIParseBody"];
                 };
             };
             responses: {
@@ -19226,9 +18667,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumAsciiFilePostJSON"];
+                    "application/json": components["schemas"]["SpectrumASCIIPostBody"];
                 };
             };
             responses: {
@@ -19238,19 +18679,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New spectrum ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SpectrumASCIIPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -19276,24 +18706,25 @@ export interface paths {
          */
         post: {
             parameters: {
-                query: {
-                    /** @description List of filters */
-                    filters: Record<string, never>;
-                };
+                query?: never;
                 header?: never;
                 path: {
                     spectrum_id: number;
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SyntheticPhotometryPostBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SingleSpectrum"];
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -19441,9 +18872,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumPost"];
+                    "application/json": components["schemas"]["SpectrumPostBody"];
                 };
             };
             responses: {
@@ -19452,9 +18883,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Spectrum"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -19656,9 +19085,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumPost"];
+                    "application/json": components["schemas"]["SpectrumPostBody"];
                 };
             };
             responses: {
@@ -19668,19 +19097,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New spectrum ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SpectrumPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -19711,9 +19129,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumAsciiFileParseJSON"];
+                    "application/json": components["schemas"]["SpectrumASCIIParseBody"];
                 };
             };
             responses: {
@@ -19763,9 +19181,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["SpectrumAsciiFilePostJSON"];
+                    "application/json": components["schemas"]["SpectrumASCIIPostBody"];
                 };
             };
             responses: {
@@ -19775,19 +19193,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New spectrum ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SpectrumASCIIPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -37831,6 +37238,627 @@ export interface components {
             status: "success";
             message?: string;
         };
+        /**
+         * AllocationPostBody
+         * @description Request body for creating an allocation.
+         */
+        AllocationPostBody: {
+            /**
+             * Group Id
+             * @description The ID of the Group the allocation is associated with.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Instrument Id
+             * @description The ID of the Instrument the allocation is associated with.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Pi
+             * @description The PI of the allocation's proposal.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Proposal Id
+             * @description The ID of the proposal associated with this allocation.
+             * @default null
+             */
+            proposal_id: string | null;
+            /**
+             * Hours Allocated
+             * @description The number of hours allocated.
+             * @default null
+             */
+            hours_allocated: number | null;
+            /**
+             * Validity Ranges
+             * @description A list of validity ranges for the allocation, each with a start_date and end_date in UTC.
+             * @default null
+             */
+            validity_ranges: unknown[] | null;
+            /**
+             * Types
+             * @description The type(s) of allocation.
+             * @default null
+             */
+            types: string[] | null;
+            /**
+             * Default Share Group Ids
+             * @description List of default group IDs to share data with.
+             * @default null
+             */
+            default_share_group_ids: number[] | null;
+            /**
+             * Allocation Admin Ids
+             * @description List of user IDs to set as allocation admins.
+             * @default null
+             */
+            allocation_admin_ids: number[] | null;
+            /**
+             * Altdata
+             * @description Additional metadata for the allocation (e.g., API credentials).
+             * @default null
+             */
+            _altdata: ({
+                [key: string]: unknown;
+            } | string) | null;
+        };
+        /**
+         * AllocationPostResponse
+         * @description Data payload returned when creating an allocation.
+         */
+        AllocationPostResponse: {
+            /**
+             * Id
+             * @description New allocation ID
+             */
+            id: number;
+        };
+        /**
+         * AllocationPutBody
+         * @description Request body for updating an allocation.
+         */
+        AllocationPutBody: {
+            /**
+             * Group Id
+             * @description The ID of the Group the allocation is associated with.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Instrument Id
+             * @description The ID of the Instrument the allocation is associated with.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Pi
+             * @description The PI of the allocation's proposal.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Proposal Id
+             * @description The ID of the proposal associated with this allocation.
+             * @default null
+             */
+            proposal_id: string | null;
+            /**
+             * Hours Allocated
+             * @description The number of hours allocated.
+             * @default null
+             */
+            hours_allocated: number | null;
+            /**
+             * Validity Ranges
+             * @description A list of validity ranges for the allocation, each with a start_date and end_date in UTC.
+             * @default null
+             */
+            validity_ranges: unknown[] | null;
+            /**
+             * Types
+             * @description The type(s) of allocation.
+             * @default null
+             */
+            types: string[] | null;
+            /**
+             * Default Share Group Ids
+             * @description List of default group IDs to share data with.
+             * @default null
+             */
+            default_share_group_ids: number[] | null;
+            /**
+             * Allocation Admin Ids
+             * @description List of user IDs to set as allocation admins.
+             * @default null
+             */
+            allocation_admin_ids: number[] | null;
+            /**
+             * Altdata
+             * @description Additional metadata for the allocation (e.g., API credentials).
+             * @default null
+             */
+            _altdata: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Replace Altdata
+             * @description Whether to replace existing altdata rather than merge into it.
+             * @default null
+             */
+            replace_altdata: boolean | null;
+        };
+        /**
+         * DefaultAnalysisPostBody
+         * @description Request body for creating a default analysis.
+         */
+        DefaultAnalysisPostBody: {
+            /**
+             * Default Analysis Parameters
+             * @description Dictionary of parameters to be passed thru to the analysis.
+             */
+            default_analysis_parameters?: {
+                [key: string]: unknown;
+            } | string;
+            /**
+             * Source Filter
+             * @description Dictionary of filters to apply to the input data.
+             */
+            source_filter?: {
+                [key: string]: unknown;
+            } | string;
+            /**
+             * Daily Limit
+             * @description Maximum number of analyses to run per day.
+             * @default 10
+             */
+            daily_limit: number | string;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view analysis results. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Show Parameters
+             * @description Whether to render the parameters of this analysis.
+             * @default true
+             */
+            show_parameters: boolean;
+            /**
+             * Show Plots
+             * @description Whether to render the plots of this analysis.
+             * @default true
+             */
+            show_plots: boolean;
+            /**
+             * Show Corner
+             * @description Whether to render the corner plots of this analysis.
+             * @default true
+             */
+            show_corner: boolean;
+        };
+        /**
+         * DefaultAnalysisPatchBody
+         * @description Request body for updating a default analysis (all fields optional).
+         */
+        DefaultAnalysisPatchBody: {
+            /**
+             * Default Analysis Parameters
+             * @description Dictionary of parameters to be passed thru to the analysis.
+             * @default null
+             */
+            default_analysis_parameters: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Source Filter
+             * @description Dictionary of filters to apply to the input data.
+             * @default null
+             */
+            source_filter: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Daily Limit
+             * @description Maximum number of analyses to run per day.
+             * @default null
+             */
+            daily_limit: (number | string) | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view analysis results.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Show Parameters
+             * @description Whether to render the parameters of this analysis.
+             * @default null
+             */
+            show_parameters: boolean | null;
+            /**
+             * Show Plots
+             * @description Whether to render the plots of this analysis.
+             * @default null
+             */
+            show_plots: boolean | null;
+            /**
+             * Show Corner
+             * @description Whether to render the corner plots of this analysis.
+             * @default null
+             */
+            show_corner: boolean | null;
+        };
+        /**
+         * AnalysisUploadBody
+         * @description Request body for uploading an upload_only analysis result.
+         */
+        AnalysisUploadBody: {
+            /**
+             * Analysis
+             * @description Results data of this analysis.
+             */
+            analysis?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Message
+             * @description Status message to store with the analysis.
+             * @default
+             */
+            message: string;
+            /**
+             * Show Parameters
+             * @description Whether to render the parameters of this analysis.
+             * @default true
+             */
+            show_parameters: boolean;
+            /**
+             * Show Plots
+             * @description Whether to render the plots of this analysis.
+             * @default true
+             */
+            show_plots: boolean;
+            /**
+             * Show Corner
+             * @description Whether to render the corner plots of this analysis.
+             * @default true
+             */
+            show_corner: boolean;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view analysis results. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * AnalysisPostBody
+         * @description Request body for running an analysis.
+         */
+        AnalysisPostBody: {
+            /**
+             * Show Parameters
+             * @description Whether to render the parameters of this analysis.
+             * @default false
+             */
+            show_parameters: boolean;
+            /**
+             * Show Plots
+             * @description Whether to render the plots of this analysis.
+             * @default false
+             */
+            show_plots: boolean;
+            /**
+             * Show Corner
+             * @description Whether to render the corner plots of this analysis.
+             * @default false
+             */
+            show_corner: boolean;
+            /**
+             * Input Filters
+             * @description Filters to apply to the input data.
+             */
+            input_filters?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Analysis Parameters
+             * @description Dictionary of parameters to be passed thru to the analysis.
+             */
+            analysis_parameters?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view analysis results. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * SwiftLSXPSQueryPostBody
+         * @description Request body for posting Swift LSXPS objects as sources.
+         */
+        SwiftLSXPSQueryPostBody: {
+            /**
+             * Telescope Name
+             * @description Name of telescope to assign this catalog to. Use the same name as your nickname for the Neil Gehrels Swift Observatory. Defaults to Swift.
+             * @default null
+             */
+            telescope_name: string | null;
+            /**
+             * Groupids
+             * @description If provided, save to these group IDs.
+             * @default null
+             */
+            groupIDs: number[] | null;
+        };
+        /**
+         * GaiaPhotometricAlertsQueryPostBody
+         * @description Request body for posting Gaia Photometric Alerts as sources.
+         */
+        GaiaPhotometricAlertsQueryPostBody: {
+            /**
+             * Telescope Name
+             * @description Name of telescope to assign this catalog to. Use the same name as your nickname for Gaia. Defaults to Gaia.
+             * @default null
+             */
+            telescope_name: string | null;
+            /**
+             * Groupids
+             * @description If provided, save to these group IDs.
+             * @default null
+             */
+            groupIDs: number[] | null;
+            /**
+             * Startdate
+             * @description Arrow parsable string. Filter by start date.
+             * @default null
+             */
+            startDate: string | null;
+            /**
+             * Enddate
+             * @description Arrow parsable string. Filter by end date.
+             * @default null
+             */
+            endDate: string | null;
+        };
+        /**
+         * CatalogQueryPostBody
+         * @description Request body for submitting a catalog query.
+         */
+        CatalogQueryPostBody: {
+            /**
+             * Allocation Id
+             * @description Catalog query request allocation ID.
+             */
+            allocation_id: number;
+            /**
+             * Payload
+             * @description Content of the catalog query request.
+             * @default null
+             */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @description The status of the request.
+             * @default null
+             */
+            status: string | null;
+            /**
+             * Target Group Ids
+             * @description IDs of groups to share the results of the query with.
+             * @default null
+             */
+            target_group_ids: number[] | null;
+        };
+        /**
+         * ClassificationVotePostBody
+         * @description Request body for voting on a classification.
+         */
+        ClassificationVotePostBody: {
+            /**
+             * Vote
+             * @description Upvote or downvote a classification.
+             * @default null
+             */
+            vote: number | null;
+        };
+        /**
+         * ClassificationPostItem
+         * @description A single classification. Cross-field checks (probability range, allowed
+         *     classes, ml value) are enforced by the handler with their own messages.
+         */
+        ClassificationPostItem: {
+            /**
+             * Obj Id
+             * @description ID of the object.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Classification
+             * @description The assigned class.
+             * @default null
+             */
+            classification: string | null;
+            /**
+             * Origin
+             * @description String describing the source of this classification.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Taxonomy Id
+             * @description ID of the taxonomy the classification is from.
+             * @default null
+             */
+            taxonomy_id: number | null;
+            /**
+             * Probability
+             * @description User-assigned probability of this classification on this taxonomy. If multiple classifications are given for the same source by the same user, the sum of the classifications ought to equal unity. Only individual probabilities are checked.
+             * @default null
+             */
+            probability: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view classification. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Vote
+             * @description Add vote associated with classification.
+             * @default null
+             */
+            vote: boolean | null;
+            /**
+             * Label
+             * @description Add label associated with classification.
+             * @default null
+             */
+            label: boolean | null;
+            /**
+             * Ml
+             * @description Whether this is a machine-learning classification.
+             * @default null
+             */
+            ml: (boolean | string) | null;
+        };
+        /**
+         * ClassificationPostBody
+         * @description Request body for posting a classification. Either a single classification
+         *     (top-level fields) or a batch (a list under `classifications`).
+         */
+        ClassificationPostBody: {
+            /**
+             * Obj Id
+             * @description ID of the object.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Classification
+             * @description The assigned class.
+             * @default null
+             */
+            classification: string | null;
+            /**
+             * Origin
+             * @description String describing the source of this classification.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Taxonomy Id
+             * @description ID of the taxonomy the classification is from.
+             * @default null
+             */
+            taxonomy_id: number | null;
+            /**
+             * Probability
+             * @description User-assigned probability of this classification on this taxonomy. If multiple classifications are given for the same source by the same user, the sum of the classifications ought to equal unity. Only individual probabilities are checked.
+             * @default null
+             */
+            probability: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view classification. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Vote
+             * @description Add vote associated with classification.
+             * @default null
+             */
+            vote: boolean | null;
+            /**
+             * Label
+             * @description Add label associated with classification.
+             * @default null
+             */
+            label: boolean | null;
+            /**
+             * Ml
+             * @description Whether this is a machine-learning classification.
+             * @default null
+             */
+            ml: (boolean | string) | null;
+            /**
+             * Classifications
+             * @description List of classifications to post in a single request. If provided, the top-level single-classification fields are ignored.
+             * @default null
+             */
+            classifications: components["schemas"]["ClassificationPostItem"][] | null;
+        };
+        /**
+         * ClassificationPutBody
+         * @description Request body for updating a classification.
+         */
+        ClassificationPutBody: {
+            /**
+             * Obj Id
+             * @description ID of the object.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Classification
+             * @description The assigned class.
+             * @default null
+             */
+            classification: string | null;
+            /**
+             * Origin
+             * @description String describing the source of this classification.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Taxonomy Id
+             * @description ID of the taxonomy the classification is from.
+             * @default null
+             */
+            taxonomy_id: number | null;
+            /**
+             * Probability
+             * @description User-assigned probability of this classification on this taxonomy.
+             * @default null
+             */
+            probability: number | null;
+            /**
+             * Ml
+             * @description Whether this is a machine-learning classification.
+             * @default null
+             */
+            ml: (boolean | string) | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view classification.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * ClassificationDeleteBody
+         * @description Request body for deleting a classification.
+         */
+        ClassificationDeleteBody: {
+            /**
+             * Label
+             * @description Add label associated with classification.
+             * @default null
+             */
+            label: boolean | null;
+        };
         DefaultFollowupRequestPost: {
             /** @description Content of the default follow-up request. */
             payload?: {
@@ -37893,13 +37921,16 @@ export interface components {
             /** @description IDs of groups to share the results of the default observation plan request with. */
             target_group_ids?: number[];
         };
-        DefaultSurveyEfficiencyPost: {
-            /** @description Content of the default survey efficiency analysis. */
-            payload?: {
-                [key: string]: unknown;
-            };
-            /** @description Default observation plan request ID. */
-            default_observationplan_request_id: number;
+        /**
+         * DefaultSurveyEfficiencyPostResponse
+         * @description Data payload returned when creating a default survey efficiency request.
+         */
+        DefaultSurveyEfficiencyPostResponse: {
+            /**
+             * Id
+             * @description New default survey efficiency request ID
+             */
+            id: number;
         };
         /**
          * FilterPostBody
@@ -38007,6 +38038,78 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /**
+         * CommentAttachment
+         * @description A comment file attachment (name + base64-encoded body).
+         */
+        CommentAttachment: {
+            /**
+             * Body
+             * @description base64-encoded file contents
+             */
+            body: string | null;
+            /**
+             * Name
+             * @description Attachment file name
+             */
+            name: string;
+        };
+        /**
+         * CommentPostBody
+         * @description Request body for posting a comment.
+         */
+        CommentPostBody: {
+            /**
+             * Text
+             * @description Comment body text
+             */
+            text: string;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view comment. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * @description Optional file attachment.
+             * @default null
+             */
+            attachment: components["schemas"]["CommentAttachment"];
+        };
+        /**
+         * CommentPostResponse
+         * @description Data payload returned when posting a comment.
+         */
+        CommentPostResponse: {
+            /**
+             * Comment Id
+             * @description New comment ID
+             */
+            comment_id: number;
+        };
+        /**
+         * CommentPutBody
+         * @description Request body for updating a comment.
+         */
+        CommentPutBody: {
+            /**
+             * Text
+             * @description Comment body text
+             * @default null
+             */
+            text: string | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view comment.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * @description Optional file attachment.
+             * @default null
+             */
+            attachment: components["schemas"]["CommentAttachment"];
+        };
         GcnEventTagPost: {
             /** @description UTC event timestamp */
             dateobs?: string;
@@ -38032,6 +38135,265 @@ export interface components {
             contour?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MMADetectorPostBody
+         * @description Request body for creating an MMADetector.
+         */
+        MMADetectorPostBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name (e.g., LIGO Hanford Observatory).
+             */
+            name: string;
+            /**
+             * Nickname
+             * @description Abbreviated facility name (e.g., H1).
+             */
+            nickname: string;
+            /**
+             * Type
+             * @description MMA detector type, one of gravitational-wave, neutrino, or gamma-ray-burst.
+             */
+            type: string;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Fixed Location
+             * @description Does this detector have a fixed location (lon, lat, elev)?
+             * @default null
+             */
+            fixed_location: boolean | null;
+        };
+        /**
+         * MMADetectorPostResponse
+         * @description Data payload returned when creating an MMADetector.
+         */
+        MMADetectorPostResponse: {
+            /**
+             * Id
+             * @description New mmadetector ID
+             */
+            id: number;
+        };
+        /**
+         * MMADetectorPatchBody
+         * @description Request body for updating an MMADetector.
+         */
+        MMADetectorPatchBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Nickname
+             * @description Abbreviated facility name.
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Type
+             * @description MMA detector type.
+             * @default null
+             */
+            type: string | null;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Fixed Location
+             * @description Does this detector have a fixed location (lon, lat, elev)?
+             * @default null
+             */
+            fixed_location: boolean | null;
+        };
+        /**
+         * MMADetectorSpectrumPostBody
+         * @description Request body for uploading an MMADetector spectrum.
+         */
+        MMADetectorSpectrumPostBody: {
+            /**
+             * Frequencies
+             * @description Frequencies of the spectrum [Hz].
+             */
+            frequencies: number[];
+            /**
+             * Amplitudes
+             * @description Amplitude of the Spectrum [1/sqrt(Hz)].
+             */
+            amplitudes: number[];
+            /**
+             * Start Time
+             * @description The ISO UTC start time the spectrum was taken.
+             */
+            start_time: string;
+            /**
+             * End Time
+             * @description The ISO UTC end time the spectrum was taken.
+             */
+            end_time: string;
+            /**
+             * Detector Id
+             * @description ID of the MMADetector that acquired the Spectrum.
+             */
+            detector_id: number;
+            /**
+             * Group Ids
+             * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
+        };
+        /**
+         * MMADetectorSpectrumPostResponse
+         * @description Data payload returned when uploading an MMADetector spectrum.
+         */
+        MMADetectorSpectrumPostResponse: {
+            /**
+             * Id
+             * @description New mmadetector spectrum ID
+             */
+            id: number;
+        };
+        /**
+         * MMADetectorSpectrumPatchBody
+         * @description Request body for updating an MMADetector spectrum.
+         */
+        MMADetectorSpectrumPatchBody: {
+            /**
+             * Frequencies
+             * @description Frequencies of the spectrum [Hz].
+             * @default null
+             */
+            frequencies: number[] | null;
+            /**
+             * Amplitudes
+             * @description Amplitude of the Spectrum [1/sqrt(Hz)].
+             * @default null
+             */
+            amplitudes: number[] | null;
+            /**
+             * Start Time
+             * @description The ISO UTC start time the spectrum was taken.
+             * @default null
+             */
+            start_time: string | null;
+            /**
+             * End Time
+             * @description The ISO UTC end time the spectrum was taken.
+             * @default null
+             */
+            end_time: string | null;
+            /**
+             * Detector Id
+             * @description ID of the MMADetector that acquired the Spectrum.
+             * @default null
+             */
+            detector_id: number | null;
+            /**
+             * Group Ids
+             * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
+        };
+        /**
+         * MMADetectorTimeIntervalPostBody
+         * @description Request body for uploading MMADetector time interval(s).
+         */
+        MMADetectorTimeIntervalPostBody: {
+            /**
+             * Detector Id
+             * @description ID of the MMADetector for the time interval(s).
+             * @default null
+             */
+            detector_id: number | null;
+            /**
+             * Time Interval
+             * @description A single time interval [start, end].
+             * @default null
+             */
+            time_interval: unknown[] | null;
+            /**
+             * Time Intervals
+             * @description List of time intervals, each [start, end].
+             * @default null
+             */
+            time_intervals: unknown[] | null;
+            /**
+             * Group Ids
+             * @description IDs of the Groups to share these time intervals with. Set to "all" to make them visible to all users.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
+        };
+        /**
+         * MMADetectorTimeIntervalPostResponse
+         * @description Data payload returned when uploading MMADetector time interval(s).
+         */
+        MMADetectorTimeIntervalPostResponse: {
+            /**
+             * Ids
+             * @description New mmadetector time interval IDs
+             */
+            ids: number[];
+        };
+        /**
+         * MMADetectorTimeIntervalPatchBody
+         * @description Request body for updating an MMADetector time interval.
+         */
+        MMADetectorTimeIntervalPatchBody: {
+            /**
+             * Detector Id
+             * @description ID of the MMADetector for the time interval.
+             * @default null
+             */
+            detector_id: number | null;
+            /**
+             * Time Interval
+             * @description A time interval [start, end].
+             * @default null
+             */
+            time_interval: unknown[] | null;
+            /**
+             * Group Ids
+             * @description IDs of the Groups to share this time interval with. Set to "all" to make it visible to all users.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
         };
         /**
          * ListingPostBody
@@ -38184,6 +38546,329 @@ export interface components {
             status: (string | {
                 [key: string]: unknown;
             }) | null;
+        };
+        /**
+         * InstrumentPostBody
+         * @description Request body for creating an instrument.
+         *
+         *     Pass-through blob fields (sensitivity/configuration/field/reference data)
+         *     are typed permissively; the handler and marshmallow schema enforce the
+         *     real validation rules.
+         */
+        InstrumentPostBody: {
+            /**
+             * Name
+             * @description Instrument name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Type
+             * @description Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.
+             * @default null
+             */
+            type: string | null;
+            /**
+             * Band
+             * @description The spectral band covered by the instrument (e.g., Optical, IR).
+             * @default null
+             */
+            band: string | null;
+            /**
+             * Telescope Id
+             * @description The ID of the Telescope that hosts the Instrument.
+             * @default null
+             */
+            telescope_id: number | null;
+            /**
+             * Filters
+             * @description List of filters on the instrument. If the instrument has no filters (e.g., because it is a spectrograph), leave blank or pass the empty list.
+             * @default null
+             */
+            filters: unknown[] | null;
+            /**
+             * Sensitivity Data
+             * @description List of filters and associated limiting magnitude and exposure time. Sensitivity_data filters must be a subset of the instrument filters. Limiting magnitude assumed to be AB magnitude.
+             * @default null
+             */
+            sensitivity_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Configuration Data
+             * @description Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
+             * @default null
+             */
+            configuration_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Data
+             * @description List of ID, RA, and Dec for each field.
+             * @default null
+             */
+            field_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Region
+             * @description Serialized version of a regions.Region describing the shape of the instrument field. Note: should only include field_region or field_fov_type.
+             * @default null
+             */
+            field_region: string | null;
+            /**
+             * References
+             * @description List of filter, and limiting magnitude for each reference.
+             * @default null
+             */
+            references: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Fov Type
+             * @description Option for instrument field shape. Must be either circle or rectangle. Note: should only include field_region or field_fov_type.
+             * @default null
+             */
+            field_fov_type: string | null;
+            /**
+             * Field Fov Attributes
+             * @description Option for instrument field shape parameters. Single float radius in degrees in case of circle or list of two floats (height and width) in case of a rectangle.
+             * @default null
+             */
+            field_fov_attributes: (unknown[] | number | string) | null;
+            /**
+             * Api Classname
+             * @description Name of the instrument's API class.
+             * @default null
+             */
+            api_classname: string | null;
+            /**
+             * Api Classname Obsplan
+             * @description Name of the instrument's ObservationPlan API class.
+             * @default null
+             */
+            api_classname_obsplan: string | null;
+            /**
+             * Listener Classname
+             * @description Name of the instrument's listener class.
+             * @default null
+             */
+            listener_classname: string | null;
+            /**
+             * Treasuremap Id
+             * @description treasuremap.space API ID for this instrument.
+             * @default null
+             */
+            treasuremap_id: number | null;
+            /**
+             * Tns Id
+             * @description TNS API ID for this instrument.
+             * @default null
+             */
+            tns_id: number | null;
+            /**
+             * Across Id
+             * @description NASA ACROSS instrument UUID.
+             * @default null
+             */
+            across_id: string | null;
+            /**
+             * Region
+             * @description Instrument astropy.regions representation.
+             * @default null
+             */
+            region: string | null;
+            /**
+             * Status
+             * @description JSON describing the latest status of the instrument.
+             * @default null
+             */
+            status: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Last Status Update
+             * @description The time at which the status was last updated.
+             * @default null
+             */
+            last_status_update: string | null;
+            /**
+             * Has Fields
+             * @description Whether the instrument has fields or not.
+             * @default null
+             */
+            has_fields: boolean | null;
+            /**
+             * Has Region
+             * @description Whether the instrument has a region or not.
+             * @default null
+             */
+            has_region: boolean | null;
+        };
+        /**
+         * InstrumentPostResponse
+         * @description Data payload returned when creating an instrument.
+         */
+        InstrumentPostResponse: {
+            /**
+             * Id
+             * @description New instrument ID
+             */
+            id: number;
+        };
+        /**
+         * InstrumentPutBody
+         * @description Request body for updating an instrument (same shape as the post body).
+         */
+        InstrumentPutBody: {
+            /**
+             * Name
+             * @description Instrument name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Type
+             * @description Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.
+             * @default null
+             */
+            type: string | null;
+            /**
+             * Band
+             * @description The spectral band covered by the instrument (e.g., Optical, IR).
+             * @default null
+             */
+            band: string | null;
+            /**
+             * Telescope Id
+             * @description The ID of the Telescope that hosts the Instrument.
+             * @default null
+             */
+            telescope_id: number | null;
+            /**
+             * Filters
+             * @description List of filters on the instrument. If the instrument has no filters (e.g., because it is a spectrograph), leave blank or pass the empty list.
+             * @default null
+             */
+            filters: unknown[] | null;
+            /**
+             * Sensitivity Data
+             * @description List of filters and associated limiting magnitude and exposure time. Sensitivity_data filters must be a subset of the instrument filters. Limiting magnitude assumed to be AB magnitude.
+             * @default null
+             */
+            sensitivity_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Configuration Data
+             * @description Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
+             * @default null
+             */
+            configuration_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Data
+             * @description List of ID, RA, and Dec for each field.
+             * @default null
+             */
+            field_data: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Region
+             * @description Serialized version of a regions.Region describing the shape of the instrument field. Note: should only include field_region or field_fov_type.
+             * @default null
+             */
+            field_region: string | null;
+            /**
+             * References
+             * @description List of filter, and limiting magnitude for each reference.
+             * @default null
+             */
+            references: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Field Fov Type
+             * @description Option for instrument field shape. Must be either circle or rectangle. Note: should only include field_region or field_fov_type.
+             * @default null
+             */
+            field_fov_type: string | null;
+            /**
+             * Field Fov Attributes
+             * @description Option for instrument field shape parameters. Single float radius in degrees in case of circle or list of two floats (height and width) in case of a rectangle.
+             * @default null
+             */
+            field_fov_attributes: (unknown[] | number | string) | null;
+            /**
+             * Api Classname
+             * @description Name of the instrument's API class.
+             * @default null
+             */
+            api_classname: string | null;
+            /**
+             * Api Classname Obsplan
+             * @description Name of the instrument's ObservationPlan API class.
+             * @default null
+             */
+            api_classname_obsplan: string | null;
+            /**
+             * Listener Classname
+             * @description Name of the instrument's listener class.
+             * @default null
+             */
+            listener_classname: string | null;
+            /**
+             * Treasuremap Id
+             * @description treasuremap.space API ID for this instrument.
+             * @default null
+             */
+            treasuremap_id: number | null;
+            /**
+             * Tns Id
+             * @description TNS API ID for this instrument.
+             * @default null
+             */
+            tns_id: number | null;
+            /**
+             * Across Id
+             * @description NASA ACROSS instrument UUID.
+             * @default null
+             */
+            across_id: string | null;
+            /**
+             * Region
+             * @description Instrument astropy.regions representation.
+             * @default null
+             */
+            region: string | null;
+            /**
+             * Status
+             * @description JSON describing the latest status of the instrument.
+             * @default null
+             */
+            status: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Last Status Update
+             * @description The time at which the status was last updated.
+             * @default null
+             */
+            last_status_update: string | null;
+            /**
+             * Has Fields
+             * @description Whether the instrument has fields or not.
+             * @default null
+             */
+            has_fields: boolean | null;
+            /**
+             * Has Region
+             * @description Whether the instrument has a region or not.
+             * @default null
+             */
+            has_region: boolean | null;
         };
         /**
          * InvitationPostBody
@@ -38445,6 +39130,18 @@ export interface components {
             integrated_probability?: number;
         };
         /**
+         * ObjClassificationDeleteBody
+         * @description Request body for deleting all of an object's classifications.
+         */
+        ObjClassificationDeleteBody: {
+            /**
+             * Label
+             * @description Add label associated with classification.
+             * @default null
+             */
+            label: boolean | null;
+        };
+        /**
          * SourceLabelsPostBody
          * @description Request body for labelling a source.
          */
@@ -38465,6 +39162,150 @@ export interface components {
              * @description List of IDs of groups to indicate scanning for
              */
             groupIds: number[];
+        };
+        /**
+         * GaiaQueryBody
+         * @description Request body for posting Gaia cross-match annotations.
+         */
+        GaiaQueryBody: {
+            /**
+             * Catalog
+             * @description The name of the catalog key, associated with a catalog cross match, from which the data should be retrieved. Default is "gaiadr3.gaia_source".
+             * @default gaiadr3.gaia_source
+             */
+            catalog: string;
+            /**
+             * Crossmatchradius
+             * @description Crossmatch radius (in arcseconds) to retrieve Gaia sources. If not specified (or None) will use the default from the config file, or 2 arcsec if not specified in the config.
+             * @default 2
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Crossmatchlimmag
+             * @description Crossmatch limiting magnitude (for Gaia G mag). Will ignore sources fainter than this magnitude. If not specified, will use the default value in the config file, or None if not specified in the config. If value is cast to False (0, False or None), will take sources of any magnitude.
+             * @default 20.5
+             */
+            crossmatchLimmag: number | null;
+            /**
+             * Crossmatchnumber
+             * @description Maximum number of Gaia sources (matches) to retrieve.
+             * @default 1
+             */
+            crossmatchNumber: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * IRSAQueryWISEBody
+         * @description Request body for posting WISE cross-match annotations.
+         */
+        IRSAQueryWISEBody: {
+            /**
+             * Catalog
+             * @description The name of the catalog key, associated with a catalog cross match, from which the data should be retrieved. Default is allwise_p3as_psd.
+             * @default allwise_p3as_psd
+             */
+            catalog: string;
+            /**
+             * Crossmatchradius
+             * @description Crossmatch radius (in arcseconds) to retrieve photoz's. Default is 2.
+             * @default 2
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * VizierQueryBody
+         * @description Request body for posting Vizier cross-match annotations.
+         */
+        VizierQueryBody: {
+            /**
+             * Catalog
+             * @description The name of the catalog key, associated with a catalog cross match, from which the data should be retrieved. Default is VII/290.
+             * @default VII/290
+             */
+            catalog: string;
+            /**
+             * Crossmatchradius
+             * @description Crossmatch radius (in arcseconds) to retrieve photoz's. Default is 2.
+             * @default 2
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * DatalabQueryBody
+         * @description Request body for posting Datalab cross-match annotations.
+         */
+        DatalabQueryBody: {
+            /**
+             * Catalog
+             * @description The name of the catalog key, associated with a catalog cross match, from which the photoz data should be retrieved. Default is ls_dr10.
+             * @default ls_dr10
+             */
+            catalog: string;
+            /**
+             * Crossmatchradius
+             * @description Crossmatch radius (in arcseconds) to retrieve photoz's. Default is 2.
+             * @default 2
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * PS1QueryBody
+         * @description Request body for posting PS1 cross-match annotations.
+         */
+        PS1QueryBody: {
+            /**
+             * Catalog
+             * @description The name of the catalog key, used when posting annotations. Default is ps1.dr2. This is not used for the query, which will always query DR2.
+             * @default ps1.dr2
+             */
+            catalog: string;
+            /**
+             * Crossmatchradius
+             * @description Crossmatch radius (in arcseconds) to retrieve PS1 sources. Default is 2.
+             * @default 2
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Crossmatchmindetections
+             * @description Crossmatch minimum number of detections to retrieve PS1 sources. Default is 1.
+             * @default 1
+             */
+            crossmatchMinDetections: number | null;
+            /**
+             * Crossmatchnumber
+             * @description Crossmatch number of sources (maximum) to retrieve from PS1. Default is 1, max is 5.
+             * @default 5
+             */
+            crossmatchNumber: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * AnnotationPostBody
@@ -38584,6 +39425,356 @@ export interface components {
             catalog_data?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * BulkSpectraPostBody
+         * @description Request body for the bulk spectra endpoint.
+         */
+        BulkSpectraPostBody: {
+            /**
+             * Group Id
+             * @description Restrict to sources saved to this group.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Obj Ids
+             * @description Restrict to these object IDs (also accepts a comma-separated string).
+             * @default null
+             */
+            obj_ids: (string[] | string) | null;
+            /**
+             * Classifications
+             * @description Restrict to sources with any of these (non-ML) classifications.
+             * @default null
+             */
+            classifications: (string[] | string) | null;
+            /**
+             * Classificationprobthreshold
+             * @description Only count classifications at or above this probability.
+             * @default null
+             */
+            classificationProbThreshold: number | null;
+            /**
+             * Maxsources
+             * @description Max sources to fetch spectra for (default 200, capped at 1000).
+             * @default null
+             */
+            maxSources: number | null;
+        };
+        /**
+         * SpectrumPostBody
+         * @description Request body for uploading/updating a spectrum (see SpectrumPost).
+         */
+        SpectrumPostBody: {
+            /**
+             * Wavelengths
+             * @description Wavelengths of the spectrum [Angstrom].
+             * @default null
+             */
+            wavelengths: (number | null)[] | null;
+            /**
+             * Fluxes
+             * @description Flux of the Spectrum [F_lambda, arbitrary units].
+             * @default null
+             */
+            fluxes: (number | null)[] | null;
+            /**
+             * Errors
+             * @description Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]
+             * @default null
+             */
+            errors: (number | null)[] | null;
+            /**
+             * Units
+             * @description Units of the fluxes/errors. Options are Jy, AB, or erg/s/cm/cm/AA).
+             * @default null
+             */
+            units: string | null;
+            /**
+             * Obj Id
+             * @description ID of this Spectrum's Obj.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Observed At
+             * @description The ISO UTC time the spectrum was taken.
+             * @default null
+             */
+            observed_at: string | null;
+            /**
+             * Pi
+             * @description IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI.
+             * @default null
+             */
+            pi: number[] | null;
+            /**
+             * External Pi
+             * @description Free text provided as an external PI
+             * @default null
+             */
+            external_pi: string | null;
+            /**
+             * Reduced By
+             * @description IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.
+             * @default null
+             */
+            reduced_by: number[] | null;
+            /**
+             * External Reducer
+             * @description Free text provided as an external reducer
+             * @default null
+             */
+            external_reducer: string | null;
+            /**
+             * Observed By
+             * @description IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.
+             * @default null
+             */
+            observed_by: number[] | null;
+            /**
+             * External Observer
+             * @description Free text provided as an external observer
+             * @default null
+             */
+            external_observer: string | null;
+            /**
+             * Origin
+             * @description Origin of the spectrum.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Type
+             * @description Type of spectrum. One of the configured allowed spectrum types.
+             * @default null
+             */
+            type: string | null;
+            /**
+             * Label
+             * @description User defined label (can be used to replace default instrument/date labeling on plot legends).
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Instrument Id
+             * @description ID of the Instrument that acquired the Spectrum.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Group Ids
+             * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
+            /**
+             * Followup Request Id
+             * @description ID of the Followup request that generated this spectrum, if any.
+             * @default null
+             */
+            followup_request_id: number | null;
+            /**
+             * Assignment Id
+             * @description ID of the classical assignment that generated this spectrum, if any.
+             * @default null
+             */
+            assignment_id: number | null;
+            /**
+             * Altdata
+             * @description Miscellaneous alternative metadata.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * SpectrumPostResponse
+         * @description Data payload returned when uploading a spectrum.
+         */
+        SpectrumPostResponse: {
+            /**
+             * Id
+             * @description New spectrum ID
+             */
+            id: number;
+        };
+        /**
+         * SpectrumASCIIParseBody
+         * @description Request body for parsing a spectrum from an ASCII file (see
+         *     SpectrumAsciiFileParseJSON).
+         */
+        SpectrumASCIIParseBody: {
+            /**
+             * Wave Column
+             * @description The 0-based index of the ASCII column corresponding to the wavelength values of the spectrum (default 0).
+             * @default null
+             */
+            wave_column: number | null;
+            /**
+             * Flux Column
+             * @description The 0-based index of the ASCII column corresponding to the flux values of the spectrum (default 1).
+             * @default null
+             */
+            flux_column: number | null;
+            /**
+             * Fluxerr Column
+             * @description The 0-based index of the ASCII column corresponding to the flux error values of the spectrum (default None). If a column for errors is provided, set to the corresponding 0-based column number, otherwise, it will be ignored.
+             * @default null
+             */
+            fluxerr_column: number | null;
+            /**
+             * Ascii
+             * @description The content of the ASCII file to be parsed.
+             * @default null
+             */
+            ascii: string | null;
+        };
+        /**
+         * SpectrumASCIIPostBody
+         * @description Request body for uploading a spectrum from an ASCII file (see
+         *     SpectrumAsciiFilePostJSON).
+         */
+        SpectrumASCIIPostBody: {
+            /**
+             * Wave Column
+             * @description The 0-based index of the ASCII column corresponding to the wavelength values of the spectrum (default 0).
+             * @default null
+             */
+            wave_column: number | null;
+            /**
+             * Flux Column
+             * @description The 0-based index of the ASCII column corresponding to the flux values of the spectrum (default 1).
+             * @default null
+             */
+            flux_column: number | null;
+            /**
+             * Fluxerr Column
+             * @description The 0-based index of the ASCII column corresponding to the flux error values of the spectrum (default None). If a column for errors is provided, set to the corresponding 0-based column number, otherwise, it will be ignored.
+             * @default null
+             */
+            fluxerr_column: number | null;
+            /**
+             * Ascii
+             * @description The content of the ASCII file to be parsed.
+             * @default null
+             */
+            ascii: string | null;
+            /**
+             * Obj Id
+             * @description The ID of the object that the spectrum is of.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Instrument Id
+             * @description The ID of the instrument that took the spectrum.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Type
+             * @description Type of spectrum. One of the configured allowed spectrum types.
+             * @default null
+             */
+            type: string | null;
+            /**
+             * Label
+             * @description User defined label to be placed in plot legends, instead of the default <instrument>-<date taken>.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Observed At
+             * @description The ISO UTC time the spectrum was taken.
+             * @default null
+             */
+            observed_at: string | null;
+            /**
+             * Group Ids
+             * @description The IDs of the groups to share this spectrum with.
+             * @default null
+             */
+            group_ids: (number[] | string) | null;
+            /**
+             * Filename
+             * @description The original filename (for bookkeeping purposes).
+             * @default null
+             */
+            filename: string | null;
+            /**
+             * Pi
+             * @description IDs of the Users who are PI of this Spectrum, or to use as points of contact given an external PI.
+             * @default null
+             */
+            pi: number[] | null;
+            /**
+             * External Pi
+             * @description Free text provided as an external PI
+             * @default null
+             */
+            external_pi: string | null;
+            /**
+             * Reduced By
+             * @description IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.
+             * @default null
+             */
+            reduced_by: number[] | null;
+            /**
+             * External Reducer
+             * @description Free text provided as an external reducer
+             * @default null
+             */
+            external_reducer: string | null;
+            /**
+             * Observed By
+             * @description IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.
+             * @default null
+             */
+            observed_by: number[] | null;
+            /**
+             * External Observer
+             * @description Free text provided as an external observer
+             * @default null
+             */
+            external_observer: string | null;
+            /**
+             * Followup Request Id
+             * @description ID of the Followup request that generated this spectrum, if any.
+             * @default null
+             */
+            followup_request_id: number | null;
+            /**
+             * Assignment Id
+             * @description ID of the classical assignment that generated this spectrum, if any.
+             * @default null
+             */
+            assignment_id: number | null;
+        };
+        /**
+         * SpectrumASCIIPostResponse
+         * @description Data payload returned when uploading a spectrum from an ASCII file.
+         */
+        SpectrumASCIIPostResponse: {
+            /**
+             * Id
+             * @description New spectrum ID
+             */
+            id: number;
+        };
+        /**
+         * SyntheticPhotometryPostBody
+         * @description Request body for creating synthetic photometry from a spectrum.
+         */
+        SyntheticPhotometryPostBody: {
+            /**
+             * Filters
+             * @description List of filters
+             * @default null
+             */
+            filters: string[] | null;
         };
         /**
          * StreamUserPostBody

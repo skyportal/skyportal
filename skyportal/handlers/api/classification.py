@@ -1,6 +1,7 @@
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +26,112 @@ _, cfg = load_env()
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
+
+
+class ClassificationPostItem(BaseModel):
+    """A single classification. Cross-field checks (probability range, allowed
+    classes, ml value) are enforced by the handler with their own messages."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(default=None, description="ID of the object.")
+    classification: str | None = Field(default=None, description="The assigned class.")
+    origin: str | None = Field(
+        default=None, description="String describing the source of this classification."
+    )
+    taxonomy_id: int | None = Field(
+        default=None, description="ID of the taxonomy the classification is from."
+    )
+    probability: float | None = Field(
+        default=None,
+        description="User-assigned probability of this classification on this "
+        "taxonomy. If multiple classifications are given for the same source by "
+        "the same user, the sum of the classifications ought to equal unity. Only "
+        "individual probabilities are checked.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view classification. Defaults to the public group.",
+    )
+    vote: bool | None = Field(
+        default=None, description="Add vote associated with classification."
+    )
+    label: bool | None = Field(
+        default=None, description="Add label associated with classification."
+    )
+    ml: bool | str | None = Field(
+        default=None, description="Whether this is a machine-learning classification."
+    )
+
+
+class ClassificationPostBody(ClassificationPostItem):
+    """Request body for posting a classification. Either a single classification
+    (top-level fields) or a batch (a list under `classifications`)."""
+
+    classifications: list[ClassificationPostItem] | None = Field(
+        default=None,
+        description="List of classifications to post in a single request. If "
+        "provided, the top-level single-classification fields are ignored.",
+    )
+
+
+class ClassificationPutBody(BaseModel):
+    """Request body for updating a classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(default=None, description="ID of the object.")
+    classification: str | None = Field(default=None, description="The assigned class.")
+    origin: str | None = Field(
+        default=None, description="String describing the source of this classification."
+    )
+    taxonomy_id: int | None = Field(
+        default=None, description="ID of the taxonomy the classification is from."
+    )
+    probability: float | None = Field(
+        default=None,
+        description="User-assigned probability of this classification on this "
+        "taxonomy.",
+    )
+    ml: bool | str | None = Field(
+        default=None, description="Whether this is a machine-learning classification."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view classification.",
+    )
+
+
+class ClassificationDeleteBody(BaseModel):
+    """Request body for deleting a classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: bool | None = Field(
+        default=None, description="Add label associated with classification."
+    )
+
+
+class ObjClassificationDeleteBody(BaseModel):
+    """Request body for deleting all of an object's classifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: bool | None = Field(
+        default=None, description="Add label associated with classification."
+    )
+
+
+class ClassificationVotePostBody(BaseModel):
+    """Request body for voting on a classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    vote: int | None = Field(
+        default=None, description="Upvote or downvote a classification."
+    )
 
 
 async def post_classification(data, user_id, session):
@@ -331,61 +438,13 @@ class ClassificationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Classify"])
-    async def post(self):
+    async def post(self, *, body: ClassificationPostBody = None):
         """
         ---
         summary: Post a classification
         description: Post a classification
         tags:
           - classifications
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  obj_id:
-                    type: string
-                  classification:
-                    type: string
-                  origin:
-                    type: string
-                    description: |
-                      String describing the source of this classification.
-                  taxonomy_id:
-                    type: integer
-                  probability:
-                    type: number
-                    nullable: true
-                    minimum: 0.0
-                    maximum: 1.0
-                    description: |
-                      User-assigned probability of this classification on this
-                      taxonomy. If multiple classifications are given for the
-                      same source by the same user, the sum of the
-                      classifications ought to equal unity. Only individual
-                      probabilities are checked.
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view classification. Defaults to the public group.
-                  vote:
-                    type: boolean
-                    nullable: true
-                    description: |
-                      Add vote associated with classification.
-                  label:
-                    type: boolean
-                    nullable: true
-                    description: |
-                      Add label associated with classification.
-                required:
-                  - obj_id
-                  - classification
-                  - taxonomy_id
         responses:
           200:
             content:
@@ -402,21 +461,25 @@ class ClassificationHandler(BaseHandler):
                               type: integer
                               description: New classification ID
         """
-        data = self.get_json()
+        body = self.parse_body(ClassificationPostBody)
 
         async with self.AsyncSession() as session:
-            if "classifications" in data:
+            if body.classifications is not None:
                 classification_ids = []
-                for classification in data["classifications"]:
+                for classification in body.classifications:
                     try:
                         classification_id = await post_classification(
-                            classification, self.associated_user_object.id, session
+                            classification.model_dump(exclude_unset=True),
+                            self.associated_user_object.id,
+                            session,
                         )
                     except Exception as e:
                         return self.error(f"Error posting classification: {str(e)}")
                     classification_ids.append(classification_id)
                 return self.success(data={"classification_ids": classification_ids})
             else:
+                data = body.model_dump(exclude_unset=True)
+                data.pop("classifications", None)
                 try:
                     classification_id = await post_classification(
                         data, self.associated_user_object.id, session
@@ -426,7 +489,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
-    async def put(self, classification_id: int):
+    async def put(self, classification_id: int, *, body: ClassificationPutBody = None):
         """
         ---
         summary: Update a classification
@@ -439,21 +502,6 @@ class ClassificationHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ClassificationNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of group IDs corresponding to which groups should be
-                          able to view classification.
         responses:
           200:
             content:
@@ -464,6 +512,8 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ClassificationPutBody)
+
         async with self.AsyncSession() as session:
             c = await session.scalar(
                 Classification.select(session.user_or_token, mode="update")
@@ -478,7 +528,7 @@ class ClassificationHandler(BaseHandler):
                     f"Cannot find a classification with ID: {classification_id}."
                 )
 
-            data = self.get_json()
+            data = body.model_dump(exclude_unset=True)
             group_ids = data.pop("group_ids", None)
             data["id"] = classification_id
 
@@ -528,7 +578,9 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
-    async def delete(self, classification_id: int):
+    async def delete(
+        self, classification_id: int, *, body: ClassificationDeleteBody = None
+    ):
         """
         ---
         summary: Delete a classification
@@ -541,23 +593,14 @@ class ClassificationHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  label:
-                    type: boolean
-                    nullable: true
-                    description: |
-                      Add label associated with classification.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        body = self.parse_body(ClassificationDeleteBody)
+
         try:
             classification_id = int(classification_id)
         except (ValueError, TypeError):
@@ -577,8 +620,7 @@ class ClassificationHandler(BaseHandler):
                     f"Cannot find a classification with ID: {classification_id}."
                 )
 
-            data = self.get_json()
-            add_label = data.get("label", True)
+            add_label = body.model_dump(exclude_unset=True).get("label", True)
 
             obj_key = c.obj.internal_key
             obj_id = c.obj.id
@@ -692,7 +734,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    async def delete(self, obj_id: str):
+    async def delete(self, obj_id: str, *, body: ObjClassificationDeleteBody = None):
         """
         ---
         summary: Delete all classifications for an object
@@ -706,23 +748,13 @@ class ObjClassificationHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  label:
-                    type: boolean
-                    nullable: true
-                    description: |
-                      Add label associated with classification.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        body = self.parse_body(ObjClassificationDeleteBody)
 
         async with self.AsyncSession() as session:
             result = await session.scalars(
@@ -735,8 +767,7 @@ class ObjClassificationHandler(BaseHandler):
             )
             classifications = result.unique().all()
 
-            data = self.get_json()
-            add_label = data.get("label", True)
+            add_label = body.model_dump(exclude_unset=True).get("label", True)
 
             obj_key = None
             for c in classifications:
@@ -856,7 +887,9 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    async def post(self, classification_id: int):
+    async def post(
+        self, classification_id: int, *, body: ClassificationVotePostBody = None
+    ):
         """
         ---
         summary: Vote for a classification
@@ -871,26 +904,14 @@ class ClassificationVotesHandler(BaseHandler):
               type: string
             description: |
               ID of classification to indicate the vote for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  vote:
-                    type: integer
-                    description: |
-                      Upvote or downvote a classification
-                required:
-                  - vote
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        vote = data.get("vote")
+        body = self.parse_body(ClassificationVotePostBody)
+        vote = body.vote
         if vote is None:
             return self.error("Missing required parameter: `vote`")
 
