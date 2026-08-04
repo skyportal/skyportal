@@ -797,6 +797,17 @@ async def standardize_photometry_data(data, session):
                     f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
+        # non-detections require limiting_mag
+        limmag_missing = magnull & df["limiting_mag"].isna()
+        if any(limmag_missing):
+            first_offender = np.argwhere(limmag_missing.values)[0, 0]
+            packet = df.iloc[first_offender].to_dict()
+            for key in packet:
+                packet[key] = nan_to_none(packet[key])
+            raise ValidationError(
+                f'Error parsing packet "{packet}": non-detections require limiting_mag.'
+            )
+
         # convert the mags to fluxes
         # detections
         detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))

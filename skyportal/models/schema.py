@@ -565,7 +565,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
     required_keys = [
         "magsys",
-        "limiting_mag",
         "mjd",
         "filter",
         "obj_id",
@@ -618,9 +617,10 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             "in the magnitude system `magsys`. "
             "Can be given as a scalar or a 1D list. "
             "If a scalar, will be broadcast to all values "
-            "given as lists. Null values not allowed."
+            "given as lists. Required for non-detections (when mag is null)."
         },
-        required=True,
+        required=False,
+        load_default=None,
     )
 
     limiting_mag_nsigma = fields.Raw(
