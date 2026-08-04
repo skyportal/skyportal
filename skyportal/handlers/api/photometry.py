@@ -1250,7 +1250,12 @@ async def insert_new_photometry_data(
 
         # reduce the DB size by ~2x
         keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
-        original_user_data = {key: packet[key] for key in keys if key in packet}
+        original_user_data = {
+            key: packet[key]
+            for key in keys
+            if key in packet
+            and not (isinstance(packet[key], float) and np.isnan(packet[key]))
+        }
         if original_user_data == {}:
             original_user_data = None
 
