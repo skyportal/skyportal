@@ -1,7 +1,6 @@
 import os
 import time
 from io import StringIO
-from typing import Any
 
 import arrow
 import astropy.units as u
@@ -11,9 +10,8 @@ import healpy as hp
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from astropy.io import ascii
+from astropy.io import fits
 from geojson import Feature, Point
-from pydantic import BaseModel, ConfigDict, Field
 from scipy.integrate import quad
 from scipy.stats import norm
 from sqlalchemy import func, nulls_last
@@ -42,62 +40,6 @@ env, cfg = load_env()
 Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
-
-
-class GalaxyCatalogPostBody(BaseModel):
-    """Request body for ingesting a galaxy catalog."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog_name: str | None = Field(default=None, description="Galaxy catalog name.")
-    catalog_description: str | None = Field(
-        default=None, description="Galaxy catalog description."
-    )
-    catalog_url: str | None = Field(default=None, description="Galaxy catalog URL.")
-    catalog_data: dict[str, Any] | None = Field(
-        default=None,
-        description="Galaxy catalog data as a mapping of column name to list of "
-        "values (must include ra, dec, and name).",
-    )
-
-
-class GalaxyASCIIFilePostBody(BaseModel):
-    """Request body for uploading galaxies from an ASCII file."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalogName: str | None = Field(default=None, description="Galaxy catalog name.")
-    catalogDescription: str | None = Field(
-        default=None, description="Galaxy catalog description."
-    )
-    catalogURL: str | None = Field(default=None, description="Galaxy catalog URL.")
-    catalogData: str | None = Field(
-        default=None, description="Catalog data ASCII string."
-    )
-
-
-class GalaxyGladePostBody(BaseModel):
-    """Request body for uploading galaxies from the GLADE+ catalog."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    file_name: str | None = Field(
-        default=None,
-        description="Name of the file containing the galaxies (in the data directory).",
-    )
-    file_url: str | None = Field(
-        default=None, description="URL of the file containing the galaxies."
-    )
-
-
-class ObjHostPostBody(BaseModel):
-    """Request body for setting an object's host galaxy."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    galaxyName: str | None = Field(
-        default=None, description="Name of the galaxy to associate with the object."
-    )
 
 
 def get_galaxies(
@@ -513,13 +455,17 @@ def get_galaxies(
 
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
-    async def post(self, *, body: GalaxyCatalogPostBody = None):
+    async def post(self):
         """
         ---
         summary: Ingest a Galaxy catalog
         description: Ingest a Galaxy catalog
         tags:
           - galaxies
+        requestBody:
+          content:
+            application/json:
+              schema: GalaxyHandlerPost
         responses:
           200:
             content:
@@ -530,11 +476,12 @@ class GalaxyCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        body = self.parse_body(GalaxyCatalogPostBody)
-        catalog_name = body.catalog_name
-        catalog_description = body.catalog_description
-        catalog_url = body.catalog_url
-        catalog_data = body.catalog_data
+
+        data = self.get_json()
+        catalog_name = data.get("catalog_name", None)
+        catalog_description = data.get("catalog_description", None)
+        catalog_url = data.get("catalog_url", None)
+        catalog_data = data.get("catalog_data", None)
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -1034,13 +981,17 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, *, body: GalaxyASCIIFilePostBody = None):
+    async def post(self):
         """
         ---
         summary: Upload galaxies from ASCII file
         description: Upload galaxies from ASCII file
         tags:
           - galaxies
+        requestBody:
+          content:
+            application/json:
+              schema: GalaxyASCIIFileHandlerPost
         responses:
           200:
             content:
@@ -1051,11 +1002,12 @@ class GalaxyASCIIFileHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        body = self.parse_body(GalaxyASCIIFilePostBody)
-        catalog_data = body.catalogData
-        catalog_name = body.catalogName
-        catalog_description = body.catalogDescription
-        catalog_url = body.catalogURL
+
+        json = self.get_json()
+        catalog_data = json.pop("catalogData", None)
+        catalog_name = json.pop("catalogName", None)
+        catalog_description = json.pop("catalogDescription", None)
+        catalog_url = json.pop("catalogURL", None)
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
@@ -1134,281 +1086,241 @@ class GalaxyASCIIFileHandler(BaseHandler):
         return self.success()
 
 
-def add_glade(file_path=None, file_url=None):
-    column_names = [
-        "GLADE_no",
-        "PGC_no",
-        "GWGC_name",
-        "HyperLEDA_name",
-        "2MASS_name",
-        "WISExSCOS_name",
-        "SDSS-DR16Q_name",
-        "Object_type",
-        "RA",
-        "Dec",
-        "B",
-        "B_err",
-        "B_flag",
-        "B_Abs",
-        "J",
-        "J_err",
-        "H",
-        "H_err",
-        "K",
-        "K_err",
-        "W1",
-        "W1_err",
-        "W2",
-        "W2_err",
-        "W1_flag",
-        "B_J",
-        "B_J_err",
-        "z_helio",
-        "z_cmb",
-        "z_flag",
-        "v_err",
-        "z_err",
-        "d_L",
-        "d_L_err",
-        "dist",
-        "Mstar",
-        "Mstar_err",
-        "Mstar_flag",
-        "Merger_rate",
-        "Merger_rate_error",
-    ]
+# Target Galaxy columns written by the bulk-COPY catalog ingesters below. Any
+# column absent from a per-catalog DataFrame is filled with NULL.
+GALAXY_COPY_COLUMNS = (
+    "name",
+    "alt_name",
+    "ra",
+    "dec",
+    "healpix",
+    "distmpc",
+    "distmpc_unc",
+    "redshift",
+    "redshift_error",
+    "sfr_fuv",
+    "sfr_w4",
+    "mstar",
+    "magb",
+    "magk",
+    "mag_fuv",
+    "mag_nuv",
+    "mag_w1",
+    "mag_w2",
+    "mag_w3",
+    "mag_w4",
+    "a",
+    "b2a",
+    "pa",
+    "btc",
+    "catalog_id",
+    "created_at",
+    "modified",
+)
 
-    if file_path is not None:
-        datafile = file_path
-    elif file_url is not None:
-        datafile = file_url
-    else:
-        datafile = "http://elysium.elte.hu/~dalyag/GLADE+.txt"
 
-    if datafile.startswith("http"):
-        log(f"add_glade - Downloading {datafile}")
-    else:
-        log(f"add_glade - Reading {datafile}")
+def _str_col(col):
+    """Return a FITS string column as a stripped numpy unicode array."""
+    arr = np.asarray(col)
+    if arr.dtype.kind == "S":
+        arr = np.char.decode(arr, "utf-8")
+    return np.char.strip(arr.astype("U"))
 
-    # if the GLADE GalaxyCatalog does not exist in the DB yet,
-    # create it first
-    catalog_id = None
+
+def _get_or_create_catalog(name):
+    """Return the id of the GalaxyCatalog with this name, creating it if needed."""
     with DBSession() as session:
         catalog = session.scalar(
-            sa.select(GalaxyCatalog).where(GalaxyCatalog.name == "GLADE")
+            sa.select(GalaxyCatalog).where(GalaxyCatalog.name == name)
         )
         if catalog is None:
-            catalog = GalaxyCatalog(name="GLADE")
+            catalog = GalaxyCatalog(name=name)
             session.add(catalog)
             session.commit()
-        catalog_id = catalog.id
+        return catalog.id
 
-    start_dl_timer = time.perf_counter()
-    tbls = ascii.read(
-        datafile,
-        names=column_names,
-        guess=False,
-        delimiter=" ",
-        format="no_header",
-        fast_reader={"chunk_size": int(10 * 1e7), "chunk_generator": True},  # 100 MB
+
+def _copy_galaxies(df, catalog_id):
+    """Bulk-insert a chunk of galaxies into the galaxys table via PostgreSQL COPY.
+
+    ``df`` holds a subset of GALAXY_COPY_COLUMNS named for the Galaxy model;
+    missing columns become NULL. Rows lacking a name or a valid ra/dec are
+    dropped. Returns ``(n_inserted, n_blueshift)``.
+    """
+    df = df[df["name"].notna() & df["ra"].notna() & df["dec"].notna()].copy()
+    df["name"] = df["name"].astype(str).str.strip()
+    df = df[
+        (df["name"] != "")
+        & (df["ra"] >= 0)
+        & (df["ra"] < 360)
+        & (df["dec"] >= -90)
+        & (df["dec"] <= 90)
+    ]
+    for col in ("distmpc", "distmpc_unc", "redshift_error"):
+        if col in df.columns:
+            df = df[~(df[col] < 0)]
+    if df.empty:
+        return 0, 0
+
+    df["healpix"] = ha.constants.HPX.lonlat_to_healpix(
+        df["ra"].to_numpy() * u.deg, df["dec"].to_numpy() * u.deg
     )
-    if datafile.startswith("http"):
-        end_dl_timer = time.perf_counter()
-        print(
-            f"add_glade - Downloaded {datafile} in {end_dl_timer - start_dl_timer:0.4f} seconds"
-        )
+    df["catalog_id"] = catalog_id
+    utcnow = utcnow_naive().isoformat()
+    df["created_at"] = utcnow
+    df["modified"] = utcnow
+
+    n_blueshift = int((df["redshift"] < 0).sum()) if "redshift" in df.columns else 0
+
+    for col in GALAXY_COPY_COLUMNS:
+        if col not in df.columns:
+            df[col] = None
+    df = df[list(GALAXY_COPY_COLUMNS)]
+
+    # NaN/None -> empty field -> NULL '' in the COPY below (psycopg v3 API).
+    output = StringIO()
+    df.to_csv(output, index=False, sep="\t", header=False, encoding="utf8", na_rep="")
+    connection = DBSession().connection().connection
+    quoted_columns = ", ".join(f'"{c}"' for c in GALAXY_COPY_COLUMNS)
+    copy_sql = (
+        f"COPY galaxys ({quoted_columns}) FROM STDIN "
+        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
+    )
+    with connection.cursor() as cursor:
+        with cursor.copy(copy_sql) as copy:
+            copy.write(output.getvalue())
+    output.close()
+    DBSession().commit()
+    return len(df), n_blueshift
+
+
+def _ingest_fits_catalog(catalog_name, datafile, map_chunk, chunk_size, label):
+    """Stream a FITS galaxy catalog into the galaxys table in chunks via COPY.
+
+    ``map_chunk(sub)`` maps a slice of the FITS binary table to a DataFrame with
+    Galaxy model column names. Returns ``(full_length, full_blueshift_length)``.
+    """
+    log(f"{label} - Reading {datafile}")
+    catalog_id = _get_or_create_catalog(catalog_name)
+
     full_length = 0
     full_blueshift_length = 0
     start_loop_timer = time.perf_counter()
-    for ii, df in enumerate(tbls):
-        try:
-            start_timer = time.perf_counter()
-            df = df.to_pandas()
-            df = df.replace({"null": np.nan})
-            # df['GLADE_name'] = ['GLADE-' + str(n) for n in df['GLADE_no']]
-            # create a GLADE_name column, where names are: GLADE-<GLADE_no> with GLADE_no as a string using pandas
-            df["GLADE_name"] = "GLADE-" + df["GLADE_no"].astype(str)
-            df.rename(
-                columns={
-                    "RA": "ra",
-                    "Dec": "dec",
-                    "GLADE_name": "name",
-                    "Mstar": "mstar",
-                    "K": "magk",
-                    "B": "magb",
-                    "W1": "mag_w1",
-                    "W2": "mag_w2",
-                    "z_helio": "redshift",
-                    "z_err": "redshift_error",
-                    "d_L": "distmpc",
-                    "d_L_err": "distmpc_unc",
-                },
-                inplace=True,
-            )
-
-            float_columns = [
-                "ra",
-                "dec",
-                "mstar",
-                "magk",
-                "magb",
-                "mag_w1",
-                "mag_w2",
-                "mag_w3",
-                "mag_w4",
-                "redshift",
-                "redshift_error",
-                "distmpc",
-                "distmpc_unc",
-            ]
-            for col in float_columns:
-                df[col] = df[col].astype(float)
-
-            drop_columns = list(
-                set(df.columns.values)
-                - {
-                    "ra",
-                    "dec",
-                    "name",
-                    "mstar",
-                    "magk",
-                    "magb",
-                    "redshift",
-                    "redshift_error",
-                    "distmpc",
-                    "distmpc_unc",
-                }
-            )
-
-            df.drop(
-                columns=drop_columns,
-                inplace=True,
-            )
-            df = df.replace({np.nan: None})
-            positive_definite_parameters = [
-                "distmpc",
-                "distmpc_unc",
-                "redshift_error",
-            ]
-            # remove rows where any of the positive definite parameters are negative using pandas
-            for key in positive_definite_parameters:
-                df = df.drop(df.index[df[key] < 0])
-            # if ra, dec or name are missing, remove the row
-            required_columns = ["ra", "dec", "name"]
-            df = df[df[required_columns].notnull().all(axis=1)]
-
-            # fill in any missing optional parameters
-            optional_parameters = [
-                "alt_name",
-                "distmpc",
-                "distmpc_unc",
-                "redshift",
-                "redshift_error",
-                "sfr_fuv",
-                "mstar",
-                "magk",
-                "magb",
-                "mag_fuv",
-                "mag_nuv",
-                "mag_w1",
-                "mag_w2",
-                "mag_w3",
-                "mag_w4",
-                "a",
-                "b2a",
-                "pa",
-                "btc",
-            ]
-
-            # for the optional parameters, if a row is missing a value, fill it in with None
-            for key in optional_parameters:
-                if key not in df.columns.values:
-                    df[key] = None
-            # remove rows with incorrect ra or dec
-            df = df[(df["ra"] >= 0) & (df["ra"] < 360)]
-            df = df[(df["dec"] >= -90) & (df["dec"] <= 90)]
-
-            # the mstar in Glade is in 10^10 M_Sun units, so multiply by 1e10 where its not None
-            df["mstar"] = df["mstar"].apply(
-                lambda x: x * 1e10 if x is not None else None
-            )
-
-            # add a healpix column where healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
-            df["healpix"] = [
-                ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
-                for ra, dec in zip(df["ra"], df["dec"])
-            ]
-
-            df["catalog_id"] = catalog_id
-            utcnow = utcnow_naive().isoformat()
-            df["created_at"] = utcnow
-            df["modified_at"] = utcnow
-            blueshift_length = len(df[(df["redshift"] < 0)])
-            length = len(df)
-            full_length += length
-            full_blueshift_length += blueshift_length
-            columns = (
-                "ra",
-                "dec",
-                "magb",
-                "magk",
-                "redshift",
-                "redshift_error",
-                "distmpc",
-                "distmpc_unc",
-                "mstar",
-                "name",
-                "alt_name",
-                "sfr_fuv",
-                "mag_fuv",
-                "mag_nuv",
-                "mag_w1",
-                "mag_w2",
-                "mag_w3",
-                "mag_w4",
-                "a",
-                "b2a",
-                "pa",
-                "btc",
-                "healpix",
-                "catalog_id",
-                "created_at",
-                "modified",
-            )
-            output = StringIO()
-            df.replace("NaN", "null", inplace=True)
-            df.replace(np.nan, "NaN", inplace=True)
-            df.to_csv(
-                output,
-                index=False,
-                sep="\t",
-                header=False,
-                encoding="utf8",
-                quotechar="'",
-            )
-            output.seek(0)
-            connection = DBSession().connection().connection
-            quoted_columns = ", ".join(f'"{c}"' for c in columns)
-            copy_sql = (
-                f"COPY galaxys ({quoted_columns}) FROM STDIN "
-                "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
-            )
-            with connection.cursor() as cursor:
-                with cursor.copy(copy_sql) as copy:
-                    copy.write(output.getvalue())
-            output.close()
-            DBSession().commit()
-            end_timer = time.perf_counter()
-            log(
-                f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
-            )
-        except Exception as e:
-            log(f"add_glade - File part {ii}: Error: {e}")
-            continue
+    with fits.open(datafile, memmap=True) as hdul:
+        data = hdul[1].data
+        nrows = len(data)
+        for start in range(0, nrows, chunk_size):
+            try:
+                start_timer = time.perf_counter()
+                sub = data[start : start + chunk_size]
+                df = map_chunk(sub)
+                length, blueshift_length = _copy_galaxies(df, catalog_id)
+                full_length += length
+                full_blueshift_length += blueshift_length
+                log(
+                    f"{label} - rows {start}-{start + len(sub)}: added {length} "
+                    f"galaxies (including {blueshift_length} with a negative "
+                    f"redshift) in {time.perf_counter() - start_timer:0.2f} s"
+                )
+            except Exception as e:
+                DBSession().rollback()
+                log(f"{label} - chunk at row {start}: Error: {e}")
+                continue
     log(
-        f"add_glade - Added a total of {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database in {time.perf_counter() - start_loop_timer:0.4f} seconds"
+        f"{label} - Added a total of {full_length} galaxies (including "
+        f"{full_blueshift_length} with a negative redshift) to the database in "
+        f"{time.perf_counter() - start_loop_timer:0.2f} s"
     )
     return full_length, full_blueshift_length
+
+
+def _regalade_chunk(sub):
+    """Map a REGALADE FITS chunk to Galaxy model columns."""
+    r1 = np.asarray(sub["R1"], dtype=np.float64)
+    r2 = np.asarray(sub["R2"], dtype=np.float64)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        b2a = np.where(r1 > 0, r2 / r1, np.nan)
+    return pd.DataFrame(
+        {
+            "name": _str_col(sub["name"]),
+            "ra": np.asarray(sub["gal_ra"], dtype=np.float64),
+            "dec": np.asarray(sub["gal_dec"], dtype=np.float64),
+            "distmpc": np.asarray(sub["D"], dtype=np.float64),
+            "distmpc_unc": np.asarray(sub["D_err"], dtype=np.float64),
+            "redshift": np.asarray(sub["z"], dtype=np.float64),
+            # logM is log10(Mstar); store linear Msol (get_galaxies_completeness
+            # takes log10 of the stored value).
+            "mstar": 10 ** np.asarray(sub["logM"], dtype=np.float64),
+            "mag_w1": np.asarray(sub["W1mag"], dtype=np.float64),
+            "mag_w2": np.asarray(sub["W2mag"], dtype=np.float64),
+            # R1/R2 carry no unit in the header; stored as-is (semi-major axis).
+            "a": r1,
+            "b2a": b2a,
+            "pa": np.asarray(sub["PA"], dtype=np.float64),
+        }
+    )
+
+
+def add_regalade(file_path=None, file_url=None):
+    """Ingest the REGALADE galaxy catalog (FITS) into the galaxys table."""
+    datafile = file_path or file_url
+    if datafile is None:
+        log("add_regalade - No file provided")
+        return 0, 0
+    return _ingest_fits_catalog(
+        "REGALADE", datafile, _regalade_chunk, 1_000_000, "add_regalade"
+    )
+
+
+def _ned_chunk(sub):
+    """Map a NEDLVS FITS chunk to Galaxy model columns."""
+    zidist = np.asarray(sub["ziDist"], dtype=np.float64)
+    zidist_unc = np.asarray(sub["ziDist_unc"], dtype=np.float64)
+    distmpc = np.asarray(sub["DistMpc"], dtype=np.float64)
+    distmpc_unc = np.asarray(sub["DistMpc_unc"], dtype=np.float64)
+    # Prefer the redshift-independent distance, fall back to DistMpc. NED stores
+    # 0.0 where no distance is available, so treat 0.0 as missing (-> NULL).
+    use_zi = ~np.isnan(zidist) & (zidist != 0.0)
+    dist = np.where(use_zi, zidist, distmpc)
+    dist_unc = np.where(use_zi, zidist_unc, distmpc_unc)
+    dist_unc = np.where(dist == 0.0, np.nan, dist_unc)
+    dist = np.where(dist == 0.0, np.nan, dist)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        # Mstar is linear Msol; store as-is.
+        mstar = np.asarray(sub["Mstar"], dtype=np.float64)
+    return pd.DataFrame(
+        {
+            "name": _str_col(sub["objname"]),
+            "ra": np.asarray(sub["ra"], dtype=np.float64),
+            "dec": np.asarray(sub["dec"], dtype=np.float64),
+            "redshift": np.asarray(sub["z"], dtype=np.float64),
+            "redshift_error": np.asarray(sub["z_unc"], dtype=np.float64),
+            "distmpc": dist,
+            "distmpc_unc": dist_unc,
+            "mstar": mstar,
+            "magk": np.asarray(sub["m_Ks"], dtype=np.float64),
+            "mag_fuv": np.asarray(sub["m_FUV"], dtype=np.float64),
+            "mag_nuv": np.asarray(sub["m_NUV"], dtype=np.float64),
+            "mag_w1": np.asarray(sub["m_W1"], dtype=np.float64),
+            "mag_w2": np.asarray(sub["m_W2"], dtype=np.float64),
+            "mag_w3": np.asarray(sub["m_W3"], dtype=np.float64),
+            "mag_w4": np.asarray(sub["m_W4"], dtype=np.float64),
+            "sfr_w4": np.asarray(sub["SFR_W4"], dtype=np.float64),
+            # Diam is a diameter [arcsec]; Galaxy.a is the semi-major axis.
+            "a": np.asarray(sub["Diam"], dtype=np.float64) / 2.0,
+            "b2a": np.asarray(sub["Diam_ba"], dtype=np.float64),
+            "pa": np.asarray(sub["Diam_pa"], dtype=np.float64),
+        }
+    )
+
+
+def add_ned(file_path=None, file_url=None):
+    """Ingest the NEDLVS galaxy catalog (FITS) into the galaxys table."""
+    datafile = file_path or file_url
+    if datafile is None:
+        log("add_ned - No file provided")
+        return 0, 0
+    return _ingest_fits_catalog("NEDLVS", datafile, _ned_chunk, 500_000, "add_ned")
 
 
 def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_max=12):
@@ -1448,15 +1360,63 @@ def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_m
     return completeness
 
 
-class GalaxyGladeHandler(BaseHandler):
+def _resolve_fits_source(data, default_name):
+    """Resolve (file_path, file_url) for a FITS catalog upload request.
+
+    Raises ValueError on a bad request. Falls back to ``default_name`` in the
+    data directory; file_path is None if that default is absent.
+    """
+    if "file_name" in data:
+        if not data["file_name"].endswith(".fits"):
+            raise ValueError("Catalog's file type is incorrect. Must be .fits.")
+        file_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "../../../data",
+            data["file_name"],
+        )
+        if not os.path.isfile(file_path):
+            raise ValueError("File does not exist.")
+        return file_path, None
+    if "file_url" in data:
+        file_url = data["file_url"]
+        if not file_url.endswith(".fits"):
+            raise ValueError(
+                "Catalog's url points to an incorrect file type. Must be .fits."
+            )
+        if not file_url.startswith("http"):
+            raise ValueError("Catalog's file URL is incorrect.")
+        return None, file_url
+    file_path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        "../../../data",
+        default_name,
+    )
+    if not os.path.isfile(file_path):
+        file_path = None
+    return file_path, None
+
+
+class GalaxyRegaladeHandler(BaseHandler):
     @permissions(["System Admin"])
-    async def post(self, *, body: GalaxyGladePostBody = None):
+    async def post(self):
         """
         ---
-        summary: Upload galaxies from GLADE+ catalog
-        description: Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
+        summary: Upload galaxies from the REGALADE catalog
+        description: Upload galaxies from the REGALADE catalog (FITS). If no file_name or file_url is provided, looks for regalade_v2.fits in the data directory.
         tags:
           - galaxies
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                    file_name:
+                        type: string
+                        description: Name of the .fits file containing the galaxies (in the data directory)
+                    file_url:
+                        type: string
+                        description: URL of the .fits file containing the galaxies
         responses:
           200:
             content:
@@ -1467,51 +1427,80 @@ class GalaxyGladeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        body = self.parse_body(GalaxyGladePostBody)
 
-        def add_glade_and_notify(file_path=None, file_url=None):
-            full_length, full_blueshift_length = add_glade(file_path, file_url)
+        def add_regalade_and_notify(file_path=None, file_url=None):
+            full_length, full_blueshift_length = add_regalade(file_path, file_url)
             self.push(
-                f"Added {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database"
+                f"Added {full_length} REGALADE galaxies (including {full_blueshift_length} with a negative redshift) to the database"
             )
 
         try:
-            file_name = None
-            file_url = None
-            if "file_name" in body.model_fields_set:
-                file_name = body.file_name
-                if not file_name.endswith(".txt"):
-                    return self.error("Catalog's file type is incorrect. Must be .txt.")
-                file_path = os.path.join(
-                    os.path.dirname(os.path.realpath(__file__)),
-                    "../../../data",
-                    file_name,
-                )
-                if not os.path.isfile(file_path):
-                    return self.error("File does not exist.")
-                file_url = file_path
-            elif "file_url" in body.model_fields_set:
-                file_url = body.file_url
-                if not file_url.endswith(".txt"):
-                    return self.error(
-                        "Catalog's url points to an incorrect file type. Must be .txt."
-                    )
-                if not file_url.startswith("http"):
-                    return self.error("Catalog's file URL is incorrect.")
-            else:
-                file_path = os.path.join(
-                    os.path.dirname(os.path.realpath(__file__)),
-                    "../../../data",
-                    "GLADE+.txt",
-                )
-                if not os.path.isfile(file_path):
-                    file_path = None
+            file_path, file_url = _resolve_fits_source(
+                self.get_json(), "regalade_v2.fits"
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
+        try:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_glade_and_notify(file_path=file_path, file_url=file_url),
+                lambda: add_regalade_and_notify(file_path=file_path, file_url=file_url),
+            )
+            return self.success()
+        except Exception as e:
+            return self.error(str(e))
+
+
+class GalaxyNEDHandler(BaseHandler):
+    @permissions(["System Admin"])
+    async def post(self):
+        """
+        ---
+        summary: Upload galaxies from the NEDLVS catalog
+        description: Upload galaxies from the NEDLVS catalog (FITS). If no file_name or file_url is provided, looks for NEDLVS_20260424.fits in the data directory.
+        tags:
+          - galaxies
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                    file_name:
+                        type: string
+                        description: Name of the .fits file containing the galaxies (in the data directory)
+                    file_url:
+                        type: string
+                        description: URL of the .fits file containing the galaxies
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        def add_ned_and_notify(file_path=None, file_url=None):
+            full_length, full_blueshift_length = add_ned(file_path, file_url)
+            self.push(
+                f"Added {full_length} NEDLVS galaxies (including {full_blueshift_length} with a negative redshift) to the database"
             )
 
+        try:
+            file_path, file_url = _resolve_fits_source(
+                self.get_json(), "NEDLVS_20260424.fits"
+            )
+        except ValueError as e:
+            return self.error(str(e))
+
+        try:
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_ned_and_notify(file_path=file_path, file_url=file_url),
+            )
             return self.success()
         except Exception as e:
             return self.error(str(e))
@@ -1519,7 +1508,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, obj_id: str, *, body: ObjHostPostBody = None):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Set an object's host galaxy
@@ -1533,6 +1522,18 @@ class ObjHostHandler(BaseHandler):
             required: true
             schema:
               type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  galaxyName:
+                    type: string
+                    description: |
+                      Name of the galaxy to associate with the object
+                required:
+                  - galaxyName
         responses:
           200:
             content:
@@ -1543,9 +1544,10 @@ class ObjHostHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        body = self.parse_body(ObjHostPostBody)
 
-        name = body.galaxyName
+        data = self.get_json()
+
+        name = data.get("galaxyName")
         if name is None:
             return self.error("galaxyName required to set object host")
 

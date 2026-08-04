@@ -2454,7 +2454,14 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfScanReports"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                reports?: components["schemas"]["ScanReport"][];
+                                totalMatches?: number;
+                                pageNumber?: number;
+                                numPerPage?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -2493,6 +2500,17 @@ export interface paths {
                              */
                             end_date?: string;
                         };
+                        /**
+                         * @description Alternative to passed_filters_range: a rolling window of this
+                         *     many hours ending now. Ignored if passed_filters_range is given.
+                         *     Lets a recurring caller generate reports on a schedule.
+                         */
+                        passed_filters_window_hours?: number;
+                        /**
+                         * @description Alternative to saved_candidates_range: a rolling window of this
+                         *     many hours ending now. Ignored if saved_candidates_range is given.
+                         */
+                        saved_candidates_window_hours?: number;
                     };
                 };
             };
@@ -4968,7 +4986,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/galaxy_catalog/glade": {
+    "/api/galaxy_catalog/regalade": {
         parameters: {
             query?: never;
             header?: never;
@@ -4978,8 +4996,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload galaxies from GLADE+ catalog
-         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
+         * Upload galaxies from the REGALADE catalog
+         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from the REGALADE catalog (FITS). If no file_name or file_url is provided, looks for regalade_v2.fits in the data directory.
          */
         post: {
             parameters: {
@@ -4988,9 +5006,69 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["GalaxyGladePostBody"];
+                    "application/json": {
+                        /** @description Name of the .fits file containing the galaxies (in the data directory) */
+                        file_name?: string;
+                        /** @description URL of the .fits file containing the galaxies */
+                        file_url?: string;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/galaxy_catalog/ned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload galaxies from the NEDLVS catalog
+         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from the NEDLVS catalog (FITS). If no file_name or file_url is provided, looks for NEDLVS_20260424.fits in the data directory.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Name of the .fits file containing the galaxies (in the data directory) */
+                        file_name?: string;
+                        /** @description URL of the .fits file containing the galaxies */
+                        file_url?: string;
+                    };
                 };
             };
             responses: {
@@ -5038,9 +5116,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["GalaxyASCIIFilePostBody"];
+                    "application/json": components["schemas"]["GalaxyASCIIFileHandlerPost"];
                 };
             };
             responses: {
@@ -5244,9 +5322,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["GalaxyCatalogPostBody"];
+                    "application/json": components["schemas"]["GalaxyHandlerPost"];
                 };
             };
             responses: {
@@ -15599,9 +15677,12 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["ObjHostPostBody"];
+                    "application/json": {
+                        /** @description Name of the galaxy to associate with the object */
+                        galaxyName: string;
+                    };
                 };
             };
             responses: {
@@ -37923,85 +38004,39 @@ export interface components {
              */
             stream_id: number | null;
         };
-        /**
-         * GalaxyGladePostBody
-         * @description Request body for uploading galaxies from the GLADE+ catalog.
-         */
-        GalaxyGladePostBody: {
+        GalaxyASCIIFileHandlerPost: {
+            /** @description Galaxy catalog name. */
+            catalogName: string;
             /**
-             * File Name
-             * @description Name of the file containing the galaxies (in the data directory).
-             * @default null
-             */
-            file_name: string | null;
-            /**
-             * File Url
-             * @description URL of the file containing the galaxies.
-             * @default null
-             */
-            file_url: string | null;
-        };
-        /**
-         * GalaxyASCIIFilePostBody
-         * @description Request body for uploading galaxies from an ASCII file.
-         */
-        GalaxyASCIIFilePostBody: {
-            /**
-             * Catalogname
-             * @description Galaxy catalog name.
-             * @default null
-             */
-            catalogName: string | null;
-            /**
-             * Catalogdescription
              * @description Galaxy catalog description.
              * @default null
              */
             catalogDescription: string | null;
             /**
-             * Catalogurl
              * @description Galaxy catalog URL.
              * @default null
              */
             catalogURL: string | null;
-            /**
-             * Catalogdata
-             * @description Catalog data ASCII string.
-             * @default null
-             */
-            catalogData: string | null;
+            /** @description Catalog data Ascii string */
+            catalogData: string;
         };
-        /**
-         * GalaxyCatalogPostBody
-         * @description Request body for ingesting a galaxy catalog.
-         */
-        GalaxyCatalogPostBody: {
+        GalaxyHandlerPost: {
+            /** @description Galaxy catalog name. */
+            catalog_name: string;
             /**
-             * Catalog Name
-             * @description Galaxy catalog name.
-             * @default null
-             */
-            catalog_name: string | null;
-            /**
-             * Catalog Description
              * @description Galaxy catalog description.
              * @default null
              */
             catalog_description: string | null;
             /**
-             * Catalog Url
              * @description Galaxy catalog URL.
              * @default null
              */
             catalog_url: string | null;
-            /**
-             * Catalog Data
-             * @description Galaxy catalog data as a mapping of column name to list of values (must include ra, dec, and name).
-             * @default null
-             */
+            /** @description Galaxy catalog data */
             catalog_data: {
                 [key: string]: unknown;
-            } | null;
+            }[];
         };
         /**
          * CommentAttachment
@@ -39093,18 +39128,6 @@ export interface components {
             localization_id: number;
             /** @description Integrated probability within skymap. */
             integrated_probability?: number;
-        };
-        /**
-         * ObjHostPostBody
-         * @description Request body for setting an object's host galaxy.
-         */
-        ObjHostPostBody: {
-            /**
-             * Galaxyname
-             * @description Name of the galaxy to associate with the object.
-             * @default null
-             */
-            galaxyName: string | null;
         };
         /**
          * ObjClassificationDeleteBody

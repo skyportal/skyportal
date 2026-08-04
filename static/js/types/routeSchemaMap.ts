@@ -35,7 +35,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/analysis_service/{analysis_service_id}/default_analysis/{default_analysis_id}": { schema: "DefaultAnalysis" as const, list: false },
   "GET /api/assignment": { schema: "ClassicalAssignment" as const, list: true },
   "GET /api/assignment/{assignment_id}": { schema: "ClassicalAssignment" as const, list: false },
-  "GET /api/candidates/scan_reports": { schema: "ScanReport" as const, list: true },
+  "GET /api/candidates/scan_reports": { schema: "ScanReport" as const, list: true, wrapper: "reports" as const },
   "GET /api/candidates/scan_reports/{report_id}/items/{_}": { schema: "ScanReportItem" as const, list: true },
   "GET /api/candidates/{obj_id}": { schema: "Obj" as const, list: false },
   "GET /api/classification": { schema: "Classification" as const, list: true, wrapper: "sources" as const },

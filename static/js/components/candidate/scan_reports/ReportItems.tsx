@@ -78,6 +78,8 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
+            <FieldTitle>observing run / priority</FieldTitle>
+            <FieldTitle>detections (survey)</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
@@ -173,16 +175,57 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                   {reportItem.data.followups?.map(
                     (followup: any, index: number) => (
                       <Tooltip
-                        title={`${followup.instrument}: ${followup.priority}`}
+                        title={`${followup.instrument} (${followup.type}): ${followup.priority}${
+                          followup.status ? ` — ${followup.status}` : ""
+                        }${followup.requester ? ` — by ${followup.requester}` : ""}`}
                         key={index}
                       >
                         <Chip
-                          label={`${followup.instrument}: ${followup.priority}`}
+                          label={`${followup.instrument} (${followup.type}): ${followup.priority}`}
                           size="small"
                         />
                       </Tooltip>
                     ),
                   )}
+                </Field>
+                <Field>
+                  {reportItem.data.assignments?.map(
+                    (assignment: any, index: number) => (
+                      <Tooltip
+                        title={`${assignment.instrument}${
+                          assignment.run_date ? ` (${assignment.run_date})` : ""
+                        }: ${assignment.priority}${
+                          assignment.status ? ` — ${assignment.status}` : ""
+                        }${
+                          assignment.requester
+                            ? ` — by ${assignment.requester}`
+                            : ""
+                        }`}
+                        key={index}
+                      >
+                        <Chip
+                          label={`${assignment.instrument}: ${assignment.priority}`}
+                          size="small"
+                        />
+                      </Tooltip>
+                    ),
+                  )}
+                </Field>
+                <Field>
+                  {reportItem.data.detections_by_survey &&
+                    Object.entries(reportItem.data.detections_by_survey).map(
+                      ([survey, det]: [string, any]) => (
+                        <Tooltip
+                          key={survey}
+                          title={`${survey} — first: ${det.first.mag} mag, ${det.first.days_ago}d ago; peak: ${det.peak.mag} mag, ${det.peak.days_ago}d ago`}
+                        >
+                          <Chip
+                            label={`${survey}: first ${det.first.mag} (${det.first.days_ago}d), peak ${det.peak.mag} (${det.peak.days_ago}d)`}
+                            size="small"
+                          />
+                        </Tooltip>
+                      ),
+                    )}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
