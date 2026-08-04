@@ -219,6 +219,9 @@ async def _ingest_object(
     cutouts : dict, optional
         ``{cutoutScience, cutoutTemplate, cutoutDifference}`` FITS payloads, if
         the provider supplies them, rendered into science/template/diff thumbnails.
+    annotations_by_filter_id : dict, optional
+        Maps a skyportal Filter id to the annotation data its pipeline produced,
+        written as a filter annotation (origin ``"{group}:{filter}"``) on the obj.
     """
     import sqlalchemy as sa
     from sqlalchemy.orm import joinedload
@@ -316,6 +319,8 @@ async def _ingest_object(
         ).all()
         for filt in filters:
             group = filt.group
+            # origin matches the legacy broker-plugin format so new annotations
+            # group with the historical ones.
             group_name = (group.nickname or group.name) if group else None
             origin = f"{group_name}:{filt.name}"
             existing = await session.scalar(
