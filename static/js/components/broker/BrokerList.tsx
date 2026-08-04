@@ -33,6 +33,7 @@ import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import {
@@ -118,8 +119,16 @@ const COLUMNS = [
 ];
 
 const DEFAULT_TOGGLES = [
-  { field: "default_alert_search", capability: "query_alerts" },
-  { field: "default_crossmatch", capability: "cone_search" },
+  {
+    field: "default_alert_search",
+    capability: "query_alerts",
+    unsupported: "This broker does not support alert search.",
+  },
+  {
+    field: "default_crossmatch",
+    capability: "cross_match_catalogs",
+    unsupported: "This broker does not support catalog cross-match.",
+  },
 ] as const;
 
 // Admin/config view for every broker (searchable AND ingestion-only), where any
@@ -306,25 +315,39 @@ const BrokerList = () => {
                         }
                       />
                     </TableCell>
-                    {DEFAULT_TOGGLES.map(({ field, capability }) => (
-                      <TableCell
-                        key={field}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Radio
-                          size="small"
-                          checked={Boolean(b[field])}
-                          disabled={
-                            !isSystemAdmin ||
-                            !b.active ||
-                            !b.capabilities?.[capability]
-                          }
-                          onChange={() =>
-                            updateBroker({ id: b.id, patch: { [field]: true } })
-                          }
-                        />
-                      </TableCell>
-                    ))}
+                    {DEFAULT_TOGGLES.map(
+                      ({ field, capability, unsupported }) => {
+                        const reason = !b.capabilities?.[capability]
+                          ? unsupported
+                          : !b.active
+                            ? "Activate this broker to make it the default."
+                            : !isSystemAdmin
+                              ? "Only system admins can change the defaults."
+                              : "";
+                        return (
+                          <TableCell
+                            key={field}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Tooltip title={reason}>
+                              <span>
+                                <Radio
+                                  size="small"
+                                  checked={Boolean(b[field])}
+                                  disabled={Boolean(reason)}
+                                  onChange={() =>
+                                    updateBroker({
+                                      id: b.id,
+                                      patch: { [field]: true },
+                                    })
+                                  }
+                                />
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        );
+                      },
+                    )}
                     <TableCell
                       align="right"
                       onClick={(e) => e.stopPropagation()}

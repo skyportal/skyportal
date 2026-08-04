@@ -148,11 +148,47 @@ def test_activation_checks_credentials(super_admin_token):
         api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
 
 
+def test_default_requires_the_capability(super_admin_token):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200, data
+    generic_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"default_crossmatch": True},
+            token=super_admin_token,
+        )
+        assert status == 400, data
+        assert "cross_match_catalogs" in data["message"]
+
+        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
+        assert data["data"]["default_crossmatch"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"default_alert_search": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+    finally:
+        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+
+
 def test_broker_defaults_are_exclusive(super_admin_token):
     status, data = api(
         "POST",
         "brokers",
-        data=_broker_payload(default_alert_search=True, default_crossmatch=True),
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test"},
+            default_alert_search=True,
+            default_crossmatch=True,
+        ),
         token=super_admin_token,
     )
     assert status == 200, data

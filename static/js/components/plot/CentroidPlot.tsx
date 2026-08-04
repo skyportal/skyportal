@@ -342,10 +342,11 @@ const CentroidPlot = ({
   // advertise cone_search too but return their own alert objects (and rate-limit),
   // so gate on the cross_match_catalogs capability, not "first cone_search".
   const { data: brokers } = useGetBrokersQuery();
-  const activeBrokers = (brokers ?? []).filter((b: any) => b.active);
+  const catalogBrokers = (brokers ?? []).filter(
+    (b: any) => b.active && b.capabilities?.cross_match_catalogs,
+  );
   const coneSearchBrokerId = (
-    activeBrokers.find((b: any) => b.default_crossmatch) ??
-    activeBrokers.find((b: any) => b.capabilities?.cross_match_catalogs)
+    catalogBrokers.find((b: any) => b.default_crossmatch) ?? catalogBrokers[0]
   )?.id;
   const [triggerConeSearch, { data: crossMatches }] =
     useLazyGetBrokerConeSearchQuery();
