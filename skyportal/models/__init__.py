@@ -1,6 +1,17 @@
 # Baselayer models
 from baselayer.app.models import *
 
+
+def get_db_engine():
+    """The SQLAlchemy engine that DBSession is bound to.
+
+    A readable accessor so callers that need a one-off sync Session can write
+    ``Session(bind=get_db_engine())`` instead of reaching into
+    ``DBSession.session_factory`` internals.
+    """
+    return DBSession.session_factory.kw["bind"]
+
+
 # SkyPortal models
 from .allocation import *
 from .analysis import *

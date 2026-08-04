@@ -15,9 +15,9 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
-    DBSession,
     Obj,
     User,
+    get_db_engine,
 )
 from ..base import BaseHandler
 
@@ -174,7 +174,7 @@ def query_mpc(obj_id, user_id, url):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     log(f"Querying MPC for {obj_id}: {url}")
 

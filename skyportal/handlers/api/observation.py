@@ -33,7 +33,6 @@ from baselayer.log import make_log
 
 from ...models import (
     Allocation,
-    DBSession,
     ExecutedObservation,
     GcnEvent,
     Group,
@@ -46,6 +45,7 @@ from ...models import (
     SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
     Telescope,
+    get_db_engine,
 )
 from ...models.schema import ObservationExternalAPIHandlerPost
 from ...utils.cache import Cache
@@ -92,7 +92,7 @@ def add_queued_observations(instrument_id, obstable):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     # Schedulers that report pointings by position (e.g. Rubin ObsLocTAP) rather
     # than a fixed field grid: create the fields on the fly, as add_observations does.
@@ -175,7 +175,7 @@ def add_observations(instrument_id, obstable):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     # if the fields do not yet exist, we need to add them
     if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
@@ -2472,7 +2472,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             instrument_id_final = instrument.id
 
             def _run_simsurvey():
-                sync_session = Session(bind=DBSession.session_factory.kw["bind"])
+                sync_session = Session(bind=get_db_engine())
                 try:
                     sync_session.user_or_token = self.current_user
                     retrieve_observations_and_simsurvey(

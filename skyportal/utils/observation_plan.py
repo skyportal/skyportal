@@ -343,7 +343,6 @@ def generate_plan(
     from skyportal.handlers.api.instrument import add_tiles
 
     from ..models import (
-        DBSession,
         EventObservationPlan,
         InstrumentField,
         InstrumentFieldTile,
@@ -351,13 +350,14 @@ def generate_plan(
         ObservationPlanRequest,
         PlannedObservation,
         User,
+        get_db_engine,
     )
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     plans, requests = [], []
     observation_plan_id_strings = [str(x) for x in observation_plan_ids]

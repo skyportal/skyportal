@@ -5,7 +5,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ...models import DBSession, GcnReport
+from ...models import GcnReport, get_db_engine
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
@@ -56,7 +56,7 @@ class ReportHandler(BaseHandler):
                 if Session.registry.has():
                     session = Session()
                 else:
-                    session = Session(bind=DBSession.session_factory.kw["bind"])
+                    session = Session(bind=get_db_engine())
 
                 # if report_type == "gcn":
                 report = session.scalar(
@@ -84,7 +84,7 @@ class ReportHandler(BaseHandler):
             if Session.registry.has():
                 session = Session()
             else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
+                session = Session(bind=get_db_engine())
 
             if report_type == "gcn":
                 reports = session.scalars(
