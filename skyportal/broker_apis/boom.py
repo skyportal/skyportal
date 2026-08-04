@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -438,6 +439,22 @@ class BOOMBROKER(BrokerAPI):
                     if f.get("filter_id") in boom_map
                 ]
                 filter_ids = passed or default_filter_ids
+
+                # Carry each passing filter's annotations (a JSON string from BOOM)
+                # through to the ingest so it becomes a filter annotation on the obj.
+                annotations_by_filter_id = {}
+                for f in record.get("filters") or []:
+                    fid = boom_map.get(f.get("filter_id"))
+                    if fid is None:
+                        continue
+                    ann = f.get("annotations")
+                    if isinstance(ann, str):
+                        try:
+                            ann = json.loads(ann)
+                        except (json.JSONDecodeError, TypeError):
+                            ann = None
+                    if ann:
+                        annotations_by_filter_id[fid] = ann
                 cutouts = {
                     k: record[k]
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
@@ -454,6 +471,7 @@ class BOOMBROKER(BrokerAPI):
                             filter_ids,
                             passing_alert_id=record.get("candid"),
                             cutouts=cutouts,
+                            annotations_by_filter_id=annotations_by_filter_id,
                         )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")

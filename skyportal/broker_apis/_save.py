@@ -200,6 +200,7 @@ async def _ingest_object(
     filter_ids=None,
     passing_alert_id=None,
     cutouts=None,
+    annotations_by_filter_id=None,
 ):
     """Create/refresh an Obj for ``data`` (a standard alert object), attach it to
     groups (as a Source) and/or filters (as a Candidate), and ingest its
@@ -220,9 +221,10 @@ async def _ingest_object(
         the provider supplies them, rendered into science/template/diff thumbnails.
     """
     import sqlalchemy as sa
+    from sqlalchemy.orm import joinedload
 
     from ..handlers.api.photometry import add_external_photometry
-    from ..models import Candidate, Group, Instrument, Obj, Source
+    from ..models import Annotation, Candidate, Filter, Group, Instrument, Obj, Source
     from ..utils.naive_datetime import utcnow_naive
 
     object_id = data["objectId"]
@@ -296,6 +298,44 @@ async def _ingest_object(
     if created or filter_ids:
         await session.flush()
 
+    # Attach each passing filter's annotation (origin "{group}:{filter}"), scoped to
+    # the filter's group so its scanners can see it. Upsert on the (obj_id, origin)
+    # unique key so a re-pass refreshes the data instead of raising.
+    annotated = {
+        fid: annotations_by_filter_id[fid]
+        for fid in filter_ids or []
+        if (annotations_by_filter_id or {}).get(fid)
+    }
+    if annotated:
+        filters = (
+            await session.scalars(
+                sa.select(Filter)
+                .options(joinedload(Filter.group))
+                .where(Filter.id.in_(annotated))
+            )
+        ).all()
+        for filt in filters:
+            group = filt.group
+            group_name = (group.nickname or group.name) if group else None
+            origin = f"{group_name}:{filt.name}"
+            existing = await session.scalar(
+                sa.select(Annotation).where(
+                    Annotation.obj_id == object_id, Annotation.origin == origin
+                )
+            )
+            if existing is None:
+                session.add(
+                    Annotation(
+                        obj=obj,
+                        origin=origin,
+                        data=annotated[filt.id],
+                        author_id=user.id,
+                        groups=[group] if group else [],
+                    )
+                )
+            else:
+                existing.data = annotated[filt.id]
+
     photometry_data = build_photometry_groups(
         object_id, survey, data, instrument_id, programid2streamid
     )
@@ -327,10 +367,20 @@ async def save_object_as_source(data, survey, session, user, group_ids, cutouts=
 
 
 async def save_object_as_candidate(
-    data, survey, session, user, filter_ids, passing_alert_id=None, cutouts=None
+    data,
+    survey,
+    session,
+    user,
+    filter_ids,
+    passing_alert_id=None,
+    cutouts=None,
+    annotations_by_filter_id=None,
 ):
     """Ingestion save: create/refresh an Obj, register it as a Candidate under each
-    of ``filter_ids`` (deduped on ``passing_alert_id``), and ingest photometry."""
+    of ``filter_ids`` (deduped on ``passing_alert_id``), and ingest photometry.
+
+    ``annotations_by_filter_id`` maps a skyportal Filter id to the annotation data
+    that filter's pipeline produced, written as a filter annotation on the obj."""
     return await _ingest_object(
         data,
         survey,
@@ -339,4 +389,5 @@ async def save_object_as_candidate(
         filter_ids=filter_ids,
         passing_alert_id=passing_alert_id,
         cutouts=cutouts,
+        annotations_by_filter_id=annotations_by_filter_id,
     )
