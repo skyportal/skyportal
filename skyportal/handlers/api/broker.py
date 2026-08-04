@@ -62,11 +62,23 @@ def merge_altdata(stored, incoming):
     return merged
 
 
-DEFAULT_FIELDS = ("default_alert_search", "default_crossmatch")
+DEFAULT_FIELDS = {
+    "default_alert_search": "query_alerts",
+    "default_crossmatch": "cross_match_catalogs",
+}
 
 
 def set_default(session, broker, field, value):
-    """Make ``broker`` the one holding ``field``, clearing it everywhere else."""
+    """Make ``broker`` the one holding ``field``, clearing it everywhere else.
+
+    Raises ``ValueError`` if the provider cannot serve what the default targets.
+    """
+    capability = DEFAULT_FIELDS[field]
+    if value and not broker.broker_class.implements()[capability]:
+        raise ValueError(
+            f"{broker.name} does not implement '{capability}' and cannot be the "
+            f"'{field}' broker."
+        )
     if value:
         session.execute(
             sa.update(Broker)
@@ -185,7 +197,10 @@ class BrokerHandler(BaseHandler):
             session.flush()
             for field in DEFAULT_FIELDS:
                 if data.get(field):
-                    set_default(session, broker, field, True)
+                    try:
+                        set_default(session, broker, field, True)
+                    except ValueError as e:
+                        return self.error(str(e))
             session.commit()
             return self.success(data={"id": broker.id})
 
@@ -312,7 +327,10 @@ class BrokerHandler(BaseHandler):
                     )
             for field in DEFAULT_FIELDS:
                 if field in data:
-                    set_default(session, broker, field, bool(data[field]))
+                    try:
+                        set_default(session, broker, field, bool(data[field]))
+                    except ValueError as e:
+                        return self.error(str(e))
 
             session.commit()
             return self.success()
@@ -1521,7 +1539,7 @@ MAX_FILTERS_PER_PAGE = 100
 
 class BrokerFilterCatalogHandler(BaseHandler):
     @auth_or_token
-    def get(self, filter_id=None):
+    def get(self):
         """
         ---
         summary: List filters and their broker
@@ -1581,19 +1599,26 @@ class BrokerFilterCatalogHandler(BaseHandler):
         group_id = self.get_query_argument("groupID", None)
         stream_id = self.get_query_argument("streamID", None)
         broker_id = self.get_query_argument("brokerID", None)
+        try:
+            group_id = int(group_id) if group_id else None
+            stream_id = int(stream_id) if stream_id else None
+            if broker_id and broker_id != "none":
+                broker_id = int(broker_id)
+        except ValueError:
+            return self.error("groupID, streamID and brokerID must be integers.")
 
         with self.Session() as session:
             stmt = Filter.select(self.current_user).distinct()
             if broker_id == "none":
                 stmt = stmt.where(Filter.broker_id.is_(None))
             elif broker_id:
-                stmt = stmt.where(Filter.broker_id == int(broker_id))
+                stmt = stmt.where(Filter.broker_id == broker_id)
             if name:
                 stmt = stmt.where(Filter.name.ilike(f"%{name}%"))
             if group_id:
-                stmt = stmt.where(Filter.group_id == int(group_id))
+                stmt = stmt.where(Filter.group_id == group_id)
             if stream_id:
-                stmt = stmt.where(Filter.stream_id == int(stream_id))
+                stmt = stmt.where(Filter.stream_id == stream_id)
 
             total_matches = session.scalar(
                 sa.select(sa.func.count()).select_from(stmt.subquery())
@@ -1620,8 +1645,10 @@ class BrokerFilterCatalogHandler(BaseHandler):
                 }
             )
 
+
+class BrokerFilterAttachHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, filter_id=None):
+    def post(self, filter_id):
         """
         ---
         summary: Attach a filter to a broker
@@ -1657,8 +1684,12 @@ class BrokerFilterCatalogHandler(BaseHandler):
         """
         data = self.get_json() or {}
         broker_id = data.get("broker_id")
-        if filter_id is None or broker_id is None:
-            return self.error("A filter id and a 'broker_id' are required.")
+        if broker_id is None:
+            return self.error("A 'broker_id' is required.")
+        try:
+            broker_id = int(broker_id)
+        except (TypeError, ValueError):
+            return self.error("'broker_id' must be an integer.")
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:

@@ -1969,45 +1969,7 @@ export interface paths {
             };
         };
         put?: never;
-        /**
-         * Attach a filter to a broker
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Bind an unattached skyportal Filter to a broker.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    filter_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        broker_id: number;
-                    };
-                };
-            };
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2021,46 +1983,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List filters and their broker
-         * @description Paginated list of the skyportal Filters accessible to the user, optionally restricted to the ones attached to no broker.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    pageNumber?: number;
-                    numPerPage?: number;
-                    /** @description Case-insensitive substring of the filter name. */
-                    name?: string;
-                    groupID?: number;
-                    streamID?: number;
-                    /** @description A broker id, or "none" for filters attached to no broker. */
-                    brokerID?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
+        get?: never;
         put?: never;
         /**
          * Attach a filter to a broker
