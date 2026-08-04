@@ -10,6 +10,9 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Checkbox from "@mui/material/Checkbox";
+import ListItemText from "@mui/material/ListItemText";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -17,6 +20,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdatePhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetStreamsQuery } from "../../ducks/streams";
 
 const useStyles = makeStyles()(() => ({
   Select: {
@@ -41,6 +45,9 @@ interface UpdatePhotometryProps {
     limiting_mag?: number;
     filter?: string;
     magsys?: string;
+    origin?: string;
+    altdata?: Record<string, any>;
+    streams?: { id: number; name: string }[];
     ra?: number;
     dec?: number;
     ra_unc?: number;
@@ -60,6 +67,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
   };
+  const { data: streams = [] } = useGetStreamsQuery() as { data: any[] };
 
   const [state, setState] = useState<any>({
     mjd: phot.mjd,
@@ -68,6 +76,9 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
     limiting_mag: phot.limiting_mag,
     filter: phot.filter,
     instrument_id: phot.instrument_id,
+    origin: phot.origin ?? "",
+    altdata: phot.altdata ? JSON.stringify(phot.altdata) : "",
+    stream_ids: phot.streams?.map((s) => s.id) ?? [],
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -87,6 +98,9 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       limiting_mag: phot.limiting_mag,
       filter: phot.filter,
       instrument_id: phot.instrument_id,
+      origin: phot.origin ?? "",
+      altdata: phot.altdata ? JSON.stringify(phot.altdata) : "",
+      stream_ids: phot.streams?.map((s) => s.id) ?? [],
     });
   }, [phot, setInvalid]);
 
@@ -105,7 +119,12 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       } else {
         newState.filter = "";
       }
-    } else if (e.target.name === "filter") {
+    } else if (
+      e.target.name === "filter" ||
+      e.target.name === "origin" ||
+      e.target.name === "altdata" ||
+      e.target.name === "stream_ids"
+    ) {
       newState[e.target.name] = e.target.value;
     } else {
       // Accept both "." and "," as the decimal separator so values copy-pasted
@@ -129,16 +148,31 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
 
   const handleSubmit = async (subState: any) => {
     setIsSubmitting(true);
-    const newState: any = {};
+    const newState: any = {
+      mjd: subState.mjd,
+      mag: subState.mag,
+      magerr: subState.magerr,
+      limiting_mag: subState.limiting_mag,
+      filter: subState.filter,
+      instrument_id: subState.instrument_id,
+      magsys,
+    };
 
-    // editable quantities
-    newState.mjd = subState.mjd;
-    newState.mag = subState.mag;
-    newState.magerr = subState.magerr;
-    newState.limiting_mag = subState.limiting_mag;
-    newState.filter = subState.filter;
-    newState.instrument_id = subState.instrument_id;
-    newState.magsys = magsys;
+    if (subState.origin) {
+      newState.origin = subState.origin;
+    }
+    if (subState.altdata) {
+      try {
+        newState.altdata = JSON.parse(subState.altdata);
+      } catch {
+        dispatch(showNotification("altdata must be valid JSON", "error"));
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    if (subState.stream_ids?.length > 0) {
+      newState.stream_ids = subState.stream_ids;
+    }
 
     Object.keys(newState).forEach((key) => {
       if (
@@ -224,10 +258,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Photometry</DialogTitle>
         <DialogContent>
+          {invalid && (
+            <FormValidationError message="Please enter a valid float" />
+          )}
           <div>
-            {invalid && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
             <TextField
               data-testid="updatePhotometryMJDTextfield"
               size="small"
@@ -237,6 +271,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -253,6 +288,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -269,6 +305,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -285,12 +322,73 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
             />
           </div>
           <p />
+          <div>
+            <TextField
+              data-testid="updatePhotometryOriginTextfield"
+              size="small"
+              label="Origin"
+              value={state.origin}
+              name="origin"
+              onChange={handleChange}
+              type="text"
+              variant="outlined"
+              fullWidth
+            />
+          </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updatePhotometryAltdataTextfield"
+              size="small"
+              label='Alternative json data (i.e. {"note": "poor subtraction"})'
+              value={state.altdata}
+              name="altdata"
+              onChange={handleChange}
+              type="text"
+              variant="outlined"
+              fullWidth
+            />
+          </div>
+          <p />
+          {streams.length > 0 && (
+            <div className={classes.formField}>
+              <InputLabel id="streamSelectLabel">Streams</InputLabel>
+              <Select
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="streamSelectLabel"
+                multiple
+                value={state.stream_ids}
+                onChange={handleChange}
+                name="stream_ids"
+                input={<OutlinedInput label="Streams" />}
+                renderValue={(selected: number[]) =>
+                  streams
+                    .filter((s) => selected.includes(s.id))
+                    .map((s) => s.name)
+                    .join(", ")
+                }
+                className={classes.Select}
+              >
+                {streams.map((stream: any) => (
+                  <MenuItem
+                    value={stream.id}
+                    key={stream.id}
+                    className={classes.SelectItem}
+                  >
+                    <Checkbox checked={state.stream_ids.includes(stream.id)} />
+                    <ListItemText primary={stream.name} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </div>
+          )}
           <div className={classes.formField}>
             <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
             <Select
