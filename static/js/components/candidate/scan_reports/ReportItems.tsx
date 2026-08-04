@@ -214,17 +214,28 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 <Field>
                   {reportItem.data.detections_by_survey &&
                     Object.entries(reportItem.data.detections_by_survey).map(
-                      ([survey, det]: [string, any]) => (
-                        <Tooltip
-                          key={survey}
-                          title={`${survey} — first: ${det.first.mag} mag, ${det.first.days_ago}d ago; peak: ${det.peak.mag} mag, ${det.peak.days_ago}d ago`}
-                        >
-                          <Chip
-                            label={`${survey}: first ${det.first.mag} (${det.first.days_ago}d), peak ${det.peak.mag} (${det.peak.days_ago}d)`}
-                            size="small"
-                          />
-                        </Tooltip>
-                      ),
+                      ([survey, det]: [string, any]) => {
+                        const parts = [];
+                        if (det.first)
+                          parts.push(
+                            `first ${det.first.mag} (${det.first.days_ago}d)`,
+                          );
+                        if (det.peak)
+                          parts.push(
+                            `peak ${det.peak.mag} (${det.peak.days_ago}d)`,
+                          );
+                        return (
+                          <Tooltip
+                            key={survey}
+                            title={`${survey} — ${parts.join("; ")}`}
+                          >
+                            <Chip
+                              label={`${survey}: ${parts.join(", ")}`}
+                              size="small"
+                            />
+                          </Tooltip>
+                        );
+                      },
                     )}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
