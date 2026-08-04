@@ -968,6 +968,8 @@ class PhotometryFlux(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
@@ -1164,6 +1166,8 @@ class PhotometryMag(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
