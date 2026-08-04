@@ -453,7 +453,7 @@ class BOOMBROKER(BrokerAPI):
                             ann = json.loads(ann)
                         except (json.JSONDecodeError, TypeError):
                             ann = None
-                    if ann:
+                    if isinstance(ann, dict) and ann:
                         annotations_by_filter_id[fid] = ann
                 cutouts = {
                     k: record[k]

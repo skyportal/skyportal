@@ -224,10 +224,22 @@ async def _ingest_object(
         written as a filter annotation (origin ``"{group}:{filter}"``) on the obj.
     """
     import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
     from sqlalchemy.orm import joinedload
 
+    from baselayer.app.models import utcnow
+
     from ..handlers.api.photometry import add_external_photometry
-    from ..models import Annotation, Candidate, Filter, Group, Instrument, Obj, Source
+    from ..models import (
+        Annotation,
+        Candidate,
+        Filter,
+        Group,
+        GroupAnnotation,
+        Instrument,
+        Obj,
+        Source,
+    )
     from ..utils.naive_datetime import utcnow_naive
 
     object_id = data["objectId"]
@@ -303,7 +315,8 @@ async def _ingest_object(
 
     # Attach each passing filter's annotation (origin "{group}:{filter}"), scoped to
     # the filter's group so its scanners can see it. Upsert on the (obj_id, origin)
-    # unique key so a re-pass refreshes the data instead of raising.
+    # unique key so a concurrent re-pass refreshes the data instead of raising and
+    # rolling back the whole alert.
     annotated = {
         fid: annotations_by_filter_id[fid]
         for fid in filter_ids or []
@@ -323,23 +336,27 @@ async def _ingest_object(
             # group with the historical ones.
             group_name = (group.nickname or group.name) if group else None
             origin = f"{group_name}:{filt.name}"
-            existing = await session.scalar(
-                sa.select(Annotation).where(
-                    Annotation.obj_id == object_id, Annotation.origin == origin
+            annotation_id = await session.scalar(
+                pg_insert(Annotation)
+                .values(
+                    obj_id=object_id,
+                    origin=origin,
+                    data=annotated[filt.id],
+                    author_id=user.id,
                 )
+                .on_conflict_do_update(
+                    index_elements=["obj_id", "origin"],
+                    set_={"data": annotated[filt.id], "modified": utcnow},
+                    where=Annotation.author_id == user.id,
+                )
+                .returning(Annotation.id)
             )
-            if existing is None:
-                session.add(
-                    Annotation(
-                        obj=obj,
-                        origin=origin,
-                        data=annotated[filt.id],
-                        author_id=user.id,
-                        groups=[group] if group else [],
-                    )
+            if annotation_id is not None and group is not None:
+                await session.execute(
+                    pg_insert(GroupAnnotation)
+                    .values(group_id=group.id, annotation_id=annotation_id)
+                    .on_conflict_do_nothing()
                 )
-            else:
-                existing.data = annotated[filt.id]
 
     photometry_data = build_photometry_groups(
         object_id, survey, data, instrument_id, programid2streamid

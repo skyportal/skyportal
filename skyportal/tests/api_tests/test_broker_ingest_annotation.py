@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 
+import pytest
 import sqlalchemy as sa
 
 from baselayer.app import models as baselayer_models
@@ -9,24 +10,33 @@ from skyportal.models import Annotation, DBSession, Instrument, Obj, User
 from skyportal.tests.fixtures import InstrumentFactory
 
 
-def test_broker_ingest_creates_filter_annotation(super_admin_user, public_filter):
-    """A passing candidate must get the filter's auto-annotation (origin
-    "{group}:{filter}"), scoped to the filter's group, on ingest."""
-    # The ingest looks up the survey instrument by name; ensure a "ZTF" one exists.
-    created_instrument = None
+@pytest.fixture()
+def ztf_instrument():
+    """The ingest looks up the survey instrument by name; ensure a "ZTF" one exists."""
+    created = None
     if (
         DBSession().scalar(sa.select(Instrument).where(Instrument.name == "ZTF"))
         is None
     ):
-        created_instrument = InstrumentFactory(name="ZTF")
+        created = InstrumentFactory(name="ZTF")
         DBSession().commit()
+    yield
+    if created is not None:
+        InstrumentFactory.teardown(created)
 
+
+@pytest.fixture()
+def obj_id():
     obj_id = f"ZTF{uuid.uuid4().hex[:10]}"
-    annotation_data = {"mag_now": 18.53, "drb": 0.99}
+    yield obj_id
+    DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
+    DBSession().commit()
 
+
+def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345):
     async def _run():
         async with baselayer_models.async_plain_session_factory() as session:
-            user = await session.get(User, super_admin_user.id)
+            user = await session.get(User, user_id)
             await save_object_as_candidate(
                 {
                     "objectId": obj_id,
@@ -35,27 +45,69 @@ def test_broker_ingest_creates_filter_annotation(super_admin_user, public_filter
                 "ZTF",
                 session,
                 user,
-                [public_filter.id],
-                passing_alert_id=12345,
-                annotations_by_filter_id={public_filter.id: annotation_data},
+                [filter_id],
+                passing_alert_id=alert_id,
+                annotations_by_filter_id={filter_id: annotations},
             )
 
-    try:
-        asyncio.run(_run())
+    asyncio.run(_run())
 
-        group = public_filter.group
-        origin = f"{group.nickname or group.name}:{public_filter.name}"
-        annotation = DBSession().scalar(
-            sa.select(Annotation).where(
-                Annotation.obj_id == obj_id, Annotation.origin == origin
-            )
+
+def fetch_annotation(obj_id, filter_):
+    group = filter_.group
+    origin = f"{group.nickname or group.name}:{filter_.name}"
+    DBSession().expire_all()
+    return DBSession().scalar(
+        sa.select(Annotation).where(
+            Annotation.obj_id == obj_id, Annotation.origin == origin
         )
-        assert annotation is not None, "filter annotation was not created on ingest"
-        assert annotation.data == annotation_data
-        assert group.id in [g.id for g in annotation.groups]
-    finally:
-        # Cascade-delete the ingested obj (removes its candidate + annotation).
-        DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
-        DBSession().commit()
-        if created_instrument is not None:
-            InstrumentFactory.teardown(created_instrument)
+    )
+
+
+def test_broker_ingest_creates_filter_annotation(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    """A passing candidate must get the filter's auto-annotation (origin
+    "{group}:{filter}"), scoped to the filter's group, on ingest."""
+    annotation_data = {"mag_now": 18.53, "drb": 0.99}
+    ingest(obj_id, super_admin_user.id, public_filter.id, annotation_data)
+
+    annotation = fetch_annotation(obj_id, public_filter)
+    assert annotation is not None, "filter annotation was not created on ingest"
+    assert annotation.data == annotation_data
+    assert public_filter.group.id in [g.id for g in annotation.groups]
+
+
+def test_broker_ingest_refreshes_its_own_annotation(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    """Re-ingesting the same obj+filter upserts on (obj_id, origin) instead of
+    raising an IntegrityError that would roll back the whole alert."""
+    ingest(obj_id, super_admin_user.id, public_filter.id, {"mag_now": 18.53})
+    ingest(
+        obj_id, super_admin_user.id, public_filter.id, {"mag_now": 17.1}, alert_id=67890
+    )
+
+    annotation = fetch_annotation(obj_id, public_filter)
+    assert annotation.data == {"mag_now": 17.1}
+    assert public_filter.group.id in [g.id for g in annotation.groups]
+
+
+def test_broker_ingest_leaves_another_authors_annotation_alone(
+    super_admin_user, user, public_filter, ztf_instrument, obj_id
+):
+    """origin is user-writable through the annotation API, so an annotation another
+    user already owns on that origin must not be overwritten by the ingest."""
+    ingest(obj_id, user.id, public_filter.id, {"posted_by": "user"})
+
+    ingest(
+        obj_id,
+        super_admin_user.id,
+        public_filter.id,
+        {"posted_by": "broker"},
+        alert_id=67890,
+    )
+
+    annotation = fetch_annotation(obj_id, public_filter)
+    assert annotation.data == {"posted_by": "user"}
+    assert annotation.author_id == user.id
