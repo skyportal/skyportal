@@ -27,6 +27,10 @@ of forking SkyPortal or re-deriving the same integration in every deployment.
   `altdata` (endpoints/credentials, mirroring `Allocation.altdata`). Only system
   admins may create/update/delete brokers, and `altdata` is redacted from
   non-admins.
+- **Site defaults** — `default_alert_search` and `default_crossmatch` name the
+  broker the source page's "Search alerts" button opens and the one its
+  cross-matches (cone searches) run against. At most one broker holds each; pick them on the brokers page. The
+  seeded data makes ALeRCE both.
 
 ## Operations
 

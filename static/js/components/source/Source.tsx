@@ -76,7 +76,6 @@ import QuickSaveButton from "./QuickSaveSource";
 import Spinner from "../Spinner";
 import Button from "../Button";
 
-import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import {
@@ -99,6 +98,7 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../ducks/instruments";
+import { useGetBrokersQuery } from "../../ducks/brokers";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -241,6 +241,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
 
+  const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
@@ -273,6 +274,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const downLg = useMediaQuery((theme: any) => theme.breakpoints.down("lg"));
 
   const [hovering, setHovering] = useState<any>(null);
+
+  const alertBroker = brokers.find(
+    (b) =>
+      b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
+  );
 
   const sourceDuplicatesWithoutAssociatedObjs = useMemo(
     () =>
@@ -967,7 +973,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
-              <SourcePlugins {...({ source } as any)} />
+              {alertBroker ? (
+                <Link
+                  to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                    objectId: source.id,
+                    ...(source.ra != null && source.dec != null
+                      ? {
+                          ra: String(source.ra),
+                          dec: String(source.dec),
+                          radius: "3",
+                        }
+                      : {}),
+                  })}`}
+                  target="_blank"
+                >
+                  <Button primary size="small">
+                    Search alerts
+                  </Button>
+                </Link>
+              ) : (
+                <Tooltip title="No broker is set as the default for alert search">
+                  <span>
+                    <Button primary size="small" disabled>
+                      Search alerts
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
               <div>
                 <Button
                   aria-controls={openFindingChart ? "basic-menu" : undefined}
@@ -1290,6 +1322,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             className={classes.flexColumn}
           >
             <AccordionSummary
+              component="div"
               expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
               id="photometry-header"

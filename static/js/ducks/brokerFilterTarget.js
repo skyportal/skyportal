@@ -1,4 +1,4 @@
-// The broker filter builder targets one broker at a time. The /brokers page
+// The broker filter builder targets one broker at a time. The alerts page
 // sets the active broker id here (on mount) so the filter ducks can build
 // `/api/brokers/{id}/...` URLs without threading the id through every one of the
 // builder's component call sites.

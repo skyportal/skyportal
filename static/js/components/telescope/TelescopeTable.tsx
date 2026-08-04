@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -35,6 +36,7 @@ const TelescopeTable = ({
   hideTitle = false,
 }: TelescopeTableProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isReadOnly = useIsReadOnly();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [submitTelescopeMutation] = useSubmitTelescopeMutation();
@@ -170,7 +172,7 @@ const TelescopeTable = ({
     if (!managePermission) return null;
     const telescope = params.row;
     return (
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex" }} onClick={(e) => e.stopPropagation()}>
         <IconButton
           onClick={() => {
             setTelescopeToEdit(telescope);
@@ -246,7 +248,12 @@ const TelescopeTable = ({
       sortable: false,
       renderCell: (params: any) =>
         params.value ? (
-          <a href={params.value} target="_blank" rel="noopener noreferrer">
+          <a
+            href={params.value}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
             View
           </a>
         ) : null,
@@ -288,6 +295,8 @@ const TelescopeTable = ({
         rows={telescopes || []}
         columns={columns}
         getRowId={(row: any) => row.id}
+        onRowClick={(params: any) => navigate(`/telescope/${params.row.id}`)}
+        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
         hideFooter
         initialState={{
           pagination: { paginationModel: { pageSize: 100 } },

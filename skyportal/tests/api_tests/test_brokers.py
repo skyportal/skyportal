@@ -10,6 +10,19 @@ from skyportal.broker_apis import GENERICBROKER, BrokerAPI
 from skyportal.tests import api
 
 
+def _force_active(broker_id):
+    """Activate a credential-gated broker without the live connection check the
+    API runs (no broker to reach from the tests)."""
+    import sqlalchemy as sa
+
+    from skyportal.models import Broker, DBSession
+
+    DBSession().execute(
+        sa.update(Broker).where(Broker.id == broker_id).values(active=True)
+    )
+    DBSession().commit()
+
+
 def _broker_payload(**overrides):
     payload = {
         "name": str(uuid.uuid4()),
@@ -85,6 +98,133 @@ def test_broker_capabilities_expose_cross_match_catalogs(super_admin_token):
         api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
 
 
+def test_activation_checks_credentials(super_admin_token):
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test"},
+            active=True,
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    boom_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(active=False), token=super_admin_token
+    )
+    assert status == 200, data
+    generic_id = data["data"]["id"]
+
+    try:
+        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
+        assert data["data"]["active"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{boom_id}",
+            data={"active": True},
+            token=super_admin_token,
+        )
+        assert status == 400, data
+        assert "refused the credentials" in data["message"]
+
+        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
+        assert data["data"]["active"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"active": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
+        assert data["data"]["active"] is True
+    finally:
+        api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
+        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+
+
+def test_default_requires_the_capability(super_admin_token):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200, data
+    generic_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"default_crossmatch": True},
+            token=super_admin_token,
+        )
+        assert status == 400, data
+        assert "cross_match_catalogs" in data["message"]
+
+        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
+        assert data["data"]["default_crossmatch"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"default_alert_search": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+    finally:
+        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+
+
+def test_broker_defaults_are_exclusive(super_admin_token):
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test"},
+            default_alert_search=True,
+            default_crossmatch=True,
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    first_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200, data
+    second_id = data["data"]["id"]
+
+    try:
+        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is True
+        assert data["data"]["default_crossmatch"] is True
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{second_id}",
+            data={"default_alert_search": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+        status, data = api("GET", f"brokers/{second_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is True
+        assert data["data"]["default_crossmatch"] is False
+
+        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is False
+        assert data["data"]["default_crossmatch"] is True
+    finally:
+        api("DELETE", f"brokers/{first_id}", token=super_admin_token)
+        api("DELETE", f"brokers/{second_id}", token=super_admin_token)
+
+
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)
@@ -114,6 +254,69 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert status == 200
     assert "altdata" not in data["data"]
     assert data["data"]["capabilities"]["query_alerts"] is True
+
+    # admins get the config, minus the credentials (GENERICBROKER renders
+    # `token` as a password field)
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["altdata"]["base_url"] == "https://broker.test"
+    assert "token" not in data["data"]["altdata"]
+
+    # so editing another field must not wipe the stored credential
+    status, _ = api(
+        "PATCH",
+        f"brokers/{broker_id}",
+        data={"altdata": {"base_url": "https://broker2.test"}},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert data["data"]["altdata"]["base_url"] == "https://broker2.test"
+
+
+def test_altdata_merge_and_redaction():
+    from skyportal.handlers.api.broker import merge_altdata, strip_secrets
+
+    stored = {
+        "base_url": "https://a",
+        "token": "secret",
+        "scimma": {"password": "p", "user": "u"},
+    }
+
+    assert strip_secrets(stored, ["token", "scimma.password"]) == {
+        "base_url": "https://a",
+        "scimma": {"user": "u"},
+    }
+    assert stored["token"] == "secret"
+
+    # blank means "keep what is stored", at any depth
+    merged = merge_altdata(
+        stored, {"base_url": "https://b", "token": "", "scimma": {"password": "  "}}
+    )
+    assert merged["base_url"] == "https://b"
+    assert merged["token"] == "secret"
+    assert merged["scimma"]["password"] == "p"
+
+    assert merge_altdata(stored, {"token": "new"})["token"] == "new"
+
+
+def test_secret_config_fields_cover_every_provider():
+    from skyportal import broker_apis
+
+    expected = {
+        "ALERCEBROKER": [],
+        "AMPELBROKER": ["scimma.password"],
+        "ANTARESBROKER": [],
+        "BABAMULBROKER": ["token"],
+        "BOOMBROKER": ["password"],
+        "FINKBROKER": ["fink.password"],
+        "GENERICBROKER": ["token"],
+        "LASAIRBROKER": ["token"],
+        "PITTGOOGLEBROKER": ["service_account_key"],
+    }
+    for name, paths in expected.items():
+        provider = getattr(broker_apis, name)
+        assert sorted(provider.secret_config_fields()) == sorted(paths), name
 
 
 def test_broker_apis_discovery(view_only_token):
@@ -218,6 +421,7 @@ def test_lasairbroker_capabilities():
     assert caps["validate_config"] is True
     with pytest.raises(ValueError):
         LASAIRBROKER.validate_config({})
+    LASAIRBROKER.validate_config({"endpoint": "https://lasair.test/api"})
 
 
 def test_cross_match_catalogs_capability():
@@ -303,6 +507,9 @@ def test_boombroker_capabilities():
     caps = BOOMBROKER.implements()
     assert caps["cone_search"] is True
     assert caps["get_photometry"] is True
+    with pytest.raises(ValueError):
+        BOOMBROKER.validate_config({})
+    BOOMBROKER.validate_config({"host": "boom.test"})
 
 
 @responses.activate
@@ -378,6 +585,7 @@ def lasair_broker_id(super_admin_token):
     )
     assert status == 200, data
     broker_id = data["data"]["id"]
+    _force_active(broker_id)
     yield broker_id
     api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
@@ -671,6 +879,7 @@ def test_boom_filter_activation_requires_validation(
     )
     assert status == 200
     broker_id = data["data"]["id"]
+    _force_active(broker_id)
     try:
         # Mark the filter broker-managed with no validation on record.
         f = (
