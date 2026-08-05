@@ -804,12 +804,11 @@ async def standardize_photometry_data(data, session):
         # non-detections require limiting_mag
         limmag_missing = magnull & df["limiting_mag"].isna()
         if any(limmag_missing):
-            first_offender = np.argwhere(limmag_missing.values)[0, 0]
-            packet = df.iloc[first_offender].to_dict()
-            for key in packet:
-                packet[key] = nan_to_none(packet[key])
+            bad_rows = np.argwhere(limmag_missing.values).flatten()
+            bad_mjds = [float(df.iloc[i]["mjd"]) for i in bad_rows]
             raise ValidationError(
-                f'Error parsing packet "{packet}": non-detections require limiting_mag.'
+                f"Non-detections (mag=null) require a limiting_mag. "
+                f"Affected row(s) at MJD: {bad_mjds}."
             )
 
         # convert the mags to fluxes
