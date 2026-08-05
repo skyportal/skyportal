@@ -447,8 +447,8 @@ const MongoQueryDialog = () => {
         nextCursor: null,
       };
     }
-    if (result.data?.data) {
-      const originalData = result?.data?.data?.results;
+    if (result.data) {
+      const originalData = result?.data?.results;
       if (!originalData || originalData.length === 0) {
         setDisplayResults({ data: [] });
         return {
@@ -564,7 +564,7 @@ const MongoQueryDialog = () => {
       // Good code when using queries/count endpoint
       // const actualCount = countQueryResult.result?.data?.data || 0;
       // temporary code to get count from results length
-      const actualCount = countQueryResult.result?.data?.data?.count;
+      const actualCount = countQueryResult.result?.data?.count;
       setTotalDocuments(actualCount);
 
       // Set query completed only after both queries are done
