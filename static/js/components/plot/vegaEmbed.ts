@@ -1,13 +1,8 @@
 import embed from "vega-embed";
 
-/**
- * Give Vega data objects it is allowed to extend.
- *
- * Vega tags every datum with a `Symbol("vega_id")`, which throws
- * (`Object is not extensible`) on the frozen objects RTK Query hands back, and
- * the plot silently renders an empty container. Specs are built locally by the
- * calling component, so the `values` arrays are replaced in place.
- */
+// Vega tags each datum with a Symbol, which throws on the frozen objects RTK
+// Query returns, so hand it copies. Specs are built by the caller, so the
+// `values` arrays are replaced in place.
 const cloneSpecValues = (node: any) => {
   if (Array.isArray(node)) {
     node.forEach(cloneSpecValues);
@@ -27,10 +22,7 @@ const cloneSpecValues = (node: any) => {
   });
 };
 
-/**
- * Embed a Vega spec, guarding the two things every call site here needs: React
- * passes `null` to a ref on unmount, and Vega must not be handed frozen data.
- */
+// Also skips the null node React passes to a ref on unmount.
 const embedVega = (node: HTMLElement | null, spec: any, options: any = {}) => {
   if (!node) {
     return undefined;

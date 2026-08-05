@@ -398,6 +398,5 @@ def test_source_list_expanded_row_vega_plots(
     row = page.locator(f'[data-testid="groupSourceExpand_{public_source.id}"]').first
     expect(row).to_be_visible()
 
-    # The expanded row draws the photometry and spectrum plots; both must render
-    # marks, not just mount an empty vega-embed container.
+    # Photometry and spectrum plots: both must draw, not just mount.
     expect_vega_plot(row, count=2)

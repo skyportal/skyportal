@@ -590,9 +590,8 @@ def test_source_hr_diagram(page, user, public_source, annotation_token):
     panel = page.locator(f'[data-testid="hr_diagram_{public_source.id}"]')
     expect(panel).to_be_visible()
 
-    # VegaHR is lazily loaded behind Suspense and Vega renders asynchronously.
-    # Comparing screenshots is not viable here -- the pixels vary with window
-    # size, fonts and DPI (issue #2608), so assert on the marks Vega drew.
+    # Screenshots are not comparable here (window size, fonts, DPI), so assert
+    # on the marks Vega drew.
     expect_vega_plot(panel)
     expect(panel.locator(".role-axis")).not_to_have_count(0)
     expect(panel.locator("[class*='mark-symbol']")).not_to_have_count(0)

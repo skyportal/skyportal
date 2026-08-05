@@ -159,11 +159,9 @@ def wait_for_localization(dateobs, localization_name, token, timeout=240):
 
 
 def expect_vega_plot(scope, count=None):
-    """Assert Vega actually drew inside `scope`, not just mounted a container.
+    """Assert Vega drew marks inside `scope`, not just mounted a container.
 
-    A component whose embed() throws still renders an empty `div.vega-embed`,
-    so asserting on the container passes while the plot is broken. Locators are
-    CSS: XPath name tests do not match namespaced SVG elements.
+    Locators are CSS: XPath name tests do not match namespaced SVG elements.
     """
     from playwright.sync_api import expect
 
