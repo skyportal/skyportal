@@ -1,5 +1,5 @@
 import React from "react";
-import embed from "vega-embed";
+import embedVega from "./vegaEmbed";
 import dayjs from "dayjs";
 import { useTheme } from "@mui/material/styles";
 
@@ -168,7 +168,7 @@ const AirmassPlot = React.memo((props: AirmassPlotProps) => {
     <div
       ref={(node) => {
         if (node) {
-          embed(
+          embedVega(
             node,
             airmassSpec(
               dataUrl,

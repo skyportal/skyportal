@@ -12,7 +12,7 @@ import Grid from "@mui/material/Grid";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
-import embed from "vega-embed";
+import embedVega from "../plot/vegaEmbed";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
@@ -68,7 +68,8 @@ const SpectrumPreview = React.memo(({ data }: SpectrumPreviewProps) => {
   return (
     <Box
       ref={(node: any) => {
-        if (node) embed(node, spectrumPreviewSpec(data), { actions: false });
+        if (node)
+          embedVega(node, spectrumPreviewSpec(data), { actions: false });
       }}
       sx={{ width: "100%" }}
     />
