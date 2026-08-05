@@ -136,8 +136,9 @@ const PipelineViewer = ({
             </Box>
             <Box
               sx={{
-                backgroundColor: "#f5f5f5",
-                border: "1px solid #ddd",
+                backgroundColor: "background.default",
+                border: "1px solid",
+                borderColor: "divider",
                 borderRadius: 1,
                 p: 2,
                 maxHeight: "400px",
@@ -242,8 +243,9 @@ const PipelineViewer = ({
                       <Box
                         component="pre"
                         sx={{
-                          backgroundColor: "#f8f9fa",
-                          border: "1px solid #e9ecef",
+                          backgroundColor: "background.default",
+                          border: "1px solid",
+                          borderColor: "divider",
                           borderRadius: 1,
                           p: 1.5,
                           overflow: "auto",

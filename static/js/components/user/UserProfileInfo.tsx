@@ -1,45 +1,13 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
-
-interface UserContactInfoProps {
-  user: {
-    first_name?: string | null;
-    last_name?: string | null;
-    username?: string;
-    contact_email?: string | null;
-    contact_phone?: string | null;
-    [key: string]: any;
-  };
-}
-
-export const UserContactInfo = ({ user }: UserContactInfoProps) => {
-  let contact_string = "";
-  if (user.first_name || user.last_name) {
-    contact_string += `${user.first_name} ${user.last_name} `;
-  } else {
-    contact_string += `${user.username} `;
-  }
-
-  const contact: string[] = [];
-  if (user.contact_email) {
-    contact.push(user.contact_email);
-  }
-
-  if (user.contact_phone) {
-    contact.push(user.contact_phone);
-  }
-
-  if (contact.length > 0) {
-    contact_string += `(${contact.join(";")})`;
-  }
-  return <p>{contact_string}</p>;
-};
+import ThemeToggle from "./preferences/ThemeToggle";
+import Chip from "@mui/material/Chip";
 
 const getUserRealName = (firstName: any, lastName: any) => {
   // Korean names are generally written in last->first name order with no space in between
@@ -49,30 +17,17 @@ const getUserRealName = (firstName: any, lastName: any) => {
   return `${firstName} ${lastName}`;
 };
 
-const getUserAffiliations = (affiliations: string[]) => (
-  <em>{affiliations.join(", ")}</em>
-);
-
 const UserProfileInfo = () => {
   const profile = useGetProfileQuery().data as any;
 
-  // `data` is undefined until the profile loads; the JSX below reads profile
-  // fields unguarded, so render nothing until it's available.
-  if (!profile) {
-    return null;
-  }
+  if (!profile) return <div data-testid="tour-profile-info" />;
 
   return (
-    <Card>
-      <CardContent>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-start",
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
+    <Card data-testid="tour-profile-info">
+      <CardContent
+        style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <UserAvatar
             size={128}
             firstName={profile.first_name}
@@ -81,117 +36,56 @@ const UserProfileInfo = () => {
             gravatarUrl={profile.gravatar_url}
             isBot={profile?.is_bot || false}
           />
-          &nbsp;&nbsp;
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <h2
-              id="userRealname"
-              style={{
-                visibility: !(profile.first_name || profile.last_name)
-                  ? "hidden"
-                  : "visible",
-                margin: 0,
-              }}
-            >
-              {(profile.first_name || profile.last_name) &&
-                getUserRealName(profile.first_name, profile.last_name)}
-            </h2>
-            <h5
-              id="userAffiliations"
-              style={{
-                visibility: !(profile?.affiliations?.length > 0)
-                  ? "hidden"
-                  : "visible",
-                margin: 0,
-              }}
-            >
-              {profile?.affiliations?.length > 0 &&
-                getUserAffiliations(profile.affiliations)}
-            </h5>
+          <div>
+            {(profile.first_name || profile.last_name) && (
+              <h2 id="userRealname" style={{ margin: 0 }}>
+                {getUserRealName(profile.first_name, profile.last_name)}
+              </h2>
+            )}
+            {profile.affiliations?.length > 0 && (
+              <h5 id="userAffiliations" style={{ margin: 0 }}>
+                <em>{profile.affiliations.join(", ")}</em>
+              </h5>
+            )}
           </div>
-        </div>
-        &nbsp;
-        {/* if the user has a bio, display it here in italic, full width */}
-        {profile.bio && (
-          <Typography
-            component="div"
-            style={{ width: "100%", display: "flex", flexWrap: "wrap" }}
-          >
-            <Box
-              sx={{
-                fontStyle: "italic",
-              }}
-            >
-              {profile.bio}
-            </Box>
-          </Typography>
-        )}
-        <br />
-        <Typography component="div">
-          <Box
-            sx={{
-              pb: 1,
-            }}
-          >
-            <Box
-              component="span"
-              sx={{
-                fontWeight: "fontWeightBold",
-                mr: 1,
-              }}
-            >
-              User roles:
-            </Box>
-            {profile.roles?.join(", ")}
+          <Box sx={{ ml: "auto", alignSelf: "flex-start" }}>
+            <ThemeToggle />
           </Box>
-          {!!profile.acls?.length && (
-            <Box
-              sx={{
-                pb: 1,
-              }}
-            >
-              <Box
-                component="span"
-                sx={{
-                  fontWeight: "fontWeightBold",
-                  mr: 1,
-                }}
-              >
-                Additional user ACLs (separate from role-level ACLs):
-              </Box>
-              {profile.acls.join(", ")}
-            </Box>
-          )}
-        </Typography>
+        </div>
+        {profile.bio && <Box sx={{ fontStyle: "italic" }}>{profile.bio}</Box>}
+        <Box>
+          <b>User roles:</b> {profile.roles?.join(", ")}
+        </Box>
+        {!!profile.acls?.length && (
+          <Box>
+            <b>Additional user ACLs</b>
+            <Tooltip title="Separate from role-level ACLs">
+              <HelpOutlineOutlinedIcon
+                fontSize="small"
+                sx={{ verticalAlign: "text-bottom", mx: 0.3 }}
+              />
+            </Tooltip>
+            :{" "}
+            {profile.acls.map((acl: any) => (
+              <Chip key={acl} label={acl} />
+            ))}
+          </Box>
+        )}
         {profile.oauth_uid && (
-          <Tooltip
-            placement="bottom-start"
-            title={
-              <Typography variant="body2">
-                This is the email address used to log in. Unlike the
-                contact_email shown to other users, this cannot be edited. If
-                you wish to change this, please contact a system administrator.
-              </Typography>
-            }
-          >
-            <Typography component="div">
-              <Box
-                sx={{
-                  pb: 1,
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    fontWeight: "fontWeightBold",
-                    mr: 1,
-                  }}
-                >
-                  Authentication email:
-                </Box>
-                {profile.oauth_uid}
-              </Box>
-            </Typography>
-          </Tooltip>
+          <Box>
+            <b>Authentication email</b>
+            <Tooltip
+              title="This is the email address used to log in. Unlike the
+              contact_email shown to other users, this cannot be edited. If
+              you wish to change this, please contact a system administrator."
+            >
+              <HelpOutlineOutlinedIcon
+                fontSize="small"
+                sx={{ verticalAlign: "text-bottom", mx: 0.3 }}
+              />
+            </Tooltip>
+            : {profile.oauth_uid}
+          </Box>
         )}
       </CardContent>
     </Card>
