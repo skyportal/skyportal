@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 
 import {
   useGetProfileQuery,
@@ -50,10 +49,6 @@ const QuickSaveSourcePreferences = () => {
 
   return (
     <div className="quick-save-source-preferences">
-      <UserPreferencesHeader
-        title="Quick Save Source Preferences"
-        popupText="Select the groups you would like to be able to quick save sources to. If any groups are selected, a quick save button will appear on the source page."
-      />
       {!userAccessibleGroups && <div>Loading...</div>}
       {userAccessibleGroups && userAccessibleGroups?.length === 0 && (
         <div>

@@ -3216,6 +3216,10 @@ class SourceFinderHandler(BaseHandler):
             )
             try:
                 rez = await IOLoop.current().run_in_executor(None, finder)
+                if not rez.get("success", True):
+                    return self.error(
+                        rez.get("reason", "Could not generate finding chart")
+                    )
                 if as_json:
                     data = {
                         "finding_chart": base64.b64encode(rez["data"]).decode(),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
@@ -11,14 +11,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import InputLabel from "@mui/material/InputLabel";
-import Grid from "@mui/material/Grid";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -29,29 +22,45 @@ import {
 } from "../../ducks/profile";
 import { useTestNotificationsMutation } from "../../ducks/userNotifications";
 
-import UIPreferences from "./preferences/UIPreferences";
-import NotificationPreferences from "./preferences/NotificationPreferences";
-import SlackPreferences from "./preferences/SlackPreferences";
-import OpenAIPreferences from "./preferences/OpenAIPreferences";
-import ObservabilityPreferences from "./preferences/ObservabilityPreferences";
-import FollowupRequestPreferences from "./preferences/FollowupRequestPreferences";
-import PhotometryPlottingPreferences from "./preferences/PhotometryPlottingPreferences";
-import SpectroscopyPlottingPreferences from "./preferences/SpectroscopyPlottingPreferences";
-import ClassificationsShortcutForm from "./preferences/ClassificationsShortcutForm";
-import QuickSaveSourcePreferences from "./preferences/QuickSaveSourcePreferences";
+const filter = createFilterOptions<any>();
 
-const useStyles = makeStyles()(() => ({
-  spacing: {
-    paddingBottom: 0,
+const FIELDS = {
+  username: {
+    label: "Username (normalized upon save)",
+    id: "usernameInput",
+    rules: { required: true },
   },
-}));
+  firstName: {
+    label: "First Name",
+    id: "firstName_id",
+    rules: { required: true },
+  },
+  lastName: { label: "Last Name", id: "lastName_id" },
+  bio: {
+    label: "Bio (min 10, max 1000 chars)",
+    id: "bio_id",
+    props: { multiline: true, slotProps: { htmlInput: { maxLength: 1000 } } },
+  },
+  email: {
+    label: "Preferred Contact Email",
+    id: "email_id",
+    rules: { pattern: /^\S+@\S+$/i },
+    props: { type: "email" },
+    test: { type: "email", id: "testEmailButton" },
+  },
+  phone: {
+    label: "Contact Phone (Include Country Code)",
+    id: "phone_id",
+    rules: { maxLength: 16 },
+    props: { type: "tel" },
+    test: { type: "SMS", id: "testSMSButton" },
+  },
+} as Record<string, any>;
 
 const UpdateProfileForm = () => {
-  const { classes } = useStyles();
   const { data: profile } = useGetProfileQuery();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);
-  const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
 
   const dispatch = useAppDispatch();
   const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
@@ -61,7 +70,6 @@ const UpdateProfileForm = () => {
     register,
     reset,
     control,
-
     formState: { errors },
   } = useForm();
 
@@ -69,8 +77,6 @@ const UpdateProfileForm = () => {
     new URL(window.location as any).searchParams.get("newUser") === "true";
 
   const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(isNewUser);
-
-  const filter = createFilterOptions<any>();
 
   useEffect(() => {
     reset({
@@ -85,20 +91,21 @@ const UpdateProfileForm = () => {
     });
   }, [reset, profile]);
 
-  const onSubmit = async (initialValues: any) => {
+  const onSubmit = async (values: any) => {
     setIsSubmitting(true);
-    const basicinfo = {
-      username: initialValues.username,
-      first_name: initialValues.firstName,
-      last_name: initialValues.lastName,
-      affiliations: initialValues.affiliations,
-      contact_email: initialValues.email,
-      contact_phone: initialValues.phone,
-      bio: initialValues.bio,
-      is_bot: initialValues.is_bot,
-    };
     try {
-      await updateBasicUserInfo({ formData: basicinfo }).unwrap();
+      await updateBasicUserInfo({
+        formData: {
+          username: values.username,
+          first_name: values.firstName,
+          last_name: values.lastName,
+          affiliations: values.affiliations,
+          contact_email: values.email,
+          contact_phone: values.phone,
+          bio: values.bio,
+          is_bot: values.is_bot,
+        },
+      }).unwrap();
       dispatch(showNotification("Profile data saved"));
     } catch {
       // error notification handled by the API layer
@@ -106,326 +113,134 @@ const UpdateProfileForm = () => {
     setIsSubmitting(false);
   };
 
-  const handleEmailTest = async () => {
-    setIsSubmittingEmailTest(true);
-    const data = { notification_type: "email" };
-    await testNotifications(data);
-    setIsSubmittingEmailTest(false);
+  const handleTest = async (notification_type: string) => {
+    setTesting(notification_type);
+    await testNotifications({ notification_type });
+    setTesting(null);
   };
 
-  const handleSMSTest = async () => {
-    setIsSubmittingSMSTest(true);
-    const data = { notification_type: "SMS" };
-    await testNotifications(data);
-    setIsSubmittingSMSTest(false);
+  const labelled = (id: string, label: string, children: ReactNode) => (
+    <div>
+      <InputLabel htmlFor={id}>{label}</InputLabel>
+      {children}
+    </div>
+  );
+
+  const field = (name: string) => {
+    const { label, id, rules, props, test } = FIELDS[name];
+    return labelled(
+      id,
+      label,
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <TextField
+          {...register(name, rules)}
+          name={name}
+          id={id}
+          fullWidth
+          error={!!errors[name]}
+          helperText={rules?.required && errors[name] ? "Required" : ""}
+          {...props}
+        />
+        {test && (
+          <Button
+            secondary
+            type="submit"
+            id={test.id}
+            onClick={() => handleTest(test.type)}
+            disabled={testing === test.type}
+          >
+            Test
+          </Button>
+        )}
+      </div>,
+    );
   };
 
   return (
-    <div>
-      <Card>
-        <CardContent data-testid="tour-profile-details">
-          <h2>Username</h2>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <InputLabel htmlFor="usernameInput">
-              Username (normalized upon save)
-            </InputLabel>
-            <Grid
-              container
-              direction="row"
-              spacing={2}
-              sx={{
-                justifyContent: "flex-start",
-                alignItems: "baseline",
-              }}
-            >
-              <Grid size={{ xs: 12, lg: 3 }}>
-                <TextField
-                  {...register("username", { required: true })}
-                  name="username"
-                  id="usernameInput"
-                  error={!!errors["username"]}
-                  helperText={errors["username"] ? "Required" : ""}
-                  style={{ width: "100%" }}
-                />
-              </Grid>
-            </Grid>
-            <h2>Contact Information</h2>
-            <Grid
-              container
-              direction="row"
-              spacing={2}
-              sx={{
-                justifyContent: "flex-start",
-                alignItems: "baseline",
-              }}
-            >
-              <Grid size={{ xs: 6, lg: 3 }}>
-                <InputLabel htmlFor="firstName_id">First Name</InputLabel>
-                <TextField
-                  {...register("firstName", { required: true })}
-                  name="firstName"
-                  id="firstName_id"
-                  error={!!errors["firstName"]}
-                  helperText={errors["firstName"] ? "Required" : ""}
-                  style={{ width: "100%" }}
-                />
-              </Grid>
-              <Grid size={{ xs: 6, lg: 3 }}>
-                <InputLabel htmlFor="lastName_id">Last Name</InputLabel>
-                <TextField
-                  {...register("lastName", { required: false })}
-                  name="lastName"
-                  id="lastName_id"
-                  style={{ width: "100%" }}
-                />
-              </Grid>
-            </Grid>
-            <br />
-            <Grid
-              container
-              direction="row"
-              spacing={2}
-              sx={{
-                justifyContent: "flex-start",
-                alignItems: "baseline",
-              }}
-            >
-              <Grid size={{ xs: 12, lg: 6 }}>
-                <InputLabel htmlFor="bio_id">
-                  Bio (min 10, max 1000 chars)
-                </InputLabel>
-                <TextField
-                  {...register("bio", { required: false })}
-                  name="bio"
-                  id="bio_id"
-                  multiline
-                  style={{ width: "100%" }}
-                  slotProps={{ htmlInput: { maxLength: 1000 } }}
-                />
-              </Grid>
-            </Grid>
-            <br />
-            {profile?.affiliations && (
-              <Grid
-                container
-                direction="row"
-                spacing={2}
-                sx={{
-                  justifyContent: "flex-start",
-                  alignItems: "baseline",
-                }}
-              >
-                <Grid size={{ xs: 12, lg: 6 }}>
-                  <InputLabel htmlFor="affiliationsInput">
-                    Affiliations
-                  </InputLabel>
-                  <Controller
-                    name="affiliations"
-                    render={({ field: { onChange, value } }) => (
-                      <Autocomplete
-                        multiple
-                        onChange={(_e, data) => onChange(data)}
-                        value={value}
-                        options={
-                          profile?.affiliations?.map((aff: any) => aff) ?? []
-                        }
-                        filterOptions={(options, params) => {
-                          const filtered = filter(options, params);
-
-                          const { inputValue } = params;
-                          // Suggest the creation of a new value
-                          const isExisting = options.some(
-                            (option) => inputValue === option,
-                          );
-                          if (inputValue !== "" && !isExisting) {
-                            filtered.push(inputValue);
-                          }
-
-                          return filtered;
-                        }}
-                        getOptionLabel={(option: any) => {
-                          // Value selected with enter, right from the input
-                          if (typeof option === "string") {
-                            return option;
-                          }
-                          // Add "xxx" option created dynamically
-                          if (option?.inputValue) {
-                            return option?.inputValue;
-                          }
-                          return option;
-                        }}
-                        freeSolo
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="outlined"
-                            name="affiliations"
-                            id="affilations_id"
-                          />
-                        )}
+    <Card>
+      <CardContent data-testid="tour-profile-details">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+            maxWidth: "40rem",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Username</h2>
+          {field("username")}
+          <h2 style={{ margin: 0 }}>Contact Information</h2>
+          {field("firstName")}
+          {field("lastName")}
+          {field("bio")}
+          {profile?.affiliations &&
+            labelled(
+              "affilations_id",
+              "Affiliations",
+              <Controller
+                name="affiliations"
+                control={control}
+                defaultValue={profile?.affiliations}
+                render={({ field: { onChange, value } }) => (
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    onChange={(_e, data) => onChange(data)}
+                    value={value}
+                    options={profile?.affiliations ?? []}
+                    filterOptions={(options, params) => {
+                      const filtered = filter(options, params);
+                      // Suggest the creation of a new value
+                      if (
+                        params.inputValue !== "" &&
+                        !options.includes(params.inputValue)
+                      ) {
+                        filtered.push(params.inputValue);
+                      }
+                      return filtered;
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        name="affiliations"
+                        id="affilations_id"
                       />
                     )}
-                    control={control}
-                    {...({ error: !!errors["affiliations"] } as any)}
-                    defaultValue={profile?.affiliations}
                   />
-                </Grid>
-              </Grid>
+                )}
+              />,
             )}
-            <br />
-            <Grid
-              container
-              direction="row"
-              spacing={2}
-              sx={{
-                justifyContent: "flex-start",
-                alignItems: "baseline",
-              }}
-            >
-              <Grid size={{ xs: 12, lg: 6 }}>
-                <InputLabel htmlFor="email_id">
-                  Preferred Contact Email
-                </InputLabel>
-                <div style={{ display: "flex", width: "100%" }}>
-                  <TextField
-                    {...register("email", { pattern: /^\S+@\S+$/i })}
-                    name="email"
-                    type="email"
-                    fullWidth
-                    id="email_id"
-                  />
-                  <Button
-                    secondary
-                    style={{ marginLeft: "0.5rem" }}
-                    type="submit"
-                    id="testEmailButton"
-                    onClick={handleEmailTest}
-                    disabled={isSubmittingEmailTest}
-                  >
-                    Test
-                  </Button>
-                </div>
-              </Grid>
-            </Grid>
-            <br />
-            <Grid
-              container
-              direction="row"
-              spacing={2}
-              sx={{
-                justifyContent: "flex-start",
-                alignItems: "baseline",
-              }}
-            >
-              <Grid size={{ xs: 12, lg: 6 }}>
-                <InputLabel htmlFor="phone_id">
-                  Contact Phone (Include Country Code)
-                </InputLabel>
-                <div style={{ display: "flex", width: "100%" }}>
-                  <TextField
-                    {...register("phone", { maxLength: 16 })}
-                    name="phone"
-                    type="tel"
-                    id="phone_id"
-                    style={{ width: "100%" }}
-                  />
-                  <Button
-                    secondary
-                    style={{ marginLeft: "0.5rem" }}
-                    type="submit"
-                    id="testSMSButton"
-                    onClick={handleSMSTest}
-                    disabled={isSubmittingSMSTest}
-                  >
-                    Test
-                  </Button>
-                </div>
-              </Grid>
-            </Grid>
-            <br />
-            <Accordion>
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="advancedOptions-content"
-                id="advancedOptions"
-              >
-                <Typography variant="h6">Advanced Options</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Grid
-                  container
-                  direction="row"
-                  spacing={2}
-                  sx={{
-                    justifyContent: "flex-start",
-                    alignItems: "baseline",
-                  }}
-                >
-                  <Grid size={{ xs: 12, lg: 6 }}>
-                    <InputLabel htmlFor="is_bot_id">
-                      Is this a bot account (used only from the API)?
-                    </InputLabel>
-                    <Controller
-                      name="is_bot"
-                      render={({ field: { onChange, value } }) => (
-                        <Switch
-                          checked={value}
-                          onChange={(e) => onChange(e.target.checked)}
-                          color="primary"
-                          slotProps={{
-                            input: { "aria-label": "primary checkbox" },
-                          }}
-                        />
-                      )}
-                      control={control}
-                      defaultValue={profile?.is_bot}
-                    />
-                  </Grid>
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-            <br />
-            <Button
-              primary
-              type="submit"
-              id="updateProfileButton"
-              disabled={isSubmitting}
-            >
-              Update Profile
-            </Button>
-          </form>
-        </CardContent>
-        <CardContent data-testid="tour-profile-notifications">
-          <NotificationPreferences />
-        </CardContent>
-        <CardContent>
-          <SlackPreferences />
-        </CardContent>
-        <CardContent>
-          <OpenAIPreferences />
-        </CardContent>
-        <CardContent data-testid="tour-profile-appearance">
-          <UIPreferences />
-        </CardContent>
-        <CardContent>
-          <ObservabilityPreferences />
-        </CardContent>
-        <CardContent>
-          <FollowupRequestPreferences />
-        </CardContent>
-        <CardContent className={classes.spacing}>
-          <ClassificationsShortcutForm />
-        </CardContent>
-        <CardContent>
-          <PhotometryPlottingPreferences />
-        </CardContent>
-        <CardContent>
-          <SpectroscopyPlottingPreferences />
-        </CardContent>
-        <CardContent>
-          <QuickSaveSourcePreferences />
-        </CardContent>
-      </Card>
+          {field("email")}
+          {field("phone")}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <InputLabel htmlFor="is_bot_id">
+              Is this a bot account (used only from the API)?
+            </InputLabel>
+            <Controller
+              name="is_bot"
+              control={control}
+              defaultValue={profile?.is_bot}
+              render={({ field: { onChange, value } }) => (
+                <Switch
+                  id="is_bot_id"
+                  checked={value}
+                  onChange={(e) => onChange(e.target.checked)}
+                />
+              )}
+            />
+          </div>
+          <Button
+            primary
+            type="submit"
+            id="updateProfileButton"
+            disabled={isSubmitting}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            Update Profile
+          </Button>
+        </form>
+      </CardContent>
       <Dialog
         open={welcomeDialogOpen}
         onClose={() => setWelcomeDialogOpen(false)}
@@ -450,7 +265,7 @@ const UpdateProfileForm = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Card>
   );
 };
 

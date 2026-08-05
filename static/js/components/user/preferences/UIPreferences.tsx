@@ -6,199 +6,49 @@ import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+
+const TOGGLES = [
+  { key: "invertThumbnails", label: "Invert thumbnails" },
+  { key: "useAMPM", label: "24 Hour or AM/PM" },
+  { key: "useRefMag", label: "Use Reference Magnitude" },
+  { key: "showBotComments", label: "Bot Comments" },
+  { key: "hideMLClassifications", label: "Hide ML-based Classifications" },
+  { key: "showSimilarSources", label: "Show Similar Sources" },
+  { key: "hideSourceSummary", label: "Hide Source Summaries on Source page" },
+  {
+    key: "showAISourceSummary",
+    label: "Show AI Source Summaries on Source page",
+    hidden: (prefs: any) => prefs?.hideSourceSummary === true,
+  },
+];
 
 const UIPreferences = () => {
   const { data: profile } = useGetProfileQuery();
   const preferences = profile?.preferences as any;
-  const currentTheme = preferences?.theme;
-  const invertThumbnails: boolean = preferences?.invertThumbnails || false;
-  const useAMPM: boolean = preferences?.useAMPM || false;
-  const useRefMag: boolean = preferences?.useRefMag || false;
-  const showBotComments: boolean = preferences?.showBotComments || false;
-  const hideMLClassifications: boolean =
-    preferences?.hideMLClassifications || false;
-  const showSimilarSources: boolean = preferences?.showSimilarSources || false;
-  const hideSourceSummary: boolean = preferences?.hideSourceSummary || false;
-  const showAISourceSummary: boolean =
-    preferences?.showAISourceSummary || false;
-
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const themeToggled = (event: any) => {
-    const prefs = {
-      theme: event.target.checked ? "dark" : "light",
-    };
-
-    updateUserPreferences(prefs);
+  const prefToggled = (key: string) => (event: any) => {
+    updateUserPreferences({ [key]: event.target.checked });
   };
-
-  const thumbnailInvertToggled = (event: any) => {
-    const prefs = {
-      invertThumbnails: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const useAMPMToggled = (event: any) => {
-    const prefs = {
-      useAMPM: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const useRefMagToggled = (event: any) => {
-    const prefs = {
-      useRefMag: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const showBotCommentsToggled = (event: any) => {
-    const prefs = {
-      showBotComments: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const hideMLClassificationsToggled = (event: any) => {
-    const prefs = {
-      hideMLClassifications: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const showSimilarSourcesToggled = (event: any) => {
-    const prefs = {
-      showSimilarSources: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const hideSourceSummaryToggled = (event: any) => {
-    const prefs = {
-      hideSourceSummary: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const showAISourceSummaryToggled = (event: any) => {
-    const prefs = {
-      showAISourceSummary: event.target.checked,
-    };
-    updateUserPreferences(prefs);
-  };
-
-  const themeSwitch = (
-    <Switch
-      value="Dark Mode"
-      checked={currentTheme === "dark"}
-      onChange={themeToggled}
-    />
-  );
-
-  const thumbnailInvertSwitch = (
-    <Switch
-      value="Invert grayscale thumbnails"
-      checked={invertThumbnails}
-      onChange={thumbnailInvertToggled}
-    />
-  );
-
-  const useAMPMSwitch = (
-    <Switch
-      value="Use 24 hour or AM/PM"
-      checked={useAMPM}
-      onChange={useAMPMToggled}
-    />
-  );
-
-  const useRefMagSwitch = (
-    <Switch
-      value="Plot Total Magnitude / Flux (including reference)"
-      checked={useRefMag}
-      onChange={useRefMagToggled}
-    />
-  );
-
-  const showBotCommentsSwitch = (
-    <Switch
-      value="Show Bot Comments by default"
-      checked={showBotComments}
-      onChange={showBotCommentsToggled}
-    />
-  );
-
-  const hideMLClassificationsSwitch = (
-    <Switch
-      value="Hide ML-based Classifications by default"
-      checked={hideMLClassifications}
-      onChange={hideMLClassificationsToggled}
-    />
-  );
-
-  const showSimilarSourcesSwitch = (
-    <Switch
-      value="Show Similar Sources (based on AI summaries) by default"
-      checked={showSimilarSources}
-      onChange={showSimilarSourcesToggled}
-    />
-  );
-
-  const hideSourceSummarySwitch = (
-    <Switch
-      value="Hide Source Summaries (by default)"
-      checked={hideSourceSummary}
-      onChange={hideSourceSummaryToggled}
-    />
-  );
-
-  const showAISourceSummarySwitch = (
-    <Switch
-      value="Show AI Source Summaries (by default)"
-      checked={showAISourceSummary}
-      onChange={showAISourceSummaryToggled}
-    />
-  );
 
   return (
-    <div>
-      <UserPreferencesHeader title="UI Preferences" />
-      <FormGroup row>
-        <FormControlLabel control={themeSwitch} label="Dark mode" />
-        <FormControlLabel
-          control={thumbnailInvertSwitch}
-          label="Invert thumbnails"
-        />
-        <FormControlLabel control={useAMPMSwitch} label="24 Hour or AM/PM" />
-        <FormControlLabel
-          control={useRefMagSwitch}
-          label="Use Reference Magnitude"
-        />
-        <FormControlLabel
-          control={showBotCommentsSwitch}
-          label="Bot Comments"
-        />
-        <FormControlLabel
-          control={hideMLClassificationsSwitch}
-          label="Hide ML-based Classifications"
-        />
-        <FormControlLabel
-          control={showSimilarSourcesSwitch}
-          label="Show Similar Sources"
-        />
-        <FormControlLabel
-          control={hideSourceSummarySwitch}
-          label="Hide Source Summaries on Source page"
-        />
-        {hideSourceSummary !== true && (
+    <FormGroup>
+      {TOGGLES.filter(({ hidden }) => !hidden?.(preferences)).map(
+        ({ key, label }) => (
           <FormControlLabel
-            control={showAISourceSummarySwitch}
-            label="Show AI Source Summaries on Source page"
+            key={key}
+            control={
+              <Switch
+                checked={preferences?.[key] === true}
+                name={key}
+                onChange={prefToggled(key)}
+              />
+            }
+            label={label}
           />
-        )}
-      </FormGroup>
-    </div>
+        ),
+      )}
+    </FormGroup>
   );
 };
 

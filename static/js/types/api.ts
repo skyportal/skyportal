@@ -1921,6 +1921,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List filters and their broker
+         * @description Paginated list of the skyportal Filters accessible to the user, optionally restricted to the ones attached to no broker.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    pageNumber?: number;
+                    numPerPage?: number;
+                    /** @description Case-insensitive substring of the filter name. */
+                    name?: string;
+                    groupID?: number;
+                    streamID?: number;
+                    /** @description A broker id, or "none" for filters attached to no broker. */
+                    brokerID?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/filters/{filter_id}/attach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach a filter to a broker
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Bind an unattached skyportal Filter to a broker.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        broker_id: number;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/filters/{filter_id})?": {
         parameters: {
             query?: never;
@@ -2488,7 +2597,7 @@ export interface paths {
         head?: never;
         /**
          * Update a broker
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Activating a broker whose provider implements ``test_connection``, or editing an active one's credentials, first reaches the broker, and fails if the credentials are refused.
          */
         patch: {
             parameters: {
@@ -2501,7 +2610,15 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        name?: string;
+                        active?: boolean;
+                        altdata?: Record<string, never>;
+                        /** @description Make this the broker the source page searches alerts on. */
+                        default_alert_search?: boolean;
+                        /** @description Make this the broker cross-matches are run against. */
+                        default_crossmatch?: boolean;
+                    };
                 };
             };
             responses: {
@@ -2536,7 +2653,7 @@ export interface paths {
         put?: never;
         /**
          * Create a broker
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Register a configured connection to an external alert broker.
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Register a configured connection to an external alert broker. A broker whose provider implements ``test_connection`` is always created inactive, since activating it is what checks its credentials.
          */
         post: {
             parameters: {
@@ -2554,6 +2671,10 @@ export interface paths {
                         /** @description Endpoints/credentials for this broker instance. */
                         altdata?: Record<string, never>;
                         active?: boolean;
+                        /** @description Make this the broker the source page searches alerts on. */
+                        default_alert_search?: boolean;
+                        /** @description Make this the broker cross-matches are run against. */
+                        default_crossmatch?: boolean;
                     };
                 };
             };
@@ -23809,6 +23930,7 @@ export interface components {
             data?: components["schemas"]["AssociationNoID"][];
         };
         Broker: {
+            readonly filters?: components["schemas"]["Filter"][];
             /** @description Unique name of the broker. */
             name: string;
             /**
@@ -23818,6 +23940,10 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether this broker is the one the source page's alert search targets. */
+            default_alert_search?: boolean;
+            /** @description Whether this broker is the one cross-matches (cone searches) target. */
+            default_crossmatch?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
             /** @description Unique object identifier. */
@@ -23836,6 +23962,7 @@ export interface components {
             data?: components["schemas"]["Broker"][];
         };
         BrokerNoID: {
+            readonly filters?: components["schemas"]["Filter"][];
             /** @description Unique name of the broker. */
             name: string;
             /**
@@ -23845,6 +23972,10 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether this broker is the one the source page's alert search targets. */
+            default_alert_search?: boolean;
+            /** @description Whether this broker is the one cross-matches (cone searches) target. */
+            default_crossmatch?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
         };
@@ -25741,6 +25872,8 @@ export interface components {
             readonly stream?: components["schemas"]["Stream"];
             /** @description The Filter's Group. */
             readonly group?: components["schemas"]["Group"];
+            /** @description The Broker this Filter runs on. */
+            readonly broker?: components["schemas"]["Broker"];
             readonly candidates?: components["schemas"]["Candidate"][];
             /** @description Filter name. */
             name: string;
@@ -25752,6 +25885,8 @@ export interface components {
             } | null;
             /** @description ID of the Filter's Group. */
             group_id: number;
+            /** @description ID of the Broker this Filter runs on, if any. */
+            broker_id?: number | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -25772,6 +25907,8 @@ export interface components {
             readonly stream?: components["schemas"]["Stream"];
             /** @description The Filter's Group. */
             readonly group?: components["schemas"]["Group"];
+            /** @description The Broker this Filter runs on. */
+            readonly broker?: components["schemas"]["Broker"];
             readonly candidates?: components["schemas"]["Candidate"][];
             /** @description Filter name. */
             name: string;
@@ -25783,6 +25920,8 @@ export interface components {
             } | null;
             /** @description ID of the Filter's Group. */
             group_id: number;
+            /** @description ID of the Broker this Filter runs on, if any. */
+            broker_id?: number | null;
         };
         SingleFilterNoID: {
             /** @enum {string} */
@@ -37921,6 +38060,12 @@ export interface components {
              * @description ID of the Filter's Group.
              */
             group_id: number;
+            /**
+             * Broker Id
+             * @description ID of the Broker this Filter runs on, if any.
+             * @default null
+             */
+            broker_id: number | null;
             /**
              * Altdata
              * @description Arbitrary additional JSON data associated with the Filter.

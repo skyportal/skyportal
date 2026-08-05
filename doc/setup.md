@@ -305,7 +305,7 @@ You may need to run `bun install --frozen-lockfile` and then try `make run` agai
 If you have trouble getting the demo data try doing:
 
 ```
-make db_clear && make db_init && make run
+make db_clear && make run
 ```
 
 and then, from a different window, do `make load_demo_data`.

@@ -1,11 +1,92 @@
+import copy
+from typing import Any
+
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
 from baselayer.app.access import auth_or_token, permissions
 
+from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
-from ...models import Broker, Filter
+from ...models import Broker, Filter, Stream
 from ..base import BaseHandler
+
+
+def alert_permissions(user, session):
+    """The requester's survey -> programids scope for alert queries, derived from
+    the streams they can access. ``None`` means unrestricted (system admins).
+
+    Handlers must always pass the result down to the provider: a provider that
+    receives no scope denies everything.
+    """
+    if user.is_system_admin:
+        return None
+    return survey_permissions(session.scalars(Stream.select(user)).all())
+
+
+async def alert_permissions_async(user, session):
+    """``alert_permissions`` for the async handlers."""
+    if user.is_system_admin:
+        return None
+    return survey_permissions((await session.scalars(Stream.select(user))).all())
+
+
+def strip_secrets(altdata, paths):
+    """Drop the given dotted paths from a copy of ``altdata``."""
+    data = copy.deepcopy(altdata or {})
+    for path in paths:
+        *parents, leaf = path.split(".")
+        node = data
+        for parent in parents:
+            node = node.get(parent) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(leaf, None)
+    return data
+
+
+def merge_altdata(stored, incoming):
+    """Overlay ``incoming`` on ``stored``; blank values keep what is stored.
+
+    A client that never receives credentials
+    can still edit the rest of the config without wiping them.
+    """
+    merged = dict(stored or {})
+    for key, value in (incoming or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge_altdata(merged[key], value)
+        elif value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        else:
+            merged[key] = value
+    return merged
+
+
+DEFAULT_FIELDS = {
+    "default_alert_search": "query_alerts",
+    "default_crossmatch": "cross_match_catalogs",
+}
+
+
+def set_default(session, broker, field, value):
+    """Make ``broker`` the one holding ``field``, clearing it everywhere else.
+
+    Raises ``ValueError`` if the provider cannot serve what the default targets.
+    """
+    capability = DEFAULT_FIELDS[field]
+    if value and not broker.broker_class.implements()[capability]:
+        raise ValueError(
+            f"{broker.name} does not implement '{capability}' and cannot be the "
+            f"'{field}' broker."
+        )
+    if value:
+        session.execute(
+            sa.update(Broker)
+            .where(Broker.id != broker.id)
+            .values(**{field: False})
+            .execution_options(synchronize_session="fetch")
+        )
+    setattr(broker, field, value)
 
 
 def broker_to_dict(broker, include_altdata=False):
@@ -15,6 +96,8 @@ def broker_to_dict(broker, include_altdata=False):
         "name": broker.name,
         "broker_classname": broker.broker_classname,
         "active": broker.active,
+        "default_alert_search": broker.default_alert_search,
+        "default_crossmatch": broker.default_crossmatch,
         "capabilities": broker.broker_class.implements(),
         # Per-record surveys (what THIS connection serves), so survey-based
         # routing is deterministic for one-deployment-per-survey providers.
@@ -22,7 +105,9 @@ def broker_to_dict(broker, include_altdata=False):
         "filter_kind": broker.broker_class.filter_kind,
     }
     if include_altdata:
-        data["altdata"] = broker.altdata
+        data["altdata"] = strip_secrets(
+            broker.altdata, broker.broker_class.secret_config_fields()
+        )
     return data
 
 
@@ -33,6 +118,8 @@ class BrokerHandler(BaseHandler):
         ---
         summary: Create a broker
         description: Register a configured connection to an external alert broker.
+          A broker whose provider implements ``test_connection`` is always created
+          inactive, since activating it is what checks its credentials.
         tags:
           - brokers
         requestBody:
@@ -54,6 +141,12 @@ class BrokerHandler(BaseHandler):
                     description: Endpoints/credentials for this broker instance.
                   active:
                     type: boolean
+                  default_alert_search:
+                    type: boolean
+                    description: Make this the broker the source page searches alerts on.
+                  default_crossmatch:
+                    type: boolean
+                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -91,6 +184,8 @@ class BrokerHandler(BaseHandler):
                 broker_classname=broker_classname,
                 active=data.get("active", True),
             )
+            if broker.broker_class.implements()["test_connection"]:
+                broker.active = False
             if broker.broker_class.implements()["validate_config"]:
                 try:
                     broker.broker_class.validate_config(altdata)
@@ -99,6 +194,13 @@ class BrokerHandler(BaseHandler):
             broker.altdata = altdata
 
             session.add(broker)
+            session.flush()
+            for field in DEFAULT_FIELDS:
+                if data.get(field):
+                    try:
+                        set_default(session, broker, field, True)
+                    except ValueError as e:
+                        return self.error(str(e))
             session.commit()
             return self.success(data={"id": broker.id})
 
@@ -148,6 +250,9 @@ class BrokerHandler(BaseHandler):
         """
         ---
         summary: Update a broker
+        description: Activating a broker whose provider implements
+          ``test_connection``, or editing an active one's credentials, first
+          reaches the broker, and fails if the credentials are refused.
         tags:
           - brokers
         parameters:
@@ -161,6 +266,19 @@ class BrokerHandler(BaseHandler):
             application/json:
               schema:
                 type: object
+                properties:
+                  name:
+                    type: string
+                  active:
+                    type: boolean
+                  altdata:
+                    type: object
+                  default_alert_search:
+                    type: boolean
+                    description: Make this the broker the source page searches alerts on.
+                  default_crossmatch:
+                    type: boolean
+                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -181,17 +299,38 @@ class BrokerHandler(BaseHandler):
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
 
+            checks_credentials = broker.broker_class.implements()["test_connection"]
+            was_active = broker.active
             if "name" in data:
                 broker.name = data["name"]
-            if "active" in data:
-                broker.active = data["active"]
             if "altdata" in data:
+                altdata = merge_altdata(broker.altdata, data["altdata"])
                 if broker.broker_class.implements()["validate_config"]:
                     try:
-                        broker.broker_class.validate_config(data["altdata"])
+                        broker.broker_class.validate_config(altdata)
                     except Exception as e:
                         return self.error(f"Invalid broker configuration: {e}")
-                broker.altdata = data["altdata"]
+                broker.altdata = altdata
+            if "active" in data:
+                broker.active = data["active"]
+            if (
+                checks_credentials
+                and broker.active
+                and ("altdata" in data or not was_active)
+            ):
+                try:
+                    broker.broker_class.test_connection(broker)
+                except Exception as e:
+                    action = "stay active" if was_active else "be activated"
+                    return self.error(
+                        f"Wrong {broker.name} credentials, it cannot {action}: {e}"
+                    )
+            for field in DEFAULT_FIELDS:
+                if field in data:
+                    try:
+                        set_default(session, broker, field, bool(data[field]))
+                    except ValueError as e:
+                        return self.error(str(e))
 
             session.commit()
             return self.success()
@@ -263,7 +402,9 @@ class BrokerAlertsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        params = {k: self.get_argument(k) for k in self.request.arguments}
+        params: dict[str, Any] = {
+            k: self.get_argument(k) for k in self.request.arguments
+        }
 
         with self.Session() as session:
             broker = session.scalars(
@@ -279,6 +420,8 @@ class BrokerAlertsHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support '{operation}'."
                 )
+
+            params["permissions"] = alert_permissions(self.current_user, session)
 
             try:
                 if alert_id is not None:
@@ -329,7 +472,9 @@ class BrokerCutoutsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        params = {k: self.get_argument(k) for k in self.request.arguments}
+        params: dict[str, Any] = {
+            k: self.get_argument(k) for k in self.request.arguments
+        }
 
         with self.Session() as session:
             broker = session.scalars(
@@ -341,6 +486,7 @@ class BrokerCutoutsHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_cutouts"]:
                 return self.error(f"Broker {broker.name} does not support cutouts.")
+            params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.get_cutouts(
                     broker, alert_id, session, **params
@@ -501,6 +647,9 @@ class BrokerSaveHandler(BaseHandler):
                     session,
                     self.associated_user_object,
                     group_ids,
+                    permissions=await alert_permissions_async(
+                        self.current_user, session
+                    ),
                 )
             except Exception as e:
                 return self.error(f"Error saving alert as source: {e}")
@@ -742,6 +891,7 @@ class BrokerFilterTestHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support filter preview."
                 )
+            params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.test_filter(broker, session, **params)
             except Exception as e:
@@ -1046,7 +1196,13 @@ class BrokerFiltersHandler(BaseHandler):
                 # .unique(): the access-control join over group members returns a
                 # row per member, so a filter would list once per user in its group.
                 filters = (
-                    session.scalars(Filter.select(self.current_user)).unique().all()
+                    session.scalars(
+                        Filter.select(self.current_user).where(
+                            Filter.broker_id == broker.id
+                        )
+                    )
+                    .unique()
+                    .all()
                 )
                 return self.success(
                     data=[
@@ -1055,6 +1211,7 @@ class BrokerFiltersHandler(BaseHandler):
                             "name": f.name,
                             "group_id": f.group_id,
                             "stream_id": f.stream_id,
+                            "broker_id": f.broker_id,
                             "altdata": f.altdata,
                         }
                         for f in filters
@@ -1071,6 +1228,7 @@ class BrokerFiltersHandler(BaseHandler):
                 "id": f.id,
                 "name": f.name,
                 "group_id": f.group_id,
+                "broker_id": f.broker_id,
                 "stream": {"id": f.stream.id, "name": f.stream.name}
                 if f.stream
                 else None,
@@ -1161,8 +1319,8 @@ class BrokerFiltersHandler(BaseHandler):
                     return self.error(
                         "A query filter requires 'selected' and 'tables'."
                     )
+                f.broker_id = broker.id
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
-                ad["broker_id"] = broker.id
                 ad["lasair"] = {
                     "selected": selected,
                     "tables": tables,
@@ -1199,8 +1357,8 @@ class BrokerFiltersHandler(BaseHandler):
                         survey=survey,
                         permissions=perms,
                     )
+                    f.broker_id = broker.id
                     f.altdata = {
-                        "broker_id": broker.id,
                         "boom": {"filter_id": resp["id"]},
                         "autoAnnotate": False,
                         "autoSave": False,
@@ -1373,3 +1531,182 @@ class BrokerFiltersHandler(BaseHandler):
             session.delete(f)
             session.commit()
             return self.success()
+
+
+DEFAULT_FILTERS_PER_PAGE = 25
+MAX_FILTERS_PER_PAGE = 100
+
+
+class BrokerFilterCatalogHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        summary: List filters and their broker
+        description: Paginated list of the skyportal Filters accessible to the
+          user, optionally restricted to the ones attached to no broker.
+        tags:
+          - brokers
+          - filters
+        parameters:
+          - in: query
+            name: pageNumber
+            schema:
+              type: integer
+          - in: query
+            name: numPerPage
+            schema:
+              type: integer
+          - in: query
+            name: name
+            schema:
+              type: string
+            description: Case-insensitive substring of the filter name.
+          - in: query
+            name: groupID
+            schema:
+              type: integer
+          - in: query
+            name: streamID
+            schema:
+              type: integer
+          - in: query
+            name: brokerID
+            schema:
+              type: string
+            description: A broker id, or "none" for filters attached to no broker.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        try:
+            page_number = self.get_query_argument("pageNumber", 1, type=int)
+            n_per_page = self.get_query_argument(
+                "numPerPage", DEFAULT_FILTERS_PER_PAGE, type=int
+            )
+        except ValueError:
+            return self.error("Cannot parse pageNumber or numPerPage as integers.")
+        n_per_page = min(max(n_per_page, 1), MAX_FILTERS_PER_PAGE)
+        page_number = max(page_number, 1)
+
+        name = self.get_query_argument("name", None)
+        group_id = self.get_query_argument("groupID", None)
+        stream_id = self.get_query_argument("streamID", None)
+        broker_id = self.get_query_argument("brokerID", None)
+        try:
+            group_id = int(group_id) if group_id else None
+            stream_id = int(stream_id) if stream_id else None
+            if broker_id and broker_id != "none":
+                broker_id = int(broker_id)
+        except ValueError:
+            return self.error("groupID, streamID and brokerID must be integers.")
+
+        with self.Session() as session:
+            stmt = Filter.select(self.current_user).distinct()
+            if broker_id == "none":
+                stmt = stmt.where(Filter.broker_id.is_(None))
+            elif broker_id:
+                stmt = stmt.where(Filter.broker_id == broker_id)
+            if name:
+                stmt = stmt.where(Filter.name.ilike(f"%{name}%"))
+            if group_id:
+                stmt = stmt.where(Filter.group_id == group_id)
+            if stream_id:
+                stmt = stmt.where(Filter.stream_id == stream_id)
+
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(stmt.subquery())
+            )
+            filters = session.scalars(
+                stmt.order_by(Filter.name, Filter.id)
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            ).all()
+            return self.success(
+                data={
+                    "filters": [
+                        {
+                            "id": f.id,
+                            "name": f.name,
+                            "group_id": f.group_id,
+                            "stream_id": f.stream_id,
+                            "broker_id": f.broker_id,
+                            "altdata": f.altdata,
+                        }
+                        for f in filters
+                    ],
+                    "totalMatches": int(total_matches),
+                }
+            )
+
+
+class BrokerFilterAttachHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def post(self, filter_id):
+        """
+        ---
+        summary: Attach a filter to a broker
+        description: Bind an unattached skyportal Filter to a broker.
+        tags:
+          - brokers
+          - filters
+        parameters:
+          - in: path
+            name: filter_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - broker_id
+                properties:
+                  broker_id:
+                    type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json() or {}
+        broker_id = data.get("broker_id")
+        if broker_id is None:
+            return self.error("A 'broker_id' is required.")
+        try:
+            broker_id = int(broker_id)
+        except (TypeError, ValueError):
+            return self.error("'broker_id' must be an integer.")
+        with self.Session() as session:
+            broker = _get_broker(self, session, broker_id)
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if broker.broker_class.filter_kind == "none":
+                return self.error(f"Broker {broker.name} does not accept filters.")
+            f = session.scalars(
+                Filter.select(self.current_user, mode="update").where(
+                    Filter.id == int(filter_id)
+                )
+            ).first()
+            if f is None:
+                return self.error(f"Cannot find a filter with ID: {filter_id}.")
+            if f.broker_id not in (None, broker.id):
+                return self.error("This filter is already attached to a broker.")
+            f.broker_id = broker.id
+            session.commit()
+            return self.success(data={"id": f.id, "broker_id": f.broker_id})

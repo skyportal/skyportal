@@ -1,3 +1,4 @@
+import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useMemo, useState } from "react";
 
@@ -48,6 +49,8 @@ import {
 
 import {
   BASE_LAYOUT,
+  plotAxisTheme,
+  plotCanvasTheme,
   PHOT_ZP,
   smoothing_func,
   mjdnow,
@@ -300,6 +303,8 @@ const PhotometryPlot = ({
   showExtinctionCorrection = false,
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
+  const muiTheme = useTheme();
+  const axisTheme = plotAxisTheme(muiTheme);
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
@@ -960,7 +965,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1004,7 +1009,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1189,7 +1194,7 @@ const PhotometryPlot = ({
             },
             visible: existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1224,7 +1229,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1286,6 +1291,7 @@ const PhotometryPlot = ({
           exponentformat: "power",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       } else {
         newLayouts.xaxis = {
@@ -1297,6 +1303,7 @@ const PhotometryPlot = ({
           tickformat: ".6~f",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
@@ -1310,6 +1317,7 @@ const PhotometryPlot = ({
               zeroline: false,
               tickformat: ".6~f",
               ...BASE_LAYOUT,
+              ...axisTheme,
             }
           : {
               title: {
@@ -1322,6 +1330,7 @@ const PhotometryPlot = ({
               zeroline: false,
               tickformat: ",.0f",
               ...BASE_LAYOUT,
+              ...axisTheme,
             };
       }
     } else if (plotType === "period") {
@@ -1333,6 +1342,7 @@ const PhotometryPlot = ({
         range: [0, phase],
         tickformat: ".2f",
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
     }
 
@@ -1347,6 +1357,7 @@ const PhotometryPlot = ({
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
       if (dm && photStats_value) {
         newLayouts.yaxis2 = {
@@ -1362,6 +1373,7 @@ const PhotometryPlot = ({
           showgrid: false,
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       }
     } else if (plotType === "flux") {
@@ -1374,6 +1386,7 @@ const PhotometryPlot = ({
         },
         range: [...photStats_value.flux.range],
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
     }
     return newLayouts;
@@ -1743,7 +1756,7 @@ const PhotometryPlot = ({
             visible: true,
             showlegend: false,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1775,7 +1788,7 @@ const PhotometryPlot = ({
               visible: true,
               showlegend: false,
               hoverlabel: {
-                bgcolor: "white",
+                bgcolor: muiTheme.palette.background.paper,
                 font: { size: 14 },
                 align: "left",
               },
@@ -1821,6 +1834,7 @@ const PhotometryPlot = ({
           data={(plotData || []).concat(eventMarkers || [])}
           layout={{
             ...layouts,
+            ...plotCanvasTheme(muiTheme),
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -1850,7 +1864,7 @@ const PhotometryPlot = ({
                 x1: 1,
                 y1: 1,
                 line: {
-                  color: "black",
+                  color: muiTheme.palette.text.secondary,
                   width: 1,
                 },
               },

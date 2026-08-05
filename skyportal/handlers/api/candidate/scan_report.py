@@ -45,25 +45,38 @@ async def get_sources_by_objs_in_range(
                 else None
             )
 
+        # An obj qualifies if it has a Source saved to a report group in the saved
+        # window AND a Candidate that passed one of those groups' filters in the
+        # passed window. The candidate side is a correlated EXISTS rather than a join
+        # so an obj with many candidate rows over a long window doesn't blow up the
+        # result combinatorially (Source x Candidate is a many-to-many on obj_id).
+        candidate_passed = (
+            sa.select(1)
+            .select_from(Candidate)
+            .join(Filter, Filter.id == Candidate.filter_id)
+            .where(
+                Candidate.obj_id == Source.obj_id,
+                Filter.group_id.in_(group_ids),
+                Candidate.passed_at.between(
+                    to_datetime(passed_filters_range.get("start_date")),
+                    to_datetime(passed_filters_range.get("end_date")),
+                ),
+            )
+            .exists()
+        )
         result = await session.execute(
             sa.select(
                 Source.obj_id,
                 sa.func.array_agg(sa.func.distinct(Source.id)).label("source_ids"),
             )
-            .join(Candidate, Candidate.obj_id == Source.obj_id)
-            .join(Filter)
             .where(
                 Source.group_id.in_(group_ids),
-                Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
                     to_datetime(saved_range.get("start_saved_date")),
                     to_datetime(saved_range.get("end_saved_date")),
                 ),
-                Candidate.passed_at.between(
-                    to_datetime(passed_filters_range.get("start_date")),
-                    to_datetime(passed_filters_range.get("end_date")),
-                ),
                 Source.active.is_(True),
+                candidate_passed,
             )
             .group_by(Source.obj_id)
         )
@@ -246,7 +259,6 @@ class ScanReportHandler(BaseHandler):
             for scan_report_item in scan_report_items:
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
-
             await session.commit()
 
             self.push_all("skyportal/REFRESH_SCAN_REPORTS")

@@ -74,40 +74,36 @@ teams:
     group_ids: ["=program_A"]
     =id: team_tvs
 
-# Public (no-auth) alert brokers, available out of the box. Credentialed ones
-# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
-# /broker_admin. See doc/broker_plugins.md.
+# Alert brokers available out of the box; see doc/broker_plugins.md.
 brokers:
-  - name: ALeRCE (ZTF)
+  - name: ALeRCE
     broker_classname: ALERCEBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: ALeRCE (LSST)
-    broker_classname: ALERCEBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: ANTARES (ZTF)
+    default_alert_search: true
+  - name: ANTARES
     broker_classname: ANTARESBROKER
     active: true
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: false
+    default_crossmatch: true
     altdata:
-      survey: ZTF
-  - name: ANTARES (LSST)
-    broker_classname: ANTARESBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: Fink (ZTF)
+      protocol: https
+      host: api.kaboom.caltech.edu
+    =id: BOOM
+  - name: Fink
     broker_classname: FINKBROKER
     active: true
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: ZTF
-  - name: Fink (LSST)
-    broker_classname: FINKBROKER
-    active: true
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: LSST
+      endpoint: https://api.lasair.lsst.ac.uk/api
 
 streams:
   - name: ZTF Public
@@ -130,6 +126,12 @@ streams:
       collection: LSST_alerts
       selector: [1]
     =id: lsst
+
+streams/=lsst/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
@@ -157,10 +159,12 @@ filters:
   - name: Yellow transients
     group_id: =program_A
     stream_id: =ztf_partnership
+    broker_id: =BOOM
     =id: example_filter
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    broker_id: =BOOM
     altdata:
       boom:
           filter_id: FILTER_ID

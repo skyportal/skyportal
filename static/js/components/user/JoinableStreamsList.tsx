@@ -1,5 +1,6 @@
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -8,6 +9,7 @@ import {
   useAddStreamUserMutation,
 } from "../../ducks/streams";
 import Button from "../Button";
+import Paper from "../Paper";
 
 // Lists public (auto-join) streams the current user is not yet a member of, with
 // a button to add themselves.
@@ -39,24 +41,29 @@ const JoinableStreamsList = () => {
   };
 
   return (
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6">Public streams you can join</Typography>
-      {joinable.map((stream: any) => (
-        <Box
-          key={stream.id}
-          sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}
-        >
-          <span>{stream.name}</span>
-          <Button
-            secondary
-            size="small"
-            onClick={() => handleJoin(stream.id)}
-            data-testid={`joinStreamButton${stream.id}`}
+    <Paper>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Public streams you can join
+      </Typography>
+      <List disablePadding>
+        {joinable.map((stream: any, index: number) => (
+          <ListItem
+            key={stream.id}
+            divider={index < joinable.length - 1}
+            sx={{ gap: 1 }}
           >
-            Join
-          </Button>
-        </Box>
-      ))}
+            <ListItemText primary={stream.name} sx={{ flexGrow: 0 }} />
+            <Button
+              secondary
+              size="small"
+              onClick={() => handleJoin(stream.id)}
+              data-testid={`joinStreamButton${stream.id}`}
+            >
+              Join
+            </Button>
+          </ListItem>
+        ))}
+      </List>
     </Paper>
   );
 };

@@ -13,7 +13,6 @@ from ....models import (
     FollowupRequest,
     Obj,
     ObservingRun,
-    Photometry,
     Source,
 )
 from ....models.scan_report.scan_report_item import ScanReportItem
@@ -21,6 +20,18 @@ from ....utils.parse import safe_round
 from ...base import BaseHandler
 
 log = make_log("api/scan_report_item")
+
+
+def _survey_of(bandpass):
+    """Map a bandpass name to its survey label for the detections summary."""
+    if not bandpass:
+        return None
+    b = bandpass.lower()
+    if b.startswith("ztf"):
+        return "ZTF"
+    if b.startswith("lsst"):
+        return "LSST"
+    return bandpass
 
 
 def _followup_request_type(allocation, instrument):
@@ -38,7 +49,6 @@ def _build_scan_report_item(
     sources,
     followup_requests,
     assignment_rows,
-    detections,
     comment,
     now_mjd,
 ):
@@ -107,25 +117,42 @@ def _build_scan_report_item(
         for assignment in assignment_rows
     ] or None
 
-    # First and peak detection per survey (instrument), with how long ago each was
-    # recorded. A detection is a point with a measured magnitude (flux > 0).
+    # First and peak detection per survey, read from the (already-loaded) PhotStat so
+    # we don't scan raw photometry (which doesn't scale to long report windows).
+    # PhotStat carries the global first detection and the peak per filter; a report is
+    # generated per single-survey group, so the global first is that survey's first,
+    # and peak per survey is the brightest across the survey's filters.
     detections_by_survey = {}
-    if detections:
-        by_survey = defaultdict(list)
-        for point in detections:
-            by_survey[point.instrument.name].append(point)
+    if obj.photstats:
+        ps = obj.photstats[0]
 
-        def _detection(point):
+        def _entry(mjd, mag):
+            if mjd is None:
+                return None
             return {
-                "mag": safe_round(point.mag, 3),
-                "mjd": safe_round(point.mjd, 5),
-                "days_ago": safe_round(now_mjd - point.mjd, 2),
+                "mag": safe_round(mag, 3),
+                "mjd": safe_round(mjd, 5),
+                "days_ago": safe_round(now_mjd - mjd, 2),
             }
 
-        for survey, points in by_survey.items():
+        first_entry = _entry(ps.first_detected_mjd, ps.first_detected_mag)
+        first_survey = _survey_of(ps.first_detected_filter)
+
+        peak_by_survey = {}  # survey -> (mag, mjd), brightest (min mag) across filters
+        peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
+        for bandpass, mag in (ps.peak_mag_per_filter or {}).items():
+            if mag is None:
+                continue
+            survey = _survey_of(bandpass)
+            current = peak_by_survey.get(survey)
+            if current is None or mag < current[0]:
+                peak_by_survey[survey] = (mag, peak_mjd_per_filter.get(bandpass))
+
+        for survey in set(peak_by_survey) | ({first_survey} if first_survey else set()):
+            peak = peak_by_survey.get(survey)
             detections_by_survey[survey] = {
-                "first": _detection(min(points, key=lambda p: p.mjd)),
-                "peak": _detection(min(points, key=lambda p: p.mag)),
+                "first": first_entry if survey == first_survey else None,
+                "peak": _entry(peak[1], peak[0]) if peak else None,
             }
     detections_by_survey = detections_by_survey or None
 
@@ -173,12 +200,22 @@ async def create_scan_report_items(session, report, sources_by_objs):
     if not valid:
         return []
 
-    obj_ids = [obj_id for obj_id, _ in valid]
-    source_ids = [sid for _, sids in valid for sid in sids]
     user_or_token = session.user_or_token
 
-    objs = {
-        obj.id: obj
+    objs = {}
+    sources_by_obj = defaultdict(list)
+    followups_by_obj = defaultdict(list)
+    assignments_by_obj = defaultdict(list)
+    comment_by_obj = {}  # obj_id -> most recent non-bot scanner comment
+
+    # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
+    # window (thousands of objects) pushes the planner off the obj_id index onto a
+    # seq scan of these large tables, which times out. Chunking keeps every query on
+    # the index. Access rules are still applied per model.
+    for chunk in (valid[i : i + 500] for i in range(0, len(valid), 500)):
+        chunk_obj_ids = [obj_id for obj_id, _ in chunk]
+        chunk_source_ids = [sid for _, sids in chunk for sid in sids]
+
         for obj in (
             await session.scalars(
                 Obj.select(user_or_token, mode="read")
@@ -186,76 +223,65 @@ async def create_scan_report_items(session, report, sources_by_objs):
                     selectinload(Obj.photstats),
                     selectinload(Obj.classifications),
                 )
-                .where(Obj.id.in_(obj_ids))
+                .where(Obj.id.in_(chunk_obj_ids))
             )
-        ).all()
-    }
+        ).all():
+            objs[obj.id] = obj
 
-    # Each of the following is grouped by obj_id; access rules are applied per model.
-    sources_by_obj = defaultdict(list)
-    for source in (
-        await session.scalars(
-            Source.select(user_or_token, mode="read")
-            .options(selectinload(Source.saved_by), selectinload(Source.group))
-            .where(Source.obj_id.in_(obj_ids), Source.id.in_(source_ids))
-        )
-    ).all():
-        sources_by_obj[source.obj_id].append(source)
-
-    followups_by_obj = defaultdict(list)
-    for followup in (
-        await session.scalars(
-            FollowupRequest.select(user_or_token, mode="read")
-            .options(
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.requester),
+        for source in (
+            await session.scalars(
+                Source.select(user_or_token, mode="read")
+                .options(selectinload(Source.saved_by), selectinload(Source.group))
+                .where(
+                    Source.obj_id.in_(chunk_obj_ids),
+                    Source.id.in_(chunk_source_ids),
+                )
             )
-            .where(FollowupRequest.obj_id.in_(obj_ids))
-            .order_by(FollowupRequest.created_at.desc())
-        )
-    ).all():
-        followups_by_obj[followup.obj_id].append(followup)
+        ).all():
+            sources_by_obj[source.obj_id].append(source)
 
-    assignments_by_obj = defaultdict(list)
-    for assignment in (
-        await session.scalars(
-            ClassicalAssignment.select(user_or_token, mode="read")
-            .options(
-                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument),
-                joinedload(ClassicalAssignment.requester),
+        for followup in (
+            await session.scalars(
+                FollowupRequest.select(user_or_token, mode="read")
+                .options(
+                    joinedload(FollowupRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                    joinedload(FollowupRequest.requester),
+                )
+                .where(FollowupRequest.obj_id.in_(chunk_obj_ids))
+                .order_by(FollowupRequest.created_at.desc())
             )
-            .where(ClassicalAssignment.obj_id.in_(obj_ids))
-            .order_by(ClassicalAssignment.created_at.desc())
-        )
-    ).all():
-        assignments_by_obj[assignment.obj_id].append(assignment)
+        ).all():
+            followups_by_obj[followup.obj_id].append(followup)
 
-    detections_by_obj = defaultdict(list)
-    for point in (
-        await session.scalars(
-            Photometry.select(user_or_token, mode="read")
-            .options(joinedload(Photometry.instrument))
-            .where(Photometry.obj_id.in_(obj_ids), Photometry.mag.isnot(None))
-        )
-    ).all():
-        detections_by_obj[point.obj_id].append(point)
-
-    # Most recent non-bot comment left by the scanner, per obj (newest first).
-    comment_by_obj = {}
-    for comment in (
-        await session.scalars(
-            Comment.select(user_or_token, mode="read")
-            .where(
-                Comment.obj_id.in_(obj_ids),
-                Comment.author_id == report.author_id,
-                Comment.bot.is_(False),
+        for assignment in (
+            await session.scalars(
+                ClassicalAssignment.select(user_or_token, mode="read")
+                .options(
+                    joinedload(ClassicalAssignment.run).joinedload(
+                        ObservingRun.instrument
+                    ),
+                    joinedload(ClassicalAssignment.requester),
+                )
+                .where(ClassicalAssignment.obj_id.in_(chunk_obj_ids))
+                .order_by(ClassicalAssignment.created_at.desc())
             )
-            .order_by(Comment.created_at.desc())
-        )
-    ).all():
-        comment_by_obj.setdefault(comment.obj_id, comment)
+        ).all():
+            assignments_by_obj[assignment.obj_id].append(assignment)
+
+        for comment in (
+            await session.scalars(
+                Comment.select(user_or_token, mode="read")
+                .where(
+                    Comment.obj_id.in_(chunk_obj_ids),
+                    Comment.author_id == report.author_id,
+                    Comment.bot.is_(False),
+                )
+                .order_by(Comment.created_at.desc())
+            )
+        ).all():
+            comment_by_obj.setdefault(comment.obj_id, comment)
 
     now_mjd = Time.now().mjd
     items = []
@@ -270,7 +296,6 @@ async def create_scan_report_items(session, report, sources_by_objs):
                 sources_by_obj.get(obj_id, []),
                 followups_by_obj.get(obj_id, []),
                 assignments_by_obj.get(obj_id, []),
-                detections_by_obj.get(obj_id, []),
                 comment_by_obj.get(obj_id),
                 now_mjd,
             )

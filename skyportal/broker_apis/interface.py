@@ -21,6 +21,23 @@ def normalize_module_streams(payload):
     return {**payload, "streams": tokens}
 
 
+def survey_permissions(streams):
+    """Map survey -> sorted programids the given Streams grant, read from each
+    Stream's altdata ``{collection, selector}`` (``ZTF_alerts``/``[1, 2]`` ->
+    ``{"ZTF": [1, 2]}``). Providers scope alert queries to this so a user only
+    ever sees the alerts their streams cover.
+    """
+    permissions: dict = {}
+    for stream in streams:
+        altdata = stream.altdata or {}
+        collection, selector = altdata.get("collection"), altdata.get("selector")
+        if not collection or not selector:
+            continue
+        survey = str(collection).split("_")[0].upper()
+        permissions.setdefault(survey, set()).update(int(s) for s in selector)
+    return {survey: sorted(programids) for survey, programids in permissions.items()}
+
+
 def altdata_filter_modules(broker, elements, name=None):
     """Read custom filter modules from a broker's ``altdata`` (the default store).
 
@@ -65,7 +82,10 @@ class BrokerAPI(_Base):
             A database session.
         kwargs: dict
             Query parameters (e.g. ``objectId``, ``candid``, ``ra``, ``dec``,
-            ``radius``).
+            ``radius``), plus ``permissions``: the requester's survey ->
+            programids scope (see ``survey_permissions``), which handlers always
+            inject and providers serving restricted data must honour. ``None``
+            means unrestricted; a missing key must grant nothing.
 
         Returns
         -------
@@ -221,6 +241,13 @@ class BrokerAPI(_Base):
     @staticmethod
     def validate_config(altdata):
         """Validate a broker instance's ``altdata`` (credentials/endpoints)."""
+        raise NotImplementedError
+
+    @staticmethod
+    def test_connection(broker):
+        """Reach the broker with its stored credentials, raising on failure.
+        Implemented by providers that need credentials; skyportal runs it before
+        activating a broker."""
         raise NotImplementedError
 
     # jsonschema for the "configure this broker" frontend form (react-jsonschema-form).

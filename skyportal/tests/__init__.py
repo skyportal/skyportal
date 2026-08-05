@@ -156,3 +156,8 @@ def wait_for_localization(dateobs, localization_name, token, timeout=240):
         f"Localization {localization_name} for {dateobs} did not process "
         f"within {timeout}s"
     )
+
+
+def open_preferences_panel(page, slug):
+    """Open a preferences panel, e.g. "notifications"."""
+    page.locator(f'//*[@data-testid="{slug}-panel"]').first.click()

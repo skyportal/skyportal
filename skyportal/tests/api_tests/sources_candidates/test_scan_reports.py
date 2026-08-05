@@ -1,10 +1,11 @@
 from datetime import timedelta
 
 import pytest
+import sqlalchemy as sa
 
-from skyportal.models import Candidate, DBSession, ScanReport, Source
+from skyportal.models import Candidate, DBSession, PhotStat, ScanReport, Source
 from skyportal.tests import api
-from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
+from skyportal.tests.fixtures import CommentFactory, ObjFactory
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -97,27 +98,18 @@ def test_scan_report_item_includes_followup_and_assignment(
         obj=obj, author=user, groups=[public_group], text=comment_text, bot=False
     )
 
-    # Two detections on the same survey: the earlier/fainter one is the first
-    # detection, the later/brighter one is the peak.
-    survey = red_transients_run.instrument
-    PhotometryFactory(
-        obj_id=obj.id,
-        instrument=survey,
-        filter="ztfg",
-        mjd=60000.0,
-        flux=100.0,
-        fluxerr=1.0,
-        groups=[public_group],
-    )
-    PhotometryFactory(
-        obj_id=obj.id,
-        instrument=survey,
-        filter="ztfr",
-        mjd=60010.0,
-        flux=1000.0,
-        fluxerr=1.0,
-        groups=[public_group],
-    )
+    # Detections are read from PhotStat (not raw photometry): a fainter first
+    # detection and a brighter peak, both ZTF filters. ObjFactory already creates a
+    # PhotStat (obj_id is unique), so update it rather than inserting a second one.
+    photstat = DBSession().scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj.id))
+    if photstat is None:
+        photstat = PhotStat(obj_id=obj.id)
+        DBSession.add(photstat)
+    photstat.first_detected_mjd = 60000.0
+    photstat.first_detected_mag = 18.9
+    photstat.first_detected_filter = "ztfg"
+    photstat.peak_mag_per_filter = {"ztfg": 18.9, "ztfr": 16.4}
+    photstat.peak_mjd_per_filter = {"ztfg": 60000.0, "ztfr": 60010.0}
     DBSession.commit()
 
     window = {
@@ -174,10 +166,10 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert assignment["status"] is not None
     assert assignment["requester"] == user.username
 
-    # First/peak detection per survey (mag, time, days-ago).
+    # First/peak detection per survey (mag, time, days-ago), from PhotStat.
     detections = item["data"]["detections_by_survey"]
     assert detections is not None
-    survey_detections = detections[survey.name]
+    survey_detections = detections["ZTF"]
     assert survey_detections["first"]["mag"] == 18.9
     assert survey_detections["peak"]["mag"] == 16.4
     assert survey_detections["first"]["days_ago"] > 0
