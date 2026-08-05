@@ -238,11 +238,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       </IconButton>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Photometry</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent>
           {invalid && (
             <FormValidationError message="Please enter a valid float" />
           )}
-          <div>
+          <div style={{ marginTop: "0.75rem" }}>
             <TextField
               data-testid="updatePhotometryMJDTextfield"
               size="small"
@@ -330,6 +330,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               size="small"
               label="Alternative json data"
               placeholder='{"note": "poor subtraction"}'
+              slotProps={{ inputLabel: { shrink: true } }}
               value={state.altdata}
               name="altdata"
               onChange={handleChange}
