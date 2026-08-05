@@ -2,6 +2,7 @@ import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles()((theme) => ({
@@ -28,12 +29,15 @@ const useStyles = makeStyles()((theme) => ({
   separation: { fontSize: "0.65rem", opacity: 0.7 },
 }));
 
-interface Score {
+export interface Score {
   name: string;
   score: number;
   separation?: number;
   hint?: string;
 }
+
+// Same score name as the drb/reliability metadata column.
+export const REAL_BOGUS = "Real/Bogus";
 
 const ACAI: [string, string][] = [
   ["ACAI Hosted", "acai_h"],
@@ -42,14 +46,14 @@ const ACAI: [string, string][] = [
   ["ACAI Orphan", "acai_o"],
 ];
 
-const collect = (alert: any): Score[] => {
+export const collectScores = (alert: any): Score[] => {
   const cand = alert?.candidate ?? {};
   const cls = alert?.classifications ?? {};
   const scores: Score[] = [];
 
   const realBogus = cand.drb ?? cand.reliability;
   if (typeof realBogus === "number")
-    scores.push({ name: "Real/Bogus", score: realBogus });
+    scores.push({ name: REAL_BOGUS, score: realBogus });
   if (typeof cand.sgscore1 === "number")
     scores.push({
       name: "Star/Galaxy",
@@ -77,20 +81,22 @@ const collect = (alert: any): Score[] => {
 const arcsec = (v: number) =>
   v < 60 ? `${v.toFixed(1)}″` : `${(v / 60).toFixed(2)}′`;
 
+export const scoreColor = (theme: Theme, score: number) =>
+  alpha(
+    score > 0.7
+      ? theme.palette.success.main
+      : score > 0.4
+        ? theme.palette.warning.main
+        : theme.palette.error.main,
+    0.45,
+  );
+
 const BoomMlScores = ({ alert }: { alert: any }) => {
   const { classes, theme } = useStyles();
-  const scores = collect(alert);
+  const scores = collectScores(alert);
   if (!scores.length) return null;
 
-  const color = (score: number) =>
-    alpha(
-      score > 0.7
-        ? theme.palette.success.main
-        : score > 0.4
-          ? theme.palette.warning.main
-          : theme.palette.error.main,
-      0.45,
-    );
+  const color = (score: number) => scoreColor(theme, score);
 
   return (
     <div className={classes.root}>

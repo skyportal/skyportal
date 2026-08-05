@@ -43,6 +43,7 @@ const useStyles = makeStyles()((theme) => ({
     gridTemplateColumns: "repeat(auto-fill, minmax(520px, 1fr))",
     gap: theme.spacing(2),
   },
+  gridSingle: { gridTemplateColumns: "1fr" },
   json: { padding: theme.spacing(2), maxHeight: "50vh", overflow: "auto" },
   pre: {
     margin: 0,
@@ -98,7 +99,7 @@ const TooltipTab = ({ tooltip, ...tabProps }: any) => (
 );
 
 const Broker = () => {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const { brokerId: brokerIdParam } = useParams();
   const brokerId = Number(brokerIdParam);
   const { data: brokers, isLoading: brokersLoading } = useGetBrokersQuery();
@@ -381,7 +382,11 @@ const Broker = () => {
                               objectGroups.length === 1 ? "" : "s"
                             } — showing ${start + 1}–${start + pageGroups.length}`}
                           </Typography>
-                          <div className={classes.grid}>
+                          <div
+                            className={cx(classes.grid, {
+                              [classes.gridSingle]: pageGroups.length === 1,
+                            })}
+                          >
                             {pageGroups.map((g) => (
                               <BrokerAlertCard
                                 key={g.objectId}
@@ -390,6 +395,7 @@ const Broker = () => {
                                 objectId={g.objectId}
                                 survey={survey}
                                 alerts={g.alerts}
+                                expanded={pageGroups.length === 1}
                               />
                             ))}
                           </div>

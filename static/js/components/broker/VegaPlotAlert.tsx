@@ -166,7 +166,7 @@ const spec = (url: any, values: any, jd: any): any => {
       // Vertical rule marking the selected alert's JD
       {
         data: { values: [{}] },
-        mark: { type: "rule", strokeDash: [4, 4], size: 1, opacity: 0.3 },
+        mark: { type: "rule", strokeDash: [4, 4], size: 1.5, opacity: 0.6 },
         encoding: {
           x: {
             datum: jd,
