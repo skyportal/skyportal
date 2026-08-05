@@ -4,7 +4,6 @@ import {
 } from "../../../ducks/profile";
 import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import { useGetAcrossInstrumentsQuery } from "../../../ducks/across";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 import SelectWithChips from "../../SelectWithChips";
 
 const ObservabilityPreferences = () => {
@@ -50,23 +49,15 @@ const ObservabilityPreferences = () => {
   telescopeNameList.unshift("Clear selections");
 
   return (
-    <div style={{ marginBottom: "1rem" }}>
-      <UserPreferencesHeader
-        title="Observability Preferences"
-        popupText={
-          "The telescopes to display observability plots for on sources' observability pages. You can see 16 telescopes at a time, and change page to see more."
-        }
-      />
-      <SelectWithChips
-        label="Telescopes to show"
-        id="selectTelescopes"
-        initValue={profile?.observabilityTelescopes?.map(
-          (telescopeID: any) => telescopeIDToName[telescopeID],
-        )}
-        onChange={handleChange}
-        options={telescopeNameList}
-      />
-    </div>
+    <SelectWithChips
+      label="Telescopes to show"
+      id="selectTelescopes"
+      initValue={profile?.observabilityTelescopes?.map(
+        (telescopeID: any) => telescopeIDToName[telescopeID],
+      )}
+      onChange={handleChange}
+      options={telescopeNameList}
+    />
   );
 };
 

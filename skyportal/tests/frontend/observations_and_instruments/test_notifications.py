@@ -5,7 +5,7 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, open_preferences_panel
 from skyportal.tests.fixtures import UserNotificationFactory
 from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import (
     add_comment_and_wait_for_display,
@@ -35,6 +35,7 @@ def test_mention_generates_notification_then_mark_read_and_delete(
 ):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "mention")
 
@@ -114,6 +115,7 @@ def test_comment_on_favorite_source_triggers_notification(
 ):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "favorite_sources")
     _enable_switch(page, "favorite_sources_new_comments")
@@ -163,6 +165,7 @@ def test_classification_on_favorite_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "favorite_sources")
     _enable_switch(page, "favorite_sources_new_classifications")
@@ -208,6 +211,7 @@ def test_spectra_on_favorite_source_triggers_notification(
 ):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "favorite_sources")
     _enable_switch(page, "favorite_sources_new_spectra")
@@ -266,6 +270,7 @@ def test_new_classification_on_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "sources")
 
@@ -309,6 +314,7 @@ def test_new_spectra_on_source_triggers_notification(
 ):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "sources")
     _enable_switch(page, "sources_new_spectra")
@@ -350,6 +356,7 @@ def test_new_spectra_on_source_triggers_notification(
 def test_new_gcn_event_triggers_notification(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "gcn_events")
 
@@ -392,6 +399,7 @@ def test_new_gcn_event_triggers_notification(page, user):
 def test_notification_setting_select(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     _enable_switch(page, "mention")
 
@@ -457,6 +465,7 @@ def test_notification_setting_select(page, user):
     # reload profile to see if the settings were saved
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "notifications")
 
     expect(
         page.locator(

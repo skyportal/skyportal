@@ -22,7 +22,6 @@ interface DarkScheme {
   label: string;
   default: string;
   paper: string;
-  primary: string;
   error: string;
   text: string;
   textSecondary: string;
@@ -33,10 +32,9 @@ interface DarkScheme {
 
 export const DARK_SCHEMES = {
   slate: {
-    label: "Slate",
+    label: "Blue",
     default: "#0e1726",
     paper: "#16233a",
-    primary: "#8ec7e8",
     error: "#ff6b74",
     text: "#e6edf5",
     textSecondary: "#9fb3c8",
@@ -45,10 +43,9 @@ export const DARK_SCHEMES = {
     scrollThumb: "#1e3050",
   },
   graphite: {
-    label: "Graphite",
+    label: "Dark",
     default: "#303030",
     paper: "#424242",
-    primary: "#b1dae9",
     error: "#ff6b74",
     text: "#fafafa",
     textSecondary: "rgba(255, 255, 255, 0.7)",
@@ -59,6 +56,8 @@ export const DARK_SCHEMES = {
 } satisfies Record<string, DarkScheme>;
 
 export type DarkSchemeName = keyof typeof DARK_SCHEMES;
+
+export const LIGHT_BACKGROUND = "#f0f2f5";
 
 export const DEFAULT_DARK_SCHEME: DarkSchemeName = "slate";
 
@@ -91,8 +90,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
   // primary/secondary-colored element themes at once. No active team → the
   // original SkyPortal palette.
   const { activeTeam } = useActiveTeam();
-  const primaryColor =
-    activeTeam?.primary_color || (dark ? scheme.primary : "#457b9d");
+  const primaryColor = activeTeam?.primary_color || "#457b9d";
   const secondaryColor = activeTeam?.secondary_color || "#b1dae9";
 
   const greyTheme = createTheme({
@@ -110,7 +108,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
         main: primaryColor,
         light: primaryColor,
         dark: "#1d3557",
-        ...(dark ? {} : { contrastText: "#fff" }),
+        contrastText: "#fff",
       },
       secondary: {
         main: secondaryColor,
@@ -129,7 +127,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
       },
       background: dark
         ? { default: scheme.default, paper: scheme.paper }
-        : { default: "#f0f2f5", paper: "#f0f2f5" },
+        : { default: LIGHT_BACKGROUND, paper: LIGHT_BACKGROUND },
       ...(dark && {
         text: { primary: scheme.text, secondary: scheme.textSecondary },
         divider: scheme.divider,

@@ -1,6 +1,8 @@
 import pytest
 from playwright.sync_api import expect
 
+from skyportal.tests import open_preferences_panel
+
 
 def _set_url(url_input, value):
     # The URL field is an uncontrolled rjsf/MUI TextField whose onChange drives
@@ -16,6 +18,7 @@ def _set_url(url_input, value):
 def test_slack_integration(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "integrations")
     slack_toggle = page.locator('[data-testid="slack_toggle"]').first
     expect(slack_toggle).to_be_visible()
 
@@ -37,6 +40,7 @@ def test_slack_url(page, user):
     # preamble (which makes every URL fail) while config is still hydrating.
     with page.expect_response(lambda r: r.url.endswith("/api/config")):
         page.goto("/profile")
+    open_preferences_panel(page, "integrations")
     slack_toggle = page.locator('//*[@data-testid="slack_toggle"]').first
     expect(slack_toggle).to_be_visible()
 

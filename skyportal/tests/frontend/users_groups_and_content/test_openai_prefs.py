@@ -4,13 +4,14 @@ import uuid
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, open_preferences_panel
 
 
 @pytest.mark.flaky(reruns=2)
 def test_openai_prefs(page, user, upload_data_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "integrations")
     openai_toggle = page.locator('[data-testid="OpenAI_toggle"]').first
     expect(openai_toggle).to_be_visible()
 
