@@ -38,6 +38,7 @@ from skyportal.broker_apis.fink import (
     _normalize_fink_lsst,
     _normalize_fink_object,
 )
+from skyportal.broker_apis.interface import survey_permissions
 from skyportal.broker_apis.lasair import LASAIRBROKER
 from skyportal.broker_apis.lasair import _normalize_object as _normalize_lasair
 from skyportal.broker_apis.pittgoogle import _normalize_pubsub_alert, _normalize_rows
@@ -193,6 +194,107 @@ def test_lasair_test_filter_passes_raw_sql(monkeypatch):
     )
     assert "mjdnow() - 40" in captured["data"]["conditions"]
     assert captured["data"]["limit"] == 25
+
+
+def _capture_boom_request(monkeypatch, result=None):
+    """Intercept BOOM's HTTP layer and record the outgoing payloads."""
+    import skyportal.broker_apis.boom as boom_mod
+
+    calls = []
+
+    def fake_request(broker, method, path, *, params=None, json=None):
+        calls.append({"method": method, "path": path, "params": params, "json": json})
+        return result if result is not None else []
+
+    monkeypatch.setattr(boom_mod, "_request", fake_request)
+    return calls
+
+
+def test_survey_permissions_from_stream_selectors():
+    class _Stream:
+        def __init__(self, collection, selector):
+            self.altdata = {"collection": collection, "selector": selector}
+
+    assert survey_permissions([_Stream("ZTF_alerts", [1])]) == {"ZTF": [1]}
+    # a user holding several streams gets their union
+    assert survey_permissions(
+        [_Stream("ZTF_alerts", [1]), _Stream("ZTF_alerts", [1, 2])]
+    ) == {"ZTF": [1, 2]}
+    assert survey_permissions(
+        [_Stream("ZTF_alerts", [1, 2, 3]), _Stream("LSST_alerts", [1])]
+    ) == {"ZTF": [1, 2, 3], "LSST": [1]}
+    assert survey_permissions([_Stream("ZTF_alerts", None)]) == {}
+
+
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"ZTF": [1]}, [1]),  # public-only
+        ({"ZTF": [1, 2]}, [1, 2]),  # partnership
+        ({"ZTF": [1, 2, 3]}, [1, 2, 3]),  # caltech
+        ({"LSST": [1]}, []),  # no ZTF stream at all
+        ({}, []),  # no scope passed: fail closed
+    ],
+)
+def test_boom_query_alerts_scoped_to_programids(monkeypatch, permissions, expected):
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker(
+        {"survey": "ZTF", "host": "h", "username": "u", "password": "p"}
+    )
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="ZTF20aapnxry", permissions=permissions
+    )
+    assert calls[0]["json"]["filter"] == {
+        "objectId": "ZTF20aapnxry",
+        "candidate.programid": {"$in": expected},
+    }
+
+
+def test_boom_query_alerts_unrestricted_for_admins(monkeypatch):
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(broker, None, objectId="ZTF20aapnxry", permissions=None)
+    assert calls[0]["json"]["filter"] == {"objectId": "ZTF20aapnxry"}
+
+
+def test_boom_get_alert_drops_out_of_scope_history(monkeypatch):
+    record = {
+        "objectId": "ZTF20aapnxry",
+        "prv_candidates": [{"programid": 1}, {"programid": 2}, {"programid": 3}],
+        "fp_hists": [{"programid": 2}],
+    }
+    _capture_boom_request(monkeypatch, result=[record])
+    broker = _MockBroker({"survey": "ZTF"})
+    data = BOOMBROKER.get_alert(
+        broker, "ZTF20aapnxry", None, permissions={"ZTF": [1, 2]}
+    )
+    # a visible alert can still carry partnership-only history points
+    assert data["prv_candidates"] == [{"programid": 1}, {"programid": 2}]
+    assert data["fp_hists"] == [{"programid": 2}]
+
+
+def test_boom_cutouts_denied_when_alert_out_of_scope(monkeypatch):
+    calls = _capture_boom_request(monkeypatch, result=[])
+    broker = _MockBroker({"survey": "ZTF"})
+    with pytest.raises(ValueError, match="No accessible alert"):
+        BOOMBROKER.get_cutouts(
+            broker, "1145416792615015000", None, permissions={"ZTF": [1]}
+        )
+    # the scope check runs before any cutout is fetched
+    assert [c["path"] for c in calls] == ["queries/find"]
+    assert calls[0]["json"]["filter"]["candidate.programid"] == {"$in": [1]}
+
+
+def test_boom_test_filter_caps_stream_scope_by_requester(monkeypatch):
+    """A preview runs with the filter's stream selector, narrowed to what the
+    requester may see — testing a partnership filter as a public user must not
+    surface partnership alerts."""
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.test_filter(
+        broker, None, pipeline=[{"$match": {}}], permissions={"ZTF": [1]}
+    )
+    assert calls[0]["json"]["permissions"] == {"ZTF": [1]}
 
 
 def test_boom_query_cassette():

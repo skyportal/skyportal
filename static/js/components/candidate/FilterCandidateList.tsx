@@ -43,6 +43,7 @@ import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
+import { Link } from "react-router-dom";
 import { Group } from "../../types";
 
 dayjs.extend(utc);
@@ -643,6 +644,11 @@ const FilterCandidateList = ({
           <Tooltip title="Generate a report of saved candidates">
             <Button secondary onClick={() => setGenerateReportDialogOpen(true)}>
               Generate report
+            </Button>
+          </Tooltip>
+          <Tooltip title="View previously generated scanning reports">
+            <Button secondary component={Link} to="/candidates/scan_reports">
+              View reports
             </Button>
           </Tooltip>
           <GenerateReportForm

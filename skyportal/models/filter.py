@@ -50,6 +50,18 @@ class Filter(Base):
         back_populates="filters",
         doc="The Filter's Group.",
     )
+    broker_id = sa.Column(
+        sa.ForeignKey("brokers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the Broker this Filter runs on, if any.",
+    )
+    broker = relationship(
+        "Broker",
+        foreign_keys=[broker_id],
+        back_populates="filters",
+        doc="The Broker this Filter runs on.",
+    )
     candidates = relationship(
         "Candidate",
         back_populates="filter",

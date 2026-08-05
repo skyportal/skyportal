@@ -1,5 +1,6 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import requests
 from pymongo import MongoClient
@@ -84,6 +85,41 @@ def _request(broker, method, path, *, params=None, json=None):
 
 def _survey(broker, kwargs):
     return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+
+
+def _programids(kwargs, survey):
+    """The programids the requester may see for ``survey``.
+
+    ``permissions`` is injected by the handler from the user's streams; ``None``
+    means unrestricted (system admin). A missing key grants nothing, so a caller
+    that forgets to pass a scope will get no results.
+    """
+    permissions = kwargs.get("permissions", {})
+    if permissions is None:
+        return None
+    return list(permissions.get(survey) or [])
+
+
+def _scope_filter(kwargs, survey):
+    """Mongo clause restricting a query to the requester's accessible programids."""
+    programids = _programids(kwargs, survey)
+    if programids is None:
+        return {}
+    return {"candidate.programid": {"$in": programids}}
+
+
+def _scope_history(record, programids):
+    """Drop history points outside the requester's programids: an alert the user
+    may see can still carry partnership-only ``prv_candidates``/``fp_hists``.
+    """
+    if programids is None or not isinstance(record, dict):
+        return record
+    allowed = set(programids)
+    for key in ("prv_candidates", "prv_nondetections", "fp_hists"):
+        points = record.get(key)
+        if isinstance(points, list):
+            record[key] = [p for p in points if p.get("programid", 1) in allowed]
+    return record
 
 
 def _record_survey(record):
@@ -231,7 +267,7 @@ class BOOMBROKER(BrokerAPI):
 
     form_json_schema_config = {
         "type": "object",
-        "required": ["host", "username", "password"],
+        "required": ["host"],
         "properties": {
             "protocol": {
                 "type": "string",
@@ -266,10 +302,12 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def validate_config(altdata):
-        altdata = altdata or {}
-        for key in ("host", "username", "password"):
-            if not altdata.get(key):
-                raise ValueError(f"Broker altdata must include '{key}'.")
+        if not (altdata or {}).get("host"):
+            raise ValueError("Broker altdata must include 'host'.")
+
+    @staticmethod
+    def test_connection(broker):
+        _get_token(broker.altdata or {}, force=True)
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
@@ -277,6 +315,7 @@ class BOOMBROKER(BrokerAPI):
         catalog = f"{survey}_alerts"
         object_id = kwargs.get("objectId")
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
+        scope = _scope_filter(kwargs, survey)
 
         if object_id:
             return _request(
@@ -285,14 +324,14 @@ class BOOMBROKER(BrokerAPI):
                 "queries/find",
                 json={
                     "catalog_name": catalog,
-                    "filter": {"objectId": object_id},
+                    "filter": {"objectId": object_id, **scope},
                     "projection": NO_CUTOUT_PROJECTION,
                     "max_time_ms": 10000,
                 },
             )
         if ra is not None and dec is not None and radius is not None:
             unit = RADIUS_UNIT_MAP.get(
-                kwargs.get("radius_units", "arcsec"), "Arcseconds"
+                str(kwargs.get("radius_units") or "arcsec"), "Arcseconds"
             )
             result = _request(
                 broker,
@@ -300,6 +339,7 @@ class BOOMBROKER(BrokerAPI):
                 "queries/cone_search",
                 json={
                     "catalog_name": catalog,
+                    "filter": scope,
                     "object_coordinates": {"query": [float(ra), float(dec)]},
                     "radius": float(radius),
                     "unit": unit,
@@ -314,8 +354,9 @@ class BOOMBROKER(BrokerAPI):
         # Full object: brightest alert joined with its aux history.
         survey = _survey(broker, kwargs)
         catalog = f"{survey}_alerts"
+        programids = _programids(kwargs, survey)
         pipeline = [
-            {"$match": {"objectId": alert_id}},
+            {"$match": {"objectId": alert_id, **_scope_filter(kwargs, survey)}},
             {"$sort": {"candidate.magpsf": 1}},
             {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
             {"$replaceRoot": {"newRoot": "$data"}},
@@ -346,11 +387,31 @@ class BOOMBROKER(BrokerAPI):
             "queries/pipeline",
             json={"catalog_name": catalog, "pipeline": pipeline, "max_time_ms": 30000},
         )
-        return data[0] if isinstance(data, list) and data else data
+        record = data[0] if isinstance(data, list) and data else data
+        return _scope_history(record, programids)
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         survey = _survey(broker, kwargs)
+        scope = _scope_filter(kwargs, survey)
+        if scope:
+            try:
+                candid = int(alert_id)
+            except (TypeError, ValueError):
+                candid = alert_id
+            visible = _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts",
+                    "filter": {"_id": candid, **scope},
+                    "projection": {"_id": 1},
+                    "limit": 1,
+                },
+            )
+            if not visible:
+                raise ValueError(f"No accessible alert with candid {alert_id}")
         return _request(
             broker,
             "GET",
@@ -363,7 +424,7 @@ class BOOMBROKER(BrokerAPI):
         """Cross-match a position against BOOM's reference catalogs (Gaia, PS1,
         AllWISE, ...). Returns ``{catalog_name: [sources]}`` for catalogs with a
         hit; each catalog is searched concurrently."""
-        unit = RADIUS_UNIT_MAP.get(kwargs.get("radius_units", "arcsec"))
+        unit = RADIUS_UNIT_MAP.get(str(kwargs.get("radius_units") or "arcsec"))
         if unit is None:
             raise ValueError("radius_units must be one of 'deg', 'arcmin', 'arcsec'.")
         catalogs = _reference_catalogs(broker)
@@ -438,6 +499,22 @@ class BOOMBROKER(BrokerAPI):
                     if f.get("filter_id") in boom_map
                 ]
                 filter_ids = passed or default_filter_ids
+
+                # Carry each passing filter's annotations (a JSON string from BOOM)
+                # through to the ingest so it becomes a filter annotation on the obj.
+                annotations_by_filter_id = {}
+                for f in record.get("filters") or []:
+                    fid = boom_map.get(f.get("filter_id"))
+                    if fid is None:
+                        continue
+                    ann = f.get("annotations")
+                    if isinstance(ann, str):
+                        try:
+                            ann = json.loads(ann)
+                        except (json.JSONDecodeError, TypeError):
+                            ann = None
+                    if isinstance(ann, dict) and ann:
+                        annotations_by_filter_id[fid] = ann
                 cutouts = {
                     k: record[k]
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
@@ -454,6 +531,7 @@ class BOOMBROKER(BrokerAPI):
                             filter_ids,
                             passing_alert_id=record.get("candid"),
                             cutouts=cutouts,
+                            annotations_by_filter_id=annotations_by_filter_id,
                         )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
@@ -589,15 +667,16 @@ class BOOMBROKER(BrokerAPI):
         when ``sort_by`` is given (mirrors BOOM's /filters/test[/count]).
 
         The builder UI sends ``selectedCollection`` (e.g. "ZTF_alerts") + a
-        ``filter_id`` rather than an explicit survey/permissions; derive the
-        survey from the collection and the stream permissions from the filter."""
+        ``filter_id`` rather than an explicit survey; derive the survey from the
+        collection and the programids from the filter's stream, capped by what
+        the requester's own streams grant."""
         survey = kwargs.get("survey")
         if survey is None and kwargs.get("selectedCollection"):
             survey = str(kwargs["selectedCollection"]).split("_")[0]
         survey = survey or _survey(broker, kwargs)
 
-        permissions = kwargs.get("permissions")
-        if permissions is None and kwargs.get("filter_id") is not None:
+        programids = _programids(kwargs, survey)
+        if kwargs.get("filter_id") is not None:
             import sqlalchemy as sa
             from sqlalchemy.orm import joinedload
 
@@ -609,12 +688,17 @@ class BOOMBROKER(BrokerAPI):
                 .where(Filter.id == int(kwargs["filter_id"]))
             )
             if f is not None and f.stream and isinstance(f.stream.altdata, dict):
-                permissions = {survey: f.stream.altdata.get("selector")}
+                selector = f.stream.altdata.get("selector") or []
+                programids = (
+                    list(selector)
+                    if programids is None
+                    else sorted(set(selector) & set(programids))
+                )
 
         payload = {
             "survey": survey,
             "pipeline": kwargs["pipeline"],
-            "permissions": permissions or {},
+            "permissions": {survey: programids} if programids is not None else {},
             "start_jd": kwargs.get("start_jd"),
             "end_jd": kwargs.get("end_jd"),
         }
