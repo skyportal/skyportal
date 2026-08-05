@@ -48,6 +48,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.data_access import default_extra_share_group_ids
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
@@ -1496,6 +1497,9 @@ async def get_group_ids(data, user, session):
         )
 
     group_ids = list(group_ids)
+    if not group_ids:
+        # no groups specified: share with the configured default groups
+        group_ids = await default_extra_share_group_ids(session)
     single_user_group_id = await session.scalar(
         sa.select(Group.id).where(
             Group.single_user_group.is_(True), Group.users.any(id=user.id)

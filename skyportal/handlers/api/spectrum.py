@@ -43,7 +43,10 @@ from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
 )
-from ...utils.data_access import accessible_group_ids_async
+from ...utils.data_access import (
+    accessible_group_ids_async,
+    default_extra_share_group_ids,
+)
 from ..base import BaseHandler
 from .photometry import add_external_photometry
 
@@ -283,7 +286,7 @@ class SpectrumHandler(BaseHandler):
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
-                    group_ids = [single_user_group.id]
+                    group_ids = await default_extra_share_group_ids(session)
                 elif group_ids == "all":
                     group_ids = await accessible_group_ids_async(
                         self.current_user, session
@@ -1314,8 +1317,8 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             ).first()
 
             group_ids = json.pop("group_ids", [])
-            if group_ids is None:
-                group_ids = [single_user_group.id]
+            if group_ids in ([], None):
+                group_ids = await default_extra_share_group_ids(session)
             elif group_ids == "all":
                 public_name = cfg["misc.public_group_name"]
                 public_result = await session.scalars(

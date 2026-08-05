@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -28,8 +28,12 @@ import NewPhotometryForm from "./NewPhotometry";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
-import { useUploadPhotometryMutation } from "../../ducks/source";
+import {
+  useGetSourceQuery,
+  useUploadPhotometryMutation,
+} from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useIsReadOnly } from "../../ducks/profile";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
@@ -61,7 +65,8 @@ const UploadPhotometryForm = () => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
   };
-  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const groupsData = useGetGroupsQuery().data?.userAccessible;
+  const groups = useMemo(() => groupsData ?? [], [groupsData]);
   const userGroups = useGetGroupsQuery().data?.user ?? [];
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState<any>({});
@@ -70,6 +75,8 @@ const UploadPhotometryForm = () => {
   // server re-reddens them so storage stays observed (uncorrected).
   const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const { id } = useParams();
+  const { data: source } = useGetSourceQuery(id as string);
+  const config = useGetConfigQuery().data as any;
   const {
     handleSubmit,
     reset,
@@ -82,6 +89,31 @@ const UploadPhotometryForm = () => {
   const formState = getValues();
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  // Preselect the source's groups (so uploaded photometry defaults to the same
+  // sharing as the source), plus the sitewide public group when the instance
+  // defaults uploads to public. Runs once, after the source/groups load, and
+  // does not clobber a later manual change.
+  const didInitGroups = useRef(false);
+  useEffect(() => {
+    if (didInitGroups.current || !groups?.length) {
+      return;
+    }
+    const defaultIds = new Set<number>(
+      ((source as any)?.groups ?? []).map((g: any) => g.id),
+    );
+    if (config?.shareDataWithPublicGroupByDefault) {
+      const publicGroup = groups.find(
+        (g: any) => g.name === config.publicGroupName,
+      );
+      if (publicGroup) {
+        defaultIds.add(publicGroup.id);
+      }
+    }
+    if (defaultIds.size > 0) {
+      setSelectedGroupIds([...defaultIds]);
+    }
+    didInitGroups.current = true;
+  }, [source, groups, config]);
 
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument: any) =>

@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import StyledDataGrid from "../StyledDataGrid";
 
@@ -94,7 +94,23 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopes = [] } = useGetTelescopesQuery();
   const { data: source } = useGetSourceQuery(route.id);
-  const sourceAny = source as any;
+  const config = useGetConfigQuery().data as any;
+  // Default share: the source's groups, plus the sitewide public group when the
+  // instance defaults uploads to public.
+  const defaultShareGroupIds = useMemo(() => {
+    const ids = new Set<number>(
+      ((source as any)?.groups ?? []).map((g: any) => g.id),
+    );
+    if (config?.shareDataWithPublicGroupByDefault && groups) {
+      const publicGroup = groups.find(
+        (g: any) => g.name === config.publicGroupName,
+      );
+      if (publicGroup) {
+        ids.add(publicGroup.id);
+      }
+    }
+    return [...ids];
+  }, [source, config, groups]);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
   const [header, setHeader] = useState<any[]>([]);
@@ -157,9 +173,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
 
       setPersistentFormData({
         file,
-        group_ids:
-          getIntList("group_ids") ??
-          sourceAny?.["groups"]?.map((g: any) => g.id),
+        group_ids: getIntList("group_ids") ?? defaultShareGroupIds,
         mjd: parseFloat(searchParams.get("mjd") as any) || undefined,
         wave_column: parseInt(searchParams.get("wave_column") as any, 10) || 0,
         flux_column: parseInt(searchParams.get("flux_column") as any, 10) || 1,
@@ -174,7 +188,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         reduced_by: getIntList("reduced_by"),
       });
     })();
-  }, [source, route.id, searchParams]);
+  }, [source, route.id, searchParams, defaultShareGroupIds]);
 
   useEffect(() => {
     if (!parsed) return;
@@ -637,7 +651,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       setParsed(null);
       setPersistentFormData({
         file: undefined,
-        group_ids: sourceAny?.["groups"]?.map((group: any) => group.id),
+        group_ids: defaultShareGroupIds,
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,
