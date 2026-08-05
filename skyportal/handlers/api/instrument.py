@@ -10,6 +10,9 @@ from astropy import coordinates
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.log import make_log
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
@@ -21,9 +24,6 @@ from sqlalchemy.orm import (
 )
 from tornado.ioloop import IOLoop
 
-from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.env import load_env
-from baselayer.log import make_log
 from skyportal.utils.calculations import get_airmass
 
 from ...enum_types import ALLOWED_BANDPASSES
@@ -632,6 +632,27 @@ class InstrumentHandler(BaseHandler):
 
                     query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(localization_cumprob)}"
 
+                    # MATERIALIZED so Postgres drives the overlap from the small set
+                    # of localization tiles (SPGiST index on healpix) instead of
+                    # misestimating and seq-scanning the whole field-tile table.
+                    localization_tiles = (
+                        sa.select(localizationtilescls.healpix.label("healpix"))
+                        .where(
+                            localizationtilescls.localization_id == localization.id,
+                            localizationtilescls.probdensity >= min_probdensity,
+                        )
+                        .cte("localization_tiles")
+                        .prefix_with("MATERIALIZED")
+                    )
+                    overlapping_field_ids = sa.select(
+                        InstrumentFieldTile.instrument_field_id
+                    ).where(
+                        InstrumentFieldTile.instrument_id == instrument.id,
+                        InstrumentFieldTile.healpix.overlaps(
+                            localization_tiles.c.healpix
+                        ),
+                    )
+
                     if includeGeoJSON or includeGeoJSONSummary:
                         if includeGeoJSON:
                             undefer_column = InstrumentField.contour
@@ -653,17 +674,7 @@ class InstrumentHandler(BaseHandler):
                         else:
                             tiles_result = await session.scalars(
                                 sa.select(InstrumentField)
-                                .filter(
-                                    localizationtilescls.localization_id
-                                    == localization.id,
-                                    localizationtilescls.probdensity >= min_probdensity,
-                                    InstrumentFieldTile.instrument_id == instrument.id,
-                                    InstrumentFieldTile.instrument_field_id
-                                    == InstrumentField.id,
-                                    InstrumentFieldTile.healpix.overlaps(
-                                        localizationtilescls.healpix
-                                    ),
-                                )
+                                .where(InstrumentField.id.in_(overlapping_field_ids))
                                 .options(undefer(undefer_column))
                             )
                             tiles = tiles_result.unique().all()
@@ -685,15 +696,7 @@ class InstrumentHandler(BaseHandler):
                         else:
                             tiles_result = await session.scalars(
                                 sa.select(InstrumentField).where(
-                                    localizationtilescls.localization_id
-                                    == localization.id,
-                                    localizationtilescls.probdensity >= min_probdensity,
-                                    InstrumentFieldTile.instrument_id == instrument.id,
-                                    InstrumentFieldTile.instrument_field_id
-                                    == InstrumentField.id,
-                                    InstrumentFieldTile.healpix.overlaps(
-                                        localizationtilescls.healpix
-                                    ),
+                                    InstrumentField.id.in_(overlapping_field_ids)
                                 )
                             )
                             tiles = tiles_result.unique().all()
