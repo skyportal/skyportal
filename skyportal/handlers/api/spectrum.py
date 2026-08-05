@@ -1684,7 +1684,6 @@ class ObjSpectraHandler(BaseHandler):
                     spec_dict["external_observer"] = external_observer.external_observer
 
                 spec_dict["owner"] = spec.owner
-                spec_dict["obj_internal_key"] = obj.internal_key
 
                 return_values.append(spec_dict)
 

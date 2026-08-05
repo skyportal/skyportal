@@ -723,6 +723,8 @@ class CandidateHandler(BaseHandler):
                 if c is None:
                     return self.error("Invalid ID")
                 candidate_info = recursive_to_dict(c)
+                # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
+                candidate_info["internal_key"] = c.internal_key
 
                 if include_alerts:
                     accessible_candidates_result = await session.scalars(
@@ -1487,6 +1489,8 @@ class CandidateHandler(BaseHandler):
                         )
 
                     candidate_list.append(recursive_to_dict(obj))
+                    # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
+                    candidate_list[-1]["internal_key"] = obj.internal_key
                     candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
