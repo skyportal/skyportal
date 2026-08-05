@@ -12,6 +12,7 @@ interface CutoutTripletProps {
   survey: string;
   ra: number;
   dec: number;
+  size?: string;
 }
 
 /**
@@ -25,6 +26,7 @@ const CutoutTriplet = ({
   survey,
   ra,
   dec,
+  size = "5rem",
 }: CutoutTripletProps) => {
   const [dataUris, setDataUris] = useState<{
     new?: string | null;
@@ -87,7 +89,7 @@ const CutoutTriplet = ({
       displayTypes={["new", "ref", "sub"]}
       // Compact triplet for the alert card: the default (13rem, for the source
       // page) is too large here and the three cutouts overlap.
-      size="5rem"
+      size={size}
       titleSize="0.7rem"
       noMargin
     />

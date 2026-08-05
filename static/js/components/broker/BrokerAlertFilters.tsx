@@ -19,12 +19,14 @@ interface BrokerAlertFiltersProps {
   fields: string[];
   filters: AlertFilter[];
   onChange: (filters: AlertFilter[]) => void;
+  label?: string;
 }
 
 const BrokerAlertFilters = ({
   fields,
   filters,
   onChange,
+  label = "Filter results",
 }: BrokerAlertFiltersProps) => {
   const [open, setOpen] = useState(false);
 
@@ -39,7 +41,7 @@ const BrokerAlertFilters = ({
         endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         onClick={() => setOpen(!open)}
       >
-        {`Filter results${filters.length ? ` (${filters.length})` : ""}`}
+        {`${label}${filters.length ? ` (${filters.length})` : ""}`}
       </Button>
       <Collapse in={open} unmountOnExit>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
