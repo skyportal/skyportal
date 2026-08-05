@@ -47,7 +47,9 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.extinction import calculate_extinction
 from ...utils.naive_datetime import utcnow_naive
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
 
@@ -56,6 +58,23 @@ log = make_log("app/analysis")
 _, cfg = load_env()
 
 DEFAULT_ANALYSES_DAILY_LIMIT = 1000
+
+# Core analysis parameters that SkyPortal consumes itself (e.g. to preprocess
+# the photometry) rather than passing through to a service's own schema. They
+# are allowed for any service, so they're excluded from the
+# optional_analysis_parameters subset check.
+RESERVED_ANALYSIS_PARAMETERS = frozenset({"correct_extinction"})
+
+
+def unknown_analysis_parameters(params, optional_analysis_parameters):
+    """Return the set of keys in ``params`` the service does not accept.
+
+    Reserved core keys are always allowed; SkyPortal handles them before the
+    external service is called, so a service need not declare them.
+    """
+    allowed = set(optional_analysis_parameters.keys()) | RESERVED_ANALYSIS_PARAMETERS
+    return set(params.keys()) - allowed
+
 
 # check for API key
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
@@ -154,6 +173,36 @@ def generic_serialize(row, columns):
         else getattr(row, c)
         for c in columns
     }
+
+
+def deredden_photometry_df(df, ra, dec):
+    """Deredden a photometry DataFrame for Galactic extinction, using the same
+    SFD dust map + G23 law as the photometry plot (utils.extinction). Per filter
+    A_lambda: mag/limiting_mag -> value - A, flux/fluxerr -> value * 10**(0.4 A).
+    Filters without a supported coefficient are left unchanged."""
+    if ra is None or dec is None or not (np.isfinite(ra) and np.isfinite(dec)):
+        return df
+    a_lambda = {
+        filt: calculate_extinction(float(ra), float(dec), filt)
+        for filt in df["filter"].dropna().unique()
+    }
+    # A filter with no supported coefficient is left uncorrected; warn so a
+    # partially-corrected multi-survey light curve isn't a silent surprise.
+    skipped = sorted(f for f, v in a_lambda.items() if v is None)
+    if skipped:
+        log(f"deredden: no extinction coefficient for {skipped}; left uncorrected")
+    a = df["filter"].map(a_lambda).astype(float)
+    mask = a.notna()
+    if not mask.any():
+        return df
+    factor = np.power(10.0, 0.4 * a[mask])
+    for col in ("flux", "fluxerr"):
+        if col in df.columns:
+            df.loc[mask, col] = df.loc[mask, col] * factor
+    for col in ("mag", "limiting_mag"):
+        if col in df.columns:
+            df.loc[mask, col] = df.loc[mask, col] - a[mask]
+    return df
 
 
 def get_associated_obj_resource(associated_resource_type):
@@ -293,6 +342,11 @@ def post_analysis(
 
     inputs = {"analysis_parameters": analysis_parameters.copy()}
 
+    # Opt-in Galactic-extinction correction of the photometry sent to the service.
+    correct_extinction = str_to_bool(
+        analysis_parameters.get("correct_extinction"), default=False
+    )
+
     # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
     keys_to_delete = []
     for k, v in analysis_parameters.items():
@@ -380,6 +434,8 @@ def post_analysis(
                     .drop_duplicates(["mjd", "filter"])
                     .reset_index(drop=True)
                 )
+                if correct_extinction and not df.empty:
+                    df = deredden_photometry_df(df, obj.ra, obj.dec)
             else:
                 input_data = [
                     generic_serialize(
@@ -555,6 +611,11 @@ async def post_analysis_async(
 
     inputs = {"analysis_parameters": analysis_parameters.copy()}
 
+    # Opt-in Galactic-extinction correction of the photometry sent to the service.
+    correct_extinction = str_to_bool(
+        analysis_parameters.get("correct_extinction"), default=False
+    )
+
     # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
     keys_to_delete = []
     for k, v in analysis_parameters.items():
@@ -652,6 +713,8 @@ async def post_analysis_async(
                     .drop_duplicates(["mjd", "filter"])
                     .reset_index(drop=True)
                 )
+                if correct_extinction and not df.empty:
+                    df = deredden_photometry_df(df, obj.ra, obj.dec)
             else:
                 input_data = [
                     generic_serialize(
@@ -1442,8 +1505,8 @@ class AnalysisHandler(BaseHandler):
                     analysis_service.optional_analysis_parameters
                 )
 
-            if not set(analysis_parameters.keys()).issubset(
-                set(optional_analysis_parameters.keys())
+            if unknown_analysis_parameters(
+                analysis_parameters, optional_analysis_parameters
             ):
                 return self.error(
                     f"Invalid analysis_parameters: {analysis_parameters}.", status=400
@@ -2481,8 +2544,8 @@ class DefaultAnalysisHandler(BaseHandler):
                         analysis_service.optional_analysis_parameters
                     )
 
-                if not set(default_analysis_parameters.keys()).issubset(
-                    set(optional_analysis_parameters.keys())
+                if unknown_analysis_parameters(
+                    default_analysis_parameters, optional_analysis_parameters
                 ):
                     return self.error(
                         f"Invalid default_analysis_parameters: {default_analysis_parameters}.",
@@ -2654,7 +2717,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     oap = analysis_service.optional_analysis_parameters
                     if isinstance(oap, str):
                         oap = json.loads(oap)
-                    if not set(params.keys()).issubset(set(oap.keys())):
+                    if unknown_analysis_parameters(params, oap):
                         return self.error(
                             f"Invalid default_analysis_parameters: {params}.",
                             status=400,

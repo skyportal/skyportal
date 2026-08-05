@@ -85,6 +85,9 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    redshift_history = data["data"]["redshift_history"]
+    assert redshift_history is not None
+    assert redshift_history[-1]["value"] == 3
 
     status, data = api(
         "DELETE",
@@ -274,7 +277,6 @@ def test_candidate_list_sorting_basic(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -286,7 +288,6 @@ def test_candidate_list_sorting_basic(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"numeric_field": 2},
         },
@@ -319,7 +320,6 @@ def test_candidate_list_sorting_different_origins(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -331,7 +331,6 @@ def test_candidate_list_sorting_different_origins(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin2,
             "data": {"numeric_field": 2},
         },
@@ -370,7 +369,6 @@ def test_candidate_list_sorting_hidden_group(
         "POST",
         f"sources/{public_candidate_two_groups.id}/annotations",
         data={
-            "obj_id": public_candidate_two_groups.id,
             "origin": f"{public_group2.id}",
             "data": {"numeric_field": 1},
             "group_ids": [public_group2.id],
@@ -384,7 +382,6 @@ def test_candidate_list_sorting_hidden_group(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": f"{public_group2.id}",
             "data": {"numeric_field": 2},
         },
@@ -418,7 +415,6 @@ def test_candidate_list_sorting_null_value(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -430,7 +426,6 @@ def test_candidate_list_sorting_null_value(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"some_other_field": 2},
         },
@@ -464,7 +459,6 @@ def test_candidate_list_filtering_numeric(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -476,7 +470,6 @@ def test_candidate_list_filtering_numeric(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"numeric_field": 2},
         },
@@ -507,7 +500,6 @@ def test_candidate_list_filtering_boolean(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"bool_field": True},
         },
@@ -519,7 +511,6 @@ def test_candidate_list_filtering_boolean(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"bool_field": False},
         },
@@ -550,7 +541,6 @@ def test_candidate_list_filtering_string(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"string_field": "a"},
         },
@@ -562,7 +552,6 @@ def test_candidate_list_filtering_string(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"string_field": "b"},
         },
@@ -760,7 +749,7 @@ def test_exclude_by_outdated_annotations(
     status, data = api(
         "POST",
         f"sources/{public_candidate.id}/annotations",
-        data={"obj_id": public_candidate.id, "origin": origin, "data": {"value1": 1}},
+        data={"origin": origin, "data": {"value1": 1}},
         token=annotation_token,
     )
     assert status == 200

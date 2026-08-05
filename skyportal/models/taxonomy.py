@@ -19,7 +19,7 @@ def taxonomy_update_logic(cls, user_or_token):
     can update. If the querying user doesn't have System admin or Post taxonomy
     acl, then no taxonomies are accessible to that user under this policy .
     """
-    if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
+    if len({"Post taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
         return restricted.select_accessible_rows(cls, user_or_token)
 

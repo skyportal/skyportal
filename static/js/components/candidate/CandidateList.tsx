@@ -208,8 +208,12 @@ const CustomSortToolbar = ({
     let data: any = {
       pageNumber: 1,
       numPerPage,
-      groupIDs: filterGroups?.map((g: any) => g.id).join(),
     };
+    // Scanning by specific filters and by groups are mutually exclusive on the
+    // backend (groupIDs wins), so only seed groupIDs when not filtering by filter.
+    if (!filterFormData?.["filterIDs"]) {
+      data.groupIDs = filterGroups?.map((g: any) => g.id).join();
+    }
     if (filterFormData !== null) {
       data = {
         ...data,

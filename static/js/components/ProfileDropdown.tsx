@@ -110,7 +110,6 @@ const ProfileDropdown = () => {
           sx={{
             display: "flex",
             justifyContent: "center",
-            bgcolor: "background.paper",
           }}
         >
           <UserAvatar
@@ -125,7 +124,6 @@ const ProfileDropdown = () => {
           sx={{
             display: "flex",
             justifyContent: "center",
-            bgcolor: "background.paper",
           }}
         >
           {(profile?.first_name?.length > 0 ||
@@ -143,7 +141,6 @@ const ProfileDropdown = () => {
           sx={{
             display: "flex",
             justifyContent: "center",
-            bgcolor: "background.paper",
           }}
         >
           <Typography className={classes.typography} data-testid="username">
@@ -160,7 +157,6 @@ const ProfileDropdown = () => {
             sx={{
               display: "flex",
               justifyContent: "center",
-              bgcolor: "background.paper",
             }}
           >
             <a href="/login/google-oauth2" className={classes.nodecor}>
@@ -185,7 +181,6 @@ const ProfileDropdown = () => {
               sx={{
                 display: "flex",
                 justifyContent: "center",
-                bgcolor: "background.paper",
               }}
             >
               <a

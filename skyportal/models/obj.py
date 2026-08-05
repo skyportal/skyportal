@@ -833,7 +833,7 @@ class Obj(Base, conesearch_alchemy.Point):
         host = self.host
         if host:
             if host.redshift is not None:
-                host_distance = cosmo.luminosity_distance(host.redshift).to(u.Mpc)
+                host_distance = cosmo.angular_diameter_distance(host.redshift).to(u.Mpc)
             else:
                 host_distance = host.distmpc * u.Mpc
 
@@ -841,7 +841,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 obj_coord = ap_coord.SkyCoord(
                     self.ra * u.deg,
                     self.dec * u.deg,
-                    distance=cosmo.luminosity_distance(self.redshift).to(u.Mpc),
+                    distance=cosmo.angular_diameter_distance(self.redshift).to(u.Mpc),
                 )
             else:
                 obj_coord = ap_coord.SkyCoord(

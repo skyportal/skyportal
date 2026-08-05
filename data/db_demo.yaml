@@ -74,40 +74,36 @@ teams:
     group_ids: ["=program_A"]
     =id: team_tvs
 
-# Public (no-auth) alert brokers, available out of the box. Credentialed ones
-# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
-# /broker_admin. See doc/broker_plugins.md.
+# Alert brokers available out of the box; see doc/broker_plugins.md.
 brokers:
-  - name: ALeRCE (ZTF)
+  - name: ALeRCE
     broker_classname: ALERCEBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: ALeRCE (LSST)
-    broker_classname: ALERCEBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: ANTARES (ZTF)
+    default_alert_search: true
+  - name: ANTARES
     broker_classname: ANTARESBROKER
     active: true
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: false
+    default_crossmatch: true
     altdata:
-      survey: ZTF
-  - name: ANTARES (LSST)
-    broker_classname: ANTARESBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: Fink (ZTF)
+      protocol: https
+      host: api.kaboom.caltech.edu
+    =id: BOOM
+  - name: Fink
     broker_classname: FINKBROKER
     active: true
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: ZTF
-  - name: Fink (LSST)
-    broker_classname: FINKBROKER
-    active: true
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: LSST
+      endpoint: https://api.lasair.lsst.ac.uk/api
 
 streams:
   - name: ZTF Public
@@ -130,6 +126,12 @@ streams:
       collection: LSST_alerts
       selector: [1]
     =id: lsst
+
+streams/=lsst/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
@@ -157,10 +159,12 @@ filters:
   - name: Yellow transients
     group_id: =program_A
     stream_id: =ztf_partnership
+    broker_id: =BOOM
     =id: example_filter
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    broker_id: =BOOM
     altdata:
       boom:
           filter_id: FILTER_ID
@@ -752,6 +756,7 @@ instrument:
     band: optical
     telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    api_classname_obsplan: RUBINMMAAPI
     # field_data:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
@@ -1344,38 +1349,33 @@ sources/ZTF18aabcvnq/comments:
     text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
-  - obj_id: ZTF21aaqjmps
-    origin: "Program A"
+  - origin: "Program A"
     data:
       numeric_field: 0.11235813
       some_boolean: true
       class: "SNe II"
 
 sources/ZTF18aabcvnq/annotations:
-  - obj_id: ZTF18aabcvnq
-    origin: "Program b"
+  - origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
 
 sources/ZTFe028h94k/annotations:
-  - obj_id: ZTFe028h94k
-    origin: "Program B"
+  - origin: "Program B"
     data:
       period: 0.5281475
     group_ids:
       - =program_B
-  - obj_id: ZTFe028h94k
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 0.5281217208459
     group_ids:
       - =program_B
 
 sources/ZTFrlh6cyjh/annotations:
-  - obj_id: ZTFrlh6cyjh
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 1.107332
     group_ids:

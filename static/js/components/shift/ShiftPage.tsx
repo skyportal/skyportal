@@ -121,12 +121,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                     boxShadow: isNewShift
                       ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
                       : "none",
-                    backgroundColor: isNewShift ? "#f0f2f5" : "#e0e0e0",
+                    backgroundColor: isNewShift
+                      ? "background.paper"
+                      : "action.disabledBackground",
                   },
                   ...(isNewShift && {
                     boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
                     zIndex: 3,
-                    backgroundColor: "#f0f2f5",
+                    backgroundColor: "background.paper",
                     borderBottom: "none",
                   }),
                 }}
@@ -151,10 +153,12 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                 "&:hover": {
                   boxShadow:
                     "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
-                  backgroundColor: isManageShift ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isManageShift
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isManageShift && {
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -178,12 +182,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                   boxShadow: isRecurring
                     ? "-4px 0 4px -3px rgba(0, 0, 0, 0.2)"
                     : "none",
-                  backgroundColor: isRecurring ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isRecurring
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isRecurring && {
                   boxShadow: "-4px 0 4px -3px rgba(0, 0, 0, 0.2)",
                   zIndex: 3,
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -235,6 +241,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
               <Reminders
                 resourceId={currentShift.id.toString()}
                 resourceType="shift"
+                resourceStartDate={new Date(currentShift.start_date)}
               />
             </Paper>
           </>

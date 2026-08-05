@@ -10,7 +10,6 @@ import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
@@ -18,7 +17,7 @@ import {
 
 const useStyles = makeStyles()(() => ({
   allocationSelect: {
-    width: "40%",
+    width: "100%",
   },
   SelectItem: {
     whiteSpace: "break-spaces",
@@ -96,11 +95,7 @@ const FollowupRequestPreferences = () => {
   });
 
   return (
-    <div style={{ marginBottom: "1rem" }}>
-      <UserPreferencesHeader
-        title="Followup Allocation Preferences"
-        popupText="The allocation to display first for followup requests"
-      />
+    <div>
       {/* show the select if the instLookUp  isn't empty (has keys) */}
       {Object.keys(instLookUp).length > 0 ? (
         <Select

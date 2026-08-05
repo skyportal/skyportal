@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
@@ -16,6 +14,7 @@ import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Tooltip from "@mui/material/Tooltip";
 import { UnifiedBuilderProvider } from "../../../contexts/UnifiedBuilderContext";
 import FilterBuilderContent from "./FilterBuilderContent";
 import AnnotationBuilderContent from "./AnnotationBuilderContent";
@@ -23,9 +22,15 @@ import AnnotationBuilderContent from "./AnnotationBuilderContent";
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as filterActions from "../../../ducks/boom_filter";
+import { useAppDispatch } from "../../../types/hooks";
+import {
+  useBoomFilterVersion,
+  useEditBoomFilterVersionMutation,
+  useUpdateBoomGroupFilterMutation,
+  useValidateBoomFilterMutation,
+} from "../../../ducks/boom_filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
+import { useGetProfileQuery } from "../../../ducks/profile";
 
 interface BoomFilterPluginsProps {
   // Unused by the implementation (groups come from useGetGroupsQuery); optional
@@ -111,12 +116,20 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   const dispatch = useAppDispatch();
   const { handleSubmit, setValue, control } = useForm();
 
-  const theme = useTheme();
+  const { data: filter_v = {}, refetch: refetchFilterVersion } =
+    useBoomFilterVersion();
+  const [editFilterVersion] = useEditBoomFilterVersionMutation();
+  const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
+  const [validateFilter] = useValidateBoomFilterMutation();
+  const { data: profile } = useGetProfileQuery();
+  const isAdmin = (profile?.permissions ?? []).includes("System admin");
+  const [validating, setValidating] = useState(false);
 
-  const filter_v = useAppSelector((state: any) => state.boom_filter_v);
-
-  const { fid } = useParams();
-  const loadedId = useAppSelector((state: any) => state.boom_filter_v?.id);
+  // A filter version may be activated only once it has passed validation for
+  // that fid (or by an admin). Keyed on fid, so it survives active on/off.
+  const validation = filter_v?.altdata?.boom?.validation;
+  const isValidated =
+    !!validation?.passed && validation?.fid === filter_v?.active_fid;
 
   const { data: groupsData } = useGetGroupsQuery();
   const allGroups = groupsData?.all;
@@ -136,33 +149,110 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   const handleChangeActiveFilter = async (event: any) => {
     const active_target = event.target.checked;
-    const result: any = await dispatch(
-      filterActions.editFilterVersion({
-        filter_id: filter_v.id,
-        active: active_target,
-        active_fid: filter_v.active_fid,
-      }),
-    );
-    if (result.status === "success") {
+    const result: any = await editFilterVersion({
+      filter_id: filter_v.id,
+      active: active_target,
+      active_fid: filter_v.active_fid,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Set active to ${active_target}`));
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
 
   const handleFidChange = async (event: any) => {
     const activeFidTarget = event.target.value;
-    const result: any = await dispatch(
-      filterActions.editFilterVersion({
-        filter_id: filter_v.id,
-        active: filter_v.active,
-        active_fid: activeFidTarget,
-      }),
-    );
-    if (result.status === "success") {
+    const result: any = await editFilterVersion({
+      filter_id: filter_v.id,
+      active: filter_v.active,
+      active_fid: activeFidTarget,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Set active filter ID to ${activeFidTarget}`));
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
+
+  const handleValidate = async () => {
+    setValidating(true);
+    try {
+      const result: any = await validateFilter({
+        filter_id: filter_v.id,
+        fid: filter_v.active_fid,
+      });
+      const payload = result?.data?.data ?? result?.data;
+      if (result?.error) {
+        dispatch(showNotification("Validation request failed.", "error"));
+      } else if (payload?.passed) {
+        dispatch(
+          showNotification("Filter validated — it can now be activated."),
+        );
+      } else {
+        dispatch(
+          showNotification(
+            `Filter did not pass validation: ${payload?.message ?? "too permissive"}`,
+            "warning",
+          ),
+        );
+      }
+    } finally {
+      setValidating(false);
+      refetchFilterVersion();
+    }
+  };
+
+  const activationControls = (
+    <Box
+      sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
+    >
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={handleValidate}
+        disabled={validating}
+        startIcon={validating ? <CircularProgress size={14} /> : undefined}
+      >
+        {validating ? "Validating…" : "Validate"}
+      </Button>
+      <Tooltip
+        title={
+          !filter_v.active && !isValidated && !isAdmin
+            ? "Validate this version before activating"
+            : ""
+        }
+      >
+        <span>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={!!filter_v.active}
+                size="small"
+                onChange={handleChangeActiveFilter}
+                name="filterActive"
+                // deactivating is always allowed; only activating needs validation
+                disabled={!filter_v.active && !isValidated && !isAdmin}
+              />
+            }
+            label="Active"
+          />
+        </span>
+      </Tooltip>
+      {validating ? (
+        <Typography variant="caption" color="textSecondary">
+          Running the filter over a night of alerts — this can take a while.
+        </Typography>
+      ) : validation ? (
+        <Typography
+          variant="caption"
+          color={isValidated ? "textSecondary" : "error"}
+        >
+          {isValidated
+            ? "Validated ✓"
+            : validation.message || "Not validated for this version"}
+        </Typography>
+      ) : null}
+    </Box>
+  );
 
   // forms
   const [inlineNewVersion, setInlineNewVersion] = React.useState(false);
@@ -184,30 +274,25 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   // save new filter version
   const onSubmitSaveFilterVersion = async (data: any) => {
-    const result: any = await dispatch(
-      filterActions.updateGroupFilter(filter_v.id, data.pipeline),
-    );
-    if (result.status === "success") {
+    const result: any = await updateGroupFilter({
+      filter_id: filter_v.id,
+      altdata: data.pipeline,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Saved new filter version`));
       setInlineNewVersion(false);
       setShowAnnotationBuilder(false);
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
 
   const handleNew = () => {
     if (!inlineNewVersion) {
       // Only fetch when opening the builder
-      dispatch(filterActions.fetchFilterVersion(fid));
+      refetchFilterVersion();
     }
     setInlineNewVersion(!inlineNewVersion);
   };
-
-  useEffect(() => {
-    if (loadedId !== fid) {
-      dispatch(filterActions.fetchFilterVersion(fid));
-    }
-  }, [fid, loadedId, dispatch]);
 
   // renders
   if (!filter_v) {
@@ -258,22 +343,7 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
                       Creating New Filter Version
                     </Typography>
                     <div className={classes.infoLine}>
-                      <FormControlLabel
-                        // className={classes.formControl}
-                        style={{
-                          marginLeft: theme.spacing(0.5),
-                          marginTop: theme.spacing(1),
-                        }}
-                        control={
-                          <Switch
-                            checked={filter_v.active}
-                            size="small"
-                            onChange={handleChangeActiveFilter}
-                            name="filterActive"
-                          />
-                        }
-                        label="Active"
-                      />
+                      {activationControls}
                       <Button
                         variant="outlined"
                         color="primary"
@@ -410,20 +480,7 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
             // Normal mode - show all controls
             <>
               {filter_v?.fv && (
-                <div className={classes.infoLine}>
-                  <FormControlLabel
-                    className={classes.formControl}
-                    control={
-                      <Switch
-                        checked={filter_v.active}
-                        size="small"
-                        onChange={handleChangeActiveFilter}
-                        name="filterActive"
-                      />
-                    }
-                    label="Active"
-                  />
-                </div>
+                <div className={classes.infoLine}>{activationControls}</div>
               )}
               <div
                 style={{

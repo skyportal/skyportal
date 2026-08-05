@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { makeStyles } from "tss-react/mui";
-import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
@@ -19,15 +17,6 @@ import Spinner from "../Spinner";
 import Paper from "../Paper";
 import withRouter from "../withRouter";
 
-const useStyles = makeStyles()(() => ({
-  title: {
-    fontSize: "0.875rem",
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-}));
-
 interface TelescopeProps {
   route: {
     id: string;
@@ -36,7 +25,6 @@ interface TelescopeProps {
 
 const Telescope = ({ route }: TelescopeProps) => {
   const dispatch = useAppDispatch();
-  const { classes } = useStyles();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
   const { data: telescope, isError: telescopeError } = useGetTelescopeQuery(
@@ -53,69 +41,59 @@ const Telescope = ({ route }: TelescopeProps) => {
     }
   }, [telescopeError, dispatch]);
 
-  if (!telescope) return <CircularProgress color="secondary" />;
+  if (!telescope) return <Spinner />;
 
   return (
-    <div>
-      <Grid container spacing={2}>
-        <Grid size={12}>
-          <Typography variant="h5">
-            {telescope["name"]} ({telescope["nickname"]})
-          </Typography>
-        </Grid>
-        <Grid
-          size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
-          className={classes.displayInlineBlock}
-        >
-          <SkyCam telescope={telescope as unknown as TelescopeType} />
-        </Grid>
-        <Grid
-          size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
-          className={classes.displayInlineBlock}
-        >
-          <Paper>
-            <Typography className={classes.title} color="textSecondary">
-              Weather
-            </Typography>
-            {weather && weather["telescope_id"] === telescope["id"] ? (
-              <WeatherView weather={weather} />
-            ) : (
-              <Spinner />
-            )}
-          </Paper>
-        </Grid>
-        <Grid size={12}>
-          {telescope["instruments"] ? (
-            <InstrumentTable
-              instruments={telescope["instruments"]}
-              telescopeInfo={false}
-            />
-          ) : (
-            <Paper>
-              <Typography className={classes.title} color="textSecondary">
-                No instruments available
-              </Typography>
-            </Paper>
-          )}
-        </Grid>
-        <Grid size={12}>
-          {telescopeAny["allocations"] ? (
-            <AllocationTable
-              instruments={instrumentList}
-              allocations={telescopeAny["allocations"]}
-              groups={groups}
-              telescopeInfo={false}
-            />
-          ) : (
-            <Paper>
-              <Typography className={classes.title} color="textSecondary">
-                No allocations available
-              </Typography>
-            </Paper>
-          )}
-        </Grid>
+    <Grid container spacing={2}>
+      <Grid size={12}>
+        <Typography variant="h5">
+          {telescope["name"]} ({telescope["nickname"]})
+        </Typography>
       </Grid>
-    </div>
+      <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}>
+        <SkyCam telescope={telescope as unknown as TelescopeType} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}>
+        <Paper>
+          <Typography variant="h6">Weather</Typography>
+          {weather && weather["telescope_id"] === telescope["id"] ? (
+            <WeatherView weather={weather} />
+          ) : (
+            <Spinner />
+          )}
+        </Paper>
+      </Grid>
+      <Grid size={12}>
+        {telescope["instruments"] ? (
+          <InstrumentTable
+            instruments={telescope["instruments"]}
+            telescopeInfo={false}
+          />
+        ) : (
+          <Paper>
+            <Typography color="textSecondary">
+              No instruments available
+            </Typography>
+          </Paper>
+        )}
+      </Grid>
+      <Grid size={12}>
+        {telescopeAny["allocations"] ? (
+          <AllocationTable
+            instruments={instrumentList}
+            allocations={telescopeAny["allocations"]}
+            groups={groups}
+            telescopeInfo={false}
+          />
+        ) : (
+          <Paper>
+            <Typography color="textSecondary">
+              No allocations available
+            </Typography>
+          </Paper>
+        )}
+      </Grid>
+    </Grid>
   );
 };
 

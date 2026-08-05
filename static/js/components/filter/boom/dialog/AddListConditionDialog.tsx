@@ -27,8 +27,8 @@ import { normalizeFieldValue } from "../../../../utils/conditionHelpers";
 import { getSimpleType } from "../../../../constants/filterConstants";
 import BlockComponent from "../block/BlockComponent";
 import MapExpressionEditor from "./MapExpressionEditor";
-import { postElement } from "../../../../ducks/boom_filter_modules";
-import { useAppDispatch, useAppSelector } from "../../../../types/hooks";
+import { usePostFilterElementMutation } from "../../../../ducks/boom_filter_modules";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 
 const OPERATORS_NEEDING_CONDITIONS = [
   "$anyElementTrue",
@@ -583,10 +583,9 @@ const AddListConditionDialog = () => {
     createDefaultBlock,
   );
   const save = useListConditionSave();
-  const dispatch = useAppDispatch();
-  const stream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const [postElement] = usePostFilterElementMutation();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const stream = boomFilterVersion?.stream?.name;
 
   // Auto-populate form when opening inline with condition data
   useEffect(() => {
@@ -849,17 +848,15 @@ const AddListConditionDialog = () => {
       name: form.conditionName.trim(),
     };
 
-    const apiResult: any = await dispatch(
-      postElement({
-        name: form.conditionName.trim(),
-        data: {
-          listCondition: listCondition,
-          type: "array",
-          streams: [stream],
-        },
-        elements: "listVariables",
-      }),
-    );
+    const apiResult: any = await postElement({
+      name: form.conditionName.trim(),
+      data: {
+        listCondition: listCondition,
+        type: "array",
+        streams: [stream],
+      },
+      elements: "listVariables",
+    });
 
     const success = await save.saveListCondition({
       listFieldName: dialog.listFieldName,
@@ -868,7 +865,7 @@ const AddListConditionDialog = () => {
       conditionName: form.conditionName,
       localFilters: dialog.localFilters,
       subFieldOptions: listCondition.subFieldOptions,
-      saved: apiResult?.status === "success",
+      saved: !apiResult?.error,
       listCondition: listCondition,
       listConditionDialog,
       setCustomListVariables,

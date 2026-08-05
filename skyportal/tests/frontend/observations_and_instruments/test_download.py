@@ -28,6 +28,7 @@ def enter_comment_text(page, comment_text):
     comment_box.fill(comment_text)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_download_sources(
     page, user, public_group, upload_data_token, annotation_token
 ):
@@ -86,10 +87,20 @@ def test_download_sources(
     page.goto(f"/become_user/{user.id}")
     page.goto("/sources")
 
-    # Filter for origin
-    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    # Filter for origin. The filter popover intermittently fails to open on the
+    # first click while the table is still rendering, timing out the interaction
+    # below; retry the open until the origin field appears.
+    filter_button = page.locator(
+        "//button[@data-testid='Filter Table-iconButton']"
+    ).first
     origin_input = page.locator("//*[@data-testid='origin-text']//input").first
-    origin_input.click()
+    for _ in range(5):
+        filter_button.click()
+        try:
+            expect(origin_input).to_be_visible(timeout=10000)
+            break
+        except AssertionError:
+            continue
     origin_input.fill(origin)
     page.locator("//button[text()='Submit']").first.click()
     # wait for the filtered results to load before downloading

@@ -12,6 +12,7 @@
  * The websocket `REFRESH_EARTHQUAKE` / `REFRESH_EARTHQUAKES` messages are
  * bridged to cache invalidation via `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -53,9 +54,7 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
       Record<string, unknown> | void
     >({
       query: (params) => {
-        const search = new URLSearchParams(
-          (params as Record<string, string>) ?? {},
-        ).toString();
+        const search = buildQueryString(params ?? {});
         return search ? `api/earthquake?${search}` : "api/earthquake";
       },
       providesTags: ["Earthquakes"],

@@ -93,7 +93,7 @@ def test_observing_run_skycam_component(
     assert data["status"] == "success"
 
     page.goto(f"/run/{red_transients_run.id}")
-    expect(page.locator('//*[text()="Current Conditions"]').first).to_be_visible()
+    expect(page.locator('//*[text()="Skycam"]').first).to_be_visible()
     expect(
         page.locator(
             f'//img[contains(@src, "{red_transients_run.instrument.telescope.skycam_link}")]'
@@ -112,7 +112,7 @@ def test_observing_run_skycam_component(
             f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
         ).first
     ).to_be_visible()
-    expect(page.locator('//*[text()="Current Conditions"]').first).to_be_visible()
+    expect(page.locator('//*[text()="Skycam"]').first).to_be_visible()
     expect(
         page.locator('//img[contains(@src, "static/images/static.jpg")]').first
     ).to_be_visible()
@@ -127,7 +127,9 @@ def test_observing_run_skycam_component(
             f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
         ).first
     ).to_be_visible()
-    expect(page.locator('//*[text()="Current Conditions"]').first).to_be_hidden()
+    expect(
+        page.locator('//*[text()="No skycam link configured"]').first
+    ).to_be_visible()
 
 
 def test_observing_run_page(page, view_only_user, red_transients_run):

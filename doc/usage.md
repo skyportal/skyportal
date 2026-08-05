@@ -95,8 +95,10 @@ General:
 
 DB preparation:
 
-- db_init : Create database
-- db_clear : Drop and re-create DB
+- db_init : Create the databases if they don't exist yet
+- db_clear : Drop and re-create the databases, wiping all data
+
+Neither creates the tables: `make run` does it on startup.
 
 Launching:
 

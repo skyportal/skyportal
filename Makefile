@@ -6,7 +6,9 @@ NORMAL=\033[0m
 PYTHON:=PYTHONPATH=. uv run python
 FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
 
-VER := $(shell uv run python -c "import skyportal; print(skyportal.__version__)")
+# Skip on a fresh clone: uv can't resolve the workspace until the baselayer
+# submodule is checked out, which the rule below does.
+VER := $(if $(wildcard baselayer/pyproject.toml),$(shell uv run python -c "import skyportal; print(skyportal.__version__)"))
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 SKYPORTAL_UID ?= 1000
@@ -83,6 +85,10 @@ load_seed_data: | dependencies_no_js prepare_seed_data
 db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
+
+db_clear_test: ## Drop and recreate only the test database.
+db_clear_test:
+	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
 
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))

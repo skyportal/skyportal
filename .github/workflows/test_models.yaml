@@ -136,7 +136,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           uv sync --inexact --group dev
           make db_init
 
@@ -145,7 +144,6 @@ jobs:
       - name: Refresh SkyPortal dependencies for tested version
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
       # Lint the diff once (on shard 0), not once per shard.

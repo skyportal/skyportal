@@ -18,7 +18,6 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
 import {
   useFilterBuilder,
   useAnnotationBuilder,
@@ -34,7 +33,8 @@ import {
   flattenFieldOptions,
   getArrayFieldSubOptions,
 } from "../../../constants/filterConstants";
-import { fetchSchema } from "../../../ducks/boom_filter_modules";
+import { useFilterSchema } from "../../../ducks/boom_filter_modules";
+import { useBoomFilterVersion } from "../../../ducks/boom_filter";
 
 interface AnnotationBuilderContentProps {
   onBackToFilterBuilder?: (...a: any[]) => void;
@@ -53,14 +53,10 @@ const AnnotationBuilderContent = ({
   const { hasValidQuery: hasValidFilterQuery } = useFilterBuilder();
   const filterContext = useFilterBuilder();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
 
-  const filter_stream = useAppSelector(
-    (state: any) => state.boom_filter_v?.stream?.name?.split(" ")[0],
-  );
-  const store_schema = useAppSelector(
-    (state: any) => state.filter_modules?.schema,
-  );
+  const { data: store_schema } = useFilterSchema();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const filter_stream = boomFilterVersion?.stream?.name?.split(" ")[0];
 
   const [schema, setSchema] = useState<any>(null);
   const [fieldOptions, setFieldOptions] = useState<any[]>([]);
@@ -93,10 +89,6 @@ const AnnotationBuilderContent = ({
       ]);
     }
   }, [projectionFields, setProjectionFields]);
-
-  useEffect(() => {
-    if (filter_stream) dispatch(fetchSchema(filter_stream));
-  }, [filter_stream, dispatch]);
 
   useEffect(() => {
     if (store_schema) {

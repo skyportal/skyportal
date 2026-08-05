@@ -3,7 +3,7 @@ import { Box, MenuItem, Select, FormControl } from "@mui/material";
 import AutocompleteFields from "./AutocompleteFields";
 import { getFieldOptionsWithVariable } from "../../../../utils/conditionHelpers";
 import { useConditionContext } from "../../../../hooks/useContexts";
-import { useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 
 interface SimpleConditionRowProps {
   condition?: any;
@@ -24,9 +24,8 @@ const SimpleConditionRow = ({
     customSwitchCases,
     fieldOptionsList,
   } = useConditionContext();
-  const currentStream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
 
   const [field, setField] = useState<any>(condition?.field || "");
   const [operator, setOperator] = useState<any>(condition?.operator || "$eq");

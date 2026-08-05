@@ -7,6 +7,7 @@
  * `REFRESH_ANALYSIS_SERVICES` message is bridged to cache invalidation via
  * `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -23,9 +24,7 @@ export const analysisServicesApi = skyportalApi.injectEndpoints({
       Record<string, unknown> | void
     >({
       query: (params) => {
-        const queryString = new URLSearchParams(
-          (params as Record<string, string>) ?? {},
-        ).toString();
+        const queryString = buildQueryString(params ?? {});
         return queryString
           ? `api/analysis_service?${queryString}`
           : "api/analysis_service";

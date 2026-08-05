@@ -98,7 +98,7 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
   });
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport showQuickFilter={false}>
+    <DataGridToolbar showQuickFilter={false}>
       {canExpand && (
         <IconButton
           name="expand_annotations"

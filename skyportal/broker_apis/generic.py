@@ -57,10 +57,12 @@ class GENERICBROKER(BrokerAPI):
             "base_url": {
                 "type": "string",
                 "title": "Base URL of the broker's REST API",
+                "description": "Root URL the broker's REST endpoints are built from.",
             },
             "token": {
                 "type": "string",
                 "title": "Bearer token (optional)",
+                "description": "Optional bearer token sent as an Authorization header.",
             },
         },
     }

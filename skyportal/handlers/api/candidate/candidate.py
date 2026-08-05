@@ -1607,8 +1607,28 @@ class CandidateHandler(BaseHandler):
                     return self.error(
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
-                session.add(obj)
-                await session.flush()
+                # Set derived columns while obj is transient so they go into the
+                # INSERT; reading them after the flush can sync-lazy-load an
+                # expired attribute and raise MissingGreenlet.
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
+                try:
+                    # Concurrent posts of the same new obj race here: the loser
+                    # rolls back to the savepoint and reuses the committed row.
+                    async with session.begin_nested():
+                        session.add(obj)
+                        await session.flush()
+                except IntegrityError:
+                    obj = await session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == data["id"])
+                    )
+                    if obj is None:
+                        return self.error(
+                            f"Failed to create object {data['id']}: it already exists but is not accessible"
+                        )
+                    obj_already_exists = True
 
             filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
@@ -1617,8 +1637,13 @@ class CandidateHandler(BaseHandler):
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
-            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-            update_healpix_if_relevant(data, obj)
+            # Existing obj (found up front, or created concurrently): it is fully
+            # loaded, so applying the updates here can't lazy-load.
+            if obj_already_exists:
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
 
             # Capture obj.id BEFORE the commit attempt so that we can still
             # build an error message after a rollback (which detaches obj).

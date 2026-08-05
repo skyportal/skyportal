@@ -21,12 +21,18 @@ from .annotation_services import (
 )
 from .broker import (
     BrokerAlertsHandler,
+    BrokerConeSearchHandler,
     BrokerCutoutsHandler,
+    BrokerFilterAttachHandler,
+    BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
     BrokerHandler,
+    BrokerPhotometryHandler,
     BrokerSaveHandler,
+    BrokerSurveyPhotometryHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
@@ -71,7 +77,8 @@ from .followup_request import (
 from .galaxy import (
     GalaxyASCIIFileHandler,
     GalaxyCatalogHandler,
-    GalaxyGladeHandler,
+    GalaxyNEDHandler,
+    GalaxyRegaladeHandler,
     ObjHostHandler,
 )
 from .gcn import (
@@ -210,6 +217,7 @@ from .sources_confirmed_in_gcn import (
 )
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
+    BulkSpectraHandler,
     ObjSpectraHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,

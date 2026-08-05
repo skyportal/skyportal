@@ -12,7 +12,7 @@ import { useConditionContext } from "../../../../hooks/useContexts";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import { styled, lighten, darken } from "@mui/system";
-import { useAppSelector } from "../../../../types/hooks";
+import { useFilterSchema } from "../../../../ducks/boom_filter_modules";
 
 const GroupHeader = styled("div")(({ theme }: { theme: any }) => {
   // Fallbacks for palette
@@ -137,7 +137,7 @@ const OperatorSelector = ({
     customSwitchCases,
   } = useConditionContext();
 
-  const schema = useAppSelector((state: any) => state.filter_modules?.schema);
+  const schema = useFilterSchema().data;
   const fieldOptions = flattenFieldOptions(schema);
 
   // Check if this is a list variable
@@ -263,7 +263,7 @@ const ListVariableOperator = ({
 }: ListVariableOperatorProps) => {
   const { customVariables, fieldOptionsList, customListVariables } =
     useConditionContext();
-  const schema = useAppSelector((state: any) => state.filter_modules?.schema);
+  const schema = useFilterSchema().data;
   const fieldOptions = flattenFieldOptions(schema);
 
   const handleOperatorChange = useCallback(

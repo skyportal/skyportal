@@ -1132,3 +1132,44 @@ def test_phot_stat_aggregate(upload_data_token, public_group, ztf_camera):
     )
     assert status == 200
     assert source_id not in {p["id"] for p in data["data"]["points"]}
+
+    # selecting by group (instead of classification) includes the source
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "group_id": public_group.id,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id in {p["id"] for p in data["data"]["points"]}
+
+    # selecting by an explicit object list restricts to those objects
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "obj_ids": source_id,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id in {p["id"] for p in data["data"]["points"]}
+
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "obj_ids": "not-a-real-object",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id not in {p["id"] for p in data["data"]["points"]}

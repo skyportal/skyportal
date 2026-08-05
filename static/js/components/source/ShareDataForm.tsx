@@ -52,7 +52,10 @@ const StyledDataGrid: any = StyledDataGridBase;
 // Toolbar for the Share-data spectrum grid: exposes a quick-filter search box
 // (wrapped with a stable test id) so tests can filter rows by typing a value.
 const SpectrumGridToolbar = () => (
-  <DataGridToolbar quickFilterTestId="spectrum-quick-filter" />
+  <DataGridToolbar
+    showExport={false}
+    quickFilterTestId="spectrum-quick-filter"
+  />
 );
 
 interface DeleteSpectrumButtonProps {

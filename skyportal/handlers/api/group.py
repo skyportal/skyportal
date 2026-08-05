@@ -276,15 +276,22 @@ class GroupHandler(BaseHandler):
                 accessible_result.unique().all(), key=lambda g: g.name.lower()
             )
 
-            all_groups_query = Group.select(session.user_or_token)
+            all_groups_query = Group.select(session.user_or_token).options(
+                selectinload(Group.streams)
+            )
             if not include_single_user_groups:
                 all_groups_query = all_groups_query.where(
                     Group.single_user_group.is_(False)
                 )
             all_groups_result = await session.scalars(all_groups_query)
-            all_groups = sorted(
+            all_groups = []
+            for group in sorted(
                 all_groups_result.unique().all(), key=lambda g: g.name.lower()
-            )
+            ):
+                group_streams = [{"id": s.id, "name": s.name} for s in group.streams]
+                group = group.to_dict()
+                group["streams"] = group_streams
+                all_groups.append(group)
 
             return self.success(
                 data={

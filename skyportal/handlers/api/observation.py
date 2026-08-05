@@ -94,6 +94,20 @@ def add_queued_observations(instrument_id, obstable):
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
+    # Schedulers that report pointings by position (e.g. Rubin ObsLocTAP) rather
+    # than a fixed field grid: create the fields on the fly, as add_observations does.
+    if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
+        instrument = session.get(Instrument, instrument_id)
+        regions = Regions.parse(instrument.region, format="ds9")
+        field_ids = add_tiles(
+            instrument.id,
+            instrument.name,
+            regions,
+            obstable[["RA", "Dec"]],
+            session=session,
+        )
+        obstable["field_id"] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():

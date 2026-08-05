@@ -191,6 +191,7 @@ async def add_user_and_setup_groups(
         if group_ids_and_admin == []:
             await set_default_group_async(user, session)
         else:
+            granted_stream_ids = set()
             for group_id, admin in group_ids_and_admin:
                 session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
                 group = await session.scalar(
@@ -200,14 +201,26 @@ async def add_user_and_setup_groups(
                 )
                 if group is not None and group.streams:
                     for stream in group.streams:
-                        session.add(StreamUser(stream_id=stream.id, user_id=user.id))
+                        if stream.id not in granted_stream_ids:
+                            session.add(
+                                StreamUser(stream_id=stream.id, user_id=user.id)
+                            )
+                            granted_stream_ids.add(stream.id)
 
             if cfg["misc.public_group_name"] is not None:
                 public_group = await session.scalar(
-                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
+                    sa.select(Group)
+                    .options(selectinload(Group.streams))
+                    .where(Group.name == cfg["misc.public_group_name"])
                 )
                 if public_group is not None:
                     session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+                    for stream in public_group.streams:
+                        if stream.id not in granted_stream_ids:
+                            session.add(
+                                StreamUser(stream_id=stream.id, user_id=user.id)
+                            )
+                            granted_stream_ids.add(stream.id)
 
         await set_default_acls_async(user, session)
         await session.flush()

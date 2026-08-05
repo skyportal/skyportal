@@ -4,7 +4,7 @@ import requests
 
 from baselayer.log import make_log
 
-from .interface import BrokerAPI
+from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
 
@@ -23,15 +23,19 @@ def _band(cand):
     return _FID_TO_BAND.get(cand.get("fid")) or (cand.get("filter") or None)
 
 
-def _survey(broker, kwargs=None):
-    """Resolve the Lasair instance's survey: explicit kwarg -> altdata.survey ->
+def _survey_from_altdata(altdata, kwargs=None):
+    """Resolve a Lasair instance's survey: explicit kwarg -> altdata.survey ->
     detected from the endpoint (only the ZTF instance's host contains 'ztf')."""
-    altdata = broker.altdata or {}
+    altdata = altdata or {}
     survey = (kwargs or {}).get("survey") or altdata.get("survey")
     if not survey:
         endpoint = (altdata.get("endpoint") or DEFAULT_ENDPOINT).lower()
         survey = "ZTF" if "ztf" in endpoint else "LSST"
     return survey.upper()
+
+
+def _survey(broker, kwargs=None):
+    return _survey_from_altdata(broker.altdata or {}, kwargs)
 
 
 def _normalize_object(obj, object_id):
@@ -189,15 +193,55 @@ class LASAIRBROKER(BrokerAPI):
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
 
+    @classmethod
+    def configured_surveys(cls, altdata):
+        # Lasair's ZTF and LSST are separate deployments (distinct endpoint +
+        # token), so a record serves exactly one, derived from its config.
+        return [_survey_from_altdata(altdata)]
+
     form_json_schema_config = {
         "type": "object",
-        "required": ["token"],
+        "required": ["endpoint"],
         "properties": {
-            "token": {"type": "string", "title": "Lasair API token"},
+            "token": {
+                "type": "string",
+                "title": "Lasair API token",
+                "description": "Your Lasair API token (40 hex characters).",
+            },
             "endpoint": {
                 "type": "string",
                 "title": "API endpoint",
                 "default": DEFAULT_ENDPOINT,
+                "description": (
+                    "Lasair API base URL. LSST instance: "
+                    "https://api.lasair.lsst.ac.uk/api ; ZTF instance: "
+                    "https://lasair-ztf.lsst.ac.uk/api . These are separate "
+                    "systems with separate tokens."
+                ),
+            },
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF", "LSST"],
+                "title": "Survey",
+                "description": (
+                    "Survey this connection serves. Leave unset to infer it "
+                    "from the endpoint."
+                ),
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 86400,
+                "description": (
+                    "How often this broker's filters are re-run against Lasair. "
+                    "Default 86400 (once per day)."
+                ),
+            },
+            "limit": {
+                "type": "integer",
+                "title": "Max results per query",
+                "default": 1000,
+                "description": "Maximum objects returned per Lasair query.",
             },
         },
     }
@@ -206,8 +250,12 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def validate_config(altdata):
-        if not (altdata or {}).get("token"):
-            raise ValueError("Broker altdata must include 'token'.")
+        if not (altdata or {}).get("endpoint"):
+            raise ValueError("Broker altdata must include 'endpoint'.")
+
+    @staticmethod
+    def test_connection(broker):
+        _cone(broker, 0, 0, radius=1)
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
@@ -260,8 +308,7 @@ class LASAIRBROKER(BrokerAPI):
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
             return {"schema": _lasair_schema(_survey(broker, kwargs))}
-        modules = (broker.altdata or {}).get("filter_modules") or {}
-        return {elements: modules.get(elements, [])}
+        return {elements: altdata_filter_modules(broker, elements, kwargs.get("name"))}
 
     @staticmethod
     def test_filter(broker, session, **kwargs):
@@ -340,22 +387,51 @@ class LASAIRBROKER(BrokerAPI):
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import User
+        from ..models import Filter, User
         from ._save import save_object_as_candidate
 
         altdata = broker.altdata or {}
         survey = _survey(broker)
         default_filter_ids = altdata.get("filter_ids") or []
-        queries = altdata.get("queries") or []
+        legacy_queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))
         limit = int(altdata.get("limit", 1000))
 
         def _stopped():
             return stop is not None and stop.is_set()
 
+        async def _collect_queries():
+            # One query per skyportal Filter attached to this broker (its saved
+            # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
+            # the broker record. Re-read each cycle so filter edits are picked up.
+            async with async_plain_session_factory() as session:
+                rows = (
+                    await session.scalars(
+                        sa.select(Filter).where(Filter.broker_id == broker.id)
+                    )
+                ).all()
+            queries = []
+            for f in rows:
+                ad = f.altdata if isinstance(f.altdata, dict) else {}
+                lasair = ad.get("lasair") if isinstance(ad, dict) else None
+                if not isinstance(lasair, dict):
+                    continue
+                if not lasair.get("tables"):
+                    continue
+                queries.append(
+                    {
+                        "name": f.name,
+                        "fields": lasair.get("selected") or lasair.get("fields"),
+                        "tables": lasair["tables"],
+                        "conditions": lasair.get("conditions", ""),
+                        "filter_ids": [f.id],
+                    }
+                )
+            return queries + legacy_queries
+
         count = 0
         while not _stopped():
-            for query in queries:
+            for query in await _collect_queries():
                 selected = (
                     query.get("fields")
                     or "objects.objectId, objects.ramean, objects.decmean"

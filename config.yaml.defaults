@@ -178,11 +178,11 @@ app:
     - path: "/profile"
       component: user/Profile
     - path: "/brokers"
-      component: broker/BrokerAlerts
+      component: broker/BrokerList
+    - path: "/brokers/:brokerId"
+      component: broker/Broker
     - path: "/brokers/:brokerId/filter/:fid"
       component: broker/BrokerFilterPage
-    - path: "/broker_admin"
-      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -264,7 +264,7 @@ app:
     - path: "/tag_management"
       component: TagManagement
     - path: "/taxonomies"
-      component: taxonomy/TaxonomyPage
+      component: taxonomy/TaxonomyList
     - path: "/sharing_services"
       component: sharing_service/SharingServicesPage
     - path: "/sharing_service/:id/submissions"
@@ -289,10 +289,6 @@ app:
         - name: Candidates
           icon: Search
           url: /candidates
-
-        - name: Alerts
-          icon: NotificationsActive
-          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -361,6 +357,10 @@ app:
           icon: HourglassEmptyOutlined
           url: /allocations
 
+        - name: Brokers
+          icon: Hub
+          url: /brokers
+
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
@@ -421,10 +421,6 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
-        - name: Brokers
-          icon: Hub
-          permissions: ["System admin"]
-          url: /broker_admin
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
@@ -635,6 +631,9 @@ cache:
 # broker photometry). "{id}" is substituted with the object id; the endpoint
 # must return the same response shape as /api/sources/{id}/photometry (a bare
 # list of serialized points). Null (default) uses the standard endpoint.
+# To display broker-augmented photometry, point this at the survey-addressed
+# broker passthrough, e.g.:
+#   photometry_display_endpoint: "/api/brokers/photometry/{id}?survey=ZTF"
 photometry_display_endpoint:
 
 server:
@@ -704,8 +703,18 @@ brokers:
   # Run the in-core ingestion service (services/broker_ingest): for each active
   # broker whose provider implements run_ingestion, consume its stream and ingest
   # alerts via the shared save transform. Off by default; interactive access
-  # (the /brokers alerts page) works regardless of this setting.
+  # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
+
+# BOOM-specific settings. The filter builder's user-created modules (variables,
+# list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
+# skyportal's database. Point this at that store, or set the equivalent
+# `filter_modules_mongodb_uri`/`filter_modules_database` keys on the broker
+# record's altdata; left unset, the builder shows no saved modules.
+boom:
+  filter_modules:
+    mongodb_uri: null
+    database: null
 
 misc:
   days_to_keep_unsaved_candidates: 7
@@ -720,6 +729,12 @@ misc:
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
+  # External survey thumbnails fetched (outbound HTTP) when a source is saved.
+  # Set to [] to disable, e.g. on instances without external network egress.
+  external_thumbnail_types:
+    - sdss
+    - ps1
+    - ls
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`

@@ -12,14 +12,13 @@ declare module "emoji-dictionary";
 declare module "react-simple-maps";
 declare module "papaparse";
 declare module "d3";
-declare module "versor";
+declare module "aladin-lite";
 declare module "redux-state-sync";
 declare module "react-json-dashboard";
 declare module "react-grid-layout";
 declare module "react-big-calendar";
 declare module "numeral";
 declare module "dygraphs";
-declare module "d3-geo-projection";
 declare module "convert-css-length";
 
 // Side-effect CSS imports (e.g. `import "foo/bar.css"`). tsc tolerates these

@@ -61,6 +61,15 @@ class Photometry(conesearch_alchemy.Point, Base):
 
     __tablename__ = "photometry"
 
+    # bigint PK. Inbound FKs use bare ForeignKey("photometry.id") so they infer
+    # bigint too.
+    id = sa.Column(
+        sa.BigInteger,
+        primary_key=True,
+        autoincrement=True,
+        doc="Unique object identifier.",
+    )
+
     # created_at is never queried on this 1B-row table; skip the dead index.
     index_created_at = False
 

@@ -174,7 +174,7 @@ const Earthquake = () => {
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false}>
+    <DataGridToolbar showExport={false} showQuickFilter={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"

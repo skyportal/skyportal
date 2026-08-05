@@ -30,6 +30,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
@@ -89,6 +90,14 @@ import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
+import {
+  altdataKeyForField,
+  buildAltdataColumnMeta,
+  buildAnnotationColumnMeta,
+  buildColumnPickerOptions,
+  filterColumnPickerOptions,
+  originKeyForAnnotationField,
+} from "./sourceTableColumns";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewSource from "./NewSource";
@@ -100,8 +109,15 @@ const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 // tsc; cast to any so call sites don't need to pass it.
 const StyledDataGrid: any = StyledDataGridBase;
 
-// Page-size options preserved from the previous mui-datatables config.
-const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100, 200];
+// Page-size options preserved from the previous mui-datatables config. The
+// community DataGrid throws above MAX_PAGE_SIZE (100), so stop there.
+const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100];
+
+// Shared empty defaults. Inline `= []` / `= {}` defaults allocate a new value on
+// every render, which permanently invalidates the `columns` memo below (it
+// depends on them) and forces the grid to rebuild every column each render.
+const EMPTY_ARRAY: any[] = [];
+const EMPTY_OBJECT: Record<string, any> = {};
 
 // Map each DataGrid column `field` to the field name the server expects for
 // sorting. Columns absent from this map are not server-sortable.
@@ -627,7 +643,7 @@ const SourceTable = ({
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
-  sourceInGcnFilter = {},
+  sourceInGcnFilter = EMPTY_OBJECT,
   gcnEventDateobs = null,
   fixedHeader = false,
 }: SourceTableProps) => {
@@ -640,7 +656,7 @@ const SourceTable = ({
   const [fetchPendingGroupSourcesTrigger] =
     useLazyFetchPendingGroupSourcesQuery();
   const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
-  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
+  const { data: taxonomyList = EMPTY_ARRAY } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
 
@@ -663,7 +679,7 @@ const SourceTable = ({
   const { data: gcnEvent } = useGetGcnEventQuery(gcnEventDateobs as string, {
     skip: !gcnEventDateobs,
   });
-  const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery(
+  const { data: sourcesingcn = EMPTY_ARRAY } = useGetSourcesInGcnQuery(
     {
       dateobs: gcnEvent?.dateobs as string,
       localizationName: sourceInGcnFilter?.localizationName,
@@ -671,7 +687,7 @@ const SourceTable = ({
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
-  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const { data: tagOptions = EMPTY_ARRAY } = useGetTagOptionsQuery();
   // Available annotation origin/key pairs, keyed by origin: { origin: [{ key: type }] }
   const { data: annotationsInfo } = useGetAnnotationsInfoQuery(undefined);
   // Distinct top-level altdata keys: { keys: [{ key: type }] }
@@ -720,81 +736,66 @@ const SourceTable = ({
     }
   }, [sources]);
 
-  const allAnnotationColumnFields = useMemo(
-    () =>
-      Object.entries(annotationsInfo || {}).flatMap(([origin, keys]) =>
-        (keys as any[]).map(
-          (keyObj) => `annotation.${origin}.${Object.keys(keyObj)[0]}`,
-        ),
-      ),
+  // field -> origin/key for every discoverable annotation. A cheap map, NOT a
+  // column each: the registry is unbounded (per-object `ls_dr9-<objid>` origins),
+  // so only saved fields become columns (below). Powers the picker + round-trip.
+  const annotationColumnMeta = useMemo(
+    () => buildAnnotationColumnMeta(annotationsInfo),
     [annotationsInfo],
   );
-
-  const allAltdataColumnFields = useMemo(
-    () =>
-      (altdataInfo?.keys || []).map(
-        (keyObj) => `altdata.${Object.keys(keyObj)[0]}`,
-      ),
+  const altdataColumnMeta = useMemo(
+    () => buildAltdataColumnMeta(altdataInfo),
     [altdataInfo],
   );
 
-  // Annotation and altdata columns are opt-in: default each newly discovered one
-  // to hidden unless the user saved it as visible, preserving in-session choices.
-  useEffect(() => {
-    if (!allAnnotationColumnFields.length && !allAltdataColumnFields.length) {
-      return;
-    }
-    setColumnVisibilityModel((prev) => {
-      const next = { ...prev };
-      allAnnotationColumnFields.forEach((field) => {
-        if (!(field in next)) {
-          next[field] = savedAnnotationColumns.includes(field);
-        }
-      });
-      allAltdataColumnFields.forEach((field) => {
-        if (!(field in next)) {
-          next[field] = savedAltdataColumns.includes(field);
-        }
-      });
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allAnnotationColumnFields, allAltdataColumnFields, currentUser]);
+  // Picker options: every discoverable field (Autocomplete caps what renders).
+  const columnPickerOptions = useMemo(
+    () => buildColumnPickerOptions(annotationColumnMeta, altdataColumnMeta),
+    [annotationColumnMeta, altdataColumnMeta],
+  );
 
-  // Persist the sets of visible annotation / altdata columns to the user's profile.
+  // Add a discoverable field to the saved selection (= what's materialized).
+  const handleAddColumn = useCallback(
+    (field: string) => {
+      if (!field) return;
+      if (field.startsWith("annotation.")) {
+        if (savedAnnotationColumns.includes(field)) return;
+        updateUserPreferences({
+          sourceTableAnnotationColumns: [...savedAnnotationColumns, field],
+        });
+      } else if (field.startsWith("altdata.")) {
+        if (savedAltdataColumns.includes(field)) return;
+        updateUserPreferences({
+          sourceTableAltdataColumns: [...savedAltdataColumns, field],
+        });
+      }
+    },
+    [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
+  );
+
+  // Unchecking a saved annotation/altdata column in the panel drops it from the
+  // saved selection (and so unmaterializes it); re-add via the toolbar picker.
   const handleColumnVisibilityModelChange = useCallback(
     (model: Record<string, boolean>) => {
       setColumnVisibilityModel(model);
       const prefs: Record<string, string[]> = {};
-      const visibleAnnotation = allAnnotationColumnFields.filter(
+      const visibleAnnotation = savedAnnotationColumns.filter(
         (f) => model[f] !== false,
       );
-      if (
-        visibleAnnotation.length !== savedAnnotationColumns.length ||
-        visibleAnnotation.some((f) => !savedAnnotationColumns.includes(f))
-      ) {
+      if (visibleAnnotation.length !== savedAnnotationColumns.length) {
         prefs["sourceTableAnnotationColumns"] = visibleAnnotation;
       }
-      const visibleAltdata = allAltdataColumnFields.filter(
+      const visibleAltdata = savedAltdataColumns.filter(
         (f) => model[f] !== false,
       );
-      if (
-        visibleAltdata.length !== savedAltdataColumns.length ||
-        visibleAltdata.some((f) => !savedAltdataColumns.includes(f))
-      ) {
+      if (visibleAltdata.length !== savedAltdataColumns.length) {
         prefs["sourceTableAltdataColumns"] = visibleAltdata;
       }
       if (Object.keys(prefs).length > 0) {
         updateUserPreferences(prefs);
       }
     },
-    [
-      allAnnotationColumnFields,
-      allAltdataColumnFields,
-      savedAnnotationColumns,
-      savedAltdataColumns,
-      updateUserPreferences,
-    ],
+    [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
   );
 
   useEffect(() => {
@@ -827,6 +828,11 @@ const SourceTable = ({
   );
 
   const handlePaginationModelChange = (model: any) => {
+    // The grid also emits this when it merely clamps an out-of-range page, so
+    // ignore no-op changes: refetching on those loops back into the grid.
+    if (model.page === pageNumber - 1 && model.pageSize === rowsPerPage) {
+      return;
+    }
     setRowsPerPage(model.pageSize);
     setLoading(true);
     paginateCallback(
@@ -1554,39 +1560,34 @@ const SourceTable = ({
       });
     }
 
-    // One opt-in column per annotation origin/key pair. The field encodes the
-    // server sort string ("annotation.<origin>.<key>"), so server-side sorting
-    // works through the existing SERVER_SORT_FIELD fallback.
-    Object.entries(annotationsInfo || {}).forEach(([origin, keys]) => {
-      (keys as any[]).forEach((keyObj) => {
-        const key = Object.keys(keyObj)[0];
-        if (!key) {
-          return;
-        }
-        cols.push({
-          field: `annotation.${origin}.${key}`,
-          headerName: `${key} (${origin})`,
-          flex: 1,
-          minWidth: 120,
-          valueGetter: (_value: any, row: any) => {
-            const ann = (row.annotations || []).find(
-              (a: any) => a.origin === origin,
-            );
-            const value = ann?.data?.[key];
-            return value === undefined ? null : getAnnotationValueString(value);
-          },
-        });
+    // Materialize a column only for each annotation the user has saved (the
+    // global registry is unbounded — see annotationColumnMeta). Field encodes
+    // the server sort string, so server-side sort works via SERVER_SORT_FIELD.
+    savedAnnotationColumns.forEach((field) => {
+      const { origin, key } = originKeyForAnnotationField(
+        field,
+        annotationColumnMeta,
+      );
+      cols.push({
+        field,
+        headerName: `${key} (${origin})`,
+        flex: 1,
+        minWidth: 120,
+        valueGetter: (_value: any, row: any) => {
+          const ann = (row.annotations || []).find(
+            (a: any) => a.origin === origin,
+          );
+          const value = ann?.data?.[key];
+          return value === undefined ? null : getAnnotationValueString(value);
+        },
       });
     });
 
-    // One opt-in column per top-level altdata key (field = server sort string).
-    (altdataInfo?.keys || []).forEach((keyObj) => {
-      const key = Object.keys(keyObj)[0];
-      if (!key) {
-        return;
-      }
+    // Likewise, only saved altdata keys become columns.
+    savedAltdataColumns.forEach((field) => {
+      const key = altdataKeyForField(field, altdataColumnMeta);
       cols.push({
-        field: `altdata.${key}`,
+        field,
         headerName: `${key} (altdata)`,
         flex: 1,
         minWidth: 120,
@@ -1601,8 +1602,10 @@ const SourceTable = ({
 
     return cols;
   }, [
-    annotationsInfo,
-    altdataInfo,
+    annotationColumnMeta,
+    altdataColumnMeta,
+    savedAnnotationColumns,
+    savedAltdataColumns,
     classes,
     navigate,
     taxonomyList,
@@ -1637,6 +1640,15 @@ const SourceTable = ({
   const getRowHeight = useCallback(
     (params: any) => (params.model.__detail ? "auto" : null),
     [],
+  );
+
+  // Must be a stable object. An inline literal re-runs the grid's pagination
+  // sync effect every render, and while the model is out of range (e.g. a page
+  // size change lands before the new page of results does) the grid re-emits
+  // onPaginationModelChange each time, looping back through paginateCallback.
+  const paginationModel = useMemo(
+    () => ({ page: pageNumber - 1, pageSize: rowsPerPage }),
+    [pageNumber, rowsPerPage],
   );
 
   const handleSearchChange = (text: any) => {
@@ -1840,7 +1852,7 @@ const SourceTable = ({
     () =>
       function SourceTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter={false}>
+          <DataGridToolbar showExport={false} showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -1932,6 +1944,31 @@ const SourceTable = ({
                 ))}
               </div>
             )}
+            {columnPickerOptions.length > 0 && (
+              <Autocomplete
+                options={columnPickerOptions}
+                getOptionLabel={(o) => o.label}
+                // Nothing until the user types, then capped matches, so a large
+                // registry never floods the dropdown.
+                filterOptions={(opts, state) =>
+                  filterColumnPickerOptions(opts, state.inputValue)
+                }
+                onChange={(_e, value) => value && handleAddColumn(value.field)}
+                value={null}
+                blurOnSelect
+                clearOnBlur
+                size="small"
+                sx={{ width: 340, marginBottom: "0.5rem" }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    variant="standard"
+                    placeholder="Add annotation / altdata column…"
+                    data-testid="add-column-picker"
+                  />
+                )}
+              />
+            )}
             <Box
               sx={{
                 height: fixedHeader ? "calc(100vh - 201px)" : "65vh",
@@ -1950,10 +1987,7 @@ const SourceTable = ({
                 paginationMode="server"
                 sortingMode="server"
                 rowCount={totalMatches}
-                paginationModel={{
-                  page: pageNumber - 1,
-                  pageSize: rowsPerPage,
-                }}
+                paginationModel={paginationModel}
                 onPaginationModelChange={handlePaginationModelChange}
                 sortModel={sortModel}
                 onSortModelChange={handleSortModelChange}

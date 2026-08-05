@@ -1735,11 +1735,13 @@ def test_jsonify_spectrum_header(
                 "POST",
                 "spectrum/parse/ascii",
                 data={
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": f.read(),
                 },
                 token=upload_data_token,
@@ -1829,11 +1831,13 @@ def test_jsonify_spectrum_data(
                 "POST",
                 "spectrum/parse/ascii",
                 data={
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": f.read(),
                 },
                 token=upload_data_token,
@@ -1891,11 +1895,13 @@ def test_upload_bad_spectrum_from_ascii_file(
                     "observed_at": observed_at,
                     "instrument_id": lris.id,
                     "group_ids": [public_group.id],
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": content,
                     "filename": filename,
                 },
@@ -2055,3 +2061,58 @@ def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group
     )
     assert status == 400
     assert "Must be one of: " in data["message"]
+
+
+def test_bulk_spectra(
+    super_admin_user, super_admin_token, public_source, public_group, lris
+):
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": public_source.id,
+            "observed_at": "2020-01-10T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.3, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    def check(result):
+        source_ids = [s["id"] for s in result["sources"]]
+        assert public_source.id in source_ids
+        src = next(s for s in result["sources"] if s["id"] == public_source.id)
+        # Phase anchors are always present (values may be null without a PhotStat).
+        for key in ("redshift", "first_detected_mjd", "peak_mjd", "tns_discovery_date"):
+            assert key in src
+        spectra = [sp for sp in result["spectra"] if sp["obj_id"] == public_source.id]
+        assert len(spectra) >= 1
+        assert spectra[0]["wavelengths"][0] == 664
+        assert spectra[0]["fluxes"][0] == 234.3
+        assert spectra[0]["observed_at"] is not None
+
+    # Select by explicit object list.
+    status, data = api(
+        "POST",
+        "spectra/bulk",
+        data={"obj_ids": [public_source.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    check(data["data"])
+
+    # Select by group.
+    status, data = api(
+        "POST",
+        "spectra/bulk",
+        data={"group_id": public_group.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    check(data["data"])

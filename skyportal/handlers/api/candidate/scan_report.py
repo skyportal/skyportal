@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
@@ -7,8 +10,9 @@ from baselayer.log import make_log
 from ....models import Filter, Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
-from .scan_report_item import create_scan_report_item
+from .scan_report_item import create_scan_report_items
 
 log = make_log("api/scan_report")
 
@@ -33,25 +37,46 @@ async def get_sources_by_objs_in_range(
     list of tuples (obj_id, source_ids)
     """
     try:
+        # Coerce the ISO strings to datetimes so the DB compares timestamps, not text.
+        def to_datetime(value):
+            return (
+                arrow.get(value).to("utc").datetime.replace(tzinfo=None)
+                if value
+                else None
+            )
+
+        # An obj qualifies if it has a Source saved to a report group in the saved
+        # window AND a Candidate that passed one of those groups' filters in the
+        # passed window. The candidate side is a correlated EXISTS rather than a join
+        # so an obj with many candidate rows over a long window doesn't blow up the
+        # result combinatorially (Source x Candidate is a many-to-many on obj_id).
+        candidate_passed = (
+            sa.select(1)
+            .select_from(Candidate)
+            .join(Filter, Filter.id == Candidate.filter_id)
+            .where(
+                Candidate.obj_id == Source.obj_id,
+                Filter.group_id.in_(group_ids),
+                Candidate.passed_at.between(
+                    to_datetime(passed_filters_range.get("start_date")),
+                    to_datetime(passed_filters_range.get("end_date")),
+                ),
+            )
+            .exists()
+        )
         result = await session.execute(
             sa.select(
                 Source.obj_id,
                 sa.func.array_agg(sa.func.distinct(Source.id)).label("source_ids"),
             )
-            .join(Candidate, Candidate.obj_id == Source.obj_id)
-            .join(Filter)
             .where(
                 Source.group_id.in_(group_ids),
-                Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
-                    saved_range.get("start_saved_date"),
-                    saved_range.get("end_saved_date"),
-                ),
-                Candidate.passed_at.between(
-                    passed_filters_range.get("start_date"),
-                    passed_filters_range.get("end_date"),
+                    to_datetime(saved_range.get("start_saved_date")),
+                    to_datetime(saved_range.get("end_saved_date")),
                 ),
                 Source.active.is_(True),
+                candidate_passed,
             )
             .group_by(Source.obj_id)
         )
@@ -102,6 +127,17 @@ class ScanReportHandler(BaseHandler):
                           type: string
                           format: date-time
                           description: End date of the saved candidates range
+                  passed_filters_window_hours:
+                    type: number
+                    description: |
+                      Alternative to passed_filters_range: a rolling window of this
+                      many hours ending now. Ignored if passed_filters_range is given.
+                      Lets a recurring caller generate reports on a schedule.
+                  saved_candidates_window_hours:
+                    type: number
+                    description: |
+                      Alternative to saved_candidates_range: a rolling window of this
+                      many hours ending now. Ignored if saved_candidates_range is given.
         responses:
             200:
                 content:
@@ -125,11 +161,46 @@ class ScanReportHandler(BaseHandler):
             if not group_ids:
                 return self.error("No groups provided")
 
+            # Rolling windows (in hours) resolve to absolute ranges ending "now", so a
+            # recurring caller (e.g. RecurringAPI) can generate reports on a schedule
+            # without a stale, hardcoded window. Absolute ranges take precedence.
+            now = utcnow_naive()
+
+            def rolling_range(window, start_key, end_key):
+                return {
+                    start_key: (now - timedelta(hours=window)).isoformat(),
+                    end_key: now.isoformat(),
+                }
+
             passed_filters_range = data.get("passed_filters_range")
+            if not passed_filters_range:
+                window = data.get("passed_filters_window_hours")
+                if window is not None:
+                    try:
+                        window = float(window)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "passed_filters_window_hours must be a number of hours"
+                        )
+                    passed_filters_range = rolling_range(
+                        window, "start_date", "end_date"
+                    )
             if not passed_filters_range:
                 return self.error("No passed filters range provided")
 
             saved_range = data.get("saved_candidates_range")
+            if not saved_range:
+                window = data.get("saved_candidates_window_hours")
+                if window is not None:
+                    try:
+                        window = float(window)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "saved_candidates_window_hours must be a number of hours"
+                        )
+                    saved_range = rolling_range(
+                        window, "start_saved_date", "end_saved_date"
+                    )
             if not saved_range:
                 return self.error("No saved candidates range provided")
 
@@ -182,17 +253,12 @@ class ScanReportHandler(BaseHandler):
 
             session.add(scan_report)
 
-            for sources_by_obj in sources_by_objs:
-                scan_report_item = await create_scan_report_item(
-                    session, scan_report, sources_by_obj
-                )
-
-                if scan_report_item is None:
-                    return self.error("Error while creating scan report item")
-
+            scan_report_items = await create_scan_report_items(
+                session, scan_report, sources_by_objs
+            )
+            for scan_report_item in scan_report_items:
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
-
             await session.commit()
 
             self.push_all("skyportal/REFRESH_SCAN_REPORTS")
@@ -221,7 +287,24 @@ class ScanReportHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfScanReports
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            reports:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/ScanReport'
+                            totalMatches:
+                              type: integer
+                            pageNumber:
+                              type: integer
+                            numPerPage:
+                              type: integer
           400:
             content:
               application/json:
@@ -231,9 +314,12 @@ class ScanReportHandler(BaseHandler):
         page = self.get_query_argument("page", 1, type=int) or 1
 
         async with self.AsyncSession() as session:
+            base_stmt = ScanReport.select(session.user_or_token, mode="read")
+            total_matches = await session.scalar(
+                sa.select(sa.func.count()).select_from(base_stmt.subquery())
+            )
             result = await session.scalars(
-                ScanReport.select(session.user_or_token, mode="read")
-                .options(
+                base_stmt.options(
                     selectinload(ScanReport.groups),
                     selectinload(ScanReport.author),
                 )
@@ -249,4 +335,11 @@ class ScanReportHandler(BaseHandler):
                 for scan_report in items
             ]
 
-            return self.success(data=items_dict)
+            return self.success(
+                data={
+                    "reports": items_dict,
+                    "totalMatches": total_matches,
+                    "pageNumber": page,
+                    "numPerPage": rows,
+                }
+            )

@@ -11,6 +11,7 @@
  * The websocket `REFRESH_SHIFT` / `REFRESH_SHIFTS` messages are bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -77,9 +78,7 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       Record<string, unknown> | void
     >({
       query: (params) => {
-        const search = new URLSearchParams(
-          (params as Record<string, string>) ?? {},
-        ).toString();
+        const search = buildQueryString(params ?? {});
         return search ? `api/shifts?${search}` : "api/shifts";
       },
       transformResponse: (data: RouteData<"GET /api/shifts">) =>
@@ -89,10 +88,10 @@ export const shiftsApi = skyportalApi.injectEndpoints({
     getShiftsSummary: build.query<any, ShiftSummaryArg>({
       query: ({ shiftID, startDate, endDate }) => {
         if (startDate && endDate) {
-          const search = new URLSearchParams({
+          const search = buildQueryString({
             startDate,
             endDate,
-          }).toString();
+          });
           return `api/shifts/summary?${search}`;
         }
         if (shiftID) {

@@ -35,7 +35,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/analysis_service/{analysis_service_id}/default_analysis/{default_analysis_id}": { schema: "DefaultAnalysis" as const, list: false },
   "GET /api/assignment": { schema: "ClassicalAssignment" as const, list: true },
   "GET /api/assignment/{assignment_id}": { schema: "ClassicalAssignment" as const, list: false },
-  "GET /api/candidates/scan_reports": { schema: "ScanReport" as const, list: true },
+  "GET /api/candidates/scan_reports": { schema: "ScanReport" as const, list: true, wrapper: "reports" as const },
   "GET /api/candidates/scan_reports/{report_id}/items/{_}": { schema: "ScanReportItem" as const, list: true },
   "GET /api/candidates/{obj_id}": { schema: "Obj" as const, list: false },
   "GET /api/classification": { schema: "Classification" as const, list: true, wrapper: "sources" as const },
@@ -149,17 +149,22 @@ export const ROUTE_SCHEMA_MAP = {
   "PATCH /api/shifts/{shift_id}": { schema: "Shift" as const, list: false },
   "PATCH /api/shifts/{shift_id}/users/{user_id}": { schema: "ShiftUser" as const, list: false },
   "PATCH /api/sources/{obj_id}": { schema: "Obj" as const, list: false },
-  "PATCH /api/streams/{stream_id}": { schema: "Stream" as const, list: false },
   "POST /api/candidates/scan_reports": { schema: "ScanReport" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/predictions": { schema: "EarthquakePrediction" as const, list: false },
+  "POST /api/filters": { schema: "FilterPostResponse" as const, list: false },
   "POST /api/galaxy_catalog/ascii": { schema: "Galaxy" as const, list: true },
+  "POST /api/group_admission_requests": { schema: "GroupAdmissionRequestPostResponse" as const, list: false },
   "POST /api/groups/{group_id}/usersFromGroups": { schema: "GroupUser" as const, list: false },
+  "POST /api/instrument/{instrument_id}/log": { schema: "InstrumentLogPostResponse" as const, list: false },
+  "POST /api/invitations": { schema: "InvitationPostResponse" as const, list: false },
+  "POST /api/listing": { schema: "ListingPostResponse" as const, list: false },
   "POST /api/objtag": { schema: "ObjTag" as const, list: false },
   "POST /api/objtagoption": { schema: "ObjTagOption" as const, list: false },
   "POST /api/observation/ascii": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation/external_api": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation_plan/{observation_plan_request_id}/queue": { schema: "ObservationPlanRequest" as const, list: false },
+  "POST /api/recurring_api": { schema: "RecurringAPIPostResponse" as const, list: false },
   "POST /api/sharing_service/submission": { schema: "SharingServiceSubmission" as const, list: false },
   "POST /api/sharing_service/{sharing_service_id}/coauthor/{user_id}": { schema: "SharingServiceCoauthor" as const, list: false },
   "POST /api/sharing_service/{sharing_service_id}/group/{group_id}/auto_publisher/{user_id}": { schema: "SharingServiceGroupAutoPublisher" as const, list: false },
@@ -170,7 +175,14 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/spectra/parse/ascii": { schema: "SpectrumNoID" as const, list: false },
   "POST /api/spectra/synthphot/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "POST /api/spectrum/parse/ascii": { schema: "SpectrumNoID" as const, list: false },
+  "POST /api/streams": { schema: "StreamPostResponse" as const, list: false },
+  "POST /api/streams/{stream_id}/users": { schema: "StreamUserPostResponse" as const, list: false },
   "POST /api/summary_query": { schema: "Obj" as const, list: true },
+  "POST /api/taxonomy": { schema: "TaxonomyPostResponse" as const, list: false },
+  "POST /api/teams": { schema: "TeamPostResponse" as const, list: false },
+  "POST /api/telescope": { schema: "TelescopePostResponse" as const, list: false },
+  "POST /api/thumbnail": { schema: "ThumbnailPostResponse" as const, list: false },
+  "POST /api/{associated_resource_type}/{resource_id}/annotations": { schema: "AnnotationPostResponse" as const, list: false },
   "PUT /api/followup_request/prioritization": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{followup_request_id}/comment": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{request_id}": { schema: "FollowupRequest" as const, list: false },
@@ -180,7 +192,7 @@ export const ROUTE_SCHEMA_MAP = {
   "PUT /api/sharing_service/{sharing_service_id}/group/{group_id}": { schema: "SharingServiceGroup" as const, list: false },
   "PUT /api/spectra/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "PUT /api/spectrum/{spectrum_id}": { schema: "Spectrum" as const, list: false },
-  "PUT /api/thumbnail/{thumbnail_id}": { schema: "Thumbnail" as const, list: false },
+  "PUT /api/teams/{team_id}": { schema: "TeamPutResponse" as const, list: false },
   "PUT /api/{associated_resource_type}/{resource_id}/comments": { schema: "Comment" as const, list: false },
   "PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}": { schema: "Comment" as const, list: false },
 } satisfies Record<string, { schema: SchemaName; list: boolean; wrapper?: string }>;
@@ -202,8 +214,10 @@ type PaginationBonusFields = {
 };
 
 /**
- * Curated path: routes whose response `data` is a named component schema resolve
- * to a clean `Schema` / `Schema[]` / pagination-wrapper type.
+ * Resolve a route key to the typed shape of its response `data` field.
+ * - Wrapper routes (`wrapper` set) → `{ [W]: Schema[] | Schema } & PaginationBonusFields`,
+ *   where the map's `list` flag picks array-vs-scalar for the wrapped value.
+ * - Otherwise the map's `list` flag picks scalar-vs-array automatically.
  *
  * Caveat: PaginationBonusFields makes `totalMatches`/`pageNumber`/`numPerPage`/`page`
  * optional. Routes that historically declared these as required will need `?.`
@@ -211,7 +225,9 @@ type PaginationBonusFields = {
  */
 type MappedRouteData<P extends RouteKey> =
   RouteEntry<P> extends { wrapper: infer W extends string; schema: infer S extends SchemaName }
-    ? { [K in W]: components["schemas"][S][] } & PaginationBonusFields
+    ? { [K in W]: RouteEntry<P>["list"] extends true
+        ? components["schemas"][S][]
+        : components["schemas"][S] } & PaginationBonusFields
     : RouteEntry<P>["list"] extends true
       ? components["schemas"][RouteEntry<P>["schema"]][]
       : components["schemas"][RouteEntry<P>["schema"]];

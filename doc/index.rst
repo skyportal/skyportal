@@ -88,6 +88,7 @@ User Guide
    api
    dev
    deploy
+   observability
    versioning
    data_loader
    contributing

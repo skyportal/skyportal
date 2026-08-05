@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
@@ -52,7 +52,7 @@ import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "../observation/ExecutedObservationsTable";
 import GalaxyTable from "../galaxy/GalaxyTable";
-import LocalizationPlot from "../localization/LocalizationPlot";
+const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
 
@@ -937,17 +937,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
         !fetchingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
-            <LocalizationPlot
-              localization={analysisLoc}
-              sources={gcnEventSources}
-              galaxies={gcnEventGalaxies}
-              instrument={skymapInstrument}
-              observations={gcnEventObservations}
-              options={checkedDisplayState}
-              selectedFields={selectedFields}
-              setSelectedFields={setSelectedFields}
-              projection={selectedProjection}
-            />
+            <Suspense fallback={<CircularProgress />}>
+              <LocalizationPlot
+                localization={analysisLoc}
+                sources={gcnEventSources}
+                galaxies={gcnEventGalaxies}
+                instrument={skymapInstrument}
+                observations={gcnEventObservations}
+                options={checkedDisplayState}
+                selectedFields={selectedFields}
+                setSelectedFields={setSelectedFields}
+                projection={selectedProjection}
+              />
+            </Suspense>
             <InputLabel
               style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
               id="projection"
@@ -1038,17 +1040,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   size={{ sm: 8, md: 12 }}
                   className={classes.localizationPlotSmall}
                 >
-                  <LocalizationPlot
-                    localization={analysisLoc}
-                    sources={gcnEventSources}
-                    galaxies={gcnEventGalaxies}
-                    instrument={skymapInstrument}
-                    observations={gcnEventObservations}
-                    options={checkedDisplayState}
-                    selectedFields={selectedFields}
-                    setSelectedFields={setSelectedFields}
-                    projection={selectedProjection}
-                  />
+                  <Suspense fallback={<CircularProgress />}>
+                    <LocalizationPlot
+                      localization={analysisLoc}
+                      sources={gcnEventSources}
+                      galaxies={gcnEventGalaxies}
+                      instrument={skymapInstrument}
+                      observations={gcnEventObservations}
+                      options={checkedDisplayState}
+                      selectedFields={selectedFields}
+                      setSelectedFields={setSelectedFields}
+                      projection={selectedProjection}
+                    />
+                  </Suspense>
                 </Grid>
                 <Grid size={{ xs: 9, sm: 4, md: 12 }}>
                   <InputLabel

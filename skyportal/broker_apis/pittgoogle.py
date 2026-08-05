@@ -138,25 +138,40 @@ class PITTGOOGLEBROKER(BrokerAPI):
             "project_id": {
                 "type": "string",
                 "title": "Your GCP project id (queries bill this project)",
+                "description": "GCP project id used for BigQuery/Pub/Sub; queries bill this project.",
             },
             "service_account_key": {
                 "type": "string",
                 "title": "Service-account key (paste the JSON)",
+                "description": "GCP service-account key JSON with BigQuery/Pub/Sub access.",
             },
             "table": {
                 "type": "string",
                 "title": "BigQuery alerts table",
                 "default": DEFAULT_TABLE,
+                "description": "Fully-qualified BigQuery table the alerts are queried from.",
             },
             "subscription": {
                 "type": "string",
                 "title": "Pub/Sub subscription (for ingestion)",
+                "description": "Pub/Sub subscription consumed for live ingestion.",
             },
-            "survey": {"type": "string", "enum": ["ZTF"], "default": "ZTF"},
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF"],
+                "default": "ZTF",
+                "title": "Survey",
+                "description": "Survey this connection serves.",
+            },
         },
     }
 
     ui_json_schema = {"service_account_key": {"ui:widget": "textarea"}}
+
+    # A textarea rather than a password field, but still a credential.
+    @classmethod
+    def secret_config_fields(cls):
+        return [*super().secret_config_fields(), "service_account_key"]
 
     @staticmethod
     def validate_config(altdata):

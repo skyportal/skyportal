@@ -51,17 +51,23 @@ class BABAMULBROKER(BrokerAPI):
         "type": "object",
         "required": ["token"],
         "properties": {
-            "token": {"type": "string", "title": "babamul API token"},
+            "token": {
+                "type": "string",
+                "title": "babamul API token",
+                "description": "API token for the babamul service.",
+            },
             "survey": {
                 "type": "string",
                 "title": "Survey",
                 "enum": ["ZTF", "LSST"],
                 "default": DEFAULT_SURVEY,
+                "description": "Survey this connection serves.",
             },
             "base_url": {
                 "type": "string",
                 "title": "API base URL",
                 "default": DEFAULT_BASE_URL,
+                "description": "babamul API base URL.",
             },
         },
     }
@@ -72,6 +78,10 @@ class BABAMULBROKER(BrokerAPI):
     def validate_config(altdata):
         if not (altdata or {}).get("token"):
             raise ValueError("Broker altdata must include 'token'.")
+
+    @staticmethod
+    def test_connection(broker):
+        _request(broker, "profile")
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):

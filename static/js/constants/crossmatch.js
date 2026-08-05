@@ -608,28 +608,123 @@ const LSPSC = {
   default: null,
 };
 
-export const ztf_crossmatch_fields = {
-  name: "cross_matches",
-  type: {
-    type: "array",
-    items: {
+const DESI_DR1 = {
+  name: "DESI_DR1",
+  type: [
+    "null",
+    {
       type: "record",
-      name: "CrossMatch",
+      name: "DESI_DR1Match",
       fields: [
-        Gaia_DR3,
-        milliquas_v8,
-        NED,
-        TWOMASS_PSC,
-        GALEX,
-        VSX,
-        CatWISE2020,
-        TNS,
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "survey",
+          type: "string",
+        },
+        {
+          name: "program",
+          type: "string",
+        },
+        {
+          name: "z",
+          type: "double",
+        },
+        {
+          name: "zerr",
+          type: "double",
+        },
+        {
+          name: "zwarn",
+          type: "int",
+        },
+        {
+          name: "chi2",
+          type: "double",
+        },
+        {
+          name: "deltachi2",
+          type: "double",
+        },
+        {
+          name: "spectype",
+          type: "string",
+        },
+        {
+          name: "zcat_nspec",
+          type: "int",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
       ],
     },
-  },
+  ],
+  default: null,
 };
 
-export const lsst_crossmatch_fields = {
+const LS_DR10_PHOTOZ = {
+  name: "LS_DR10_PHOTOZ",
+  type: [
+    "null",
+    {
+      type: "record",
+      name: "LS_DR10_PHOTOZMatch",
+      fields: [
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "ra_err",
+          type: "double",
+        },
+        {
+          name: "dec_err",
+          type: "double",
+        },
+        {
+          name: "z_phot",
+          type: "double",
+        },
+        {
+          name: "z_phot_err",
+          type: "double",
+        },
+        {
+          name: "photo_z_type",
+          type: "string",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
+      ],
+    },
+  ],
+  default: null,
+};
+
+export const crossmatch_fields = {
   name: "cross_matches",
   type: {
     type: "array",
@@ -646,6 +741,8 @@ export const lsst_crossmatch_fields = {
         VSX,
         CatWISE2020,
         TNS,
+        DESI_DR1,
+        LS_DR10_PHOTOZ,
       ],
     },
   },

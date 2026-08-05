@@ -1,12 +1,9 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
-import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -16,74 +13,27 @@ import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import Button from "../Button";
+import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import TaxonomyForm from "./TaxonomyForm";
-import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
 import { useIsReadOnly } from "../../ducks/profile";
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  name: "name",
-  id: "id",
-  isLatest: "isLatest",
-  provenance: "provenance",
-  version: "version",
-};
-
-const useStyles = makeStyles()((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-    taxonomyDelete: {
-      cursor: "pointer",
-      fontSize: "2em",
-      position: "absolute",
-      padding: 0,
-      right: 0,
-      top: 0,
-    },
-    taxonomyDeleteDisabled: {
-      opacity: 0,
-    },
-  },
-}));
+import Chip from "@mui/material/Chip";
 
 interface TaxonomyTableProps {
   taxonomies: any[];
-  paginateCallback: (...args: any[]) => void;
-  sortingCallback?: ((...args: any[]) => void) | null;
-  totalMatches?: number;
   managePermission: boolean;
+  deletePermission: boolean;
 }
 
 const TaxonomyTable = ({
   taxonomies,
-  paginateCallback,
-  totalMatches = 0,
   managePermission,
-  sortingCallback = null,
+  deletePermission,
 }: TaxonomyTableProps) => {
-  const { classes } = useStyles();
-
   const dispatch = useAppDispatch();
   const isReadOnly = useIsReadOnly();
   const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
-
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sortModel, setSortModel] = useState<any[]>([]);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -91,9 +41,6 @@ const TaxonomyTable = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taxonomyToViewEditDelete, setTaxonomyToViewEditDelete] =
     useState<any>(null);
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
   const closeNewDialog = () => {
     setNewDialogOpen(false);
   };
@@ -106,19 +53,9 @@ const TaxonomyTable = ({
     setDetailsDialogOpen(false);
     setTaxonomyToViewEditDelete(null);
   };
-
-  const openEditDialog = (id: any) => {
-    setEditDialogOpen(true);
-    setTaxonomyToViewEditDelete(id);
-  };
   const closeEditDialog = () => {
     setEditDialogOpen(false);
     setTaxonomyToViewEditDelete(null);
-  };
-
-  const openDeleteDialog = (id: any) => {
-    setDeleteDialogOpen(true);
-    setTaxonomyToViewEditDelete(id);
   };
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
@@ -135,103 +72,54 @@ const TaxonomyTable = ({
     }
   };
 
-  const renderName = (params: any) => {
-    const taxonomy = params.row;
-    return <div>{taxonomy ? taxonomy.name : ""}</div>;
-  };
+  const renderBool = (params: any) =>
+    params.value ? (
+      <Chip label="Yes" color="primary" size="small" />
+    ) : (
+      <Chip label="No" size="small" />
+    );
 
-  const renderID = (params: any) => {
-    const taxonomy = params.row;
-    return <div>{taxonomy ? taxonomy.id : ""}</div>;
-  };
-
-  const renderIsLatest = (params: any) => {
-    const taxonomy = params.row;
-    return <div>{taxonomy ? taxonomy.isLatest.toString() : ""}</div>;
-  };
-
-  const renderProvenance = (params: any) => {
-    const taxonomy = params.row;
-    return <div>{taxonomy ? taxonomy.provenance : ""}</div>;
-  };
-
-  const renderVersion = (params: any) => {
-    const taxonomy = params.row;
-    return <div>{taxonomy ? taxonomy.version : ""}</div>;
-  };
-
-  const renderGroups = (params: any) => {
-    const taxonomy = params.row;
-    const groupNames: string[] = [];
-    taxonomy?.groups?.forEach((group: any) => {
-      groupNames.push(group.name);
-    });
-    return <div>{groupNames.length > 0 ? groupNames.join("\n") : ""}</div>;
-  };
+  const renderGroups = (params: any) =>
+    params.value?.map((group: any) => (
+      <Chip key={group.id} label={group.name} />
+    ));
 
   const renderDetails = (params: any) => {
     const taxonomy = params.row;
     return (
-      <IconButton
-        key={`details_${taxonomy.id}`}
-        id={`details_button_${taxonomy.id}`}
-        onClick={() => openDetailsDialog(taxonomy.id)}
-      >
+      <IconButton onClick={() => openDetailsDialog(taxonomy.id)}>
         <HistoryEduIcon />
       </IconButton>
     );
   };
 
   const renderManage = (params: any) => {
-    if (!managePermission) {
-      return null;
-    }
     const taxonomy = params.row;
     return (
-      <div className={(classes as any).taxonomyManage}>
-        <Button
-          key={`edit_${taxonomy.id}`}
-          id={`edit_button_${taxonomy.id}`}
-          onClick={() => openEditDialog(taxonomy.id)}
-          disabled={!managePermission}
-        >
-          <EditIcon />
-        </Button>
-        <Button
-          id={`delete_button_${taxonomy.id}`}
-          onClick={() => openDeleteDialog(taxonomy.id)}
-          disabled={!managePermission}
-        >
-          <DeleteIcon />
-        </Button>
-      </div>
+      <Box style={{ display: "flex" }}>
+        {managePermission && (
+          <IconButton
+            onClick={() => {
+              setEditDialogOpen(true);
+              setTaxonomyToViewEditDelete(taxonomy.id);
+            }}
+          >
+            <EditIcon />
+          </IconButton>
+        )}
+        {deletePermission && (
+          <IconButton
+            color="error"
+            onClick={() => {
+              setDeleteDialogOpen(true);
+              setTaxonomyToViewEditDelete(taxonomy.id);
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        )}
+      </Box>
     );
-  };
-
-  const currentSortOrder = () =>
-    sortModel.length
-      ? {
-          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-          direction: sortModel[0].sort,
-        }
-      : {};
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
-  };
-
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
   };
 
   const columns: any[] = [
@@ -240,35 +128,31 @@ const TaxonomyTable = ({
       headerName: "Name",
       flex: 1,
       minWidth: 120,
-      renderCell: renderName,
     },
     {
       field: "id",
       headerName: "ID",
       flex: 1,
       minWidth: 80,
-      renderCell: renderID,
     },
     {
       field: "isLatest",
       headerName: "isLatest",
       flex: 1,
       minWidth: 90,
-      renderCell: renderIsLatest,
+      renderCell: renderBool,
     },
     {
       field: "provenance",
       headerName: "Provenance",
       flex: 1,
       minWidth: 120,
-      renderCell: renderProvenance,
     },
     {
       field: "version",
       headerName: "Version",
       flex: 1,
       minWidth: 90,
-      renderCell: renderVersion,
     },
     {
       field: "groups",
@@ -288,26 +172,23 @@ const TaxonomyTable = ({
       filterable: false,
       renderCell: renderDetails,
     },
-    {
+    (managePermission || deletePermission) && {
       field: "manage",
       headerName: " ",
-      flex: 1,
       minWidth: 120,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
     },
-  ];
+  ].filter(Boolean);
 
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false}>
+      <DataGridToolbar title="Taxonomies">
         {managePermission && !isReadOnly && (
           <IconButton
             name="new_taxonomy"
-            onClick={() => {
-              openNewDialog();
-            }}
+            onClick={() => setNewDialogOpen(true)}
           >
             <AddIcon />
           </IconButton>
@@ -317,31 +198,16 @@ const TaxonomyTable = ({
   };
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-          Taxonomies
-        </Typography>
-        <Box sx={{ width: "100%" }}>
-          <StyledDataGrid
-            autoHeight
-            rows={taxonomies}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            paginationMode="server"
-            sortingMode="server"
-            rowCount={totalMatches}
-            paginationModel={{ page: 0, pageSize: rowsPerPage }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            disableColumnFilter
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </Paper>
+    <Box sx={{ width: "100%" }}>
+      <StyledDataGrid
+        autoHeight
+        rows={taxonomies}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        disableColumnFilter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Taxonomy</DialogTitle>
         <DialogContent dividers>
@@ -384,7 +250,7 @@ const TaxonomyTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="taxonomy"
       />
-    </div>
+    </Box>
   );
 };
 

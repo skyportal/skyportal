@@ -10,7 +10,6 @@ import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 import CustomizeOpenAIParameters from "./CustomizeOpenAIParameters";
 
 const useStyles = makeStyles()((theme) => ({
@@ -66,13 +65,6 @@ const OpenAIPreferences = () => {
 
   return (
     <div>
-      <UserPreferencesHeader
-        title="OpenAI Summarization Service"
-        popupText="With an OpenAI account, you can use your API KEY to generate summaries
-          of sources. This is a paid service, and while it does not cost that much
-           per source (<$0.01) it can add up. So we ask you to use your own
-           OpenAI account for this service. You can get your key here: https://platform.openai.com/account/api-keys"
-      />
       <FormGroup row>
         <FormControlLabel
           control={

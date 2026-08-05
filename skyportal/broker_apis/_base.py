@@ -12,9 +12,11 @@ class _Base:
         "update_filter",
         "delete_filter",
         "test_filter",
+        "validate_filter",
         "filter_modules",
         "run_ingestion",
         "validate_config",
+        "test_connection",
     )
 
     # subclasses should not modify this
@@ -32,10 +34,48 @@ class _Base:
     @classmethod
     def implements(cls):
         caps = {name: cls._isimplemented(name) for name in cls._methods}
-        # save_as_source is provided by the base default (interface.py) for any
-        # provider that can fetch an object, so gate it on get_alert.
+        # save_as_source and get_photometry are base defaults (interface.py) for
+        # any provider that can fetch an object, so gate both on get_alert.
         caps["save_as_source"] = cls._isimplemented("get_alert")
+        caps["get_photometry"] = cls._isimplemented("get_alert")
+        # Data-semantics flag (not a method): does cone_search return reference
+        # catalogs for the centroid cross-match overlay?
+        caps["cross_match_catalogs"] = cls.cross_match_catalogs
         return caps
+
+    @classmethod
+    def configured_surveys(cls, altdata):
+        """Surveys a *configured* broker record serves, for per-record routing.
+
+        Defaults to every survey the provider supports (``cls.surveys``): most
+        providers serve all their surveys from one connection (e.g. BOOM picks
+        the survey per query). A provider whose instance is survey-specific — one
+        deployment/endpoint/token per survey, like Lasair — overrides this to
+        narrow it to the deployment's survey.
+        """
+        return list(cls.surveys)
+
+    @classmethod
+    def secret_config_fields(cls):
+        """Dotted ``altdata`` paths that must never be sent.
+
+        Defaults to every field the config form renders as a password; a
+        provider whose secret uses another widget overrides this.
+        """
+
+        def walk(node, prefix=""):
+            paths = []
+            for key, value in (node or {}).items():
+                if not isinstance(value, dict):
+                    continue
+                path = f"{prefix}{key}"
+                if value.get("ui:widget") == "password":
+                    paths.append(path)
+                else:
+                    paths.extend(walk(value, f"{path}."))
+            return paths
+
+        return walk(cls.ui_json_schema)
 
     # subclasses should not modify this
     @classmethod

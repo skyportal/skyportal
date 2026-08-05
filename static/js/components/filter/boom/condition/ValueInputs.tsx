@@ -18,7 +18,8 @@ import {
   getFieldOptionsWithVariable,
   normalizeFieldValue,
 } from "../../../../utils/conditionHelpers";
-import { useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import { useFilterSchema } from "../../../../ducks/boom_filter_modules";
 
 const underscoreLatexForDisplay = (text: any) => {
   if (!text) return text;
@@ -98,6 +99,7 @@ export const EquationPopover = ({
         sx={{
           p: 2,
           background: "#fef3c7",
+          color: "#1f2937",
           border: "1px solid #fde68a",
           borderRadius: 2,
         }}
@@ -187,9 +189,8 @@ const ListVariableInput = ({
     isListDialogOpen,
     setListConditionDialog,
   } = useConditionContext();
-  const currentStream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
   const operator =
     listVariable.listCondition?.operator || listVariable.operator;
   const selectedOperator = conditionOrBlock.operator;
@@ -415,9 +416,8 @@ const RegularValueInput = ({
     fieldOptionsList,
     isListDialogOpen,
   } = useConditionContext();
-  const currentStream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
 
   return (
     <AutocompleteFields
@@ -504,7 +504,7 @@ const ValueInput = ({
   createDefaultCondition,
   createDefaultBlock,
 }: ValueInputProps) => {
-  const schema = useAppSelector((state: any) => state.filter_modules?.schema);
+  const schema = useFilterSchema().data;
   const fieldOptions = flattenFieldOptions(schema);
 
   const { customListVariables, customVariables, fieldOptionsList } =

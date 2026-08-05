@@ -39,10 +39,27 @@ export const telescopesApi = skyportalApi.injectEndpoints({
       unknown,
       { id: number | string; data: Record<string, any> }
     >({
+      // The edit form seeds its state from the full telescope object; only
+      // send the fields the endpoint accepts.
       query: ({ id, data }) => ({
         url: `api/telescope/${id}`,
         method: "PUT",
-        body: data,
+        body: Object.fromEntries(
+          [
+            "name",
+            "nickname",
+            "lat",
+            "lon",
+            "elevation",
+            "diameter",
+            "skycam_link",
+            "weather_link",
+            "robotic",
+            "fixed_location",
+          ]
+            .filter((key) => key in data)
+            .map((key) => [key, data[key]]),
+        ),
       }),
       invalidatesTags: ["Telescope"],
     }),

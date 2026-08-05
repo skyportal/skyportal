@@ -628,7 +628,7 @@ const UserInvitations = () => {
 
   const CustomToolbar = function UserInvitationsToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false} showExport>
+      <DataGridToolbar showQuickFilter={false}>
         <Tooltip title="Filter Table">
           <IconButton
             size="small"

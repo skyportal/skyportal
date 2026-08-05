@@ -278,6 +278,8 @@ class UnsourcedFinderHandler(BaseHandler):
             "Finding chart generation in progress. Download will start soon."
         )
         rez = await IOLoop.current().run_in_executor(None, finder)
+        if not rez.get("success", True):
+            return self.error(rez.get("reason", "Could not generate finding chart"))
 
         filename = rez["name"]
         data = io.BytesIO(rez["data"])

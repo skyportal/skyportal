@@ -5,6 +5,7 @@
  * is injected into the central `skyportalApi`; the websocket refresh message is
  * bridged to cache invalidation via `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -21,9 +22,7 @@ export const localizationTagsApi = skyportalApi.injectEndpoints({
       LocalizationTagsArg | void
     >({
       query: (filterParams) => {
-        const params = new URLSearchParams(
-          (filterParams as Record<string, string>) || {},
-        ).toString();
+        const params = buildQueryString(filterParams || {});
         return params
           ? `api/localization/tags?${params}`
           : "api/localization/tags";

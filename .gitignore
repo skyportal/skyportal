@@ -70,6 +70,10 @@ dists/
 # postgres persistent volume
 data/dbdata/
 
+# observability scrape tokens (see observability/README.md)
+observability/prometheus/skyportal_token
+observability/tests/token
+
 # Generated pgbouncer config (from services/pgbouncer/*.template)
 services/pgbouncer/pgbouncer.ini
 services/pgbouncer/supervisor.conf
@@ -82,3 +86,6 @@ credential
 .secrets
 .fink
 key.json
+
+!flake.lock
+.direnv

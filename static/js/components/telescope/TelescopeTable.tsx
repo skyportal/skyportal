@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
+import { useNavigate } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -12,7 +11,6 @@ import Chip from "@mui/material/Chip";
 import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
@@ -38,6 +36,7 @@ const TelescopeTable = ({
   hideTitle = false,
 }: TelescopeTableProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isReadOnly = useIsReadOnly();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [submitTelescopeMutation] = useSubmitTelescopeMutation();
@@ -170,23 +169,24 @@ const TelescopeTable = ({
   };
 
   const renderManage = (params: any) => {
-    if (!managePermission) {
-      return null;
-    }
+    if (!managePermission) return null;
     const telescope = params.row;
     return (
-      <Box sx={{ display: "flex" }}>
-        <Button
+      <Box sx={{ display: "flex" }} onClick={(e) => e.stopPropagation()}>
+        <IconButton
           onClick={() => {
             setTelescopeToEdit(telescope);
             setFormData(cleanNulls(telescope));
           }}
         >
           <EditIcon />
-        </Button>
-        <Button onClick={() => setTelescopeToDelete(telescope)} color="error">
+        </IconButton>
+        <IconButton
+          color="error"
+          onClick={() => setTelescopeToDelete(telescope)}
+        >
           <DeleteIcon />
-        </Button>
+        </IconButton>
       </Box>
     );
   };
@@ -248,20 +248,25 @@ const TelescopeTable = ({
       sortable: false,
       renderCell: (params: any) =>
         params.value ? (
-          <a href={params.value} target="_blank" rel="noopener noreferrer">
+          <a
+            href={params.value}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
             View
           </a>
         ) : null,
     },
-    {
+    managePermission && {
       field: "manage",
       headerName: "",
-      width: 70,
+      minWidth: 120,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
     },
-  ];
+  ].filter(Boolean);
 
   // Memoized (like SourceTable/GalaxyTable) so the toolbar slot keeps a stable
   // identity; an inline slot remounts each render and loops the grid.
@@ -269,7 +274,7 @@ const TelescopeTable = ({
     () =>
       function TelescopeTableToolbar() {
         return (
-          <DataGridToolbar showExport>
+          <DataGridToolbar title={hideTitle ? "" : "Telescopes"}>
             {!isReadOnly && (
               <IconButton
                 name="new_telescope"
@@ -281,29 +286,24 @@ const TelescopeTable = ({
           </DataGridToolbar>
         );
       },
-    [isReadOnly],
+    [isReadOnly, hideTitle],
   );
 
   return (
-    <Paper>
-      {!hideTitle && (
-        <Typography variant="h6" sx={{ p: 1 }}>
-          Telescopes
-        </Typography>
-      )}
-      <Box sx={{ width: "100%", height: "calc(100vh - 148px)" }}>
-        <StyledDataGrid
-          rows={telescopes || []}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          hideFooter
-          initialState={{
-            pagination: { paginationModel: { pageSize: 100 } },
-          }}
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Box>
+    <Box sx={{ width: "100%", height: "calc(100vh - 5rem)" }}>
+      <StyledDataGrid
+        rows={telescopes || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        onRowClick={(params: any) => navigate(`/telescope/${params.row.id}`)}
+        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
+        hideFooter
+        initialState={{
+          pagination: { paginationModel: { pageSize: 100 } },
+        }}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog
         open={newDialogOpen || telescopeToEdit !== null}
         onClose={closeDialog}
@@ -332,7 +332,7 @@ const TelescopeTable = ({
         closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
-    </Paper>
+    </Box>
   );
 };
 

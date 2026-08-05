@@ -1164,7 +1164,11 @@ const SharingServicesPage = () => {
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showColumns={false} showQuickFilter={false}>
+    <DataGridToolbar
+      showColumns={false}
+      showQuickFilter={false}
+      showExport={false}
+    >
       {managePermission && (
         <IconButton
           name="new_sharing_service"

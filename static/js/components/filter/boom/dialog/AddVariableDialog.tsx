@@ -15,8 +15,8 @@ import {
 import { Close as CloseIcon, ContentCopy } from "@mui/icons-material";
 import { v4 as uuidv4 } from "uuid";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
-import { postElement } from "../../../../ducks/boom_filter_modules";
-import { useAppDispatch, useAppSelector } from "../../../../types/hooks";
+import { usePostFilterElementMutation } from "../../../../ducks/boom_filter_modules";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 import EquationEditor from "equation-editor-react";
 
 // Numeric types
@@ -188,10 +188,9 @@ const AddVariableDialog = () => {
     customBlocks,
   } = useCurrentBuilder() || {};
 
-  const dispatch = useAppDispatch();
-  const stream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const [postElement] = usePostFilterElementMutation();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const stream = boomFilterVersion?.stream?.name;
 
   const [variableName, setVariableName] = useState("");
   const [expression, setExpression] = useState("");
@@ -885,17 +884,15 @@ const AddVariableDialog = () => {
 
     const eq = `${variableName} = ${expression}`;
 
-    dispatch(
-      postElement({
-        name: variableName,
-        data: {
-          variable: eq,
-          type: "number",
-          streams: [stream],
-        },
-        elements: "variables",
-      }),
-    );
+    postElement({
+      name: variableName,
+      data: {
+        variable: eq,
+        type: "number",
+        streams: [stream],
+      },
+      elements: "variables",
+    });
 
     setCustomVariables((prev: any[]) => {
       if (prev.some((v: any) => v.name === variableName)) return prev;

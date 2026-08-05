@@ -216,9 +216,6 @@ const AutocompleteFields = ({
     if (allGroups.length > 0 && allGroups.length > collapsedGroups.size) {
       setCollapsedGroups(new Set(allGroups));
     }
-    // Intentionally only re-collapse when the field groups change, not on every
-    // manual collapse/expand (which mutates collapsedGroups).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allGroups]);
 
   // Auto-expand groups that contain search matches
@@ -376,6 +373,14 @@ const AutocompleteFields = ({
                   options: {
                     offset: [0, 4],
                   },
+                },
+                // Without this, Popper's default `hide` modifier sets
+                // visibility: hidden the instant the anchor field is even
+                // partially clipped by the viewport (e.g. a small window),
+                // which looks like the dropdown closing instantly.
+                {
+                  name: "hide",
+                  enabled: false,
                 },
               ],
             },

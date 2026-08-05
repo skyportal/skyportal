@@ -12,10 +12,10 @@ import asyncio
 
 import sqlalchemy as sa
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal import models
 from skyportal.models import Broker
 
 env, cfg = load_env()
@@ -55,7 +55,10 @@ async def _run_loop():
     running: dict[int, asyncio.Task] = {}
     while True:
         try:
-            async with models.async_plain_session_factory() as session:
+            # Resolve on the baselayer module at call time: init_db() rebinds the
+            # global there, but skyportal.models star-imported it as None at import
+            # time and keeps that stale binding.
+            async with baselayer_models.async_plain_session_factory() as session:
                 wanted = await _active_ingestion_brokers(session)
         except Exception as e:
             log(f"failed to list brokers: {e}")

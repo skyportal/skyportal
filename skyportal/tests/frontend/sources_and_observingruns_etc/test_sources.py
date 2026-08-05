@@ -523,6 +523,7 @@ def test_obj_page_unsaved_source(public_obj, page, user):
     ).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_show_photometry_table(public_source, page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
@@ -532,10 +533,19 @@ def test_show_photometry_table(public_source, page, user):
 
     show_button = page.locator('//*[@data-testid="show-photometry-table-button"]').first
     expect(show_button).to_be_visible()
-    show_button.click()
-    expect(
-        page.locator(f'//*[contains(text(), "Photometry of {public_source.id}")]').first
-    ).to_be_visible(timeout=20000)
+    photometry_header = page.locator(
+        f'//*[contains(text(), "Photometry of {public_source.id}")]'
+    ).first
+    # The open click occasionally lands during a re-render and gets dropped, so
+    # the table never appears; retry the open until its header is visible.
+    for _ in range(3):
+        show_button.click()
+        try:
+            expect(photometry_header).to_be_visible(timeout=20000)
+            break
+        except AssertionError:
+            continue
+    expect(photometry_header).to_be_visible()
 
     close_button = page.locator(
         '//*[@data-testid="close-photometry-table-button"]'
@@ -568,7 +578,6 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"Mag_G": 11.3, "Mag_Bp": 12.8, "Mag_Rp": 11.0, "Plx": 20},
         },

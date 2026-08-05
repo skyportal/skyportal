@@ -1,8 +1,10 @@
 import json
+from typing import Any
 
 import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -13,9 +15,45 @@ from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 
+class InstrumentLogPostBody(BaseModel):
+    """Request body for posting instrument logs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: str = Field(
+        description="Arrow-parseable date string (e.g. 2020-01-01)."
+    )
+    end_date: str = Field(description="Arrow-parseable date string (e.g. 2020-01-01).")
+    log: str | dict[str, Any] = Field(
+        description="Nested JSON containing the log messages, or a parsable "
+        "string of log lines."
+    )
+
+
+class InstrumentLogPostResponse(BaseModel):
+    """Data payload returned when posting instrument logs."""
+
+    id: int = Field(description="The id of the InstrumentLog")
+
+
+class InstrumentStatusPutBody(BaseModel):
+    """Request body for updating an instrument's status."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str | dict[str, Any] | None = Field(
+        default=None,
+        description="The status of the instrument, as a JSON object or a "
+        "JSON-encoded string. When empty or omitted, the status is instead "
+        "refreshed from the instrument's remote API.",
+    )
+
+
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
-    async def post(self, instrument_id: int):
+    async def post(
+        self, instrument_id: int, *, body: InstrumentLogPostBody = None
+    ) -> InstrumentLogPostResponse:
         """
         ---
         summary: Add instrument logs
@@ -29,78 +67,26 @@ class InstrumentLogHandler(BaseHandler):
             schema:
               type: integer
             description: The instrument ID to post logs for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  start_date:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                  end_date:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                  logs:
-                    type: object
-                    description: |
-                       Nested JSON containing the log messages.
-                required:
-                  - start_date
-                  - end_date
-                  - logs
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the InstrumentLog
-          400:
-            content:
-              application/json:
-                schema: Error
         """
+        body = self.parse_body(InstrumentLogPostBody)
         try:
             instrument_id_int = int(instrument_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        data = self.get_json()
-        start_date = data.get("start_date")
-        if start_date is None:
-            return self.error("date is required")
         try:
-            start_date = arrow.get(start_date).naive
+            start_date = arrow.get(body.start_date).naive
         except Exception as e:
             return self.error(f"Invalid start_date: {str(e)}")
 
-        end_date = data.get("end_date")
-        if end_date is None:
-            return self.error("date is required")
         try:
-            end_date = arrow.get(end_date).naive
+            end_date = arrow.get(body.end_date).naive
         except Exception as e:
             return self.error(f"Invalid end_date: {str(e)}")
 
-        logs = data.get("log")
-        if logs is None:
-            return self.error("log is required")
-
+        logs = body.log
         if isinstance(logs, str):
             logs = read_logs(logs)
-        elif not isinstance(logs, dict):
-            return self.error("log must be either dictionary or parsable string")
 
         async with self.AsyncSession() as session:
             instrument = await session.scalar(
@@ -269,7 +255,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, instrument_id: int):
+    async def put(self, instrument_id: int, *, body: InstrumentStatusPutBody = None):
         """
         ---
         summary: Update instrument status
@@ -283,18 +269,6 @@ class InstrumentStatusHandler(BaseHandler):
             schema:
               type: integer
             description: The instrument ID to update the status for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: |
-                      The status of the instrument
-                required:
-                  - status
         responses:
           200:
             content:
@@ -305,14 +279,14 @@ class InstrumentStatusHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(InstrumentStatusPutBody)
         try:
             instrument_id_int = int(instrument_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        data = self.get_json()
-        status = data.get("status", None)
-        if status in [None, "", {}, []]:
+        status = body.status
+        if status in [None, "", {}]:
             async with self.AsyncSession() as session:
                 instrument = await session.scalar(
                     Instrument.select(session.user_or_token, mode="update").where(

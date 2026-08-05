@@ -110,10 +110,7 @@ const AnnotationsTable = ({
     () =>
       function AnnotationsTableToolbar() {
         return (
-          <DataGridToolbar
-            showExport
-            quickFilterTestId="annotations-quick-filter"
-          >
+          <DataGridToolbar quickFilterTestId="annotations-quick-filter">
             {canExpand && (
               <IconButton
                 name="expand_annotations"
