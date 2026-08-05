@@ -10,9 +10,6 @@ from astropy import coordinates
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.env import load_env
-from baselayer.log import make_log
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
@@ -24,6 +21,9 @@ from sqlalchemy.orm import (
 )
 from tornado.ioloop import IOLoop
 
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.log import make_log
 from skyportal.utils.calculations import get_airmass
 
 from ...enum_types import ALLOWED_BANDPASSES
