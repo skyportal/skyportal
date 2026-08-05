@@ -7,7 +7,7 @@ from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -378,3 +378,26 @@ def test_hr_diagram(page, user, public_group, upload_data_token, annotation_toke
     expect(
         page.locator(f'//div[@data-testid="hr_diagram_{source_id}"]').first
     ).to_be_visible()
+
+
+def test_source_list_expanded_row_vega_plots(
+    page,
+    user,
+    public_group,
+    public_source,
+    public_source_photometry_point,
+    public_source_spectrum,
+):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
+    expect(
+        page.locator(f'//a[@data-testid="{public_source.id}"]').first
+    ).to_be_visible()
+
+    page.locator("//div[@data-rowindex='0']//*[@id='expandable-button']").first.click()
+    row = page.locator(f'[data-testid="groupSourceExpand_{public_source.id}"]').first
+    expect(row).to_be_visible()
+
+    # The expanded row draws the photometry and spectrum plots; both must render
+    # marks, not just mount an empty vega-embed container.
+    expect_vega_plot(row, count=2)

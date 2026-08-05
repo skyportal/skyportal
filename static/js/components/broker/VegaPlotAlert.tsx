@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import embed from "vega-embed";
+import embedVega from "../plot/vegaEmbed";
 
 // Consistent color palette for photometric bands across surveys
 const BAND_COLOR_SCALE = {
@@ -214,7 +214,7 @@ const VegaPlot = ({ dataUrl = null, values = null, jd }: VegaPlotProps) => {
         viewRef.current.finalize();
         viewRef.current = null;
       }
-      const result = await embed(container, spec(dataUrl, values, jd), {
+      const result = await embedVega(container, spec(dataUrl, values, jd), {
         actions: false,
       });
       if (cancelled) {

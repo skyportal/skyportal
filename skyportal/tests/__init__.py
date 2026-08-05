@@ -158,6 +158,22 @@ def wait_for_localization(dateobs, localization_name, token, timeout=240):
     )
 
 
+def expect_vega_plot(scope, count=None):
+    """Assert Vega actually drew inside `scope`, not just mounted a container.
+
+    A component whose embed() throws still renders an empty `div.vega-embed`,
+    so asserting on the container passes while the plot is broken. Locators are
+    CSS: XPath name tests do not match namespaced SVG elements.
+    """
+    from playwright.sync_api import expect
+
+    plots = scope.locator("svg.marks")
+    expect(plots.first).to_be_visible()
+    if count is not None:
+        expect(plots).to_have_count(count)
+    expect(scope.locator("svg.marks [class*='mark-']")).not_to_have_count(0)
+
+
 def open_preferences_panel(page, slug):
     """Open a preferences panel, e.g. "notifications"."""
     page.locator(f'//*[@data-testid="{slug}-panel"]').first.click()

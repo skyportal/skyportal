@@ -1,14 +1,12 @@
 import os
 import uuid
-from io import BytesIO
 
 import pytest
-from PIL import Image, ImageChops
 from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.models import DBSession
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 cfg = load_config()
 
@@ -571,7 +569,7 @@ def test_javascript_sexagesimal_conversion(public_source, page, user):
     expect(page.locator('//*[contains(., "+15:36:24.15")]').first).to_be_visible()
 
 
-def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path):
+def test_source_hr_diagram(page, user, public_source, annotation_token):
     page.goto(f"/become_user/{user.id}")
 
     status, data = api(
@@ -588,25 +586,16 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    component_class_xpath = (
-        f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
-    )
-    vegaplot_div = page.locator(component_class_xpath).first
-    expect(vegaplot_div).to_be_visible()
+    # CSS, not XPath: XPath name tests do not match namespaced SVG elements.
+    panel = page.locator(f'[data-testid="hr_diagram_{public_source.id}"]')
+    expect(panel).to_be_visible()
 
-    # Since Vega uses a <canvas>, compare an image of the plot to the baseline.
-    generated_plot = Image.open(BytesIO(vegaplot_div.screenshot()))
-
-    # Regenerate the baseline (matches the legacy test's behavior); write to a
-    # temp dir so the committed baseline isn't overwritten on every run.
-    expected_plot_path = tmp_path / "HR_diagram_expected.png"
-    generated_plot.save(expected_plot_path)
-    expected_plot = Image.open(expected_plot_path)
-
-    difference = ImageChops.difference(
-        generated_plot.convert("RGB"), expected_plot.convert("RGB")
-    )
-    assert difference.getbbox() is None
+    # VegaHR is lazily loaded behind Suspense and Vega renders asynchronously.
+    # Comparing screenshots is not viable here -- the pixels vary with window
+    # size, fonts and DPI (issue #2608), so assert on the marks Vega drew.
+    expect_vega_plot(panel)
+    expect(panel.locator(".role-axis")).not_to_have_count(0)
+    expect(panel.locator("[class*='mark-symbol']")).not_to_have_count(0)
 
 
 @pytest.mark.flaky(reruns=2)

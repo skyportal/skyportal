@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { isMobileOnly } from "react-device-detect";
-import embed from "vega-embed";
+import embedVega from "./vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 
 const mjdNow = Date.now() / 86400000.0 + 40587.0;
@@ -293,7 +293,7 @@ const VegaPlot = React.memo((props: VegaPlotProps) => {
       }
 
       // Embed the new Vega visualization. This is async because it may fetch data.
-      const result = await embed(
+      const result = await embedVega(
         containerRef.current,
         spec(
           dataUrl,

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { isMobileOnly } from "react-device-detect";
-import embed from "vega-embed";
+import embedVega from "./vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 
 const spec = (
@@ -244,7 +244,7 @@ const VegaFoldedPlot = React.memo((props: VegaFoldedPlotProps) => {
       }
 
       // Embed the new Vega visualization. This is async because it may fetch data.
-      const result = await embed(
+      const result = await embedVega(
         containerRef.current,
         spec(
           dataUrl,
