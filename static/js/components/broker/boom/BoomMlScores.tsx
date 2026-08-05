@@ -1,7 +1,8 @@
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { Theme, alpha } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles()((theme) => ({
