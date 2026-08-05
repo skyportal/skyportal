@@ -1,5 +1,5 @@
 import React from "react";
-import embed from "vega-embed";
+import embedVega from "./vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 
 const rootURL = `${window.location.protocol}//${window.location.host}`;
@@ -224,7 +224,7 @@ const VegaHR = React.memo((props: VegaHRProps) => {
     <div
       ref={(node) => {
         if (node) {
-          embed(
+          embedVega(
             node,
             spec(
               data,
