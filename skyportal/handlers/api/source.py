@@ -285,6 +285,9 @@ async def get_source(
     # obj_id = NULL during the next autoflush, violating that
     # field's NOT NULL constraint.)
     source_info = s.to_dict()
+    # Re-add the internal_key stripped from Obj.to_dict: the frontend's websocket
+    # refresh maps a broadcast obj_key back to this loaded source by internal_key.
+    source_info["internal_key"] = s.internal_key
 
     # only keep the latest Thumbnail for each type (by created_at)
     if include_thumbnails and source_info.get("thumbnails"):

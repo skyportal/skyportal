@@ -514,6 +514,15 @@ class Obj(Base, conesearch_alchemy.Point):
                 session.add(Thumbnail(obj_id=self.id, public_url=url, type="jwst"))
                 await session.commit()
 
+    def to_dict(self):
+        # internal_key anonymizes objs in websocket refresh messages, so it must
+        # never be exposed by default serialization (a client that can't see an obj
+        # could otherwise map those broadcasts to it). Handlers whose responses the
+        # frontend's ws-invalidation keys on re-add it explicitly.
+        d = super().to_dict()
+        d.pop("internal_key", None)
+        return d
+
     # Survey cutouts share a common ~60 arcsec field of view so the object sits
     # at the same scale across SDSS/LS/PS1 thumbnails.
     @property
