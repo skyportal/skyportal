@@ -2489,7 +2489,9 @@ async def get_sources(
                 startTime = time.time()
 
                 comments_result = await session.scalars(
-                    Comment.select(user).where(Comment.obj_id.in_(obj_ids))
+                    Comment.select(user)
+                    .where(Comment.obj_id.in_(obj_ids))
+                    .where(Comment.channel.is_(None))
                 )
                 comments = comments_result.unique().all()
                 comments = [c.to_dict() for c in comments]
