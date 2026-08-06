@@ -20,6 +20,9 @@ const airmassSpec = (
 ): any => ({
   $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
   background: "transparent",
+  width: "container",
+  height: 300,
+  autosize: { type: "fit-x", contains: "padding" },
   data: {
     url,
     format: {
@@ -63,7 +66,7 @@ const airmassSpec = (
   ],
   layer: [
     {
-      mark: "rect",
+      mark: { type: "rect", clip: true },
       encoding: {
         x: {
           datum: ephemeris.sunset_unix_ms,
@@ -77,7 +80,7 @@ const airmassSpec = (
       },
     },
     {
-      mark: "rect",
+      mark: { type: "rect", clip: true },
       encoding: {
         x: {
           datum: ephemeris.twilight_evening_nautical_unix_ms,
@@ -91,7 +94,7 @@ const airmassSpec = (
       },
     },
     {
-      mark: "rect",
+      mark: { type: "rect", clip: true },
       encoding: {
         x: {
           datum: ephemeris.twilight_evening_astronomical_unix_ms,
@@ -105,7 +108,7 @@ const airmassSpec = (
       },
     },
     {
-      mark: "rect",
+      mark: { type: "rect", clip: true },
       encoding: {
         x: {
           datum: ephemeris.twilight_morning_astronomical_unix_ms,
@@ -119,7 +122,7 @@ const airmassSpec = (
       },
     },
     {
-      mark: "rect",
+      mark: { type: "rect", clip: true },
       encoding: {
         x: {
           datum: ephemeris.twilight_morning_nautical_unix_ms,
@@ -134,6 +137,13 @@ const airmassSpec = (
     },
     {
       mark: { type: "line", clip: true, point: true },
+      params: [
+        {
+          name: "zoom",
+          select: { type: "interval", encodings: ["x"] },
+          bind: "scales",
+        },
+      ],
       encoding: {
         x: { field: "time" },
         y: { field: "airmass" },
@@ -166,6 +176,9 @@ const AirmassPlot = React.memo((props: AirmassPlotProps) => {
   const theme = useTheme() as any;
   return (
     <div
+      // minWidth: call sites that place the plot in an auto-width flex item
+      // would otherwise resolve the container to 0 and render nothing.
+      style={{ width: "100%", minWidth: 360 }}
       ref={(node) => {
         if (node) {
           embedVega(
