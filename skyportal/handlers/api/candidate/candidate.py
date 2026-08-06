@@ -1671,7 +1671,15 @@ class CandidateHandler(BaseHandler):
                         session.add(candidate)
                         await session.flush()
                     candidates.append(candidate)
-                except IntegrityError:
+                except IntegrityError as e:
+                    # Only the (obj/filter/passed_at) unique index is idempotent;
+                    # surface any other integrity failure instead of silently
+                    # dropping the candidate and returning a false success.
+                    if "candidates_main_index" not in str(e.orig):
+                        await session.rollback()
+                        return self.error(
+                            f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
+                        )
                     existing = await session.scalar(
                         Candidate.select(session.user_or_token).where(
                             Candidate.obj_id == obj_id_str,
@@ -1679,8 +1687,11 @@ class CandidateHandler(BaseHandler):
                             Candidate.passed_at == passed_at,
                         )
                     )
-                    if existing is not None:
-                        candidates.append(existing)
+                    if existing is None:
+                        return self.error(
+                            f"Candidate for object {obj_id_str} already exists but is not accessible"
+                        )
+                    candidates.append(existing)
             await session.commit()
             ids = [c.id for c in candidates]
 
