@@ -27,7 +27,9 @@ log = make_log("api/annotation")
 class AnnotationPostBody(BaseModel):
     """Request body for posting an annotation."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Clients still send handler-derived fields (obj_id) that the previous
+    # marshmallow schema silently ignored; ignore rather than reject them.
+    model_config = ConfigDict(extra="ignore")
 
     origin: str = Field(
         pattern=r"^\w+",
@@ -55,7 +57,9 @@ class AnnotationPostResponse(BaseModel):
 class AnnotationPutBody(BaseModel):
     """Request body for updating an annotation."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Clients still send handler-derived fields (obj_id, author_id) that the
+    # previous marshmallow schema silently ignored; ignore rather than reject.
+    model_config = ConfigDict(extra="ignore")
 
     data: dict[str, Any] | None = Field(
         default=None, description="Annotation data as {key: value} pairs."
