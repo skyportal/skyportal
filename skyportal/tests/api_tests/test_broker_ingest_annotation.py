@@ -6,7 +6,15 @@ import sqlalchemy as sa
 
 from baselayer.app import models as baselayer_models
 from skyportal.broker_apis._save import save_object_as_candidate
-from skyportal.models import Annotation, DBSession, Instrument, Obj, User
+from skyportal.models import (
+    Annotation,
+    Candidate,
+    DBSession,
+    Instrument,
+    Obj,
+    Source,
+    User,
+)
 from skyportal.tests.fixtures import InstrumentFactory
 
 
@@ -91,6 +99,49 @@ def test_broker_ingest_refreshes_its_own_annotation(
     annotation = fetch_annotation(obj_id, public_filter)
     assert annotation.data == {"mag_now": 17.1}
     assert public_filter.group.id in [g.id for g in annotation.groups]
+
+
+def fetch_source(obj_id, filter_):
+    DBSession().expire_all()
+    return DBSession().scalar(
+        sa.select(Source).where(
+            Source.obj_id == obj_id, Source.group_id == filter_.group_id
+        )
+    )
+
+
+def test_broker_ingest_autosave_saves_source(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    """With the filter's `autosave` flag set, a passing object is saved as a
+    Source in the filter's group, not only registered as a Candidate."""
+    public_filter.autosave = True
+    DBSession().add(public_filter)
+    DBSession().commit()
+
+    ingest(obj_id, super_admin_user.id, public_filter.id, {})
+
+    source = fetch_source(obj_id, public_filter)
+    assert source is not None, "autosave did not save the object as a Source"
+    assert source.saved_by_id == super_admin_user.id
+
+
+def test_broker_ingest_without_autosave_registers_candidate_only(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    """With `autosave` off (the default), a passing object is registered as a
+    Candidate but not saved as a Source."""
+    ingest(obj_id, super_admin_user.id, public_filter.id, {})
+
+    assert fetch_source(obj_id, public_filter) is None, (
+        "object should not be saved as a Source when autosave is off"
+    )
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None, "candidate was not registered on ingest"
 
 
 def test_broker_ingest_leaves_another_authors_annotation_alone(
