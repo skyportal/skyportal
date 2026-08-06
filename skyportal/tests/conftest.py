@@ -245,7 +245,9 @@ def test_failed_check(request):
     yield
     # request.node is an "item" because we use the default
     # "function" scope
-    if request.node.rep_call.failed and "page" in request.node.funcargs:
+    # No rep_call when a fixture skipped the test: it never reached the call phase.
+    rep_call = getattr(request.node, "rep_call", None)
+    if rep_call is not None and rep_call.failed and "page" in request.node.funcargs:
         take_playwright_screenshot_and_page_source(
             request.node.funcargs["page"], request.node.nodeid
         )
