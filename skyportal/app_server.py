@@ -217,6 +217,11 @@ from skyportal.handlers.api import (
     VizierQueryHandler,
     WeatherHandler,
 )
+from skyportal.handlers.api.boom import (
+    BoomFilterHandler,
+    BoomFilterModulesHandler,
+    BoomRunFilterHandler,
+)
 from skyportal.handlers.api.internal import (
     AcrossInstrumentsHandler,
     AcrossJointVisibilityHandler,
@@ -286,6 +291,11 @@ skyportal_handlers = [
         AnalysisProductsHandler,
     ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
+    # BOOM filter-builder API (alerts/objects/cutouts/photometry are now served
+    # natively by SkyPortal's broker framework at /api/brokers/{id}/...).
+    (r"/api/boom/filters(/.*)", BoomFilterHandler),
+    (r"/api/boom/filter_modules(/.*)?", BoomFilterModulesHandler),
+    (r"/api/boom/run_filter", BoomRunFilterHandler),
     (r"/api/brokers/([0-9]+)/filter/test", BrokerFilterTestHandler),
     (
         r"/api/brokers/([0-9]+)/filters/([0-9]+)/validate",
