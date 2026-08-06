@@ -266,6 +266,21 @@ const UploadPhotometryForm = () => {
     groupIDToName[g.id] = g.name;
   });
 
+  // The user's own single-user group is filtered out of the shareable list, so
+  // surface it as "Only me (private)". Selecting it makes group_ids non-empty,
+  // which opts the upload out of the sitewide default-share (share only with me).
+  const ownGroup = userGroups.find((g) => g.single_user_group);
+  const groupList = ownGroup
+    ? [
+        {
+          ...ownGroup,
+          name: "Only me (private)",
+          nickname: "Only me (private)",
+        },
+        ...groups,
+      ]
+    : groups;
+
   const useStyles = makeStyles()((theme) => ({
     formControl: {
       margin: theme.spacing(1),
@@ -513,7 +528,7 @@ const UploadPhotometryForm = () => {
                     }}
                   >
                     <GroupShareSelect
-                      groupList={groups}
+                      groupList={groupList}
                       setGroupIDs={setSelectedGroupIds}
                       groupIDs={selectedGroupIds}
                     />

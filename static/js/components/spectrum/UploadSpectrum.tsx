@@ -111,6 +111,15 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     }
     return [...ids];
   }, [source, config, groups]);
+  // The user's own single-user group is filtered out of `all`, so surface it as
+  // "Only me (private)". Selecting it makes group_ids non-empty, which opts the
+  // upload out of the sitewide default-share (share only with me).
+  const ownGroup = (useGetGroupsQuery().data?.user ?? []).find(
+    (g: any) => g.single_user_group,
+  );
+  const groupOptions = ownGroup
+    ? [{ ...ownGroup, name: "Only me (private)" }, ...(groups ?? [])]
+    : (groups ?? []);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
   const [header, setHeader] = useState<any[]>([]);
@@ -276,7 +285,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         title: "Share with...",
         items: {
           type: "integer",
-          enum: groups.map((group: any) => group.id),
+          enum: groupOptions.map((group: any) => group.id),
         },
         uniqueItems: true,
       },
@@ -513,7 +522,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
 
   const uiSchema: any = {
     group_ids: {
-      "ui:enumNames": groups.map((group: any) => group.name),
+      "ui:enumNames": groupOptions.map((group: any) => group.name),
     },
     instrument_id: {
       "ui:enumNames": instruments.map(
