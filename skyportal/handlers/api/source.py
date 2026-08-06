@@ -2815,25 +2815,21 @@ class SourceOffsetsHandler(BaseHandler):
                 # every number), and those points have no magnitude to export,
                 # so require one. Prefer a detection, falling back to the
                 # latest point that has a magnitude at all.
-                ngps_photometry = (
-                    Photometry.select(session.user_or_token)
-                    .where(
-                        Photometry.obj_id == obj_id,
-                        Photometry.mag.isnot(None),
-                        Photometry.fluxerr.isnot(None),
-                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
-                    )
-                    .order_by(Photometry.mjd.desc())
-                )
                 latest_photometry = (
                     await session.scalars(
-                        ngps_photometry.where(
-                            Photometry.snr >= PHOT_DETECTION_THRESHOLD
+                        Photometry.select(session.user_or_token)
+                        .where(
+                            Photometry.obj_id == obj_id,
+                            Photometry.mag.isnot(None),
+                            Photometry.fluxerr.isnot(None),
+                            Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                        )
+                        .order_by(
+                            (Photometry.snr > PHOT_DETECTION_THRESHOLD).desc(),
+                            Photometry.mjd.desc(),
                         )
                     )
                 ).first()
-                if latest_photometry is None:
-                    latest_photometry = (await session.scalars(ngps_photometry)).first()
                 if latest_photometry is not None:
                     source_mag = latest_photometry.mag
                     source_magfilter = latest_photometry.filter
