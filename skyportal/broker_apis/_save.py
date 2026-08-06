@@ -364,7 +364,9 @@ async def _ingest_object(
 
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
-            await add_external_photometry(pd, user, session)
+            # Bulk ingestion must not inherit the sitewide default-share; keep
+            # ingested photometry scoped to the object's stream/user groups.
+            await add_external_photometry(pd, user, session, apply_default_share=False)
 
     # Best-effort science/template/difference thumbnails if the provider gave us
     # the cutouts.
