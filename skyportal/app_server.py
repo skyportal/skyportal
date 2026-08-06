@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     ClassificationVotesHandler,
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
+    CommentChannelHandler,
     CommentHandler,
     ConfigHandler,
     DatalabQueryHandler,
@@ -538,6 +539,7 @@ skyportal_handlers = [
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
         SourceObservabilityPlotHandler,
     ),
+    (r"/api/sources/([0-9A-Za-z-_\.\+]+)/comments/channels", CommentChannelHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments", CommentHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?", CommentHandler),
     (

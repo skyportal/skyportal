@@ -51,7 +51,7 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .color_mag import ObjColorMagHandler
-from .comment import CommentAttachmentHandler, CommentHandler
+from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
 from .db_stats import StatsHandler
