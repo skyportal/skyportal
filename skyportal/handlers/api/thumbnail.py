@@ -11,9 +11,12 @@ from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 
-from ...models import Obj, Thumbnail, User
+from ...models import Broker, Obj, Thumbnail, User
 from ..base import BaseHandler
+
+log = make_log("api/thumbnail")
 
 
 class ThumbnailPostBody(BaseModel):
@@ -576,20 +579,59 @@ async def count_thumbnails_in_folders(session, types, good_like, bad_like):
     return total_matches, good_matches, bad_matches
 
 
+async def recreate_thumbnails_from_broker(obj_id, user_id, session):
+    """Rebuild an object's thumbnails from a broker's cutouts.
+
+    Uses the broker flagged for alert search, else any active broker that can
+    serve both an alert and its cutouts. Returns whether anything was posted.
+    """
+    from ...broker_apis._thumbnails import add_thumbnails
+
+    brokers = (
+        await session.scalars(
+            sa.select(Broker)
+            .where(Broker.active.is_(True))
+            .order_by(Broker.default_alert_search.desc(), Broker.id)
+        )
+    ).all()
+
+    for broker in brokers:
+        capabilities = broker.broker_class.implements()
+        if not (capabilities.get("get_alert") and capabilities.get("get_cutouts")):
+            continue
+        try:
+            data = broker.broker_class.get_alert(broker, obj_id, session)
+            candid = (data or {}).get("candid") or (
+                (data or {}).get("candidate") or {}
+            ).get("candid")
+            if candid is None:
+                continue
+            cutouts = broker.broker_class.get_cutouts(broker, candid, session)
+            if not cutouts:
+                continue
+            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
+            await add_thumbnails(obj_id, cutouts, survey, session, user_id=user_id)
+            return True
+        except Exception as e:
+            log(f"Could not rebuild thumbnails for {obj_id} from {broker.name}: {e}")
+
+    return False
+
+
 async def check_thumbnail_file(thumbnail, user_id, session):
-    """Async version: Check if a thumbnail file exists on disk and recreate via
-    alerts if missing. Should NOT BE CALLED if alerts are not available.
+    """Check whether a thumbnail's file is present, and rebuild it if not.
+
+    Returns True when the file is usable; when it is missing the row is dropped
+    and the cutouts are re-fetched, so the caller should skip this thumbnail.
     """
     # need to import this here because alert.py might import this file
     from .alert import alert_available, post_alert
-
-    if not alert_available:
-        raise RuntimeError("Cannot recreate thumbnails without alerts!")
 
     if (
         not os.path.isfile(thumbnail.file_uri)
         or os.stat(thumbnail.file_uri).st_size == 0
     ):
+        obj_id = thumbnail.obj_id
         try:
             os.remove(thumbnail.file_uri)
         except Exception:
@@ -598,16 +640,19 @@ async def check_thumbnail_file(thumbnail, user_id, session):
             await session.delete(thumbnail)
             await session.commit()
 
-        # post_alert is overridden by Fritz; if it's been made async there, it
-        # should be awaited; the base stub is a no-op.
-        post_alert(
-            object_id=thumbnail.obj_id,
-            candid=None,
-            group_ids="all",
-            user_id=user_id,
-            session=session,
-            thumbnails_only=True,
-        )
+        if alert_available:
+            # post_alert is overridden by Fritz; if it's been made async there,
+            # it should be awaited; the base stub is a no-op.
+            post_alert(
+                object_id=obj_id,
+                candid=None,
+                group_ids="all",
+                user_id=user_id,
+                session=session,
+                thumbnails_only=True,
+            )
+        else:
+            await recreate_thumbnails_from_broker(obj_id, user_id, session)
 
         return False
 
