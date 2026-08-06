@@ -157,6 +157,9 @@ class ObservingRunHandler(BaseHandler):
                     selectinload(ObservingRun.assignments)
                     .selectinload(ClassicalAssignment.obj)
                     .selectinload(Obj.thumbnails),
+                    selectinload(ObservingRun.assignments)
+                    .selectinload(ClassicalAssignment.obj)
+                    .selectinload(Obj.photstats),
                     selectinload(ObservingRun.assignments).selectinload(
                         ClassicalAssignment.requester
                     ),
@@ -193,8 +196,20 @@ class ObservingRunHandler(BaseHandler):
                         )
                         for s in sources_result.all()
                     ]
+                    # Facilities size exposures from the target's brightness;
+                    # surface the last detection so they don't have to pull the
+                    # whole photometry series for one number.
+                    photstat = next(iter(a["obj"].photstats), None)
+                    for field in (
+                        "last_detected_mag",
+                        "last_detected_filter",
+                        "last_detected_mjd",
+                    ):
+                        a[field] = getattr(photstat, field, None)
+
                     del a["obj"].sources
                     del a["obj"].users
+                    del a["obj"].photstats
 
                 # vectorized calculation of ephemerides
 

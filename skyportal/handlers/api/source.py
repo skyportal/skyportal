@@ -116,6 +116,7 @@ DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 log = make_log("api/source")
 
 MAX_LOCALIZATION_SOURCES = 50000
@@ -2812,18 +2813,24 @@ class SourceOffsetsHandler(BaseHandler):
             priority, comment = 1, "science"
             if facility in ["P200-NGPS"]:
                 # look for the latest photometry point
-                # in the filters supported by NGPS
+                # in the filters supported by NGPS.
+                # `flux > 0` also matches NaN flux (Postgres orders NaN above
+                # every number), and those points have no magnitude to export,
+                # so require one. Prefer a detection, falling back to the
+                # latest point that has a magnitude at all.
                 latest_photometry = (
                     await session.scalars(
                         Photometry.select(session.user_or_token)
                         .where(
                             Photometry.obj_id == obj_id,
-                            Photometry.flux.isnot(None),
-                            Photometry.flux > 0,
+                            Photometry.mag.isnot(None),
                             Photometry.fluxerr.isnot(None),
                             Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
                         )
-                        .order_by(Photometry.mjd.desc())
+                        .order_by(
+                            (Photometry.snr > PHOT_DETECTION_THRESHOLD).desc(),
+                            Photometry.mjd.desc(),
+                        )
                     )
                 ).first()
                 if latest_photometry is not None:
