@@ -28,6 +28,7 @@ from ...models.photometric_series import (
     verify_metadata,
 )
 from ...models.stream import Stream
+from ...utils.data_access import default_share_public_group_name
 from ...utils.hdf5_files import load_dataframe_from_bytestream
 from ..base import BaseHandler, format_doc
 
@@ -283,6 +284,16 @@ def get_group_ids(data, user, session):
         group = session.scalars(Group.select(user).where(Group.id == group_id)).first()
         if group is None:
             raise ValidationError(f"Invalid group ID: {group_id}")
+
+    if not group_ids:
+        # no groups specified: share with the configured default groups
+        public_group_name = default_share_public_group_name()
+        if public_group_name is not None:
+            public_group = session.scalars(
+                sa.select(Group).where(Group.name == public_group_name)
+            ).first()
+            if public_group is not None:
+                group_ids = [public_group.id]
 
     # always add the single user group
     group_ids.append(user.single_user_group.id)

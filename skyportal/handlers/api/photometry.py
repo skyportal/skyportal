@@ -48,6 +48,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.data_access import default_extra_share_group_ids
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
@@ -1455,12 +1456,16 @@ async def insert_new_photometry_data(
     return ids, upload_id
 
 
-async def get_group_ids(data, user, session):
+async def get_group_ids(data, user, session, apply_default_share=True):
     """Resolve and validate the group_ids in a photometry-post payload.
 
     `session` is an AsyncSession. `user.single_user_group` would be a lazy
     relationship load under async, which raises MissingGreenlet — we look the
     single-user-group id up via an explicit query instead.
+
+    `apply_default_share` gates the configured default-share groups (e.g. the
+    sitewide public group). Off for bulk broker ingestion so ingested alerts are
+    not auto-shared publicly.
     """
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, list | tuple):
@@ -1496,6 +1501,9 @@ async def get_group_ids(data, user, session):
         )
 
     group_ids = list(group_ids)
+    if not group_ids and apply_default_share:
+        # no groups specified: share with the configured default groups
+        group_ids = await default_extra_share_group_ids(session)
     single_user_group_id = await session.scalar(
         sa.select(Group.id).where(
             Group.single_user_group.is_(True), Group.users.any(id=user.id)
@@ -1538,7 +1546,7 @@ async def get_stream_ids(data, user, session):
 
 
 async def add_external_photometry(
-    json, user, session, duplicates="update", refresh=False
+    json, user, session, duplicates="update", refresh=False, apply_default_share=True
 ):
     """Post external photometry to the database (e.g. from a facility API
     or the TNS retrieval worker).
@@ -1555,13 +1563,18 @@ async def add_external_photometry(
         How to treat rows that conflict on the deduplication index.
     refresh : bool
         Whether to push REFRESH actions over the websocket after the insert.
+    apply_default_share : bool
+        Whether to add the configured default-share groups when none are given.
+        False for broker ingestion so ingested photometry is not shared publicly.
     """
     if duplicates not in ["error", "ignore", "update"]:
         raise ValueError(
             "duplicates argument can only be one of: error, ignore, update"
         )
 
-    group_ids = await get_group_ids(json, user, session)
+    group_ids = await get_group_ids(
+        json, user, session, apply_default_share=apply_default_share
+    )
     stream_ids = await get_stream_ids(json, user, session)
     df, instrument_cache = await standardize_photometry_data(json, session)
 

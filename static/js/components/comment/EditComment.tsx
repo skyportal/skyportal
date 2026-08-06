@@ -2,8 +2,11 @@ import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 
 import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Button from "../Button";
 import CommentEntry from "./CommentEntry";
 
@@ -95,36 +98,28 @@ const EditComment = ({
 
   return (
     <div>
-      <div>
-        <Button
-          primary
-          style={
-            hoverID === id
-              ? {
-                  display: "block",
-                  minWidth: "0",
-                  lineHeight: "0",
-                  padding: "0",
-                }
-              : { display: "none" }
-          }
+      <Tooltip title="Edit">
+        <IconButton
           size="small"
           type="button"
           name={`editCommentButton${id}`}
           onClick={() => setDialogOpen(true)}
           className="commentEdit"
+          sx={{
+            padding: "0.125rem",
+            color: "text.secondary",
+            visibility: hoverID === id ? "visible" : "hidden",
+          }}
         >
-          <EditIcon fontSize="small" />
-        </Button>
-      </div>
+          <EditIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
       <div>
-        <Dialog
-          sx={{ "z-index": 99999 }}
-          open={dialogOpen}
-          onClose={closeDialog}
-        >
-          <DialogContent>
+        <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit comment</DialogTitle>
+          <DialogContent dividers>
             <CommentEntry
+              compact
               editComment={editComment}
               commentText={commentText}
               attachmentName={attachmentName}
@@ -134,6 +129,14 @@ const EditComment = ({
           <DialogActions>
             <Button secondary autoFocus onClick={closeDialog}>
               Dismiss
+            </Button>
+            <Button
+              primary
+              type="submit"
+              form="edit-comment-form"
+              name={`editCommentSubmitButton${id}`}
+            >
+              Edit
             </Button>
           </DialogActions>
         </Dialog>

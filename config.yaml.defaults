@@ -729,6 +729,12 @@ misc:
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
+  # When a data product (photometry, spectra, ...) is uploaded without specifying
+  # any groups, share it with the sitewide public group (public_group_name) in
+  # addition to the uploader's single-user group (which is always included). When
+  # false (default) an unspecified upload is shared only with the uploader. Groups
+  # given explicitly on the upload are always honored as-is.
+  share_data_with_public_group_by_default: false
   # External survey thumbnails fetched (outbound HTTP) when a source is saved.
   # Set to [] to disable, e.g. on instances without external network egress.
   external_thumbnail_types:

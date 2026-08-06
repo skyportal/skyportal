@@ -177,12 +177,13 @@ export const brokersApi = skyportalApi.injectEndpoints({
         brokerId: number;
         filterId: number;
         query: { selected: string; tables: string; conditions: string };
+        autosave?: boolean;
       }
     >({
-      query: ({ brokerId, filterId, query }) => ({
+      query: ({ brokerId, filterId, query, autosave }) => ({
         url: `api/brokers/${brokerId}/filters/${filterId}`,
         method: "POST",
-        body: { query },
+        body: { query, autosave },
       }),
       invalidatesTags: ["Broker"],
     }),

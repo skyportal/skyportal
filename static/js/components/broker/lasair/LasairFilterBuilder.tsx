@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -52,6 +54,7 @@ const LasairFilterBuilder = ({
   const [selected, setSelected] = useState<string>(defaults.selected);
   const [tables, setTables] = useState<string>(defaults.tables);
   const [conditions, setConditions] = useState<string>("");
+  const [autosave, setAutosave] = useState<boolean>(false);
 
   // Load the chosen filter's saved query (or fall back to survey defaults).
   useEffect(() => {
@@ -61,6 +64,7 @@ const LasairFilterBuilder = ({
     setSelected(lasair?.selected ?? defaults.selected);
     setTables(lasair?.tables ?? defaults.tables);
     setConditions(lasair?.conditions ?? "");
+    setAutosave(Boolean((f as any)?.autosave));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterId, filters]);
 
@@ -124,6 +128,17 @@ const LasairFilterBuilder = ({
           </Select>
         </FormControl>
 
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={autosave}
+              onChange={(e) => setAutosave(e.target.checked)}
+            />
+          }
+          label="Auto-save passing objects as sources"
+        />
+
         <Button
           variant="contained"
           disabled={!canSave || saveState.isLoading}
@@ -132,6 +147,7 @@ const LasairFilterBuilder = ({
             saveFilter({
               brokerId,
               filterId,
+              autosave,
               query: {
                 selected: selected.trim(),
                 tables: tables.trim(),

@@ -115,5 +115,9 @@ class ConfigHandler(BaseHandler):
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "usePinecone": USE_PINECONE,
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
+                "publicGroupName": cfg["misc.public_group_name"],
+                "shareDataWithPublicGroupByDefault": cfg.get(
+                    "misc.share_data_with_public_group_by_default", False
+                ),
             }
         )

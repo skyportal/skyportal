@@ -182,6 +182,13 @@ class Comment(Base, CommentMixin):
         doc="The Comment's Obj.",
     )
 
+    channel = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="Conversation the comment belongs to, NULL for the main thread.",
+    )
+
 
 class CommentOnSpectrum(Base, CommentMixin):
     __tablename__ = "comments_on_spectra"

@@ -301,7 +301,16 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
 
-                stmt = table.select(session.user_or_token)
+                stmt = table.select(
+                    session.user_or_token, options=[selectinload(table.author)]
+                )
+                if table is Comment:
+                    channel = self.get_query_argument("channel", None)
+                    stmt = stmt.where(
+                        Comment.channel == channel
+                        if channel
+                        else Comment.channel.is_(None)
+                    )
                 if resource_id is not None:
                     coerced = _coerce_comment_resource_id(
                         associated_resource_type, resource_id
@@ -330,6 +339,7 @@ class CommentHandler(BaseHandler):
                         {
                             **c.to_dict(),
                             "resourceType": associated_resource_type.lower(),
+                            "author": c.construct_author_info_dict(),
                         }
                         for c in comments
                     ]
@@ -570,12 +580,16 @@ class CommentHandler(BaseHandler):
 
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
+                    channel = data.get("channel") or None
                     existing_result = await session.scalars(
                         Comment.select(session.user_or_token)
                         .options(selectinload(Comment.groups))
                         .where(
                             Comment.text == comment_text,
                             Comment.obj_id == obj_id,
+                            Comment.channel.is_(None)
+                            if channel is None
+                            else Comment.channel == channel,
                             Comment.attachment_bytes == attachment_bytes,
                             Comment.attachment_name == attachment_name,
                             Comment.author_id == author_id,
@@ -590,6 +604,7 @@ class CommentHandler(BaseHandler):
                         comment = Comment(
                             text=comment_text,
                             obj_id=obj_id,
+                            channel=channel,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
                             author_id=author_id,
@@ -1527,3 +1542,101 @@ class CommentAttachmentHandler(BaseHandler):
                 )
 
             return self.success(data=comment_data)
+
+
+class CommentChannelHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id: str):
+        """
+        ---
+        summary: List the conversations opened on a source
+        description: >
+            Retrieve the names of the source's named conversations. A
+            conversation exists as soon as a comment carries its name.
+        tags:
+          - comments
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        async with self.AsyncSession() as session:
+            channels = await session.scalars(
+                Comment.select(session.user_or_token, columns=[Comment.channel])
+                .where(Comment.obj_id == obj_id, Comment.channel.isnot(None))
+                .distinct()
+            )
+            return self.success(data=sorted(channels.all()))
+
+    @auth_or_token
+    async def delete(self, obj_id: str):
+        """
+        ---
+        summary: Delete a conversation on a source
+        description: >
+            Delete a named conversation and every comment it holds. Restricted
+            to the user who opened it (the author of its first comment) and to
+            system admins.
+        tags:
+          - comments
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: channel
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        channel = self.get_query_argument("channel", None)
+        if not channel:
+            return self.error("`channel` must be provided")
+
+        async with self.AsyncSession() as session:
+            comments = (
+                (
+                    await session.scalars(
+                        Comment.select(session.user_or_token)
+                        .where(Comment.obj_id == obj_id, Comment.channel == channel)
+                        .order_by(Comment.created_at)
+                    )
+                )
+                .unique()
+                .all()
+            )
+            if not comments:
+                return self.error("Invalid channel")
+
+            if (
+                not self.current_user.is_system_admin
+                and comments[0].author_id != self.associated_user_object.id
+            ):
+                return self.error(
+                    "Only the user who opened this conversation can delete it",
+                    status=403,
+                )
+
+            await session.execute(
+                sa.delete(Comment).where(
+                    Comment.obj_id == obj_id, Comment.channel == channel
+                )
+            )
+            await session.commit()
+
+            self.push_all(action="skyportal/REFRESH_SOURCE", payload={"obj_id": obj_id})
+            return self.success()

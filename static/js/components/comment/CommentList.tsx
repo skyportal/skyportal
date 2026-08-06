@@ -1,7 +1,8 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
+import { alpha } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -13,7 +14,11 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { skipToken } from "@reduxjs/toolkit/query";
 
-import { useGetSourceQuery, useAddCommentMutation } from "../../ducks/source";
+import {
+  useGetSourceQuery,
+  useAddCommentMutation,
+  useGetConversationQuery,
+} from "../../ducks/source";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import { useGetCandidateQuery } from "../../ducks/candidate/candidate";
 import {
@@ -35,9 +40,58 @@ import Comment from "./Comment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   commentsContainer: {
     width: "100%",
+  },
+  panelContainer: {
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    minHeight: 0,
+  },
+  panelList: {
+    flexGrow: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    padding: "0.5rem 0.5rem 0",
+  },
+  panelBots: {
+    display: "flex",
+    justifyContent: "flex-end",
+    padding: "0 0.5rem",
+    "& .MuiFormControlLabel-root": {
+      margin: 0,
+    },
+    "& .MuiCheckbox-root": {
+      padding: "0.125rem",
+    },
+  },
+  panelEmpty: {
+    padding: "0.5rem",
+    textAlign: "center",
+    fontSize: "0.75rem",
+    fontStyle: "italic",
+    color: theme.palette.text.secondary,
+  },
+  panelBotsLabel: {
+    fontSize: "0.7rem",
+    color: theme.palette.text.secondary,
+  },
+  botComment: {
+    fontSize: "80%",
+    color: theme.palette.text.secondary,
+    backgroundColor: alpha(theme.palette.text.primary, 0.05),
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.text.primary, 0.09),
+    },
+  },
+  botUserName: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25em",
+    color: theme.palette.text.secondary,
+    fontWeight: 500,
   },
   comment: {
     fontSize: "90%",
@@ -125,6 +179,7 @@ const useStyles = makeStyles()(() => ({
   },
   commentUserName: {
     fontWeight: "bold",
+    fontSize: "90%",
     marginRight: "0.5em",
     whiteSpace: "nowrap",
     color: "#76aace",
@@ -182,6 +237,8 @@ interface CommentListProps {
   shiftID?: number | null;
   includeCommentsOnAllResourceTypes?: boolean;
   maxHeightList?: string;
+  channel?: string | undefined;
+  compact?: boolean;
 }
 
 const CommentList = ({
@@ -196,8 +253,10 @@ const CommentList = ({
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
+  compact = false,
+  channel,
 }: CommentListProps) => {
-  const { classes: styles } = useStyles();
+  const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
 
   const handleMouseHover = (id: any, userProfile: any, author: any) => {
@@ -219,6 +278,9 @@ const CommentList = ({
   );
   const { data: source } = useGetSourceQuery(
     !isCandidate && objID ? objID : skipToken,
+  );
+  const { data: conversation } = useGetConversationQuery(
+    objID && channel ? { obj_id: objID, channel } : skipToken,
   );
   const obj: any = isCandidate ? candidate : source;
   const resolvedObjID = objID ?? obj?.id ?? null;
@@ -266,6 +328,7 @@ const CommentList = ({
     addCommentMutation({
       obj_id: objID,
       spectrum_id: spectrumID,
+      channel,
       ...formData,
     });
   };
@@ -295,7 +358,7 @@ const CommentList = ({
   let specComments: any = null;
 
   if (associatedResourceType === "object") {
-    comments = obj?.comments;
+    comments = channel ? (conversation ?? []) : obj?.comments;
     if (
       includeCommentsOnAllResourceTypes &&
       Array.isArray(spectra) &&
@@ -336,22 +399,54 @@ const CommentList = ({
 
   comments = comments || [];
 
-  if (!includeBots) {
+  if (!includeBots && !channel) {
     comments = comments?.filter((comment: any) => comment.bot === false);
+  }
+
+  if (compact) {
+    comments = [...comments].sort((a: any, b: any) =>
+      a.created_at < b.created_at ? -1 : 1,
+    );
   }
 
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
+  const botStyles = {
+    ...styles,
+    commentUserName: cx(styles.commentUserName, styles.botUserName),
+  };
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (compact && listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [compact, channel, comments.length]);
+
   return (
-    <div className={styles.commentsContainer}>
+    <div className={compact ? styles.panelContainer : styles.commentsContainer}>
       <div
-        style={{
-          marginTop: "1rem",
-          overflowY: "scroll",
-          maxHeight: maxHeightList,
-        }}
+        ref={listRef}
+        className={compact ? styles.panelList : undefined}
+        style={
+          compact
+            ? undefined
+            : {
+                marginTop: "1rem",
+                overflowY: "scroll",
+                maxHeight: maxHeightList,
+              }
+        }
       >
+        {compact && comments.length === 0 && (
+          <div className={styles.panelEmpty}>
+            {channel
+              ? "This conversation is only kept once a message is sent."
+              : "No comment yet."}
+          </div>
+        )}
         {comments?.map(
           ({
             id,
@@ -363,11 +458,12 @@ const CommentList = ({
             spectrum_id,
             resourceType,
             obj_id,
+            bot,
           }: any) => (
             <span
               id="comment"
               key={(spectrum_id ? "Spectrum" : "Source") + id}
-              className={commentStyle}
+              className={cx(commentStyle, bot && styles.botComment)}
               onMouseOver={() =>
                 handleMouseHover(id, userProfile, author.username)
               }
@@ -393,7 +489,8 @@ const CommentList = ({
               )}
               <Comment
                 associatedResourceType={resourceType}
-                styles={styles}
+                bot={bot}
+                styles={bot ? botStyles : styles}
                 id={id}
                 objID={objID}
                 gcnEventID={gcnEventID}
@@ -411,39 +508,48 @@ const CommentList = ({
           ),
         )}
       </div>
-      <div>
-        <FormControlLabel
-          label="Include Bots?"
-          control={
-            <Checkbox
-              color="primary"
-              onChange={(event) => setIncludeBots(event.target.checked)}
-              checked={includeBots || false}
-              {...({ title: "Include Bots?", type: "checkbox" } as any)}
-            />
-          }
-        />
-      </div>
+      {!channel && (
+        <div className={compact ? styles.panelBots : undefined}>
+          <FormControlLabel
+            label={
+              compact ? (
+                <span className={styles.panelBotsLabel}>Include bots</span>
+              ) : (
+                "Include Bots?"
+              )
+            }
+            control={
+              <Checkbox
+                color="primary"
+                size={compact ? "small" : "medium"}
+                onChange={(event) => setIncludeBots(event.target.checked)}
+                checked={includeBots || false}
+                {...({ title: "Include Bots?", type: "checkbox" } as any)}
+              />
+            }
+          />
+        </div>
+      )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         objID &&
         (associatedResourceType === "object" ||
           associatedResourceType === "spectra") && (
-          <CommentEntry addComment={addComment} />
+          <CommentEntry addComment={addComment} compact={compact} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         gcnEventID &&
         associatedResourceType === "gcn_event" && (
-          <CommentEntry addComment={addGcnEventComment} />
+          <CommentEntry addComment={addGcnEventComment} compact={compact} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         shiftID &&
         associatedResourceType === "shift" && (
-          <CommentEntry addComment={addShiftComment} />
+          <CommentEntry addComment={addShiftComment} compact={compact} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         earthquakeID &&
         associatedResourceType === "earthquake" && (
-          <CommentEntry addComment={addEarthquakeComment} />
+          <CommentEntry addComment={addEarthquakeComment} compact={compact} />
         )}
     </div>
   );
