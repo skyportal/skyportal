@@ -33279,8 +33279,8 @@ export interface components {
             mag?: number | number[];
             /** @description Error on the magnitude in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed for non-detections. If `magerr` is null, the corresponding `mag` must also be null. */
             magerr?: number | number[];
-            /** @description Limiting magnitude of the image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
-            limiting_mag: number | number[];
+            /** @description Limiting magnitude of the image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Required for non-detections (when mag is null). */
+            limiting_mag?: number | number[];
             /** @description Number of standard deviations above the background that the limiting magnitudes correspond to. Null values not allowed. Default = 3.0. */
             limiting_mag_nsigma?: number | number[];
             /** @description Magnitude of the reference image. in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given. */
