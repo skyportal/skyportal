@@ -1,3 +1,5 @@
+import pytest
+
 from skyportal.tests import api
 
 
@@ -180,3 +182,41 @@ def test_observing_run_assignment_group_names(
         public_group2.name
         not in data["data"]["assignments"][0]["accessible_group_names"]
     )
+
+
+def test_observing_run_assignment_last_detection(
+    public_assignment,
+    public_source,
+    public_group,
+    view_only_token,
+    upload_data_token,
+    ztf_camera,
+):
+    """Facilities size exposures from the target's brightness, so the run
+    payload carries the last detection alongside each assignment."""
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 61254.4,
+            "instrument_id": ztf_camera.id,
+            "mag": 18.9,
+            "magerr": 0.07,
+            "limiting_mag": 22.3,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"observing_run/{public_assignment.run.id}", token=view_only_token
+    )
+    assert status == 200
+    assignment = data["data"]["assignments"][0]
+    assert assignment["last_detected_mag"] == pytest.approx(18.9, abs=0.01)
+    assert assignment["last_detected_filter"] == "ztfg"
+    assert assignment["last_detected_mjd"] == pytest.approx(61254.4)
