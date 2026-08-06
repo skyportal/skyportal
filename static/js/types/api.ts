@@ -25887,6 +25887,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
+            autosave?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -25922,6 +25924,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
+            autosave?: boolean;
         };
         SingleFilterNoID: {
             /** @enum {string} */
