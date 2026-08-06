@@ -594,6 +594,9 @@ database:
   user: skyportal
   password:
 
+  # Superuser for `make db_init`; empty defaults to "postgres".
+  admin_user:
+
   # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
   # and Postgres, so many processes share a small bounded backend pool instead of
   # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
