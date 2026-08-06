@@ -1212,6 +1212,7 @@ class BrokerFiltersHandler(BaseHandler):
                             "group_id": f.group_id,
                             "stream_id": f.stream_id,
                             "broker_id": f.broker_id,
+                            "autosave": f.autosave,
                             "altdata": f.altdata,
                         }
                         for f in filters
@@ -1229,6 +1230,7 @@ class BrokerFiltersHandler(BaseHandler):
                 "name": f.name,
                 "group_id": f.group_id,
                 "broker_id": f.broker_id,
+                "autosave": f.autosave,
                 "stream": {"id": f.stream.id, "name": f.stream.name}
                 if f.stream
                 else None,
@@ -1320,6 +1322,8 @@ class BrokerFiltersHandler(BaseHandler):
                         "A query filter requires 'selected' and 'tables'."
                     )
                 f.broker_id = broker.id
+                if "autosave" in data:
+                    f.autosave = bool(data["autosave"])
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
                 ad["lasair"] = {
                     "selected": selected,
@@ -1329,7 +1333,9 @@ class BrokerFiltersHandler(BaseHandler):
                 f.altdata = ad
                 flag_modified(f, "altdata")
                 session.commit()
-                return self.success(data={"id": f.id, "altdata": f.altdata})
+                return self.success(
+                    data={"id": f.id, "altdata": f.altdata, "autosave": f.autosave}
+                )
             if not broker.broker_class.implements()["create_filter"]:
                 return self.error(f"Broker {broker.name} does not support filters.")
             f = session.scalars(
@@ -1637,6 +1643,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
                             "group_id": f.group_id,
                             "stream_id": f.stream_id,
                             "broker_id": f.broker_id,
+                            "autosave": f.autosave,
                             "altdata": f.altdata,
                         }
                         for f in filters
