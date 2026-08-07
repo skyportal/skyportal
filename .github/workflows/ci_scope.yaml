@@ -1,9 +1,9 @@
 name: CI scope
 
 # Works out which suites a pull request actually needs, so that e.g. a
-# frontend-only change does not pay for the API, external and model suites
-# (skyportal#5252). Anything that is not clearly frontend-only, docs-only or
-# backend-only runs everything, as does a push to main.
+# frontend-only change does not pay for the API, external and model suites.
+# Anything that is not clearly frontend-only, docs-only or backend-only runs
+# everything, as does a push to main.
 #
 # Escape hatch: add the `run-all-tests` label to a PR and re-run the workflow
 # (labels are read live, so a re-run picks them up without a new commit).
