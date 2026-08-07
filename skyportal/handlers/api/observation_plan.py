@@ -2729,10 +2729,16 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
             result = await session.scalars(stmt)
             telescopes = result.all()
 
-            stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id_int
+            # contour is deferred: load it with the row, or reading it below
+            # emits IO from async context (MissingGreenlet).
+            stmt = (
+                Localization.select(self.current_user)
+                .where(Localization.id == localization_id_int)
+                .options(undefer(Localization.contour))
             )
             localization = await session.scalar(stmt)
+            if localization is None:
+                return self.error(f"Cannot find localization with ID {localization_id}")
             cent = localization.contour["features"][0]["geometry"]["coordinates"]
             coords = astropy.coordinates.SkyCoord(cent[0], cent[1], unit="deg")
 
