@@ -102,6 +102,13 @@ const useStyles = makeStyles()((theme) => ({
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "repeat(2, 1fr)",
+      columnGap: "1rem",
+    },
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
   },
   gridItem: {
     display: "flex",
@@ -110,6 +117,13 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "left",
     gap: 0,
     width: "100%",
+    minWidth: 0,
+  },
+  gridItemWide: {
+    gridColumn: "span 2",
+    [theme.breakpoints.down("sm")]: {
+      gridColumn: "1 / -1",
+    },
   },
   sliderContainer: {
     display: "flex",
@@ -141,10 +155,10 @@ const useStyles = makeStyles()((theme) => ({
     [theme.breakpoints.down("md")]: {
       gridTemplateColumns: "1fr 1fr 1fr",
       display: "grid",
-      "& > :first-child": {
+      "& > .MuiSlider-root": {
         gridColumn: "span 2",
       },
-      "& > :last-child": {
+      "& > .MuiIconButton-root": {
         gridColumn: "span 3",
       },
       paddingBottom: "0.5rem",
@@ -2239,7 +2253,7 @@ const PhotometryPlot = ({
         {duplicateOptions?.length > 0 && (
           <div
             className={classes.gridItem}
-            style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
+            style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}
           >
             <Typography id="input-slider">Possible Duplicates</Typography>
             <div className={classes.switchContainer}>
@@ -2308,7 +2322,7 @@ const PhotometryPlot = ({
           </div>
         )}
         {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+          <div className={classes.gridItem} style={{ gridColumn: "1 / -1" }}>
             <Typography id="input-slider">Period</Typography>
             <div className={classes.periodContainer}>
               <Slider
@@ -2370,7 +2384,7 @@ const PhotometryPlot = ({
           </div>
         )}
         {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
+          <div className={`${classes.gridItem} ${classes.gridItemWide}`}>
             <Typography id="input-slider">Smoothing</Typography>
             <div className={classes.sliderContainer}>
               <Slider

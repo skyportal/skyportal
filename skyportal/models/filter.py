@@ -62,6 +62,14 @@ class Filter(Base):
         back_populates="filters",
         doc="The Broker this Filter runs on.",
     )
+    autosave = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="If set, objects passing this filter during broker ingestion are "
+        "auto-saved as Sources to the Filter's Group (in addition to being "
+        "registered as Candidates).",
+    )
     candidates = relationship(
         "Candidate",
         back_populates="filter",

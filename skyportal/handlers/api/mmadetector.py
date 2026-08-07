@@ -315,7 +315,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
             )
 
         async with self.AsyncSession() as session:
-            from ...utils.data_access import accessible_group_ids_async
+            from ...utils.data_access import (
+                accessible_group_ids_async,
+                default_extra_share_group_ids,
+            )
 
             mmadetector = await session.scalar(
                 MMADetector.select(self.current_user).where(
@@ -338,7 +341,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
             group_ids = data.pop("group_ids", None)
             if group_ids == [] or group_ids is None:
-                group_ids = [single_user_group_id]
+                group_ids = await default_extra_share_group_ids(session)
             elif group_ids == "all":
                 group_ids = await accessible_group_ids_async(self.current_user, session)
 
@@ -710,7 +713,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.error("detector_id required in json")
 
         async with self.AsyncSession() as session:
-            from ...utils.data_access import accessible_group_ids_async
+            from ...utils.data_access import (
+                accessible_group_ids_async,
+                default_extra_share_group_ids,
+            )
 
             mmadetector = await session.scalar(
                 MMADetector.select(self.current_user).where(
@@ -733,7 +739,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
             group_ids = json.pop("group_ids", None)
             if group_ids == [] or group_ids is None:
-                group_ids = [single_user_group_id]
+                group_ids = await default_extra_share_group_ids(session)
             elif group_ids == "all":
                 group_ids = await accessible_group_ids_async(self.current_user, session)
 

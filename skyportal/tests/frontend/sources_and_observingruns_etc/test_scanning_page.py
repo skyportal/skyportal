@@ -6,7 +6,7 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -878,7 +878,7 @@ def test_candidate_lightcurve_renders(
 
     # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
     # throws on the frozen photometry data.
-    expect(page.locator(".vega-embed svg.marks").first).to_be_visible()
+    expect_vega_plot(page.locator(".vega-embed").first)
     assert not any("not extensible" in err for err in page_errors), page_errors
 
 

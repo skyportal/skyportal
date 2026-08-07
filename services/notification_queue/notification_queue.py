@@ -1,6 +1,7 @@
 import asyncio
 import json
 import operator  # noqa: F401
+import string
 import time
 from threading import Thread
 
@@ -51,6 +52,7 @@ from skyportal.utils.notifications import (
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
+    mention_email_notification,
     source_email_notification,
     source_notification_content,
     source_slack_notification,
@@ -267,7 +269,12 @@ def send_email_notification(target):
                 subject = f"{cfg['app.title']} - New activity on a favorite source"
 
         elif resource_type == "mention":
-            subject = f"{cfg['app.title']} - User mentioned you in a comment"
+            if target.get("content"):
+                subject, body = mention_email_notification(
+                    target=target, data=target["content"]
+                )
+            else:
+                subject = f"{cfg['app.title']} - User mentioned you in a comment"
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
@@ -1511,6 +1518,68 @@ def api(queue):
                             )
                             DBSession().rollback()
                             continue
+
+                    if is_comment:
+                        _punctuation = string.punctuation.replace("-", "").replace(
+                            "@", ""
+                        )
+                        _usernames = [
+                            word.strip(_punctuation).replace("@", "")
+                            for word in target_data.get("text", "")
+                            .replace(",", " ")
+                            .split()
+                            if word.strip(_punctuation).startswith("@")
+                        ]
+                        if _usernames:
+                            _author = session.scalars(
+                                sa.select(User).where(
+                                    User.id == target_data.get("author_id")
+                                )
+                            ).first()
+                            _author_username = (
+                                _author.username if _author else "unknown"
+                            )
+                            _obj_id = target_data.get("obj_id", "")
+                            _mention_text = (
+                                f"*@{_author_username}* mentioned you"
+                                f" in a comment on *{_obj_id}*"
+                            )
+                            _url = f"/source/{_obj_id}"
+                            _comment_obj = session.scalars(
+                                sa.select(Comment).where(Comment.id == target_id)
+                            ).first()
+                            _content = (
+                                {
+                                    "author_username": _author.username,
+                                    "comment_text": _comment_obj.text,
+                                    "source_name": _comment_obj.obj_id,
+                                }
+                                if _comment_obj and _author
+                                else None
+                            )
+                            _mentioned_users = session.scalars(
+                                sa.select(User).where(
+                                    User.username.in_(_usernames),
+                                    User.preferences["notifications"]["mention"][
+                                        "active"
+                                    ]
+                                    .astext.cast(sa.Boolean)
+                                    .is_(True),
+                                )
+                            ).all()
+                            for _mentioned_user in _mentioned_users:
+                                queue.append(
+                                    {
+                                        "text": _mention_text,
+                                        "notification_type": "mention",
+                                        "url": _url,
+                                        "content": _content,
+                                        "user": {
+                                            **_mentioned_user.to_dict(),
+                                            "preferences": _mentioned_user.preferences,
+                                        },
+                                    }
+                                )
 
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")

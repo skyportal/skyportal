@@ -2096,6 +2096,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                         "host": None,
                         "host_offset": None,
@@ -2106,6 +2108,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                     }
                     for obj in objs

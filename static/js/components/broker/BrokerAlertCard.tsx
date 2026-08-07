@@ -65,6 +65,7 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "flex-start",
   },
   cutouts: { flex: "1 1 240px", minWidth: 220 },
+  cutoutsExpanded: { flex: "0 0 auto", minWidth: 460 },
   lc: { flex: "1 1 260px", minWidth: 240 },
   footer: {
     marginTop: theme.spacing(1),
@@ -96,6 +97,8 @@ interface BrokerAlertCardProps {
   objectId: string;
   survey: string;
   alerts: AlertOption[];
+  // Card rendered alone on a full-width row: give the cutouts more room.
+  expanded?: boolean;
 }
 
 const num = (v: number | undefined, d = 4) =>
@@ -107,8 +110,9 @@ const BrokerAlertCard = ({
   objectId,
   survey,
   alerts,
+  expanded = false,
 }: BrokerAlertCardProps) => {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   // Newest alert first (highest jd), so the default selection is the latest.
   const sorted = [...alerts].sort((a, b) => (b.jd ?? 0) - (a.jd ?? 0));
   const [candid, setCandid] = useState<string | number | undefined>(
@@ -228,18 +232,27 @@ const BrokerAlertCard = ({
 
         <div className={classes.body}>
           {ra != null && dec != null && (
-            <div className={classes.cutouts}>
+            <div
+              className={cx(classes.cutouts, {
+                [classes.cutoutsExpanded]: expanded,
+              })}
+            >
               <CutoutTriplet
                 brokerId={brokerId}
                 candid={cutoutKey}
                 survey={survey}
                 ra={ra}
                 dec={dec}
+                size={expanded ? "9rem" : "5rem"}
               />
             </div>
           )}
           <div className={classes.lc}>
-            <BrokerAlertLightCurve brokerId={brokerId} objectId={objectId} />
+            <BrokerAlertLightCurve
+              brokerId={brokerId}
+              objectId={objectId}
+              jd={selected?.jd}
+            />
           </div>
         </div>
 

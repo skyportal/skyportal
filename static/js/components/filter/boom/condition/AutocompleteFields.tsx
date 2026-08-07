@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import { styled, lighten, darken } from "@mui/system";
@@ -211,10 +211,22 @@ const AutocompleteFields = ({
     return { options: processedOptions, allGroups: uniqueGroups };
   }, [fieldOptions]);
 
-  // Set all field options groups as collapsed when they change (only on initial load)
+  // Collapse newly-seen groups by default, without touching groups the user
+  // has already toggled. `allGroups` is recomputed (new array reference) on
+  // every render since `fieldOptions` is rebuilt upstream, so comparing sizes
+  // here would re-collapse an expanded group on the next unrelated re-render.
+  const seenGroupsRef = useRef<Set<any>>(new Set());
   useEffect(() => {
-    if (allGroups.length > 0 && allGroups.length > collapsedGroups.size) {
-      setCollapsedGroups(new Set(allGroups));
+    const newGroups = allGroups.filter(
+      (group: any) => !seenGroupsRef.current.has(group),
+    );
+    if (newGroups.length > 0) {
+      newGroups.forEach((group: any) => seenGroupsRef.current.add(group));
+      setCollapsedGroups((prev: any) => {
+        const newCollapsed = new Set(prev);
+        newGroups.forEach((group: any) => newCollapsed.add(group));
+        return newCollapsed;
+      });
     }
   }, [allGroups]);
 
