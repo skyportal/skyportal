@@ -33,6 +33,7 @@ const defaultState: any = {
   role: "Full user",
   admin: false,
   canSave: true,
+  canShare: false,
   userExpirationDate: null,
 };
 
@@ -59,6 +60,7 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
       role: formState.role,
       streamIDs: null,
       canSave: [formState.canSave],
+      canShare: [formState.canShare],
     };
     if (formState.userExpirationDate?.length > 0) {
       if (!dayjs.utc(formState.userExpirationDate).isValid()) {
@@ -174,6 +176,18 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
               />
             }
             label="Can save to this group?"
+          />
+        )}
+        {formState.role === "Full user" && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={formState.canShare}
+                onChange={toggleCheckbox}
+                name="canShare"
+              />
+            }
+            label="Can share photometry data to other groups?"
           />
         )}
         {formState.role === "Full user" && formState.canSave && (

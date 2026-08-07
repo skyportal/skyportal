@@ -206,6 +206,7 @@ class GroupHandler(BaseHandler):
                             "oauth_uid": gu.user.oauth_uid,
                             "admin": gu.admin,
                             "can_save": gu.can_save,
+                            "can_share": gu.can_share,
                         }
                         for gu in group.group_users
                     ]
@@ -528,6 +529,9 @@ class GroupUserHandler(BaseHandler):
                   canSave:
                     type: boolean
                     description: Boolean indicating whether user can save sources to group. Defaults to true.
+                  canShare:
+                    type: boolean
+                    description: Boolean indicating whether user can share photometry points to other groups. Defaults to false.
                 required:
                   - userID
                   - admin
@@ -573,6 +577,11 @@ class GroupUserHandler(BaseHandler):
         if not isinstance(can_save, bool):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
+        can_share = data.get("canShare", False)
+        if not isinstance(can_share, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canShare`"
             )
         try:
             group_id = int(group_id)
@@ -635,7 +644,11 @@ class GroupUserHandler(BaseHandler):
 
             session.add(
                 GroupUser(
-                    group_id=group_id, user_id=user_id, admin=admin, can_save=can_save
+                    group_id=group_id,
+                    user_id=user_id,
+                    admin=admin,
+                    can_save=can_save,
+                    can_share=can_share,
                 )
             )
             session.add(
@@ -726,9 +739,13 @@ class GroupUserHandler(BaseHandler):
                     f"User {user_id} is not a member of group {group_id}."
                 )
 
-            if data.get("admin") is None and data.get("canSave") is None:
+            if (
+                data.get("admin") is None
+                and data.get("canSave") is None
+                and data.get("canShare") is None
+            ):
                 return self.error(
-                    "Missing required parameter: at least one of `admin` or `canSave`"
+                    "Missing required parameter: at least one of `admin`, `canSave` or `canShare`"
                 )
             admin = data.get("admin", groupuser.admin)
             if not isinstance(admin, bool):
@@ -740,8 +757,14 @@ class GroupUserHandler(BaseHandler):
                 return self.error(
                     "Invalid (non-boolean) value provided for parameter `canSave`"
                 )
+            can_share = data.get("canShare", groupuser.can_share)
+            if not isinstance(can_share, bool):
+                return self.error(
+                    "Invalid (non-boolean) value provided for parameter `canShare`"
+                )
             groupuser.admin = admin
             groupuser.can_save = can_save
+            groupuser.can_share = can_share
             await session.commit()
             return self.success()
 

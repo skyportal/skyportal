@@ -77,6 +77,13 @@ const ManageUserButtons = ({
     return Boolean(matchingGroupUser?.["can_save"]);
   };
 
+  const canShare = (usr: any) => {
+    const matchingGroupUser = group?.users?.filter(
+      (groupUser) => groupUser["id"] === usr.id,
+    )[0];
+    return Boolean(matchingGroupUser?.["can_share"]);
+  };
+
   const toggleUserAdmin = async (usr: any) => {
     try {
       await updateGroupUser({
@@ -109,6 +116,26 @@ const ManageUserButtons = ({
       dispatch(
         showNotification(
           "User's save access status for this group successfully updated.",
+        ),
+      );
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
+    } catch {
+      // error notification handled by the API layer
+    }
+  };
+
+  const toggleUserCanShare = async (usr: any) => {
+    try {
+      await updateGroupUser({
+        groupID: loadedId,
+        params: {
+          userID: usr.id,
+          canShare: !canShare(usr),
+        },
+      }).unwrap();
+      dispatch(
+        showNotification(
+          "User's share access status for this group successfully updated.",
         ),
       );
       dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
@@ -150,6 +177,15 @@ const ManageUserButtons = ({
               sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
             >
               {`${canSave(user) ? "Revoke" : "Grant"} save access`}
+            </Button>
+          </Tooltip>
+          <Tooltip title="Manage whether user can share photometry points to other groups.">
+            <Button
+              size="small"
+              onClick={() => toggleUserCanShare(user)}
+              sx={{ color: canShare(user) ? "#d32f2f" : "#2e7d32" }}
+            >
+              {`${canShare(user) ? "Revoke" : "Grant"} share photometry`}
             </Button>
           </Tooltip>
         </Box>
