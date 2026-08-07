@@ -927,6 +927,68 @@ additional_bandpasses:
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
+  # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands.
+  - name: 'radio-0.34GHz'
+    filterset: 'radio'
+    wavelength: [8.641e+09, 8.685e+09, 8.95e+09, 8.994e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA P-band tophat centered at 0.34 GHz"
+  - name: 'radio-1.4GHz'
+    filterset: 'radio'
+    wavelength: [2.099e+09, 2.109e+09, 2.173e+09, 2.184e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA L-band tophat centered at 1.4 GHz"
+  - name: 'radio-3GHz'
+    filterset: 'radio'
+    wavelength: [9.793e+08, 9.843e+08, 1.014e+09, 1.019e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA S-band tophat centered at 3 GHz"
+  - name: 'radio-6GHz'
+    filterset: 'radio'
+    wavelength: [4.897e+08, 4.922e+08, 5.071e+08, 5.096e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA C-band tophat centered at 6 GHz"
+  - name: 'radio-10GHz'
+    filterset: 'radio'
+    wavelength: [2.938e+08, 2.953e+08, 3.043e+08, 3.058e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA X-band tophat centered at 10 GHz"
+  - name: 'radio-15GHz'
+    filterset: 'radio'
+    wavelength: [1.959e+08, 1.969e+08, 2.029e+08, 2.039e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ku-band tophat centered at 15 GHz"
+  - name: 'radio-22GHz'
+    filterset: 'radio'
+    wavelength: [1.335e+08, 1.342e+08, 1.383e+08, 1.39e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA K-band tophat centered at 22 GHz"
+  - name: 'radio-33GHz'
+    filterset: 'radio'
+    wavelength: [8.903e+07, 8.948e+07, 9.221e+07, 9.266e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ka-band tophat centered at 33 GHz"
+  - name: 'radio-45GHz'
+    filterset: 'radio'
+    wavelength: [6.529e+07, 6.562e+07, 6.762e+07, 6.795e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Q-band tophat centered at 45 GHz"
+  # SMA submillimeter bands.
+  - name: 'sma-230GHz'
+    filterset: 'sma'
+    wavelength: [1.277e+07, 1.284e+07, 1.323e+07, 1.33e+07]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 1.3mm tophat centered at 230 GHz"
+  - name: 'sma-345GHz'
+    filterset: 'sma'
+    wavelength: [8.516e+06, 8.559e+06, 8.82e+06, 8.863e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.87mm tophat centered at 345 GHz"
+  - name: 'sma-400GHz'
+    filterset: 'sma'
+    wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.75mm tophat centered at 400 GHz"
 
 user:
   default_role: 'Full user'
