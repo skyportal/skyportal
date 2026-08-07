@@ -62,6 +62,12 @@ class InvitationPostBody(BaseModel):
         "to save sources to respective specified group(s). Defaults to all "
         "true.",
     )
+    canShare: list[bool] | None = Field(
+        default=None,
+        description="List of booleans indicating whether user should be able "
+        "to share photometry points to respective specified group(s). Defaults to all "
+        "false.",
+    )
     userExpirationDate: str | None = Field(
         default=None,
         description="Arrow-parseable date string (e.g. 2020-01-01). Set a "
@@ -179,6 +185,9 @@ class InvitationHandler(BaseHandler):
             can_save = (
                 body.canSave if body.canSave is not None else [True] * len(groups)
             )
+            can_share = (
+                body.canShare if body.canShare is not None else [False] * len(groups)
+            )
             user_expiration_date = body.userExpirationDate
             if user_expiration_date is not None:
                 try:
@@ -204,6 +213,7 @@ class InvitationHandler(BaseHandler):
                 groups=groups,
                 admin_for_groups=admin_for_groups,
                 can_save_to_groups=can_save,
+                can_share_phot=can_share,
                 streams=streams,
                 user_email=user_email,
                 role=role,

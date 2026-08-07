@@ -487,6 +487,12 @@ GroupUser.can_save = sa.Column(
     server_default="true",
     doc="Boolean flag indicating whether the user should be able to save sources to the group",
 )
+GroupUser.can_share = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    server_default="false",
+    doc="Boolean flag indicating whether the user should be able to share photometry points to other groups even if the user is not the owner of the photometry data",
+)
 GroupUser.update = CustomUserAccessControl(groupuser_update_access_logic)
 GroupUser.delete = (
     # users can remove themselves from a group

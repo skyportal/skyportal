@@ -1,9 +1,10 @@
+import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
 
-from ...models import Group, Photometry, Spectrum
+from ...models import Group, GroupUser, Photometry, Spectrum
 from ..base import BaseHandler
 
 
@@ -93,9 +94,18 @@ class SharingHandler(BaseHandler):
                         and "System admin"
                         not in self.associated_user_object.permissions
                     ):
-                        return self.error(
-                            f"Cannot share photometry id {phot.id}: you are not the owner of this point."
+                        phot_group_ids = {g.id for g in phot.groups}
+                        can_share_result = await session.scalars(
+                            sa.select(GroupUser).where(
+                                GroupUser.user_id == self.associated_user_object.id,
+                                GroupUser.group_id.in_(phot_group_ids),
+                                GroupUser.can_share.is_(True),
+                            )
                         )
+                        if not can_share_result.first():
+                            return self.error(
+                                f"Cannot share photometry id {phot.id}: you are not the owner and do not have sharing rights in any of its groups."
+                            )
                     existing_group_ids = {g.id for g in phot.groups}
                     for group in groups:
                         if group.id not in existing_group_ids:

@@ -17,12 +17,14 @@ interface FormState {
   userID: number | null;
   admin: boolean;
   canSave: boolean;
+  canShare: boolean;
 }
 
 const defaultState: FormState = {
   userID: null,
   admin: false,
   canSave: true,
+  canShare: false,
 };
 
 interface AddUserFormProps {
@@ -113,6 +115,17 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
             />
           }
           label="Can save to this group?"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={formState.canShare}
+              onChange={toggleCheckbox}
+              name="canShare"
+              data-testid="canShareCheckbox"
+            />
+          }
+          label="Can share photometry data to other groups?"
         />
         <FormControlLabel
           control={
