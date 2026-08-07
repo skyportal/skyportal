@@ -1,3 +1,5 @@
+import time
+
 import sentry_sdk
 import sqlalchemy as sa
 import tornado.web
@@ -789,15 +791,20 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             **database_cfg["engine_args"],
         }
 
+    # Per-phase startup timing (per worker), to diagnose slow app launches.
+    _t0 = _t = time.perf_counter()
     init_db(
         **database_cfg,
         autoflush=False,
     )
+    log(f"[startup p{process}] init_db: {time.perf_counter() - _t:.1f}s")
 
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since
     # migrations might be used.
+    _t = time.perf_counter()
     create_tables(add=env.debug)
+    log(f"[startup p{process}] create_tables: {time.perf_counter() - _t:.1f}s")
 
     # create_tables() is a no-op outside debug mode, so an unmigrated database
     # reaches this point empty and every later step fails on a missing table or
@@ -809,9 +816,14 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             "migrations are used), then start the app."
         )
 
+    _t = time.perf_counter()
     model_util.refresh_enums()
+    log(f"[startup p{process}] refresh_enums: {time.perf_counter() - _t:.1f}s")
 
+    _t = time.perf_counter()
     model_util.setup_permissions()
+    log(f"[startup p{process}] setup_permissions: {time.perf_counter() - _t:.1f}s")
+    log(f"[startup p{process}] DB startup total: {time.perf_counter() - _t0:.1f}s")
     app.cfg = cfg
 
     admin_token = model_util.provision_token()
