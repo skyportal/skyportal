@@ -62,6 +62,7 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
+import SourceChat from "./SourceChat";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -103,8 +104,6 @@ import { useGetBrokersQuery } from "../../ducks/brokers";
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
 const Font: any = "font";
-
-const CommentList = React.lazy(() => import("../comment/CommentList"));
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -443,40 +442,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </Accordion>
         </Grid>
       )}
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
-          order: { xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 },
-        }}
-      >
-        <Accordion
-          defaultExpanded
-          className={classes.flexColumn}
-          data-testid="comments-accordion"
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="comments-content"
-            id="comments-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Comments
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails
-            style={{
-              minHeight: downLarge || isRightPanelVisible ? "55.5vh" : "63.5vh",
-            }}
-          >
-            <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                objID={source.id}
-                maxHeightList={downLarge ? "28.5vh" : "350px"}
-              />
-            </Suspense>
-          </AccordionDetails>
-        </Accordion>
-      </Grid>
       <Grid
         size={12}
         sx={{
@@ -1667,6 +1632,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
           t0={source.t0}
         />
       </Grid>
+      {!isReadOnly && <SourceChat sourceID={source.id} />}
     </Grid>
   );
 };

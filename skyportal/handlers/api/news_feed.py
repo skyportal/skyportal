@@ -149,6 +149,7 @@ class NewsFeedHandler(BaseHandler):
                         )
                     )
                 elif model == Comment:
+                    query = query.where(Comment.channel.is_(None))
                     if not include_bot_comments:
                         query = query.where(Comment.bot.is_(False))
                     if not self.associated_user_object.is_admin:

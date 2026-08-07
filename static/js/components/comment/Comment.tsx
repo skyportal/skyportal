@@ -3,6 +3,7 @@ import { isMobile } from "react-device-detect";
 
 import Tooltip from "@mui/material/Tooltip";
 import GroupIcon from "@mui/icons-material/Group";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -32,6 +33,7 @@ interface CommentProps {
   attachment_name?: string | null;
   groups?: { name: string; [key: string]: any }[];
   spectrum_id?: string | null;
+  bot?: boolean;
   hoverID?: number | null;
   shiftID?: number | null;
 }
@@ -49,6 +51,7 @@ const Comment = ({
   attachment_name = null,
   groups = [],
   spectrum_id = null,
+  bot = false,
   hoverID = null,
   shiftID = null,
 }: CommentProps) => {
@@ -114,7 +117,14 @@ const Comment = ({
           <div className={styles["commentHeaderContent"]}>
             <span className={styles["commentUser"]}>
               <span className={styles["commentUserName"]}>
-                {author["username"]}
+                {bot ? (
+                  <>
+                    <SmartToyIcon fontSize="inherit" />
+                    Bot message ({author["username"]})
+                  </>
+                ) : (
+                  author["username"]
+                )}
               </span>
             </span>
             <span className={styles["commentTime"]}>

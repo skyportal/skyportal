@@ -1,5 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
-import Button from "../Button";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 
 import {
   useDeleteCommentMutation,
@@ -87,28 +88,22 @@ const DeleteComment = ({
   };
 
   return (
-    <>
-      <Button
-        primary
-        style={
-          hoverID === id
-            ? {
-                display: "block",
-                minWidth: "0",
-                lineHeight: "0",
-                padding: "0",
-              }
-            : { display: "none" }
-        }
+    <Tooltip title="Delete">
+      <IconButton
         size="small"
         type="button"
         name={`deleteCommentButton${id}`}
         onClick={() => deleteComment(associatedResourceType)}
         className="commentDelete"
+        sx={{
+          padding: "0.125rem",
+          color: "text.secondary",
+          visibility: hoverID === id ? "visible" : "hidden",
+        }}
       >
-        <CloseIcon fontSize="small" />
-      </Button>
-    </>
+        <CloseIcon fontSize="inherit" />
+      </IconButton>
+    </Tooltip>
   );
 };
 
