@@ -387,7 +387,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport={false}>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -453,7 +453,7 @@ const PhotometryTable = ({
             initialState={{
               pagination: { paginationModel: { pageSize: 100 } },
             }}
-            pageSizeOptions={[50, 100, 250, 500]}
+            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />
