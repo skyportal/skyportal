@@ -33,6 +33,7 @@ from sqlalchemy.orm import column_property, deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
@@ -47,7 +48,7 @@ from baselayer.app.models import (
 
 from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
-from .group import accessible_by_group_members
+from .group import accessible_by_group_members, accessible_by_groups_members
 from .localization import Localization
 
 env, cfg = load_env()
@@ -118,10 +119,18 @@ class DefaultGcnTag(Base):
 class GcnReport(Base):
     """Store GCN report for events."""
 
-    create = read = accessible_by_group_members
+    create = read = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
 
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="reports",
+        doc="The GcnEvent this report belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -357,10 +366,18 @@ class GcnReport(Base):
 class GcnSummary(Base):
     """Store GCN summary text for events."""
 
-    create = read = accessible_by_group_members
+    create = read = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
 
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="summaries",
+        doc="The GcnEvent this summary belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -407,8 +424,16 @@ class GcnSummary(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="gcn_notices",
+        doc="The GcnEvent this notice belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -476,8 +501,16 @@ class GcnNotice(Base):
 class GcnProperty(Base):
     """Store properties for events."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="properties",
+        doc="The GcnEvent this property belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -507,8 +540,16 @@ class GcnProperty(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="_tags",
+        doc="The GcnEvent this tag belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -538,8 +579,23 @@ class GcnTag(Base):
 class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
 
+    read = accessible_by_groups_members
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_gcnevents",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc=(
+            "Groups that can see this GCN event. Events ingested from public "
+            "streams are attached to the sitewide public group; events from "
+            "proprietary streams are attached only to the groups entitled to "
+            "them."
+        ),
     )
 
     sent_by_id = sa.Column(
@@ -562,10 +618,13 @@ class GcnEvent(Base):
         sa.String, unique=True, doc="Trigger ID supplied by instrument"
     )
 
-    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+    gcn_notices = relationship(
+        "GcnNotice", back_populates="gcnevent", order_by=GcnNotice.date
+    )
 
     properties = relationship(
         "GcnProperty",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnProperty.created_at",
@@ -574,6 +633,7 @@ class GcnEvent(Base):
 
     reports = relationship(
         "GcnReport",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnReport.created_at",
@@ -582,6 +642,7 @@ class GcnEvent(Base):
 
     summaries = relationship(
         "GcnSummary",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnSummary.created_at",
@@ -590,6 +651,7 @@ class GcnEvent(Base):
 
     _tags = relationship(
         "GcnTag",
+        back_populates="gcnevent",
         order_by=(
             sa.func.lower(GcnTag.text).notin_({"fermi", "swift", "amon", "lvc"}),
             sa.func.lower(GcnTag.text).notin_({"long", "short"}),

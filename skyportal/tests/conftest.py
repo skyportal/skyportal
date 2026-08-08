@@ -1745,7 +1745,7 @@ def public_group_taxonomy(public_taxonomy):
 
 
 @pytest.fixture()
-def gcn_GRB180116A(user_no_groups):
+def gcn_GRB180116A(user_no_groups, public_group):
     dateobs = datetime.strptime("2018-01-16 00:36:53", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1773,13 +1773,14 @@ def gcn_GRB180116A(user_no_groups):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
+        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
 
 
 @pytest.fixture()
-def gcn_GW190814(user_no_groups):
+def gcn_GW190814(user_no_groups, public_group):
     dateobs = datetime.strptime("2019-08-14 21:10:39", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1806,13 +1807,14 @@ def gcn_GW190814(user_no_groups):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
+        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
 
 
 @pytest.fixture()
-def gcn_GW190425(user_no_groups):
+def gcn_GW190425(user_no_groups, public_group):
     dateobs = datetime.strptime("2019-04-25 08:18:05", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1839,6 +1841,7 @@ def gcn_GW190425(user_no_groups):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
+        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
@@ -2701,6 +2704,7 @@ def public_comment_on_gcn_perm(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -3300,6 +3304,7 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
         dateobs=dateobs,
         sent_by_id=super_admin_user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=super_admin_user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3527,6 +3532,7 @@ def public_gcnevent(user):
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int)[:10],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3551,6 +3557,7 @@ def public_gcn_event_mmadetector(user):
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int % 1000000000),
+        groups=user.groups,
     )
     DBSession.add(event)
     DBSession.commit()
@@ -3615,6 +3622,7 @@ def public_gcnevent_user(user):
     gcnevent = GcnEvent(
         dateobs=str(uuid.uuid4()),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     # dateobs must be a real datetime; use a unique time to satisfy the unique
     # constraint without colliding with other tests
@@ -3656,6 +3664,7 @@ def public_gcn_property(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3688,6 +3697,7 @@ def public_gcn_report(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3726,6 +3736,7 @@ def public_gcn_summary(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3773,6 +3784,7 @@ def public_gcn_tag(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -4025,7 +4037,7 @@ def public_event_observation_plan(public_group, user):
     instrument = allocation.instrument
 
     dateobs = datetime.utcnow()
-    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
+    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user, groups=[public_group])
 
     localization = LocalizationFactory(
         dateobs=dateobs,
@@ -4169,6 +4181,7 @@ def public_gcn_notice(user):
         dateobs=dateobs,
         trigger_id=str(uuid.uuid4().int)[:10],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -4244,7 +4257,7 @@ def public_gcn_trigger(public_group, user):
 
     # Minimal GcnEvent: only dateobs (unique, nullable=False) and sent_by are
     # required; no localization/parquet files needed.
-    gcnevent = GcnEventFactory(sent_by=user)
+    gcnevent = GcnEventFactory(sent_by=user, groups=[public_group])
     DBSession().commit()
     dateobs = gcnevent.dateobs
 
@@ -4461,6 +4474,7 @@ def public_group_comment_on_gcn(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -5145,6 +5159,7 @@ def public_group_reminder_on_gcn(public_group, user):
         dateobs=utcnow_naive(),
         trigger_id=str(uuid.uuid4().int)[:12],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -5599,6 +5614,7 @@ def public_localization(user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -5861,6 +5877,7 @@ def public_observation_plan_request(public_group, user):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
+        groups=[public_group],
     )
     localization = gcnevent.localizations[0]
 
@@ -5959,6 +5976,7 @@ def public_observation_plan_request_target_group(public_group, user):
         sent_by=user,
         gcn_notices=[notice_dict],
         localizations=[localization_dict],
+        groups=[public_group],
     )
     localization = gcnevent.localizations[0]
 
@@ -6261,6 +6279,7 @@ def public_reminder_on_gcn(public_group, user):
         dateobs=dateobs,
         trigger_id=uuid.uuid4().hex,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -6803,6 +6822,7 @@ def public_sources_confirmed_in_gcn(public_source, user):
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -7398,7 +7418,7 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
 @pytest.fixture()
 def public_survey_efficiency_for_observations(public_group, user):
     # Parent GcnEvent (read is public by default)
-    gcnevent = GcnEventFactory(sent_by=user)
+    gcnevent = GcnEventFactory(sent_by=user, groups=[public_group])
     dateobs = gcnevent.dateobs
 
     # Parent Localization, keyed to the GcnEvent's dateobs. uniq/probdensity
