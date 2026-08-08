@@ -1018,6 +1018,16 @@ gcn_crossmatch:
   credible_level: 90
   # Cumulative probability defining "inside" for the containment check.
   cumprob: 0.95
+  # SkyPortal Filter id whose broker-side pipeline holds the alert quality cuts
+  # (real/bogus, solar-system, stellar and red-star rejection). Running the cuts
+  # as a broker filter keeps them versioned and editable in the filter builder,
+  # and rejects artifacts before they cross the wire. Left unset, the built-in
+  # ZTF cuts ported from ep-ztf-xmatch are used instead -- usable, but frozen.
+  filter_id:
+  # Survey whose alert collection is searched.
+  survey: ZTF
+  # Cap on alerts returned per event per broker per pass.
+  max_alerts: 500
 
 einstein_probe:
   # Ingestion of unverified X-ray transient candidates from the Einstein Probe

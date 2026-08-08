@@ -203,3 +203,87 @@ def test_crossmatch_skips_events_outside_the_age_window(
     asyncio.run(run_cycle({"max_event_age": 1.0}))
 
     assert "XM_old" not in {o for o, _ in recorded.get("saved", [])}
+
+
+def _stub_filter_provider(monkeypatch, alerts, recorded):
+    """A provider that supports test_filter, i.e. the broker-side filter path."""
+
+    def test_filter(broker, session, **kwargs):
+        recorded.setdefault("test_filter_kwargs", []).append(kwargs)
+        return {"results": alerts}
+
+    async def save_as_source(broker, alert_id, session, user, group_ids, **kwargs):
+        recorded.setdefault("saved", []).append((alert_id, tuple(sorted(group_ids))))
+        obj = await session.scalar(sa.select(Obj).where(Obj.id == alert_id))
+        if obj is None:
+            session.add(Obj(id=alert_id, ra=RA, dec=DEC))
+            await session.commit()
+        return {"id": alert_id}
+
+    def query_alerts(broker, session, **kwargs):
+        recorded.setdefault("query_alerts_called", []).append(kwargs)
+        return []
+
+    monkeypatch.setattr(GENERICBROKER, "test_filter", staticmethod(test_filter))
+    monkeypatch.setattr(GENERICBROKER, "save_as_source", staticmethod(save_as_source))
+    monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
+    monkeypatch.setattr(
+        GENERICBROKER,
+        "implements",
+        classmethod(
+            lambda cls: {
+                "query_alerts": True,
+                "save_as_source": True,
+                "test_filter": True,
+            }
+        ),
+    )
+
+
+def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
+    super_admin_token, public_group2, broker, monkeypatch
+):
+    """When the broker supports filters, cuts run server-side as a pipeline.
+
+    The cone becomes the leading spatial stage and the quality cuts follow, so
+    artifacts and asteroids are rejected by the broker rather than transferred
+    and discarded here. query_alerts must not be used in this case.
+    """
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id])
+    from astropy.time import Time
+
+    event_jd = float(Time(dateobs).jd)
+
+    recorded = {}
+    _stub_filter_provider(
+        monkeypatch, [_alert("XM_filtered", RA, DEC, event_jd + 0.2)], recorded
+    )
+
+    asyncio.run(run_cycle({}))
+
+    calls = recorded.get("test_filter_kwargs", [])
+    assert calls, recorded
+    assert not recorded.get("query_alerts_called"), (
+        "should not fall back to query_alerts"
+    )
+
+    kwargs = calls[0]
+    pipeline = kwargs["pipeline"]
+
+    # leading stage is the cone, expressed in BOOM's shifted-longitude GeoJSON
+    cone = pipeline[0]["$match"]["coordinates.radec_geojson"]["$geoWithin"]
+    centre, radius_rad = cone["$centerSphere"]
+    assert abs(centre[0] - (RA - 180.0)) < 1e-9, centre
+    assert abs(centre[1] - DEC) < 1e-9, centre
+    assert radius_rad > 0
+
+    # the quality cuts follow it
+    assert len(pipeline) > 1, pipeline
+    cuts = pipeline[1]["$match"]
+    assert "candidate.drb" in cuts and "candidate.rb" in cuts, cuts
+
+    # and the epoch window is handed to the broker, not applied only locally
+    assert kwargs["start_jd"] < event_jd < kwargs["end_jd"], kwargs
+
+    # results parsed out of the {"results": [...]} envelope and saved
+    assert "XM_filtered" in {o for o, _ in recorded.get("saved", [])}, recorded
