@@ -26317,6 +26317,7 @@ export interface components {
             data?: components["schemas"]["GalaxyNoID"][];
         };
         GcnEvent: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The user that saved this GcnEvent */
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
@@ -26413,6 +26414,7 @@ export interface components {
             data?: components["schemas"]["GcnEventMMADetectorNoID"][];
         };
         GcnEventNoID: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The user that saved this GcnEvent */
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
@@ -26507,6 +26509,8 @@ export interface components {
             data?: components["schemas"]["GcnEventUserNoID"][];
         };
         GcnNotice: {
+            /** @description The GcnEvent this notice belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnNotice */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
@@ -26551,6 +26555,8 @@ export interface components {
             data?: components["schemas"]["GcnNotice"][];
         };
         GcnNoticeNoID: {
+            /** @description The GcnEvent this notice belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnNotice */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
@@ -26593,6 +26599,8 @@ export interface components {
             data?: components["schemas"]["GcnNoticeNoID"][];
         };
         GcnProperty: {
+            /** @description The GcnEvent this property belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
@@ -26619,6 +26627,8 @@ export interface components {
             data?: components["schemas"]["GcnProperty"][];
         };
         GcnPropertyNoID: {
+            /** @description The GcnEvent this property belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
@@ -26643,6 +26653,8 @@ export interface components {
             data?: components["schemas"]["GcnPropertyNoID"][];
         };
         GcnReport: {
+            /** @description The GcnEvent this report belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnReport */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
@@ -26676,6 +26688,8 @@ export interface components {
             data?: components["schemas"]["GcnReport"][];
         };
         GcnReportNoID: {
+            /** @description The GcnEvent this report belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnReport */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
@@ -26707,6 +26721,8 @@ export interface components {
             data?: components["schemas"]["GcnReportNoID"][];
         };
         GcnSummary: {
+            /** @description The GcnEvent this summary belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnSummary */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
@@ -26735,6 +26751,8 @@ export interface components {
             data?: components["schemas"]["GcnSummary"][];
         };
         GcnSummaryNoID: {
+            /** @description The GcnEvent this summary belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnSummary */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
@@ -26761,6 +26779,8 @@ export interface components {
             data?: components["schemas"]["GcnSummaryNoID"][];
         };
         GcnTag: {
+            /** @description The GcnEvent this tag belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
@@ -26784,6 +26804,8 @@ export interface components {
             data?: components["schemas"]["GcnTag"][];
         };
         GcnTagNoID: {
+            /** @description The GcnEvent this tag belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
@@ -27368,6 +27390,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupDefaultAnalysisNoID"][];
+        };
+        GroupGcnEvent: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            group_id: number;
+            gcnevent_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupGcnEvent: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEvent"];
+        };
+        ArrayOfGroupGcnEvents: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEvent"][];
+        };
+        GroupGcnEventNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            group_id: number;
+            gcnevent_id: number;
+        };
+        SingleGroupGcnEventNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventNoID"];
+        };
+        ArrayOfGroupGcnEventNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventNoID"][];
         };
         GroupIDList: {
             group_ids: number[];
@@ -28860,6 +28920,8 @@ export interface components {
             data?: components["schemas"]["ListingNoID"][];
         };
         Localization: {
+            /** @description The GcnEvent this localization belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this Localization */
             readonly sent_by?: components["schemas"]["User"];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
@@ -28909,6 +28971,8 @@ export interface components {
             data?: components["schemas"]["Localization"][];
         };
         LocalizationNoID: {
+            /** @description The GcnEvent this localization belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this Localization */
             readonly sent_by?: components["schemas"]["User"];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
@@ -28956,6 +29020,8 @@ export interface components {
             data?: components["schemas"]["LocalizationNoID"][];
         };
         LocalizationProperty: {
+            /** @description The Localization this property belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
@@ -28982,6 +29048,8 @@ export interface components {
             data?: components["schemas"]["LocalizationProperty"][];
         };
         LocalizationPropertyNoID: {
+            /** @description The Localization this property belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
@@ -29006,6 +29074,8 @@ export interface components {
             data?: components["schemas"]["LocalizationPropertyNoID"][];
         };
         LocalizationTag: {
+            /** @description The Localization this tag belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
@@ -29029,6 +29099,8 @@ export interface components {
             data?: components["schemas"]["LocalizationTag"][];
         };
         LocalizationTagNoID: {
+            /** @description The Localization this tag belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
