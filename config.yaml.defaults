@@ -1028,6 +1028,12 @@ gcn_crossmatch:
   survey: ZTF
   # Cap on alerts returned per event per broker per pass.
   max_alerts: 500
+  # Also search the window *before* the event, once per event/broker. Alerts
+  # there cannot be caused by the event, so they rule a candidate out: a
+  # position already flaring last month is a variable, not a counterpart.
+  # Recorded with archival: true on the annotation.
+  archival: True
+  archival_days: 31.0
 
 einstein_probe:
   # Ingestion of unverified X-ray transient candidates from the Einstein Probe

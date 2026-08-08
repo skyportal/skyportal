@@ -68,6 +68,10 @@ DEFAULTS = {
     "filter_id": None,
     "survey": "ZTF",
     "max_alerts": 500,
+    # One-shot search of the window before the event, to spot positions that
+    # were already active and so cannot be counterparts.
+    "archival": True,
+    "archival_days": 31.0,
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
@@ -118,12 +122,27 @@ def alert_object_id(alert):
     return None
 
 
-def build_annotation_data(event_jd, ra0, dec0, radius_deg, alert):
-    """Event-relative quantities for one matched alert.
+# Alert fields carried onto the annotation, as (annotation key, candidate key).
+ALERT_ANNOTATION_FIELDS = (
+    ("drb", "drb"),
+    ("sgscore", "sgscore1"),
+    ("distpsnr", "distpsnr1"),
+    ("ssdistnr", "ssdistnr"),
+    ("ssmagnr", "ssmagnr"),
+    ("ndethist", "ndethist"),
+)
 
-    These are the columns the ep-ztf-xmatch UI was built around: how long after
-    the trigger the alert fired, how far off the localization centre it sits,
-    and that separation as a fraction of the error radius.
+
+def _candidate(alert):
+    candidate = alert.get("candidate")
+    return candidate if isinstance(candidate, dict) else {}
+
+
+def build_annotation_data(event_jd, ra0, dec0, radius_deg, alert, archival=False):
+    """Event-relative and alert-quality values for one matched alert.
+
+    Mirrors ep_fritz.py's annotation, so the same columns are available for
+    sorting. Its ``ep_mjd`` is ``event_mjd`` here, nothing being EP-specific.
     """
     data = {}
     jd = alert_jd(alert)
@@ -136,6 +155,29 @@ def build_annotation_data(event_jd, ra0, dec0, radius_deg, alert):
         data["distance_arcmin"] = round(separation * 60.0, 4)
         if radius_deg:
             data["distance_ratio"] = round(separation / radius_deg, 4)
+
+    candidate = _candidate(alert)
+    for key, source in ALERT_ANNOTATION_FIELDS:
+        value = candidate.get(source)
+        if value is not None:
+            data[key] = round(value, 4) if isinstance(value, float) else value
+
+    # days since the object's first detection: separates a months-old variable
+    # from a genuinely new transient
+    jdstarthist = candidate.get("jdstarthist")
+    if jd is not None and jdstarthist is not None:
+        data["age"] = round(jd - float(jdstarthist), 4)
+
+    if event_jd is not None:
+        data["event_mjd"] = round(event_jd - 2400000.5, 6)
+
+    # An archival match means the position was already active before the event,
+    # so it cannot be a counterpart. Recorded as its own flag rather than as the
+    # window this entry came from, because the annotation is keyed per event: a
+    # later contemporaneous match would otherwise overwrite the very fact that
+    # rules the candidate out.
+    if archival:
+        data["prior_activity"] = True
     return data
 
 
@@ -172,15 +214,23 @@ async def annotate_match(
         session.add(annotation)
     else:
         merged = dict(annotation.data or {})
+        if (merged.get(event_key) or {}).get("prior_activity"):
+            payload["prior_activity"] = True
         merged[event_key] = payload
         annotation.data = merged
         flag_modified(annotation, "data")
 
 
 async def process_event_broker(
-    session, user, event, localization, broker, state, config=None
+    session, user, event, localization, broker, state, config=None, archival=False
 ):
-    """Query one broker for one event and save whatever genuinely matches."""
+    """Query one broker for one event and save whatever genuinely matches.
+
+    ``archival`` searches the window *before* the event instead of around it.
+    Those alerts cannot have been caused by the event, so they exist to rule a
+    candidate out: a position already flaring last month is a variable, not a
+    counterpart.
+    """
     cone = search_cone(
         localization,
         max_radius_deg=float(conf(config, "max_radius_deg")),
@@ -194,14 +244,19 @@ async def process_event_broker(
     ra0, dec0, radius = cone
     event_jd = float(Time(event.dateobs).jd)
 
-    # Lower bound on the query window: resume from the newest alert already seen
-    # rather than from wall-clock, because brokers make alerts queryable some
-    # time after the alert's own JD. Anchoring on wall-clock would step over
-    # that lag and silently lose late-arriving alerts.
-    jd_start = event_jd - float(conf(config, "delta_t_before"))
-    if state.last_alert_jd is not None:
-        jd_start = max(jd_start, state.last_alert_jd)
-    jd_end = event_jd + float(conf(config, "delta_t_after"))
+    if archival:
+        # A one-shot look back; nothing new appears in a window that has closed.
+        jd_end = event_jd - float(conf(config, "delta_t_before"))
+        jd_start = jd_end - float(conf(config, "archival_days"))
+    else:
+        # Lower bound: resume from the newest alert already seen rather than from
+        # wall-clock, because brokers make alerts queryable some time after the
+        # alert's own JD. Anchoring on wall-clock would step over that lag and
+        # silently lose late-arriving alerts.
+        jd_start = event_jd - float(conf(config, "delta_t_before"))
+        if state.last_alert_jd is not None:
+            jd_start = max(jd_start, state.last_alert_jd)
+        jd_end = event_jd + float(conf(config, "delta_t_after"))
 
     # Only offer the broker the alert programs the event's own groups are
     # entitled to, so the crossmatch cannot pull in data the audience for this
@@ -327,7 +382,9 @@ async def process_event_broker(
                 event_key,
                 event_dateobs,
                 group_ids,
-                build_annotation_data(event_jd, ra0, dec0, radius, alert),
+                build_annotation_data(
+                    event_jd, ra0, dec0, radius, alert, archival=archival
+                ),
             )
             await session.commit()
             matched += 1
@@ -344,7 +401,10 @@ async def process_event_broker(
     # reason.
     state = await session.get(GcnEventCrossmatchState, state_id)
     if state is not None:
-        state.last_alert_jd = newest_jd
+        if archival:
+            state.archival_done = True
+        else:
+            state.last_alert_jd = newest_jd
         state.last_queried = utcnow_naive()
         state.status = "done"
         state.error = None
@@ -422,6 +482,23 @@ async def run_cycle(config=None, user_id=1):
                     continue
 
                 try:
+                    # The pre-event window is searched once, before the first
+                    # forward pass, so a candidate that was already active is
+                    # flagged as such the first time anyone looks at it.
+                    if conf(config, "archival") and not state.archival_done:
+                        total += await process_event_broker(
+                            session,
+                            user,
+                            event,
+                            localization,
+                            broker,
+                            state,
+                            config,
+                            archival=True,
+                        )
+                        await session.commit()
+                        state = await session.get(GcnEventCrossmatchState, state.id)
+
                     total += await process_event_broker(
                         session, user, event, localization, broker, state, config
                     )

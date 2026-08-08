@@ -1069,6 +1069,16 @@ class GcnEventCrossmatchState(Base):
         doc="Message from the most recent failure, if any.",
     )
 
+    archival_done = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc=(
+            "Whether the one-shot pre-event (archival) search has run for this "
+            "event/broker pair. That window is closed, so it never needs redoing."
+        ),
+    )
+
     n_matches = sa.Column(
         sa.Integer,
         nullable=False,

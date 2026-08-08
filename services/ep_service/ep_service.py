@@ -72,6 +72,10 @@ PROPERTY_FIELDS = [
     "bkg_counts",
     "net_counts",
     "net_rate",
+    # EP-hosted data products for the candidate; present in the live feed and
+    # worth keeping, since nothing else in skyportal can regenerate them.
+    "light_curve_url",
+    "spectrum_url",
 ]
 
 OBS_START_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -159,6 +163,11 @@ def to_gcn_payload(candidate, group_ids, radius_multiplier=1.0):
     # the property payload rather than only in the log.
     properties["ep_name"] = name
     properties["ep_version"] = str(candidate["version"])
+    # the cone as EP reported it, so nothing downstream has to parse it back
+    # out of the localization name
+    properties["ra"] = float(candidate["ra"])
+    properties["dec"] = float(candidate["dec"])
+    properties["pos_err"] = float(candidate["pos_err"])
 
     return {
         "dateobs": dateobs.isoformat(),

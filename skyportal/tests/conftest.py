@@ -1782,7 +1782,7 @@ def public_group_taxonomy(public_taxonomy):
 
 
 @pytest.fixture()
-def gcn_GRB180116A(user_no_groups, public_group):
+def gcn_GRB180116A(user_no_groups):
     dateobs = datetime.strptime("2018-01-16 00:36:53", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1810,14 +1810,13 @@ def gcn_GRB180116A(user_no_groups, public_group):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
-        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
 
 
 @pytest.fixture()
-def gcn_GW190814(user_no_groups, public_group):
+def gcn_GW190814(user_no_groups):
     dateobs = datetime.strptime("2019-08-14 21:10:39", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1844,14 +1843,13 @@ def gcn_GW190814(user_no_groups, public_group):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
-        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
 
 
 @pytest.fixture()
-def gcn_GW190425(user_no_groups, public_group):
+def gcn_GW190425(user_no_groups):
     dateobs = datetime.strptime("2019-04-25 08:18:05", "%Y-%m-%d %H:%M:%S")
     notice_dict = {
         "notice_type": "Test",
@@ -1878,7 +1876,6 @@ def gcn_GW190425(user_no_groups, public_group):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
-        groups=[public_group],
     )
     yield gcnevent
     GcnEventFactory.teardown(gcnevent)
@@ -4074,7 +4071,7 @@ def public_event_observation_plan(public_group, user):
     instrument = allocation.instrument
 
     dateobs = datetime.utcnow()
-    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user, groups=[public_group])
+    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
 
     localization = LocalizationFactory(
         dateobs=dateobs,
@@ -4294,7 +4291,7 @@ def public_gcn_trigger(public_group, user):
 
     # Minimal GcnEvent: only dateobs (unique, nullable=False) and sent_by are
     # required; no localization/parquet files needed.
-    gcnevent = GcnEventFactory(sent_by=user, groups=[public_group])
+    gcnevent = GcnEventFactory(sent_by=user)
     DBSession().commit()
     dateobs = gcnevent.dateobs
 
@@ -5914,7 +5911,6 @@ def public_observation_plan_request(public_group, user):
         gcn_notices=[notice_dict],
         properties={"test": "test"},
         localizations=[localization_dict],
-        groups=[public_group],
     )
     localization = gcnevent.localizations[0]
 
@@ -6013,7 +6009,6 @@ def public_observation_plan_request_target_group(public_group, user):
         sent_by=user,
         gcn_notices=[notice_dict],
         localizations=[localization_dict],
-        groups=[public_group],
     )
     localization = gcnevent.localizations[0]
 
@@ -7455,7 +7450,7 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
 @pytest.fixture()
 def public_survey_efficiency_for_observations(public_group, user):
     # Parent GcnEvent (read is public by default)
-    gcnevent = GcnEventFactory(sent_by=user, groups=[public_group])
+    gcnevent = GcnEventFactory(sent_by=user)
     dateobs = gcnevent.dateobs
 
     # Parent Localization, keyed to the GcnEvent's dateobs. uniq/probdensity
