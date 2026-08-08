@@ -991,6 +991,34 @@ gcn:
       - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
   source_radius_threshold: 8.0 # max skymap cone radius to create a source, in arcmin
 
+gcn_crossmatch:
+  # Crossmatch broker alerts against active GCN localizations: for each event
+  # still inside its window, query every active broker that implements
+  # query_alerts, keep the alerts genuinely inside the credible region, save
+  # them as sources and annotate them with their offset from the event.
+  #
+  # Sources and annotations inherit the event's groups, so a restricted event's
+  # matches stay as restricted as the event itself.
+  enabled: False
+  # Seconds between passes over the due (event, broker) pairs.
+  poll_interval: 300
+  # Events older than this many days are no longer crossmatched.
+  max_event_age: 31.0
+  # Minimum gap before an event is re-queried against the same broker. Events
+  # are re-queried for as long as they are active because alerts keep arriving
+  # after the trigger.
+  recheck_interval_minutes: 10.0
+  # Query window around the event time, in days.
+  delta_t_before: 1.0
+  delta_t_after: 31.0
+  # Localizations bounding to a cone larger than this (degrees) are skipped:
+  # the broker query would be impractically wide. Large GW skymaps land here.
+  max_radius_deg: 5.0
+  # Credible level of the stored contour used to bound non-cone localizations.
+  credible_level: 90
+  # Cumulative probability defining "inside" for the containment check.
+  cumprob: 0.95
+
 einstein_probe:
   # Ingestion of unverified X-ray transient candidates from the Einstein Probe
   # data center (https://ep.bao.ac.cn). This is a proprietary, invitation-only

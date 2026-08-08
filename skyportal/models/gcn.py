@@ -2,6 +2,7 @@ __all__ = [
     "GcnNotice",
     "GcnTag",
     "GcnEvent",
+    "GcnEventCrossmatchState",
     "GcnEventUser",
     "GcnProperty",
     "GcnReport",
@@ -25,7 +26,7 @@ from ligo.skymap import (
     postprocess,
 )
 from mocpy import MOC
-from sqlalchemy import func, select
+from sqlalchemy import UniqueConstraint, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property, deferred, relationship
@@ -992,4 +993,96 @@ GcnEvent.event_users_ids = column_property(
     .where(GcnEventUser.gcnevent_id == GcnEvent.id)
     .correlate_except(GcnEventUser)
     .scalar_subquery()
+)
+
+
+class GcnEventCrossmatchState(Base):
+    """Per-(event, broker) bookkeeping for the GCN alert crossmatch service.
+
+    The crossmatch service re-queries an event's localization for as long as the
+    event stays inside its active window, because alerts keep arriving after the
+    event. This table records how far that has got, keyed per broker so that one
+    broker being slow or down cannot stall the others for the same event.
+
+    Read access follows the event: the fact that a restricted event is being
+    crossmatched, and when, is itself information about that event.
+    """
+
+    __tablename__ = "gcnevent_crossmatch_states"
+
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
+    update = delete = CustomUserAccessControl(gcn_update_delete_logic)
+
+    gcnevent_id = sa.Column(
+        sa.ForeignKey("gcnevents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The GcnEvent being crossmatched.",
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="crossmatch_states",
+        doc="The GcnEvent being crossmatched.",
+    )
+
+    broker_id = sa.Column(
+        sa.ForeignKey("brokers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The Broker this state tracks progress against.",
+    )
+
+    broker = relationship(
+        "Broker", doc="The Broker this state tracks progress against."
+    )
+
+    last_queried = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        index=True,
+        doc="When this event was last queried against this broker.",
+    )
+
+    last_alert_jd = sa.Column(
+        sa.Float,
+        nullable=True,
+        doc=(
+            "JD of the newest alert seen for this event from this broker. Used as "
+            "the lower bound of the next query so late-arriving alerts are not "
+            "missed, mirroring the watchlist service's last_got_candidates_at."
+        ),
+    )
+
+    status = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="pending",
+        index=True,
+        doc="One of: pending, processing, done, failed.",
+    )
+
+    error = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Message from the most recent failure, if any.",
+    )
+
+    n_matches = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default="0",
+        doc="Cumulative count of alerts matched for this event from this broker.",
+    )
+
+    __table_args__ = (UniqueConstraint("gcnevent_id", "broker_id"),)
+
+
+GcnEvent.crossmatch_states = relationship(
+    "GcnEventCrossmatchState",
+    back_populates="gcnevent",
+    cascade="save-update, merge, refresh-expire, expunge, delete",
+    passive_deletes=True,
+    doc="Per-broker crossmatch progress for this event.",
 )

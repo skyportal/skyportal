@@ -26362,6 +26362,7 @@ export interface components {
             /** @description Unique object identifier. */
             id?: number;
             readonly event_users_ids?: number[];
+            readonly crossmatch_states?: components["schemas"]["GcnEventCrossmatchState"][];
         };
         SingleGcnEvent: {
             /** @enum {string} */
@@ -26374,6 +26375,78 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GcnEvent"][];
+        };
+        GcnEventCrossmatchState: {
+            /** @description The GcnEvent being crossmatched. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Broker this state tracks progress against. */
+            readonly broker?: components["schemas"]["Broker"];
+            /** @description The GcnEvent being crossmatched. */
+            gcnevent_id: number;
+            /** @description The Broker this state tracks progress against. */
+            broker_id: number;
+            /**
+             * Format: date-time
+             * @description When this event was last queried against this broker.
+             */
+            last_queried?: string | null;
+            /** @description JD of the newest alert seen for this event from this broker. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            last_alert_jd?: number | null;
+            /** @description One of: pending, processing, done, failed. */
+            status?: string;
+            /** @description Message from the most recent failure, if any. */
+            error?: string | null;
+            /** @description Cumulative count of alerts matched for this event from this broker. */
+            n_matches?: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnEventCrossmatchState: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchState"];
+        };
+        ArrayOfGcnEventCrossmatchStates: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchState"][];
+        };
+        GcnEventCrossmatchStateNoID: {
+            /** @description The GcnEvent being crossmatched. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Broker this state tracks progress against. */
+            readonly broker?: components["schemas"]["Broker"];
+            /** @description The GcnEvent being crossmatched. */
+            gcnevent_id: number;
+            /** @description The Broker this state tracks progress against. */
+            broker_id: number;
+            /**
+             * Format: date-time
+             * @description When this event was last queried against this broker.
+             */
+            last_queried?: string | null;
+            /** @description JD of the newest alert seen for this event from this broker. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            last_alert_jd?: number | null;
+            /** @description One of: pending, processing, done, failed. */
+            status?: string;
+            /** @description Message from the most recent failure, if any. */
+            error?: string | null;
+            /** @description Cumulative count of alerts matched for this event from this broker. */
+            n_matches?: number;
+        };
+        SingleGcnEventCrossmatchStateNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchStateNoID"];
+        };
+        ArrayOfGcnEventCrossmatchStateNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchStateNoID"][];
         };
         GcnEventMMADetector: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
@@ -26457,6 +26530,7 @@ export interface components {
                 [key: string]: unknown;
             };
             readonly event_users_ids?: number[];
+            readonly crossmatch_states?: components["schemas"]["GcnEventCrossmatchState"][];
         };
         SingleGcnEventNoID: {
             /** @enum {string} */

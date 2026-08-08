@@ -108,6 +108,25 @@ def _scope_filter(kwargs, survey):
     return {"candidate.programid": {"$in": programids}}
 
 
+def _epoch_filter(kwargs):
+    """Mongo clause restricting a query to an alert-JD window.
+
+    Callers crossmatching against a transient event (e.g. the GCN crossmatch
+    service) care only about alerts near the event in time. Without this the
+    cone search returns every alert ever recorded at that position, which for a
+    well-observed field is both large and wrong.
+
+    ``jd_start``/``jd_end`` are optional and either bound may be given alone.
+    """
+    jd_start, jd_end = kwargs.get("jd_start"), kwargs.get("jd_end")
+    bounds = {}
+    if jd_start is not None:
+        bounds["$gte"] = float(jd_start)
+    if jd_end is not None:
+        bounds["$lte"] = float(jd_end)
+    return {"candidate.jd": bounds} if bounds else {}
+
+
 def _scope_history(record, programids):
     """Drop history points outside the requester's programids: an alert the user
     may see can still carry partnership-only ``prv_candidates``/``fp_hists``.
@@ -315,7 +334,7 @@ class BOOMBROKER(BrokerAPI):
         catalog = f"{survey}_alerts"
         object_id = kwargs.get("objectId")
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
-        scope = _scope_filter(kwargs, survey)
+        scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
 
         if object_id:
             return _request(

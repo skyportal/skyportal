@@ -49,6 +49,7 @@ from skyportal.models import (
     Galaxy,
     GalaxyCatalog,
     GcnEvent,
+    GcnEventCrossmatchState,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -67,6 +68,7 @@ from skyportal.models import (
     GroupCommentOnShift,
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
+    GroupGcnEvent,
     GroupMMADetectorSpectrum,
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
@@ -169,6 +171,7 @@ from skyportal.tests.fixtures import (
     ThumbnailFactory,
     UserFactory,
     UserNotificationFactory,
+    resilient_delete,
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
@@ -1727,6 +1730,40 @@ def public_taxonomy(public_group):
     taxonomy_id = taxonomy.id
     yield taxonomy
     TaxonomyFactory.teardown(taxonomy_id)
+
+
+@pytest.fixture()
+def public_group_gcnevent(public_group, public_gcnevent):
+    """The GroupGcnEvent row tying public_gcnevent to public_group.
+
+    public_gcnevent is attached to its creating user's groups, which include
+    public_group, so this row exists by the time the fixture runs.
+    """
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupGcnEvent).filter(
+                GroupGcnEvent.group_id == public_group.id,
+                GroupGcnEvent.gcnevent_id == public_gcnevent.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_gcnevent_crossmatch_state(public_gcnevent, broker):
+    state = GcnEventCrossmatchState(
+        gcnevent_id=public_gcnevent.id,
+        broker_id=broker.id,
+        status="pending",
+    )
+    DBSession().add(state)
+    DBSession().commit()
+    state_id = state.id
+    yield state
+    resilient_delete(GcnEventCrossmatchState, state_id)
 
 
 @pytest.fixture()
