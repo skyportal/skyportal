@@ -16,7 +16,14 @@ import sqlalchemy as sa
 
 from baselayer.app import models
 from skyportal.broker_apis import GENERICBROKER
-from skyportal.models import Annotation, GcnEventCrossmatchState, Localization, Obj
+from skyportal.models import (
+    Annotation,
+    Candidate,
+    GcnEventCrossmatchState,
+    Localization,
+    Obj,
+    Source,
+)
 from skyportal.tests import api
 from skyportal.utils.gcn_crossmatch import ANNOTATION_ORIGIN, run_cycle
 from skyportal.utils.naive_datetime import utcnow_naive
@@ -50,29 +57,26 @@ def _post_event(token, group_ids, ra, dec):
 
 
 def _stub_provider(monkeypatch, alerts, saved, ra=0.0, dec=0.0):
-    """Make GENERICBROKER return `alerts` and record every save_as_source call."""
+    """Make GENERICBROKER return `alerts`; the service creates candidates itself."""
 
     def query_alerts(broker, session, **kwargs):
         # record what the service asked for so the test can assert on it
         saved.setdefault("query_kwargs", []).append(kwargs)
         return alerts
 
-    async def save_as_source(broker, alert_id, session, user, group_ids, **kwargs):
-        saved.setdefault("saved", []).append((alert_id, tuple(sorted(group_ids))))
-        # create the Obj the annotation will hang off, mimicking a real save
-        obj = await session.scalar(sa.select(Obj).where(Obj.id == alert_id))
-        if obj is None:
-            session.add(Obj(id=alert_id, ra=ra, dec=dec))
-            await session.commit()
-        return {"id": alert_id}
-
     monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
-    monkeypatch.setattr(GENERICBROKER, "save_as_source", staticmethod(save_as_source))
     monkeypatch.setattr(
         GENERICBROKER,
         "implements",
-        classmethod(lambda cls: {"query_alerts": True, "save_as_source": True}),
+        classmethod(lambda cls: {"query_alerts": True}),
     )
+
+
+def _objs_created(obj_ids):
+    """Which of these object ids now exist (a match creates the Obj)."""
+    with models.DBSession() as session:
+        rows = session.scalars(sa.select(Obj.id).where(Obj.id.in_(list(obj_ids))))
+        return set(rows.all())
 
 
 def _calls_at(recorded, key, ra):
@@ -120,15 +124,16 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
     matched = asyncio.run(run_cycle({"archival": False}))
     assert matched >= 1, recorded
 
-    saved_ids = {obj_id for obj_id, _ in recorded.get("saved", [])}
-    assert "XM_inside" in saved_ids, saved_ids
+    all_ids = [a["objectId"] for a in alerts]
+    created = _objs_created(all_ids)
+    assert "XM_inside" in created, created
     for rejected in (
         "XM_outside_cone",
         "XM_before_window",
         "XM_after_window",
         "XM_no_jd",
     ):
-        assert rejected not in saved_ids, f"{rejected} should not have been saved"
+        assert rejected not in created, f"{rejected} should not have matched"
 
 
 def test_crossmatch_passes_event_groups_and_epoch_window(
@@ -152,9 +157,13 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
     asyncio.run(run_cycle({"archival": False}))
 
-    saved = recorded.get("saved", [])
-    assert saved, recorded
-    assert all(groups == (public_group2.id,) for _, groups in saved), saved
+    assert "XM_groups" in _objs_created(["XM_groups"])
+    # a match is raised to scan, never auto-saved as a Source
+    with models.DBSession() as session:
+        sources = session.scalars(
+            sa.select(Source.obj_id).where(Source.obj_id == "XM_groups")
+        ).all()
+    assert sources == [], f"match was auto-saved as a Source: {sources}"
 
     calls = _calls_at(recorded, "query_kwargs", ra)
     assert calls, recorded
@@ -238,7 +247,7 @@ def test_crossmatch_skips_events_outside_the_age_window(
 
     asyncio.run(run_cycle({"max_event_age": 1.0, "archival": False}))
 
-    assert "XM_old" not in {o for o, _ in recorded.get("saved", [])}
+    assert "XM_old" not in _objs_created(["XM_old"])
 
 
 def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
@@ -248,20 +257,11 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
         recorded.setdefault("test_filter_kwargs", []).append(kwargs)
         return {"results": alerts}
 
-    async def save_as_source(broker, alert_id, session, user, group_ids, **kwargs):
-        recorded.setdefault("saved", []).append((alert_id, tuple(sorted(group_ids))))
-        obj = await session.scalar(sa.select(Obj).where(Obj.id == alert_id))
-        if obj is None:
-            session.add(Obj(id=alert_id, ra=ra, dec=dec))
-            await session.commit()
-        return {"id": alert_id}
-
     def query_alerts(broker, session, **kwargs):
         recorded.setdefault("query_alerts_called", []).append(kwargs)
         return []
 
     monkeypatch.setattr(GENERICBROKER, "test_filter", staticmethod(test_filter))
-    monkeypatch.setattr(GENERICBROKER, "save_as_source", staticmethod(save_as_source))
     monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
     monkeypatch.setattr(
         GENERICBROKER,
@@ -269,7 +269,6 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
         classmethod(
             lambda cls: {
                 "query_alerts": True,
-                "save_as_source": True,
                 "test_filter": True,
             }
         ),
@@ -327,8 +326,8 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
 
     # and the epoch window is handed to the broker, not applied only locally
 
-    # results parsed out of the {"results": [...]} envelope and saved
-    assert "XM_filtered" in {o for o, _ in recorded.get("saved", [])}, recorded
+    # results parsed out of the {"results": [...]} envelope and turned into a match
+    assert "XM_filtered" in _objs_created(["XM_filtered"]), recorded
 
 
 def test_annotation_carries_alert_quality_fields(
@@ -445,3 +444,80 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
             .order_by(GcnEventCrossmatchState.created_at.desc())
         )
         assert state.archival_done is True, "archival pass should not repeat"
+
+
+def test_match_creates_candidate_not_source(
+    super_admin_token, public_group2, public_filter, broker, monkeypatch
+):
+    """With a filter configured, a match becomes a scannable Candidate only.
+
+    The Obj and Candidate put it on the scanning page; no Source is created,
+    so it stays a suggestion until a human saves it.
+    """
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    from astropy.time import Time
+
+    event_jd = float(Time(dateobs).jd)
+    obj_id = f"XM_cand_{uuid.uuid4().hex[:8]}"
+
+    alert = _alert(obj_id, ra, dec, event_jd + 0.2)
+    alert["candidate"]["candid"] = 123456789
+    alert["candidate"]["drb"] = 0.99
+
+    recorded = {}
+    _stub_provider(monkeypatch, [alert], recorded, ra, dec)
+
+    asyncio.run(run_cycle({"archival": False, "filter_id": public_filter.id}))
+
+    with models.DBSession() as session:
+        obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+        assert obj is not None, "no Obj was created for the match"
+        assert abs(obj.ra - ra) < 1e-6 and abs(obj.dec - dec) < 1e-6
+
+        candidates = session.scalars(
+            sa.select(Candidate).where(Candidate.obj_id == obj_id)
+        ).all()
+        assert len(candidates) == 1, candidates
+        assert candidates[0].filter_id == public_filter.id
+        assert candidates[0].passing_alert_id == 123456789
+
+        sources = session.scalars(
+            sa.select(Source.obj_id).where(Source.obj_id == obj_id)
+        ).all()
+        assert sources == [], f"match should not be auto-saved as a Source: {sources}"
+
+
+def test_candidate_creation_is_idempotent(
+    super_admin_token, public_group2, public_filter, broker, monkeypatch
+):
+    """Re-running must not pile up duplicate candidates for the same epoch."""
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    from astropy.time import Time
+
+    event_jd = float(Time(dateobs).jd)
+    obj_id = f"XM_dup_{uuid.uuid4().hex[:8]}"
+
+    recorded = {}
+    _stub_provider(
+        monkeypatch, [_alert(obj_id, ra, dec, event_jd + 0.2)], recorded, ra, dec
+    )
+
+    config = {"archival": False, "filter_id": public_filter.id}
+    asyncio.run(run_cycle(config))
+    # force the event to be due again rather than waiting out the recheck gap
+    with models.DBSession() as session:
+        session.execute(
+            sa.update(GcnEventCrossmatchState).values(
+                last_queried=None, last_alert_jd=None
+            )
+        )
+        session.commit()
+    asyncio.run(run_cycle(config))
+
+    with models.DBSession() as session:
+        candidates = session.scalars(
+            sa.select(Candidate).where(Candidate.obj_id == obj_id)
+        ).all()
+    assert len(candidates) == 1, f"duplicate candidates created: {candidates}"

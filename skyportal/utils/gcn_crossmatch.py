@@ -2,8 +2,12 @@
 
 For every GCN event still inside its active window, ask each configured broker
 for alerts near the event's localization, keep the ones genuinely inside the
-credible region, save them as sources, and annotate them with how they relate to
-the event (time offset, angular separation).
+credible region, raise them as candidates to scan, and annotate them with how
+they relate to the event (time offset, angular separation).
+
+A match is a suggestion, not a conclusion, so nothing is saved as a Source: the
+candidate appears on the scanning page and becomes a Source only when a human
+saves it.
 
 This replaces the standalone ep-ztf-xmatch service, which did the same for
 Einstein Probe against Kowalski only. Nothing here is EP-specific: it works for
@@ -12,9 +16,10 @@ any GcnEvent whose localization can be bounded and any broker implementing
 
 Two invariants matter and are easy to get wrong:
 
-* Sources and annotations inherit the *event's* groups. A restricted event's
-  matches must not be visible to people who cannot see the event, or the
-  association leaks what the group restriction exists to protect.
+* Annotations inherit the *event's* groups, so the link between an object and a
+  restricted event stays as restricted as the event. Note the Candidate itself
+  is visible to the configured filter's group, so point ``filter_id`` at a
+  filter whose group matches the audience for the events being crossmatched.
 * The broker is queried with a bounding cone, which over-selects; membership is
   then decided by an exact containment check. The cone is never the answer.
 
@@ -39,10 +44,12 @@ from skyportal.broker_apis.interface import survey_permissions
 from skyportal.models import (
     Annotation,
     Broker,
+    Candidate,
     Filter,
     GcnEvent,
     GcnEventCrossmatchState,
     Group,
+    Obj,
     User,
 )
 from skyportal.utils.crossmatch import (
@@ -221,6 +228,66 @@ async def annotate_match(
         flag_modified(annotation, "data")
 
 
+async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None):
+    """Create the Obj (if new) and a Candidate for it, without saving a Source.
+
+    A match is something for a human to scan, not something already accepted:
+    the Obj and Candidate make it appear on the scanning page, and it only
+    becomes a Source once someone saves it. Photometry is left to the broker-
+    backed display path rather than written here, for the same reason.
+
+    Returns True if a candidate now exists for this (obj, filter, epoch).
+    """
+    candidate = _candidate(alert)
+    position = alert_position(alert)
+
+    obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    if obj is None:
+        if position is None:
+            log(f"Cannot create {obj_id}: alert carries no position")
+            return False
+        obj = Obj(
+            id=obj_id,
+            ra=position[0],
+            dec=position[1],
+            ra_dis=position[0],
+            dec_dis=position[1],
+            score=candidate.get("drb"),
+            origin=survey,
+        )
+        session.add(obj)
+        await session.flush()
+
+    if filter_id is None:
+        # Nothing to scan against. The annotation is still written, so the
+        # match is not lost, but it will not appear on a scanning page.
+        return False
+
+    jd = alert_jd(alert)
+    passed_at = Time(jd, format="jd").datetime if jd is not None else utcnow_naive()
+
+    existing = await session.scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id,
+            Candidate.filter_id == int(filter_id),
+            Candidate.passed_at == passed_at,
+        )
+    )
+    if existing is not None:
+        return True
+
+    session.add(
+        Candidate(
+            obj_id=obj_id,
+            filter_id=int(filter_id),
+            passing_alert_id=candidate.get("candid") or alert.get("candid"),
+            passed_at=passed_at,
+            uploader_id=user.id,
+        )
+    )
+    return True
+
+
 async def process_event_broker(
     session, user, event, localization, broker, state, config=None, archival=False
 ):
@@ -367,13 +434,13 @@ async def process_event_broker(
         alert = keep[index]
         object_id = alert_object_id(alert)
         try:
-            await broker.broker_class.save_as_source(
-                broker,
-                object_id,
+            await ensure_candidate(
                 session,
                 user,
-                group_ids,
-                permissions=permissions,
+                alert,
+                object_id,
+                conf(config, "filter_id"),
+                survey=survey,
             )
             await annotate_match(
                 session,

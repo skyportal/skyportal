@@ -7376,6 +7376,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gcn_event/{dateobs}/crossmatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Crossmatch progress for a GCN event
+         * @description Per-broker state of the alert crossmatch for this event: when it was
+         *     last queried, how far through the alert stream it has got, how many
+         *     matches it has saved, and any error.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Requeue the alert crossmatch for a GCN event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Reset this event's crossmatch progress so the next service pass
+         *     re-queries every broker from the start of the window, including the
+         *     one-shot archival pass.
+         *
+         *     Existing sources and annotations are left alone: the crossmatch
+         *     updates them in place, so re-running refreshes rather than
+         *     duplicates. Use this after changing the quality-cut filter or the
+         *     search parameters.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gcn_event/{dateobs}/report/{report_id}": {
         parameters: {
             query?: never;
@@ -8173,6 +8262,12 @@ export interface paths {
                     gcnTagKeep?: string;
                     /** @description Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags. */
                     gcnTagRemove?: string;
+                    /**
+                     * @description Comma-separated group ids; return only events shared with at
+                     *     least one of them. Narrows within what the user can already
+                     *     read, it does not widen access.
+                     */
+                    groupIds?: string;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that match any of them. */
                     localizationTagKeep?: string;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags. */
@@ -26396,6 +26491,8 @@ export interface components {
             status?: string;
             /** @description Message from the most recent failure, if any. */
             error?: string | null;
+            /** @description Whether the one-shot pre-event (archival) search has run for this event/broker pair. That window is closed, so it never needs redoing. */
+            archival_done?: boolean;
             /** @description Cumulative count of alerts matched for this event from this broker. */
             n_matches?: number;
             /** @description Unique object identifier. */
@@ -26433,6 +26530,8 @@ export interface components {
             status?: string;
             /** @description Message from the most recent failure, if any. */
             error?: string | null;
+            /** @description Whether the one-shot pre-event (archival) search has run for this event/broker pair. That window is closed, so it never needs redoing. */
+            archival_done?: boolean;
             /** @description Cumulative count of alerts matched for this event from this broker. */
             n_matches?: number;
         };

@@ -181,3 +181,54 @@ def test_restricted_localization_does_not_leak_position_via_sources(
     status, data = api("GET", "sources", params=params, token=view_only_token)
     assert status == 400, data
     assert "not found" in str(data.get("message", "")).lower(), data
+
+
+def test_events_list_filters_by_group(
+    super_admin_token, public_group, public_group2, view_only_token_group2
+):
+    """groupIds narrows the event list within what the user can already read."""
+    _, _, tag_a = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
+    _, _, tag_b = _post_cone_event(super_admin_token)  # public group
+
+    # restricted to group2: the group2 event is there
+    status, data = api(
+        "GET",
+        "gcn_event",
+        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag_a},
+        token=view_only_token_group2,
+    )
+    assert status == 200, data
+    assert len(data["data"]["events"]) == 1, data["data"]["events"]
+
+    # ...and the public-group event is excluded by the same filter
+    status, data = api(
+        "GET",
+        "gcn_event",
+        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag_b},
+        token=view_only_token_group2,
+    )
+    assert status == 200, data
+    assert data["data"]["events"] == [], data["data"]["events"]
+
+
+def test_events_list_group_filter_cannot_widen_access(
+    super_admin_token, public_group2, view_only_token
+):
+    """Asking for a group you are not in returns nothing, not someone else's events."""
+    _, _, tag = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
+
+    status, data = api(
+        "GET",
+        "gcn_event",
+        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    assert data["data"]["events"] == [], data["data"]["events"]
+
+
+def test_events_list_rejects_bad_group_ids(super_admin_token):
+    status, data = api(
+        "GET", "gcn_event", params={"groupIds": "not-an-int"}, token=super_admin_token
+    )
+    assert status == 400, data

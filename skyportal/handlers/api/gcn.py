@@ -1658,6 +1658,14 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.
             - in: query
+              name: groupIds
+              schema:
+                type: string
+              description: |
+                Comma-separated group ids; return only events shared with at
+                least one of them. Narrows within what the user can already
+                read, it does not widen access.
+            - in: query
               name: localizationTagKeep
               nullable: true
               schema:
@@ -1773,6 +1781,7 @@ class GcnEventHandler(BaseHandler):
         localization_tag_remove = self.get_query_argument("localizationTagRemove", None)
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
         no_notice_content = self.get_query_argument("excludeNoticeContent", False)
+        group_ids = self.get_query_argument("groupIds", None)
 
         if gcn_tag_keep is not None:
             if isinstance(gcn_tag_keep, str):
@@ -2016,6 +2025,23 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
+            if group_ids:
+                # Narrow to events shared with particular groups. Access is
+                # already enforced by GcnEvent.read; this is the user asking to
+                # see, say, only the proprietary stream rather than everything
+                # they happen to be entitled to.
+                try:
+                    group_ids = [int(g) for g in str(group_ids).split(",") if g != ""]
+                except ValueError:
+                    return self.error("Invalid groupIds: must be comma-separated ints")
+                if group_ids:
+                    query = query.where(
+                        GcnEvent.id.in_(
+                            sa.select(GroupGcnEvent.gcnevent_id).where(
+                                GroupGcnEvent.group_id.in_(group_ids)
+                            )
+                        )
+                    )
             try:
                 query = apply_gcn_event_filters(
                     query,
