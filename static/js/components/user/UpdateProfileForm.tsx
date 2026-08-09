@@ -11,7 +11,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import InputLabel from "@mui/material/InputLabel";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -183,13 +184,14 @@ const UpdateProfileForm = () => {
                 control={control}
                 defaultValue={profile?.affiliations}
                 render={({ field: { onChange, value } }) => (
-                  <Autocomplete
+                  <SearchableSelect
                     multiple
                     freeSolo
-                    onChange={(_e, data) => onChange(data)}
+                    label=""
+                    onChange={(data: any) => onChange(data)}
                     value={value}
                     options={profile?.affiliations ?? []}
-                    filterOptions={(options, params) => {
+                    filterOptions={(options: any[], params: any) => {
                       const filtered = filter(options, params);
                       // Suggest the creation of a new value
                       if (
@@ -200,13 +202,10 @@ const UpdateProfileForm = () => {
                       }
                       return filtered;
                     }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        name="affiliations"
-                        id="affilations_id"
-                      />
-                    )}
+                    textFieldProps={{
+                      name: "affiliations",
+                      id: "affilations_id",
+                    }}
                   />
                 )}
               />,

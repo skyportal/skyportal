@@ -5,8 +5,7 @@ import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
@@ -18,6 +17,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import SearchableSelect from "../SearchableSelect";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -1023,9 +1023,10 @@ const UserManagement = () => {
             <Controller
               name="groups"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
-                  onChange={(_e, data) => onChange(data)}
+                  label="Select Groups"
+                  onChange={(data: any) => onChange(data)}
                   value={value}
                   options={allGroups?.filter(
                     (g) =>
@@ -1035,16 +1036,9 @@ const UserManagement = () => {
                   )}
                   getOptionLabel={(group: any) => group.name}
                   filterSelectedOptions
-                  data-testid="addUserToGroupsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["groups"]}
-                      variant="outlined"
-                      label="Select Groups"
-                      data-testid="addUserToGroupsTextField"
-                    />
-                  )}
+                  dataTestId="addUserToGroupsSelect"
+                  error={!!errors["groups"]}
+                  textFieldProps={{ "data-testid": "addUserToGroupsTextField" }}
                 />
               )}
               control={control}
@@ -1080,9 +1074,10 @@ const UserManagement = () => {
             <Controller
               name="streams"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
-                  onChange={(_e, data) => onChange(data)}
+                  label="Select Streams"
+                  onChange={(data: any) => onChange(data)}
                   value={value}
                   options={streams?.filter(
                     (s: any) =>
@@ -1092,16 +1087,11 @@ const UserManagement = () => {
                   )}
                   getOptionLabel={(stream: any) => stream.name}
                   filterSelectedOptions
-                  data-testid="addUserToStreamsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["streams"]}
-                      variant="outlined"
-                      label="Select Streams"
-                      data-testid="addUserToStreamsTextField"
-                    />
-                  )}
+                  dataTestId="addUserToStreamsSelect"
+                  error={!!errors["streams"]}
+                  textFieldProps={{
+                    "data-testid": "addUserToStreamsTextField",
+                  }}
                 />
               )}
               control={control}
@@ -1137,25 +1127,19 @@ const UserManagement = () => {
             <Controller
               name="acls"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
-                  onChange={(_e, data) => onChange(data)}
+                  label="Select ACLs"
+                  onChange={(data: any) => onChange(data)}
                   value={value}
                   options={acls?.filter(
                     (acl: any) => !clickedUser?.permissions?.includes(acl),
                   )}
                   getOptionLabel={(acl: any) => acl}
                   filterSelectedOptions
-                  data-testid="addUserACLsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["acls"]}
-                      variant="outlined"
-                      label="Select ACLs"
-                      data-testid="addUserACLsTextField"
-                    />
-                  )}
+                  dataTestId="addUserACLsSelect"
+                  error={!!errors["acls"]}
+                  textFieldProps={{ "data-testid": "addUserACLsTextField" }}
                 />
               )}
               control={control}
@@ -1188,12 +1172,12 @@ const UserManagement = () => {
             <Controller
               name="affiliations"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
-                  onChange={(_e, data) => onChange(data)}
+                  onChange={(data: any) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff: any) => aff)}
-                  filterOptions={(options, params) => {
+                  filterOptions={(options: any[], params: any) => {
                     const filtered = filter(options, params);
 
                     const { inputValue } = params;
@@ -1220,15 +1204,11 @@ const UserManagement = () => {
                     return option;
                   }}
                   freeSolo
-                  data-testid="addUserAffiliationsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label="Select Affiliations"
-                      data-testid="addUserAffiliationsTextField"
-                    />
-                  )}
+                  label="Select Affiliations"
+                  dataTestId="addUserAffiliationsSelect"
+                  textFieldProps={{
+                    "data-testid": "addUserAffiliationsTextField",
+                  }}
                 />
               )}
               control={control}
@@ -1263,9 +1243,10 @@ const UserManagement = () => {
             <Controller
               name="roles"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
-                  onChange={(_e, data) => onChange(data)}
+                  label="Select Roles"
+                  onChange={(data: any) => onChange(data)}
                   value={value}
                   options={roles?.filter(
                     (role: any) => !clickedUser?.roles?.includes(role.id),
@@ -1273,15 +1254,8 @@ const UserManagement = () => {
                   sx={{ mt: 1 }}
                   getOptionLabel={(role: any) => role.id}
                   filterSelectedOptions
-                  data-testid="addUserRolesSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["roles"]}
-                      variant="outlined"
-                      label="Select Roles"
-                    />
-                  )}
+                  dataTestId="addUserRolesSelect"
+                  error={!!errors["roles"]}
                 />
               )}
               control={control}

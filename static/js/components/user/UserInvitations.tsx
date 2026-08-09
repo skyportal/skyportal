@@ -7,10 +7,8 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
-import Autocomplete from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import TextField from "@mui/material/TextField";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -22,6 +20,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
+import SearchableSelect from "../SearchableSelect";
 import HelpIcon from "@mui/icons-material/Help";
 import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
@@ -736,10 +735,11 @@ const UserInvitations = () => {
             <Controller
               name="invitationGroups"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
+                  label="Select Groups"
                   value={value}
-                  onChange={(_e, data) => onChange(data)}
+                  onChange={(data: any) => onChange(data)}
                   options={allGroups?.filter(
                     (group) =>
                       !clickedInvitation?.groups
@@ -748,16 +748,11 @@ const UserInvitations = () => {
                   )}
                   getOptionLabel={(group: any) => group.name}
                   filterSelectedOptions
-                  data-testid="addInvitationGroupsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["invitationGroups"]}
-                      variant="outlined"
-                      label="Select Groups"
-                      data-testid="addInvitationGroupsTextField"
-                    />
-                  )}
+                  dataTestId="addInvitationGroupsSelect"
+                  error={!!errors["invitationGroups"]}
+                  textFieldProps={{
+                    "data-testid": "addInvitationGroupsTextField",
+                  }}
                 />
               )}
               control={control}
@@ -793,10 +788,11 @@ const UserInvitations = () => {
             <Controller
               name="invitationStreams"
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
+                  label="Select Streams"
                   value={value}
-                  onChange={(_e, data) => onChange(data)}
+                  onChange={(data: any) => onChange(data)}
                   options={streams?.filter(
                     (stream: any) =>
                       !clickedInvitation?.streams
@@ -805,16 +801,11 @@ const UserInvitations = () => {
                   )}
                   getOptionLabel={(stream: any) => stream.name}
                   filterSelectedOptions
-                  data-testid="addInvitationStreamsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={!!errors["invitationStreams"]}
-                      variant="outlined"
-                      label="Select Streams"
-                      data-testid="addInvitationStreamsTextField"
-                    />
-                  )}
+                  dataTestId="addInvitationStreamsSelect"
+                  error={!!errors["invitationStreams"]}
+                  textFieldProps={{
+                    "data-testid": "addInvitationStreamsTextField",
+                  }}
                 />
               )}
               control={control}

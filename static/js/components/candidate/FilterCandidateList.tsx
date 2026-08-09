@@ -17,11 +17,11 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
 import Grid from "@mui/material/Grid";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+import SearchableSelect from "../SearchableSelect";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -931,9 +931,9 @@ const FilterCandidateList = ({
                 control={control}
                 defaultValue={[]}
                 render={({ field: { onChange, value } }) => (
-                  <Autocomplete
+                  <SearchableSelect
                     multiple
-                    size="small"
+                    label=""
                     options={availableFilters}
                     disabled={availableFilters.length === 0}
                     getOptionLabel={(option: any) => option?.name ?? ""}
@@ -941,21 +941,15 @@ const FilterCandidateList = ({
                     value={availableFilters.filter((f: any) =>
                       (value || []).includes(f.id),
                     )}
-                    onChange={(_event, newValue: any) =>
+                    onChange={(newValue: any) =>
                       onChange(newValue.map((f: any) => f.id))
                     }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        variant="outlined"
-                        placeholder={
-                          availableFilters.length === 0
-                            ? "Select group(s) first"
-                            : "All filters in selected group(s)"
-                        }
-                        data-testid="scanFilterSelect"
-                      />
-                    )}
+                    placeholder={
+                      availableFilters.length === 0
+                        ? "Select group(s) first"
+                        : "All filters in selected group(s)"
+                    }
+                    textFieldProps={{ "data-testid": "scanFilterSelect" }}
                   />
                 )}
               />
@@ -1047,8 +1041,9 @@ const FilterCandidateList = ({
               <div className={classes.gcnGrid}>
                 <Controller
                   render={() => (
-                    <Autocomplete
+                    <SearchableSelect
                       id="gcn-event-filtering"
+                      label="Dateobs/Name"
                       options={gcnEvents?.events || []}
                       getOptionLabel={(option: any) =>
                         `${option?.dateobs}${
@@ -1058,7 +1053,7 @@ const FilterCandidateList = ({
                         }` || ""
                       }
                       className={classes.select}
-                      onInputChange={(event, value) => {
+                      onInputChange={(event: any, value: string) => {
                         if (
                           ((event?.type === "change" ||
                             event?.type === "clear") &&
@@ -1069,7 +1064,7 @@ const FilterCandidateList = ({
                           setGcnEventsParams({ partialdateobs: value });
                         }
                       }}
-                      onChange={(_event, newValue: any) => {
+                      onChange={(newValue: any) => {
                         if (newValue !== null) {
                           reset({
                             ...getValues(),
@@ -1090,9 +1085,6 @@ const FilterCandidateList = ({
                           setSelectedGcnEventId("");
                         }
                       }}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Dateobs/Name" />
-                      )}
                     />
                   )}
                   name="gcneventid"
@@ -1244,16 +1236,17 @@ const FilterCandidateList = ({
                       selectedScanningProfile?.sortingOrigin || null
                     }
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingOriginSelect"
-                        data-testid="annotationSortingOriginSelect"
+                        label="Origin"
+                        dataTestId="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
-                        filterOptions={(options, state) =>
+                        filterOptions={(options: any[], state: any) =>
                           filterAnnotationOrigins(options, state.inputValue)
                         }
                         style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(_event, newValue) => {
+                        onChange={(newValue: any) => {
                           if (newValue === null) {
                             reset({
                               ...getValues(),
@@ -1274,13 +1267,6 @@ const FilterCandidateList = ({
                             setAnnotationSortingKeyOptions(newOptions);
                           }
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Origin"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                     rules={{ validate: validateSorting }}
@@ -1292,13 +1278,14 @@ const FilterCandidateList = ({
                     control={control}
                     defaultValue={selectedScanningProfile?.sortingKey || null}
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingKeySelect"
-                        data-testid="annotationSortingKeySelect"
+                        label="Key"
+                        dataTestId="annotationSortingKeySelect"
                         options={annotationSortingKeyOptions}
                         style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(_event, newValue) => {
+                        onChange={(newValue: any) => {
                           if (newValue === null) {
                             reset({
                               ...getValues(),
@@ -1315,13 +1302,6 @@ const FilterCandidateList = ({
                             onChange(newValue);
                           }
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Key"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                     rules={{ validate: validateSorting }}
@@ -1335,13 +1315,14 @@ const FilterCandidateList = ({
                       selectedScanningProfile?.sortingOrder || "asc"
                     }
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingOrderSelect"
-                        data-testid="annotationSortingOrderSelect"
+                        label="Order"
+                        dataTestId="annotationSortingOrderSelect"
                         options={["asc", "desc"]}
                         style={{ minWidth: "100%" }}
                         value={value}
-                        getOptionLabel={(option) => {
+                        getOptionLabel={(option: any) => {
                           if (option === "asc") {
                             return "Ascending";
                           }
@@ -1350,16 +1331,9 @@ const FilterCandidateList = ({
                           }
                           return "None";
                         }}
-                        onChange={(_event, newValue) => {
+                        onChange={(newValue: any) => {
                           onChange(newValue);
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Order"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                   />

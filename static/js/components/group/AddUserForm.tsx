@@ -1,17 +1,14 @@
 import { useState } from "react";
-import TextField from "@mui/material/TextField";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Box from "@mui/material/Box";
+import SearchableSelect from "../SearchableSelect";
 
 import { useAddGroupUserMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
-
-const filter = createFilterOptions<any>();
 
 interface FormState {
   userID: number | null;
@@ -79,29 +76,22 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
           gap: 2,
         }}
       >
-        <Autocomplete
-          data-testid="newGroupUser"
-          onChange={(_event: any, newValue: any) => {
+        <SearchableSelect
+          label="Username"
+          dataTestId="newGroupUser"
+          value={
+            nonMemberUsers.find((u: any) => u.id === formState.userID) ?? null
+          }
+          onChange={(newValue: any) => {
             setFormState({ ...formState, userID: newValue?.id });
             setIsError(false);
           }}
-          filterOptions={(options, params) => filter(options, params)}
-          selectOnFocus
-          clearOnBlur
-          handleHomeEndKeys
           options={nonMemberUsers}
           getOptionLabel={(option: any) => option.username}
           sx={{ width: 300 }}
-          defaultValue={null}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              error={isError}
-              helperText={isError ? "Please select a user" : ""}
-              label="Username"
-              data-testid="newGroupUserTextInput"
-            />
-          )}
+          error={isError}
+          helperText={isError ? "Please select a user" : ""}
+          textFieldProps={{ "data-testid": "newGroupUserTextInput" }}
         />
         <FormControlLabel
           control={
