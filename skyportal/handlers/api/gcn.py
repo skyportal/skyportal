@@ -215,7 +215,7 @@ async def post_gcn_source(
     session,
     group_ids=None,
 ):
-    """Async equivalent of ``post_gcn_source``.
+    """Create a source at the event's own position, if the localization is tight enough.
 
     ``group_ids`` must be the groups of the GcnEvent this source is derived
     from. Nothing is created for an event that is not in the sitewide public
@@ -235,13 +235,15 @@ async def post_gcn_source(
             log(
                 f"Creating source for event {dateobs} with Localization {localization_name}."
             )
-            dateobs_txt = Time(dateobs).isot
+            event_time = Time(dateobs)
+            dateobs_txt = event_time.isot
             source_name = f"{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
             source = {
                 "id": source_name,
                 "ra": ra,
                 "dec": dec,
                 "origin": None,
+                "t0": event_time.mjd,
             }
             event_tags = []
             if isinstance(root, dict):
