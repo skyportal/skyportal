@@ -1,8 +1,12 @@
 import ast
+import datetime
+
+from dateutil.parser import isoparse
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
+from ....utils.naive_datetime import utcnow_naive
 from ....utils.offset import get_formatted_standards_list
 from ...base import BaseHandler
 
@@ -90,6 +94,9 @@ class StandardsHandler(BaseHandler):
         dec_filter_range_str = self.get_query_argument("dec_filter_range", "[-90, 90]")
         ra_filter_range_str = self.get_query_argument("ra_filter_range", "[0, 360]")
         show_first_line = self.get_query_argument("show_first_line", False)
+        obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
+        if not isinstance(isoparse(obstime), datetime.datetime):
+            return self.error("obstime is not valid isoformat")
 
         if standard_type not in cfg["standard_stars"]:
             return self.error(
@@ -134,6 +141,7 @@ class StandardsHandler(BaseHandler):
             dec_filter_range=tuple(dec_filter_range),
             ra_filter_range=tuple(ra_filter_range),
             show_first_line=show_first_line,
+            obstime=obstime,
         )
 
         return self.success(data=data)
