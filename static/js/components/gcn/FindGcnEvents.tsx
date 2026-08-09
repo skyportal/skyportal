@@ -2,8 +2,7 @@ import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
+import SearchableSelect from "../SearchableSelect";
 
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
@@ -82,20 +81,22 @@ const FindGcnEvents = ({
   return (
     <div className={classes.gridItem}>
       <div className={classes.selectItems}>
-        <Autocomplete
+        <SearchableSelect
           id="gcnEventSelectLabel"
+          label="Dateobs/Name"
           options={gcnEventsList}
           value={
-            gcnEventsList.find((option) => option.id === selectedGcnEventId) ||
-            null
+            gcnEventsList.find(
+              (option: any) => option.id === selectedGcnEventId,
+            ) || null
           }
-          getOptionLabel={(option) =>
+          getOptionLabel={(option: any) =>
             `${option?.dateobs} ${
               option?.aliases?.length > 0 ? `(${option?.aliases})` : ""
             }` || ""
           }
           className={classes.select}
-          onInputChange={(event, value) => {
+          onInputChange={(event: any, value: string) => {
             if (event?.type !== "change") {
               return;
             }
@@ -109,7 +110,7 @@ const FindGcnEvents = ({
               setSearchParams({ partialdateobs: value });
             }
           }}
-          onChange={(_event, newValue: any) => {
+          onChange={(newValue: any) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
               setSelectedEvent(newValue);
@@ -122,9 +123,6 @@ const FindGcnEvents = ({
               setSelectedLocalizationId(null);
             }
           }}
-          renderInput={(params) => (
-            <TextField {...params} label="Dateobs/Name" />
-          )}
         />
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
-import TextField from "@mui/material/TextField";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import CircularProgress from "@mui/material/CircularProgress";
-import Box from "@mui/material/Box";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import SearchableSelect from "./SearchableSelect";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
@@ -61,19 +60,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function useDebouncer(value: any, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
-
 // create a filterOptions for the MUI Autocomplete component
 // that ignores cases and spaces when matching
 const filterOptions = createFilterOptions<any>({
@@ -97,7 +83,7 @@ const QuickSearchBar = () => {
   const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
   const [saveDialogObjId, setSaveDialogObjId] = useState<string | null>(null);
 
-  const debouncedInputValue = useDebouncer(inputValue, 500);
+  const debouncedInputValue = useDebouncedValue(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
 
   useEffect(() => {
@@ -308,14 +294,15 @@ const QuickSearchBar = () => {
             </MenuItem>
           ))}
         </Select>
-        <Autocomplete
-          color="primary"
+        <SearchableSelect
           id="quick-search-bar"
+          label=""
           classes={{ root: classes.root, paper: (classes as any).paper }}
-          getOptionLabel={(option) => option.name || ""}
+          getOptionLabel={(option: any) => option.name || ""}
           filterOptions={filterOptions}
-          onInputChange={(_e, val) => setInputValue(val)}
-          onChange={(_event, newValue: any, reason) => {
+          inputValue={inputValue}
+          onInputChange={(_e: any, val: string) => setInputValue(val)}
+          onChange={(newValue: any, reason?: string) => {
             if (reason === "selectOption") {
               setInputValue("");
               setValue("");
@@ -334,37 +321,22 @@ const QuickSearchBar = () => {
             }
           }}
           onClose={() => setOpen(false)}
-          size="small"
           noOptionsText={`No matching ${type}.`}
           options={options}
           open={open}
           loading={loading}
           clearOnEscape
           clearOnBlur
-          selectOnFocus
           limitTags={15}
           value={value}
           popupIcon={null}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              variant="outlined"
-              placeholder="Search"
-              fullWidth
-              slotProps={{
-                ...params.slotProps,
-                input: {
-                  ...params.slotProps.input,
-                  className: classes.textField,
-                  endAdornment: loading && (
-                    <Box sx={{ display: "flex" }}>
-                      <CircularProgress size={20} color="inherit" />
-                    </Box>
-                  ),
-                },
-              }}
-            />
-          )}
+          fullWidth
+          placeholder="Search"
+          textFieldProps={{
+            slotProps: {
+              input: { className: classes.textField },
+            },
+          }}
         />
       </div>
       <SaveCandidateGroupsDialog

@@ -12,7 +12,7 @@ import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
-import Autocomplete from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 import Button from "../Button";
 
 const useStyles = makeStyles()(() => ({
@@ -187,27 +187,20 @@ const WidgetPrefsDialog = ({
                     <Controller
                       name={key}
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
+                        <SearchableSelect
                           multiple
                           id={key}
+                          label="Only show for these groups"
                           options={groups || []}
                           getOptionLabel={(group: any) => group.name}
                           value={(groups || []).filter((group: any) =>
                             value.includes(group.id),
                           )}
-                          onChange={(_e, data) =>
+                          onChange={(data: any) =>
                             onChange(data.map((group: any) => group.id))
                           }
                           filterSelectedOptions
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              error={!!errors[key]}
-                              variant="outlined"
-                              label="Only show for these groups"
-                              size="small"
-                            />
-                          )}
+                          error={!!errors[key]}
                           className={classes.fullWidth}
                         />
                       )}

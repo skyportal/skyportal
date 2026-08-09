@@ -30,7 +30,6 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
@@ -50,6 +49,7 @@ import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import SearchableSelect from "../SearchableSelect";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -1941,28 +1941,25 @@ const SourceTable = ({
               </div>
             )}
             {columnPickerOptions.length > 0 && (
-              <Autocomplete
+              <SearchableSelect
+                label=""
                 options={columnPickerOptions}
-                getOptionLabel={(o) => o.label}
+                getOptionLabel={(o: any) => o.label}
                 // Nothing until the user types, then capped matches, so a large
                 // registry never floods the dropdown.
-                filterOptions={(opts, state) =>
+                filterOptions={(opts: any[], state: any) =>
                   filterColumnPickerOptions(opts, state.inputValue)
                 }
-                onChange={(_e, value) => value && handleAddColumn(value.field)}
+                onChange={(value: any) => value && handleAddColumn(value.field)}
                 value={null}
                 blurOnSelect
                 clearOnBlur
-                size="small"
                 sx={{ width: 340, marginBottom: "0.5rem" }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    variant="standard"
-                    placeholder="Add annotation / altdata column…"
-                    data-testid="add-column-picker"
-                  />
-                )}
+                placeholder="Add annotation / altdata column…"
+                textFieldProps={{
+                  variant: "standard",
+                  "data-testid": "add-column-picker",
+                }}
               />
             )}
             <Box

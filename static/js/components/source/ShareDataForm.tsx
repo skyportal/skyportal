@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import { useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
+import SearchableSelect from "../SearchableSelect";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -537,23 +536,17 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
           defaultValue={[]}
           rules={{ validate: (value: any[]) => value.length >= 1 }}
           render={({ field: { onChange, value } }) => (
-            <Autocomplete
+            <SearchableSelect
               multiple
               id="dataSharingFormGroupsSelect"
+              label="Select Groups/Users"
               options={groups}
               value={value}
-              onChange={(_event, data) => onChange(data)}
+              onChange={(data: any) => onChange(data)}
               getOptionLabel={(group: any) => group.name}
               filterSelectedOptions
+              error={!!errors["groups"]}
               sx={{ width: "20rem" }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  error={!!errors["groups"]}
-                  variant="outlined"
-                  label="Select Groups/Users"
-                />
-              )}
             />
           )}
         />
