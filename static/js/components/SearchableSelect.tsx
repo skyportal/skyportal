@@ -6,11 +6,13 @@ import TextField from "@mui/material/TextField";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 // Ignore case and whitespace when matching, so "j smith" finds "J. Smith".
-const defaultFilter = createFilterOptions<any>({
-  matchFrom: "any",
-  stringify: (option: any) => String(option ?? "").replace(/\s+/g, ""),
-  trim: true,
-});
+// Must match on the label: an object option would stringify to "[object Object]".
+const makeDefaultFilter = (labelFor: (option: any) => string) =>
+  createFilterOptions<any>({
+    matchFrom: "any",
+    stringify: (option: any) => labelFor(option).replace(/\s+/g, ""),
+    trim: true,
+  });
 
 export interface SearchableSelectProps {
   label: string;
@@ -74,6 +76,7 @@ export interface SearchableSelectProps {
   sx?: any;
   /** Defaults to "small"; appearance is owned here so pickers look alike. */
   size?: "small" | "medium";
+  /** Leave unset: MUI reads the raw prop and defaults it to true. */
   fullWidth?: boolean;
 }
 
@@ -138,7 +141,7 @@ const SearchableSelect = ({
   style,
   sx,
   size = "small",
-  fullWidth = false,
+  fullWidth,
 }: SearchableSelectProps) => {
   const isAsync = typeof loadOptions === "function";
 
@@ -207,6 +210,8 @@ const SearchableSelect = ({
     [getOptionLabel],
   );
 
+  const defaultFilter = useMemo(() => makeDefaultFilter(labelFor), [labelFor]);
+
   return (
     <Autocomplete
       id={id}
@@ -250,8 +255,6 @@ const SearchableSelect = ({
       filterOptions={
         filterOptions ?? (isAsync ? (opts) => opts : defaultFilter)
       }
-      selectOnFocus
-      handleHomeEndKeys
       data-testid={dataTestId}
       renderInput={(params) => (
         <TextField
