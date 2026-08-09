@@ -502,6 +502,24 @@ def get_luminosity_distance(obj):
     return None
 
 
+# The objs join can never change the row set (obj_id is NOT NULL with an FK), so
+# drop it unless a filter or sort needs an objs column -- decided once the whole
+# statement, ORDER BY included, is assembled.
+OBJ_ID_TOKEN = "__OBJ_ID__"
+SOURCES_FROM_TOKEN = "__SOURCES_FROM__"
+
+
+def resolve_obj_join(statement):
+    """Substitute the FROM clause and id column, dropping the objs join if unused."""
+    if "objs." in statement:
+        return statement.replace(
+            SOURCES_FROM_TOKEN, "objs INNER JOIN sources ON objs.id = sources.obj_id"
+        ).replace(OBJ_ID_TOKEN, "objs.id")
+    return statement.replace(SOURCES_FROM_TOKEN, "sources").replace(
+        OBJ_ID_TOKEN, "sources.obj_id"
+    )
+
+
 async def get_sources(
     user_id,
     session,
@@ -1808,11 +1826,11 @@ async def get_sources(
                 if len(localization_queries) > 0:
                     for localization_query in localization_queries:
                         # ADD QUERY STATEMENTS
-                        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                        statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                            FROM {SOURCES_FROM_TOKEN}
                             {" ".join(joins)}
                             WHERE {" AND ".join(statements + [localization_query])}
-                            GROUP BY objs.id
+                            GROUP BY {OBJ_ID_TOKEN}
                         """
 
                         if ":accessible_group_ids" in statement:
@@ -1827,7 +1845,7 @@ async def get_sources(
                             query_params.extend(allocation_bindparams)
 
                         statement = (
-                            text(statement)
+                            text(resolve_obj_join(statement))
                             .bindparams(*query_params)
                             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                         )
@@ -1873,11 +1891,11 @@ async def get_sources(
                         prefix="obj_id",
                     )
                     query_params.extend(bindparams)
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         where objs.id in {query_str}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -1936,7 +1954,8 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         for i, field in enumerate(fields[1:]):
                             # For nested json data, we cast the values we access to JSONB so we can access their keys
@@ -1951,7 +1970,7 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
@@ -1972,11 +1991,11 @@ async def get_sources(
                         )
 
                     # ADD QUERY STATEMENTS
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         WHERE {" AND ".join(statements)}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -2026,7 +2045,8 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         # For nested json data, we cast the values we access to JSONB so we can access their keys
                         for i, field in enumerate(fields[1:]):
@@ -2041,7 +2061,7 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
