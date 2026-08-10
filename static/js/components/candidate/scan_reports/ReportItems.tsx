@@ -135,16 +135,18 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 </Field>
                 <Field>
                   {reportItem.data.tns_name && (
-                    <Link
-                      to={`https://www.wis-tns.org/object/${reportItem.data.tns_name
+                    // Plain anchor, not react-router Link, so the external TNS URL
+                    // actually navigates instead of being routed inside the app.
+                    <a
+                      href={`https://www.wis-tns.org/object/${reportItem.data.tns_name
                         .trim()
                         .split(" ")
                         .pop()}`}
-                      role="link"
                       target="_blank"
+                      rel="noreferrer"
                     >
                       {reportItem.data.tns_name}
-                    </Link>
+                    </a>
                   )}
                 </Field>
                 <Field>{reportItem.data.comment}</Field>
