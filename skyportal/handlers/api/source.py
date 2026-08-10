@@ -2863,6 +2863,12 @@ class SourceOffsetsHandler(BaseHandler):
 
                     priority, comment = assignment.priority, assignment.comment
 
+            # Commit before the slow Gaia query: holding the transaction across
+            # it trips pgbouncer's idle_transaction_timeout. Capture first, since
+            # commit expires the ORM objects.
+            source_ra, source_dec = source.ra, source.dec
+            await session.commit()
+
             offset_func = functools.partial(
                 get_nearby_offset_stars,
                 ra,
@@ -2901,14 +2907,13 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            await session.commit()
             return self.success(
                 data={
                     "facility": facility,
                     "starlist_str": starlist_str,
                     "starlist_info": starlist_info,
-                    "ra": source.ra,
-                    "dec": source.dec,
+                    "ra": source_ra,
+                    "dec": source_dec,
                     "noffsets": noffsets,
                     "queries_issued": queries_issued,
                     "query": query_string,

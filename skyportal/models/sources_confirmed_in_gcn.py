@@ -4,7 +4,12 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, CustomUserAccessControl, public
+from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
+    Base,
+    CustomUserAccessControl,
+    public,
+)
 
 _, cfg = load_env()
 
@@ -17,7 +22,10 @@ def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
 
 
 class SourcesConfirmedInGCN(Base):
-    read = public
+    # Scoped to the event: the row ties an obj to a dateobs, so a public read
+    # would disclose a restricted event's existence, time and (via the public
+    # Obj) position -- see /api/associated_gcns.
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
     create = update = delete = CustomUserAccessControl(
         manage_sources_confirmed_in_gcn_access_logic
     )
@@ -41,6 +49,11 @@ class SourcesConfirmedInGCN(Base):
         nullable=False,
         index=True,
         doc="UTC event timestamp",
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        doc="The GcnEvent this association belongs to.",
     )
 
     confirmed = sa.Column(

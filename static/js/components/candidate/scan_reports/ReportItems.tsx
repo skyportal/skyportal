@@ -46,11 +46,23 @@ interface ReportItemProps {
   isMultiGroup: boolean;
 }
 
+// Tri-state: a match the crossmatch proposed is "to review" until a scanner
+// confirms or rejects it.
+const gcnVerdict = (match: any) => {
+  if (!match) return null;
+  if (match.confirmed === true) return "confirmed";
+  if (match.confirmed === false) return "rejected";
+  return "to review";
+};
+
 const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
   const { data: reportItems, isFetching: loading } =
     useGetScanReportItemsQuery(reportId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);
+  const hasGcnMatch = (reportItems || []).some(
+    (item: any) => item.data?.gcn_match,
+  );
 
   const displayDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -83,6 +95,13 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
+            {hasGcnMatch && (
+              <FieldTitle sx={{ flex: 1 }}>&delta;t (d)</FieldTitle>
+            )}
+            {hasGcnMatch && (
+              <FieldTitle sx={{ flex: 1 }}>sep (\u2032)</FieldTitle>
+            )}
+            {hasGcnMatch && <FieldTitle>in GCN?</FieldTitle>}
             <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>absolute mag</FieldTitle>
             <FieldTitle sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
@@ -243,6 +262,26 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_filter}</Field>
+                {hasGcnMatch && (
+                  <Field sx={{ flex: 1 }}>
+                    {reportItem.data.gcn_match?.delta_t}
+                  </Field>
+                )}
+                {hasGcnMatch && (
+                  <Field sx={{ flex: 1 }}>
+                    {reportItem.data.gcn_match?.distance_arcmin}
+                  </Field>
+                )}
+                {hasGcnMatch && (
+                  <Field>
+                    {gcnVerdict(reportItem.data.gcn_match)}
+                    {reportItem.data.gcn_match?.explanation && (
+                      <span style={{ color: "grey" }}>
+                        {reportItem.data.gcn_match.explanation}
+                      </span>
+                    )}
+                  </Field>
+                )}
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.abs_mag}</Field>
                 <Field sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>

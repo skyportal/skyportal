@@ -30,7 +30,7 @@ def is_configured(config):
 
 
 @check_loaded(logger=log)
-def service():
+def service(*args, **kwargs):
     config = cfg.get("gcn_crossmatch", {}) or {}
     if not is_configured(config):
         return

@@ -1028,6 +1028,10 @@ gcn_crossmatch:
   survey: ZTF
   # Cap on alerts returned per event per broker per pass.
   max_alerts: 500
+  # After a broker answers 429, skip it entirely for this many minutes. Quotas
+  # are per account and shared with the rest of the app, so retrying sooner
+  # burns allowance that interactive users need. Lasair's window is an hour.
+  rate_limit_backoff_minutes: 60.0
   # Also search the window *before* the event, once per event/broker. Alerts
   # there cannot be caused by the event, so they rule a candidate out: a
   # position already flaring last month is a variable, not a counterpart.

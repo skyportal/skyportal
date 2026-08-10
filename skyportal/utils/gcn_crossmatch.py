@@ -50,6 +50,7 @@ from skyportal.models import (
     GcnEventCrossmatchState,
     Group,
     Obj,
+    SourcesConfirmedInGCN,
     User,
 )
 from skyportal.utils.crossmatch import (
@@ -79,9 +80,41 @@ DEFAULTS = {
     # were already active and so cannot be counterparts.
     "archival": True,
     "archival_days": 31.0,
+    # How long to leave a broker alone after it answers 429. Lasair's quota is
+    # hourly, so anything shorter just spends the next window's allowance.
+    "rate_limit_backoff_minutes": 60.0,
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
+
+# Brokers rate-limit per account, not per query, so a 429 means every later call
+# this window fails too -- and the quota is shared with the rest of the app, so
+# retrying also starves interactive users. Park the whole broker rather than
+# burning the remaining allowance one event at a time. Held in memory: a restart
+# retrying once is harmless, and it keeps this off the state table.
+_rate_limited_until: dict = {}
+
+
+def rate_limited_until(broker_id):
+    """When this broker's backoff expires, or None if it is not backed off."""
+    until = _rate_limited_until.get(broker_id)
+    if until is None:
+        return None
+    if utcnow_naive() >= until:
+        del _rate_limited_until[broker_id]
+        return None
+    return until
+
+
+def note_rate_limited(broker_id, minutes):
+    until = utcnow_naive() + timedelta(minutes=float(minutes))
+    _rate_limited_until[broker_id] = until
+    return until
+
+
+def is_rate_limited(error):
+    """True for a broker refusing on quota (HTTP 429)."""
+    return getattr(getattr(error, "response", None), "status_code", None) == 429
 
 
 def conf(config, key):
@@ -325,18 +358,12 @@ async def process_event_broker(
             jd_start = max(jd_start, state.last_alert_jd)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
 
-    # Only offer the broker the alert programs the event's own groups are
-    # entitled to, so the crossmatch cannot pull in data the audience for this
-    # event could not otherwise see.
-    streams = []
-    for group in event.groups:
-        streams.extend(group.streams or [])
-    permissions = survey_permissions(streams)
+    permissions = await query_permissions(session, event, conf(config, "filter_id"))
 
     implements = broker.broker_class.implements()
     survey = conf(config, "survey")
 
-    if implements.get("test_filter"):
+    if implements.get("filter_pipeline") == "mongo":
         # Preferred path: run the quality cuts as a broker-side filter pipeline,
         # with the cone prepended as a spatial stage. This keeps the cuts in the
         # same versioned, editable place as every other broker filter, and means
@@ -429,6 +456,7 @@ async def process_event_broker(
     event_key = str(event.trigger_id or event.dateobs)
     event_dateobs = event.dateobs
     state_id = state.id
+    user_id = user.id
 
     for index in sorted(inside):
         alert = keep[index]
@@ -453,6 +481,7 @@ async def process_event_broker(
                     event_jd, ra0, dec0, radius, alert, archival=archival
                 ),
             )
+            await propose_association(session, user_id, object_id, event_dateobs)
             await session.commit()
             matched += 1
         except Exception as e:
@@ -500,10 +529,23 @@ async def run_cycle(config=None, user_id=1):
             .unique()
             .all()
         )
+        # Only brokers that actually serve the configured survey: a record is
+        # often survey-specific (Lasair runs one deployment per survey), and
+        # querying an LSST endpoint for ZTF alerts just wastes a round trip. A
+        # provider that declares no surveys is unrestricted, not empty.
+        survey = conf(config, "survey")
+
+        def serves(broker):
+            served = broker.broker_class.configured_surveys(broker.altdata) or []
+            return not served or survey in served
+
         brokers = [
-            b for b in brokers if b.broker_class.implements().get("query_alerts")
+            b
+            for b in brokers
+            if b.broker_class.implements().get("query_alerts") and serves(b)
         ]
         if not brokers:
+            log(f"No active broker serves survey {survey}; nothing to crossmatch")
             return 0
 
         events = (
@@ -529,6 +571,8 @@ async def run_cycle(config=None, user_id=1):
             )[0]
 
             for broker in brokers:
+                if rate_limited_until(broker.id) is not None:
+                    continue
                 state = await session.scalar(
                     sa.select(GcnEventCrossmatchState).where(
                         GcnEventCrossmatchState.gcnevent_id == event.id,
@@ -571,10 +615,26 @@ async def run_cycle(config=None, user_id=1):
                     )
                 except Exception as e:
                     traceback.print_exc()
+                    # A broker's HTTP body carries the actual reason (BOOM says
+                    # e.g. which pipeline stage it rejected); raise_for_status
+                    # alone reports only the status code.
+                    detail = getattr(getattr(e, "response", None), "text", "") or ""
+                    message = f"{e}{f' -- {detail[:300]}' if detail else ''}"
                     state.status = "failed"
-                    state.error = str(e)[:500]
+                    state.error = message[:500]
                     state.last_queried = utcnow_naive()
-                    log(f"Crossmatch failed for {event.dateobs} / {broker.name}: {e}")
+                    if is_rate_limited(e):
+                        until = note_rate_limited(
+                            broker.id, conf(config, "rate_limit_backoff_minutes")
+                        )
+                        log(
+                            f"{broker.name} rate limited; backing off until "
+                            f"{until.isoformat(timespec='seconds')}: {message}"
+                        )
+                    else:
+                        log(
+                            f"Crossmatch failed for {event.dateobs} / {broker.name}: {message}"
+                        )
                 await session.commit()
 
     return total
@@ -684,6 +744,48 @@ def cone_match_stage(ra, dec, radius_deg):
             }
         }
     }
+
+
+async def propose_association(session, user_id, obj_id, event_dateobs):
+    """Record the match as awaiting review: confirmed stays NULL until a human
+    confirms or rejects it. confirmer_id is NOT NULL, so it records the service
+    user that proposed the row, not a verdict. Never overwrites an existing one."""
+    existing = await session.scalar(
+        sa.select(SourcesConfirmedInGCN).where(
+            SourcesConfirmedInGCN.obj_id == obj_id,
+            SourcesConfirmedInGCN.dateobs == event_dateobs,
+        )
+    )
+    if existing is None:
+        session.add(
+            SourcesConfirmedInGCN(
+                obj_id=obj_id, dateobs=event_dateobs, confirmer_id=user_id
+            )
+        )
+
+
+async def query_permissions(session, event, filter_id):
+    """Alert programs to query, as {survey: [programids]}.
+
+    Bounded by the filter's stream, since its group is who sees the candidates.
+    Using the event's groups drops partnership alerts for public events.
+    """
+    if filter_id is not None:
+        f = await session.scalar(
+            sa.select(Filter)
+            .options(selectinload(Filter.stream))
+            .where(Filter.id == int(filter_id))
+        )
+        if f is not None and f.stream is not None:
+            permissions = survey_permissions([f.stream])
+            if permissions:
+                return permissions
+
+    # No filter, or its stream grants nothing: fall back to the event's groups.
+    streams = []
+    for group in event.groups:
+        streams.extend(group.streams or [])
+    return survey_permissions(streams)
 
 
 async def resolve_quality_pipeline(session, broker, filter_id):
