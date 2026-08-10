@@ -34,6 +34,14 @@ cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 
+def cosmology_parameter_rows(cosmology):
+    """Cosmology parameters at full precision for display; astropy's repr rounds
+    some values (e.g. H0 -> 67.7 instead of 67.66)."""
+    rows = [{"name": "name", "value": str(cosmology.name)}]
+    rows += [{"name": k, "value": str(v)} for k, v in cosmology.parameters.items()]
+    return rows
+
+
 class ConfigHandler(BaseHandler):
     @auth_or_token
     async def get(self):
@@ -95,6 +103,7 @@ class ConfigHandler(BaseHandler):
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
+                "cosmologyParams": cosmology_parameter_rows(cosmo),
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
