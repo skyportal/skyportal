@@ -29,6 +29,12 @@ from ..base import BaseHandler
 log = make_log("api/user")
 env, cfg = load_env()
 
+# PATCH /api/user/{id} assigns every other key in the body straight onto the
+# User, so identity columns have to be excluded explicitly.
+PATCH_PROTECTED_FIELDS = frozenset(
+    {"id", "oauth_uid", "created_at", "modified", "expirationDate", "expiration_date"}
+)
+
 
 def set_default_role(user, session):
     """
@@ -679,16 +685,19 @@ class UserHandler(BaseHandler):
                 expiration_date = data.get("expirationDate")
                 if expiration_date is not None and expiration_date != "":
                     try:
-                        user.expiration_date = arrow.get(
-                            expiration_date.strip()
-                        ).datetime
+                        # .naive, not .datetime: the column is naive, so a
+                        # tz-aware value gets shifted into the server's local
+                        # zone and the account expires off the date that was set.
+                        user.expiration_date = arrow.get(expiration_date.strip()).naive
                     except arrow.parser.ParserError:
                         return self.error("Unable to parse `expirationDate` parameter.")
                 else:
                     user.expiration_date = None
 
+            # expirationDate is parsed above; the rest are set verbatim, so keep
+            # identity columns and either spelling of the date out of the loop.
             for k in data:
-                if k != "expiration_date":
+                if k not in PATCH_PROTECTED_FIELDS:
                     setattr(user, k, data[k])
 
             await session.commit()

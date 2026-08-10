@@ -318,7 +318,7 @@ const PhotometryPlot = ({
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const muiTheme = useTheme();
-  const axisTheme = plotAxisTheme(muiTheme);
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();

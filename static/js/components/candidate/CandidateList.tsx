@@ -32,6 +32,7 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "../source/EditSourceGroups";
+import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
@@ -423,6 +424,7 @@ const CandidateInfo = ({
               </Button>
             </a>
           </span>
+          <ObjectTags source={candidateObj} />
           {candidateObj.is_source ? (
             <div>
               <div>

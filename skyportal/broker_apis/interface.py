@@ -87,6 +87,14 @@ class BrokerAPI(_Base):
             inject and providers serving restricted data must honour. ``None``
             means unrestricted; a missing key must grant nothing.
 
+            Optionally ``jd_start`` / ``jd_end``: bound the alert JD, either
+            bound alone being valid. Callers matching against a transient event
+            need alerts near it in time, and an unbounded cone search returns
+            every alert ever recorded at that position. Honouring these is
+            best-effort -- a provider whose backend cannot express it may ignore
+            them, so callers that require the window must still enforce it on
+            the returned alerts.
+
         Returns
         -------
         list
