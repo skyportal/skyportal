@@ -19,14 +19,28 @@ def filter_for_value(page, value, last=False):
     page.locator(input_xpath).first.fill(value)
 
 
-def _enable_switch(page, name):
-    """Click a notification preference switch and wait until it's checked."""
-    page.locator(f'//*[@name="{name}"]').first.click()
-    expect(
-        page.locator(
-            f'//*[@name="{name}"]/../../span[contains(@class,"Mui-checked")]'
-        ).first
-    ).to_be_visible()
+def _enable_switch(page, name, attempts=3):
+    """Click a notification preference switch and wait until it's checked.
+
+    The panel re-renders as saved preferences load, so a click can land on a
+    switch that is not wired up yet and be dropped silently. Re-click rather
+    than fail, and treat an already-checked switch as done.
+    """
+    switch = page.locator(f'//*[@name="{name}"]').first
+    checked = page.locator(
+        f'//*[@name="{name}"]/../../span[contains(@class,"Mui-checked")]'
+    ).first
+    expect(switch).to_be_enabled()
+    for attempt in range(attempts):
+        if checked.count() > 0 and checked.is_visible():
+            return
+        switch.click()
+        try:
+            expect(checked).to_be_visible(timeout=10000)
+            return
+        except AssertionError:
+            if attempt == attempts - 1:
+                raise
 
 
 @pytest.mark.flaky(reruns=2)
