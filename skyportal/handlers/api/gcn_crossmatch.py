@@ -17,7 +17,7 @@ class GcnEventCrossmatchHandler(BaseHandler):
         ---
         summary: Crossmatch progress for a GCN event
         description: |
-          Per-broker state of the alert crossmatch for this event: when it was
+          Per-filter state of the alert crossmatch for this event: when it was
           last queried, how far through the alert stream it has got, how many
           matches it has saved, and any error.
         tags:
@@ -71,7 +71,7 @@ class GcnEventCrossmatchHandler(BaseHandler):
         summary: Requeue the alert crossmatch for a GCN event
         description: |
           Reset this event's crossmatch progress so the next service pass
-          re-queries every broker from the start of the window, including the
+          re-queries every filter from the start of the window, including the
           one-shot archival pass.
 
           Existing sources and annotations are left alone: the crossmatch
@@ -123,5 +123,5 @@ class GcnEventCrossmatchHandler(BaseHandler):
             )
             await session.commit()
 
-            log(f"Requeued crossmatch for {dateobs} ({result.rowcount} broker(s))")
-            return self.success(data={"brokers_requeued": result.rowcount})
+            log(f"Requeued crossmatch for {dateobs} ({result.rowcount} filter(s))")
+            return self.success(data={"filters_requeued": result.rowcount})

@@ -49,6 +49,7 @@ from skyportal.models import (
     GcnEvent,
     GcnEventCrossmatchState,
     Group,
+    Localization,
     Obj,
     SourcesConfirmedInGCN,
     User,
@@ -71,10 +72,6 @@ DEFAULTS = {
     "max_radius_deg": 5.0,
     "credible_level": 90,
     "cumprob": DEFAULT_CUMPROB,
-    # SkyPortal Filter whose broker-side pipeline holds the quality cuts; None
-    # falls back to the built-in ZTF cuts ported from ep-ztf-xmatch.
-    "filter_id": None,
-    "survey": "ZTF",
     "max_alerts": 500,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
@@ -120,6 +117,62 @@ def is_rate_limited(error):
 def conf(config, key):
     """Read a crossmatch setting, falling back to the documented default."""
     return (config or {}).get(key, DEFAULTS[key])
+
+
+CROSSMATCH_ALTDATA_KEY = "gcn_crossmatch"
+
+
+def filter_settings(filter_, config):
+    """Crossmatch settings for one filter: global config, then its overrides.
+
+    A filter is the unit of configuration -- it already names a broker, a stream
+    (hence survey and programids) and the group that sees the candidates -- so
+    per-survey differences (LSST's cadence and depth are not ZTF's) belong here
+    rather than in one global block.
+    """
+    overrides = (filter_.altdata or {}).get(CROSSMATCH_ALTDATA_KEY) or {}
+    merged = dict(config or {})
+    merged.update({k: v for k, v in overrides.items() if k != "enabled"})
+    return merged
+
+
+def crossmatch_enabled(filter_):
+    return bool(
+        ((filter_.altdata or {}).get(CROSSMATCH_ALTDATA_KEY) or {}).get("enabled")
+    )
+
+
+def event_matches(filter_, event, localization):
+    """Whether this filter should be run against this event.
+
+    Uses the same ``filters`` shape as DefaultGcnTag and the default
+    observation-plan/follow-up requests: an absent or empty list means "no
+    restriction", otherwise the event must match at least one listed value.
+    Lets one filter serve only EP events while another serves GRBs.
+    """
+    filters = ((filter_.altdata or {}).get(CROSSMATCH_ALTDATA_KEY) or {}).get(
+        "filters"
+    ) or {}
+
+    wanted = filters.get("gcn_tags") or []
+    if wanted and not any(tag in (event.tags or []) for tag in wanted):
+        return False
+
+    wanted = filters.get("localization_tags") or []
+    if wanted:
+        tags = [t.text for t in (localization.tags or [])]
+        if not any(tag in tags for tag in wanted):
+            return False
+
+    return True
+
+
+def filter_survey(filter_):
+    """Survey a filter covers, from its stream's collection (ZTF_alerts -> ZTF)."""
+    collection = ((filter_.stream.altdata or {}) if filter_.stream else {}).get(
+        "collection"
+    )
+    return str(collection).split("_")[0].upper() if collection else None
 
 
 def alert_position(alert):
@@ -321,10 +374,10 @@ async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None)
     return True
 
 
-async def process_event_broker(
-    session, user, event, localization, broker, state, config=None, archival=False
+async def process_event_filter(
+    session, user, event, localization, filter_, state, config=None, archival=False
 ):
-    """Query one broker for one event and save whatever genuinely matches.
+    """Query one filter's broker for one event and save whatever genuinely matches.
 
     ``archival`` searches the window *before* the event instead of around it.
     Those alerts cannot have been caused by the event, so they exist to rule a
@@ -358,10 +411,13 @@ async def process_event_broker(
             jd_start = max(jd_start, state.last_alert_jd)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
 
-    permissions = await query_permissions(session, event, conf(config, "filter_id"))
+    broker = filter_.broker
+    survey = filter_survey(filter_)
+    # Bounded by the filter's own stream: its group is who sees the candidates,
+    # so they already hold that stream.
+    permissions = survey_permissions([filter_.stream] if filter_.stream else [])
 
     implements = broker.broker_class.implements()
-    survey = conf(config, "survey")
 
     if implements.get("filter_pipeline") == "mongo":
         # Preferred path: run the quality cuts as a broker-side filter pipeline,
@@ -369,9 +425,7 @@ async def process_event_broker(
         # same versioned, editable place as every other broker filter, and means
         # artifacts, asteroids and variable stars are rejected before they cross
         # the wire rather than after.
-        cuts, cuts_source = await resolve_quality_pipeline(
-            session, broker, conf(config, "filter_id")
-        )
+        cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
         result = broker.broker_class.test_filter(
             broker,
             session,
@@ -467,7 +521,7 @@ async def process_event_broker(
                 user,
                 alert,
                 object_id,
-                conf(config, "filter_id"),
+                filter_.id,
                 survey=survey,
             )
             await annotate_match(
@@ -524,28 +578,34 @@ async def run_cycle(config=None, user_id=1):
             return 0
         session.user_or_token = user
 
-        brokers = (
-            (await session.scalars(sa.select(Broker).where(Broker.active.is_(True))))
+        # A filter is one crossmatch configuration: it names the broker, the
+        # stream (hence survey and programids) and the group that sees the
+        # candidates. Opt in per filter so a second survey is a filter, not code.
+        filters = (
+            (
+                await session.scalars(
+                    sa.select(Filter).options(
+                        selectinload(Filter.stream), selectinload(Filter.broker)
+                    )
+                )
+            )
             .unique()
             .all()
         )
-        # Only brokers that actually serve the configured survey: a record is
-        # often survey-specific (Lasair runs one deployment per survey), and
-        # querying an LSST endpoint for ZTF alerts just wastes a round trip. A
-        # provider that declares no surveys is unrestricted, not empty.
-        survey = conf(config, "survey")
-
-        def serves(broker):
-            served = broker.broker_class.configured_surveys(broker.altdata) or []
-            return not served or survey in served
-
-        brokers = [
-            b
-            for b in brokers
-            if b.broker_class.implements().get("query_alerts") and serves(b)
+        filters = [
+            f
+            for f in filters
+            if crossmatch_enabled(f)
+            and f.broker is not None
+            and f.broker.active
+            and f.broker.broker_class.implements().get("query_alerts")
+            and filter_survey(f) is not None
         ]
-        if not brokers:
-            log(f"No active broker serves survey {survey}; nothing to crossmatch")
+        if not filters:
+            log(
+                "No filter opted into the crossmatch "
+                f"(set altdata.{CROSSMATCH_ALTDATA_KEY}.enabled); nothing to do"
+            )
             return 0
 
         events = (
@@ -555,7 +615,14 @@ async def run_cycle(config=None, user_id=1):
                     .where(GcnEvent.dateobs >= cutoff)
                     .options(
                         selectinload(GcnEvent.groups).selectinload(Group.streams),
-                        selectinload(GcnEvent.localizations),
+                        # GcnEvent.tags is a hybrid over the _tags
+                        # relationship, so event_matches would lazy-load it.
+                        selectinload(GcnEvent._tags),
+                        # tags eagerly: event_matches reads them, and a lazy
+                        # load in an async session raises MissingGreenlet.
+                        selectinload(GcnEvent.localizations).selectinload(
+                            Localization.tags
+                        ),
                     )
                 )
             )
@@ -570,18 +637,22 @@ async def run_cycle(config=None, user_id=1):
                 event.localizations, key=lambda loc: loc.created_at, reverse=True
             )[0]
 
-            for broker in brokers:
+            for filter_ in filters:
+                if not event_matches(filter_, event, localization):
+                    continue
+                broker = filter_.broker
+                settings = filter_settings(filter_, config)
                 if rate_limited_until(broker.id) is not None:
                     continue
                 state = await session.scalar(
                     sa.select(GcnEventCrossmatchState).where(
                         GcnEventCrossmatchState.gcnevent_id == event.id,
-                        GcnEventCrossmatchState.broker_id == broker.id,
+                        GcnEventCrossmatchState.filter_id == filter_.id,
                     )
                 )
                 if state is None:
                     state = GcnEventCrossmatchState(
-                        gcnevent_id=event.id, broker_id=broker.id, status="pending"
+                        gcnevent_id=event.id, filter_id=filter_.id, status="pending"
                     )
                     session.add(state)
                     await session.commit()
@@ -596,22 +667,22 @@ async def run_cycle(config=None, user_id=1):
                     # The pre-event window is searched once, before the first
                     # forward pass, so a candidate that was already active is
                     # flagged as such the first time anyone looks at it.
-                    if conf(config, "archival") and not state.archival_done:
-                        total += await process_event_broker(
+                    if conf(settings, "archival") and not state.archival_done:
+                        total += await process_event_filter(
                             session,
                             user,
                             event,
                             localization,
-                            broker,
+                            filter_,
                             state,
-                            config,
+                            settings,
                             archival=True,
                         )
                         await session.commit()
                         state = await session.get(GcnEventCrossmatchState, state.id)
 
-                    total += await process_event_broker(
-                        session, user, event, localization, broker, state, config
+                    total += await process_event_filter(
+                        session, user, event, localization, filter_, state, settings
                     )
                 except Exception as e:
                     traceback.print_exc()
@@ -625,7 +696,7 @@ async def run_cycle(config=None, user_id=1):
                     state.last_queried = utcnow_naive()
                     if is_rate_limited(e):
                         until = note_rate_limited(
-                            broker.id, conf(config, "rate_limit_backoff_minutes")
+                            broker.id, conf(settings, "rate_limit_backoff_minutes")
                         )
                         log(
                             f"{broker.name} rate limited; backing off until "
@@ -633,7 +704,8 @@ async def run_cycle(config=None, user_id=1):
                         )
                     else:
                         log(
-                            f"Crossmatch failed for {event.dateobs} / {broker.name}: {message}"
+                            f"Crossmatch failed for {event.dateobs} / "
+                            f"{filter_.name} ({broker.name}): {message}"
                         )
                 await session.commit()
 
@@ -764,30 +836,6 @@ async def propose_association(session, user_id, obj_id, event_dateobs):
         )
 
 
-async def query_permissions(session, event, filter_id):
-    """Alert programs to query, as {survey: [programids]}.
-
-    Bounded by the filter's stream, since its group is who sees the candidates.
-    Using the event's groups drops partnership alerts for public events.
-    """
-    if filter_id is not None:
-        f = await session.scalar(
-            sa.select(Filter)
-            .options(selectinload(Filter.stream))
-            .where(Filter.id == int(filter_id))
-        )
-        if f is not None and f.stream is not None:
-            permissions = survey_permissions([f.stream])
-            if permissions:
-                return permissions
-
-    # No filter, or its stream grants nothing: fall back to the event's groups.
-    streams = []
-    for group in event.groups:
-        streams.extend(group.streams or [])
-    return survey_permissions(streams)
-
-
 async def resolve_quality_pipeline(session, broker, filter_id):
     """The pipeline stages to apply as quality cuts, and where they came from.
 
@@ -806,10 +854,8 @@ async def resolve_quality_pipeline(session, broker, filter_id):
 
     boom_filter_id = ((f.altdata or {}).get("boom") or {}).get("filter_id")
     if boom_filter_id is None:
-        log(
-            f"Filter {filter_id} has no altdata['boom']['filter_id']; "
-            f"falling back to the built-in cuts"
-        )
+        # Not logged: this is a configuration state, not an event, and the
+        # caller already names the source on every query.
         return ZTF_QUALITY_CUTS, "built-in ZTF cuts (no broker filter)"
 
     try:
