@@ -102,6 +102,7 @@ User Guide
    slack
    followup
    mma
+   gcn_crossmatch
    period
    spatial_catalog
    advanced_usage

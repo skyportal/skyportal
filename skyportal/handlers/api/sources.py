@@ -403,20 +403,25 @@ def create_annotation_query(
     return None, None
 
 
-async def get_localization(localization_dateobs, localization_name, session):
+async def get_localization(localization_dateobs, localization_name, session, user):
     startTime = time.time()
     if isinstance(localization_dateobs, str):
         localization_dateobs = arrow.get(localization_dateobs).naive
     localization_dateobs_str = localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")
+    # NOTE: this must go through Localization.select so that the GcnEvent group
+    # restriction is honored. Selecting the tiles by raw localization_id below
+    # bypasses every access policy, so a localization the user cannot read would
+    # otherwise let them enumerate sources inside a restricted event's error
+    # region -- disclosing the position of the event itself.
     if localization_name is None:
         result = await session.scalars(
-            sa.select(Localization.id)
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .order_by(Localization.created_at.desc())
         )
     else:
         result = await session.scalars(
-            sa.select(Localization.id)
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .where(Localization.localization_name == localization_name)
             .order_by(Localization.modified.desc())
@@ -1537,6 +1542,7 @@ async def get_sources(
                     localization_dateobs,
                     localization_name,
                     session,
+                    user,
                 )
                 # this is twice as fast as if we ran each query (the localization tiles query,
                 # and its overall with the sources) separately.
