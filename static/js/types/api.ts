@@ -17324,6 +17324,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/comments/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the conversations opened on a source
+         * @description Retrieve the names of the source's named conversations. A conversation exists as soon as a comment carries its name.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a conversation on a source
+         * @description Delete a named conversation and every comment it holds. Restricted to the user who opened it (the author of its first comment) and to system admins.
+         */
+        delete: {
+            parameters: {
+                query: {
+                    channel: string;
+                };
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{associated_resource_type}/{resource_id}": {
         parameters: {
             query?: never;
@@ -24522,6 +24588,8 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Comment body. */
@@ -24559,6 +24627,8 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
             /** @description Comment body. */
             text: string;
             /** @description Filename of the attachment. */
