@@ -667,6 +667,7 @@ def get_formatted_standards_list(
     magnitude_range=(np.inf, -np.inf),
     show_first_line=False,
     return_dataframe=False,
+    obstime=None,
 ):
     """Returns a list of standard stars in the preferred starlist format.
 
@@ -724,6 +725,35 @@ def get_formatted_standards_list(
         return result
 
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
+    # Where a Gaia DR3 match exists, emit its position (epoch 2016) propagated to
+    # the obstime with its PM (sub-arcsec); otherwise fall back to the listed
+    # catalog position unchanged.
+    if {"gaia_ra", "gaia_dec", "pmra", "pmdec"}.issubset(df.columns):
+        obstime_t = Time(obstime) if obstime else Time(utcnow_naive().isoformat())
+        gra = df["gaia_ra"].to_numpy(dtype=float)
+        has_gaia = np.isfinite(gra)
+        ra_base = np.where(has_gaia, gra, tab.ra.deg)
+        dec_base = np.where(has_gaia, df["gaia_dec"].to_numpy(dtype=float), tab.dec.deg)
+        base_epoch = np.where(has_gaia, 2016.0, df["epoch"].to_numpy(dtype=float))
+        pmra = np.nan_to_num(df["pmra"].to_numpy(dtype=float))
+        pmdec = np.nan_to_num(df["pmdec"].to_numpy(dtype=float))
+        plx = (
+            df["parallax"].to_numpy(dtype=float)
+            if "parallax" in df.columns
+            else np.full(len(df), np.nan)
+        )
+        # distance (kpc) = 1/parallax(mas); fixed fallback when parallax missing.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            dist_kpc = np.where(plx > 0, np.minimum(np.abs(1.0 / plx), 10.0), 10.0)
+        tab = SkyCoord(
+            ra=ra_base * u.deg,
+            dec=dec_base * u.deg,
+            pm_ra_cosdec=pmra * u.mas / u.yr,
+            pm_dec=pmdec * u.mas / u.yr,
+            distance=dist_kpc * u.kpc,
+            obstime=Time(base_epoch, format="jyear"),
+            frame="icrs",
+        ).apply_space_motion(new_obstime=obstime_t)
     df["ra_float"] = tab.ra.value
     df["dec_float"] = tab.dec.value
     df["skycoord"] = [x[1:] for x in format_hmsdms(tab, coord_sep, col_sep)]
