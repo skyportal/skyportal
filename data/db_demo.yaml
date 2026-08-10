@@ -1449,6 +1449,16 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
+  # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
+  # from the ZTF circular for EP260806a.
+  - obj_id: ZTF26abmjjnm
+    instrument_id: =ZTF
+    file: ZTF26abmjjnm_phot.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
