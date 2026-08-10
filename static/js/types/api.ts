@@ -36006,6 +36006,8 @@ export interface components {
         SourcesConfirmedInGCN: {
             /** @description The assigned Obj. */
             readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The User who created this SourcesConfirmedInGCN. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
@@ -36041,6 +36043,8 @@ export interface components {
         SourcesConfirmedInGCNNoID: {
             /** @description The assigned Obj. */
             readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The User who created this SourcesConfirmedInGCN. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
