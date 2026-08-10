@@ -1753,10 +1753,10 @@ def public_group_gcnevent(public_group, public_gcnevent):
 
 
 @pytest.fixture()
-def public_gcnevent_crossmatch_state(public_gcnevent, broker):
+def public_gcnevent_crossmatch_state(public_gcnevent, public_filter):
     state = GcnEventCrossmatchState(
         gcnevent_id=public_gcnevent.id,
-        broker_id=broker.id,
+        filter_id=public_filter.id,
         status="pending",
     )
     DBSession().add(state)
