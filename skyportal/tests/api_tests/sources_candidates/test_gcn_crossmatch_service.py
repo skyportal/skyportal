@@ -270,6 +270,9 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
             lambda cls: {
                 "query_alerts": True,
                 "test_filter": True,
+                # the crossmatch only sends a Mongo pipeline to a provider that
+                # declares it speaks one
+                "filter_pipeline": "mongo",
             }
         ),
     )

@@ -79,9 +79,41 @@ DEFAULTS = {
     # were already active and so cannot be counterparts.
     "archival": True,
     "archival_days": 31.0,
+    # How long to leave a broker alone after it answers 429. Lasair's quota is
+    # hourly, so anything shorter just spends the next window's allowance.
+    "rate_limit_backoff_minutes": 60.0,
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
+
+# Brokers rate-limit per account, not per query, so a 429 means every later call
+# this window fails too -- and the quota is shared with the rest of the app, so
+# retrying also starves interactive users. Park the whole broker rather than
+# burning the remaining allowance one event at a time. Held in memory: a restart
+# retrying once is harmless, and it keeps this off the state table.
+_rate_limited_until: dict = {}
+
+
+def rate_limited_until(broker_id):
+    """When this broker's backoff expires, or None if it is not backed off."""
+    until = _rate_limited_until.get(broker_id)
+    if until is None:
+        return None
+    if utcnow_naive() >= until:
+        del _rate_limited_until[broker_id]
+        return None
+    return until
+
+
+def note_rate_limited(broker_id, minutes):
+    until = utcnow_naive() + timedelta(minutes=float(minutes))
+    _rate_limited_until[broker_id] = until
+    return until
+
+
+def is_rate_limited(error):
+    """True for a broker refusing on quota (HTTP 429)."""
+    return getattr(getattr(error, "response", None), "status_code", None) == 429
 
 
 def conf(config, key):
@@ -336,7 +368,7 @@ async def process_event_broker(
     implements = broker.broker_class.implements()
     survey = conf(config, "survey")
 
-    if implements.get("test_filter"):
+    if implements.get("filter_pipeline") == "mongo":
         # Preferred path: run the quality cuts as a broker-side filter pipeline,
         # with the cone prepended as a spatial stage. This keeps the cuts in the
         # same versioned, editable place as every other broker filter, and means
@@ -500,10 +532,23 @@ async def run_cycle(config=None, user_id=1):
             .unique()
             .all()
         )
+        # Only brokers that actually serve the configured survey: a record is
+        # often survey-specific (Lasair runs one deployment per survey), and
+        # querying an LSST endpoint for ZTF alerts just wastes a round trip. A
+        # provider that declares no surveys is unrestricted, not empty.
+        survey = conf(config, "survey")
+
+        def serves(broker):
+            served = broker.broker_class.configured_surveys(broker.altdata) or []
+            return not served or survey in served
+
         brokers = [
-            b for b in brokers if b.broker_class.implements().get("query_alerts")
+            b
+            for b in brokers
+            if b.broker_class.implements().get("query_alerts") and serves(b)
         ]
         if not brokers:
+            log(f"No active broker serves survey {survey}; nothing to crossmatch")
             return 0
 
         events = (
@@ -529,6 +574,8 @@ async def run_cycle(config=None, user_id=1):
             )[0]
 
             for broker in brokers:
+                if rate_limited_until(broker.id) is not None:
+                    continue
                 state = await session.scalar(
                     sa.select(GcnEventCrossmatchState).where(
                         GcnEventCrossmatchState.gcnevent_id == event.id,
@@ -571,10 +618,26 @@ async def run_cycle(config=None, user_id=1):
                     )
                 except Exception as e:
                     traceback.print_exc()
+                    # A broker's HTTP body carries the actual reason (BOOM says
+                    # e.g. which pipeline stage it rejected); raise_for_status
+                    # alone reports only the status code.
+                    detail = getattr(getattr(e, "response", None), "text", "") or ""
+                    message = f"{e}{f' -- {detail[:300]}' if detail else ''}"
                     state.status = "failed"
-                    state.error = str(e)[:500]
+                    state.error = message[:500]
                     state.last_queried = utcnow_naive()
-                    log(f"Crossmatch failed for {event.dateobs} / {broker.name}: {e}")
+                    if is_rate_limited(e):
+                        until = note_rate_limited(
+                            broker.id, conf(config, "rate_limit_backoff_minutes")
+                        )
+                        log(
+                            f"{broker.name} rate limited; backing off until "
+                            f"{until.isoformat(timespec='seconds')}: {message}"
+                        )
+                    else:
+                        log(
+                            f"Crossmatch failed for {event.dateobs} / {broker.name}: {message}"
+                        )
                 await session.commit()
 
     return total
