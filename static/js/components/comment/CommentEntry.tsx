@@ -454,6 +454,7 @@ const CommentEntry = ({
               size="small"
               color={selectedGroups.length ? "primary" : "default"}
               onClick={(event) => setGroupAnchor(event.currentTarget)}
+              data-testid="customizeGroupsButton"
             >
               <GroupIcon fontSize="small" />
             </IconButton>
