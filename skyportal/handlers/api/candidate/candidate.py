@@ -40,6 +40,7 @@ from ....models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjTag,
     ObjToSuperObj,
     Photometry,
     PhotStat,
@@ -1513,6 +1514,23 @@ class CandidateHandler(BaseHandler):
                     )
                     add_computed_fields(candidate_list[-1], obj)
 
+            # Attach each candidate's object tags (shown as chips on the scanning
+            # card), in one query keyed by obj_id to avoid an N+1.
+            candidate_obj_ids = [c["id"] for c in candidate_list]
+            if candidate_obj_ids:
+                tags_result = await session.scalars(
+                    ObjTag.select(session.user_or_token)
+                    .options(selectinload(ObjTag.objtagoption))
+                    .where(ObjTag.obj_id.in_(candidate_obj_ids))
+                )
+                tags_by_obj = {}
+                for tag in tags_result.all():
+                    tags_by_obj.setdefault(tag.obj_id, []).append(
+                        {**tag.to_dict(), "name": tag.objtagoption.name}
+                    )
+                for candidate in candidate_list:
+                    candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
 
@@ -1653,25 +1671,47 @@ class CandidateHandler(BaseHandler):
             # build an error message after a rollback (which detaches obj).
             obj_id_str = obj.id
 
-            candidates = [
-                Candidate(
+            # Re-posting an existing candidate (same obj/filter/passed_at) is
+            # idempotent: reuse the committed row instead of 400-ing on the unique
+            # index. Per-filter savepoints so one duplicate doesn't roll back the
+            # genuinely-new candidates in the same request.
+            candidates = []
+            for filter in filters:
+                candidate = Candidate(
                     obj_id=obj_id_str,
                     filter_id=filter.id,
                     passing_alert_id=passing_alert_id,
                     passed_at=passed_at,
                     uploader_id=self.associated_user_object.id,
                 )
-                for filter in filters
-            ]
-            session.add_all(candidates)
-            try:
-                await session.commit()
-                ids = [c.id for c in candidates]
-            except IntegrityError as e:
-                await session.rollback()
-                return self.error(
-                    f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
-                )
+                try:
+                    async with session.begin_nested():
+                        session.add(candidate)
+                        await session.flush()
+                    candidates.append(candidate)
+                except IntegrityError as e:
+                    # Only the (obj/filter/passed_at) unique index is idempotent;
+                    # surface any other integrity failure instead of silently
+                    # dropping the candidate and returning a false success.
+                    if "candidates_main_index" not in str(e.orig):
+                        await session.rollback()
+                        return self.error(
+                            f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
+                        )
+                    existing = await session.scalar(
+                        Candidate.select(session.user_or_token).where(
+                            Candidate.obj_id == obj_id_str,
+                            Candidate.filter_id == filter.id,
+                            Candidate.passed_at == passed_at,
+                        )
+                    )
+                    if existing is None:
+                        return self.error(
+                            f"Candidate for object {obj_id_str} already exists but is not accessible"
+                        )
+                    candidates.append(existing)
+            await session.commit()
+            ids = [c.id for c in candidates]
 
             return self.success(data={"ids": ids})
 

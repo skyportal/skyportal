@@ -14,6 +14,7 @@ import TextField from "@mui/material/TextField";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
 import type { Annotation, Group } from "../../types";
+import { getAnnotationValueString } from "./annotationValue";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -45,21 +46,8 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export const getAnnotationValueString = (value: any): string => {
-  let valueString;
-  const valueType = typeof value;
-  switch (valueType) {
-    case "number":
-      valueString = value.toFixed(4);
-      break;
-    case "object":
-      valueString = JSON.stringify(value, null, 2);
-      break;
-    default:
-      valueString = value.toString();
-  }
-  return valueString;
-};
+// Re-exported for the many consumers that import it from this module.
+export { getAnnotationValueString };
 
 interface ScanningPageCandidateAnnotationsProps {
   annotations: Annotation[];

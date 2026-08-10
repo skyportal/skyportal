@@ -10,6 +10,11 @@ These `ObservationPlanRequest`s in particular are triggered on the front-end fro
 
 To evaluate the efficacy of the executed observation plans, we have the `ExecutedObservation`s table, which is accessible through the `observation` api. After execution of the requested observations in the `EventObservationPlan`, the user is responsible for uploading successfully executed observations to the `ExecutedObservation`s table (see below). Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the `Localization`s to determine sky coverage and integrated probability contained with the map.
 
+## Scanning events for optical counterparts
+
+Broker alerts can be crossmatched against an event's localization and raised as
+candidates to scan; see [Scanning GCN events for optical counterparts](./gcn_crossmatch.html).
+
 ## Uploading executed observations
 
 In addition to making available the `observation` api, we also include an Observations page to simplify upload and viewing of `ExecutedObservation`s. On this page, simply specify the instrument and upload a file of the form:
