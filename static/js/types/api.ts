@@ -7385,7 +7385,7 @@ export interface paths {
         };
         /**
          * Crossmatch progress for a GCN event
-         * @description Per-broker state of the alert crossmatch for this event: when it was
+         * @description Per-filter state of the alert crossmatch for this event: when it was
          *     last queried, how far through the alert stream it has got, how many
          *     matches it has saved, and any error.
          */
@@ -7422,7 +7422,7 @@ export interface paths {
         /**
          * Requeue the alert crossmatch for a GCN event
          * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Reset this event's crossmatch progress so the next service pass
-         *     re-queries every broker from the start of the window, including the
+         *     re-queries every filter from the start of the window, including the
          *     one-shot archival pass.
          *
          *     Existing sources and annotations are left alone: the crossmatch
@@ -26474,18 +26474,18 @@ export interface components {
         GcnEventCrossmatchState: {
             /** @description The GcnEvent being crossmatched. */
             readonly gcnevent?: components["schemas"]["GcnEvent"];
-            /** @description The Broker this state tracks progress against. */
-            readonly broker?: components["schemas"]["Broker"];
+            /** @description The Filter this state tracks progress against. */
+            readonly filter?: components["schemas"]["Filter"];
             /** @description The GcnEvent being crossmatched. */
             gcnevent_id: number;
-            /** @description The Broker this state tracks progress against. */
-            broker_id: number;
+            /** @description The Filter this state tracks progress against. */
+            filter_id: number;
             /**
              * Format: date-time
-             * @description When this event was last queried against this broker.
+             * @description When this event was last queried for this filter.
              */
             last_queried?: string | null;
-            /** @description JD of the newest alert seen for this event from this broker. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
             last_alert_jd?: number | null;
             /** @description One of: pending, processing, done, failed. */
             status?: string;
@@ -26513,18 +26513,18 @@ export interface components {
         GcnEventCrossmatchStateNoID: {
             /** @description The GcnEvent being crossmatched. */
             readonly gcnevent?: components["schemas"]["GcnEvent"];
-            /** @description The Broker this state tracks progress against. */
-            readonly broker?: components["schemas"]["Broker"];
+            /** @description The Filter this state tracks progress against. */
+            readonly filter?: components["schemas"]["Filter"];
             /** @description The GcnEvent being crossmatched. */
             gcnevent_id: number;
-            /** @description The Broker this state tracks progress against. */
-            broker_id: number;
+            /** @description The Filter this state tracks progress against. */
+            filter_id: number;
             /**
              * Format: date-time
-             * @description When this event was last queried against this broker.
+             * @description When this event was last queried for this filter.
              */
             last_queried?: string | null;
-            /** @description JD of the newest alert seen for this event from this broker. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
             last_alert_jd?: number | null;
             /** @description One of: pending, processing, done, failed. */
             status?: string;
