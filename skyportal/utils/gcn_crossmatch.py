@@ -50,6 +50,7 @@ from skyportal.models import (
     GcnEventCrossmatchState,
     Group,
     Obj,
+    SourcesConfirmedInGCN,
     User,
 )
 from skyportal.utils.crossmatch import (
@@ -357,13 +358,7 @@ async def process_event_broker(
             jd_start = max(jd_start, state.last_alert_jd)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
 
-    # Only offer the broker the alert programs the event's own groups are
-    # entitled to, so the crossmatch cannot pull in data the audience for this
-    # event could not otherwise see.
-    streams = []
-    for group in event.groups:
-        streams.extend(group.streams or [])
-    permissions = survey_permissions(streams)
+    permissions = await query_permissions(session, event, conf(config, "filter_id"))
 
     implements = broker.broker_class.implements()
     survey = conf(config, "survey")
@@ -461,6 +456,7 @@ async def process_event_broker(
     event_key = str(event.trigger_id or event.dateobs)
     event_dateobs = event.dateobs
     state_id = state.id
+    user_id = user.id
 
     for index in sorted(inside):
         alert = keep[index]
@@ -485,6 +481,7 @@ async def process_event_broker(
                     event_jd, ra0, dec0, radius, alert, archival=archival
                 ),
             )
+            await propose_association(session, user_id, object_id, event_dateobs)
             await session.commit()
             matched += 1
         except Exception as e:
@@ -747,6 +744,48 @@ def cone_match_stage(ra, dec, radius_deg):
             }
         }
     }
+
+
+async def propose_association(session, user_id, obj_id, event_dateobs):
+    """Record the match as awaiting review: confirmed stays NULL until a human
+    confirms or rejects it. confirmer_id is NOT NULL, so it records the service
+    user that proposed the row, not a verdict. Never overwrites an existing one."""
+    existing = await session.scalar(
+        sa.select(SourcesConfirmedInGCN).where(
+            SourcesConfirmedInGCN.obj_id == obj_id,
+            SourcesConfirmedInGCN.dateobs == event_dateobs,
+        )
+    )
+    if existing is None:
+        session.add(
+            SourcesConfirmedInGCN(
+                obj_id=obj_id, dateobs=event_dateobs, confirmer_id=user_id
+            )
+        )
+
+
+async def query_permissions(session, event, filter_id):
+    """Alert programs to query, as {survey: [programids]}.
+
+    Bounded by the filter's stream, since its group is who sees the candidates.
+    Using the event's groups drops partnership alerts for public events.
+    """
+    if filter_id is not None:
+        f = await session.scalar(
+            sa.select(Filter)
+            .options(selectinload(Filter.stream))
+            .where(Filter.id == int(filter_id))
+        )
+        if f is not None and f.stream is not None:
+            permissions = survey_permissions([f.stream])
+            if permissions:
+                return permissions
+
+    # No filter, or its stream grants nothing: fall back to the event's groups.
+    streams = []
+    for group in event.groups:
+        streams.extend(group.streams or [])
+    return survey_permissions(streams)
 
 
 async def resolve_quality_pipeline(session, broker, filter_id):
