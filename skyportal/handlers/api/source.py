@@ -2752,7 +2752,9 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-            if not isinstance(isoparse(obstime), datetime.datetime):
+            try:
+                isoparse(obstime)
+            except (ValueError, TypeError):
                 return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
@@ -3183,7 +3185,9 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")

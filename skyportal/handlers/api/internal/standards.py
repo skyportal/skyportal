@@ -1,5 +1,4 @@
 import ast
-import datetime
 
 from dateutil.parser import isoparse
 
@@ -95,7 +94,9 @@ class StandardsHandler(BaseHandler):
         ra_filter_range_str = self.get_query_argument("ra_filter_range", "[0, 360]")
         show_first_line = self.get_query_argument("show_first_line", False)
         obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
 
         if standard_type not in cfg["standard_stars"]:
