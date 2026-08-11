@@ -63,21 +63,46 @@ page.
 > **Choose the filter's group deliberately.** A candidate is visible to the
 > filter's group. Annotations inherit the *event's* groups, so the link between
 > an object and a restricted event stays restricted, but the candidate itself
-> does not. For a proprietary stream, point `filter_id` at a filter whose group
-> matches that stream's audience.
+> does not. For a proprietary stream, use a filter whose group matches that
+> stream's audience.
+
+## What gets crossmatched
+
+A **Filter** is one crossmatch configuration. It already names the broker, the
+stream (hence the survey and the alert programs) and the group that sees the
+candidates, so nothing about *which* alerts to search lives in `config.yaml`.
+Opt a filter in through its `altdata`:
+
+```yaml
+altdata:
+  gcn_crossmatch:
+    enabled: true
+    # optional: restrict to matching events. Same shape as DefaultGcnTag --
+    # an absent or empty list means no restriction.
+    filters:
+      gcn_tags: ["Einstein Probe"]
+    # optional: any setting from the table below, for this filter alone
+    delta_t_after: 7.0
+```
+
+Adding a second survey is a second filter, not a code change: point it at an
+LSST stream and the matching broker, and it runs alongside with its own
+windows, its own cuts and its own audience.
+
+Progress is tracked per (event, filter), so two filters sharing a broker never
+interfere.
 
 ## Configuration reference
 
-All settings live under `gcn_crossmatch` in `config.yaml`:
+These are the defaults every opted-in filter inherits, under `gcn_crossmatch`
+in `config.yaml`. Any of them can be overridden per filter.
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `enabled` | `False` | Run the service at all |
 | `poll_interval` | `300` | Seconds between passes |
-| `filter_id` | unset | SkyPortal Filter holding the quality cuts |
-| `survey` | `ZTF` | Survey whose alerts are searched |
 | `max_event_age` | `31.0` | Days; older events are no longer crossmatched |
-| `recheck_interval_minutes` | `10.0` | Minimum gap before re-querying an event |
+| `recheck_interval_minutes` | `60.0` | Minimum gap before re-querying an event |
 | `delta_t_before` / `delta_t_after` | `1.0` / `31.0` | Query window around the event, in days |
 | `archival` / `archival_days` | `True` / `31.0` | One-shot pre-event search |
 | `max_radius_deg` | `5.0` | Skip localizations bounding wider than this |
@@ -103,10 +128,17 @@ by event, holding the fields the reviewer needs:
 | `ndethist` | Number of prior detections |
 | `event_mjd` | Event time, MJD |
 | `prior_activity` | Set when the position was already active before the event |
+| `dist_mean`, `dist_std` | For a 3D (GW) skymap: the distance the event implies *at this position*, in Mpc |
 
 Because these are annotations, they can be sorted and filtered on the scanning
 page — `delta_t` and `distance_arcmin` are the usual first cut, and
 `prior_activity` is the quickest way to discard variables.
+
+`dist_mean`/`dist_std` are the *conditional* distance at the candidate's own
+pixel, not the skymap's marginal distance: for a localization spanning a range
+of distances the two differ, and "inside the localization volume" means the
+former. They are recorded rather than cut on, because an alert rarely has a host
+redshift at discovery — compare them against one when it is known.
 
 Once a candidate is saved to a group, it appears as a source on that event's
 page in the usual way.

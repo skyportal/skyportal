@@ -2539,7 +2539,7 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
                 if len(filters.get("notice_types", [])) > 0:
                     if not any(
                         notice_type in event_notice_types
-                        for notice_type in filters["notice_type"]
+                        for notice_type in filters["notice_types"]
                     ):
                         continue
                 if len(filters.get("localization_tags", [])) > 0:
@@ -2550,8 +2550,10 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
                 tag_name = default_gcn_tag.default_tag_name
                 if tag_name not in event_tags and tag_name not in gcn_tags:
                     gcn_tags.append(tag_name)
-            except Exception:
-                pass
+            except Exception as e:
+                # Don't let one malformed default stop the others, but say so:
+                # a silent pass here hid a bad filter key for a long time.
+                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
 
         gcn_tags = [
             GcnTag(
@@ -2613,7 +2615,7 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
                 if len(filters.get("notice_types", [])) > 0:
                     if not any(
                         notice_type in event_notice_types
-                        for notice_type in filters["notice_type"]
+                        for notice_type in filters["notice_types"]
                     ):
                         continue
                 if len(filters.get("localization_tags", [])) > 0:
@@ -2624,8 +2626,10 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
                 tag_name = default_gcn_tag.default_tag_name
                 if tag_name not in event_tags and tag_name not in gcn_tags:
                     gcn_tags.append(tag_name)
-            except Exception:
-                pass
+            except Exception as e:
+                # Don't let one malformed default stop the others, but say so:
+                # a silent pass here hid a bad filter key for a long time.
+                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
 
         gcn_tags = [
             GcnTag(

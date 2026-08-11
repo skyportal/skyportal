@@ -993,21 +993,35 @@ gcn:
 
 gcn_crossmatch:
   # Crossmatch broker alerts against active GCN localizations: for each event
-  # still inside its window, query every active broker that implements
-  # query_alerts, keep the alerts genuinely inside the credible region, save
-  # them as sources and annotate them with their offset from the event.
+  # still inside its window, query the alerts near its localization, keep the
+  # ones genuinely inside the credible region, and raise them as candidates.
   #
-  # Sources and annotations inherit the event's groups, so a restricted event's
-  # matches stay as restricted as the event itself.
+  # What gets crossmatched is configured per SkyPortal Filter, not here: a
+  # filter names the broker, the stream (hence survey and programids) and the
+  # group that sees the candidates. Opt one in with
+  #
+  #   altdata:
+  #     gcn_crossmatch:
+  #       enabled: true
+  #       # optional, same shape as DefaultGcnTag: restrict to matching events
+  #       filters: {gcn_tags: ["Einstein Probe"]}
+  #       # optional: any setting below, overridden for this filter alone
+  #       delta_t_after: 7.0
+  #
+  # The values here are the defaults every such filter inherits.
+  #
+  # Annotations inherit the event's groups, so a restricted event's matches stay
+  # as restricted as the event itself.
   enabled: False
-  # Seconds between passes over the due (event, broker) pairs.
+  # Seconds between passes over the due (event, filter) pairs.
   poll_interval: 300
   # Events older than this many days are no longer crossmatched.
   max_event_age: 31.0
-  # Minimum gap before an event is re-queried against the same broker. Events
+  # Minimum gap before an event is re-queried through the same filter. Events
   # are re-queried for as long as they are active because alerts keep arriving
-  # after the trigger.
-  recheck_interval_minutes: 10.0
+  # after the trigger. Hourly is far faster than a survey revisits a field, and
+  # keeps a month of active events well inside a broker's rate limit.
+  recheck_interval_minutes: 60.0
   # Query window around the event time, in days.
   delta_t_before: 1.0
   delta_t_after: 31.0
@@ -1018,15 +1032,7 @@ gcn_crossmatch:
   credible_level: 90
   # Cumulative probability defining "inside" for the containment check.
   cumprob: 0.95
-  # SkyPortal Filter id whose broker-side pipeline holds the alert quality cuts
-  # (real/bogus, solar-system, stellar and red-star rejection). Running the cuts
-  # as a broker filter keeps them versioned and editable in the filter builder,
-  # and rejects artifacts before they cross the wire. Left unset, the built-in
-  # ZTF cuts ported from ep-ztf-xmatch are used instead -- usable, but frozen.
-  filter_id:
-  # Survey whose alert collection is searched.
-  survey: ZTF
-  # Cap on alerts returned per event per broker per pass.
+  # Cap on alerts returned per event per filter per pass.
   max_alerts: 500
   # After a broker answers 429, skip it entirely for this many minutes. Quotas
   # are per account and shared with the rest of the app, so retrying sooner

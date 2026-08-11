@@ -12,19 +12,23 @@ import uuid
 from datetime import timedelta
 
 import numpy as np
+import pytest
 import sqlalchemy as sa
+from astropy.time import Time
 
 from baselayer.app import models
 from skyportal.broker_apis import GENERICBROKER
 from skyportal.models import (
     Annotation,
     Candidate,
+    Filter,
     GcnEventCrossmatchState,
     Localization,
     Obj,
     Source,
 )
 from skyportal.tests import api
+from skyportal.tests.fixtures import FilterFactory, StreamFactory
 from skyportal.utils.gcn_crossmatch import ANNOTATION_ORIGIN, run_cycle
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -54,6 +58,28 @@ def _post_event(token, group_ids, ra, dec):
     status, data = api("POST", "gcn_event", data=payload, token=token)
     assert status == 200, data
     return dateobs, payload["trigger_id"]
+
+
+@pytest.fixture()
+def crossmatch_filter(public_group, broker):
+    """A filter opted into the crossmatch.
+
+    The filter is the unit of configuration: it names the broker, the stream
+    (hence survey and programids) and the group that sees the candidates.
+    """
+    stream = StreamFactory(
+        altdata={"collection": "ZTF_alerts", "selector": [1, 2]},
+    )
+    filter_ = FilterFactory(
+        group=public_group,
+        stream=stream,
+        broker=broker,
+        altdata={"gcn_crossmatch": {"enabled": True}},
+    )
+    filter_id, stream_id = filter_.id, stream.id
+    yield filter_
+    FilterFactory.teardown(filter_id)
+    StreamFactory.teardown(stream_id)
 
 
 def _stub_provider(monkeypatch, alerts, saved, ra=0.0, dec=0.0):
@@ -100,7 +126,7 @@ def _alert(object_id, ra, dec, jd):
 
 
 def test_crossmatch_saves_only_contained_in_window_alerts(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """Only alerts inside the localization *and* inside the epoch window are saved."""
     ra, dec = _unique_position()
@@ -137,7 +163,7 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
 
 
 def test_crossmatch_passes_event_groups_and_epoch_window(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """Saves inherit the event's groups, and the broker is given the epoch window.
 
@@ -174,7 +200,7 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
 
 def test_crossmatch_records_state_and_annotation(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """A match leaves per-broker state and an event-relative annotation behind."""
     ra, dec = _unique_position()
@@ -197,7 +223,7 @@ def test_crossmatch_records_state_and_annotation(
                 Localization,
                 Localization.dateobs == dateobs,
             )
-            .where(GcnEventCrossmatchState.broker_id == broker.id)
+            .where(GcnEventCrossmatchState.filter_id == crossmatch_filter.id)
             .order_by(GcnEventCrossmatchState.created_at.desc())
         )
         assert state is not None, "no crossmatch state row was written"
@@ -222,7 +248,7 @@ def test_crossmatch_records_state_and_annotation(
 
 
 def test_crossmatch_skips_events_outside_the_age_window(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """An event older than max_event_age is not queried at all."""
     ra, dec = _unique_position()
@@ -279,7 +305,7 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
 
 
 def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """When the broker supports filters, cuts run server-side as a pipeline.
 
@@ -334,7 +360,7 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
 
 
 def test_annotation_carries_alert_quality_fields(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """The annotation exposes the columns reviewers triage on."""
     ra, dec = _unique_position()
@@ -394,7 +420,7 @@ def test_annotation_carries_alert_quality_fields(
 
 
 def test_archival_match_flags_prior_activity_and_survives_forward_pass(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """A pre-event detection marks the candidate, and a later match keeps the mark.
 
@@ -443,14 +469,14 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
 
         state = session.scalar(
             sa.select(GcnEventCrossmatchState)
-            .where(GcnEventCrossmatchState.broker_id == broker.id)
+            .where(GcnEventCrossmatchState.filter_id == crossmatch_filter.id)
             .order_by(GcnEventCrossmatchState.created_at.desc())
         )
         assert state.archival_done is True, "archival pass should not repeat"
 
 
 def test_match_creates_candidate_not_source(
-    super_admin_token, public_group2, public_filter, broker, monkeypatch
+    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
 ):
     """With a filter configured, a match becomes a scannable Candidate only.
 
@@ -471,7 +497,7 @@ def test_match_creates_candidate_not_source(
     recorded = {}
     _stub_provider(monkeypatch, [alert], recorded, ra, dec)
 
-    asyncio.run(run_cycle({"archival": False, "filter_id": public_filter.id}))
+    asyncio.run(run_cycle({"archival": False}))
 
     with models.DBSession() as session:
         obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
@@ -482,7 +508,7 @@ def test_match_creates_candidate_not_source(
             sa.select(Candidate).where(Candidate.obj_id == obj_id)
         ).all()
         assert len(candidates) == 1, candidates
-        assert candidates[0].filter_id == public_filter.id
+        assert candidates[0].filter_id == crossmatch_filter.id
         assert candidates[0].passing_alert_id == 123456789
 
         sources = session.scalars(
@@ -492,7 +518,7 @@ def test_match_creates_candidate_not_source(
 
 
 def test_candidate_creation_is_idempotent(
-    super_admin_token, public_group2, public_filter, broker, monkeypatch
+    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
 ):
     """Re-running must not pile up duplicate candidates for the same epoch."""
     ra, dec = _unique_position()
@@ -507,7 +533,7 @@ def test_candidate_creation_is_idempotent(
         monkeypatch, [_alert(obj_id, ra, dec, event_jd + 0.2)], recorded, ra, dec
     )
 
-    config = {"archival": False, "filter_id": public_filter.id}
+    config = {"archival": False}
     asyncio.run(run_cycle(config))
     # force the event to be due again rather than waiting out the recheck gap
     with models.DBSession() as session:
@@ -524,3 +550,51 @@ def test_candidate_creation_is_idempotent(
             sa.select(Candidate).where(Candidate.obj_id == obj_id)
         ).all()
     assert len(candidates) == 1, f"duplicate candidates created: {candidates}"
+
+
+def test_filter_only_runs_against_matching_events(
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+):
+    """A filter scoped by gcn_tags skips events that do not carry one.
+
+    Same `filters` shape as DefaultGcnTag: an empty list means no restriction,
+    otherwise the event must carry at least one listed tag. This is what keeps
+    GRB matches out of an EP-only scanning page.
+    """
+    # capture before opening other sessions: the fixture instance detaches
+    filter_id = crossmatch_filter.id
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    alert_jd = Time(dateobs).jd + 0.5
+
+    # the event above carries ["TEST"]; scope the filter to something else
+    with models.DBSession() as session:
+        f = session.get(Filter, filter_id)
+        f.altdata = {
+            "gcn_crossmatch": {"enabled": True, "filters": {"gcn_tags": ["EP"]}}
+        }
+        session.commit()
+
+    recorded = {}
+    _stub_provider(
+        monkeypatch, [_alert("XM_scoped", ra, dec, alert_jd)], recorded, ra, dec
+    )
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert not _calls_at(recorded, "query_kwargs", ra), (
+        "filter ran against an event that does not carry its tag"
+    )
+    assert _objs_created(["XM_scoped"]) == set()
+
+    # widen the scope to a tag the event does carry, and it runs
+    with models.DBSession() as session:
+        f = session.get(Filter, filter_id)
+        f.altdata = {
+            "gcn_crossmatch": {"enabled": True, "filters": {"gcn_tags": ["TEST"]}}
+        }
+        session.commit()
+
+    asyncio.run(run_cycle({"archival": False}))
+    assert _calls_at(recorded, "query_kwargs", ra), (
+        "filter did not run on a tagged event"
+    )
