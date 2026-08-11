@@ -94,6 +94,19 @@ ANNOTATION_ORIGIN = "GCN-crossmatch"
 _rate_limited_until: dict = {}
 
 
+# Filter configuration changes rarely, so reporting it every cycle is noise --
+# but never reporting it hides a misconfiguration. Log only when it changes.
+_last_filter_report: dict = {}
+
+
+def report_once(key, message):
+    """Log `message` only when it differs from the last one for `key`."""
+    if _last_filter_report.get(key) == message:
+        return
+    _last_filter_report[key] = message
+    log(message)
+
+
 def rate_limited_until(broker_id):
     """When this broker's backoff expires, or None if it is not backed off."""
     until = _rate_limited_until.get(broker_id)
@@ -457,8 +470,8 @@ async def process_event_filter(
             result.get("results", []) if isinstance(result, dict) else (result or [])
         )
         log(
-            f"{broker.name}: {len(alerts)} alert(s) for {event.dateobs} "
-            f"using {cuts_source}"
+            f"{filter_.name} via {broker.name}: {len(alerts)} alert(s) for "
+            f"{event.dateobs} using {cuts_source}"
         )
     else:
         # Fallback for providers with no filter support: an unfiltered positional
@@ -503,8 +516,8 @@ async def process_event_filter(
 
     if undated:
         log(
-            f"{broker.name}: dropped {undated} alert(s) with no JD near "
-            f"{event.dateobs} (cannot place them in the event window)"
+            f"{filter_.name} via {broker.name}: dropped {undated} alert(s) with "
+            f"no JD near {event.dateobs} (cannot place them in the event window)"
         )
 
     inside = await contained_in_localization(
@@ -614,21 +627,49 @@ async def run_cycle(config=None, user_id=1):
             .unique()
             .all()
         )
-        filters = [
-            f
-            for f in filters
-            if crossmatch_enabled(f)
-            and f.broker is not None
-            and f.broker.active
-            and f.broker.broker_class.implements().get("query_alerts")
-            and filter_survey(f) is not None
-        ]
+        # A filter that opted in but cannot be used is a misconfiguration, not a
+        # preference: say which and why, rather than dropping it silently and
+        # looking like the service simply found nothing to do.
+        opted_in = [f for f in filters if crossmatch_enabled(f)]
+        filters = []
+        for f in opted_in:
+            problem = None
+            if f.broker is None:
+                problem = "no broker set on the filter"
+            elif not f.broker.active:
+                problem = f"broker {f.broker.name} is not active"
+            elif not f.broker.broker_class.implements().get("query_alerts"):
+                problem = f"broker {f.broker.name} does not implement query_alerts"
+            elif filter_survey(f) is None:
+                problem = (
+                    "its stream names no survey "
+                    "(needs altdata.collection, e.g. ZTF_alerts)"
+                )
+            if problem:
+                report_once(
+                    f"filter:{f.id}",
+                    f"Filter {f.id} ({f.name}) opted in but is being skipped: {problem}",
+                )
+            else:
+                report_once(f"filter:{f.id}", f"Filter {f.id} ({f.name}) is active")
+                filters.append(f)
+
         if not filters:
-            log(
-                "No filter opted into the crossmatch "
-                f"(set altdata.{CROSSMATCH_ALTDATA_KEY}.enabled); nothing to do"
+            report_once(
+                "active",
+                f"No usable filter opted into the crossmatch ({len(opted_in)} opted "
+                f"in); set altdata.{CROSSMATCH_ALTDATA_KEY}.enabled on a filter with "
+                "an active broker and a survey stream",
             )
             return 0
+
+        report_once(
+            "active",
+            f"Crossmatching against {len(filters)} filter(s): "
+            + ", ".join(
+                f"{f.name} [{filter_survey(f)} via {f.broker.name}]" for f in filters
+            ),
+        )
 
         events = (
             (
