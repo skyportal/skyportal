@@ -18,3 +18,27 @@ export const getAnnotationValueString = (value: any): string => {
   }
   return valueString;
 };
+
+// Some annotations nest their fields one level down -- the GCN crossmatch keys
+// its measurements per event, so the whole set would otherwise render as a
+// single unreadable JSON blob. Give every leaf its own row, named "event.field".
+// Arrays stay whole: they are usually one value, not a group of them.
+export const flattenAnnotationData = (
+  data: Record<string, any>,
+  maxDepth = 2,
+): [string, any][] => {
+  const rows: [string, any][] = [];
+  const walk = (value: any, path: string, depth: number) => {
+    const isPlainObject =
+      value !== null && typeof value === "object" && !Array.isArray(value);
+    if (isPlainObject && depth < maxDepth && Object.keys(value).length > 0) {
+      Object.entries(value).forEach(([key, inner]) =>
+        walk(inner, path ? `${path}.${key}` : key, depth + 1),
+      );
+      return;
+    }
+    rows.push([path, value]);
+  };
+  Object.entries(data || {}).forEach(([key, value]) => walk(value, key, 1));
+  return rows;
+};
