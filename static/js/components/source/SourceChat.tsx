@@ -2,6 +2,8 @@ import { KeyboardEvent, Suspense, lazy, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
 import CloseIcon from "@mui/icons-material/Close";
+import PictureInPictureAltIcon from "@mui/icons-material/PictureInPictureAlt";
+import VerticalSplitIcon from "@mui/icons-material/VerticalSplit";
 import CircularProgress from "@mui/material/CircularProgress";
 import Fab from "@mui/material/Fab";
 import IconButton from "@mui/material/IconButton";
@@ -22,6 +24,7 @@ import {
 const CommentList = lazy(() => import("../comment/CommentList"));
 
 const MAIN_CHANNEL = "Comments";
+const INLINE_KEY = "sourceChatInline";
 
 const useStyles = makeStyles()((theme) => ({
   fab: {
@@ -29,6 +32,12 @@ const useStyles = makeStyles()((theme) => ({
     right: "1.5rem",
     bottom: "1.5rem",
     zIndex: theme.zIndex.drawer,
+  },
+  inlinePanel: {
+    display: "flex",
+    flexDirection: "column",
+    height: "60vh",
+    overflow: "hidden",
   },
   panel: {
     position: "fixed",
@@ -91,19 +100,45 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+// Inline mode is a user preference kept across all source pages.
+export const useSourceChat = () => {
+  const [inline, setInline] = useState(
+    () => window.localStorage.getItem(INLINE_KEY) === "true",
+  );
+  const [open, setOpen] = useState(false);
+
+  const toggleInline = () => {
+    window.localStorage.setItem(INLINE_KEY, String(!inline));
+    setInline(!inline);
+    setOpen(true);
+  };
+
+  return { inline, open, setOpen, toggleInline };
+};
+
 interface SourceChatProps {
   sourceID: string;
+  inline: boolean;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  toggleInline: () => void;
 }
 
-const SourceChat = ({ sourceID }: SourceChatProps) => {
+const SourceChat = ({
+  sourceID,
+  inline,
+  open,
+  setOpen,
+  toggleInline,
+}: SourceChatProps) => {
   const { classes } = useStyles();
-  const [channel, setChannel] = useState<string | null>(null);
+  const [channel, setChannel] = useState<string>(MAIN_CHANNEL);
   const [newChannel, setNewChannel] = useState<string | null>(null);
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
   const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
   const { data: openedChannels = [] } = useGetConversationsQuery(sourceID, {
-    skip: channel === null,
+    skip: !inline && !open,
   });
   const [deleteConversation] = useDeleteConversationMutation();
 
@@ -138,112 +173,135 @@ const SourceChat = ({ sourceID }: SourceChatProps) => {
     if (channel === name) setChannel(MAIN_CHANNEL);
   };
 
+  const panel = (
+    <Paper
+      className={inline ? classes.inlinePanel : classes.panel}
+      elevation={inline ? 1 : 8}
+      data-testid="source-chat"
+    >
+      <div className={classes.header}>
+        {!inline && (
+          <Typography variant="h6" className={classes.sourceName}>
+            {sourceID}
+          </Typography>
+        )}
+        <div>
+          <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
+            <IconButton
+              size="small"
+              onClick={toggleInline}
+              data-testid="toggle-inline-chat"
+            >
+              {inline ? (
+                <PictureInPictureAltIcon fontSize="small" />
+              ) : (
+                <VerticalSplitIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+          {!inline && (
+            <IconButton size="small" onClick={() => setOpen(false)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
+        </div>
+      </div>
+      <div className={classes.tabs}>
+        <Tabs
+          value={channel}
+          onChange={(_, value) => setChannel(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          {channels.map((name) => (
+            <Tab
+              key={name}
+              value={name}
+              onMouseEnter={() => setHoveredChannel(name)}
+              onMouseLeave={() => setHoveredChannel(null)}
+              label={
+                <span className={classes.tabLabel}>
+                  {name}
+                  {name !== MAIN_CHANNEL && (
+                    <CloseIcon
+                      fontSize="inherit"
+                      className={classes.tabClose}
+                      style={{
+                        visibility:
+                          hoveredChannel === name ? "visible" : "hidden",
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeChannel(name);
+                      }}
+                      data-testid={`delete-channel-${name}`}
+                    />
+                  )}
+                </span>
+              }
+            />
+          ))}
+        </Tabs>
+        {newChannel === null ? (
+          <Tooltip title="New conversation">
+            <IconButton
+              size="small"
+              onClick={() => setNewChannel("")}
+              data-testid="new-channel-button"
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <TextField
+            autoFocus
+            size="small"
+            variant="standard"
+            placeholder="Conversation name"
+            value={newChannel}
+            onChange={(event) => setNewChannel(event.target.value)}
+            onKeyDown={onNewChannelKeyDown}
+            onBlur={createChannel}
+          />
+        )}
+      </div>
+      <div className={classes.comments}>
+        <Suspense
+          fallback={
+            <div className={classes.loader}>
+              <CircularProgress />
+            </div>
+          }
+        >
+          <CommentList
+            key={channel}
+            objID={sourceID}
+            compact
+            channel={channel === MAIN_CHANNEL ? undefined : channel}
+          />
+        </Suspense>
+      </div>
+    </Paper>
+  );
+
+  if (inline) return panel;
+
   return (
     <>
-      {!(downSm && channel !== null) && (
+      {!(downSm && open) && (
         <Tooltip title="Comments and discussions" placement="left">
           <Fab
             color="primary"
             size="medium"
             className={classes.fab}
-            onClick={() => setChannel(channel === null ? MAIN_CHANNEL : null)}
+            onClick={() => setOpen(!open)}
             data-testid="source-chat-button"
           >
-            {channel === null ? <ChatIcon /> : <CloseIcon />}
+            {open ? <CloseIcon /> : <ChatIcon />}
           </Fab>
         </Tooltip>
       )}
-      {channel !== null && (
-        <Paper
-          className={classes.panel}
-          elevation={8}
-          data-testid="source-chat"
-        >
-          <div className={classes.header}>
-            <Typography variant="h6" className={classes.sourceName}>
-              {sourceID}
-            </Typography>
-            <IconButton size="small" onClick={() => setChannel(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </div>
-          <div className={classes.tabs}>
-            <Tabs
-              value={channel}
-              onChange={(_, value) => setChannel(value)}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              {channels.map((name) => (
-                <Tab
-                  key={name}
-                  value={name}
-                  onMouseEnter={() => setHoveredChannel(name)}
-                  onMouseLeave={() => setHoveredChannel(null)}
-                  label={
-                    <span className={classes.tabLabel}>
-                      {name}
-                      {name !== MAIN_CHANNEL && (
-                        <CloseIcon
-                          fontSize="inherit"
-                          className={classes.tabClose}
-                          style={{
-                            visibility:
-                              hoveredChannel === name ? "visible" : "hidden",
-                          }}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            removeChannel(name);
-                          }}
-                          data-testid={`delete-channel-${name}`}
-                        />
-                      )}
-                    </span>
-                  }
-                />
-              ))}
-            </Tabs>
-            {newChannel === null ? (
-              <Tooltip title="New conversation">
-                <IconButton
-                  size="small"
-                  onClick={() => setNewChannel("")}
-                  data-testid="new-channel-button"
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <TextField
-                autoFocus
-                size="small"
-                variant="standard"
-                placeholder="Conversation name"
-                value={newChannel}
-                onChange={(event) => setNewChannel(event.target.value)}
-                onKeyDown={onNewChannelKeyDown}
-                onBlur={createChannel}
-              />
-            )}
-          </div>
-          <div className={classes.comments}>
-            <Suspense
-              fallback={
-                <div className={classes.loader}>
-                  <CircularProgress />
-                </div>
-              }
-            >
-              <CommentList
-                key={channel}
-                objID={sourceID}
-                compact
-                channel={channel === MAIN_CHANNEL ? undefined : channel}
-              />
-            </Suspense>
-          </div>
-        </Paper>
-      )}
+      {open && panel}
     </>
   );
 };

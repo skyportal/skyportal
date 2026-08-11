@@ -62,7 +62,7 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import SourceChat from "./SourceChat";
+import SourceChat, { useSourceChat } from "./SourceChat";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -266,6 +266,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const sourceChat = useSourceChat();
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
     useState(false);
@@ -440,6 +441,20 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <GcnNotesTable gcnNotes={source.gcn_notes} />
             </AccordionDetails>
           </Accordion>
+        </Grid>
+      )}
+      {!isReadOnly && sourceChat.inline && (
+        <Grid
+          size={{ xs: 12, lg: 6 }}
+          sx={{
+            order: {
+              xs: 3,
+              md: 3,
+              lg: downLarge || isRightPanelVisible ? 5 : 4,
+            },
+          }}
+        >
+          <SourceChat sourceID={source.id} {...sourceChat} />
         </Grid>
       )}
       <Grid
@@ -1632,7 +1647,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
           t0={source.t0}
         />
       </Grid>
-      {!isReadOnly && <SourceChat sourceID={source.id} />}
+      {!isReadOnly && !sourceChat.inline && (
+        <SourceChat sourceID={source.id} {...sourceChat} />
+      )}
     </Grid>
   );
 };
@@ -1657,27 +1674,13 @@ const Source = ({ route }: SourceProps) => {
     }
   }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (isError) {
-    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
-  }
-  if (isLoading || !source) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  }
-  if (source.id === undefined) {
-    return <div>Source not found</div>;
-  }
+  if (isError) return (error as any)?.error ?? "Error while loading source";
+  if (isLoading || !source) return <Spinner />;
+  if (source.id === undefined) return "Source not found";
   // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;
 
-  return (
-    <div>
-      <SourceContent source={source} />
-    </div>
-  );
+  return <SourceContent source={source} />;
 };
 
 export default withRouter(Source);
