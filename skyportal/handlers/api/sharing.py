@@ -109,7 +109,13 @@ class SharingHandler(BaseHandler):
                     existing_group_ids = {g.id for g in phot.groups}
                     for group in groups:
                         if group.id not in existing_group_ids:
-                            phot.groups.append(group)
+                            await session.execute(
+                                sa.text(
+                                    "INSERT INTO group_photometry (photometr_id, group_id, created_at, modified) "
+                                    "VALUES (:phot_id, :group_id, NOW(), NOW()) ON CONFLICT DO NOTHING"
+                                ),
+                                {"phot_id": phot.id, "group_id": group.id},
+                            )
                     phot_obj_ids.append(phot.obj_id)
 
             if spec_ids:
