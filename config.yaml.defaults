@@ -1019,8 +1019,9 @@ gcn_crossmatch:
   max_event_age: 31.0
   # Minimum gap before an event is re-queried through the same filter. Events
   # are re-queried for as long as they are active because alerts keep arriving
-  # after the trigger.
-  recheck_interval_minutes: 10.0
+  # after the trigger. Hourly is far faster than a survey revisits a field, and
+  # keeps a month of active events well inside a broker's rate limit.
+  recheck_interval_minutes: 60.0
   # Query window around the event time, in days.
   delta_t_before: 1.0
   delta_t_after: 31.0

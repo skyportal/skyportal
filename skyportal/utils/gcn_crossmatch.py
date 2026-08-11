@@ -33,9 +33,11 @@ import math
 import traceback
 from datetime import timedelta
 
+import healpy
+import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 from sqlalchemy.orm.attributes import flag_modified
 
 from baselayer.app import models
@@ -66,7 +68,7 @@ log = make_log("gcn_crossmatch")
 
 DEFAULTS = {
     "max_event_age": 31.0,
-    "recheck_interval_minutes": 10.0,
+    "recheck_interval_minutes": 60.0,
     "delta_t_before": 1.0,
     "delta_t_after": 31.0,
     "max_radius_deg": 5.0,
@@ -231,7 +233,9 @@ def _candidate(alert):
     return candidate if isinstance(candidate, dict) else {}
 
 
-def build_annotation_data(event_jd, ra0, dec0, radius_deg, alert, archival=False):
+def build_annotation_data(
+    event_jd, ra0, dec0, radius_deg, alert, archival=False, distance_at=None
+):
     """Event-relative and alert-quality values for one matched alert.
 
     Mirrors ep_fritz.py's annotation, so the same columns are available for
@@ -260,6 +264,17 @@ def build_annotation_data(event_jd, ra0, dec0, radius_deg, alert, archival=False
     jdstarthist = candidate.get("jdstarthist")
     if jd is not None and jdstarthist is not None:
         data["age"] = round(jd - float(jdstarthist), 4)
+
+    # For a 3D (GW) skymap, what distance the event implies *here*. Recorded
+    # rather than cut on: an alert rarely has a host redshift at discovery, so
+    # this is for a scanner to compare against once one is known.
+    if distance_at is not None and position is not None:
+        distance = distance_at(*position)
+        if distance is not None:
+            data["dist_mean"], data["dist_std"] = (
+                round(distance[0], 2),
+                round(distance[1], 2),
+            )
 
     if event_jd is not None:
         data["event_mjd"] = round(event_jd - 2400000.5, 6)
@@ -511,6 +526,7 @@ async def process_event_filter(
     event_dateobs = event.dateobs
     state_id = state.id
     user_id = user.id
+    distance_at = distance_lookup(localization)
 
     for index in sorted(inside):
         alert = keep[index]
@@ -532,7 +548,13 @@ async def process_event_filter(
                 event_dateobs,
                 group_ids,
                 build_annotation_data(
-                    event_jd, ra0, dec0, radius, alert, archival=archival
+                    event_jd,
+                    ra0,
+                    dec0,
+                    radius,
+                    alert,
+                    archival=archival,
+                    distance_at=distance_at,
                 ),
             )
             await propose_association(session, user_id, object_id, event_dateobs)
@@ -620,8 +642,15 @@ async def run_cycle(config=None, user_id=1):
                         selectinload(GcnEvent._tags),
                         # tags eagerly: event_matches reads them, and a lazy
                         # load in an async session raises MissingGreenlet.
-                        selectinload(GcnEvent.localizations).selectinload(
-                            Localization.tags
+                        selectinload(GcnEvent.localizations).options(
+                            selectinload(Localization.tags),
+                            # deferred arrays: distance_lookup reads them, and a
+                            # lazy load in an async session raises MissingGreenlet
+                            undefer(Localization.uniq),
+                            undefer(Localization.probdensity),
+                            undefer(Localization.distmu),
+                            undefer(Localization.distsigma),
+                            undefer(Localization.distnorm),
                         ),
                     )
                 )
@@ -795,6 +824,36 @@ ZTF_QUALITY_CUTS = [
         }
     }
 ]
+
+
+def distance_lookup(localization):
+    """Return f(ra, dec) -> (mu, sigma) Mpc at that pixel, or None.
+
+    The conditional distance at the candidate's own position, not the skymap's
+    marginal distance: for a long arc spanning a range of distances the two
+    disagree, and "in the localization volume" means the former. Rasterizing is
+    expensive, so it happens once per localization and is then indexed per
+    candidate.
+    """
+    if not localization.is_3d:
+        return lambda ra, dec: None
+
+    try:
+        prob, distmu, distsigma, _ = localization.flat
+    except Exception as e:
+        log(f"Could not rasterize localization {localization.id} for distance: {e}")
+        return lambda ra, dec: None
+
+    nside = healpy.npix2nside(len(prob))
+
+    def lookup(ra, dec):
+        index = healpy.ang2pix(nside, float(ra), float(dec), lonlat=True)
+        mu, sigma = float(distmu[index]), float(distsigma[index])
+        if not (np.isfinite(mu) and np.isfinite(sigma)) or mu <= 0:
+            return None
+        return mu, sigma
+
+    return lookup
 
 
 def cone_match_stage(ra, dec, radius_deg):
