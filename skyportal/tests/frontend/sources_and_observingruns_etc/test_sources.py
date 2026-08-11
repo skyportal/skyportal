@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 
 import pytest
 from playwright.sync_api import expect
@@ -257,6 +258,28 @@ def test_comment_groups_validation(page, user, public_source, public_group):
     page.keyboard.press("Escape")
     submit_comment(page)
     wait_for_comment_display(page, comment_text)
+
+
+@pytest.mark.flaky(reruns=2)
+def test_feature_announcement_shown_once(page, user, public_source):
+    # Announcements only run for users created before the feature shipped.
+    user.created_at = datetime(2020, 1, 1)
+    DBSession().add(user)
+    DBSession().commit()
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    announcement = page.locator('//*[text()="Comments moved here"]').first
+    expect(announcement).to_be_visible()
+    page.locator('//button[text()="Got it"]').first.click()
+    expect(announcement).to_be_hidden()
+
+    page.reload()
+    expect(
+        page.locator('//button[@data-testid="source-chat-button"]').first
+    ).to_be_visible()
+    page.wait_for_timeout(2000)
+    expect(announcement).to_be_hidden()
 
 
 def test_view_only_user_cannot_comment(page, view_only_user, public_source):
