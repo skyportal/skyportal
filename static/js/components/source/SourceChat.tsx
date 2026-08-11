@@ -84,6 +84,10 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
+  detach: {
+    marginLeft: "auto",
+    paddingRight: "0.25rem",
+  },
   tabClose: {
     "&:hover": { color: theme.palette.error.main },
   },
@@ -173,39 +177,41 @@ const SourceChat = ({
     if (channel === name) setChannel(MAIN_CHANNEL);
   };
 
+  const inlineToggle = (
+    <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
+      <IconButton
+        size="small"
+        onClick={toggleInline}
+        data-testid="toggle-inline-chat"
+      >
+        {inline ? (
+          <PictureInPictureAltIcon fontSize="small" />
+        ) : (
+          <VerticalSplitIcon fontSize="small" />
+        )}
+      </IconButton>
+    </Tooltip>
+  );
+
   const panel = (
     <Paper
       className={inline ? classes.inlinePanel : classes.panel}
       elevation={inline ? 1 : 8}
       data-testid="source-chat"
     >
-      <div className={classes.header}>
-        {!inline && (
+      {!inline && (
+        <div className={classes.header}>
           <Typography variant="h6" className={classes.sourceName}>
             {sourceID}
           </Typography>
-        )}
-        <div>
-          <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
-            <IconButton
-              size="small"
-              onClick={toggleInline}
-              data-testid="toggle-inline-chat"
-            >
-              {inline ? (
-                <PictureInPictureAltIcon fontSize="small" />
-              ) : (
-                <VerticalSplitIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-          {!inline && (
+          <div>
+            {inlineToggle}
             <IconButton size="small" onClick={() => setOpen(false)}>
               <CloseIcon fontSize="small" />
             </IconButton>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       <div className={classes.tabs}>
         <Tabs
           value={channel}
@@ -264,6 +270,7 @@ const SourceChat = ({
             onBlur={createChannel}
           />
         )}
+        {inline && <div className={classes.detach}>{inlineToggle}</div>}
       </div>
       <div className={classes.comments}>
         <Suspense
