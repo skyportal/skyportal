@@ -129,7 +129,9 @@ def test_activation_checks_credentials(super_admin_token):
             token=super_admin_token,
         )
         assert status == 400, data
-        assert "refused the credentials" in data["message"]
+        # the handler names the refused action and the underlying reason
+        assert "cannot be activated" in data["message"]
+        assert "username" in data["message"] and "password" in data["message"]
 
         status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
         assert data["data"]["active"] is False
@@ -344,7 +346,9 @@ def test_broker_alerts_inactive(super_admin_token):
 
 def test_brokerapi_base_implements_nothing():
     caps = BrokerAPI.implements()
-    assert all(v is False for v in caps.values())
+    # falsy rather than False: the semantics flags are not all booleans
+    # (filter_pipeline names a dialect, and the base speaks none).
+    assert all(not v for v in caps.values())
     with pytest.raises(NotImplementedError):
         BrokerAPI.query_alerts(None, None)
 

@@ -168,8 +168,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         session.add(catalog_query)
         session.commit()
 
+        # localizationDateobs/localizationName come straight from the requester,
+        # so this lookup must honor the GcnEvent group restriction -- otherwise a
+        # user could name a restricted event and get galaxies in its error region.
         localization = session.scalars(
-            sa.select(Localization).where(
+            Localization.select(user).where(
                 Localization.dateobs == payload["localizationDateobs"],
                 Localization.localization_name == payload["localizationName"],
             )

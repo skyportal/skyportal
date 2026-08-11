@@ -19,6 +19,13 @@ auth_type = {% if database.password %}md5{% else %}trust{% endif %}
 
 auth_file = services/pgbouncer/userlist.txt
 admin_users = {{ database.user }}
-logfile = log/pgbouncer.log
+# The app runs SQLAlchemy with NullPool when this pooler is enabled (pgbouncer
+# owns the pooling), so every session is a fresh connect/disconnect. Logging
+# each one buries real errors under tens of lines a second; failures, pool
+# warnings and stats are still logged.
+log_connections = 0
+log_disconnections = 0
+# No logfile: supervisor captures stdout into log/pgbouncer.log. Setting both
+# makes pgbouncer write there itself *and* via supervisor, duplicating every line.
 pidfile = run/pgbouncer.pid
 {% endif %}

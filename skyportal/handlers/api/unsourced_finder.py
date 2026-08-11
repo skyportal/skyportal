@@ -152,7 +152,9 @@ class UnsourcedFinderHandler(BaseHandler):
             "obstime",
             utcnow_naive().isoformat(),
         )
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
 
         catalog_id = self.get_query_argument("catalog_id", "unknown")

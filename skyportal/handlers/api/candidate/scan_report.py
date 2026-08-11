@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
-from ....models import Filter, Group, Source
+from ....models import Filter, GcnEvent, Group, Source, SourcesConfirmedInGCN
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ....utils.naive_datetime import utcnow_naive
@@ -18,7 +18,7 @@ log = make_log("api/scan_report")
 
 
 async def get_sources_by_objs_in_range(
-    session, group_ids, passed_filters_range, saved_range
+    session, group_ids, passed_filters_range, saved_range, gcn_event_dateobs=None
 ):
     """
     Retrieve all candidates saved as source in given range by object
@@ -64,20 +64,36 @@ async def get_sources_by_objs_in_range(
             )
             .exists()
         )
+        conditions = [
+            Source.group_id.in_(group_ids),
+            Source.saved_at.between(
+                to_datetime(saved_range.get("start_saved_date")),
+                to_datetime(saved_range.get("end_saved_date")),
+            ),
+            Source.active.is_(True),
+            candidate_passed,
+        ]
+
+        if gcn_event_dateobs:
+            # Scope to one GCN event through the association the crossmatch
+            # records, not by re-testing the localization: containment alone
+            # would also sweep in sources that merely sit in the error circle.
+            conditions.append(
+                sa.select(1)
+                .select_from(SourcesConfirmedInGCN)
+                .where(
+                    SourcesConfirmedInGCN.obj_id == Source.obj_id,
+                    SourcesConfirmedInGCN.dateobs == gcn_event_dateobs,
+                )
+                .exists()
+            )
+
         result = await session.execute(
             sa.select(
                 Source.obj_id,
                 sa.func.array_agg(sa.func.distinct(Source.id)).label("source_ids"),
             )
-            .where(
-                Source.group_id.in_(group_ids),
-                Source.saved_at.between(
-                    to_datetime(saved_range.get("start_saved_date")),
-                    to_datetime(saved_range.get("end_saved_date")),
-                ),
-                Source.active.is_(True),
-                candidate_passed,
-            )
+            .where(*conditions)
             .group_by(Source.obj_id)
         )
         return result.all()
@@ -204,6 +220,24 @@ class ScanReportHandler(BaseHandler):
             if not saved_range:
                 return self.error("No saved candidates range provided")
 
+            # Optional: restrict the report to objects the crossmatch associated
+            # with one GCN event.
+            gcn_event_dateobs = data.get("gcn_event_dateobs")
+            if gcn_event_dateobs:
+                try:
+                    gcn_event_dateobs = arrow.get(gcn_event_dateobs).naive
+                except Exception:
+                    return self.error(
+                        f"Invalid gcn_event_dateobs: {data.get('gcn_event_dateobs')}"
+                    )
+                event = await session.scalar(
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.dateobs == gcn_event_dateobs
+                    )
+                )
+                if event is None:
+                    return self.error("GCN event not found or not accessible")
+
             # Check if this report already exists
             existing_result = await session.scalars(
                 ScanReport.select(session.user_or_token)
@@ -212,6 +246,8 @@ class ScanReportHandler(BaseHandler):
                     ScanReport.groups.any(Group.id.in_(group_ids)),
                     ScanReport.options["passed_filters_range"] == passed_filters_range,
                     ScanReport.options["saved_candidates_range"] == saved_range,
+                    ScanReport.options["gcn_event_dateobs"].astext
+                    == (gcn_event_dateobs.isoformat() if gcn_event_dateobs else None),
                 )
             )
             for report in existing_result.all():
@@ -227,6 +263,7 @@ class ScanReportHandler(BaseHandler):
                     group_ids,
                     passed_filters_range,
                     saved_range,
+                    gcn_event_dateobs=gcn_event_dateobs,
                 )
             except Exception:
                 return self.error("Error while retrieving candidates")
@@ -248,13 +285,19 @@ class ScanReportHandler(BaseHandler):
                 options={
                     "passed_filters_range": passed_filters_range,
                     "saved_candidates_range": saved_range,
+                    "gcn_event_dateobs": (
+                        gcn_event_dateobs.isoformat() if gcn_event_dateobs else None
+                    ),
                 },
             )
 
             session.add(scan_report)
 
             scan_report_items = await create_scan_report_items(
-                session, scan_report, sources_by_objs
+                session,
+                scan_report,
+                sources_by_objs,
+                gcn_event_dateobs=gcn_event_dateobs,
             )
             for scan_report_item in scan_report_items:
                 session.add(scan_report_item)

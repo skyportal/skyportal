@@ -84,6 +84,8 @@ FIXTURE_MODEL = {
     "public_filter": "Filter",
     "public_group": "Group",
     "public_group_sedm_allocation": "Allocation",
+    "public_gcnevent_crossmatch_state": "GcnEventCrossmatchState",
+    "public_group_gcnevent": "GroupGcnEvent",
     "public_group_taxonomy": "GroupTaxonomy",
     "public_groupannotation": "GroupAnnotation",
     "public_groupclassification": "GroupClassification",
@@ -541,6 +543,52 @@ CASES = [
     ("super_admin_user", "public_groupstream", "read", True),
     ("super_admin_user", "public_groupstream", "update", True),
     ("super_admin_user", "public_groupstream", "delete", True),
+    # --- GroupGcnEvent  (public_group_gcnevent) ---
+    # join_model gives read == create == "can read both sides"; update/delete are
+    # narrowed to group admins. Group.read is Public, so the read side reduces to
+    # GcnEvent.read -- and public_gcnevent is attached to the sitewide group that
+    # UserFactory puts every user in, so out-of-group users can still read it.
+    # (Unlike GroupTaxonomy, where the discriminator is the group-scoped Taxonomy
+    # side rather than the group side.)
+    ("user", "public_group_gcnevent", "create", True),
+    ("user", "public_group_gcnevent", "read", True),
+    ("user", "public_group_gcnevent", "update", False),
+    ("user", "public_group_gcnevent", "delete", False),
+    ("user_group2", "public_group_gcnevent", "create", True),
+    ("user_group2", "public_group_gcnevent", "read", True),
+    ("user_group2", "public_group_gcnevent", "update", False),
+    ("user_group2", "public_group_gcnevent", "delete", False),
+    ("group_admin_user", "public_group_gcnevent", "create", True),
+    ("group_admin_user", "public_group_gcnevent", "read", True),
+    ("group_admin_user", "public_group_gcnevent", "update", True),
+    ("group_admin_user", "public_group_gcnevent", "delete", True),
+    ("super_admin_user", "public_group_gcnevent", "create", True),
+    ("super_admin_user", "public_group_gcnevent", "read", True),
+    ("super_admin_user", "public_group_gcnevent", "update", True),
+    ("super_admin_user", "public_group_gcnevent", "delete", True),
+    # --- GcnEventCrossmatchState  (public_gcnevent_crossmatch_state) ---
+    # read follows the event (public_gcnevent is attached to the sitewide group,
+    # which UserFactory puts every user in, so all roles can read it); update and
+    # delete require Manage GCNs / System admin, matching the other GCN children --
+    # and the "Group admin" role carries the Manage GCNs ACL, so group_admin_user
+    # gets both. create is unset and so inherits Base's public default, as
+    # GcnTag/GcnNotice do.
+    ("user", "public_gcnevent_crossmatch_state", "create", True),
+    ("user", "public_gcnevent_crossmatch_state", "read", True),
+    ("user", "public_gcnevent_crossmatch_state", "update", False),
+    ("user", "public_gcnevent_crossmatch_state", "delete", False),
+    ("user_group2", "public_gcnevent_crossmatch_state", "create", True),
+    ("user_group2", "public_gcnevent_crossmatch_state", "read", True),
+    ("user_group2", "public_gcnevent_crossmatch_state", "update", False),
+    ("user_group2", "public_gcnevent_crossmatch_state", "delete", False),
+    ("group_admin_user", "public_gcnevent_crossmatch_state", "create", True),
+    ("group_admin_user", "public_gcnevent_crossmatch_state", "read", True),
+    ("group_admin_user", "public_gcnevent_crossmatch_state", "update", True),
+    ("group_admin_user", "public_gcnevent_crossmatch_state", "delete", True),
+    ("super_admin_user", "public_gcnevent_crossmatch_state", "create", True),
+    ("super_admin_user", "public_gcnevent_crossmatch_state", "read", True),
+    ("super_admin_user", "public_gcnevent_crossmatch_state", "update", True),
+    ("super_admin_user", "public_gcnevent_crossmatch_state", "delete", True),
     # --- GroupTaxonomy  (public_group_taxonomy) ---
     ("user", "public_group_taxonomy", "create", True),
     ("user", "public_group_taxonomy", "read", True),
@@ -849,15 +897,15 @@ CASES = [
     ("super_admin_user", "public_taxonomy", "update", True),
     ("super_admin_user", "public_taxonomy", "delete", True),
     # --- Telescope  (keck1_telescope) ---
-    ("user", "keck1_telescope", "create", False),
+    ("user", "keck1_telescope", "create", True),
     ("user", "keck1_telescope", "read", True),
     ("user", "keck1_telescope", "update", False),
     ("user", "keck1_telescope", "delete", False),
-    ("user_group2", "keck1_telescope", "create", False),
+    ("user_group2", "keck1_telescope", "create", True),
     ("user_group2", "keck1_telescope", "read", True),
     ("user_group2", "keck1_telescope", "update", False),
     ("user_group2", "keck1_telescope", "delete", False),
-    ("group_admin_user", "keck1_telescope", "create", False),
+    ("group_admin_user", "keck1_telescope", "create", True),
     ("group_admin_user", "keck1_telescope", "read", True),
     ("group_admin_user", "keck1_telescope", "update", False),
     ("group_admin_user", "keck1_telescope", "delete", False),

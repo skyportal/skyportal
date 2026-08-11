@@ -991,6 +991,85 @@ gcn:
       - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
   source_radius_threshold: 8.0 # max skymap cone radius to create a source, in arcmin
 
+gcn_crossmatch:
+  # Crossmatch broker alerts against active GCN localizations: for each event
+  # still inside its window, query every active broker that implements
+  # query_alerts, keep the alerts genuinely inside the credible region, save
+  # them as sources and annotate them with their offset from the event.
+  #
+  # Sources and annotations inherit the event's groups, so a restricted event's
+  # matches stay as restricted as the event itself.
+  enabled: False
+  # Seconds between passes over the due (event, broker) pairs.
+  poll_interval: 300
+  # Events older than this many days are no longer crossmatched.
+  max_event_age: 31.0
+  # Minimum gap before an event is re-queried against the same broker. Events
+  # are re-queried for as long as they are active because alerts keep arriving
+  # after the trigger.
+  recheck_interval_minutes: 10.0
+  # Query window around the event time, in days.
+  delta_t_before: 1.0
+  delta_t_after: 31.0
+  # Localizations bounding to a cone larger than this (degrees) are skipped:
+  # the broker query would be impractically wide. Large GW skymaps land here.
+  max_radius_deg: 5.0
+  # Credible level of the stored contour used to bound non-cone localizations.
+  credible_level: 90
+  # Cumulative probability defining "inside" for the containment check.
+  cumprob: 0.95
+  # SkyPortal Filter id whose broker-side pipeline holds the alert quality cuts
+  # (real/bogus, solar-system, stellar and red-star rejection). Running the cuts
+  # as a broker filter keeps them versioned and editable in the filter builder,
+  # and rejects artifacts before they cross the wire. Left unset, the built-in
+  # ZTF cuts ported from ep-ztf-xmatch are used instead -- usable, but frozen.
+  filter_id:
+  # Survey whose alert collection is searched.
+  survey: ZTF
+  # Cap on alerts returned per event per broker per pass.
+  max_alerts: 500
+  # After a broker answers 429, skip it entirely for this many minutes. Quotas
+  # are per account and shared with the rest of the app, so retrying sooner
+  # burns allowance that interactive users need. Lasair's window is an hour.
+  rate_limit_backoff_minutes: 60.0
+  # Also search the window *before* the event, once per event/broker. Alerts
+  # there cannot be caused by the event, so they rule a candidate out: a
+  # position already flaring last month is a variable, not a counterpart.
+  # Recorded with archival: true on the annotation.
+  archival: True
+  archival_days: 31.0
+
+einstein_probe:
+  # Ingestion of unverified X-ray transient candidates from the Einstein Probe
+  # data center (https://ep.bao.ac.cn). This is a proprietary, invitation-only
+  # feed and is DISTINCT from the public gcn.notices.einstein_probe.wxt.alert
+  # topic configured under gcn.notice_types.json above: the data center
+  # publishes candidates earlier and with more detail, keyed by name+version,
+  # and its dateobs is the observation start rather than the trigger time.
+  # The two streams therefore produce separate GcnEvents for the same physical
+  # transient; the EP name is recorded in aliases so they can be cross-linked.
+  #
+  # Access to the data center is by invitation. Contact Tomas Ahumada
+  # (tahumada@astro.umd.edu) or Lin Yan (lyan@caltech.edu).
+  enabled: False
+  base_url: https://ep.bao.ac.cn/ep
+  email:
+  password:
+  # Seconds between polls of the unverified-candidate list.
+  poll_interval: 300
+  # Events are restricted to these groups. Because GcnEvent.read is
+  # group-scoped, leaving this empty would fall back to the sitewide public
+  # group and publish the proprietary feed to every user -- so the service
+  # refuses to start unless at least one group is named here.
+  group_names:
+    - Einstein Probe
+  # Scale factor applied to the EP position error to size the cone
+  # localization: radius = pos_err * radius_multiplier, in degrees.
+  radius_multiplier: 1.0
+  # Candidates older than this many days are ignored on startup, so that a
+  # fresh deployment does not backfill the entire archive.
+  max_event_age: 31.0
+
 health_monitor:
   seconds_between_checks: 30.5
   allowed_downtime_seconds: 120

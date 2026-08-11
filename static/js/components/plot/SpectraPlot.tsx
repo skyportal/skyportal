@@ -100,7 +100,9 @@ const SpectraPlot = ({
   plotStyle = { height: "55vh" },
 }: SpectraPlotProps) => {
   const muiTheme = useTheme();
-  const axisTheme = plotAxisTheme(muiTheme);
+  // Memoize to keep plotLayout referentially stable; a fresh object each render
+  // rebuilt the layout and reset the user's zoom on redshift-slider changes.
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
   const plotRef = useRef<any>(null);
   const [data, setData] = useState<any>(null);
