@@ -696,11 +696,12 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def update_filter(broker, session, **kwargs):
-        """Activate a version (``active``/``active_fid``) on BOOM. ``skip_validation``
-        tells BOOM to skip its inline activation check (skyportal gates instead)."""
+        """Activate a version (``active``/``active_fid``) or rename (``name``) on
+        BOOM. ``skip_validation`` tells BOOM to skip its inline activation check
+        (skyportal gates instead)."""
         payload = {
             k: kwargs[k]
-            for k in ("active", "active_fid", "skip_validation")
+            for k in ("active", "active_fid", "skip_validation", "name")
             if k in kwargs
         }
         return _request(
