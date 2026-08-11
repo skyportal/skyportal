@@ -2752,7 +2752,9 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-            if not isinstance(isoparse(obstime), datetime.datetime):
+            try:
+                isoparse(obstime)
+            except (ValueError, TypeError):
                 return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
@@ -2861,6 +2863,12 @@ class SourceOffsetsHandler(BaseHandler):
 
                     priority, comment = assignment.priority, assignment.comment
 
+            # Commit before the slow Gaia query: holding the transaction across
+            # it trips pgbouncer's idle_transaction_timeout. Capture first, since
+            # commit expires the ORM objects.
+            source_ra, source_dec = source.ra, source.dec
+            await session.commit()
+
             offset_func = functools.partial(
                 get_nearby_offset_stars,
                 ra,
@@ -2899,14 +2907,13 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            await session.commit()
             return self.success(
                 data={
                     "facility": facility,
                     "starlist_str": starlist_str,
                     "starlist_info": starlist_info,
-                    "ra": source.ra,
-                    "dec": source.dec,
+                    "ra": source_ra,
+                    "dec": source_dec,
                     "noffsets": noffsets,
                     "queries_issued": queries_issued,
                     "query": query_string,
@@ -3183,7 +3190,9 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")

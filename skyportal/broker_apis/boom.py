@@ -87,6 +87,56 @@ def _survey(broker, kwargs):
     return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
 
 
+# BOOM rejects a filter test whose window is wider than this ("JD window for
+# filter test cannot exceed 7.0 JD").
+MAX_TEST_WINDOW_DAYS = 7.0
+
+# ... and one whose pipeline does not end in a $project carrying objectId
+# ("the last stage must be a $project stage that includes objectId").
+DEFAULT_PROJECT_STAGE = {
+    "$project": {"objectId": 1, "candid": 1, "candidate": 1, "coordinates": 1}
+}
+
+
+def _ensure_project_stage(pipeline):
+    """Append BOOM's required terminal $project unless the caller wrote one."""
+    stages = list(pipeline or [])
+    if stages and "$project" in stages[-1]:
+        return stages
+    return [*stages, DEFAULT_PROJECT_STAGE]
+
+
+def _top_n(docs, sort_by, sort_order, limit):
+    """The first ``limit`` docs by ``sort_by``, as the broker would have ordered
+    them had the window not been split."""
+
+    def key(doc):
+        value = doc
+        for part in str(sort_by).split("."):
+            value = (value or {}).get(part) if isinstance(value, dict) else None
+        return (value is None, value if value is not None else 0)
+
+    ordered = sorted(docs, key=key, reverse=str(sort_order).lower() != "ascending")
+    return ordered[: int(limit)] if limit else ordered
+
+
+def _jd_windows(start_jd, end_jd, max_days):
+    """Split [start_jd, end_jd] into consecutive spans of at most max_days.
+
+    Truncating instead would silently drop most of the requested epoch range.
+    """
+    if start_jd is None or end_jd is None or max_days <= 0:
+        return [(start_jd, end_jd)]
+    if end_jd - start_jd <= max_days:
+        return [(start_jd, end_jd)]
+    windows, lo = [], start_jd
+    while lo < end_jd:
+        hi = min(lo + max_days, end_jd)
+        windows.append((lo, hi))
+        lo = hi
+    return windows
+
+
 def _programids(kwargs, survey):
     """The programids the requester may see for ``survey``.
 
@@ -106,6 +156,25 @@ def _scope_filter(kwargs, survey):
     if programids is None:
         return {}
     return {"candidate.programid": {"$in": programids}}
+
+
+def _epoch_filter(kwargs):
+    """Mongo clause restricting a query to an alert-JD window.
+
+    Callers crossmatching against a transient event (e.g. the GCN crossmatch
+    service) care only about alerts near the event in time. Without this the
+    cone search returns every alert ever recorded at that position, which for a
+    well-observed field is both large and wrong.
+
+    ``jd_start``/``jd_end`` are optional and either bound may be given alone.
+    """
+    jd_start, jd_end = kwargs.get("jd_start"), kwargs.get("jd_end")
+    bounds = {}
+    if jd_start is not None:
+        bounds["$gte"] = float(jd_start)
+    if jd_end is not None:
+        bounds["$lte"] = float(jd_end)
+    return {"candidate.jd": bounds} if bounds else {}
 
 
 def _scope_history(record, programids):
@@ -264,6 +333,7 @@ class BOOMBROKER(BrokerAPI):
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
     cross_match_catalogs = True
+    filter_pipeline = "mongo"
 
     form_json_schema_config = {
         "type": "object",
@@ -315,7 +385,7 @@ class BOOMBROKER(BrokerAPI):
         catalog = f"{survey}_alerts"
         object_id = kwargs.get("objectId")
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
-        scope = _scope_filter(kwargs, survey)
+        scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
 
         if object_id:
             return _request(
@@ -697,7 +767,7 @@ class BOOMBROKER(BrokerAPI):
 
         payload = {
             "survey": survey,
-            "pipeline": kwargs["pipeline"],
+            "pipeline": _ensure_project_stage(kwargs["pipeline"]),
             "permissions": {survey: programids} if programids is not None else {},
             "start_jd": kwargs.get("start_jd"),
             "end_jd": kwargs.get("end_jd"),
@@ -710,11 +780,34 @@ class BOOMBROKER(BrokerAPI):
                     "limit": kwargs.get("limit", 50),
                 }
             )
-            res = _request(broker, "POST", "filters/test", json=payload)
-            if isinstance(res, dict) and isinstance(res.get("results"), list):
-                # stringify Mongo _id so large ids survive JS number precision.
-                res["results"] = [
-                    {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
-                ]
+            # BOOM caps a filter test at MAX_TEST_WINDOW_DAYS, so a wider window
+            # is walked in slices here rather than pushed onto every caller.
+            results = []
+            res = None
+            sort_order = kwargs.get("sort_order", "Descending")
+            limit = kwargs.get("limit", 50)
+            window_args = (
+                payload["start_jd"],
+                payload["end_jd"],
+                MAX_TEST_WINDOW_DAYS,
+            )
+            for start_jd, end_jd in _jd_windows(*window_args):
+                res = _request(
+                    broker,
+                    "POST",
+                    "filters/test",
+                    json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                )
+                if isinstance(res, dict) and isinstance(res.get("results"), list):
+                    # stringify Mongo _id so large ids survive JS number precision.
+                    results.extend(
+                        {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
+                    )
+            if isinstance(res, dict):
+                # limit is per request, so a sliced window would otherwise return
+                # slices x limit rows: re-sort the union and honour it once.
+                if len(_jd_windows(*window_args)) > 1:
+                    results = _top_n(results, payload["sort_by"], sort_order, limit)
+                return {**res, "results": results}
             return res
         return _request(broker, "POST", "filters/test/count", json=payload)

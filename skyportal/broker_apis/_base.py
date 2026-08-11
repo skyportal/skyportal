@@ -41,6 +41,7 @@ class _Base:
         # Data-semantics flag (not a method): does cone_search return reference
         # catalogs for the centroid cross-match overlay?
         caps["cross_match_catalogs"] = cls.cross_match_catalogs
+        caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 
     @classmethod

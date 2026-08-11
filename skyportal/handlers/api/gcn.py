@@ -70,6 +70,7 @@ from ...models import (
     GcnTag,
     GcnTrigger,
     Group,
+    GroupGcnEvent,
     Instrument,
     InstrumentField,
     InstrumentFieldTile,
@@ -142,23 +143,107 @@ op_options = [
 ]
 
 
+async def gcnevent_group_ids(session, dateobs):
+    """Group ids a GcnEvent is restricted to, looked up by dateobs.
+
+    Queried explicitly rather than read off ``event.groups``: that relationship
+    lazy-loads, which raises MissingGreenlet under an async session whenever the
+    event was fetched rather than freshly constructed.
+    """
+    return list(
+        (
+            await session.scalars(
+                sa.select(GroupGcnEvent.group_id)
+                .join(GcnEvent, GcnEvent.id == GroupGcnEvent.gcnevent_id)
+                .where(GcnEvent.dateobs == dateobs)
+            )
+        ).all()
+    )
+
+
+async def resolve_gcnevent_groups(session, user, group_ids=None):
+    """Resolve the groups a newly created GcnEvent should be readable by.
+
+    GcnEvent.read is group-scoped, so an event with no groups is invisible to
+    everyone but system admins. Public streams therefore default to the sitewide
+    public group, preserving the pre-restriction behavior where every GCN event
+    was readable by all users. Proprietary streams (e.g. the Einstein Probe
+    unverified-candidate feed) pass an explicit ``group_ids`` list instead.
+
+    Parameters
+    ----------
+    session : sqlalchemy session
+    user : `skyportal.models.User`
+        The user on whose behalf the event is being created.
+    group_ids : list of int, optional
+        Groups to restrict the event to. If None or empty, the sitewide public
+        group is used.
+
+    Returns
+    -------
+    list of `skyportal.models.Group`
+    """
+    if group_ids:
+        groups = (
+            (await session.scalars(Group.select(user).where(Group.id.in_(group_ids))))
+            .unique()
+            .all()
+        )
+        missing = set(group_ids) - {g.id for g in groups}
+        if missing:
+            raise ValueError(
+                f"Invalid group_ids: {sorted(missing)} not found or not accessible"
+            )
+        return list(groups)
+
+    public_group = await session.scalar(
+        sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"])
+    )
+    if public_group is None:
+        raise ValueError(
+            "Sitewide public group not found; cannot determine GCN event access"
+        )
+    return [public_group]
+
+
 async def post_gcn_source(
-    dateobs: str, localization_name: str, root, notice_type, user, session
+    dateobs: str,
+    localization_name: str,
+    root,
+    notice_type,
+    user,
+    session,
+    group_ids=None,
 ):
-    """Async equivalent of ``post_gcn_source``."""
+    """Create a source at the event's own position, if the localization is tight enough.
+
+    ``group_ids`` must be the groups of the GcnEvent this source is derived
+    from. Nothing is created for an event that is not in the sitewide public
+    group: the source sits at the event's own sky position, and Obj.read is
+    ``public`` in SkyPortal by design (access control lives on Source and
+    Candidate, not Obj). Creating one would therefore disclose the position of
+    a restricted event to every user -- and the object id is derived from
+    dateobs, so it is enumerable rather than merely discoverable.
+
+    This is not hypothetical for the proprietary Einstein Probe feed: its real
+    position errors are ~2-3 arcmin, comfortably inside SOURCE_RADIUS_THRESHOLD
+    (8 arcmin), so every EP candidate reaches this path.
+    """
     try:
         ra, dec, error = (float(val) for val in localization_name.split("_"))
         if error < SOURCE_RADIUS_THRESHOLD:
             log(
                 f"Creating source for event {dateobs} with Localization {localization_name}."
             )
-            dateobs_txt = Time(dateobs).isot
+            event_time = Time(dateobs)
+            dateobs_txt = event_time.isot
             source_name = f"{dateobs_txt[2:4]}{dateobs_txt[5:7]}{dateobs_txt[8:10]}_{dateobs_txt[11:13]}{dateobs_txt[14:16]}{dateobs_txt[17:19]}"
             source = {
                 "id": source_name,
                 "ra": ra,
                 "dec": dec,
                 "origin": None,
+                "t0": event_time.mjd,
             }
             event_tags = []
             if isinstance(root, dict):
@@ -194,22 +279,30 @@ async def post_gcn_source(
                 log(
                     f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, cannot post source"
                 )
-            else:
-                public_group_id = public_group.id
-                source["group_ids"] = [public_group_id]
+                return False
 
-                if source.get("id", None) is not None:
-                    existing_source = await session.scalar(
-                        Source.select(user).where(Source.obj_id == source["id"])
+            if group_ids is not None and public_group.id not in group_ids:
+                log(
+                    f"Event {dateobs} is restricted to groups {sorted(group_ids)}; "
+                    f"not creating a source for it, since Obj.read is public and "
+                    f"would expose the event's position to all users."
+                )
+                return False
+
+            source["group_ids"] = [public_group.id]
+
+            if source.get("id", None) is not None:
+                existing_source = await session.scalar(
+                    Source.select(user).where(Source.obj_id == source["id"])
+                )
+                if existing_source is None:
+                    log(
+                        f"Posting source for event {dateobs} with Localization {localization_name} with id {source['id']}."
                     )
-                    if existing_source is None:
-                        log(
-                            f"Posting source for event {dateobs} with Localization {localization_name} with id {source['id']}."
-                        )
-                        if source["origin"] is None:
-                            del source["origin"]
-                        await post_source_async(source, user.id, session)
-                        return True
+                    if source["origin"] is None:
+                        del source["origin"]
+                    await post_source_async(source, user.id, session)
+                    return True
         else:
             log(
                 f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_name}."
@@ -289,6 +382,9 @@ async def post_gcnevent_from_xml(
             trigger_id=trigger_id,
             aliases=aliases,
         )
+        # VOEvent XML always comes off the public GCN stream, so it takes the
+        # public-group default.
+        event.groups = await resolve_gcnevent_groups(session, user)
         session.add(event)
         await session.commit()
         dateobs = event.dateobs
@@ -474,7 +570,13 @@ async def post_skymap_from_notice(
         await session.commit()
 
         await post_gcn_source(
-            dateobs, skymap["localization_name"], root, notice_type, user, session
+            dateobs,
+            skymap["localization_name"],
+            root,
+            notice_type,
+            user,
+            session,
+            group_ids=await gcnevent_group_ids(session, dateobs),
         )
 
     else:
@@ -551,6 +653,9 @@ async def post_gcnevent_from_json(
             dateobs=dateobs,
             aliases=aliases or None,
             sent_by_id=user.id,
+        )
+        event.groups = await resolve_gcnevent_groups(
+            session, user, payload.get("group_ids")
         )
         session.add(event)
         await session.commit()
@@ -700,12 +805,31 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
 
     dateobs = arrow.get(payload["dateobs"]).naive
 
-    event = await session.scalar(
-        GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-    )
+    # Prefer trigger_id for identity when the caller supplies one, matching the
+    # VOEvent path. Streams that revise an event's time between versions (e.g.
+    # the Einstein Probe data center) would otherwise create a fresh event per
+    # revision instead of adding a localization to the existing one.
+    trigger_id = payload.get("trigger_id")
+    event = None
+    if trigger_id is not None:
+        event = await session.scalar(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == str(trigger_id))
+        )
+    if event is None:
+        event = await session.scalar(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        )
 
     if event is None:
-        event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
+        event = GcnEvent(
+            dateobs=dateobs,
+            sent_by_id=user.id,
+            trigger_id=str(trigger_id) if trigger_id is not None else None,
+            aliases=payload.get("aliases") or None,
+        )
+        event.groups = await resolve_gcnevent_groups(
+            session, user, payload.get("group_ids")
+        )
         session.add(event)
     else:
         update_check = await session.scalar(
@@ -749,6 +873,10 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         )
         event_loaded.detectors = detectors
     await session.commit()
+
+    # From here on use the event's own dateobs, which differs from the payload's
+    # when the event was matched by trigger_id and the stream revised its time.
+    dateobs = event.dateobs
 
     skymap = payload.get("skymap", None)
     if skymap is None:
@@ -797,7 +925,13 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
     skymap["sent_by_id"] = user.id
 
     await post_gcn_source(
-        event.dateobs, skymap["localization_name"], payload, None, user, session
+        event.dateobs,
+        skymap["localization_name"],
+        payload,
+        None,
+        user,
+        session,
+        group_ids=await gcnevent_group_ids(session, event.dateobs),
     )
 
     localization = await session.scalar(
@@ -1526,6 +1660,14 @@ class GcnEventHandler(BaseHandler):
               description: |
                 Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.
             - in: query
+              name: groupIds
+              schema:
+                type: string
+              description: |
+                Comma-separated group ids; return only events shared with at
+                least one of them. Narrows within what the user can already
+                read, it does not widen access.
+            - in: query
               name: localizationTagKeep
               nullable: true
               schema:
@@ -1641,6 +1783,7 @@ class GcnEventHandler(BaseHandler):
         localization_tag_remove = self.get_query_argument("localizationTagRemove", None)
         gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
         no_notice_content = self.get_query_argument("excludeNoticeContent", False)
+        group_ids = self.get_query_argument("groupIds", None)
 
         if gcn_tag_keep is not None:
             if isinstance(gcn_tag_keep, str):
@@ -1884,6 +2027,23 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
+            if group_ids:
+                # Narrow to events shared with particular groups. Access is
+                # already enforced by GcnEvent.read; this is the user asking to
+                # see, say, only the proprietary stream rather than everything
+                # they happen to be entitled to.
+                try:
+                    group_ids = [int(g) for g in str(group_ids).split(",") if g != ""]
+                except ValueError:
+                    return self.error("Invalid groupIds: must be comma-separated ints")
+                if group_ids:
+                    query = query.where(
+                        GcnEvent.id.in_(
+                            sa.select(GroupGcnEvent.gcnevent_id).where(
+                                GroupGcnEvent.group_id.in_(group_ids)
+                            )
+                        )
+                    )
             try:
                 query = apply_gcn_event_filters(
                     query,
@@ -3098,7 +3258,11 @@ class LocalizationTagsHandler(BaseHandler):
         """
 
         async with self.AsyncSession() as session:
-            result = await session.scalars(sa.select(LocalizationTag.text).distinct())
+            result = await session.scalars(
+                LocalizationTag.select(
+                    session.user_or_token, columns=[LocalizationTag.text]
+                ).distinct()
+            )
             tags = result.unique().all()
             return self.success(data=tags)
 
