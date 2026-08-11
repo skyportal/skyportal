@@ -40,6 +40,7 @@ from ....models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjTag,
     ObjToSuperObj,
     Photometry,
     PhotStat,
@@ -1512,6 +1513,23 @@ class CandidateHandler(BaseHandler):
                         selected_groups_annotations + other_annotations
                     )
                     add_computed_fields(candidate_list[-1], obj)
+
+            # Attach each candidate's object tags (shown as chips on the scanning
+            # card), in one query keyed by obj_id to avoid an N+1.
+            candidate_obj_ids = [c["id"] for c in candidate_list]
+            if candidate_obj_ids:
+                tags_result = await session.scalars(
+                    ObjTag.select(session.user_or_token)
+                    .options(selectinload(ObjTag.objtagoption))
+                    .where(ObjTag.obj_id.in_(candidate_obj_ids))
+                )
+                tags_by_obj = {}
+                for tag in tags_result.all():
+                    tags_by_obj.setdefault(tag.obj_id, []).append(
+                        {**tag.to_dict(), "name": tag.objtagoption.name}
+                    )
+                for candidate in candidate_list:
+                    candidate["tags"] = tags_by_obj.get(candidate["id"], [])
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)

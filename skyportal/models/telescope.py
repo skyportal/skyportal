@@ -47,8 +47,8 @@ def manage_telescope_access_logic(cls, user_or_token):
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
-    read = public
-    create = update = delete = CustomUserAccessControl(manage_telescope_access_logic)
+    read = create = public
+    update = delete = CustomUserAccessControl(manage_telescope_access_logic)
 
     name = sa.Column(
         sa.String,

@@ -594,6 +594,35 @@ def test_gcn_summary_sources(
     assert status == 200
     assert data["status"] == "success"
 
+    # The summary asks for sources with >= 2 detections inside the localization,
+    # and the detection count comes from PhotStat, which is refreshed
+    # asynchronously. Generating before that lands yields a summary with no
+    # sources section, so wait for the query the summary itself will run.
+    for _ in range(30):
+        status, data = api(
+            "GET",
+            "sources",
+            params={
+                "localizationDateobs": "2019-08-14T21:10:39",
+                "localizationName": "LALInference.v1.fits.gz",
+                "localizationCumprob": 0.95,
+                "startDate": "2019-08-01T00:00:00",
+                "endDate": "2019-09-01T00:00:00",
+                "numberDetections": 2,
+                "group_ids": public_group.id,
+            },
+            token=super_admin_token,
+        )
+        if status == 200 and any(
+            source["id"] == obj_id for source in data["data"]["sources"]
+        ):
+            break
+        time.sleep(2)
+    else:
+        raise AssertionError(
+            f"{obj_id} never became visible to the localization query the summary uses"
+        )
+
     # generate the GCN summary (with sources) and read it back
     text = get_summary(
         page, super_admin_user, public_group, True, False, False, super_admin_token

@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 
 import numpy as np
 import pytest
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import expect
 
 from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
@@ -306,23 +307,27 @@ def test_shift_summary(
 
     page.goto(f"/become_user/{super_admin_user.id}")
 
-    # The shift view fetches the sources inside the GCN event's localization on
-    # demand once the event is expanded; that query/render can lag under CI
-    # load, so reload, re-expand, and re-check the source link a few times
-    # instead of relying on a single click landing.
+    # Listing, expanding and the source fetch can each lag under CI load, so
+    # retry the whole sequence: a slow list render used to escape the loop.
     source_link = page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    n_retries = 0
-    while n_retries < 5:
+    gcn_entry = page.locator(
+        '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
+    ).first
+    gcn_toggle = page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first
+
+    last_error = None
+    for _ in range(5):
         page.goto(f"/shifts/{shift_id}")
-        expect(
-            page.locator(
-                '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
-            ).first
-        ).to_be_visible(timeout=15000)
-        page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
         try:
+            expect(gcn_entry).to_be_visible(timeout=15000)
+            gcn_toggle.click()
             expect(source_link).to_be_visible(timeout=15000)
             break
-        except AssertionError:
-            n_retries += 1
-    assert n_retries < 5
+        except (AssertionError, PlaywrightError) as e:
+            # PlaywrightError: click landing before the row is interactable
+            last_error = e
+    else:
+        raise AssertionError(
+            f"shift {shift_id} never showed the GCN event and its source "
+            f"after 5 attempts; last error: {last_error}"
+        )

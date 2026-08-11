@@ -87,6 +87,14 @@ class BrokerAPI(_Base):
             inject and providers serving restricted data must honour. ``None``
             means unrestricted; a missing key must grant nothing.
 
+            Optionally ``jd_start`` / ``jd_end``: bound the alert JD, either
+            bound alone being valid. Callers matching against a transient event
+            need alerts near it in time, and an unbounded cone search returns
+            every alert ever recorded at that position. Honouring these is
+            best-effort -- a provider whose backend cannot express it may ignore
+            them, so callers that require the window must still enforce it on
+            the returned alerts.
+
         Returns
         -------
         list
@@ -275,3 +283,9 @@ class BrokerAPI(_Base):
     # cross-match overlay. Providers whose cone_search returns their own alert
     # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
     cross_match_catalogs = False
+
+    # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
+    # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo
+    # pipeline and runs an unconstrained query instead of erroring, so callers
+    # that build one must check this rather than the test_filter capability.
+    filter_pipeline = None

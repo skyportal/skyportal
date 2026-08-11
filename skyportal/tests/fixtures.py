@@ -760,6 +760,28 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     trigger_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
 
     @factory.post_generation
+    def groups(self, create, passed_groups=None, **kwargs):
+        # GcnEvent.read is group-scoped, so an event with no groups is invisible
+        # to every non-admin user. Events created through the API get their
+        # groups from resolve_gcnevent_groups, but this factory builds the row
+        # directly and so must attach them itself. Default to the sitewide
+        # public group, matching what the API does for public streams (and
+        # which UserFactory adds every test user to).
+        if passed_groups:
+            self.groups = list(passed_groups)
+        else:
+            self.groups = [
+                DBSession()
+                .scalars(
+                    sa.select(Group).where(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .first()
+            ]
+        DBSession().commit()
+
+    @factory.post_generation
     def aliases(self, created, passed_aliases=None, **kwargs):
         if passed_aliases:
             self.aliases = passed_aliases
@@ -1071,9 +1093,9 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
     # or the row fails to flush.
     can_save_to_groups = []
     role = factory.LazyFunction(
-        lambda: DBSession()
-        .scalars(sa.select(Role).where(Role.id == "Full user"))
-        .first()
+        lambda: (
+            DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
+        )
     )
     user_email = "user@email.com"
     invited_by = factory.SubFactory(UserFactory)
