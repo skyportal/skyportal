@@ -4,6 +4,7 @@ import { useJoyride } from "react-joyride";
 import type { Step } from "react-joyride";
 
 import { PAGE_TOURS } from "./PageTours";
+import { useTourStyles } from "./tourStyles";
 import { useGetProfileQuery } from "../ducks/profile";
 
 // App-level provider, mounted once inside the router so it survives navigation
@@ -15,15 +16,15 @@ const PageTourProvider = () => {
   const navigate = useNavigate();
   const { data: profile } = useGetProfileQuery();
   const [steps, setSteps] = useState<Step[]>([]);
+  const { options, styles } = useTourStyles();
   const { controls, Tour } = useJoyride({
     steps,
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
-    // Lift above the app's low sidebar/modal z-indexes, give lazy-loaded pages
-    // a little longer to mount a step's target, and show each tooltip directly
-    // instead of a click-to-open beacon.
-    options: { zIndex: 2000, targetWaitTimeout: 3000, skipBeacon: true },
+    options,
+    styles,
+    locale: { last: "Got it" },
   });
 
   const requested = (location.state as { tour?: string } | null)?.tour;

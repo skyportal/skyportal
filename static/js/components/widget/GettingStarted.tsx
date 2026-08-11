@@ -29,6 +29,7 @@ import { useAppDispatch } from "../../types/hooks";
 import store from "../../store";
 import { setSidebar } from "../../ducks/sidebar";
 import { TOUR_STEPS } from "./GettingStartedTour";
+import { useTourStyles } from "../tourStyles";
 
 // Onboarding checklist + guided tour, rendered as a Home Page widget. Shows for
 // every user until dismissed (persisted in `preferences.onboardingDismissed`)
@@ -48,15 +49,15 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   });
   const { data: recentGcnEvents } = useGetRecentGcnEventsQuery();
   const [updatePreferences] = useUpdateUserPreferencesMutation();
+  const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
     steps: TOUR_STEPS,
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
-    // App sets a low sidebar z-index (~140); lift the tour above it and MUI
-    // modals so tooltips aren't hidden behind the drawer. Show tooltips
-    // directly instead of a click-to-open beacon.
-    options: { zIndex: 2000, skipBeacon: true },
+    options,
+    styles,
+    locale: { last: "Got it" },
   });
 
   // Sidebar-targeted steps need the drawer mounted; on mobile it's a closed
