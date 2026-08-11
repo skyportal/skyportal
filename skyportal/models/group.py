@@ -487,7 +487,7 @@ GroupUser.can_save = sa.Column(
     server_default="true",
     doc="Boolean flag indicating whether the user should be able to save sources to the group",
 )
-GroupUser.can_share = sa.Column(
+GroupUser.can_share_photometry = sa.Column(
     sa.Boolean,
     nullable=False,
     server_default="false",

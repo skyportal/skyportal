@@ -77,11 +77,11 @@ const ManageUserButtons = ({
     return Boolean(matchingGroupUser?.["can_save"]);
   };
 
-  const canShare = (usr: any) => {
+  const canSharePhotometry = (usr: any) => {
     const matchingGroupUser = group?.users?.filter(
       (groupUser) => groupUser["id"] === usr.id,
     )[0];
-    return Boolean(matchingGroupUser?.["can_share"]);
+    return Boolean(matchingGroupUser?.["can_share_photometry"]);
   };
 
   const toggleUserAdmin = async (usr: any) => {
@@ -130,7 +130,7 @@ const ManageUserButtons = ({
         groupID: loadedId,
         params: {
           userID: usr.id,
-          canShare: !canShare(usr),
+          canSharePhotometry: !canSharePhotometry(usr),
         },
       }).unwrap();
       dispatch(
@@ -183,9 +183,9 @@ const ManageUserButtons = ({
             <Button
               size="small"
               onClick={() => toggleUserCanShare(user)}
-              sx={{ color: canShare(user) ? "#d32f2f" : "#2e7d32" }}
+              sx={{ color: canSharePhotometry(user) ? "#d32f2f" : "#2e7d32" }}
             >
-              {`${canShare(user) ? "Revoke" : "Grant"} share photometry`}
+              {`${canSharePhotometry(user) ? "Revoke" : "Grant"} share photometry`}
             </Button>
           </Tooltip>
         </Box>
