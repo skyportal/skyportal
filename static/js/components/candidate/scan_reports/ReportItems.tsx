@@ -94,6 +94,8 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle>observing run / priority</FieldTitle>
             <FieldTitle>detections (survey)</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>z (DESI)</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>offset</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
             {hasGcnMatch && (
@@ -127,7 +129,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 <Field>
                   {reportItem.data.saved_info.map(
                     (info: any, index: number) => (
-                      <div key={index}>{info.saved_by}</div>
+                      <div key={index}>
+                        {[info.saved_by?.first_name, info.saved_by?.last_name]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </div>
                     ),
                   )}
                 </Field>
@@ -182,7 +188,10 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         title={
                           (classification.ml ? "ML: " : "") +
                           classification.classification +
-                          (classification.probability < 0.1 ? "?" : "")
+                          (classification.probability < 0.1 ? "?" : "") +
+                          (classification.created_at
+                            ? ` — ${displayDate(classification.created_at)}`
+                            : "")
                         }
                         key={index}
                       >
@@ -204,7 +213,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                       <Tooltip
                         title={`${followup.instrument} (${followup.type}): ${followup.priority}${
                           followup.status ? ` — ${followup.status}` : ""
-                        }${followup.requester ? ` — by ${followup.requester}` : ""}`}
+                        }${followup.requester ? ` — by ${followup.requester}` : ""}${
+                          followup.start_date && followup.end_date
+                            ? ` — ${followup.start_date} to ${followup.end_date}`
+                            : ""
+                        }`}
                         key={index}
                       >
                         <Chip
@@ -245,7 +258,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         const parts = [];
                         if (det.first)
                           parts.push(
-                            `first ${det.first.mag} (${det.first.days_ago}d)`,
+                            `first ${det.first.mag} (${det.first.days_ago}d)${det.first.fp ? " [FP]" : ""}`,
+                          );
+                        if (det.first_real)
+                          parts.push(
+                            `first real ${det.first_real.mag} (${det.first_real.days_ago}d)`,
                           );
                         if (det.peak)
                           parts.push(
@@ -270,6 +287,19 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                     )}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.desi_redshift}</Field>
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.offset && (
+                    <Tooltip
+                      title={`${reportItem.data.offset.arcsec ?? "?"}″ / ${reportItem.data.offset.kpc ?? "?"} kpc`}
+                    >
+                      <span>
+                        {reportItem.data.offset.arcsec ?? "?"}″ (
+                        {reportItem.data.offset.kpc ?? "?"} kpc)
+                      </span>
+                    </Tooltip>
+                  )}
+                </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_filter}</Field>
                 {hasGcnMatch && (
