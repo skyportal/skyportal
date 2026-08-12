@@ -372,6 +372,14 @@ telescope:
     nickname: PS1
     skycam_link: null
     =id: PS1
+  - diameter: 25.0
+    elevation: 2124.0
+    lat: 34.078745
+    lon: -107.618283
+    name: Karl G. Jansky Very Large Array
+    nickname: VLA
+    skycam_link: null
+    =id: VLA
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -728,7 +736,13 @@ instrument:
     type: imager
     api_classname: PS1API
     =id: PS1
-    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
+    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w', '2massh', '2massj', '2massks', 'bessellv', 'sdssu']
+  - band: radio
+    name: VLA
+    telescope_id: =VLA
+    type: imager
+    filters: ['radio-0.34GHz', 'radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-15GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
+    =id: VLA
   - band: optical
     name: KAIT
     telescope_id: =KAIT
@@ -1297,6 +1311,15 @@ sources:
     group_ids:
       - =public_group_id
       - =program_A
+  - id: AT2017gfo
+    ra: 197.450375
+    dec: -23.381500
+    t0: 57982.5285
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    alias: ["GW170817"]
   - id: ZTF21aaqjmps
     ra: 202.5050541
     dec: 13.4111859
@@ -1484,6 +1507,29 @@ photometry:
       - =program_A
     stream_ids:
       - =ztf_public
+  # AT2017gfo (GW170817): multi-wavelength demo. Instruments are assigned by
+  # band regime (radio->VLA, X-ray->Swift, optical/IR->PS1), not physically exact.
+  - obj_id: AT2017gfo
+    instrument_id: =VLA
+    file: AT2017gfo_radio.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =UVOTXRT
+    file: AT2017gfo_xray.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =PS1
+    file: AT2017gfo_optical.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
