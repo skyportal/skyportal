@@ -37,6 +37,14 @@ def _survey_of(bandpass):
     return bandpass
 
 
+def _lsst_alias(aliases):
+    """Return the first LSST alias for this object, if any."""
+    for alias in aliases or []:
+        if alias and alias.lower().startswith("lsst"):
+            return alias
+    return None
+
+
 def _followup_request_type(allocation, instrument):
     """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
     if allocation and allocation.types and "forced_photometry" in allocation.types:
@@ -165,6 +173,7 @@ def _build_scan_report_item(
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
+            "lsst_alias": _lsst_alias(obj.alias),
             "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
             "current_filter": current_filter,
