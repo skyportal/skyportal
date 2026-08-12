@@ -38631,7 +38631,7 @@ export interface components {
              */
             canSave: boolean[] | null;
             /**
-             * Canshare
+             * Cansharephotometry
              * @description List of booleans indicating whether user should be able to share photometry points to respective specified group(s). Defaults to all false.
              * @default null
              */
