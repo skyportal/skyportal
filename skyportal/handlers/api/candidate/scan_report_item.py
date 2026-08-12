@@ -165,6 +165,7 @@ def _build_scan_report_item(
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
+            "aliases": obj.alias,
             "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
             "current_filter": current_filter,

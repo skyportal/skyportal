@@ -87,6 +87,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
             <FieldTitle>Source</FieldTitle>
             <FieldTitle>TNS name</FieldTitle>
+            <FieldTitle>aliases</FieldTitle>
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
@@ -168,6 +169,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                     </a>
                   )}
                 </Field>
+                <Field>
+                  {reportItem.data.aliases?.map((alias: string) => (
+                    <div key={alias}>{alias}</div>
+                  ))}
+                </Field>
                 <Field>{reportItem.data.comment}</Field>
                 <Field>
                   {reportItem.data.classifications?.map(
@@ -244,6 +250,10 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         if (det.peak)
                           parts.push(
                             `peak ${det.peak.mag} (${det.peak.days_ago}d)`,
+                          );
+                        if (det.last)
+                          parts.push(
+                            `last ${det.last.mag} (${det.last.days_ago}d)`,
                           );
                         return (
                           <Tooltip
