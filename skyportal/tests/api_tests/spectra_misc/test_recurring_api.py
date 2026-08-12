@@ -63,7 +63,7 @@ def test_post_and_verify_recurring_api(
 
     endpoint = f"sources/{obj_id}"
     n_retries = 0
-    while n_retries < 10:
+    while n_retries < 75:
         status, data = api(
             "GET",
             endpoint,
@@ -71,7 +71,7 @@ def test_post_and_verify_recurring_api(
         )
         if data["status"] == "success":
             break
-        time.sleep(15)
+        time.sleep(2)
         n_retries += 1
-    assert n_retries < 10
+    assert n_retries < 75
     assert status == 200
