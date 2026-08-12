@@ -22,14 +22,20 @@
         {% block loginText -%}
         <p>{{ app.login_message }}</p>
         {%- endblock %}
+        {%- for backend in auth_backends %}
         <div class="loginButton">
-          <a href="/login/google-oauth2">
+          <a href="/login/{{ backend.name }}">
+            {%- if backend.name == 'google-oauth2' %}
             <img
               src="/static/images/btn_google_signin_dark_normal_web.png"
-              alt="Click this image to log in"
+              alt="{{ backend.label }}"
             />
+            {%- else %}
+            <span class="loginButtonText">{{ backend.label }}</span>
+            {%- endif %}
           </a>
         </div>
+        {%- endfor %}
       </div>
     </div>
   </body>

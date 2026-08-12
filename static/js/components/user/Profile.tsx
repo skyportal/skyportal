@@ -11,7 +11,7 @@ const Profile = () => {
   if (profile?.is_anonymous) {
     return (
       <>
-        Please <a href="/login/google-oauth2">log in</a> to view your profile.
+        Please <a href="/">log in</a> to view your profile.
       </>
     );
   }

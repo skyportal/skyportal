@@ -64,7 +64,7 @@ const LazyRoute = ({ Component }: LazyRouteProps) => (
 );
 
 const AnonymousLoginPrompt = () => (
-  <p>Please <a href="/login/google-oauth2">log in</a> to view this page.</p>
+  <p>Please <a href="/">log in</a> to view this page.</p>
 );
 
 interface MainContentInternalProps {

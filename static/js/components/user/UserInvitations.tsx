@@ -1,4 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
@@ -85,6 +86,8 @@ const UserInvitations = () => {
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const { data: currentUser } = useGetProfileQuery();
+  // Invite links must name a backend; offer the first configured one.
+  const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -318,7 +321,7 @@ const UserInvitations = () => {
     const invitation = params.row;
     const handleCopyInvitationLink = () => {
       const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
-      const invitationLink = `${appBaseUrl}/login/google-oauth2/?invite_token=${invitation.token}`;
+      const invitationLink = `${appBaseUrl}/login/${authBackends[0]?.name}/?invite_token=${invitation.token}`;
       navigator.clipboard.writeText(invitationLink);
       dispatch(
         showNotification(

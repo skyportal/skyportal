@@ -53,7 +53,7 @@ def playwright_login(page):
     # Already logged in?
     if page.locator(TESTUSER_XPATH).first.is_visible():
         return
-    login_link = page.locator('//a[contains(@href,"/login/google-oauth2")]').first
+    login_link = page.locator('//a[contains(@href,"/login/")]').first
     try:
         login_link.wait_for(state="visible", timeout=20_000)
         login_link.click()
