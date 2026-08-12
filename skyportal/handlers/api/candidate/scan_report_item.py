@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import astropy.units as u
 from astropy.time import Time
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -24,6 +25,11 @@ from ...base import BaseHandler
 
 log = make_log("api/scan_report_item")
 
+# Datalab crossmatch catalogs are posted as Annotations with origin
+# "<catalog>-<source_id>" (see DatalabQueryHandler); DESI catalogs are all
+# named "desi_*" (e.g. "desi_dr1").
+DESI_ORIGIN_PREFIX = "desi_"
+
 
 def _survey_of(bandpass):
     """Map a bandpass name to its survey label for the detections summary."""
@@ -37,13 +43,42 @@ def _survey_of(bandpass):
     return bandpass
 
 
-def _followup_request_type(allocation, instrument):
+def _followup_request_type(allocation, instrument, payload=None):
     """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
     if allocation and allocation.types and "forced_photometry" in allocation.types:
         return "forced_photometry"
+    if instrument and instrument.name == "SEDM":
+        # SEDM is an "imaging spectrograph" but most of its request modes
+        # (e.g. "3-shot (gri)") are pure photometry; only modes that include
+        # the IFU are spectroscopy.
+        payload = payload or {}
+        observation_type = payload.get("observation_type") or ""
+        observation_choices = payload.get("observation_choices") or []
+        if "IFU" in observation_type or "IFU" in observation_choices:
+            return "spectroscopy"
+        return "photometry"
     if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
         return "spectroscopy"
     return "photometry"
+
+
+def _host_offset(obj):
+    """Angular (arcsec) and physical (kpc) separation from the obj to its host galaxy."""
+    if not obj.host:
+        return None, None
+    arcsec = None
+    kpc = None
+    try:
+        sep = obj.host_offset
+        arcsec = safe_round(sep.arcsec, 3) if sep is not None else None
+    except Exception:
+        arcsec = None
+    try:
+        dist = obj.host_distance
+        kpc = safe_round(dist.to(u.kpc).value, 3) if dist is not None else None
+    except Exception:
+        kpc = None
+    return arcsec, kpc
 
 
 def _build_scan_report_item(
@@ -55,6 +90,7 @@ def _build_scan_report_item(
     comment,
     now_mjd,
     gcn_match=None,
+    desi_annotation=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
@@ -76,6 +112,7 @@ def _build_scan_report_item(
                 "probability": classification.probability,
                 "classification": classification.classification,
                 "ml": classification.ml,
+                "created_at": classification.created_at.isoformat(),
             }
             for classification in obj.classifications
         ]
@@ -85,7 +122,10 @@ def _build_scan_report_item(
         saved_info = [
             {
                 "saved_at": source.saved_at.isoformat(),
-                "saved_by": source.saved_by.username,
+                "saved_by": {
+                    "first_name": source.saved_by.first_name,
+                    "last_name": source.saved_by.last_name,
+                },
                 "group": source.group.name,
             }
             for source in sources
@@ -96,8 +136,12 @@ def _build_scan_report_item(
     followups = [
         {
             "instrument": followup.instrument.name,
-            "type": _followup_request_type(followup.allocation, followup.instrument),
+            "type": _followup_request_type(
+                followup.allocation, followup.instrument, followup.payload
+            ),
             "priority": (followup.payload or {}).get("priority"),
+            "start_date": (followup.payload or {}).get("start_date"),
+            "end_date": (followup.payload or {}).get("end_date"),
             "status": followup.status,
             "requester": followup.requester.username if followup.requester else None,
         }
@@ -160,6 +204,8 @@ def _build_scan_report_item(
             }
     detections_by_survey = detections_by_survey or None
 
+    host_offset_arcsec, host_offset_kpc = _host_offset(obj)
+
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
@@ -168,6 +214,15 @@ def _build_scan_report_item(
             "aliases": obj.alias,
             "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
+            # Spectroscopic redshift from a DESI crossmatch, when one exists.
+            "desi_redshift": (desi_annotation.data or {}).get("z")
+            if desi_annotation
+            else None,
+            "offset": (
+                {"arcsec": host_offset_arcsec, "kpc": host_offset_kpc}
+                if host_offset_arcsec is not None or host_offset_kpc is not None
+                else None
+            ),
             "current_filter": current_filter,
             "abs_mag": safe_round(abs_mag, 3),
             "current_mag": safe_round(current_mag, 3),
@@ -258,6 +313,7 @@ async def create_scan_report_items(
     followups_by_obj = defaultdict(list)
     assignments_by_obj = defaultdict(list)
     comment_by_obj = {}  # obj_id -> most recent non-bot scanner comment
+    desi_by_obj = {}  # obj_id -> most recent DESI crossmatch Annotation
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -273,6 +329,7 @@ async def create_scan_report_items(
                 .options(
                     selectinload(Obj.photstats),
                     selectinload(Obj.classifications),
+                    selectinload(Obj.host),
                 )
                 .where(Obj.id.in_(chunk_obj_ids))
             )
@@ -334,6 +391,18 @@ async def create_scan_report_items(
         ).all():
             comment_by_obj.setdefault(comment.obj_id, comment)
 
+        for annotation in (
+            await session.scalars(
+                Annotation.select(user_or_token, mode="read")
+                .where(
+                    Annotation.obj_id.in_(chunk_obj_ids),
+                    Annotation.origin.startswith(DESI_ORIGIN_PREFIX),
+                )
+                .order_by(Annotation.created_at.desc())
+            )
+        ).all():
+            desi_by_obj.setdefault(annotation.obj_id, annotation)
+
     now_mjd = Time.now().mjd
     items = []
     for obj_id, _source_ids in valid:
@@ -350,6 +419,7 @@ async def create_scan_report_items(
                 comment_by_obj.get(obj_id),
                 now_mjd,
                 gcn_match=gcn_match_by_obj.get(obj_id),
+                desi_annotation=desi_by_obj.get(obj_id),
             )
         )
     return items
