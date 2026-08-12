@@ -1,5 +1,4 @@
 import inspect
-import time
 from enum import Enum
 
 import astropy.units as u
@@ -28,7 +27,6 @@ if sncosmo_data_folder:
     sncosmo.conf.data_dir = sncosmo_data_folder
 
 # load additional bandpasses into the SN comso registry
-_bp_t0 = time.perf_counter()
 existing_bandpasses_names = [val["name"] for val in _BANDPASSES.get_loaders_metadata()]
 additional_bandpasses_names = []
 for additional_bandpasses in cfg.get("additional_bandpasses", []):
@@ -58,10 +56,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     additional_bandpasses_names.append(name)
 
 if len(additional_bandpasses_names) > 0:
-    log(
-        f"registered custom bandpasses in {time.perf_counter() - _bp_t0:.2f}s: "
-        f"{additional_bandpasses_names}"
-    )
+    log(f"registered custom bandpasses: {additional_bandpasses_names}")
 
 
 def force_render_enum_markdown(values):
