@@ -174,3 +174,33 @@ def test_rename_is_blocked_when_the_broker_rename_fails(
 
     status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
     assert data["data"]["name"] == original_name, "local rename outlived the failure"
+
+
+def test_group_admin_can_rename_filter(group_admin_token, public_filter):
+    """The admin gate must not be so tight that it blocks the group's own admin."""
+    new_name = f"renamed_by_group_admin_{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": new_name},
+        token=group_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=group_admin_token)
+    assert data["data"]["name"] == new_name
+
+
+def test_super_admin_can_rename_filter(super_admin_token, public_filter):
+    """A system admin needs no group membership to rename."""
+    new_name = f"renamed_by_super_admin_{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": new_name},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert data["data"]["name"] == new_name
