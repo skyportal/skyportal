@@ -543,6 +543,15 @@ telescope:
     robotic: false
     fixed_location: true
     =id: SSO
+  - name: Palomar 200-inch (Hale) Telescope
+    nickname: P200
+    lat: 33.3563
+    lon: -116.865
+    elevation: 1713
+    diameter: 5.08
+    robotic: false
+    fixed_location: true
+    =id: P200
 
 instrument:
   - name: ZTF
@@ -586,6 +595,13 @@ instrument:
     api_classname: SEDMAPI
     listener_classname: SEDMListener
     =id: SEDM
+  - name: NGPS
+    type: spectrograph
+    band: optical
+    telescope_id: =P200
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
+    api_classname: NGPSAPI
+    =id: NGPS
   - name: IOO
     type: imager
     band: V
@@ -933,6 +949,15 @@ allocation:
     instrument_id: =SEDM
     =id: SEDM_allocation
     default_share_group_ids: [=program_A, =program_B]
+  - pi: Michael Coughlin
+    proposal_id: NGPS-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =NGPS
+    =id: NGPS_allocation
   - pi: Michael Coughlin
     proposal_id: LT-001
     validity_ranges:

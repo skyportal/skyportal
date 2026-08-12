@@ -7,8 +7,9 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { makeStyles } from "tss-react/mui";
-import Form from "@rjsf/mui";
+import Form, { Templates as MuiTemplates } from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import { asNumber, getUiOptions } from "@rjsf/utils";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -48,6 +49,111 @@ const useStyles = makeStyles()(() => ({
     marginBottom: "1rem",
   },
 }));
+
+// Show a field's schema `description` as an info-icon tooltip next to its
+// label, instead of rjsf's default plain-text caption below the input.
+const MuiBaseInputTemplate = MuiTemplates.BaseInputTemplate as any;
+const FollowupBaseInputTemplate = (props: any) => {
+  const { schema, label, hideLabel } = props;
+  if (hideLabel || !schema?.description) {
+    return <MuiBaseInputTemplate {...props} />;
+  }
+  return (
+    <MuiBaseInputTemplate
+      {...props}
+      label={
+        <Box
+          component="span"
+          sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
+        >
+          {label}
+          <Tooltip title={schema.description}>
+            <HelpOutlineIcon sx={{ fontSize: "1rem", color: "gray" }} />
+          </Tooltip>
+        </Box>
+      }
+    />
+  );
+};
+
+// Fields rendered by FollowupBaseInputTemplate already show their
+// description as a tooltip next to the label — suppress rjsf's default
+// plain-text caption there so it isn't shown twice. Other widgets (e.g.
+// TAROT's read-only warning on its checkboxes field) have no tooltip
+// alternative, so they keep the caption.
+const MuiFieldTemplate = MuiTemplates.FieldTemplate as any;
+const FollowupFieldTemplate = (props: any) => {
+  const { schema, uiSchema } = props;
+  const widget = getUiOptions(uiSchema).widget;
+  const usesTooltip =
+    !schema?.enum &&
+    ["string", "number", "integer"].includes(schema?.type) &&
+    widget !== "textarea" &&
+    widget !== "checkbox";
+  if (usesTooltip) {
+    return (
+      <MuiFieldTemplate
+        {...props}
+        rawDescription={undefined}
+        description={undefined}
+      />
+    );
+  }
+  return <MuiFieldTemplate {...props} />;
+};
+
+// rjsf-core's stock NumberField re-formats numeric values using the OS/browser
+// locale's decimal separator (e.g. "." -> ",") before writing them back into
+// the input. Native <input type="number"> elements always require "."
+// regardless of locale, so on comma-locale systems the browser rejects the
+// reformatted value ("The specified value "2,8" cannot be parsed") and the
+// field renders blank. This is the same field, minus that reformatting step.
+const numberTrailingCharMatcherWithPrefix = /\.([0-9]*0)*$/;
+const numberTrailingCharMatcher = /[0.]0*$/;
+const FollowupNumberField = (props: any) => {
+  const { formData, onChange, registry } = props;
+  const [lastValue, setLastValue] = useState(formData);
+  const { StringField } = registry.fields;
+
+  let value = formData;
+  if (typeof lastValue === "string" && typeof value === "number") {
+    const escapedValue = String(value).replace(".", "\\.");
+    const re = new RegExp(`^(${escapedValue})?\\.?0*$`);
+    if (lastValue.match(re)) {
+      value = lastValue;
+    }
+  }
+
+  const handleChange = (
+    newValue: any,
+    path: any,
+    errorSchema: any,
+    id: any,
+  ) => {
+    setLastValue(newValue);
+    const normalizedValue =
+      typeof newValue === "string" && newValue.startsWith(".")
+        ? `0${newValue}`
+        : newValue;
+    const processed =
+      typeof normalizedValue === "string" &&
+      numberTrailingCharMatcherWithPrefix.exec(normalizedValue)
+        ? asNumber(normalizedValue.replace(numberTrailingCharMatcher, ""))
+        : asNumber(normalizedValue);
+    onChange(processed, path, errorSchema, id);
+  };
+
+  return <StringField {...props} formData={value} onChange={handleChange} />;
+};
+
+// Stable reference: a new object literal here would make rjsf rebuild its
+// registry on every keystroke, resetting fields' local state (e.g. NumberField's
+// in-progress-decimal cache), which erased values like "2.5" while typing.
+const followupTemplates = {
+  BaseInputTemplate: FollowupBaseInputTemplate,
+  FieldTemplate: FollowupFieldTemplate,
+};
+const followupFields = { NumberField: FollowupNumberField };
 
 interface FollowupRequestFormProps {
   obj_id: string;
@@ -474,6 +580,8 @@ const FollowupRequestForm = ({
             schema={schema as any}
             validator={validator}
             uiSchema={uiSchema}
+            templates={followupTemplates}
+            fields={followupFields}
             customValidate={validate}
             onSubmit={handleSubmit as any}
             disabled={isSubmitting}
