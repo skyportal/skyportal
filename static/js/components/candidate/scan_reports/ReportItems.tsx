@@ -258,7 +258,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         const parts = [];
                         if (det.first)
                           parts.push(
-                            `first ${det.first.mag} (${det.first.days_ago}d)`,
+                            `first ${det.first.mag} (${det.first.days_ago}d)${det.first.fp ? " [FP]" : ""}`,
+                          );
+                        if (det.first_real)
+                          parts.push(
+                            `first real ${det.first_real.mag} (${det.first_real.days_ago}d)`,
                           );
                         if (det.peak)
                           parts.push(

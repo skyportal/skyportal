@@ -174,17 +174,42 @@ def _build_scan_report_item(
     if obj.photstats:
         ps = obj.photstats[0]
 
-        def _entry(mjd, mag):
+        def _entry(mjd, mag, fp=None):
             if mjd is None:
                 return None
-            return {
+            entry = {
                 "mag": safe_round(mag, 3),
                 "mjd": safe_round(mjd, 5),
                 "days_ago": safe_round(now_mjd - mjd, 2),
             }
+            if fp is not None:
+                entry["fp"] = fp
+            return entry
 
-        first_entry = _entry(ps.first_detected_mjd, ps.first_detected_mag)
+        # The global first detection can be a forced-photometry point; PhotStat
+        # separately tracks the first non-forced-phot detection, which is >= it
+        # (a strict superset filtered down), so a mismatch means the true first
+        # detection was FP.
+        is_first_fp = ps.first_detected_mjd is not None and (
+            ps.first_detected_no_forced_phot_mjd is None
+            or ps.first_detected_no_forced_phot_mjd > ps.first_detected_mjd
+        )
+        first_entry = _entry(
+            ps.first_detected_mjd, ps.first_detected_mag, fp=is_first_fp
+        )
         first_survey = _survey_of(ps.first_detected_filter)
+
+        # If the first detection is FP, also surface the first "real" (non-FP)
+        # detection so scanners aren't misled by an FP-only rise.
+        first_real_entry = None
+        first_real_survey = None
+        if is_first_fp:
+            first_real_entry = _entry(
+                ps.first_detected_no_forced_phot_mjd,
+                ps.first_detected_no_forced_phot_mag,
+                fp=False,
+            )
+            first_real_survey = _survey_of(ps.first_detected_no_forced_phot_filter)
 
         peak_by_survey = {}  # survey -> (mag, mjd), brightest (min mag) across filters
         peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
@@ -196,10 +221,18 @@ def _build_scan_report_item(
             if current is None or mag < current[0]:
                 peak_by_survey[survey] = (mag, peak_mjd_per_filter.get(bandpass))
 
-        for survey in set(peak_by_survey) | ({first_survey} if first_survey else set()):
+        surveys = (
+            set(peak_by_survey)
+            | ({first_survey} if first_survey else set())
+            | ({first_real_survey} if first_real_survey else set())
+        )
+        for survey in surveys:
             peak = peak_by_survey.get(survey)
             detections_by_survey[survey] = {
                 "first": first_entry if survey == first_survey else None,
+                "first_real": (
+                    first_real_entry if survey == first_real_survey else None
+                ),
                 "peak": _entry(peak[1], peak[0]) if peak else None,
             }
     detections_by_survey = detections_by_survey or None
