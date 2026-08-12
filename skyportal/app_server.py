@@ -1,3 +1,6 @@
+import asyncio
+import concurrent.futures
+
 import sentry_sdk
 import sqlalchemy as sa
 import tornado.web
@@ -780,6 +783,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         )
 
     app = CustomApplication(handlers, **settings)
+
+    thread_pool_size = cfg.get("app.thread_pool_size")
+    if thread_pool_size:
+        asyncio.get_event_loop().set_default_executor(
+            concurrent.futures.ThreadPoolExecutor(max_workers=int(thread_pool_size))
+        )
 
     default_engine_args = {"pool_size": 10, "max_overflow": 15, "pool_recycle": 3600}
     database_cfg = cfg["database"]

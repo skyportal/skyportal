@@ -51,8 +51,12 @@ PS1_CUTOUT_TIMEOUT = 15  # seconds
 # more headroom since these are on-demand.
 SKYMAPPER_CUTOUT_TIMEOUT = 30  # seconds
 
-# download dustmap if required
-config["data_dir"] = cfg["misc.dustmap_folder"]
+# download dustmap if required; the folder is relative to the repo root, which
+# is not every entry point's cwd (the docs build runs from doc/)
+config["data_dir"] = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    cfg["misc.dustmap_folder"],
+)
 required_files = ["sfd/SFD_dust_4096_ngp.fits", "sfd/SFD_dust_4096_sgp.fits"]
 if any(
     not os.path.isfile(os.path.join(config["data_dir"], required_file))
@@ -60,8 +64,9 @@ if any(
 ):
     try:
         dustmaps.sfd.fetch()
-    except requests.exceptions.HTTPError:
-        pass
+    except Exception as e:
+        # importing models must not depend on a third-party host being up
+        log(f"Could not fetch SFD dustmaps: {e}")
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):

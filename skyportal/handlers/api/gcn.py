@@ -5742,47 +5742,43 @@ def apply_gcn_event_filters(
     Shared by the events list handler and the object crossmatch handler. Raises
     ValueError on a malformed property filter (callers translate to self.error).
     """
+    # The outer query already restricts to accessible events, and tags/localizations
+    # are keyed by dateobs (1:1 with an event), so these filters use plain dateobs
+    # IN/NOT IN rather than re-joining the group-access chain per tag subquery.
     if gcn_tag_keep:
-        gcn_tag_subquery = (
-            GcnTag.select(user_or_token).where(GcnTag.text.in_(gcn_tag_keep)).subquery()
-        )
-        query = query.join(
-            gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
+        query = query.where(
+            GcnEvent.dateobs.in_(
+                sa.select(GcnTag.dateobs).where(GcnTag.text.in_(gcn_tag_keep))
+            )
         )
     if gcn_tag_remove:
-        gcn_tag_subquery = (
-            GcnTag.select(user_or_token)
-            .where(GcnTag.text.in_(gcn_tag_remove))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.notin_(
+                sa.select(GcnTag.dateobs).where(GcnTag.text.in_(gcn_tag_remove))
+            )
         )
-        gcn_dateobs_query = GcnEvent.select(
-            user_or_token, columns=[GcnEvent.dateobs]
-        ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
-        query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
     if localization_tag_keep:
-        tag_subquery = (
-            LocalizationTag.select(user_or_token)
-            .where(LocalizationTag.text.in_(localization_tag_keep))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.in_(
+                sa.select(Localization.dateobs)
+                .join(
+                    LocalizationTag,
+                    LocalizationTag.localization_id == Localization.id,
+                )
+                .where(LocalizationTag.text.in_(localization_tag_keep))
+            )
         )
-        localization_id_query = (
-            Localization.select(user_or_token, columns=[Localization.dateobs])
-            .where(Localization.id == tag_subquery.c.localization_id)
-            .subquery()
-        )
-        query = query.where(GcnEvent.dateobs.in_(localization_id_query))
     if localization_tag_remove:
-        tag_subquery = (
-            LocalizationTag.select(user_or_token)
-            .where(LocalizationTag.text.in_(localization_tag_remove))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.notin_(
+                sa.select(Localization.dateobs)
+                .join(
+                    LocalizationTag,
+                    LocalizationTag.localization_id == Localization.id,
+                )
+                .where(LocalizationTag.text.in_(localization_tag_remove))
+            )
         )
-        localization_id_query = (
-            Localization.select(user_or_token, columns=[Localization.dateobs])
-            .where(Localization.id == tag_subquery.c.localization_id)
-            .subquery()
-        )
-        query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
     if gcn_properties_filter is not None:
         for prop_filt in gcn_properties_filter:
             prop_split = prop_filt.split(":")

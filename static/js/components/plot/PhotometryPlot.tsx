@@ -93,6 +93,14 @@ const periodUnitDividers: Record<string, number> = {
 
 const Plot = createPlotlyComponent(Plotly);
 
+// Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
+// factors rescale the flux axis to the selected display unit.
+const FLUX_UNIT_FACTORS: Record<string, number> = {
+  µJy: 1,
+  mJy: 1e-3,
+  Jy: 1e-6,
+};
+
 const useStyles = makeStyles()((theme) => ({
   gridContainer: {
     display: "grid",
@@ -623,6 +631,8 @@ const PhotometryPlot = ({
   const [t0Max, setT0Max] = useState(mjdnow());
   const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
+  const [displayFluxAxisInLog, setDisplayFluxAxisInLog] = useState(false);
+  const [fluxUnit, setFluxUnit] = useState<string>("µJy");
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
   const [showOnlyValidated, setShowOnlyValidated] = useState(false);
@@ -664,6 +674,7 @@ const PhotometryPlot = ({
     };
 
     const now = mjdnow();
+    const fluxUnitFactor = FLUX_UNIT_FACTORS[fluxUnit] ?? 1;
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
@@ -686,6 +697,14 @@ const PhotometryPlot = ({
         newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
         newPoint.fluxerr = 0;
         newPoint.snr = null;
+      }
+      // Rescale to the selected flux unit (snr is a ratio, so it is unaffected).
+      if (fluxUnitFactor !== 1) {
+        newPoint.flux *= fluxUnitFactor;
+        newPoint.fluxerr *= fluxUnitFactor;
+        if (newPoint.flux_corr !== undefined && newPoint.flux_corr !== null) {
+          newPoint.flux_corr *= fluxUnitFactor;
+        }
       }
       newPoint.streams = (newPoint.streams || [])
         .map((stream: any) => stream?.name || stream)
@@ -746,10 +765,11 @@ const PhotometryPlot = ({
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? newPoint.flux_corr
           : newPoint.flux;
-      const fluxLabel =
+      const fluxLabel = `${
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? "Flux (corrected)"
-          : "Flux";
+          : "Flux"
+      } (${fluxUnit})`;
 
       newPoint.text += `
         <br>Limiting Mag: ${
@@ -1391,17 +1411,34 @@ const PhotometryPlot = ({
         };
       }
     } else if (plotType === "flux") {
-      const fluxLabel = showExtinctionCorrectionValue
-        ? "Flux (Extinction-Corrected)"
-        : "Flux";
-      newLayouts.yaxis = {
-        title: {
-          text: fluxLabel,
-        },
-        range: [...photStats_value.flux.range],
-        ...BASE_LAYOUT,
-        ...axisTheme,
-      };
+      const fluxLabel = `${
+        showExtinctionCorrectionValue ? "Flux (Extinction-Corrected)" : "Flux"
+      } (${fluxUnit})`;
+      if (displayFluxAxisInLog) {
+        const [fluxMin, fluxMax] = photStats_value.flux.range;
+        // A log axis can't show non-positive flux, so clamp the lower bound.
+        const lo = fluxMin > 0 ? fluxMin : fluxMax / 1e4;
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [Math.log10(lo), Math.log10(fluxMax)],
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      } else {
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [...photStats_value.flux.range],
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      }
     }
     return newLayouts;
   };
@@ -1555,6 +1592,8 @@ const PhotometryPlot = ({
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
     showOnlyValidated,
     shownModelFits,
   ]);
@@ -2171,6 +2210,42 @@ const PhotometryPlot = ({
                   size="small"
                 />
               </div>
+            </div>
+          )}
+          {tabToPlotType(tabIndex) === "flux" && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography noWrap>Flux in log</Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={displayFluxAxisInLog}
+                  onChange={() =>
+                    setDisplayFluxAxisInLog(!displayFluxAxisInLog)
+                  }
+                  slotProps={{ input: { "aria-label": "controlled" } }}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+          {tabToPlotType(tabIndex) === "flux" && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography noWrap>Flux unit</Typography>
+              <Select
+                value={fluxUnit}
+                onChange={(e) => setFluxUnit(e.target.value)}
+                size="small"
+                data-testid="fluxUnitSelect"
+              >
+                {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit}
+                  </MenuItem>
+                ))}
+              </Select>
             </div>
           )}
           {config?.usePhotometryValidation && (
