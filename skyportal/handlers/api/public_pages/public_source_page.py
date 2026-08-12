@@ -1,6 +1,7 @@
 import json
 import operator  # noqa: F401
 
+import arrow
 import joblib
 import numpy as np
 import sqlalchemy as sa
@@ -13,6 +14,7 @@ from baselayer.log import make_log
 
 from ....enum_types import THUMBNAIL_TYPES
 from ....models import (
+    Candidate,
     Classification,
     Group,
     Instrument,
@@ -20,6 +22,7 @@ from ....models import (
     PhotStat,
     PublicRelease,
     PublicSourcePage,
+    Source,
     Spectrum,
     Stream,
     User,
@@ -130,7 +133,15 @@ def async_post_public_source_page(options, source, release, user_id):
         post_public_source_page(options, source, release, True, session)
 
 
-def post_public_source_page(options, source, release, is_auto_published, session):
+def post_public_source_page(
+    options,
+    source,
+    release,
+    is_auto_published,
+    session,
+    origin="source",
+    filter_id=None,
+):
     """Create a public page for a source.
     options: The options for managing data to display publicly.
     source: The source data to publish.
@@ -197,6 +208,8 @@ def post_public_source_page(options, source, release, is_auto_published, session
 
     public_source_page = PublicSourcePage(
         source_id=source_id,
+        origin=origin,
+        filter_id=filter_id,
         hash=new_page_hash,
         data=data_to_publish,
         is_auto_published=is_auto_published,
@@ -323,6 +336,31 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
+            # Objs are readable by anyone, so holding the ACL is not on its own
+            # a claim to this object: require access through a group that saved
+            # it, or through a filter it passed.
+            saved = await session.scalar(
+                Source.select(session.user_or_token)
+                .where(Source.obj_id == source_id, Source.active.is_(True))
+                .limit(1)
+            )
+            candidate = None
+            if saved is None:
+                candidate = await session.scalar(
+                    Candidate.select(session.user_or_token)
+                    .where(Candidate.obj_id == source_id)
+                    .order_by(Candidate.passed_at.desc())
+                    .limit(1)
+                )
+                if candidate is None:
+                    return self.error(
+                        "You do not have access to this object as a source or a "
+                        "candidate",
+                        status=403,
+                    )
+            origin = "source" if saved is not None else "candidate"
+            filter_id = candidate.filter_id if candidate is not None else None
+
         # get_source returns a plain dict; the publish helpers below are sync.
         with self.Session() as session:
             release = None
@@ -342,18 +380,22 @@ class PublicSourcePageHandler(BaseHandler):
                     release=release,
                     is_auto_published=False,
                     session=session,
+                    origin=origin,
+                    filter_id=filter_id,
                 )
                 return self.success(data={"id": public_source_page_id})
             except Exception as e:
                 return self.error(str(e))
 
     @auth_or_token
-    async def get(self, source_id: str):
+    async def get(self, source_id: str = None):
         """
         ---
-          summary: Retrieve all public pages for a source
+          summary: Retrieve public pages
           description:
-            Retrieve all public pages for a given source from the most recent to the oldest
+            Retrieve public pages, most recent first. With a source ID, only that
+            source's pages; without one, every visible page, optionally narrowed
+            by release, origin or creation date.
           tags:
             - sources
           parameters:
@@ -361,8 +403,32 @@ class PublicSourcePageHandler(BaseHandler):
               name: source_id
               schema:
                 type: string
-                required: true
+                required: false
                 description: The ID of the source for which to retrieve the public page
+            - in: query
+              name: releaseID
+              schema:
+                type: integer
+                required: false
+                description: Only pages belonging to this release
+            - in: query
+              name: origin
+              schema:
+                type: string
+                required: false
+                description: Only pages published from a 'source' or a 'candidate'
+            - in: query
+              name: createdAfter
+              schema:
+                type: string
+                required: false
+                description: Only pages created after this ISO timestamp
+            - in: query
+              name: numPerPage
+              schema:
+                type: integer
+                required: false
+                description: Maximum number of pages to return (default 100, max 500)
           responses:
             200:
               content:
@@ -385,20 +451,46 @@ class PublicSourcePageHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if source_id is None:
-            return self.error("Source ID is required")
+        release_id = self.get_query_argument("releaseID", None)
+        origin = self.get_query_argument("origin", None)
+        created_after = self.get_query_argument("createdAfter", None)
+        try:
+            num_per_page = min(int(self.get_query_argument("numPerPage", 100)), 500)
+        except ValueError:
+            return self.error("Invalid numPerPage")
+
         async with self.AsyncSession() as session:
-            result = await session.scalars(
+            stmt = (
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .options(
                     sa.orm.selectinload(PublicSourcePage.release),
                     sa.orm.undefer(PublicSourcePage.data),
                 )
-                .where(
-                    PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
-                )
+                .where(PublicSourcePage.is_visible)
                 .order_by(PublicSourcePage.created_at.desc())
             )
+            if source_id is not None:
+                stmt = stmt.where(PublicSourcePage.source_id == source_id)
+            else:
+                # Listing every version of every page is unbounded; the caller
+                # pages through it.
+                stmt = stmt.limit(num_per_page)
+            if release_id is not None:
+                try:
+                    stmt = stmt.where(PublicSourcePage.release_id == int(release_id))
+                except ValueError:
+                    return self.error("Invalid releaseID")
+            if origin is not None:
+                stmt = stmt.where(PublicSourcePage.origin == origin)
+            if created_after is not None:
+                try:
+                    stmt = stmt.where(
+                        PublicSourcePage.created_at > arrow.get(created_after).naive
+                    )
+                except arrow.parser.ParserError:
+                    return self.error("Invalid createdAfter")
+
+            result = await session.scalars(stmt)
             return self.success(data=result.all())
 
     @permissions(["Manage sources"])

@@ -13,6 +13,7 @@ from baselayer.app.json_util import to_json
 from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
 
 from ...utils.cache import Cache, dict_to_bytes
+from ..filter import Filter
 from ..group import GroupUser
 from ..source import Source
 
@@ -32,9 +33,24 @@ def published_source_access_logic(cls, user_or_token):
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        query = query.join(Source, cls.source_id == Source.obj_id)
-        query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
-        query = query.where(GroupUser.user_id == user_id, Source.active.is_(True))
+        # A page published from a candidate has no Source row to join through,
+        # so reach its group through the filter it passed instead.
+        saved = (
+            sa.select(Source.obj_id)
+            .join(GroupUser, Source.group_id == GroupUser.group_id)
+            .where(GroupUser.user_id == user_id, Source.active.is_(True))
+        )
+        via_filter = (
+            sa.select(Filter.id)
+            .join(GroupUser, Filter.group_id == GroupUser.group_id)
+            .where(GroupUser.user_id == user_id)
+        )
+        query = query.where(
+            sa.or_(
+                cls.source_id.in_(saved),
+                cls.filter_id.in_(via_filter),
+            )
+        )
     return query
 
 
@@ -46,6 +62,23 @@ class PublicSourcePage(Base):
     id = sa.Column(sa.Integer, primary_key=True)
 
     source_id = sa.Column(sa.String, nullable=False, doc="ID of the source")
+
+    origin = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="source",
+        doc="What the page was published from: 'source' or 'candidate'. A "
+        "candidate has not been saved by anyone, so the page must say so "
+        "rather than read as a vetted source.",
+    )
+
+    filter_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("filters.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="Filter the candidate passed, when published from a candidate.",
+    )
 
     data = deferred(
         sa.Column(JSONB, nullable=False, doc="Source data accessible on the page")
@@ -90,6 +123,8 @@ class PublicSourcePage(Base):
         return {
             "id": self.id,
             "source_id": self.source_id,
+            "origin": self.origin,
+            "filter_id": self.filter_id,
             "release_link_name": self.release.link_name if self.release else None,
             "is_visible": self.is_visible,
             "created_at": self.created_at,

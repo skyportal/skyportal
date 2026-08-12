@@ -248,3 +248,61 @@ def test_delete_page(view_only_token, manage_sources_token, public_source):
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 404, "Public source page not found")
+
+
+def test_publish_candidate_records_its_origin(
+    manage_sources_token, public_candidate, public_filter
+):
+    """A candidate has no Source row: it can still be published, but the page
+    has to say what it was published from."""
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_candidate.id}",
+        data={"options": {"include_photometry": True}},
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    page_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"public_pages/source/{public_candidate.id}", token=manage_sources_token
+    )
+    assert_api(status, data)
+    page = next(p for p in data["data"] if p["id"] == page_id)
+    assert page["origin"] == "candidate"
+    assert page["filter_id"] == public_filter.id
+
+
+def test_publish_source_still_records_source_origin(
+    manage_sources_token, public_source
+):
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={"options": {}},
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    page_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"public_pages/source/{public_source.id}", token=manage_sources_token
+    )
+    assert_api(status, data)
+    page = next(p for p in data["data"] if p["id"] == page_id)
+    assert page["origin"] == "source"
+    assert page["filter_id"] is None
+
+
+def test_publish_requires_access_to_the_object(
+    manage_sources_token_two_groups, private_source
+):
+    """Objs are world-readable, so holding the ACL must not be enough to
+    publish an object the user cannot reach as a source or a candidate."""
+    status, data = api(
+        "POST",
+        f"public_pages/source/{private_source.id}",
+        data={"options": {}},
+        token=manage_sources_token_two_groups,
+    )
+    assert status == 403, data
