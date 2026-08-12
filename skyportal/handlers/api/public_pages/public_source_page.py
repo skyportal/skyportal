@@ -424,6 +424,12 @@ class PublicSourcePageHandler(BaseHandler):
                 required: false
                 description: Only pages created after this ISO timestamp
             - in: query
+              name: includeData
+              schema:
+                type: boolean
+                required: false
+                description: Include each page's published data snapshot
+            - in: query
               name: numPerPage
               schema:
                 type: integer
@@ -454,6 +460,11 @@ class PublicSourcePageHandler(BaseHandler):
         release_id = self.get_query_argument("releaseID", None)
         origin = self.get_query_argument("origin", None)
         created_after = self.get_query_argument("createdAfter", None)
+        include_data = self.get_query_argument("includeData", "false").lower() in (
+            "true",
+            "t",
+            "1",
+        )
         try:
             num_per_page = min(int(self.get_query_argument("numPerPage", 100)), 500)
         except ValueError:
@@ -491,7 +502,14 @@ class PublicSourcePageHandler(BaseHandler):
                     return self.error("Invalid createdAfter")
 
             result = await session.scalars(stmt)
-            return self.success(data=result.all())
+            pages = result.all()
+            if include_data:
+                # to_dict() deliberately omits the snapshot; a client that
+                # renders a page (rather than listing them) has to ask for it.
+                return self.success(
+                    data=[{**page.to_dict(), "data": page.data} for page in pages]
+                )
+            return self.success(data=pages)
 
     @permissions(["Manage sources"])
     async def delete(self, page_id: int):

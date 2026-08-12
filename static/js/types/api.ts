@@ -22886,12 +22886,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Retrieve all public pages for a source
-         * @description Retrieve all public pages for a given source from the most recent to the oldest
+         * Retrieve public pages
+         * @description Retrieve public pages, most recent first. With a source ID, only that source's pages; without one, every visible page, optionally narrowed by release, origin or creation date.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    releaseID?: number;
+                    origin?: string;
+                    createdAfter?: string;
+                    includeData?: boolean;
+                    numPerPage?: number;
+                };
                 header?: never;
                 path: {
                     source_id: string;
@@ -34586,6 +34592,10 @@ export interface components {
             id?: number;
             /** @description ID of the source */
             source_id: string;
+            /** @description What the page was published from: 'source' or 'candidate'. A candidate has not been saved by anyone, so the page must say so rather than read as a vetted source. */
+            origin?: string;
+            /** @description Filter the candidate passed, when published from a candidate. */
+            filter_id?: number | null;
             /** @description Source data accessible on the page */
             data: {
                 [key: string]: unknown;
@@ -34616,6 +34626,10 @@ export interface components {
             readonly release?: components["schemas"]["PublicRelease"];
             /** @description ID of the source */
             source_id: string;
+            /** @description What the page was published from: 'source' or 'candidate'. A candidate has not been saved by anyone, so the page must say so rather than read as a vetted source. */
+            origin?: string;
+            /** @description Filter the candidate passed, when published from a candidate. */
+            filter_id?: number | null;
             /** @description Source data accessible on the page */
             data: {
                 [key: string]: unknown;
