@@ -1237,6 +1237,12 @@ galaxy_catalog:
       file: ../data/CLU_mini.hdf5
 
 candidates:
+  - id: ZTF26abmjjnm
+    filter_ids:
+      - =example_filter
+    ra: 12.30653
+    dec: 35.56105
+    passed_at: "2026-08-07 11:00:00"
   - id: ZTF21aaqjmps
     filter_ids:
       - =example_filter
@@ -1281,6 +1287,16 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
+  # Real EP/ZTF pair: optical counterpart to X-ray transient EP260806a
+  # (GCN #45299), reported in a ZTF circular as detected at T0+12 hrs. Paired
+  # with the gcn_event entry below so the GCN crossmatch has a genuine match to
+  # find in demo data.
+  - id: ZTF26abmjjnm
+    ra: 12.30653
+    dec: 35.56105
+    group_ids:
+      - =public_group_id
+      - =program_A
   - id: ZTF21aaqjmps
     ra: 202.5050541
     dec: 13.4111859
@@ -1458,6 +1474,16 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
+  # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
+  # from the ZTF circular for EP260806a.
+  - obj_id: ZTF26abmjjnm
+    instrument_id: =ZTF
+    file: ZTF26abmjjnm_phot.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
@@ -1681,6 +1707,16 @@ gcn_event:
       file: ./GW190814.xml
   - xml:
       file: ./AMON.xml
+  # EP260806a, as a cone localization -- the counterpart above sits 2.1' from
+  # this centre, inside the 3.1' error circle.
+  - dateobs: "2026-08-06T23:02:28"
+    skymap:
+      ra: 12.278
+      dec: 35.588
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
 
 gcn_event/1/comments:
   - text: "This is a test comment"

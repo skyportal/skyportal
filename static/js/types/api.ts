@@ -7376,6 +7376,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gcn_event/{dateobs}/crossmatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Crossmatch progress for a GCN event
+         * @description Per-filter state of the alert crossmatch for this event: when it was
+         *     last queried, how far through the alert stream it has got, how many
+         *     matches it has saved, and any error.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Requeue the alert crossmatch for a GCN event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Reset this event's crossmatch progress so the next service pass
+         *     re-queries every filter from the start of the window, including the
+         *     one-shot archival pass.
+         *
+         *     Existing sources and annotations are left alone: the crossmatch
+         *     updates them in place, so re-running refreshes rather than
+         *     duplicates. Use this after changing the quality-cut filter or the
+         *     search parameters.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gcn_event/{dateobs}/report/{report_id}": {
         parameters: {
             query?: never;
@@ -8173,6 +8262,12 @@ export interface paths {
                     gcnTagKeep?: string;
                     /** @description Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags. */
                     gcnTagRemove?: string;
+                    /**
+                     * @description Comma-separated group ids; return only events shared with at
+                     *     least one of them. Narrows within what the user can already
+                     *     read, it does not widen access.
+                     */
+                    groupIds?: string;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that match any of them. */
                     localizationTagKeep?: string;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags. */
@@ -25887,6 +25982,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
+            autosave?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -25922,6 +26019,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
+            autosave?: boolean;
         };
         SingleFilterNoID: {
             /** @enum {string} */
@@ -26313,6 +26412,7 @@ export interface components {
             data?: components["schemas"]["GalaxyNoID"][];
         };
         GcnEvent: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The user that saved this GcnEvent */
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
@@ -26357,6 +26457,7 @@ export interface components {
             /** @description Unique object identifier. */
             id?: number;
             readonly event_users_ids?: number[];
+            readonly crossmatch_states?: components["schemas"]["GcnEventCrossmatchState"][];
         };
         SingleGcnEvent: {
             /** @enum {string} */
@@ -26369,6 +26470,82 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GcnEvent"][];
+        };
+        GcnEventCrossmatchState: {
+            /** @description The GcnEvent being crossmatched. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Filter this state tracks progress against. */
+            readonly filter?: components["schemas"]["Filter"];
+            /** @description The GcnEvent being crossmatched. */
+            gcnevent_id: number;
+            /** @description The Filter this state tracks progress against. */
+            filter_id: number;
+            /**
+             * Format: date-time
+             * @description When this event was last queried for this filter.
+             */
+            last_queried?: string | null;
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            last_alert_jd?: number | null;
+            /** @description One of: pending, processing, done, failed. */
+            status?: string;
+            /** @description Message from the most recent failure, if any. */
+            error?: string | null;
+            /** @description Whether the one-shot pre-event (archival) search has run for this event/broker pair. That window is closed, so it never needs redoing. */
+            archival_done?: boolean;
+            /** @description Cumulative count of alerts matched for this event from this broker. */
+            n_matches?: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnEventCrossmatchState: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchState"];
+        };
+        ArrayOfGcnEventCrossmatchStates: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchState"][];
+        };
+        GcnEventCrossmatchStateNoID: {
+            /** @description The GcnEvent being crossmatched. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Filter this state tracks progress against. */
+            readonly filter?: components["schemas"]["Filter"];
+            /** @description The GcnEvent being crossmatched. */
+            gcnevent_id: number;
+            /** @description The Filter this state tracks progress against. */
+            filter_id: number;
+            /**
+             * Format: date-time
+             * @description When this event was last queried for this filter.
+             */
+            last_queried?: string | null;
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            last_alert_jd?: number | null;
+            /** @description One of: pending, processing, done, failed. */
+            status?: string;
+            /** @description Message from the most recent failure, if any. */
+            error?: string | null;
+            /** @description Whether the one-shot pre-event (archival) search has run for this event/broker pair. That window is closed, so it never needs redoing. */
+            archival_done?: boolean;
+            /** @description Cumulative count of alerts matched for this event from this broker. */
+            n_matches?: number;
+        };
+        SingleGcnEventCrossmatchStateNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchStateNoID"];
+        };
+        ArrayOfGcnEventCrossmatchStateNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventCrossmatchStateNoID"][];
         };
         GcnEventMMADetector: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
@@ -26409,6 +26586,7 @@ export interface components {
             data?: components["schemas"]["GcnEventMMADetectorNoID"][];
         };
         GcnEventNoID: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The user that saved this GcnEvent */
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
@@ -26451,6 +26629,7 @@ export interface components {
                 [key: string]: unknown;
             };
             readonly event_users_ids?: number[];
+            readonly crossmatch_states?: components["schemas"]["GcnEventCrossmatchState"][];
         };
         SingleGcnEventNoID: {
             /** @enum {string} */
@@ -26503,6 +26682,8 @@ export interface components {
             data?: components["schemas"]["GcnEventUserNoID"][];
         };
         GcnNotice: {
+            /** @description The GcnEvent this notice belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnNotice */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
@@ -26547,6 +26728,8 @@ export interface components {
             data?: components["schemas"]["GcnNotice"][];
         };
         GcnNoticeNoID: {
+            /** @description The GcnEvent this notice belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnNotice */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
@@ -26589,6 +26772,8 @@ export interface components {
             data?: components["schemas"]["GcnNoticeNoID"][];
         };
         GcnProperty: {
+            /** @description The GcnEvent this property belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
@@ -26615,6 +26800,8 @@ export interface components {
             data?: components["schemas"]["GcnProperty"][];
         };
         GcnPropertyNoID: {
+            /** @description The GcnEvent this property belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
@@ -26639,6 +26826,8 @@ export interface components {
             data?: components["schemas"]["GcnPropertyNoID"][];
         };
         GcnReport: {
+            /** @description The GcnEvent this report belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnReport */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
@@ -26672,6 +26861,8 @@ export interface components {
             data?: components["schemas"]["GcnReport"][];
         };
         GcnReportNoID: {
+            /** @description The GcnEvent this report belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnReport */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
@@ -26703,6 +26894,8 @@ export interface components {
             data?: components["schemas"]["GcnReportNoID"][];
         };
         GcnSummary: {
+            /** @description The GcnEvent this summary belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnSummary */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
@@ -26731,6 +26924,8 @@ export interface components {
             data?: components["schemas"]["GcnSummary"][];
         };
         GcnSummaryNoID: {
+            /** @description The GcnEvent this summary belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnSummary */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
@@ -26757,6 +26952,8 @@ export interface components {
             data?: components["schemas"]["GcnSummaryNoID"][];
         };
         GcnTag: {
+            /** @description The GcnEvent this tag belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
@@ -26780,6 +26977,8 @@ export interface components {
             data?: components["schemas"]["GcnTag"][];
         };
         GcnTagNoID: {
+            /** @description The GcnEvent this tag belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this GcnTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
@@ -27364,6 +27563,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupDefaultAnalysisNoID"][];
+        };
+        GroupGcnEvent: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            group_id: number;
+            gcnevent_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupGcnEvent: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEvent"];
+        };
+        ArrayOfGroupGcnEvents: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEvent"][];
+        };
+        GroupGcnEventNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            group_id: number;
+            gcnevent_id: number;
+        };
+        SingleGroupGcnEventNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventNoID"];
+        };
+        ArrayOfGroupGcnEventNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventNoID"][];
         };
         GroupIDList: {
             group_ids: number[];
@@ -28398,12 +28635,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
@@ -28669,12 +28906,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
@@ -28856,6 +29093,8 @@ export interface components {
             data?: components["schemas"]["ListingNoID"][];
         };
         Localization: {
+            /** @description The GcnEvent this localization belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this Localization */
             readonly sent_by?: components["schemas"]["User"];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
@@ -28905,6 +29144,8 @@ export interface components {
             data?: components["schemas"]["Localization"][];
         };
         LocalizationNoID: {
+            /** @description The GcnEvent this localization belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The user that saved this Localization */
             readonly sent_by?: components["schemas"]["User"];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
@@ -28952,6 +29193,8 @@ export interface components {
             data?: components["schemas"]["LocalizationNoID"][];
         };
         LocalizationProperty: {
+            /** @description The Localization this property belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
@@ -28978,6 +29221,8 @@ export interface components {
             data?: components["schemas"]["LocalizationProperty"][];
         };
         LocalizationPropertyNoID: {
+            /** @description The Localization this property belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationProperty */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
@@ -29002,6 +29247,8 @@ export interface components {
             data?: components["schemas"]["LocalizationPropertyNoID"][];
         };
         LocalizationTag: {
+            /** @description The Localization this tag belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
@@ -29025,6 +29272,8 @@ export interface components {
             data?: components["schemas"]["LocalizationTag"][];
         };
         LocalizationTagNoID: {
+            /** @description The Localization this tag belongs to. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The user that saved this LocalizationTag */
             readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
@@ -35757,6 +36006,8 @@ export interface components {
         SourcesConfirmedInGCN: {
             /** @description The assigned Obj. */
             readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The User who created this SourcesConfirmedInGCN. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
@@ -35792,6 +36043,8 @@ export interface components {
         SourcesConfirmedInGCNNoID: {
             /** @description The assigned Obj. */
             readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The User who created this SourcesConfirmedInGCN. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */

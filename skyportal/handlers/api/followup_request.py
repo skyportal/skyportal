@@ -818,6 +818,9 @@ async def post_followup_request_async(
     followup_request.target_groups = target_groups
     followup_request.watchers = watchers
     session.add(followup_request)
+    # Assign an id before submit() re-queries by it (auto-followup path skips the
+    # commit below, else the row is unflushed and the re-query returns None).
+    await session.flush()
 
     if refresh_source or refresh_requests:
         await session.commit()

@@ -594,6 +594,9 @@ database:
   user: skyportal
   password:
 
+  # Superuser for `make db_init`; empty defaults to "postgres".
+  admin_user:
+
   # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
   # and Postgres, so many processes share a small bounded backend pool instead of
   # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
@@ -729,6 +732,12 @@ misc:
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
+  # When a data product (photometry, spectra, ...) is uploaded without specifying
+  # any groups, share it with the sitewide public group (public_group_name) in
+  # addition to the uploader's single-user group (which is always included). When
+  # false (default) an unspecified upload is shared only with the uploader. Groups
+  # given explicitly on the upload are always honored as-is.
+  share_data_with_public_group_by_default: false
   # External survey thumbnails fetched (outbound HTTP) when a source is saved.
   # Set to [] to disable, e.g. on instances without external network egress.
   external_thumbnail_types:
@@ -981,6 +990,91 @@ gcn:
     acknowledgements:
       - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
   source_radius_threshold: 8.0 # max skymap cone radius to create a source, in arcmin
+
+gcn_crossmatch:
+  # Crossmatch broker alerts against active GCN localizations: for each event
+  # still inside its window, query the alerts near its localization, keep the
+  # ones genuinely inside the credible region, and raise them as candidates.
+  #
+  # What gets crossmatched is configured per SkyPortal Filter, not here: a
+  # filter names the broker, the stream (hence survey and programids) and the
+  # group that sees the candidates. Opt one in with
+  #
+  #   altdata:
+  #     gcn_crossmatch:
+  #       enabled: true
+  #       # optional, same shape as DefaultGcnTag: restrict to matching events
+  #       filters: {gcn_tags: ["Einstein Probe"]}
+  #       # optional: any setting below, overridden for this filter alone
+  #       delta_t_after: 7.0
+  #
+  # The values here are the defaults every such filter inherits.
+  #
+  # Annotations inherit the event's groups, so a restricted event's matches stay
+  # as restricted as the event itself.
+  enabled: False
+  # Seconds between passes over the due (event, filter) pairs.
+  poll_interval: 300
+  # Events older than this many days are no longer crossmatched.
+  max_event_age: 31.0
+  # Minimum gap before an event is re-queried through the same filter. Events
+  # are re-queried for as long as they are active because alerts keep arriving
+  # after the trigger. Hourly is far faster than a survey revisits a field, and
+  # keeps a month of active events well inside a broker's rate limit.
+  recheck_interval_minutes: 60.0
+  # Query window around the event time, in days.
+  delta_t_before: 1.0
+  delta_t_after: 31.0
+  # Localizations bounding to a cone larger than this (degrees) are skipped:
+  # the broker query would be impractically wide. Large GW skymaps land here.
+  max_radius_deg: 5.0
+  # Credible level of the stored contour used to bound non-cone localizations.
+  credible_level: 90
+  # Cumulative probability defining "inside" for the containment check.
+  cumprob: 0.95
+  # Cap on alerts returned per event per filter per pass.
+  max_alerts: 500
+  # After a broker answers 429, skip it entirely for this many minutes. Quotas
+  # are per account and shared with the rest of the app, so retrying sooner
+  # burns allowance that interactive users need. Lasair's window is an hour.
+  rate_limit_backoff_minutes: 60.0
+  # Also search the window *before* the event, once per event/broker. Alerts
+  # there cannot be caused by the event, so they rule a candidate out: a
+  # position already flaring last month is a variable, not a counterpart.
+  # Recorded with archival: true on the annotation.
+  archival: True
+  archival_days: 31.0
+
+einstein_probe:
+  # Ingestion of unverified X-ray transient candidates from the Einstein Probe
+  # data center (https://ep.bao.ac.cn). This is a proprietary, invitation-only
+  # feed and is DISTINCT from the public gcn.notices.einstein_probe.wxt.alert
+  # topic configured under gcn.notice_types.json above: the data center
+  # publishes candidates earlier and with more detail, keyed by name+version,
+  # and its dateobs is the observation start rather than the trigger time.
+  # The two streams therefore produce separate GcnEvents for the same physical
+  # transient; the EP name is recorded in aliases so they can be cross-linked.
+  #
+  # Access to the data center is by invitation. Contact Tomas Ahumada
+  # (tahumada@astro.umd.edu) or Lin Yan (lyan@caltech.edu).
+  enabled: False
+  base_url: https://ep.bao.ac.cn/ep
+  email:
+  password:
+  # Seconds between polls of the unverified-candidate list.
+  poll_interval: 300
+  # Events are restricted to these groups. Because GcnEvent.read is
+  # group-scoped, leaving this empty would fall back to the sitewide public
+  # group and publish the proprietary feed to every user -- so the service
+  # refuses to start unless at least one group is named here.
+  group_names:
+    - Einstein Probe
+  # Scale factor applied to the EP position error to size the cone
+  # localization: radius = pos_err * radius_multiplier, in degrees.
+  radius_multiplier: 1.0
+  # Candidates older than this many days are ignored on startup, so that a
+  # fresh deployment does not backfill the entire archive.
+  max_event_age: 31.0
 
 health_monitor:
   seconds_between_checks: 30.5

@@ -44,6 +44,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # SFD dust maps, else importing the models downloads them
+          lfs: true
 
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies

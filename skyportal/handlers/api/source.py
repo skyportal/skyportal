@@ -116,6 +116,7 @@ DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 log = make_log("api/source")
 
 MAX_LOCALIZATION_SOURCES = 50000
@@ -2751,7 +2752,9 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-            if not isinstance(isoparse(obstime), datetime.datetime):
+            try:
+                isoparse(obstime)
+            except (ValueError, TypeError):
                 return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
@@ -2812,18 +2815,24 @@ class SourceOffsetsHandler(BaseHandler):
             priority, comment = 1, "science"
             if facility in ["P200-NGPS"]:
                 # look for the latest photometry point
-                # in the filters supported by NGPS
+                # in the filters supported by NGPS.
+                # `flux > 0` also matches NaN flux (Postgres orders NaN above
+                # every number), and those points have no magnitude to export,
+                # so require one. Prefer a detection, falling back to the
+                # latest point that has a magnitude at all.
                 latest_photometry = (
                     await session.scalars(
                         Photometry.select(session.user_or_token)
                         .where(
                             Photometry.obj_id == obj_id,
-                            Photometry.flux.isnot(None),
-                            Photometry.flux > 0,
+                            Photometry.mag.isnot(None),
                             Photometry.fluxerr.isnot(None),
                             Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
                         )
-                        .order_by(Photometry.mjd.desc())
+                        .order_by(
+                            (Photometry.snr > PHOT_DETECTION_THRESHOLD).desc(),
+                            Photometry.mjd.desc(),
+                        )
                     )
                 ).first()
                 if latest_photometry is not None:
@@ -2853,6 +2862,12 @@ class SourceOffsetsHandler(BaseHandler):
                         )
 
                     priority, comment = assignment.priority, assignment.comment
+
+            # Commit before the slow Gaia query: holding the transaction across
+            # it trips pgbouncer's idle_transaction_timeout. Capture first, since
+            # commit expires the ORM objects.
+            source_ra, source_dec = source.ra, source.dec
+            await session.commit()
 
             offset_func = functools.partial(
                 get_nearby_offset_stars,
@@ -2892,14 +2907,13 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            await session.commit()
             return self.success(
                 data={
                     "facility": facility,
                     "starlist_str": starlist_str,
                     "starlist_info": starlist_info,
-                    "ra": source.ra,
-                    "dec": source.dec,
+                    "ra": source_ra,
+                    "dec": source_dec,
                     "noffsets": noffsets,
                     "queries_issued": queries_issued,
                     "query": query_string,
@@ -3176,7 +3190,9 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")

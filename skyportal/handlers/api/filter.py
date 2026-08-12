@@ -7,6 +7,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Filter
 from ..base import BaseHandler
+from .group import has_admin_access_for_group
 
 
 class FilterPostBody(BaseModel):
@@ -164,17 +165,53 @@ class FilterHandler(BaseHandler):
             return self.error(f"Invalid filter_id: {filter_id}")
         async with self.AsyncSession() as session:
             f = await session.scalar(
-                Filter.select(session.user_or_token, mode="update").where(
-                    Filter.id == filter_id
-                )
+                Filter.select(
+                    session.user_or_token,
+                    mode="update",
+                    options=[joinedload(Filter.broker)],
+                ).where(Filter.id == filter_id)
             )
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
+
+            if not await has_admin_access_for_group(
+                self.associated_user_object, f.group_id, session
+            ):
+                return self.error(
+                    "Insufficient permissions: must be a group admin or system "
+                    "admin to modify a filter.",
+                    status=403,
+                )
 
             if (body.group_id is not None and body.group_id != f.group_id) or (
                 body.stream_id is not None and body.stream_id != f.stream_id
             ):
                 return self.error("Cannot update group_id or stream_id.")
+
+            # A renamed filter must be renamed on the broker too, or the two
+            # names drift and the broker-side filter becomes unidentifiable.
+            # Unlike delete, this is not best-effort: fail rather than drift.
+            if body.name is not None and body.name != f.name:
+                broker = f.broker
+                broker_filter_id = ((f.altdata or {}).get("boom") or {}).get(
+                    "filter_id"
+                )
+                if (
+                    broker is not None
+                    and broker_filter_id is not None
+                    and broker.broker_class.implements().get("update_filter")
+                ):
+                    try:
+                        broker.broker_class.update_filter(
+                            broker,
+                            session,
+                            boom_filter_id=broker_filter_id,
+                            name=body.name,
+                        )
+                    except Exception as e:
+                        return self.error(
+                            f"Failed to rename filter on {broker.name}: {e}"
+                        )
 
             if body.name is not None:
                 f.name = body.name

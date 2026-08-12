@@ -8,14 +8,17 @@ from baselayer.log import make_log
 
 from ....models import (
     Allocation,
+    Annotation,
     ClassicalAssignment,
     Comment,
     FollowupRequest,
     Obj,
     ObservingRun,
     Source,
+    SourcesConfirmedInGCN,
 )
 from ....models.scan_report.scan_report_item import ScanReportItem
+from ....utils.gcn_crossmatch import ANNOTATION_ORIGIN as GCN_CROSSMATCH_ORIGIN
 from ....utils.parse import safe_round
 from ...base import BaseHandler
 
@@ -51,6 +54,7 @@ def _build_scan_report_item(
     assignment_rows,
     comment,
     now_mjd,
+    gcn_match=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
@@ -172,11 +176,16 @@ def _build_scan_report_item(
             "followups": followups,
             "assignments": assignments,
             "detections_by_survey": detections_by_survey,
+            # Present only for an event-scoped report: how this object relates to
+            # the event, and the scanner's verdict on it.
+            "gcn_match": gcn_match,
         },
     )
 
 
-async def create_scan_report_items(session, report, sources_by_objs):
+async def create_scan_report_items(
+    session, report, sources_by_objs, gcn_event_dateobs=None
+):
     """Build report items for many objects with a constant number of queries.
 
     Each data type (Obj, Source, FollowupRequest, ClassicalAssignment, Photometry,
@@ -201,6 +210,47 @@ async def create_scan_report_items(session, report, sources_by_objs):
         return []
 
     user_or_token = session.user_or_token
+
+    # For an event-scoped report, snapshot each object's relation to the event:
+    # the crossmatch's own measurements plus the scanner's verdict so far.
+    gcn_match_by_obj = {}
+    if gcn_event_dateobs is not None:
+        obj_ids = [obj_id for obj_id, _ in valid]
+        verdicts = (
+            await session.scalars(
+                SourcesConfirmedInGCN.select(user_or_token).where(
+                    SourcesConfirmedInGCN.obj_id.in_(obj_ids),
+                    SourcesConfirmedInGCN.dateobs == gcn_event_dateobs,
+                )
+            )
+        ).all()
+        annotations = (
+            await session.scalars(
+                Annotation.select(user_or_token).where(
+                    Annotation.obj_id.in_(obj_ids),
+                    Annotation.origin == GCN_CROSSMATCH_ORIGIN,
+                )
+            )
+        ).all()
+        measured = {}
+        want = gcn_event_dateobs.isoformat()
+        for annotation in annotations:
+            for payload in (annotation.data or {}).values():
+                if isinstance(payload, dict) and payload.get("dateobs") == want:
+                    measured[annotation.obj_id] = payload
+        for verdict in verdicts:
+            entry = dict(measured.pop(verdict.obj_id, {}))
+            entry.update(
+                {
+                    "confirmed": verdict.confirmed,
+                    "explanation": verdict.explanation,
+                    "notes": verdict.notes,
+                }
+            )
+            gcn_match_by_obj[verdict.obj_id] = entry
+        # matched by the crossmatch but with no verdict row yet
+        for obj_id, payload in measured.items():
+            gcn_match_by_obj[obj_id] = {**payload, "confirmed": None}
 
     objs = {}
     sources_by_obj = defaultdict(list)
@@ -298,6 +348,7 @@ async def create_scan_report_items(session, report, sources_by_objs):
                 assignments_by_obj.get(obj_id, []),
                 comment_by_obj.get(obj_id),
                 now_mjd,
+                gcn_match=gcn_match_by_obj.get(obj_id),
             )
         )
     return items

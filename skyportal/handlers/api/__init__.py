@@ -104,6 +104,7 @@ from .gcn import (
     LocalizationTagsHandler,
     ObjGcnEventHandler,
 )
+from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
 from .gcn_gracedb import GcnGraceDBHandler
 from .gcn_tach import GcnTachHandler
 from .group import (

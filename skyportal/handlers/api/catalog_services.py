@@ -20,13 +20,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-try:
-    from .alert import post_alert
-
-    alert_available = True
-except Exception:
-    alert_available = False
-
 from ...models import (
     Allocation,
     CatalogQuery,
@@ -42,7 +35,7 @@ from ...models import (
     UserNotification,
 )
 from ...models.schema import CatalogQueryPost
-from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
+from ...utils.catalog import get_conesearch_centers, query_fink
 from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 from .photometric_series import post_photometric_series, update_photometric_series
@@ -168,8 +161,11 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         session.add(catalog_query)
         session.commit()
 
+        # localizationDateobs/localizationName come straight from the requester,
+        # so this lookup must honor the GcnEvent group restriction -- otherwise a
+        # user could name a restricted event and get galaxies in its error region.
         localization = session.scalars(
-            sa.select(Localization).where(
+            Localization.select(user).where(
                 Localization.dateobs == payload["localizationDateobs"],
                 Localization.localization_name == payload["localizationName"],
             )
@@ -181,70 +177,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         jd_trigger = start_date.jd
         dt = end_date.jd - start_date.jd
 
-        if payload["catalogName"] == "ZTF-Kowalski":
-            altdata = allocation.altdata
-            if not altdata:
-                raise ValueError("Missing allocation information.")
-
-            # allow access to public data only by default
-            program_id_selector = {1}
-
-            for stream in user.streams:
-                if "ztf" in stream.name.lower():
-                    program_id_selector.update(set(stream.altdata.get("selector", [])))
-
-            program_id_selector = list(program_id_selector)
-
-            log("Querying kowalski for sources")
-            # Query kowalski
-            sources = query_kowalski(
-                token=altdata["access_token"],
-                dateobs=localization.dateobs,
-                localization_name=localization.localization_name,
-                contour=payload["localizationCumprob"] * 100,
-                localization_file=localization.get_localization_path(),
-                max_days=dt,
-                within_days=dt,
-            )
-
-            if sources is None:
-                catalog_query.status = "failed"
-                session.commit()
-                return
-
-            if len(sources) == 0:
-                catalog_query.status = "no sources found"
-                session.commit()
-                return
-
-            catalog_query.status = f"found {len(sources)} sources, posting..."
-            session.commit()
-
-            obj_ids = []
-            log(f"Found {len(sources)} sources, posting...")
-            for source in sources:
-                log(f"Retrieving {source['id']}")
-                s = session.scalars(
-                    Obj.select(user).where(Obj.id == source["id"])
-                ).first()
-                if s is None:
-                    log(f"Posting {source['id']} as source")
-                    source["group_ids"] = group_ids
-                    (obj_id,) = post_source(source, user_id, session)
-                    obj_ids.append(obj_id)
-
-                if alert_available:
-                    log(f"Posting photometry from {source['id']}")
-                    post_alert(
-                        source["id"],
-                        group_ids,
-                        user.id,
-                        session,
-                        program_id_selector=program_id_selector,
-                    )
-            log("Finished querying Kowalski for sources")
-
-        elif payload["catalogName"] == "ZTF-Fink":
+        if payload["catalogName"] == "ZTF-Fink":
             instrument = session.scalars(
                 Instrument.select(user).where(Instrument.name == "ZTF")
             ).first()

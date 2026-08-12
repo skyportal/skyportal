@@ -49,6 +49,7 @@ from skyportal.models import (
     Galaxy,
     GalaxyCatalog,
     GcnEvent,
+    GcnEventCrossmatchState,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -67,6 +68,7 @@ from skyportal.models import (
     GroupCommentOnShift,
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
+    GroupGcnEvent,
     GroupMMADetectorSpectrum,
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
@@ -169,6 +171,7 @@ from skyportal.tests.fixtures import (
     ThumbnailFactory,
     UserFactory,
     UserNotificationFactory,
+    resilient_delete,
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
@@ -1730,6 +1733,40 @@ def public_taxonomy(public_group):
 
 
 @pytest.fixture()
+def public_group_gcnevent(public_group, public_gcnevent):
+    """The GroupGcnEvent row tying public_gcnevent to public_group.
+
+    public_gcnevent is attached to its creating user's groups, which include
+    public_group, so this row exists by the time the fixture runs.
+    """
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupGcnEvent).filter(
+                GroupGcnEvent.group_id == public_group.id,
+                GroupGcnEvent.gcnevent_id == public_gcnevent.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_gcnevent_crossmatch_state(public_gcnevent, public_filter):
+    state = GcnEventCrossmatchState(
+        gcnevent_id=public_gcnevent.id,
+        filter_id=public_filter.id,
+        status="pending",
+    )
+    DBSession().add(state)
+    DBSession().commit()
+    state_id = state.id
+    yield state
+    resilient_delete(GcnEventCrossmatchState, state_id)
+
+
+@pytest.fixture()
 def public_group_taxonomy(public_taxonomy):
     return (
         DBSession()
@@ -2701,6 +2738,7 @@ def public_comment_on_gcn_perm(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -3300,6 +3338,7 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
         dateobs=dateobs,
         sent_by_id=super_admin_user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=super_admin_user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3527,6 +3566,7 @@ def public_gcnevent(user):
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int)[:10],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3551,6 +3591,7 @@ def public_gcn_event_mmadetector(user):
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int % 1000000000),
+        groups=user.groups,
     )
     DBSession.add(event)
     DBSession.commit()
@@ -3615,6 +3656,7 @@ def public_gcnevent_user(user):
     gcnevent = GcnEvent(
         dateobs=str(uuid.uuid4()),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     # dateobs must be a real datetime; use a unique time to satisfy the unique
     # constraint without colliding with other tests
@@ -3656,6 +3698,7 @@ def public_gcn_property(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3688,6 +3731,7 @@ def public_gcn_report(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3726,6 +3770,7 @@ def public_gcn_summary(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3773,6 +3818,7 @@ def public_gcn_tag(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -4169,6 +4215,7 @@ def public_gcn_notice(user):
         dateobs=dateobs,
         trigger_id=str(uuid.uuid4().int)[:10],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -4461,6 +4508,7 @@ def public_group_comment_on_gcn(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -5145,6 +5193,7 @@ def public_group_reminder_on_gcn(public_group, user):
         dateobs=utcnow_naive(),
         trigger_id=str(uuid.uuid4().int)[:12],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -5599,6 +5648,7 @@ def public_localization(user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -6261,6 +6311,7 @@ def public_reminder_on_gcn(public_group, user):
         dateobs=dateobs,
         trigger_id=uuid.uuid4().hex,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -6803,6 +6854,7 @@ def public_sources_confirmed_in_gcn(public_source, user):
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()

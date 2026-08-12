@@ -17,6 +17,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import { flattenAnnotationData } from "../candidate/annotationValue";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import { useDeleteAnnotationMutation as useDeleteSourceAnnotationMutation } from "../../ducks/source";
@@ -142,7 +143,7 @@ const AnnotationsTable = ({
       spectrum_id = null,
       spectrum_observed_at: observed_at = null,
     } = annotation;
-    Object.entries(data).forEach(([key, value]) => {
+    flattenAnnotationData(data).forEach(([key, value]) => {
       tableData.push({
         __rowid: tableData.length,
         id,

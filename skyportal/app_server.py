@@ -1,4 +1,5 @@
 import sentry_sdk
+import sqlalchemy as sa
 import tornado.web
 from sentry_sdk.integrations.tornado import TornadoIntegration
 
@@ -72,6 +73,7 @@ from skyportal.handlers.api import (
     GalaxyRegaladeHandler,
     GcnEventAliasesHandler,
     GcnEventCatalogQueryHandler,
+    GcnEventCrossmatchHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventNoticeDownloadHandler,
@@ -251,7 +253,7 @@ from skyportal.handlers.public import (
 )
 
 from . import model_util, openapi
-from .models import init_db
+from .models import DBSession, init_db
 from .utils.observability import setup_observability
 
 log = make_log("app_server")
@@ -397,6 +399,7 @@ skyportal_handlers = [
     (r"/api/gcn_event(/.*)/alias", GcnEventAliasesHandler),
     (r"/api/gcn_event(/.*)/triggered(/.*)?", GcnEventTriggerHandler),
     (r"/api/gcn_event(/.*)/gracedb", GcnGraceDBHandler),
+    (r"/api/gcn_event/(.*)/crossmatch", GcnEventCrossmatchHandler),
     (r"/api/gcn_event/(.*)/report(/.*)?", GcnReportHandler),
     (r"/api/gcn_event(/.*)/tach", GcnTachHandler),
     (r"/api/gcn_event/(.*)/summary(/.*)?", GcnSummaryHandler),
@@ -797,6 +800,17 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     # in debug mode.  In production, we leave the tables alone, since
     # migrations might be used.
     create_tables(add=env.debug)
+
+    # create_tables() is a no-op outside debug mode, so an unmigrated database
+    # reaches this point empty and every later step fails on a missing table or
+    # type -- once per worker, on every supervisor restart. Say so instead.
+    if not sa.inspect(DBSession.session_factory.kw["bind"]).has_table("users"):
+        raise RuntimeError(
+            "No tables found in the database. Create the schema first: "
+            "`make db_create_tables` (or `alembic upgrade head` where "
+            "migrations are used), then start the app."
+        )
+
     model_util.refresh_enums()
 
     model_util.setup_permissions()
