@@ -6,6 +6,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "../Button";
 import { useEditFollowupRequestMutation } from "../../ducks/source";
+import { localeSafeFields } from "./LocaleSafeNumberField";
 
 interface EditFollowupRequestDialogProps {
   followupRequest: {
@@ -151,6 +152,7 @@ const EditFollowupRequestDialog = ({
                 followupRequest.allocation.instrument.id as number
               ].uiSchema
             }
+            fields={localeSafeFields}
             onSubmit={handleSubmit as any}
             customValidate={validate}
             liveValidate
