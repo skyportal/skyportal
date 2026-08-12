@@ -25,6 +25,11 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  # Threads each Tornado instance may use for blocking work. Too few lets a slow
+  # upstream stall unrelated requests; too many can exhaust the database
+  # connection pool. Unset uses Python's default.
+  thread_pool_size:
+
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
     use_skyportal_fields: True
