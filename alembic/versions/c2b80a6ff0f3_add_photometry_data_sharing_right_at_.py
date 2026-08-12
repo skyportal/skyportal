@@ -1,7 +1,7 @@
 """Add photometry data sharing right at group level
 
 Revision ID: c2b80a6ff0f3
-Revises: a4d17c3b8e52
+Revises: c7d1a4e9f3b2
 Create Date: 2026-08-07 16:26:39.000024
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "c2b80a6ff0f3"
-down_revision = "a4d17c3b8e52"
+down_revision = "c7d1a4e9f3b2"
 branch_labels = None
 depends_on = None
 
