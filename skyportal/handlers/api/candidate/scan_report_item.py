@@ -3,9 +3,10 @@ from collections import defaultdict
 import astropy.units as u
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import aliased, joinedload, selectinload
+
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
-from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from ....models import (
     Allocation,
