@@ -806,6 +806,16 @@ async def standardize_photometry_data(data, session):
                     f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
+        # non-detections require limiting_mag
+        limmag_missing = magnull & df["limiting_mag"].isna()
+        if any(limmag_missing):
+            bad_rows = np.argwhere(limmag_missing.values).flatten()
+            bad_mjds = [float(df.iloc[i]["mjd"]) for i in bad_rows]
+            raise ValidationError(
+                f"Non-detections (mag=null) require a limiting_mag. "
+                f"Affected row(s) at MJD: {bad_mjds}."
+            )
+
         # convert the mags to fluxes
         # detections
         detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))
@@ -1244,7 +1254,12 @@ async def insert_new_photometry_data(
 
         # reduce the DB size by ~2x
         keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
-        original_user_data = {key: packet[key] for key in keys if key in packet}
+        original_user_data = {
+            key: packet[key]
+            for key in keys
+            if key in packet
+            and not (isinstance(packet[key], float) and np.isnan(packet[key]))
+        }
         if original_user_data == {}:
             original_user_data = None
 
