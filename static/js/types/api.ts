@@ -9881,6 +9881,8 @@ export interface paths {
                         admin: boolean;
                         /** @description Boolean indicating whether user can save sources to group. Defaults to true. */
                         canSave?: boolean;
+                        /** @description Boolean indicating whether user can share photometry points to other groups. Defaults to false. */
+                        canSharePhotometry?: boolean;
                     };
                 };
             };
@@ -28551,6 +28553,8 @@ export interface components {
             admin?: boolean;
             /** @description Boolean flag indicating whether the user should be able to save sources to the group */
             can_save?: boolean;
+            /** @description Boolean flag indicating whether the user should be able to share photometry points to other groups even if the user is not the owner of the photometry data */
+            can_share_photometry?: boolean;
         };
         SingleGroupUser: {
             /** @enum {string} */
@@ -28573,6 +28577,8 @@ export interface components {
             admin?: boolean;
             /** @description Boolean flag indicating whether the user should be able to save sources to the group */
             can_save?: boolean;
+            /** @description Boolean flag indicating whether the user should be able to share photometry points to other groups even if the user is not the owner of the photometry data */
+            can_share_photometry?: boolean;
         };
         SingleGroupUserNoID: {
             /** @enum {string} */
@@ -28989,6 +28995,7 @@ export interface components {
             role_id: string;
             admin_for_groups: boolean[];
             can_save_to_groups: boolean[];
+            can_share_photometry_for_groups: boolean[];
             user_email?: string | null;
             used?: boolean;
             /** Format: date-time */
@@ -29017,6 +29024,7 @@ export interface components {
             role_id: string;
             admin_for_groups: boolean[];
             can_save_to_groups: boolean[];
+            can_share_photometry_for_groups: boolean[];
             user_email?: string | null;
             used?: boolean;
             /** Format: date-time */
@@ -38622,6 +38630,12 @@ export interface components {
              * @default null
              */
             canSave: boolean[] | null;
+            /**
+             * Cansharephotometry
+             * @description List of booleans indicating whether user should be able to share photometry points to respective specified group(s). Defaults to all false.
+             * @default null
+             */
+            canSharePhotometry: boolean[] | null;
             /**
              * Userexpirationdate
              * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application.

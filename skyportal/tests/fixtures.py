@@ -1088,10 +1088,10 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     token = factory.LazyFunction(lambda: uuid.uuid4().hex)
     admin_for_groups = []
-    # role and can_save_to_groups are NOT NULL on Invitation; the handler
-    # (handlers/api/invitations.py) always sets them, so the factory must too,
-    # or the row fails to flush.
+    # role, can_save_to_groups, and can_share_photometry_for_groups are NOT NULL on Invitation;
+    # the handler always sets them, so the factory must too, or the row fails to flush.
     can_save_to_groups = []
+    can_share_photometry_for_groups = []
     role = factory.LazyFunction(
         lambda: (
             DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()

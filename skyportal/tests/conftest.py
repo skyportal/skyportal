@@ -7070,7 +7070,7 @@ def public_stream_invitation(public_stream, user):
     # Look up the "Full user" Role required by the NOT NULL role_id column.
     role = DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
     # Invitation has several nullable=False columns: token, role_id,
-    # admin_for_groups, can_save_to_groups, used. Fill them all.
+    # admin_for_groups, can_save_to_groups, can_share_photometry_for_groups, used. Fill them all.
     # NOTE: Invitation fires an after_insert listener that sends an email; the
     # test suite sets invitations.disable_emailing so it only logs instead.
     invitation = Invitation(
@@ -7078,6 +7078,7 @@ def public_stream_invitation(public_stream, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="user@email.com",
         invited_by=user,
         used=False,
@@ -7545,6 +7546,7 @@ def public_user_invitation(public_group, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="invitee@email.com",
         used=False,
         groups=[public_group],
