@@ -861,19 +861,18 @@ CASES = [
     # --- StreamUser  (public_streamuser_no_groups) ---
     ("super_admin_user", "public_streamuser_no_groups", "delete", True),
     # --- SuperObj  (public_super_obj) ---
-    # No ACL override -> BaseMixin defaults: create=read=public,
-    # update=delete=restricted (system-admin only). New coverage (was a gap).
+    # update is public so ingest can extend membership; rest are BaseMixin defaults.
     ("user", "public_super_obj", "create", True),
     ("user", "public_super_obj", "read", True),
-    ("user", "public_super_obj", "update", False),
+    ("user", "public_super_obj", "update", True),
     ("user", "public_super_obj", "delete", False),
     ("user_group2", "public_super_obj", "create", True),
     ("user_group2", "public_super_obj", "read", True),
-    ("user_group2", "public_super_obj", "update", False),
+    ("user_group2", "public_super_obj", "update", True),
     ("user_group2", "public_super_obj", "delete", False),
     ("group_admin_user", "public_super_obj", "create", True),
     ("group_admin_user", "public_super_obj", "read", True),
-    ("group_admin_user", "public_super_obj", "update", False),
+    ("group_admin_user", "public_super_obj", "update", True),
     ("group_admin_user", "public_super_obj", "delete", False),
     ("super_admin_user", "public_super_obj", "create", True),
     ("super_admin_user", "public_super_obj", "read", True),

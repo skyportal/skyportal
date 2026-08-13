@@ -20355,6 +20355,226 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/super_objs/{super_obj_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve a SuperObj */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    super_obj_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a SuperObj
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete a SuperObj. The Objs it links are left untouched; only the
+         *     association is removed.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    super_obj_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a SuperObj
+         * @description Update a SuperObj's metadata or membership. `obj_ids` replaces the
+         *     membership wholesale; `add_obj_ids` and `remove_obj_ids` modify it
+         *     incrementally and may not be combined with `obj_ids`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    super_obj_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        is_roid?: boolean;
+                        obj_ids?: string[];
+                        add_obj_ids?: string[];
+                        remove_obj_ids?: string[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/super_objs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve multiple SuperObjs */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filter by (partial) name */
+                    name?: string;
+                    /** @description Filter by moving-object status */
+                    isRoid?: boolean;
+                    /** @description Only SuperObjs linking this Obj */
+                    objID?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a SuperObj
+         * @description Create a SuperObj linking multiple Objs that represent the same
+         *     astrophysical object, e.g. detections of one asteroid on separate
+         *     nights, or the same transient reported by different surveys.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Name of the super-object, e.g. an MPC designation. */
+                        name?: string;
+                        /** @description Whether the super-object is a moving object. */
+                        is_roid?: boolean;
+                        /** @description IDs of the Objs to link. */
+                        obj_ids?: string[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description New SuperObj ID */
+                                id?: number;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/survey_efficiency/observations/{survey_efficiency_analysis_id}": {
         parameters: {
             query?: never;
@@ -37552,6 +37772,8 @@ export interface components {
             lon?: number | null;
             /** @description Elevation in meters. */
             elevation?: number | null;
+            /** @description Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF). Required to query moving-object ephemerides for this site. */
+            mpc_obscode?: string | null;
             /** @description Diameter in meters. */
             diameter: number;
             /** @description Link to the telescope's sky camera. */
@@ -37589,6 +37811,8 @@ export interface components {
             lon?: number | null;
             /** @description Elevation in meters. */
             elevation?: number | null;
+            /** @description Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF). Required to query moving-object ephemerides for this site. */
+            mpc_obscode?: string | null;
             /** @description Diameter in meters. */
             diameter: number;
             /** @description Link to the telescope's sky camera. */
