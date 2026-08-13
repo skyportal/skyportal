@@ -383,8 +383,11 @@ def get_IAUname(
     elif ra is not None and dec is not None:
         c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
         req_data = {
-            "ra": c.ra.to_string(unit=u.hour, sep=":", pad=True),
-            "dec": c.dec.to_string(unit=u.degree, sep=":", alwayssign=True, pad=True),
+            # TNS 500s on astropy's default ~8-decimal coords; cap precision.
+            "ra": c.ra.to_string(unit=u.hour, sep=":", pad=True, precision=3),
+            "dec": c.dec.to_string(
+                unit=u.degree, sep=":", alwayssign=True, pad=True, precision=3
+            ),
             "radius": f"{radius}",
             "units": "arcsec",
             "objname": "",
