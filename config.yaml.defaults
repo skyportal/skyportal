@@ -714,6 +714,16 @@ brokers:
   # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
 
+  # Route alerts carrying an MPC designation to the solar-system ingest path,
+  # which keys on the designation instead of the survey's positional object ID
+  # and ingests only the triggering detection. Empty disables the routing, and
+  # such alerts follow the normal sidereal path.
+  #
+  # Requires a broker filter that *passes* solar-system alerts: brokers publish
+  # only filter-passing alerts, and transient filters are built to reject
+  # asteroids, so without one this ingests nothing.
+  sso_group_ids: []
+
 # BOOM-specific settings. The filter builder's user-created modules (variables,
 # list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
 # skyportal's database. Point this at that store, or set the equivalent
@@ -1017,6 +1027,20 @@ hosts:
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
   slack: 127.0.0.1
+
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+scout:
+  topic:  # e.g. lco.scout-neo-too-test
+  kafka_server: kafka.scimma.org
+  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_password:
+  group_ids: []  # groups the NEO candidates are saved to
+  bot_user_id:  # user recorded as saving the sources and authoring the annotations
+  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  # The bridge can publish under a `relaxed_test` filter mode that waives all but
+  # the identity filters. Off by default so test traffic can't look like a trigger.
+  allow_relaxed_test: False
 
 gcn:
   server: gcn.nasa.gov

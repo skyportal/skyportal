@@ -589,8 +589,11 @@ class BOOMBROKER(BrokerAPI):
         from baselayer.app.models import async_plain_session_factory
 
         from ..models import Filter, User
+        from ..utils.sso_ingest import extract_designation, ingest_sso_alert
         from ._kafka import kafka_consumer_config, read_avro
         from ._save import save_object_as_candidate
+
+        sso_group_ids = cfg.get("brokers.sso_group_ids") or []
 
         altdata = broker.altdata or {}
         kafka = altdata.get("kafka") or {}
@@ -656,26 +659,42 @@ class BOOMBROKER(BrokerAPI):
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
                     if record.get(k) is not None
                 } or None
+                designation = (
+                    extract_designation(data, annotations_by_filter_id)
+                    if sso_group_ids
+                    else None
+                )
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
-                        await save_object_as_candidate(
-                            data,
-                            survey,
-                            session,
-                            user,
-                            filter_ids,
-                            passing_alert_id=record.get("candid"),
-                            cutouts=cutouts,
-                            annotations_by_filter_id=annotations_by_filter_id,
-                        )
-                        # Only associate cross-survey matches when the primary was
-                        # ingested as a candidate, so we don't create orphan
-                        # counterpart objs for alerts nobody is scanning.
-                        if filter_ids and record.get("survey_matches"):
-                            await _ingest_survey_matches(
-                                broker, record, data["objectId"], survey, session, user
+                        if designation:
+                            await ingest_sso_alert(
+                                data, survey, session, user, designation, sso_group_ids
                             )
+                        else:
+                            await save_object_as_candidate(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                cutouts=cutouts,
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                            # Only associate cross-survey matches when the primary was
+                            # ingested as a candidate, so we don't create orphan
+                            # counterpart objs for alerts nobody is scanning. Moving
+                            # objects are matched by designation, not position.
+                            if filter_ids and record.get("survey_matches"):
+                                await _ingest_survey_matches(
+                                    broker,
+                                    record,
+                                    data["objectId"],
+                                    survey,
+                                    session,
+                                    user,
+                                )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
                 count += 1

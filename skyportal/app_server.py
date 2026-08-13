@@ -203,6 +203,7 @@ from skyportal.handlers.api import (
     StreamHandler,
     StreamUserHandler,
     SummaryQueryHandler,
+    SuperObjHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
     SurveyThumbnailHandler,
@@ -590,6 +591,7 @@ skyportal_handlers = [
     # End deprecated
     (r"/api/streams(/[0-9]+)/users(/.*)?", StreamUserHandler),
     (r"/api/streams(/[0-9]+)?", StreamHandler),
+    (r"/api/super_objs(/[0-9]+)?", SuperObjHandler),
     (
         r"/api/survey_efficiency/observations(/[0-9]+)?",
         SurveyEfficiencyForObservationsHandler,

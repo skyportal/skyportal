@@ -354,6 +354,10 @@ async def get_source(
 
     async def _galaxies():
         # nearby galaxies (within 10 arcsecs)
+        # A moving object's position is one epoch's, so a positional match says
+        # nothing about association.
+        if s.is_roid:
+            return None
         async with AsyncVerifiedSession(user) as gsession:
             result = await gsession.scalars(
                 Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
@@ -363,11 +367,18 @@ async def get_source(
 
     async def _duplicates():
         # nearby objects (within 4 arcsecs)
+        # Coincidence with a moving object is a transit, not a duplicate: it is
+        # only ever at these coordinates at this epoch.
+        if s.is_roid:
+            return []
         async with AsyncVerifiedSession(user) as dsession:
             duplicate_objs = (
                 Obj.select(user)
                 .where(Obj.within(point, 4 / 3600))
                 .where(Obj.id != s.id)
+                # ... and a moving object passing through is not a duplicate of
+                # whatever it passed. `isnot(True)` also covers pre-existing nulls.
+                .where(Obj.is_roid.isnot(True))
                 .subquery()
             )
             result = await dsession.scalars(
