@@ -6,6 +6,7 @@ import sqlalchemy as sa
 
 from baselayer.app import models as baselayer_models
 from skyportal.models import (
+    Candidate,
     DBSession,
     Instrument,
     Obj,
@@ -14,11 +15,13 @@ from skyportal.models import (
     SuperObj,
     User,
 )
-from skyportal.tests.fixtures import InstrumentFactory, StreamFactory
+from skyportal.tests.fixtures import FilterFactory, InstrumentFactory, StreamFactory
 from skyportal.utils.sso_ingest import (
     designation_to_obj_id,
     extract_designation,
     ingest_sso_alert,
+    sso_filter_targets,
+    sso_routing_for,
 )
 
 
@@ -198,3 +201,87 @@ def test_detections_link_under_a_designation_super_obj(
     assert super_obj is not None
     assert super_obj.is_roid is True
     assert obj_id in {obj.id for obj in super_obj.objs}
+
+
+def test_sso_filter_targets_reads_altdata_and_autosave(
+    public_group, public_stream, public_filter
+):
+    """`altdata['sso']` opts a filter in; `autosave` decides save vs. scan."""
+    saving = FilterFactory(
+        group=public_group, stream=public_stream, altdata={"sso": True}, autosave=True
+    )
+    scanning = FilterFactory(
+        group=public_group, stream=public_stream, altdata={"sso": True}, autosave=False
+    )
+    DBSession().commit()
+    try:
+        targets = sso_filter_targets([saving, scanning, public_filter])
+        # An unmarked filter is absent entirely, not present-with-None.
+        assert public_filter.id not in targets
+        assert targets[saving.id] == public_group.id
+        assert targets[scanning.id] is None
+    finally:
+        FilterFactory.teardown(saving.id)
+        FilterFactory.teardown(scanning.id)
+
+
+def test_sso_routing_splits_saving_from_scanning():
+    targets = {1: 10, 2: None, 3: 10}
+
+    # A passing filter that opted in routes the alert; groups come only from
+    # the autosaving ones.
+    assert sso_routing_for([1, 2, 99], targets) == ([1, 2], [10])
+    assert sso_routing_for([2], targets) == ([2], [])
+    assert sso_routing_for([1, 3], targets) == ([1, 3], [10])
+
+    # No opted-in filter passed -> sidereal path, even with a designation.
+    assert sso_routing_for([99], targets) == ([], [])
+    assert sso_routing_for(None, targets) == ([], [])
+
+
+def test_scanning_filter_makes_a_candidate_not_a_source(
+    ztf_instrument, designation, public_group, public_stream, super_admin_user
+):
+    """Without autosave the asteroid is scannable, not saved."""
+    obj_id = designation_to_obj_id(designation)
+    scanning = FilterFactory(
+        group=public_group, stream=public_stream, altdata={"sso": True}, autosave=False
+    )
+    DBSession().commit()
+    filter_id = scanning.id
+
+    try:
+        _, group_ids = sso_routing_for([filter_id], sso_filter_targets([scanning]))
+        assert group_ids == []
+
+        async def _run():
+            async with baselayer_models.async_plain_session_factory() as session:
+                user = await session.get(User, super_admin_user.id)
+                return await ingest_sso_alert(
+                    data=alert(designation, 2460000.5, 10.0, 20.0),
+                    survey="ZTF",
+                    session=session,
+                    user=user,
+                    designation=designation,
+                    group_ids=group_ids,
+                    filter_ids=[filter_id],
+                    passing_alert_id=4242,
+                )
+
+        asyncio.run(_run())
+
+        session = DBSession()
+        session.expire_all()
+        assert (
+            session.scalars(sa.select(Source).where(Source.obj_id == obj_id)).all()
+            == []
+        )
+        candidates = session.scalars(
+            sa.select(Candidate).where(Candidate.obj_id == obj_id)
+        ).all()
+        assert [c.filter_id for c in candidates] == [filter_id]
+    finally:
+        session = DBSession()
+        session.execute(sa.delete(Candidate).where(Candidate.obj_id == obj_id))
+        session.commit()
+        FilterFactory.teardown(filter_id)

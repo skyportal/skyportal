@@ -714,16 +714,6 @@ brokers:
   # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
 
-  # Route alerts carrying an MPC designation to the solar-system ingest path,
-  # which keys on the designation instead of the survey's positional object ID
-  # and ingests only the triggering detection. Empty disables the routing, and
-  # such alerts follow the normal sidereal path.
-  #
-  # Requires a broker filter that *passes* solar-system alerts: brokers publish
-  # only filter-passing alerts, and transient filters are built to reject
-  # asteroids, so without one this ingests nothing.
-  sso_group_ids: []
-
 # BOOM-specific settings. The filter builder's user-created modules (variables,
 # list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
 # skyportal's database. Point this at that store, or set the equivalent

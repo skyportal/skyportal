@@ -13,6 +13,11 @@ measured on ZTF:
   belongs to whatever else has passed through those coordinates, and the forced
   photometry measures a position the asteroid has left. Only the triggering
   detection is real, so only it is ingested.
+
+Opt in by setting ``altdata['sso']`` on a Filter; its passing alerts route here
+and are saved to that Filter's group. The filter must actually *pass* the
+alerts: brokers publish only filter-passing alerts, and transient filters are
+built to reject asteroids, so without one this sees nothing.
 """
 
 import re
@@ -24,7 +29,8 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.log import make_log
 
-from ..models import Obj, Source, SuperObj
+from ..models import Candidate, Obj, Source, SuperObj
+from .naive_datetime import utcnow_naive
 
 log = make_log("sso_ingest")
 
@@ -114,6 +120,33 @@ def extract_designation(data=None, annotations_by_filter_id=None):
     return None
 
 
+def sso_filter_targets(filters):
+    """Map Filter id -> group id to auto-save to, or None to only scan.
+
+    Built once when a broker's ingestion loop starts, so the per-alert check is
+    a lookup rather than a query. `autosave` keeps its usual meaning: without it
+    the object is a candidate to scan rather than a saved source, which is what
+    someone filtering for, say, active asteroids wants instead of every
+    designation the survey sees.
+    """
+    return {
+        f.id: (f.group_id if f.autosave else None)
+        for f in filters
+        if (f.altdata or {}).get("sso")
+    }
+
+
+def sso_routing_for(filter_ids, sso_targets):
+    """(filter ids, group ids) an alert routes to, given the filters it passed.
+
+    Empty filter ids mean no passing filter opted in, so the alert takes the
+    normal sidereal path even if it does carry a designation.
+    """
+    matched = [fid for fid in filter_ids or [] if fid in sso_targets]
+    group_ids = sorted({sso_targets[fid] for fid in matched} - {None})
+    return matched, group_ids
+
+
 async def _link_designation(session, obj_id, designation):
     """Link this detection stream to any other Obj for the same body."""
     # Eager-load: touching a lazy collection under an async session raises.
@@ -141,6 +174,8 @@ async def ingest_sso_alert(
     user,
     designation,
     group_ids,
+    filter_ids=None,
+    passing_alert_id=None,
 ):
     """Ingest one alert as a detection of a known solar-system object.
 
@@ -157,7 +192,12 @@ async def ingest_sso_alert(
     designation : str
         MPC designation, used as the object's identity.
     group_ids : list of int
-        Groups the object is saved to.
+        Groups the object is saved to as a Source.
+    filter_ids : list of int, optional
+        Filters to register the object as a Candidate under, so it can be
+        scanned rather than saved outright.
+    passing_alert_id : optional
+        Alert id the Candidate rows dedupe on across re-consumption.
 
     Returns
     -------
@@ -197,6 +237,25 @@ async def ingest_sso_alert(
         obj.altdata = altdata
 
     await session.flush()
+
+    for filter_id in filter_ids or []:
+        exists = await session.scalar(
+            sa.select(Candidate).where(
+                Candidate.obj_id == obj_id,
+                Candidate.filter_id == filter_id,
+                Candidate.passing_alert_id == passing_alert_id,
+            )
+        )
+        if exists is None:
+            session.add(
+                Candidate(
+                    obj_id=obj_id,
+                    filter_id=filter_id,
+                    passed_at=utcnow_naive(),
+                    passing_alert_id=passing_alert_id,
+                    uploader_id=user.id,
+                )
+            )
 
     for group_id in group_ids or []:
         source = await session.scalar(
