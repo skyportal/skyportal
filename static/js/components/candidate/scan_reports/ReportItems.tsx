@@ -105,6 +105,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
               <FieldTitle sx={{ flex: 1 }}>sep (\u2032)</FieldTitle>
             )}
             {hasGcnMatch && <FieldTitle>in GCN?</FieldTitle>}
+            <FieldTitle sx={{ flex: 1 }}>previous mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>absolute mag</FieldTitle>
             <FieldTitle sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
@@ -176,8 +177,18 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                   )}
                 </Field>
                 <Field>
-                  {reportItem.data.aliases?.map((alias: string) => (
-                    <div key={alias}>{alias}</div>
+                  {reportItem.data.associated_objs?.map((assoc: any) => (
+                    <div key={assoc.obj_id}>
+                      <Link
+                        to={`/source/${assoc.obj_id}`}
+                        role="link"
+                        target="_blank"
+                      >
+                        {assoc.obj_id}
+                      </Link>
+                      {assoc.aliases?.length > 0 &&
+                        ` (${assoc.aliases.join(", ")})`}
+                    </div>
                   ))}
                 </Field>
                 <Field>{reportItem.data.comment}</Field>
@@ -258,19 +269,19 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         const parts = [];
                         if (det.first)
                           parts.push(
-                            `first ${det.first.mag} (${det.first.days_ago}d)${det.first.fp ? " [FP]" : ""}`,
+                            `first ${det.first.mag} ${det.first.filter} (${det.first.days_ago}d)${det.first.fp ? " [FP]" : ""}`,
                           );
                         if (det.first_real)
                           parts.push(
-                            `first real ${det.first_real.mag} (${det.first_real.days_ago}d)`,
+                            `first real ${det.first_real.mag} ${det.first_real.filter} (${det.first_real.days_ago}d)`,
                           );
                         if (det.peak)
                           parts.push(
-                            `peak ${det.peak.mag} (${det.peak.days_ago}d)`,
+                            `peak ${det.peak.mag} ${det.peak.filter} (${det.peak.days_ago}d)`,
                           );
                         if (det.last)
                           parts.push(
-                            `last ${det.last.mag} (${det.last.days_ago}d)`,
+                            `last ${det.last.mag} ${det.last.filter} (${det.last.days_ago}d)`,
                           );
                         return (
                           <Tooltip
@@ -322,7 +333,28 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                     )}
                   </Field>
                 )}
-                <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.previous_mag != null && (
+                    <Tooltip
+                      title={`${reportItem.data.previous_filter ?? "?"} @ MJD ${
+                        reportItem.data.previous_mjd ?? "?"
+                      }`}
+                    >
+                      <span>{reportItem.data.previous_mag}</span>
+                    </Tooltip>
+                  )}
+                </Field>
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.current_mag != null && (
+                    <Tooltip
+                      title={`${reportItem.data.current_filter ?? "?"} @ MJD ${
+                        reportItem.data.current_mjd ?? "?"
+                      }`}
+                    >
+                      <span>{reportItem.data.current_mag}</span>
+                    </Tooltip>
+                  )}
+                </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.abs_mag}</Field>
                 <Field sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
                   <IconButton
