@@ -147,6 +147,31 @@ def sso_routing_for(filter_ids, sso_targets):
     return matched, group_ids
 
 
+# Alert and photometry JDs come from the same source, so they should match
+# exactly; allow ~0.1s of slack against float round-tripping.
+_JD_TOLERANCE = 1e-6
+
+
+def triggering_detection(data):
+    """The alert's own detection, picked out of the position-keyed history.
+
+    Providers differ: some put the detection in ``candidate``, while BOOM's
+    normalized alert leaves only ``ra``/``dec``/``drb`` there and carries the
+    real photometry in ``prv_candidates``, identified by the alert's own JD.
+    """
+    cand = data.get("candidate") or {}
+    if cand.get("jd") is not None and cand.get("band") is not None:
+        return cand
+
+    jd = data.get("jd", cand.get("jd"))
+    if jd is None:
+        return None
+    for point in data.get("prv_candidates") or []:
+        if point.get("jd") is not None and abs(point["jd"] - jd) <= _JD_TOLERANCE:
+            return point
+    return None
+
+
 async def _link_designation(session, obj_id, designation):
     """Link this detection stream to any other Obj for the same body."""
     # Eager-load: touching a lazy collection under an async session raises.
@@ -209,7 +234,10 @@ async def ingest_sso_alert(
     from ..models import Instrument
 
     cand = data.get("candidate") or {}
-    ra, dec = cand.get("ra"), cand.get("dec")
+    detection = triggering_detection(data) or {}
+    # Prefer the detection's own astrometry; fall back to the alert's.
+    ra = detection.get("ra") if detection.get("ra") is not None else cand.get("ra")
+    dec = detection.get("dec") if detection.get("dec") is not None else cand.get("dec")
     obj_id = designation_to_obj_id(designation)
 
     instrument_id = await session.scalar(
@@ -230,7 +258,7 @@ async def ingest_sso_alert(
         obj.ra, obj.dec = ra, dec
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         altdata = dict(obj.altdata or {})
-        altdata["last_detection_jd"] = cand.get("jd")
+        altdata["last_detection_jd"] = detection.get("jd", data.get("jd"))
         separation = _first_value(data, SEPARATION_KEYS)
         if separation is not None:
             altdata["last_separation_arcsec"] = separation
@@ -277,12 +305,12 @@ async def ingest_sso_alert(
 
     # Reuse the shared transform on the triggering detection alone, so units,
     # band naming and stream gating cannot drift from the sidereal path.
-    if cand:
+    if detection:
         programid2streamid = await programid_to_stream_ids(session)
         photometry_data = build_photometry_groups(
             obj_id,
             survey,
-            {"prv_candidates": [cand]},
+            {"prv_candidates": [detection]},
             instrument_id,
             programid2streamid,
         )

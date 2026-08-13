@@ -257,6 +257,9 @@ def _normalize_boom_alert(record):
     return {
         "objectId": record.get("objectId"),
         "candid": record.get("candid"),
+        # The alert's own epoch, which identifies its detection within `prv`.
+        "jd": record.get("jd"),
+        "properties": record.get("properties"),
         "candidate": {
             "ra": record.get("ra"),
             "dec": record.get("dec"),

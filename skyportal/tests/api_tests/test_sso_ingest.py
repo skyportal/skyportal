@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from baselayer.app import models as baselayer_models
+from skyportal.broker_apis.boom import _normalize_boom_alert
 from skyportal.models import (
     Candidate,
     DBSession,
@@ -22,6 +23,7 @@ from skyportal.utils.sso_ingest import (
     ingest_sso_alert,
     sso_filter_targets,
     sso_routing_for,
+    triggering_detection,
 )
 
 
@@ -285,3 +287,102 @@ def test_scanning_filter_makes_a_candidate_not_a_source(
         session.execute(sa.delete(Candidate).where(Candidate.obj_id == obj_id))
         session.commit()
         FilterFactory.teardown(filter_id)
+
+
+def boom_record(designation, jd, ra, dec):
+    """A BOOM Kafka record: the detection lives in `photometry`, not `candidate`."""
+    return {
+        "objectId": f"ZTF{uuid.uuid4().hex[:10]}",
+        "candid": 1234567890,
+        "jd": jd,
+        "ra": ra,
+        "dec": dec,
+        "drb": 0.99,
+        "properties": {"sso": {"is_sso": True, "designation": designation}},
+        "photometry": [
+            # Position-keyed history: whatever else crossed these coordinates.
+            {
+                "jd": jd - 100,
+                "band": "r",
+                "flux": 500.0,
+                "flux_err": 10.0,
+                "ra": ra,
+                "dec": dec,
+                "programid": 1,
+            },
+            # The alert's own detection.
+            {
+                "jd": jd,
+                "band": "g",
+                "flux": 1000.0,
+                "flux_err": 20.0,
+                "ra": ra + 0.001,
+                "dec": dec + 0.001,
+                "programid": 1,
+            },
+            {
+                "jd": jd - 50,
+                "band": "r",
+                "flux": 400.0,
+                "flux_err": 15.0,
+                "ra": ra,
+                "dec": dec,
+                "programid": 1,
+            },
+        ],
+    }
+
+
+def test_triggering_detection_picked_from_boom_history():
+    """BOOM leaves `candidate` without photometry; the detection is in prv."""
+    data = _normalize_boom_alert(boom_record("9816", 2460000.5, 10.0, 20.0))
+
+    # The shape that previously fooled the ingest into finding nothing.
+    assert data["candidate"].get("jd") is None
+    assert len(data["prv_candidates"]) == 3
+
+    detection = triggering_detection(data)
+    assert detection["jd"] == 2460000.5
+    assert detection["band"] == "g"
+
+    # A provider that does populate `candidate` is still honoured.
+    direct = {"candidate": {"jd": 1.0, "band": "r"}, "prv_candidates": []}
+    assert triggering_detection(direct) == direct["candidate"]
+
+    # No usable epoch -> nothing rather than a wrong point.
+    assert triggering_detection({"prv_candidates": [{"jd": 5.0, "band": "r"}]}) is None
+
+
+def test_boom_alert_ingests_only_its_own_detection(
+    ztf_instrument, ztf_stream, designation, public_group, super_admin_user
+):
+    obj_id = designation_to_obj_id(designation)
+    jd = 2460000.5
+    data = _normalize_boom_alert(boom_record(designation, jd, 10.0, 20.0))
+
+    # The designation reaches us via the passthrough, with no filter annotation.
+    assert extract_designation(data, None) == designation
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            user = await session.get(User, super_admin_user.id)
+            return await ingest_sso_alert(
+                data, "ZTF", session, user, designation, [public_group.id]
+            )
+
+    asyncio.run(_run())
+
+    session = DBSession()
+    session.expire_all()
+    photometry = session.scalars(
+        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+    ).all()
+
+    # One point, from the alert's own epoch -- not the field's history.
+    assert len(photometry) == 1
+    assert photometry[0].mjd == pytest.approx(jd - 2400000.5)
+    assert photometry[0].filter == "ztfg"
+    assert photometry[0].ra == pytest.approx(10.001)
+
+    obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    assert obj.altdata["last_detection_jd"] == jd
