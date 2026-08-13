@@ -23214,6 +23214,205 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/zooniverse/auth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Complete Zooniverse sign-in
+         * @description Exchange the authorization code for a token and store it against the signed-in SkyPortal user.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zooniverse/auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start or inspect Zooniverse sign-in
+         * @description Report whether this user has linked a Zooniverse account, and return the URL that starts the authorization flow.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Unlink a Zooniverse account
+         * @description Forget this user's Zooniverse credentials.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zooniverse/subject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a Zooniverse subject to classify
+         * @description Fetch the next queued subject for the configured workflow, with the task definition it should be classified against.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zooniverse/classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a Zooniverse classification
+         * @description Post the volunteer's answer to Panoptes as a classification against the configured workflow.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        subject_id?: string;
+                        task?: string;
+                        /** @description The answer, as the task defines it */
+                        value?: unknown;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/sources/{source_id}/{version_hash}///": {
         parameters: {
             query?: never;
@@ -38225,6 +38424,69 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["WeatherNoID"][];
+        };
+        ZooniverseToken: {
+            /** @description The SkyPortal user. */
+            readonly user?: components["schemas"]["User"];
+            id?: number;
+            /** @description SkyPortal user these Zooniverse credentials belong to. */
+            user_id: number;
+            /** @description Panoptes user id, for attribution. */
+            zooniverse_user_id?: string | null;
+            /** @description Panoptes login, shown in the UI. */
+            zooniverse_login?: string | null;
+            /** @description Panoptes bearer token. */
+            access_token: string;
+            /** @description Used to renew the bearer token. */
+            refresh_token?: string | null;
+            /**
+             * Format: date-time
+             * @description When the bearer token expires; Panoptes issues two-hour tokens.
+             */
+            expires_at?: string | null;
+        };
+        SingleZooniverseToken: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ZooniverseToken"];
+        };
+        ArrayOfZooniverseTokens: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ZooniverseToken"][];
+        };
+        ZooniverseTokenNoID: {
+            /** @description The SkyPortal user. */
+            readonly user?: components["schemas"]["User"];
+            /** @description SkyPortal user these Zooniverse credentials belong to. */
+            user_id: number;
+            /** @description Panoptes user id, for attribution. */
+            zooniverse_user_id?: string | null;
+            /** @description Panoptes login, shown in the UI. */
+            zooniverse_login?: string | null;
+            /** @description Panoptes bearer token. */
+            access_token: string;
+            /** @description Used to renew the bearer token. */
+            refresh_token?: string | null;
+            /**
+             * Format: date-time
+             * @description When the bearer token expires; Panoptes issues two-hour tokens.
+             */
+            expires_at?: string | null;
+        };
+        SingleZooniverseTokenNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ZooniverseTokenNoID"];
+        };
+        ArrayOfZooniverseTokenNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ZooniverseTokenNoID"][];
         };
         Success: {
             /** @enum {string} */

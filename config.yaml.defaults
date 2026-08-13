@@ -151,6 +151,8 @@ app:
       component: templates/HomePage
       exact: True
       anonymous_ok: true
+    - path: "/zooniverse"
+      component: zooniverse/ZooniverseClassify
     - path: "/sources"
       component: source/SourceList
       anonymous_ok: true
@@ -707,6 +709,38 @@ services:
 # `Broker` database records (name + provider class + encrypted credentials), not
 # here; see doc/broker_plugins.md. Providers are registered in
 # skyportal/broker_apis/.
+# SkyPortal as a Zooniverse Incubator Front End: pull subjects off a workflow's
+# queue, classify them here, and post the answers back to Panoptes. Unset by
+# default -- the /zooniverse page reports that it is not configured.
+zooniverse:
+  # OAuth application (zooniverse.org/oauth/applications) owned by a user with
+  # rights on the project. Server-side only: never expose these to the browser.
+  client_id:
+  client_secret:
+  project_id:
+  workflow_id:
+  # Task whose answers are offered; defaults to the workflow's first task.
+  task_key:
+  # Where Zooniverse returns volunteers after sign-in. Must be registered as a
+  # callback URL on the OAuth application; defaults to this server's URL.
+  redirect_uri:
+  scope: public classification
+  # Whether someone who has not linked a Zooniverse account may still classify
+  # (attributed to the instance rather than to them).
+  allow_unattributed: true
+  # A volunteer's answer is recorded in SkyPortal as well as in Panoptes, the
+  # way a save/classify on the scanning page is. Groups the object is saved to,
+  # and the taxonomy the answers map into; leave empty to write to Panoptes only.
+  save_group_ids:
+  taxonomy_id:
+  # Answer index (as the task lists them) -> SkyPortal classification name.
+  class_map:
+  # Where a SkyPortal classification comes from. "consensus": Caesar aggregates
+  # the volunteers and posts one verdict per object (see the plugin's webhook);
+  # answering only saves the object here. "volunteer": every answer is recorded
+  # directly, for instances not running Caesar.
+  classification_source: consensus
+
 brokers:
   # Run the in-core ingestion service (services/broker_ingest): for each active
   # broker whose provider implements run_ingestion, consume its stream and ingest
