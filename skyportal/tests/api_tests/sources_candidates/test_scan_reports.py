@@ -282,7 +282,7 @@ def test_scan_report_item_includes_previous_mag(
         fluxerr=1.0,
         groups=[public_group],
     )
-    PhotometryFactory(
+    current_point = PhotometryFactory(
         obj_id=obj.id,
         filter="ztfg",
         mjd=60600.0,
@@ -290,6 +290,16 @@ def test_scan_report_item_includes_previous_mag(
         fluxerr=1.0,
         groups=[public_group],
     )
+    DBSession.commit()
+
+    # PhotStat's incremental after_insert hook isn't guaranteed to process two
+    # same-flush inserts in mjd order, so set "last detected" explicitly rather
+    # than depend on it -- this test is about the report's previous-mag query
+    # against real Photometry rows, not about PhotStat's own update ordering.
+    photstat = DBSession().scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj.id))
+    photstat.last_detected_mjd = current_point.mjd
+    photstat.last_detected_mag = current_point.mag
+    photstat.last_detected_filter = current_point.filter
     DBSession.commit()
 
     window = {
