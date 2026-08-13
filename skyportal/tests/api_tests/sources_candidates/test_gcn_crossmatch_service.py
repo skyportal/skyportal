@@ -12,19 +12,23 @@ import uuid
 from datetime import timedelta
 
 import numpy as np
+import pytest
 import sqlalchemy as sa
+from astropy.time import Time
 
 from baselayer.app import models
 from skyportal.broker_apis import GENERICBROKER
 from skyportal.models import (
     Annotation,
     Candidate,
+    Filter,
     GcnEventCrossmatchState,
     Localization,
     Obj,
     Source,
 )
 from skyportal.tests import api
+from skyportal.tests.fixtures import FilterFactory, StreamFactory
 from skyportal.utils.gcn_crossmatch import ANNOTATION_ORIGIN, run_cycle
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -41,6 +45,15 @@ def _unique_position():
     return float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
 
 
+def _unique_id(prefix):
+    """A distinct object id per run.
+
+    Objs outlive the pytest run that created them, so a fixed id lets a previous
+    run's leftover satisfy an "exists" assertion or break an "absent" one.
+    """
+    return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
 def _post_event(token, group_ids, ra, dec):
     """A cone event recent enough to be inside the crossmatch window."""
     dateobs = (utcnow_naive() - timedelta(hours=6)).replace(microsecond=0)
@@ -54,6 +67,28 @@ def _post_event(token, group_ids, ra, dec):
     status, data = api("POST", "gcn_event", data=payload, token=token)
     assert status == 200, data
     return dateobs, payload["trigger_id"]
+
+
+@pytest.fixture()
+def crossmatch_filter(public_group, broker):
+    """A filter opted into the crossmatch.
+
+    The filter is the unit of configuration: it names the broker, the stream
+    (hence survey and programids) and the group that sees the candidates.
+    """
+    stream = StreamFactory(
+        altdata={"collection": "ZTF_alerts", "selector": [1, 2]},
+    )
+    filter_ = FilterFactory(
+        group=public_group,
+        stream=stream,
+        broker=broker,
+        altdata={"gcn_crossmatch": {"enabled": True}},
+    )
+    filter_id, stream_id = filter_.id, stream.id
+    yield filter_
+    FilterFactory.teardown(filter_id)
+    StreamFactory.teardown(stream_id)
 
 
 def _stub_provider(monkeypatch, alerts, saved, ra=0.0, dec=0.0):
@@ -100,7 +135,7 @@ def _alert(object_id, ra, dec, jd):
 
 
 def test_crossmatch_saves_only_contained_in_window_alerts(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """Only alerts inside the localization *and* inside the epoch window are saved."""
     ra, dec = _unique_position()
@@ -109,12 +144,17 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
 
     event_jd = float(Time(dateobs).jd)
 
+    inside = _unique_id("XM_inside")
+    outside_cone = _unique_id("XM_outside_cone")
+    before_window = _unique_id("XM_before_window")
+    after_window = _unique_id("XM_after_window")
+    no_jd = _unique_id("XM_no_jd")
     alerts = [
-        _alert("XM_inside", ra, dec, event_jd + 0.5),  # in cone, in window
-        _alert("XM_outside_cone", ra + 5.0, dec, event_jd + 0.5),  # far away
-        _alert("XM_before_window", ra, dec, event_jd - 30.0),  # too early
-        _alert("XM_after_window", ra, dec, event_jd + 500.0),  # too late
-        _alert("XM_no_jd", ra, dec, None),  # cannot be placed in time
+        _alert(inside, ra, dec, event_jd + 0.5),  # in cone, in window
+        _alert(outside_cone, ra + 5.0, dec, event_jd + 0.5),  # far away
+        _alert(before_window, ra, dec, event_jd - 30.0),  # too early
+        _alert(after_window, ra, dec, event_jd + 500.0),  # too late
+        _alert(no_jd, ra, dec, None),  # cannot be placed in time
     ]
     recorded = {}
     _stub_provider(monkeypatch, alerts, recorded, ra, dec)
@@ -126,18 +166,13 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
 
     all_ids = [a["objectId"] for a in alerts]
     created = _objs_created(all_ids)
-    assert "XM_inside" in created, created
-    for rejected in (
-        "XM_outside_cone",
-        "XM_before_window",
-        "XM_after_window",
-        "XM_no_jd",
-    ):
+    assert inside in created, created
+    for rejected in (outside_cone, before_window, after_window, no_jd):
         assert rejected not in created, f"{rejected} should not have matched"
 
 
 def test_crossmatch_passes_event_groups_and_epoch_window(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """Saves inherit the event's groups, and the broker is given the epoch window.
 
@@ -150,18 +185,19 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
     event_jd = float(Time(dateobs).jd)
 
+    obj_id = _unique_id("XM_groups")
     recorded = {}
     _stub_provider(
-        monkeypatch, [_alert("XM_groups", ra, dec, event_jd + 0.1)], recorded, ra, dec
+        monkeypatch, [_alert(obj_id, ra, dec, event_jd + 0.1)], recorded, ra, dec
     )
 
     asyncio.run(run_cycle({"archival": False}))
 
-    assert "XM_groups" in _objs_created(["XM_groups"])
+    assert obj_id in _objs_created([obj_id])
     # a match is raised to scan, never auto-saved as a Source
     with models.DBSession() as session:
         sources = session.scalars(
-            sa.select(Source.obj_id).where(Source.obj_id == "XM_groups")
+            sa.select(Source.obj_id).where(Source.obj_id == obj_id)
         ).all()
     assert sources == [], f"match was auto-saved as a Source: {sources}"
 
@@ -174,7 +210,7 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
 
 def test_crossmatch_records_state_and_annotation(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """A match leaves per-broker state and an event-relative annotation behind."""
     ra, dec = _unique_position()
@@ -183,10 +219,9 @@ def test_crossmatch_records_state_and_annotation(
 
     event_jd = float(Time(dateobs).jd)
     alert_jd = event_jd + 0.25
+    obj_id = _unique_id("XM_state")
     recorded = {}
-    _stub_provider(
-        monkeypatch, [_alert("XM_state", ra, dec, alert_jd)], recorded, ra, dec
-    )
+    _stub_provider(monkeypatch, [_alert(obj_id, ra, dec, alert_jd)], recorded, ra, dec)
 
     asyncio.run(run_cycle({}))
 
@@ -197,7 +232,7 @@ def test_crossmatch_records_state_and_annotation(
                 Localization,
                 Localization.dateobs == dateobs,
             )
-            .where(GcnEventCrossmatchState.broker_id == broker.id)
+            .where(GcnEventCrossmatchState.filter_id == crossmatch_filter.id)
             .order_by(GcnEventCrossmatchState.created_at.desc())
         )
         assert state is not None, "no crossmatch state row was written"
@@ -210,7 +245,7 @@ def test_crossmatch_records_state_and_annotation(
 
         annotation = session.scalar(
             sa.select(Annotation).where(
-                Annotation.obj_id == "XM_state",
+                Annotation.obj_id == obj_id,
                 Annotation.origin == ANNOTATION_ORIGIN,
             )
         )
@@ -222,7 +257,7 @@ def test_crossmatch_records_state_and_annotation(
 
 
 def test_crossmatch_skips_events_outside_the_age_window(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """An event older than max_event_age is not queried at all."""
     ra, dec = _unique_position()
@@ -240,14 +275,13 @@ def test_crossmatch_skips_events_outside_the_age_window(
     status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
     assert status == 200, data
 
+    obj_id = _unique_id("XM_old")
     recorded = {}
-    _stub_provider(
-        monkeypatch, [_alert("XM_old", ra, dec, 2460000.0)], recorded, ra, dec
-    )
+    _stub_provider(monkeypatch, [_alert(obj_id, ra, dec, 2460000.0)], recorded, ra, dec)
 
     asyncio.run(run_cycle({"max_event_age": 1.0, "archival": False}))
 
-    assert "XM_old" not in _objs_created(["XM_old"])
+    assert obj_id not in _objs_created([obj_id])
 
 
 def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
@@ -279,7 +313,7 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
 
 
 def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """When the broker supports filters, cuts run server-side as a pipeline.
 
@@ -293,10 +327,11 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
 
     event_jd = float(Time(dateobs).jd)
 
+    obj_id = _unique_id("XM_filtered")
     recorded = {}
     _stub_filter_provider(
         monkeypatch,
-        [_alert("XM_filtered", ra, dec, event_jd + 0.2)],
+        [_alert(obj_id, ra, dec, event_jd + 0.2)],
         recorded,
         ra,
         dec,
@@ -330,11 +365,11 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
     # and the epoch window is handed to the broker, not applied only locally
 
     # results parsed out of the {"results": [...]} envelope and turned into a match
-    assert "XM_filtered" in _objs_created(["XM_filtered"]), recorded
+    assert obj_id in _objs_created([obj_id]), recorded
 
 
 def test_annotation_carries_alert_quality_fields(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """The annotation exposes the columns reviewers triage on."""
     ra, dec = _unique_position()
@@ -342,8 +377,9 @@ def test_annotation_carries_alert_quality_fields(
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
+    obj_id = _unique_id("XM_fields")
     alert = {
-        "objectId": "XM_fields",
+        "objectId": obj_id,
         "candidate": {
             "ra": ra,
             "dec": dec,
@@ -365,7 +401,7 @@ def test_annotation_carries_alert_quality_fields(
     with models.DBSession() as session:
         annotation = session.scalar(
             sa.select(Annotation).where(
-                Annotation.obj_id == "XM_fields",
+                Annotation.obj_id == obj_id,
                 Annotation.origin == ANNOTATION_ORIGIN,
             )
         )
@@ -394,7 +430,7 @@ def test_annotation_carries_alert_quality_fields(
 
 
 def test_archival_match_flags_prior_activity_and_survives_forward_pass(
-    super_admin_token, public_group2, broker, monkeypatch
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
 ):
     """A pre-event detection marks the candidate, and a later match keeps the mark.
 
@@ -410,8 +446,9 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
 
     # one alert well before the event, one just after: the same object active in
     # both windows
-    archival_alert = _alert("XM_prior", ra, dec, event_jd - 10.0)
-    forward_alert = _alert("XM_prior", ra, dec, event_jd + 0.3)
+    obj_id = _unique_id("XM_prior")
+    archival_alert = _alert(obj_id, ra, dec, event_jd - 10.0)
+    forward_alert = _alert(obj_id, ra, dec, event_jd + 0.3)
 
     def query_alerts(broker_, session, **kwargs):
         # serve whichever alert falls in the window being asked for
@@ -431,7 +468,7 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
     with models.DBSession() as session:
         annotation = session.scalar(
             sa.select(Annotation).where(
-                Annotation.obj_id == "XM_prior",
+                Annotation.obj_id == obj_id,
                 Annotation.origin == ANNOTATION_ORIGIN,
             )
         )
@@ -443,14 +480,14 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
 
         state = session.scalar(
             sa.select(GcnEventCrossmatchState)
-            .where(GcnEventCrossmatchState.broker_id == broker.id)
+            .where(GcnEventCrossmatchState.filter_id == crossmatch_filter.id)
             .order_by(GcnEventCrossmatchState.created_at.desc())
         )
         assert state.archival_done is True, "archival pass should not repeat"
 
 
 def test_match_creates_candidate_not_source(
-    super_admin_token, public_group2, public_filter, broker, monkeypatch
+    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
 ):
     """With a filter configured, a match becomes a scannable Candidate only.
 
@@ -462,7 +499,7 @@ def test_match_creates_candidate_not_source(
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
-    obj_id = f"XM_cand_{uuid.uuid4().hex[:8]}"
+    obj_id = _unique_id("XM_cand")
 
     alert = _alert(obj_id, ra, dec, event_jd + 0.2)
     alert["candidate"]["candid"] = 123456789
@@ -471,7 +508,7 @@ def test_match_creates_candidate_not_source(
     recorded = {}
     _stub_provider(monkeypatch, [alert], recorded, ra, dec)
 
-    asyncio.run(run_cycle({"archival": False, "filter_id": public_filter.id}))
+    asyncio.run(run_cycle({"archival": False}))
 
     with models.DBSession() as session:
         obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
@@ -482,7 +519,7 @@ def test_match_creates_candidate_not_source(
             sa.select(Candidate).where(Candidate.obj_id == obj_id)
         ).all()
         assert len(candidates) == 1, candidates
-        assert candidates[0].filter_id == public_filter.id
+        assert candidates[0].filter_id == crossmatch_filter.id
         assert candidates[0].passing_alert_id == 123456789
 
         sources = session.scalars(
@@ -492,7 +529,7 @@ def test_match_creates_candidate_not_source(
 
 
 def test_candidate_creation_is_idempotent(
-    super_admin_token, public_group2, public_filter, broker, monkeypatch
+    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
 ):
     """Re-running must not pile up duplicate candidates for the same epoch."""
     ra, dec = _unique_position()
@@ -500,14 +537,14 @@ def test_candidate_creation_is_idempotent(
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
-    obj_id = f"XM_dup_{uuid.uuid4().hex[:8]}"
+    obj_id = _unique_id("XM_dup")
 
     recorded = {}
     _stub_provider(
         monkeypatch, [_alert(obj_id, ra, dec, event_jd + 0.2)], recorded, ra, dec
     )
 
-    config = {"archival": False, "filter_id": public_filter.id}
+    config = {"archival": False}
     asyncio.run(run_cycle(config))
     # force the event to be due again rather than waiting out the recheck gap
     with models.DBSession() as session:
@@ -524,3 +561,50 @@ def test_candidate_creation_is_idempotent(
             sa.select(Candidate).where(Candidate.obj_id == obj_id)
         ).all()
     assert len(candidates) == 1, f"duplicate candidates created: {candidates}"
+
+
+def test_filter_only_runs_against_matching_events(
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+):
+    """A filter scoped by gcn_tags skips events that do not carry one.
+
+    Same `filters` shape as DefaultGcnTag: an empty list means no restriction,
+    otherwise the event must carry at least one listed tag. This is what keeps
+    GRB matches out of an EP-only scanning page.
+    """
+    # capture before opening other sessions: the fixture instance detaches
+    filter_id = crossmatch_filter.id
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    alert_jd = Time(dateobs).jd + 0.5
+
+    # the event above carries ["TEST"]; scope the filter to something else
+    with models.DBSession() as session:
+        f = session.get(Filter, filter_id)
+        f.altdata = {
+            "gcn_crossmatch": {"enabled": True, "filters": {"gcn_tags": ["EP"]}}
+        }
+        session.commit()
+
+    obj_id = _unique_id("XM_scoped")
+    recorded = {}
+    _stub_provider(monkeypatch, [_alert(obj_id, ra, dec, alert_jd)], recorded, ra, dec)
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert not _calls_at(recorded, "query_kwargs", ra), (
+        "filter ran against an event that does not carry its tag"
+    )
+    assert _objs_created([obj_id]) == set()
+
+    # widen the scope to a tag the event does carry, and it runs
+    with models.DBSession() as session:
+        f = session.get(Filter, filter_id)
+        f.altdata = {
+            "gcn_crossmatch": {"enabled": True, "filters": {"gcn_tags": ["TEST"]}}
+        }
+        session.commit()
+
+    asyncio.run(run_cycle({"archival": False}))
+    assert _calls_at(recorded, "query_kwargs", ra), (
+        "filter did not run on a tagged event"
+    )

@@ -13,6 +13,7 @@ from .growth_india import GROWTHINDIAMMAAPI
 from .kait import KAITAPI
 from .lco import FLOYDSAPI, MUSCATAPI, SINISTROAPI, SPECTRALAPI
 from .lt import IOIAPI, IOOAPI, SPRATAPI
+from .ngps import NGPSAPI
 from .nicer import NICERAPI
 from .ps1 import PS1API
 from .sedm import SEDMAPI, SEDMListener
@@ -68,6 +69,7 @@ APIS = (
     TTTAPI,
     NEWFIRMAPI,
     RUBINMMAAPI,
+    NGPSAPI,
 )
 
 # Listeners, listed in implementation order, to keep matching enum in db stable

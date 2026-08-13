@@ -120,6 +120,8 @@ cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
+# Log-scaled ramp so distinct radio GHz bands stay visually distinct.
+cmap_radio = colormaps["winter"]
 
 
 def hex2rgb(hex):
@@ -221,6 +223,8 @@ def get_color(bandpass, format="hex"):
         bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
     elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
         bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
+    elif 3e5 < wavelength <= 1e12:  # sub-mm to radio (e.g. VLA GHz bands)
+        bandcolor = rgb2hex(cmap_radio((12 - np.log10(wavelength)) / (12 - 5.48))[:3])
     else:
         log(
             f"{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black"
