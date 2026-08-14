@@ -152,6 +152,8 @@ def test_detections_group_under_one_obj(
     obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
     assert obj.is_roid is True
     assert obj.mpc_name == designation
+    # Searchable by designation, and not duplicated across repeat detections.
+    assert obj.alias == [f"SSO {designation}"]
     # Position tracks the most recent detection, with its epoch recorded.
     assert obj.ra == pytest.approx(10.5)
     assert obj.altdata["last_detection_jd"] == 2460001.5
@@ -386,3 +388,45 @@ def test_boom_alert_ingests_only_its_own_detection(
 
     obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
     assert obj.altdata["last_detection_jd"] == jd
+
+
+def test_sso_fields_resolve_from_filter_annotations(
+    ztf_instrument, ztf_stream, designation, public_group, super_admin_user
+):
+    """The deployed filter delivers the sso block as annotations, not properties."""
+    obj_id = designation_to_obj_id(designation)
+    data = _normalize_boom_alert(boom_record(designation, 2460000.5, 10.0, 20.0))
+    # As it arrives when `properties` is not on the published alert.
+    data.pop("properties", None)
+    annotations = {
+        7: {
+            "designation": designation,
+            "separation_arcsec": 1.25,
+            "predicted_mag": 19.4,
+        }
+    }
+    assert extract_designation(data, annotations) == designation
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            user = await session.get(User, super_admin_user.id)
+            return await ingest_sso_alert(
+                data,
+                "ZTF",
+                session,
+                user,
+                designation,
+                [public_group.id],
+                annotations_by_filter_id=annotations,
+            )
+
+    asyncio.run(_run())
+
+    session = DBSession()
+    session.expire_all()
+    obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    assert obj.alias == [f"SSO {designation}"]
+    # mpc_name keeps the canonical designation for lookups.
+    assert obj.mpc_name == designation
+    # The monitorable quantity must survive the annotations-only route.
+    assert obj.altdata["last_separation_arcsec"] == pytest.approx(1.25)

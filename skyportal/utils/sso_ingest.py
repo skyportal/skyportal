@@ -48,6 +48,10 @@ DESIGNATION_KEYS = (
 # cut would silently pass fewer objects.
 SEPARATION_KEYS = ("separation_arcsec", "ssdistnr")
 
+# Bare designations are often plain integers, which read as an id from anywhere.
+# The alias carries a marker; `mpc_name` keeps the canonical designation.
+ALIAS_PREFIX = "SSO"
+
 # Obj IDs appear in URL paths, whose route pattern allows [0-9A-Za-z-_.+] only.
 _OBJ_ID_UNSAFE = re.compile(r"[^0-9A-Za-z\-_.+]")
 OBJ_ID_PREFIX = "sso_"
@@ -86,10 +90,19 @@ def _designation_from_mapping(mapping):
     return None
 
 
-def _first_value(data, keys):
-    """First present value for `keys`, checked in `properties.sso` then `candidate`."""
+def _first_value(data, keys, annotations_by_filter_id=None):
+    """First present value for `keys`.
+
+    Searched wherever a designation can arrive, since the rest of the `sso`
+    block travels with it: on the alert, or in a filter's annotations.
+    """
     properties = (data or {}).get("properties") or {}
-    for mapping in (properties.get("sso"), properties, (data or {}).get("candidate")):
+    mappings = [properties.get("sso"), properties, (data or {}).get("candidate")]
+    for annotations in (annotations_by_filter_id or {}).values():
+        if isinstance(annotations, dict):
+            mappings += [annotations.get("sso"), annotations]
+
+    for mapping in mappings:
         if not isinstance(mapping, dict):
             continue
         for key in keys:
@@ -201,6 +214,7 @@ async def ingest_sso_alert(
     group_ids,
     filter_ids=None,
     passing_alert_id=None,
+    annotations_by_filter_id=None,
 ):
     """Ingest one alert as a detection of a known solar-system object.
 
@@ -223,6 +237,9 @@ async def ingest_sso_alert(
         scanned rather than saved outright.
     passing_alert_id : optional
         Alert id the Candidate rows dedupe on across re-consumption.
+    annotations_by_filter_id : dict, optional
+        Each passing filter's annotations, which may carry the `sso` fields when
+        the alert itself does not.
 
     Returns
     -------
@@ -253,13 +270,17 @@ async def ingest_sso_alert(
 
     obj.is_roid = True
     obj.mpc_name = designation
+    alias = f"{ALIAS_PREFIX} {designation}"
+    aliases = set(obj.alias or [])
+    if alias not in aliases:
+        obj.alias = sorted(aliases | {alias})
     # The position is only ever "where it was last seen", so stamp the epoch.
     if ra is not None and dec is not None:
         obj.ra, obj.dec = ra, dec
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         altdata = dict(obj.altdata or {})
         altdata["last_detection_jd"] = detection.get("jd", data.get("jd"))
-        separation = _first_value(data, SEPARATION_KEYS)
+        separation = _first_value(data, SEPARATION_KEYS, annotations_by_filter_id)
         if separation is not None:
             altdata["last_separation_arcsec"] = separation
         obj.altdata = altdata
