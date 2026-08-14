@@ -9,7 +9,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
-from ...models import Broker, Filter, Stream
+from ...models import Broker, Filter, Stream, set_autosave
 from ..base import BaseHandler
 
 
@@ -1323,7 +1323,7 @@ class BrokerFiltersHandler(BaseHandler):
                     )
                 f.broker_id = broker.id
                 if "autosave" in data:
-                    f.autosave = bool(data["autosave"])
+                    set_autosave(f, data["autosave"])
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
                 ad["lasair"] = {
                     "selected": selected,
@@ -1472,6 +1472,9 @@ class BrokerFiltersHandler(BaseHandler):
                     if flag in data:
                         f.altdata[flag] = data[flag]
                         flag_modified(f, "altdata")
+                # autoSave is the UI's name for the column ingestion reads.
+                if "autoSave" in data:
+                    set_autosave(f, data["autoSave"])
             except Exception as e:
                 return self.error(f"Error updating filter on {broker.name}: {e}")
             session.commit()
