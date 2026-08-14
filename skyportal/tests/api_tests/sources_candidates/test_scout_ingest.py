@@ -164,12 +164,13 @@ def test_ingest_links_iau_designation(scout_tdes, public_group, super_admin_user
     session.commit()
 
     obj = session.scalar(sa.select(Obj).where(Obj.id == scout_tdes))
-    assert iau in obj.alias
+    # Prefixed like the survey path, so one alias query spans both.
+    assert obj.alias == [f"SSO {iau}"]
 
     super_obj = session.scalar(
         sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == scout_tdes))
     )
-    assert super_obj.name == iau
+    assert super_obj.name == f"SSO {iau}"
 
 
 def test_ingest_skips_relaxed_test_events(scout_tdes, public_group, super_admin_user):

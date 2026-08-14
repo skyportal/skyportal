@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from baselayer.log import make_log
 
 from ..models import Annotation, Group, Obj, Source, SuperObj
+from .sso_ingest import sso_label
 
 log = make_log("scout_ingest")
 
@@ -86,12 +87,12 @@ def _link_designation(session, obj_id, iau_designation):
         sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
     )
     if super_obj is None:
-        super_obj = SuperObj(name=iau_designation or obj_id, is_roid=True)
+        super_obj = SuperObj(name=sso_label(iau_designation or obj_id), is_roid=True)
         session.add(super_obj)
 
     super_obj.is_roid = True
     if iau_designation:
-        super_obj.name = iau_designation
+        super_obj.name = sso_label(iau_designation)
 
     linked = {obj.id for obj in super_obj.objs}
     for candidate_id in (obj_id, iau_designation):
@@ -184,8 +185,10 @@ def ingest_scout_event(
     obj.is_roid = True
     obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
     if event.get("iau_designation"):
+        # Same prefix as the survey path, so one alias query finds every
+        # solar-system object however it was ingested.
         aliases = set(obj.alias or [])
-        aliases.add(event["iau_designation"])
+        aliases.add(sso_label(event["iau_designation"]))
         obj.alias = sorted(aliases)
 
     session.flush()

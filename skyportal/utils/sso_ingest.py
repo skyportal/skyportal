@@ -49,8 +49,15 @@ DESIGNATION_KEYS = (
 SEPARATION_KEYS = ("separation_arcsec", "ssdistnr")
 
 # Bare designations are often plain integers, which read as an id from anywhere.
-# The alias carries a marker; `mpc_name` keeps the canonical designation.
+# The alias and SuperObj name carry a marker so one query finds every
+# solar-system object; `mpc_name` keeps the canonical designation.
 ALIAS_PREFIX = "SSO"
+
+
+def sso_label(designation):
+    """The prefixed label used for both an Obj's alias and its SuperObj name."""
+    return f"{ALIAS_PREFIX} {designation}"
+
 
 # Obj IDs appear in URL paths, whose route pattern allows [0-9A-Za-z-_.+] only.
 _OBJ_ID_UNSAFE = re.compile(r"[^0-9A-Za-z\-_.+]")
@@ -191,13 +198,17 @@ async def _link_designation(session, obj_id, designation):
     super_obj = await session.scalar(
         sa.select(SuperObj)
         .options(selectinload(SuperObj.objs))
-        .where(SuperObj.name == designation)
+        .where(SuperObj.name == sso_label(designation))
     )
     obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
 
     if super_obj is None:
         # Populate at construction: a flushed-then-read collection lazy-loads.
-        session.add(SuperObj(name=designation, is_roid=True, objs=[obj] if obj else []))
+        session.add(
+            SuperObj(
+                name=sso_label(designation), is_roid=True, objs=[obj] if obj else []
+            )
+        )
         return
 
     super_obj.is_roid = True
@@ -270,7 +281,7 @@ async def ingest_sso_alert(
 
     obj.is_roid = True
     obj.mpc_name = designation
-    alias = f"{ALIAS_PREFIX} {designation}"
+    alias = sso_label(designation)
     aliases = set(obj.alias or [])
     if alias not in aliases:
         obj.alias = sorted(aliases | {alias})

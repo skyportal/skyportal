@@ -201,7 +201,9 @@ def test_detections_link_under_a_designation_super_obj(
 
     session = DBSession()
     session.expire_all()
-    super_obj = session.scalar(sa.select(SuperObj).where(SuperObj.name == designation))
+    super_obj = session.scalar(
+        sa.select(SuperObj).where(SuperObj.name == f"SSO {designation}")
+    )
     assert super_obj is not None
     assert super_obj.is_roid is True
     assert obj_id in {obj.id for obj in super_obj.objs}
