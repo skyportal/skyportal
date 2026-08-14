@@ -132,6 +132,85 @@ def test_observing_run_skycam_component(
     ).to_be_visible()
 
 
+def test_observing_run_columns_are_sortable(
+    page,
+    super_admin_user,
+    super_admin_token,
+    red_transients_run,
+    public_ZTF20acgrjqm,
+    public_ZTFe028h94k,
+):
+    # these four columns regressed to sortable: false in the
+    # mui-datatables -> x-data-grid migration (#6145)
+    for obj in [public_ZTFe028h94k, public_ZTF20acgrjqm]:
+        status, _ = post_assignment(
+            obj,
+            red_transients_run,
+            priority="3",
+            comment="Observe please",
+            token=super_admin_token,
+        )
+        assert status == 200
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/run/{red_transients_run.id}")
+    expect(
+        page.locator(f'//*[text()="{public_ZTF20acgrjqm.id}"]').first
+    ).to_be_visible()
+
+    for field in ["ra", "dec", "rise_time_utc", "set_time_utc"]:
+        expect(
+            page.locator(
+                f'//*[@role="columnheader" and @data-field="{field}" and '
+                'contains(@class, "MuiDataGrid-columnHeader--sortable")]'
+            ).first
+        ).to_be_attached()
+
+    # public_ZTF20acgrjqm is at RA 65.06, public_ZTFe028h94k at RA 229.96
+    ra_header = page.locator('//*[@role="columnheader" and @data-field="ra"]').first
+    first_target = page.locator('//*[@data-field="target_name"]//a').first
+
+    ra_header.click()
+    expect(first_target).to_have_text(public_ZTF20acgrjqm.id)
+    ra_header.click()
+    expect(first_target).to_have_text(public_ZTFe028h94k.id)
+
+
+def test_observing_run_expanded_row_stays_with_its_target_when_sorted(
+    page,
+    super_admin_user,
+    super_admin_token,
+    red_transients_run,
+    public_ZTF20acgrjqm,
+    public_ZTFe028h94k,
+):
+    for obj in [public_ZTFe028h94k, public_ZTF20acgrjqm]:
+        status, _ = post_assignment(
+            obj,
+            red_transients_run,
+            priority="3",
+            comment="Observe please",
+            token=super_admin_token,
+        )
+        assert status == 200
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/run/{red_transients_run.id}")
+
+    rows = page.locator('//*[@role="row" and @data-id]')
+    expect(rows).to_have_count(2)
+
+    expanded_id = rows.first.get_attribute("data-id")
+    page.locator('//*[@id="expandable-button"]').first.click()
+    expect(rows).to_have_count(3)
+
+    page.locator('//*[@role="columnheader" and @data-field="ra"]').first.click()
+    expect(rows).to_have_count(3)
+
+    ids = rows.evaluate_all("nodes => nodes.map((node) => node.dataset.id)")
+    assert ids.index(f"{expanded_id}__detail") == ids.index(expanded_id) + 1
+
+
 def test_observing_run_page(page, view_only_user, red_transients_run):
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto("/runs")
