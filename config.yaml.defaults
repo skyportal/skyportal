@@ -362,10 +362,6 @@ app:
           icon: HourglassEmptyOutlined
           url: /allocations
 
-        - name: Brokers
-          icon: Hub
-          url: /brokers
-
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
