@@ -1,8 +1,9 @@
 from collections import defaultdict
 
 import astropy.units as u
+import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -14,10 +15,13 @@ from ....models import (
     Comment,
     FollowupRequest,
     Obj,
+    ObjToSuperObj,
     ObservingRun,
+    Photometry,
     Source,
     SourcesConfirmedInGCN,
 )
+from ....models.phot_stat import PHOT_DETECTION_THRESHOLD
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.gcn_crossmatch import ANNOTATION_ORIGIN as GCN_CROSSMATCH_ORIGIN
 from ....utils.parse import safe_round
@@ -31,16 +35,16 @@ log = make_log("api/scan_report_item")
 DESI_ORIGIN_PREFIX = "desi_"
 
 
-def _survey_of(bandpass):
-    """Map a bandpass name to its survey label for the detections summary."""
-    if not bandpass:
+def _survey_of(band):
+    """Map a band name to its survey label for the detections summary."""
+    if not band:
         return None
-    b = bandpass.lower()
+    b = band.lower()
     if b.startswith("ztf"):
         return "ZTF"
     if b.startswith("lsst"):
         return "LSST"
-    return bandpass
+    return band
 
 
 def _followup_request_type(allocation, instrument, payload=None):
@@ -91,17 +95,21 @@ def _build_scan_report_item(
     now_mjd,
     gcn_match=None,
     desi_annotation=None,
+    associated_objs=None,
+    previous=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
         current_filter = obj.photstats[0].last_detected_filter
         current_mag = obj.photstats[0].last_detected_mag
+        current_mjd = obj.photstats[0].last_detected_mjd
         current_age = now_mjd - obj.photstats[0].first_detected_mjd
         dm = obj.dm
         abs_mag = current_mag - dm if dm else None
     else:
         current_filter = None
         current_mag = None
+        current_mjd = None
         current_age = None
         abs_mag = None
 
@@ -174,12 +182,13 @@ def _build_scan_report_item(
     if obj.photstats:
         ps = obj.photstats[0]
 
-        def _entry(mjd, mag, fp=None):
+        def _entry(mjd, mag, filt, fp=None):
             if mjd is None:
                 return None
             entry = {
                 "mag": safe_round(mag, 3),
                 "mjd": safe_round(mjd, 5),
+                "filter": filt,
                 "days_ago": safe_round(now_mjd - mjd, 2),
             }
             if fp is not None:
@@ -195,7 +204,10 @@ def _build_scan_report_item(
             or ps.first_detected_no_forced_phot_mjd > ps.first_detected_mjd
         )
         first_entry = _entry(
-            ps.first_detected_mjd, ps.first_detected_mag, fp=is_first_fp
+            ps.first_detected_mjd,
+            ps.first_detected_mag,
+            ps.first_detected_filter,
+            fp=is_first_fp,
         )
         first_survey = _survey_of(ps.first_detected_filter)
 
@@ -207,19 +219,25 @@ def _build_scan_report_item(
             first_real_entry = _entry(
                 ps.first_detected_no_forced_phot_mjd,
                 ps.first_detected_no_forced_phot_mag,
+                ps.first_detected_no_forced_phot_filter,
                 fp=False,
             )
             first_real_survey = _survey_of(ps.first_detected_no_forced_phot_filter)
 
-        peak_by_survey = {}  # survey -> (mag, mjd), brightest (min mag) across filters
+        # survey -> (mag, mjd, filter), brightest (min mag) across the survey's filters
+        peak_by_survey = {}
         peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
-        for bandpass, mag in (ps.peak_mag_per_filter or {}).items():
+        for band, mag in (ps.peak_mag_per_filter or {}).items():
             if mag is None:
                 continue
-            survey = _survey_of(bandpass)
+            survey = _survey_of(band)
             current = peak_by_survey.get(survey)
             if current is None or mag < current[0]:
-                peak_by_survey[survey] = (mag, peak_mjd_per_filter.get(bandpass))
+                peak_by_survey[survey] = (
+                    mag,
+                    peak_mjd_per_filter.get(band),
+                    band,
+                )
 
         surveys = (
             set(peak_by_survey)
@@ -233,7 +251,7 @@ def _build_scan_report_item(
                 "first_real": (
                     first_real_entry if survey == first_real_survey else None
                 ),
-                "peak": _entry(peak[1], peak[0]) if peak else None,
+                "peak": _entry(peak[1], peak[0], peak[2]) if peak else None,
             }
     detections_by_survey = detections_by_survey or None
 
@@ -244,7 +262,9 @@ def _build_scan_report_item(
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
-            "aliases": obj.alias,
+            # Other Objs (e.g. an LSST detection) linked to this one via a shared
+            # SuperObj, each with its own aliases, if any.
+            "associated_objs": associated_objs,
             "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
             # Spectroscopic redshift from a DESI crossmatch, when one exists.
@@ -259,7 +279,12 @@ def _build_scan_report_item(
             "current_filter": current_filter,
             "abs_mag": safe_round(abs_mag, 3),
             "current_mag": safe_round(current_mag, 3),
+            "current_mjd": safe_round(current_mjd, 5),
             "current_age": safe_round(current_age, 2),
+            # The detection immediately before the current one, in the same filter.
+            "previous_mag": safe_round((previous or {}).get("mag"), 3),
+            "previous_mjd": safe_round((previous or {}).get("mjd"), 5),
+            "previous_filter": (previous or {}).get("filter"),
             "classifications": classifications,
             "saved_info": saved_info,
             "followups": followups,
@@ -347,6 +372,8 @@ async def create_scan_report_items(
     assignments_by_obj = defaultdict(list)
     comment_by_obj = {}  # obj_id -> most recent non-bot scanner comment
     desi_by_obj = {}  # obj_id -> most recent DESI crossmatch Annotation
+    associated_by_obj = defaultdict(dict)  # obj_id -> {assoc_obj_id: aliases}
+    previous_by_obj = {}  # obj_id -> {mag, mjd, filter} of the detection before the last
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -368,6 +395,43 @@ async def create_scan_report_items(
             )
         ).all():
             objs[obj.id] = obj
+
+        # The detection immediately before each obj's current (last-detected) one,
+        # in that same filter. PhotStat only tracks first/last/peak, not the
+        # runner-up, so this needs raw Photometry -- ranked via a window function
+        # and filtered to rn == 2 in SQL so only that one row per (obj, filter)
+        # pair is ever pulled back, not the object's full photometry history.
+        pairs = [
+            (obj_id, objs[obj_id].photstats[0].last_detected_filter)
+            for obj_id in chunk_obj_ids
+            if objs.get(obj_id)
+            and objs[obj_id].photstats
+            and objs[obj_id].photstats[0].last_detected_filter
+        ]
+        if pairs:
+            ranked = (
+                Photometry.select(user_or_token, mode="read")
+                .where(
+                    sa.tuple_(Photometry.obj_id, Photometry.filter).in_(pairs),
+                    Photometry.snr > PHOT_DETECTION_THRESHOLD,
+                )
+                .add_columns(
+                    Photometry.mag.label("mag"),
+                    sa.func.row_number()
+                    .over(
+                        partition_by=Photometry.obj_id,
+                        order_by=Photometry.mjd.desc(),
+                    )
+                    .label("rn"),
+                )
+                .subquery()
+            )
+            for obj_id, filt, mjd, mag in await session.execute(
+                sa.select(
+                    ranked.c.obj_id, ranked.c.filter, ranked.c.mjd, ranked.c.mag
+                ).where(ranked.c.rn == 2)
+            ):
+                previous_by_obj[obj_id] = {"mag": mag, "mjd": mjd, "filter": filt}
 
         for source in (
             await session.scalars(
@@ -436,6 +500,25 @@ async def create_scan_report_items(
         ).all():
             desi_by_obj.setdefault(annotation.obj_id, annotation)
 
+        # Objs sharing a SuperObj with one of this chunk's objs (e.g. the LSST
+        # detection linked to a ZTF one), via a self-join on the link table.
+        # Joined against the access-controlled Obj select so an associated obj
+        # the user can't read is silently dropped, not leaked.
+        accessible_objs = Obj.select(user_or_token, mode="read").subquery()
+        o2s_this = aliased(ObjToSuperObj)
+        o2s_other = aliased(ObjToSuperObj)
+        for obj_id, assoc_obj_id, assoc_alias in await session.execute(
+            sa.select(o2s_this.obj_id, accessible_objs.c.id, accessible_objs.c.alias)
+            .select_from(o2s_this)
+            .join(o2s_other, o2s_other.super_obj_id == o2s_this.super_obj_id)
+            .join(accessible_objs, accessible_objs.c.id == o2s_other.obj_id)
+            .where(
+                o2s_this.obj_id.in_(chunk_obj_ids),
+                o2s_other.obj_id != o2s_this.obj_id,
+            )
+        ):
+            associated_by_obj[obj_id][assoc_obj_id] = assoc_alias
+
     now_mjd = Time.now().mjd
     items = []
     for obj_id, _source_ids in valid:
@@ -453,6 +536,14 @@ async def create_scan_report_items(
                 now_mjd,
                 gcn_match=gcn_match_by_obj.get(obj_id),
                 desi_annotation=desi_by_obj.get(obj_id),
+                previous=previous_by_obj.get(obj_id),
+                associated_objs=[
+                    {"obj_id": assoc_obj_id, "aliases": aliases}
+                    for assoc_obj_id, aliases in associated_by_obj.get(
+                        obj_id, {}
+                    ).items()
+                ]
+                or None,
             )
         )
     return items
