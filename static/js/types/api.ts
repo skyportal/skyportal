@@ -37626,6 +37626,8 @@ export interface components {
             public_url?: string | null;
             /** @description Origin of the Thumbnail. */
             origin?: string | null;
+            /** @description Survey the cutout came from (e.g. ZTF, LSST), for per-survey labeling; NULL for all-sky archival thumbnails (sdss, ps1, ...) and legacy rows. */
+            survey?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
             /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
@@ -37659,6 +37661,8 @@ export interface components {
             public_url?: string | null;
             /** @description Origin of the Thumbnail. */
             origin?: string | null;
+            /** @description Survey the cutout came from (e.g. ZTF, LSST), for per-survey labeling; NULL for all-sky archival thumbnails (sdss, ps1, ...) and legacy rows. */
+            survey?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
             /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
@@ -39476,6 +39480,12 @@ export interface components {
              * @description Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
              */
             ttype: string;
+            /**
+             * Survey
+             * @description Survey the cutout came from (e.g. ZTF, LSST). NULL for all-sky archival thumbnails.
+             * @default null
+             */
+            survey: string | null;
         };
         /**
          * ThumbnailPostResponse
