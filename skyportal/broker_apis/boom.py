@@ -876,6 +876,18 @@ class BOOMBROKER(BrokerAPI):
                     else sorted(set(selector) & set(programids))
                 )
 
+        if programids is None:
+            # BOOM rejects an empty permissions map, so an unrestricted user
+            # needs every programid the instance's streams grant spelled out.
+            import sqlalchemy as sa
+
+            from ..models import Stream
+            from .interface import survey_permissions
+
+            programids = survey_permissions(
+                session.scalars(sa.select(Stream)).all()
+            ).get(survey)
+
         payload = {
             "survey": survey,
             "pipeline": _ensure_project_stage(kwargs["pipeline"]),
