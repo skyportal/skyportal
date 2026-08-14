@@ -204,7 +204,11 @@ def test_observing_run_expanded_row_stays_with_its_target_when_sorted(
     page.locator('//*[@id="expandable-button"]').first.click()
     expect(rows).to_have_count(3)
 
-    page.locator('//*[@role="columnheader" and @data-field="ra"]').first.click()
+    # sort on a column that has always been sortable, so this stays a real
+    # check on the detail row rather than on the sortable columns above
+    page.locator(
+        '//*[@role="columnheader" and @data-field="target_name"]'
+    ).first.click()
     expect(rows).to_have_count(3)
 
     ids = rows.evaluate_all("nodes => nodes.map((node) => node.dataset.id)")
