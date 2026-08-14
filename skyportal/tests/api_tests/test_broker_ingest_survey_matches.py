@@ -84,12 +84,14 @@ def _record(lsst_id, ra=10.0, dec=20.0):
     }
 
 
-def _ingest_matches(record, main_obj_id, main_survey, user_id):
+def _ingest_matches(record, main_obj_id, main_survey, user_id, broker=None):
+    # broker=None skips the (best-effort) cutout-thumbnail fetch, keeping these
+    # tests to the obj + photometry + SuperObj behavior.
     async def _run():
         async with baselayer_models.async_plain_session_factory() as session:
             user = await session.get(User, user_id)
             await _ingest_survey_matches(
-                record, main_obj_id, main_survey, session, user
+                broker, record, main_obj_id, main_survey, session, user
             )
 
     asyncio.run(_run())
