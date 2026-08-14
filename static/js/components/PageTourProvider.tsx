@@ -38,19 +38,20 @@ const PageTourProvider = () => {
           (step) => !step.acl || permissions.includes(step.acl),
         ),
       );
-      navigate(location.pathname + location.search + location.hash, {
-        replace: true,
-        state: {},
-      });
     }
     // permissions is derived from the cached profile (stable ref); intentionally
     // not a dep — we filter with whatever ACLs are loaded when the tour launches.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requested, location.pathname, location.search, location.hash, navigate]);
+  }, [requested]);
 
   // Start once per newly-selected step-set, but only after the destination
-  // page (lazy-loaded behind Suspense) has actually mounted the first target —
-  // otherwise the tour starts against an empty DOM and silently gives up.
+  // page (lazy-loaded behind Suspense, and possibly gated behind its own data
+  // fetches) has actually mounted the first target — otherwise the tour
+  // starts against an empty DOM and silently gives up. The trigger is only
+  // cleared once we know the outcome (started or gave up); clearing it
+  // eagerly on mount would wipe location.state before a slow-mounting
+  // destination component gets a chance to read it itself (e.g. to open a
+  // panel the tour's target lives behind).
   const startedFor = useRef<Step[] | null>(null);
   useEffect(() => {
     if (!steps.length || startedFor.current === steps) {
@@ -63,6 +64,11 @@ const PageTourProvider = () => {
         : null;
     let cancelled = false;
     let tries = 0;
+    const clearTrigger = () =>
+      navigate(location.pathname + location.search + location.hash, {
+        replace: true,
+        state: {},
+      });
     const startWhenReady = () => {
       if (cancelled) {
         return;
@@ -70,15 +76,24 @@ const PageTourProvider = () => {
       if (!firstTarget || document.querySelector(firstTarget)) {
         startedFor.current = steps;
         controls.start(0);
+        clearTrigger();
       } else if (tries++ < 100) {
         // Poll ~every 100ms for up to ~10s while the page chunk loads.
         window.setTimeout(startWhenReady, 100);
+      } else {
+        // Target never appeared; drop the trigger so a refresh or
+        // back-navigation doesn't keep retrying.
+        clearTrigger();
       }
     };
     startWhenReady();
     return () => {
       cancelled = true;
     };
+    // location/navigate are read from the outer closure deliberately: we
+    // want the URL captured when this step-set started polling, not to
+    // restart polling if the user navigates again mid-poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps, controls]);
 
   return <>{Tour}</>;
