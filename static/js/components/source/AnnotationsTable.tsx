@@ -32,9 +32,12 @@ const StyledDataGrid: any = StyledDataGridBase;
 
 const useStyles = makeStyles()(() => ({
   container: {
-    width: "100%",
-    margin: "auto",
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minHeight: 0,
     height: "100%",
+    width: "100%",
   },
   dialogContent: {
     padding: 0,
@@ -260,22 +263,22 @@ const AnnotationsTable = ({
   }
 
   return (
-    <div style={{ height: "100%", width: "100%" }}>
-      <div className={classes.container}>
-        <Box sx={{ width: "100%", height: canExpand ? "22rem" : "78vh" }}>
-          <StyledDataGrid
-            columns={columns}
-            rows={tableData}
-            getRowId={(row: any) => row.__rowid}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
-            pageSizeOptions={[10, 15, 50]}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </div>
+    <div className={classes.container}>
+      <Box
+        sx={{ width: "100%", flex: 1, minHeight: canExpand ? "22rem" : "78vh" }}
+      >
+        <StyledDataGrid
+          columns={columns}
+          rows={tableData}
+          getRowId={(row: any) => row.__rowid}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[10, 15, 50]}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
+        />
+      </Box>
       <div>
         {openAnnotations && (
           <Dialog

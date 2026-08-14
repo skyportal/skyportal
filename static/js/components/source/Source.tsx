@@ -396,6 +396,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
           <AccordionDetails
             style={{
               padding: 0,
+              display: "flex",
+              flexDirection: "column",
               minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
             }}
           >
@@ -435,6 +437,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <AccordionDetails
               style={{
                 padding: 0,
+                display: "flex",
+                flexDirection: "column",
                 minHeight: downLarge || isRightPanelVisible ? "30vh" : "40vh",
               }}
             >
@@ -465,14 +469,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionSummary>
           <AccordionDetails
             style={{
+              display: "flex",
+              flexDirection: "column",
               minHeight: downLarge || isRightPanelVisible ? "55.5vh" : "63.5vh",
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                objID={source.id}
-                maxHeightList={downLarge ? "28.5vh" : "350px"}
-              />
+              <CommentList objID={source.id} />
             </Suspense>
           </AccordionDetails>
         </Accordion>
