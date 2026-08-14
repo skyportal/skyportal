@@ -290,16 +290,23 @@ async def get_source(
     # refresh maps a broadcast obj_key back to this loaded source by internal_key.
     source_info["internal_key"] = s.internal_key
 
-    # only keep the latest Thumbnail for each type (by created_at)
-    if include_thumbnails and source_info.get("thumbnails"):
-        latest_by_type = {}
-        for t in source_info["thumbnails"]:
-            if (
-                t.type not in latest_by_type
-                or t.created_at > latest_by_type[t.type].created_at
-            ):
-                latest_by_type[t.type] = t
-        source_info["thumbnails"] = list(latest_by_type.values())
+    # Keep the latest Thumbnail per (survey, type) across the SuperObj-linked objs,
+    # so a ZTF source also surfaces its linked LSST cutouts, each carrying its
+    # survey for per-survey labeling. All-sky archival cutouts (sdss/ps1/...) are
+    # survey-independent, so dedupe those on type alone.
+    if include_thumbnails:
+        alert_types = {"new", "ref", "sub"}
+        thumbnails = (
+            await session.scalars(
+                Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
+            )
+        ).all()
+        latest = {}
+        for t in thumbnails:
+            key = (t.survey, t.type) if t.type in alert_types else (None, t.type)
+            if key not in latest or t.created_at > latest[key].created_at:
+                latest[key] = t
+        source_info["thumbnails"] = list(latest.values())
 
     point = ca.Point(ra=s.ra, dec=s.dec)
 

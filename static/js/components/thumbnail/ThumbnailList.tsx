@@ -88,10 +88,28 @@ const ThumbnailList = ({
     useGenerateSurveyThumbnailMutation();
 
   const sortedThumbnails = [...(thumbnails ?? [])].sort(sortThumbnailsByDate);
+  // Alert cutouts (new/ref/sub) are per-survey: show the latest of each type for
+  // every survey (so a source displays both its ZTF and linked LSST tiles, each
+  // labeled). Archival all-sky cutouts (sdss/ps1/...) are survey-independent, so
+  // just the latest per type. sortedThumbnails is date-desc → first seen is latest.
   const latestThumbnails = thumbnailTypes
     .filter((type) => displayTypes.includes(type))
-    .map((type) => sortedThumbnails.find((t) => t.type === type))
-    .filter(Boolean);
+    .flatMap((type) => {
+      if (!ALERT_THUMBNAIL_TYPES.includes(type)) {
+        const t = sortedThumbnails.find((x) => x.type === type);
+        return t ? [t] : [];
+      }
+      const bySurvey = new Map<string, any>();
+      sortedThumbnails
+        .filter((x) => x.type === type)
+        .forEach((x) => {
+          const survey = x.survey ?? "";
+          if (!bySurvey.has(survey)) bySurvey.set(survey, x);
+        });
+      return [...bySurvey.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, t]) => t);
+    });
 
   const archivalThumbnails = latestThumbnails.filter((t) =>
     ARCHIVAL_THUMBNAIL_TYPES.includes(t.type),
@@ -102,11 +120,13 @@ const ThumbnailList = ({
   const tiles: {
     key: string;
     name: string;
+    survey?: string;
     src: string;
     grayscale: boolean;
   }[] = latestThumbnails.map((t) => ({
     key: `${t.id}`,
     name: t.type,
+    survey: t.survey ?? undefined,
     src: t.public_url,
     grayscale: t.is_grayscale,
   }));
@@ -134,7 +154,7 @@ const ThumbnailList = ({
     src.includes("outside_survey") ||
     src.includes("currently_unavailable");
   const shownTiles = tiles.filter(
-    (t) => !isPlaceholder(t.src) && !unavailable.has(t.name),
+    (t) => !isPlaceholder(t.src) && !unavailable.has(t.key),
   );
 
   const renderTile = (tile: (typeof tiles)[number]) => (
@@ -143,6 +163,7 @@ const ThumbnailList = ({
         ra={ra}
         dec={dec}
         name={tile.name}
+        survey={tile.survey}
         src={tile.src}
         size={size}
         minSize={minSize ?? size}
@@ -150,7 +171,7 @@ const ThumbnailList = ({
         noMargin={!useGrid && noMargin}
         grayscale={tile.grayscale}
         titleSize={titleSize}
-        onUnavailable={() => markUnavailable(tile.name)}
+        onUnavailable={() => markUnavailable(tile.key)}
       />
     </Grid>
   );

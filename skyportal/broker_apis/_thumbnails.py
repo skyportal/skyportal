@@ -114,6 +114,7 @@ def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey):
         "obj_id": obj_id,
         "data": base64.b64encode(buff.read()).decode("utf-8"),
         "ttype": thumbnail_type,
+        "survey": survey,
     }
 
 
