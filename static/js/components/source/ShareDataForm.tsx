@@ -259,6 +259,7 @@ const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
                 associatedResourceType="spectra"
                 objID={route.id}
                 spectrumID={spectrumID}
+                maxHeightList="350px"
               />
             </Suspense>
           </Paper>

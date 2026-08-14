@@ -37,6 +37,11 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles()(() => ({
   commentsContainer: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minHeight: 0,
+    height: "100%",
     width: "100%",
   },
   comment: {
@@ -181,6 +186,7 @@ interface CommentListProps {
   spectrumID?: number | null;
   shiftID?: number | null;
   includeCommentsOnAllResourceTypes?: boolean;
+  // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
 }
 
@@ -195,7 +201,7 @@ const CommentList = ({
   earthquakeEventID = null,
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
-  maxHeightList = "350px",
+  maxHeightList,
 }: CommentListProps) => {
   const { classes: styles } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
@@ -348,7 +354,9 @@ const CommentList = ({
       <div
         style={{
           marginTop: "1rem",
-          overflowY: "scroll",
+          overflowY: "auto",
+          flex: 1,
+          minHeight: 0,
           maxHeight: maxHeightList,
         }}
       >

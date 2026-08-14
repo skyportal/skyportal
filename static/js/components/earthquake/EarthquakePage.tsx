@@ -195,6 +195,7 @@ const EarthquakePage = ({ route }: EarthquakePageProps) => {
                       associatedResourceType="earthquake"
                       earthquakeID={earthquake.id.toString()}
                       earthquakeEventID={earthquake.event_id}
+                      maxHeightList="350px"
                     />
                   </Suspense>
                 </AccordionDetails>
