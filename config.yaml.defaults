@@ -295,6 +295,10 @@ app:
           icon: Search
           url: /candidates
 
+        - name: Brokers
+          icon: Hub
+          url: /brokers
+
         - name: Favorites
           icon: Star
           url: /favorites
@@ -327,10 +331,6 @@ app:
         - name: Shifts
           icon: SubwayRounded
           url: /shifts
-
-        - name: Summary Search
-          icon: Troubleshoot
-          url: /summary_search
 
         - name: Source Statistics
           icon: ScatterPlot
@@ -400,6 +400,10 @@ app:
         - name: Recurring API
           icon: Restore
           url: /recurring_apis
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: Taxonomies
           icon: WallpaperOutlined
