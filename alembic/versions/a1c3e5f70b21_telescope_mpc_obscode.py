@@ -1,7 +1,7 @@
 """telescope mpc_obscode
 
 Revision ID: a1c3e5f70b21
-Revises: c2b80a6ff0f3
+Revises: 5cb6c446e5a2
 Create Date: 2026-08-13
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a1c3e5f70b21"
-down_revision = "c2b80a6ff0f3"
+down_revision = "5cb6c446e5a2"
 branch_labels = None
 depends_on = None
 
