@@ -394,7 +394,12 @@ def test_source_list_expanded_row_vega_plots(
         page.locator(f'//a[@data-testid="{public_source.id}"]').first
     ).to_be_visible()
 
-    page.locator("//div[@data-rowindex='0']//*[@id='expandable-button']").first.click()
+    # expand by the row holding this source, not by position: /sources is
+    # unfiltered here, so row 0 is whichever source sorts first
+    page.locator(
+        f'//div[@role="row"][.//a[@data-testid="{public_source.id}"]]'
+        '//*[@id="expandable-button"]'
+    ).first.click()
     row = page.locator(f'[data-testid="groupSourceExpand_{public_source.id}"]').first
     expect(row).to_be_visible()
 
