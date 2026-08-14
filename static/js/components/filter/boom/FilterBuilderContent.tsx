@@ -427,6 +427,7 @@ const FilterBuilderContent = ({
         </Typography>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button
+            data-testid="tour-filter-save"
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSaveFilter}
@@ -474,51 +475,53 @@ const FilterBuilderContent = ({
       </Box>
 
       {/* Filter Blocks */}
-      {schemaUnavailable ? (
-        <Alert severity="warning">
-          No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
-          from this broker, so there are no fields to build conditions with.
-          Filtering isn&apos;t supported for this survey yet.
-        </Alert>
-      ) : rawPipeline ? (
-        <>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            This filter was imported as a raw MongoDB pipeline, so it can&apos;t
-            be edited in the block builder. It&apos;s shown read-only below;
-            edit it through the broker API.
+      <Box data-testid="tour-filter-blocks">
+        {schemaUnavailable ? (
+          <Alert severity="warning">
+            No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
+            from this broker, so there are no fields to build conditions with.
+            Filtering isn&apos;t supported for this survey yet.
           </Alert>
-          <PipelineViewer
-            pipeline={rawPipeline}
-            showPipeline={showPipeline}
-            setShowPipeline={setShowPipeline}
-            pipelineView={pipelineView}
-            setPipelineView={setPipelineView}
-            expandedStages={expandedStages}
-            handleStageToggle={handleStageToggle}
-            handleCopy={handleCopy}
-            handleCopyStage={handleCopyStage}
-          />
-        </>
-      ) : filtersToRender && filtersToRender.length > 0 ? (
-        filtersToRender.map((block: any, index: number) => {
-          return (
-            <BlockComponent
-              key={block.id || index}
-              block={block}
-              parentBlockId={null}
-              isRoot={index === 0}
-              fieldOptionsList={fieldOptions}
-              stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
-              localFilters={filtersToRender}
-              setLocalFilters={handleFilterUpdate}
+        ) : rawPipeline ? (
+          <>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This filter was imported as a raw MongoDB pipeline, so it
+              can&apos;t be edited in the block builder. It&apos;s shown
+              read-only below; edit it through the broker API.
+            </Alert>
+            <PipelineViewer
+              pipeline={rawPipeline}
+              showPipeline={showPipeline}
+              setShowPipeline={setShowPipeline}
+              pipelineView={pipelineView}
+              setPipelineView={setPipelineView}
+              expandedStages={expandedStages}
+              handleStageToggle={handleStageToggle}
+              handleCopy={handleCopy}
+              handleCopyStage={handleCopyStage}
             />
-          );
-        })
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          No filter blocks to display. Add conditions to get started.
-        </Typography>
-      )}
+          </>
+        ) : filtersToRender && filtersToRender.length > 0 ? (
+          filtersToRender.map((block: any, index: number) => {
+            return (
+              <BlockComponent
+                key={block.id || index}
+                block={block}
+                parentBlockId={null}
+                isRoot={index === 0}
+                fieldOptionsList={fieldOptions}
+                stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
+                localFilters={filtersToRender}
+                setLocalFilters={handleFilterUpdate}
+              />
+            );
+          })
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No filter blocks to display. Add conditions to get started.
+          </Typography>
+        )}
+      </Box>
 
       {/* Dialogs */}
       <AddVariableDialog />

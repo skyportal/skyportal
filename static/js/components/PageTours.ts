@@ -233,6 +233,62 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
         "feeds candidates into your scanning page.",
     },
   ],
+  // Runs on a filter page (the checklist links to the user's first filter).
+  // Ordered to match a new, never-saved filter's actual on-screen state:
+  // block-builder steps first (always present — a fresh filter starts with
+  // one block and one empty condition), version/validation last since that
+  // panel only appears once a version has been saved.
+  filter: [
+    {
+      target: '[data-testid="tour-filter-blocks"]',
+      title: "Blocks & conditions",
+      content:
+        "A filter is built from blocks of conditions. Every new filter " +
+        "starts with one block holding one empty condition to fill in.",
+    },
+    {
+      target: '[data-testid="tour-filter-operator"]',
+      title: "AND / OR logic",
+      content:
+        "Choose whether everything inside a block must match (And) or only " +
+        "one needs to (Or). Nest blocks to build more complex logic.",
+    },
+    {
+      target: '[data-testid="tour-filter-condition"]',
+      title: "Set a condition",
+      content:
+        "Pick a field, an operator, and a value (e.g. magnitude less than " +
+        "18) to define what an alert has to satisfy.",
+    },
+    {
+      target: '[data-testid="tour-filter-add"]',
+      title: "Add more",
+      content:
+        "Add another condition, a nested block, a computed variable, or a " +
+        "reusable custom block from here.",
+    },
+    {
+      target: '[data-testid="tour-filter-save"]',
+      title: "Save your version",
+      content:
+        "Save creates a new version of this filter. Nothing runs against " +
+        "live alerts until a version is activated.",
+    },
+    {
+      // Unanchored: the version/validate panel this describes only appears
+      // once a version is saved, so a brand-new filter has nothing there yet
+      // to highlight. A centered, target-less step avoids pointing at an
+      // empty area while still explaining what happens next.
+      target: "body",
+      placement: "center",
+      title: "Next: validate & activate",
+      content:
+        "Once you've saved a version, use the Boom filter details panel at " +
+        "the top of the page to switch between versions, validate one " +
+        "against a night of alerts, and activate it to start filtering " +
+        "candidates.",
+    },
+  ],
   // Runs on a GCN event page (the checklist links to the most recent event).
   gcnevents: [
     {
