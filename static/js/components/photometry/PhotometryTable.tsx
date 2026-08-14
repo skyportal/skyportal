@@ -124,7 +124,8 @@ const PhotometryTable = ({
   const [showExtinction, setShowExtinction] = useState(false);
 
   const queryParams = useMemo<any>(() => {
-    const params: any = {};
+    // Include linked SuperObj photometry (e.g. LSST) in the table + download.
+    const params: any = { includeSuperObjsPhotometry: true };
     if (showExtinction) {
       params.includeExtinction = true;
     }

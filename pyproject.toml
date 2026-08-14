@@ -155,6 +155,11 @@ target-version = "py312"
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'
 
+[tool.ruff.lint.isort]
+# Stated rather than inferred: baselayer is a submodule, so whether it looks
+# first-party depends on it being checked out, and CI lints without it.
+known-first-party = ["baselayer", "skyportal"]
+
 [tool.ruff.lint]
 extend-select = [
 #  "B",        # flake8-bugbear
