@@ -62,6 +62,12 @@ class Telescope(Base):
     lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")
     lon = sa.Column(sa.Float, nullable=True, doc="Longitude in deg.")
     elevation = sa.Column(sa.Float, nullable=True, doc="Elevation in meters.")
+    mpc_obscode = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF). "
+        "Required to query moving-object ephemerides for this site.",
+    )
     diameter = sa.Column(sa.Float, nullable=False, doc="Diameter in meters.")
     skycam_link = sa.Column(
         URLType, nullable=True, doc="Link to the telescope's sky camera."

@@ -257,6 +257,9 @@ def _normalize_boom_alert(record):
     return {
         "objectId": record.get("objectId"),
         "candid": record.get("candid"),
+        # The alert's own epoch, which identifies its detection within `prv`.
+        "jd": record.get("jd"),
+        "properties": record.get("properties"),
         "candidate": {
             "ra": record.get("ra"),
             "dec": record.get("dec"),
@@ -589,6 +592,12 @@ class BOOMBROKER(BrokerAPI):
         from baselayer.app.models import async_plain_session_factory
 
         from ..models import Filter, User
+        from ..utils.sso_ingest import (
+            extract_designation,
+            ingest_sso_alert,
+            sso_filter_targets,
+            sso_routing_for,
+        )
         from ._kafka import kafka_consumer_config, read_avro
         from ._save import save_object_as_candidate
 
@@ -606,10 +615,14 @@ class BOOMBROKER(BrokerAPI):
         # Map BOOM filter ids -> skyportal Filter ids once at startup.
         async with async_plain_session_factory() as session:
             boom_map = {}
-            for f in (await session.scalars(sa.select(Filter))).all():
-                boom = (f.altdata or {}).get("boom") if f.altdata else None
+            filters = (await session.scalars(sa.select(Filter))).all()
+            for f in filters:
+                boom = (f.altdata or {}).get("boom")
                 if boom and boom.get("filter_id") is not None:
                     boom_map[boom["filter_id"]] = f.id
+            # Filters marked `altdata['sso']` route their alerts to the
+            # solar-system ingest instead of the sidereal one.
+            sso_targets = sso_filter_targets(filters)
 
         count = 0
         try:
@@ -656,26 +669,50 @@ class BOOMBROKER(BrokerAPI):
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
                     if record.get(k) is not None
                 } or None
+                sso_filter_ids, sso_group_ids = sso_routing_for(filter_ids, sso_targets)
+                designation = (
+                    extract_designation(data, annotations_by_filter_id)
+                    if sso_filter_ids
+                    else None
+                )
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
-                        await save_object_as_candidate(
-                            data,
-                            survey,
-                            session,
-                            user,
-                            filter_ids,
-                            passing_alert_id=record.get("candid"),
-                            cutouts=cutouts,
-                            annotations_by_filter_id=annotations_by_filter_id,
-                        )
-                        # Only associate cross-survey matches when the primary was
-                        # ingested as a candidate, so we don't create orphan
-                        # counterpart objs for alerts nobody is scanning.
-                        if filter_ids and record.get("survey_matches"):
-                            await _ingest_survey_matches(
-                                broker, record, data["objectId"], survey, session, user
+                        if designation:
+                            await ingest_sso_alert(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                designation,
+                                sso_group_ids,
+                                filter_ids=sso_filter_ids,
+                                passing_alert_id=record.get("candid"),
                             )
+                        else:
+                            await save_object_as_candidate(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                cutouts=cutouts,
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                            # Only associate cross-survey matches when the primary was
+                            # ingested as a candidate, so we don't create orphan
+                            # counterpart objs for alerts nobody is scanning. Moving
+                            # objects are matched by designation, not position.
+                            if filter_ids and record.get("survey_matches"):
+                                await _ingest_survey_matches(
+                                    broker,
+                                    record,
+                                    data["objectId"],
+                                    survey,
+                                    session,
+                                    user,
+                                )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
                 count += 1
@@ -838,6 +875,18 @@ class BOOMBROKER(BrokerAPI):
                     if programids is None
                     else sorted(set(selector) & set(programids))
                 )
+
+        if programids is None:
+            # BOOM rejects an empty permissions map, so an unrestricted user
+            # needs every programid the instance's streams grant spelled out.
+            import sqlalchemy as sa
+
+            from ..models import Stream
+            from .interface import survey_permissions
+
+            programids = survey_permissions(
+                session.scalars(sa.select(Stream)).all()
+            ).get(survey)
 
         payload = {
             "survey": survey,

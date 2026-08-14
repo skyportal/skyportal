@@ -474,6 +474,10 @@ class Obj(Base, conesearch_alchemy.Point):
         `panstarrs_url` does a slow, blocking HTTP request; it is resolved off
         the event loop here. Callers that already resolved it (with no DB txn
         open) can pass `ps1_url` to avoid re-fetching."""
+        # Archival cutouts of a moving object's position show the field it was
+        # crossing, not the object; skipping also avoids the PS1 fetch per roid.
+        if self.is_roid:
+            return
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")

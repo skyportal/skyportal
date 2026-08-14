@@ -960,3 +960,43 @@ def test_get_photometry_capability_gated_on_get_alert():
 
     assert _BareBroker.implements()["get_photometry"] is False
     assert FINKBROKER.implements()["query_alerts"] is True
+
+
+def test_boom_filter_test_scopes_unrestricted_users(public_stream):
+    """A system admin's None scope must not reach BOOM as an empty map."""
+    import types
+
+    import sqlalchemy as sa
+
+    from skyportal.broker_apis import boom as boom_module
+    from skyportal.models import DBSession, Stream
+
+    session = DBSession()
+    stream = session.scalar(sa.select(Stream).where(Stream.id == public_stream.id))
+    stream.altdata = {"collection": "ZTF_alerts", "selector": [1, 2]}
+    session.commit()
+
+    captured = {}
+
+    def fake_request(broker, method, path, *, params=None, json=None):
+        captured["path"] = path
+        captured["json"] = json
+        return {"count": 0}
+
+    original = boom_module._request
+    boom_module._request = fake_request
+    try:
+        boom_module.BOOMBROKER.test_filter(
+            types.SimpleNamespace(altdata={}),
+            session,
+            survey="ZTF",
+            permissions=None,  # unrestricted, as alert_permissions returns for admins
+            pipeline=[{"$match": {"candidate.drb": {"$gt": 0.9}}}],
+        )
+    finally:
+        boom_module._request = original
+
+    assert captured["path"] == "filters/test/count"
+    assert captured["json"]["permissions"] == {"ZTF": [1, 2]}, (
+        "unrestricted user must still be given an explicit programid scope"
+    )

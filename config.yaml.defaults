@@ -1018,6 +1018,20 @@ hosts:
   tns_retrieval_queue: 127.0.0.1
   slack: 127.0.0.1
 
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+scout:
+  topic:  # e.g. lco.scout-neo-too-test
+  kafka_server: kafka.scimma.org
+  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_password:
+  group_ids: []  # groups the NEO candidates are saved to
+  bot_user_id:  # user recorded as saving the sources and authoring the annotations
+  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  # The bridge can publish under a `relaxed_test` filter mode that waives all but
+  # the identity filters. Off by default so test traffic can't look like a trigger.
+  allow_relaxed_test: False
+
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
