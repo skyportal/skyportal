@@ -50,6 +50,12 @@ class Thumbnail(Base):
         doc="Publically accessible URL of the thumbnail.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
+    survey = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Survey the cutout came from (e.g. ZTF, LSST), for per-survey labeling; "
+        "NULL for all-sky archival thumbnails (sdss, ps1, ...) and legacy rows.",
+    )
     obj = relationship(
         "Obj",
         back_populates="thumbnails",

@@ -225,12 +225,11 @@ def _modules_db(broker):
 _BOOM_SENTINEL = -99999.0
 
 
-def _normalize_boom_alert(record):
-    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
-    into the standard alert shape (``candidate`` + ``prv_candidates`` with
-    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+def _boom_photometry_to_prv(photometry):
+    """BOOM native ``photometry[]`` (flux in nJy) -> standard ``prv_candidates``
+    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     prv = []
-    for p in record.get("photometry") or []:
+    for p in photometry or []:
         flux_err = p.get("flux_err")
         if flux_err is None or flux_err == _BOOM_SENTINEL:
             continue
@@ -248,6 +247,13 @@ def _normalize_boom_alert(record):
                 "programid": p.get("programid", 1),
             }
         )
+    return prv
+
+
+def _normalize_boom_alert(record):
+    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
+    into the standard alert shape (``candidate`` + ``prv_candidates`` with
+    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     return {
         "objectId": record.get("objectId"),
         "candid": record.get("candid"),
@@ -256,8 +262,68 @@ def _normalize_boom_alert(record):
             "dec": record.get("dec"),
             "drb": record.get("drb"),
         },
-        "prv_candidates": prv,
+        "prv_candidates": _boom_photometry_to_prv(record.get("photometry")),
     }
+
+
+async def _ingest_survey_matches(
+    broker, record, main_obj_id, main_survey, session, user
+):
+    """Ingest BOOM's cross-survey matches for a passing alert: create each
+    counterpart Obj + its photometry (and, on first sight, its cutout thumbnails)
+    and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
+    (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
+    alert has a counterpart in another survey."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import associate_super_obj, save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    matches = record.get("survey_matches") or {}
+    if not isinstance(matches, dict):
+        return
+    associated = set()
+    for match_survey, match in matches.items():
+        if not isinstance(match, dict):
+            continue
+        match_survey = str(match_survey).upper()
+        match_obj_id = match.get("objectId")
+        if match_survey == main_survey or not match_obj_id:
+            continue
+        match_obj_id = str(match_obj_id)
+        is_new = (
+            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
+        ) is None
+        match_data = {
+            "objectId": match_obj_id,
+            "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
+            "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
+        }
+        try:
+            await save_object_photometry(match_data, match_survey, session, user)
+            associated.add(match_obj_id)
+        except Exception as e:
+            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
+            continue
+        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
+        if is_new and broker is not None:
+            try:
+                cutouts = _request(
+                    broker,
+                    "GET",
+                    f"surveys/{match_survey}/cutouts",
+                    params={"objectId": match_obj_id},
+                )
+                if isinstance(cutouts, dict):
+                    await add_thumbnails(
+                        match_obj_id, cutouts, match_survey, session, user_id=user.id
+                    )
+            except Exception as e:
+                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
+    if associated:
+        await associate_super_obj(session, main_obj_id, associated)
+        await session.commit()
 
 
 # Collections that belong to surveys/alerts, not reference catalogs.
@@ -603,6 +669,13 @@ class BOOMBROKER(BrokerAPI):
                             cutouts=cutouts,
                             annotations_by_filter_id=annotations_by_filter_id,
                         )
+                        # Only associate cross-survey matches when the primary was
+                        # ingested as a candidate, so we don't create orphan
+                        # counterpart objs for alerts nobody is scanning.
+                        if filter_ids and record.get("survey_matches"):
+                            await _ingest_survey_matches(
+                                broker, record, data["objectId"], survey, session, user
+                            )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
                 count += 1
