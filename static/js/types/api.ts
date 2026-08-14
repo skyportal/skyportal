@@ -38606,6 +38606,12 @@ export interface components {
              * @default null
              */
             stream_id: number | null;
+            /**
+             * Autosave
+             * @description Whether objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group.
+             * @default null
+             */
+            autosave: boolean | null;
         };
         GalaxyASCIIFileHandlerPost: {
             /** @description Galaxy catalog name. */
