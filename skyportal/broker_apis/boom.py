@@ -688,6 +688,7 @@ class BOOMBROKER(BrokerAPI):
                                 sso_group_ids,
                                 filter_ids=sso_filter_ids,
                                 passing_alert_id=record.get("candid"),
+                                annotations_by_filter_id=annotations_by_filter_id,
                             )
                         else:
                             await save_object_as_candidate(
