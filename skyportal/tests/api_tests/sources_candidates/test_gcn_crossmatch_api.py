@@ -56,7 +56,7 @@ def test_requeue_requires_manage_gcns(
         "POST", f"gcn_event/{dateobs}/crossmatch", token=super_admin_token
     )
     assert status == 200, data
-    assert "brokers_requeued" in data["data"], data
+    assert "filters_requeued" in data["data"], data
 
 
 def test_requeue_unknown_event_errors(super_admin_token):

@@ -290,7 +290,7 @@ def is_configured():
 
 
 @check_loaded(logger=log)
-def service():
+def service(*args, **kwargs):
     if not is_configured():
         return
 

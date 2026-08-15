@@ -233,6 +233,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                   <CommentList
                     associatedResourceType="shift"
                     shiftID={currentShift?.id}
+                    maxHeightList="350px"
                   />
                 </Suspense>
               </div>

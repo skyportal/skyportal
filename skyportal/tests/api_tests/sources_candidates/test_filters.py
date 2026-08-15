@@ -95,3 +95,170 @@ def test_post_filter_with_unauthorized_stream(
         token=manage_groups_token,
     )
     assert status in [401, 500]
+
+
+def _force_active(broker_id):
+    """Activate a credential-gated broker without the live connection check."""
+    import sqlalchemy as sa
+
+    from skyportal.models import Broker, DBSession
+
+    DBSession().execute(
+        sa.update(Broker).where(Broker.id == broker_id).values(active=True)
+    )
+    DBSession().commit()
+
+
+def _mark_broker_managed(filter_id, broker_id):
+    """Point a filter at a broker the way BOOM filter creation does."""
+    import sqlalchemy as sa
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from skyportal.models import DBSession, Filter
+
+    f = DBSession().scalars(sa.select(Filter).where(Filter.id == filter_id)).first()
+    f.altdata = {"boom": {"filter_id": "boom-test-id"}}
+    f.broker_id = broker_id
+    flag_modified(f, "altdata")
+    DBSession().commit()
+
+
+def test_rename_requires_group_admin(upload_data_token, public_filter):
+    """A rename is an admin action even for a user who may otherwise post data."""
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": f"nope_{uuid.uuid4().hex[:8]}"},
+        token=upload_data_token,
+    )
+    assert status == 403, data
+    assert "group admin" in data["message"]
+
+
+def test_rename_is_blocked_when_the_broker_rename_fails(
+    super_admin_token, public_filter
+):
+    """The local name must not drift from the broker's.
+
+    The broker here is unreachable, so the propagation attempt fails -- and that
+    has to abort the whole rename rather than leaving the two names disagreeing.
+    """
+    status, data = api(
+        "POST",
+        "brokers",
+        data={
+            "name": str(uuid.uuid4()),
+            "broker_classname": "BOOMBROKER",
+            "altdata": {"host": "boom.invalid", "username": "x", "password": "y"},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+    _force_active(broker_id)
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    original_name = data["data"]["name"]
+
+    _mark_broker_managed(public_filter.id, broker_id)
+
+    new_name = f"renamed_{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": new_name},
+        token=super_admin_token,
+    )
+    assert status == 400, data
+    assert "rename" in data["message"].lower()
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert data["data"]["name"] == original_name, "local rename outlived the failure"
+
+
+def test_group_admin_can_rename_filter(group_admin_token, public_filter):
+    """The admin gate must not be so tight that it blocks the group's own admin."""
+    new_name = f"renamed_by_group_admin_{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": new_name},
+        token=group_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=group_admin_token)
+    assert data["data"]["name"] == new_name
+
+
+def test_super_admin_can_rename_filter(super_admin_token, public_filter):
+    """A system admin needs no group membership to rename."""
+    new_name = f"renamed_by_super_admin_{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": new_name},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert data["data"]["name"] == new_name
+
+
+def test_update_filter_autosave(manage_groups_token, public_filter):
+    """Ingestion honours the autosave column, so the API must be able to set it."""
+    status, data = api("GET", f"filters/{public_filter.id}", token=manage_groups_token)
+    assert status == 200
+    assert data["data"]["autosave"] is False
+
+    status, _ = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"autosave": True},
+        token=manage_groups_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=manage_groups_token)
+    assert status == 200
+    assert data["data"]["autosave"] is True
+
+    status, _ = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"autosave": False},
+        token=manage_groups_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"filters/{public_filter.id}", token=manage_groups_token)
+    assert data["data"]["autosave"] is False
+
+
+def test_set_autosave_keeps_broker_ui_mirror_in_step():
+    """The broker UI reads altdata['autoSave']; it must not disagree with the column."""
+    from types import SimpleNamespace
+
+    from skyportal.models import set_autosave
+
+    # A broker filter carries the mirror, and it tracks the column.
+    f = SimpleNamespace(autosave=False, altdata={"boom": {}, "autoSave": False})
+    set_autosave(f, True)
+    assert f.autosave is True
+    assert f.altdata["autoSave"] is True
+
+    set_autosave(f, False)
+    assert f.autosave is False
+    assert f.altdata["autoSave"] is False
+
+    # A filter without the mirror gains no spurious key.
+    g = SimpleNamespace(autosave=False, altdata={"lasair": {}})
+    set_autosave(g, True)
+    assert g.autosave is True
+    assert "autoSave" not in g.altdata
+
+    # ... and neither does one with no altdata at all.
+    h = SimpleNamespace(autosave=False, altdata=None)
+    set_autosave(h, True)
+    assert h.autosave is True
+    assert h.altdata is None

@@ -45,6 +45,13 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
         log(f"Could not make bandpass for {name}: {e}")
         continue
 
+    # Seed the lazyproperty: it samples the band on a fixed 5 A grid, unusable
+    # for a radio band ~1e8 A wide. Same quantity, from the config points.
+    band.wave_eff = float(
+        np.trapezoid(wavelength * transmission, wavelength)
+        / np.trapezoid(transmission, wavelength)
+    )
+
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
 

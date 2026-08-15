@@ -283,3 +283,9 @@ class BrokerAPI(_Base):
     # cross-match overlay. Providers whose cone_search returns their own alert
     # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
     cross_match_catalogs = False
+
+    # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
+    # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo
+    # pipeline and runs an unconstrained query instead of erroring, so callers
+    # that build one must check this rather than the test_filter capability.
+    filter_pipeline = None

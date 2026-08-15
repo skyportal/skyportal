@@ -47,6 +47,7 @@ class Invitation(Base):
     )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     can_save_to_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    can_share_photometry_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
         "User",

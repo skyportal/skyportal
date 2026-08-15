@@ -997,12 +997,13 @@ GcnEvent.event_users_ids = column_property(
 
 
 class GcnEventCrossmatchState(Base):
-    """Per-(event, broker) bookkeeping for the GCN alert crossmatch service.
+    """Per-(event, filter) bookkeeping for the GCN alert crossmatch service.
 
     The crossmatch service re-queries an event's localization for as long as the
     event stays inside its active window, because alerts keep arriving after the
-    event. This table records how far that has got, keyed per broker so that one
-    broker being slow or down cannot stall the others for the same event.
+    event. This table records how far that has got, keyed per filter: a filter
+    carries its own broker, survey and audience, so two filters on one broker
+    progress independently.
 
     Read access follows the event: the fact that a restricted event is being
     crossmatched, and when, is itself information about that event.
@@ -1027,29 +1028,29 @@ class GcnEventCrossmatchState(Base):
         doc="The GcnEvent being crossmatched.",
     )
 
-    broker_id = sa.Column(
-        sa.ForeignKey("brokers.id", ondelete="CASCADE"),
+    filter_id = sa.Column(
+        sa.ForeignKey("filters.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="The Broker this state tracks progress against.",
+        doc="The Filter this state tracks progress against.",
     )
 
-    broker = relationship(
-        "Broker", doc="The Broker this state tracks progress against."
+    filter = relationship(
+        "Filter", doc="The Filter this state tracks progress against."
     )
 
     last_queried = sa.Column(
         sa.DateTime,
         nullable=True,
         index=True,
-        doc="When this event was last queried against this broker.",
+        doc="When this event was last queried for this filter.",
     )
 
     last_alert_jd = sa.Column(
         sa.Float,
         nullable=True,
         doc=(
-            "JD of the newest alert seen for this event from this broker. Used as "
+            "JD of the newest alert seen for this event through this filter. Used as "
             "the lower bound of the next query so late-arriving alerts are not "
             "missed, mirroring the watchlist service's last_got_candidates_at."
         ),
@@ -1086,7 +1087,7 @@ class GcnEventCrossmatchState(Base):
         doc="Cumulative count of alerts matched for this event from this broker.",
     )
 
-    __table_args__ = (UniqueConstraint("gcnevent_id", "broker_id"),)
+    __table_args__ = (UniqueConstraint("gcnevent_id", "filter_id"),)
 
 
 GcnEvent.crossmatch_states = relationship(

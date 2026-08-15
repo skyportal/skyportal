@@ -3,9 +3,16 @@ from datetime import timedelta
 import pytest
 import sqlalchemy as sa
 
-from skyportal.models import Candidate, DBSession, PhotStat, ScanReport, Source
+from skyportal.models import (
+    Candidate,
+    DBSession,
+    PhotStat,
+    ScanReport,
+    Source,
+    SuperObj,
+)
 from skyportal.tests import api
-from skyportal.tests.fixtures import CommentFactory, ObjFactory
+from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -166,14 +173,171 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert assignment["status"] is not None
     assert assignment["requester"] == user.username
 
-    # First/peak detection per survey (mag, time, days-ago), from PhotStat.
+    # First/peak detection per survey (mag, mjd, filter, days-ago), from PhotStat.
     detections = item["data"]["detections_by_survey"]
     assert detections is not None
     survey_detections = detections["ZTF"]
     assert survey_detections["first"]["mag"] == 18.9
+    assert survey_detections["first"]["filter"] == "ztfg"
     assert survey_detections["peak"]["mag"] == 16.4
+    assert survey_detections["peak"]["filter"] == "ztfr"
     assert survey_detections["first"]["days_ago"] > 0
     assert survey_detections["peak"]["days_ago"] > 0
+
+
+def test_scan_report_item_includes_associated_objs(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+    cleanup_reports,
+):
+    now = utcnow_naive()
+
+    obj = ObjFactory(groups=[public_group])
+    # Another survey's detection of the same physical object (e.g. LSST), with
+    # its own alias, linked via a SuperObj -- distinct from `obj`'s own alias.
+    assoc_obj = ObjFactory(groups=[public_group], alias=["LSST_123"])
+    DBSession.add(SuperObj(objs=[obj, assoc_obj]))
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    associated_objs = item["data"]["associated_objs"]
+    assert associated_objs is not None
+    assoc = next(a for a in associated_objs if a["obj_id"] == assoc_obj.id)
+    assert assoc["aliases"] == ["LSST_123"]
+
+
+def test_scan_report_item_includes_previous_mag(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+    cleanup_reports,
+):
+    now = utcnow_naive()
+
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
+    DBSession.commit()
+
+    # Two clear detections in the same filter, well past ObjFactory's own random
+    # points (mjd ~58000), so these are unambiguously the last two in that filter:
+    # the older one is what "previous mag" should report.
+    PhotometryFactory(
+        obj_id=obj.id,
+        filter="ztfg",
+        mjd=60500.0,
+        flux=1000.0,
+        fluxerr=1.0,
+        groups=[public_group],
+    )
+    current_point = PhotometryFactory(
+        obj_id=obj.id,
+        filter="ztfg",
+        mjd=60600.0,
+        flux=2000.0,
+        fluxerr=1.0,
+        groups=[public_group],
+    )
+    DBSession.commit()
+
+    # PhotStat's incremental after_insert hook isn't guaranteed to process two
+    # same-flush inserts in mjd order, so set "last detected" explicitly rather
+    # than depend on it -- this test is about the report's previous-mag query
+    # against real Photometry rows, not about PhotStat's own update ordering.
+    photstat = DBSession().scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj.id))
+    photstat.last_detected_mjd = current_point.mjd
+    photstat.last_detected_mag = current_point.mag
+    photstat.last_detected_filter = current_point.filter
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    assert item["data"]["current_mjd"] == 60600.0
+    assert item["data"]["current_filter"] == "ztfg"
+    assert item["data"]["previous_mjd"] == 60500.0
+    assert item["data"]["previous_filter"] == "ztfg"
+    assert item["data"]["previous_mag"] is not None
+    assert item["data"]["previous_mag"] != item["data"]["current_mag"]
 
 
 def test_scan_report_rolling_window(
@@ -292,3 +456,138 @@ def test_scan_report_item_comment_only_from_scanner(
     assert item["data"]["comment"] is None
     assert item["data"]["followups"] is None
     assert item["data"]["assignments"] is None
+
+
+def _generate_report(token, group_id, now, **extra):
+    """Generate a report over a window wide enough to include `now`."""
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    return api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [group_id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+            **extra,
+        },
+        token=token,
+    )
+
+
+def _report_items(token):
+    status, data = api("GET", "candidates/scan_reports", token=token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    status, data = api("GET", f"candidates/scan_reports/{report_id}/items", token=token)
+    assert status == 200, data
+    return report_id, data["data"]
+
+
+def test_scan_report_scoped_to_gcn_event(
+    public_filter,
+    public_group,
+    user,
+    super_admin_token,
+    upload_data_token,
+    cleanup_reports,
+):
+    """A report restricted to a GCN event covers only objects associated with it,
+    and carries the crossmatch measurements plus the scanner's verdict."""
+    now = utcnow_naive()
+    dateobs = (now - timedelta(days=2)).replace(microsecond=0)
+
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "skymap": {"ra": 120.0, "dec": 20.0, "error": 0.5},
+            "tags": ["Einstein Probe"],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # `matched` is associated with the event; `unrelated` is not.
+    objs = {}
+    for key in ("matched", "unrelated"):
+        obj = ObjFactory(groups=[public_group])
+        DBSession.add(
+            Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+        )
+        DBSession.add(
+            Source(
+                obj_id=obj.id,
+                group_id=public_group.id,
+                saved_by_id=user.id,
+                saved_at=now,
+            )
+        )
+        objs[key] = obj
+    DBSession.commit()
+
+    status, data = api(
+        "POST",
+        f"sources_in_gcn/{dateobs.isoformat()}",
+        data={
+            "source_id": objs["matched"].id,
+            "confirmed": False,
+            "explanation": "rock",
+            "localization_name": "120.00000_20.00000_0.50000",
+            "localization_cumprob": 0.95,
+            "start_date": (dateobs - timedelta(days=1)).isoformat(),
+            "end_date": (dateobs + timedelta(days=31)).isoformat(),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # Unscoped: both objects are in the report, and neither carries gcn_match.
+    status, data = _generate_report(upload_data_token, public_group.id, now)
+    assert status == 200, data
+    report_id, items = _report_items(upload_data_token)
+    cleanup_reports.append(report_id)
+    ids = {item["obj_id"] for item in items}
+    assert {objs["matched"].id, objs["unrelated"].id} <= ids
+    assert all(item["data"].get("gcn_match") is None for item in items)
+
+    # Scoped to the event: only the associated object, with its verdict.
+    status, data = _generate_report(
+        upload_data_token,
+        public_group.id,
+        now,
+        gcn_event_dateobs=dateobs.isoformat(),
+    )
+    assert status == 200, data
+    report_id, items = _report_items(upload_data_token)
+    cleanup_reports.append(report_id)
+
+    ids = {item["obj_id"] for item in items}
+    assert objs["matched"].id in ids
+    assert objs["unrelated"].id not in ids, "unassociated object leaked into the report"
+
+    item = next(i for i in items if i["obj_id"] == objs["matched"].id)
+    match = item["data"]["gcn_match"]
+    assert match["confirmed"] is False
+    assert match["explanation"] == "rock"
+
+
+def test_scan_report_rejects_inaccessible_gcn_event(
+    public_group, upload_data_token, cleanup_reports
+):
+    """Scoping to an event the user cannot read is refused, not silently ignored."""
+    now = utcnow_naive()
+    status, data = _generate_report(
+        upload_data_token,
+        public_group.id,
+        now,
+        gcn_event_dateobs=(now - timedelta(days=900)).isoformat(),
+    )
+    assert status == 400, data
+    assert "not found or not accessible" in data["message"]

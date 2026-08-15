@@ -1,3 +1,6 @@
+import asyncio
+import concurrent.futures
+
 import sentry_sdk
 import sqlalchemy as sa
 import tornado.web
@@ -201,6 +204,7 @@ from skyportal.handlers.api import (
     StreamHandler,
     StreamUserHandler,
     SummaryQueryHandler,
+    SuperObjHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
     SurveyThumbnailHandler,
@@ -589,6 +593,7 @@ skyportal_handlers = [
     # End deprecated
     (r"/api/streams(/[0-9]+)/users(/.*)?", StreamUserHandler),
     (r"/api/streams(/[0-9]+)?", StreamHandler),
+    (r"/api/super_objs(/[0-9]+)?", SuperObjHandler),
     (
         r"/api/survey_efficiency/observations(/[0-9]+)?",
         SurveyEfficiencyForObservationsHandler,
@@ -782,6 +787,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         )
 
     app = CustomApplication(handlers, **settings)
+
+    thread_pool_size = cfg.get("app.thread_pool_size")
+    if thread_pool_size:
+        asyncio.get_event_loop().set_default_executor(
+            concurrent.futures.ThreadPoolExecutor(max_workers=int(thread_pool_size))
+        )
 
     default_engine_args = {"pool_size": 10, "max_overflow": 15, "pool_recycle": 3600}
     database_cfg = cfg["database"]

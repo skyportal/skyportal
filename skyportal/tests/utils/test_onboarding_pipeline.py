@@ -261,6 +261,7 @@ def test_setup_invited_user_permissions_grants_groups_and_streams(
     pipeline_invitation.streams = [public_stream]
     pipeline_invitation.admin_for_groups = [False]
     pipeline_invitation.can_save_to_groups = [True]
+    pipeline_invitation.can_share_photometry_for_groups = [False]
     DBSession().commit()
 
     strategy = FakeStrategy(session_values={"invite_token": pipeline_invitation.token})
@@ -306,6 +307,7 @@ def test_setup_invited_user_permissions_is_idempotent_for_existing_members(
     pipeline_invitation.streams = [public_stream]
     pipeline_invitation.admin_for_groups = [False]
     pipeline_invitation.can_save_to_groups = [True]
+    pipeline_invitation.can_share_photometry_for_groups = [False]
     DBSession().commit()
 
     strategy = FakeStrategy(session_values={"invite_token": pipeline_invitation.token})

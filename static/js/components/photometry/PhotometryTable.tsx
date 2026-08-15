@@ -124,7 +124,8 @@ const PhotometryTable = ({
   const [showExtinction, setShowExtinction] = useState(false);
 
   const queryParams = useMemo<any>(() => {
-    const params: any = {};
+    // Include linked SuperObj photometry (e.g. LSST) in the table + download.
+    const params: any = { includeSuperObjsPhotometry: true };
     if (showExtinction) {
       params.includeExtinction = true;
     }
@@ -387,7 +388,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport={false}>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -453,7 +454,7 @@ const PhotometryTable = ({
             initialState={{
               pagination: { paginationModel: { pageSize: 100 } },
             }}
-            pageSizeOptions={[50, 100, 250, 500]}
+            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

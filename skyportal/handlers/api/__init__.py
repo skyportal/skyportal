@@ -228,6 +228,7 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .summary_query import SummaryQueryHandler
+from .super_obj import SuperObjHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

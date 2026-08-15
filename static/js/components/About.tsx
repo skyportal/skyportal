@@ -41,6 +41,18 @@ const useStyles = makeStyles()(() => ({
   header: {
     display: "inline-block",
   },
+  cosmoTable: {
+    borderCollapse: "collapse",
+    margin: "0.5rem 0",
+    "& td": {
+      border: "1px solid",
+      borderColor: "rgba(128,128,128,0.4)",
+      padding: "2px 12px",
+    },
+    "& td:first-of-type": {
+      fontWeight: 600,
+    },
+  },
 }));
 
 const About = () => {
@@ -48,7 +60,7 @@ const About = () => {
   // cosmology/cosmoref are served by `/api/config` and live in the `config`
   // slice; this previously read them from `sysInfo` (where they never existed),
   // so the block below never rendered. Sourced correctly now.
-  const cosmology = (useGetConfigQuery().data as any)?.cosmology;
+  const cosmologyParams = (useGetConfigQuery().data as any)?.cosmologyParams;
   const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
 
   const developers = [
@@ -191,9 +203,20 @@ const About = () => {
         <a href="https://github.com/astropy/astropy/blob/master/astropy/cosmology/parameters.py">
           this link for parameters definitions): <br />
         </a>
-        {cosmology && (
+        {cosmologyParams && (
           <>
-            <blockquote>{cosmology}</blockquote>
+            <table className={classes.cosmoTable}>
+              <tbody>
+                {cosmologyParams.map(
+                  (param: { name: string; value: string }) => (
+                    <tr key={param.name}>
+                      <td>{param.name}</td>
+                      <td>{param.value}</td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
             <b>Reference</b>: {cosmoref}
             <br />
             If you&apos;d like to change the cosmology, please do so in the{" "}

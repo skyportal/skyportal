@@ -25,6 +25,11 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  # Threads each Tornado instance may use for blocking work. Too few lets a slow
+  # upstream stall unrelated requests; too many can exhaust the database
+  # connection pool. Unset uses Python's default.
+  thread_pool_size:
+
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
     use_skyportal_fields: True
@@ -290,6 +295,10 @@ app:
           icon: Search
           url: /candidates
 
+        - name: Brokers
+          icon: Hub
+          url: /brokers
+
         - name: Favorites
           icon: Star
           url: /favorites
@@ -323,10 +332,6 @@ app:
           icon: SubwayRounded
           url: /shifts
 
-        - name: Summary Search
-          icon: Troubleshoot
-          url: /summary_search
-
         - name: Source Statistics
           icon: ScatterPlot
           url: /source_statistics
@@ -356,10 +361,6 @@ app:
         - name: Allocations
           icon: HourglassEmptyOutlined
           url: /allocations
-
-        - name: Brokers
-          icon: Hub
-          url: /brokers
 
         - name: Observations
           icon: ZoomInOutlined
@@ -395,6 +396,10 @@ app:
         - name: Recurring API
           icon: Restore
           url: /recurring_apis
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: Taxonomies
           icon: WallpaperOutlined
@@ -927,6 +932,68 @@ additional_bandpasses:
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
+  # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands.
+  - name: 'radio-0.34GHz'
+    filterset: 'radio'
+    wavelength: [8.641e+09, 8.685e+09, 8.95e+09, 8.994e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA P-band tophat centered at 0.34 GHz"
+  - name: 'radio-1.4GHz'
+    filterset: 'radio'
+    wavelength: [2.099e+09, 2.109e+09, 2.173e+09, 2.184e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA L-band tophat centered at 1.4 GHz"
+  - name: 'radio-3GHz'
+    filterset: 'radio'
+    wavelength: [9.793e+08, 9.843e+08, 1.014e+09, 1.019e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA S-band tophat centered at 3 GHz"
+  - name: 'radio-6GHz'
+    filterset: 'radio'
+    wavelength: [4.897e+08, 4.922e+08, 5.071e+08, 5.096e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA C-band tophat centered at 6 GHz"
+  - name: 'radio-10GHz'
+    filterset: 'radio'
+    wavelength: [2.938e+08, 2.953e+08, 3.043e+08, 3.058e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA X-band tophat centered at 10 GHz"
+  - name: 'radio-15GHz'
+    filterset: 'radio'
+    wavelength: [1.959e+08, 1.969e+08, 2.029e+08, 2.039e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ku-band tophat centered at 15 GHz"
+  - name: 'radio-22GHz'
+    filterset: 'radio'
+    wavelength: [1.335e+08, 1.342e+08, 1.383e+08, 1.39e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA K-band tophat centered at 22 GHz"
+  - name: 'radio-33GHz'
+    filterset: 'radio'
+    wavelength: [8.903e+07, 8.948e+07, 9.221e+07, 9.266e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ka-band tophat centered at 33 GHz"
+  - name: 'radio-45GHz'
+    filterset: 'radio'
+    wavelength: [6.529e+07, 6.562e+07, 6.762e+07, 6.795e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Q-band tophat centered at 45 GHz"
+  # SMA submillimeter bands.
+  - name: 'sma-230GHz'
+    filterset: 'sma'
+    wavelength: [1.277e+07, 1.284e+07, 1.323e+07, 1.33e+07]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 1.3mm tophat centered at 230 GHz"
+  - name: 'sma-345GHz'
+    filterset: 'sma'
+    wavelength: [8.516e+06, 8.559e+06, 8.82e+06, 8.863e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.87mm tophat centered at 345 GHz"
+  - name: 'sma-400GHz'
+    filterset: 'sma'
+    wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.75mm tophat centered at 400 GHz"
 
 user:
   default_role: 'Full user'
@@ -950,6 +1017,20 @@ hosts:
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
   slack: 127.0.0.1
+
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+scout:
+  topic:  # e.g. lco.scout-neo-too-test
+  kafka_server: kafka.scimma.org
+  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_password:
+  group_ids: []  # groups the NEO candidates are saved to
+  bot_user_id:  # user recorded as saving the sources and authoring the annotations
+  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  # The bridge can publish under a `relaxed_test` filter mode that waives all but
+  # the identity filters. Off by default so test traffic can't look like a trigger.
+  allow_relaxed_test: False
 
 gcn:
   server: gcn.nasa.gov
@@ -993,21 +1074,35 @@ gcn:
 
 gcn_crossmatch:
   # Crossmatch broker alerts against active GCN localizations: for each event
-  # still inside its window, query every active broker that implements
-  # query_alerts, keep the alerts genuinely inside the credible region, save
-  # them as sources and annotate them with their offset from the event.
+  # still inside its window, query the alerts near its localization, keep the
+  # ones genuinely inside the credible region, and raise them as candidates.
   #
-  # Sources and annotations inherit the event's groups, so a restricted event's
-  # matches stay as restricted as the event itself.
+  # What gets crossmatched is configured per SkyPortal Filter, not here: a
+  # filter names the broker, the stream (hence survey and programids) and the
+  # group that sees the candidates. Opt one in with
+  #
+  #   altdata:
+  #     gcn_crossmatch:
+  #       enabled: true
+  #       # optional, same shape as DefaultGcnTag: restrict to matching events
+  #       filters: {gcn_tags: ["Einstein Probe"]}
+  #       # optional: any setting below, overridden for this filter alone
+  #       delta_t_after: 7.0
+  #
+  # The values here are the defaults every such filter inherits.
+  #
+  # Annotations inherit the event's groups, so a restricted event's matches stay
+  # as restricted as the event itself.
   enabled: False
-  # Seconds between passes over the due (event, broker) pairs.
+  # Seconds between passes over the due (event, filter) pairs.
   poll_interval: 300
   # Events older than this many days are no longer crossmatched.
   max_event_age: 31.0
-  # Minimum gap before an event is re-queried against the same broker. Events
+  # Minimum gap before an event is re-queried through the same filter. Events
   # are re-queried for as long as they are active because alerts keep arriving
-  # after the trigger.
-  recheck_interval_minutes: 10.0
+  # after the trigger. Hourly is far faster than a survey revisits a field, and
+  # keeps a month of active events well inside a broker's rate limit.
+  recheck_interval_minutes: 60.0
   # Query window around the event time, in days.
   delta_t_before: 1.0
   delta_t_after: 31.0
@@ -1018,16 +1113,12 @@ gcn_crossmatch:
   credible_level: 90
   # Cumulative probability defining "inside" for the containment check.
   cumprob: 0.95
-  # SkyPortal Filter id whose broker-side pipeline holds the alert quality cuts
-  # (real/bogus, solar-system, stellar and red-star rejection). Running the cuts
-  # as a broker filter keeps them versioned and editable in the filter builder,
-  # and rejects artifacts before they cross the wire. Left unset, the built-in
-  # ZTF cuts ported from ep-ztf-xmatch are used instead -- usable, but frozen.
-  filter_id:
-  # Survey whose alert collection is searched.
-  survey: ZTF
-  # Cap on alerts returned per event per broker per pass.
+  # Cap on alerts returned per event per filter per pass.
   max_alerts: 500
+  # After a broker answers 429, skip it entirely for this many minutes. Quotas
+  # are per account and shared with the rest of the app, so retrying sooner
+  # burns allowance that interactive users need. Lasair's window is an hour.
+  rate_limit_backoff_minutes: 60.0
   # Also search the window *before* the event, once per event/broker. Alerts
   # there cannot be caused by the event, so they rule a candidate out: a
   # position already flaring last month is a variable, not a counterpart.

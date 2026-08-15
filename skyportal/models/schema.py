@@ -56,13 +56,13 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 def validate_fluxerr(fluxerr):
     try:
         if isinstance(fluxerr, float | int | str):
-            non_negative = float(fluxerr) >= 0
+            positive = float(fluxerr) > 0
         else:
-            non_negative = all(float(el) >= 0 for el in fluxerr)
+            positive = all(float(el) > 0 for el in fluxerr)
     except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
-    if not non_negative:
-        raise ValidationError("Invalid value: fluxerr must be non-negative")
+    if not positive:
+        raise ValidationError("Invalid value: fluxerr must be positive (non-zero)")
 
 
 class ApispecEnumField(fields.Enum):
@@ -565,7 +565,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
     required_keys = [
         "magsys",
-        "limiting_mag",
         "mjd",
         "filter",
         "obj_id",
@@ -618,9 +617,10 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             "in the magnitude system `magsys`. "
             "Can be given as a scalar or a 1D list. "
             "If a scalar, will be broadcast to all values "
-            "given as lists. Null values not allowed."
+            "given as lists. Required for non-detections (when mag is null)."
         },
-        required=True,
+        required=False,
+        load_default=None,
     )
 
     limiting_mag_nsigma = fields.Raw(
@@ -968,6 +968,8 @@ class PhotometryFlux(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
@@ -1164,6 +1166,8 @@ class PhotometryMag(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 

@@ -372,13 +372,13 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       altdata: altdata_json,
     };
 
-    if (!Number.isNaN(mag) || mag !== "") {
+    if (mag) {
       payload.mag = mag;
     }
-    if (!Number.isNaN(magerr) || magerr !== "") {
+    if (magerr) {
       payload.magerr = magerr;
     }
-    if (!Number.isNaN(limiting_mag) || limiting_mag !== "") {
+    if (limiting_mag) {
       payload.limiting_mag = limiting_mag;
     }
     if (

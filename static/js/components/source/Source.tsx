@@ -396,6 +396,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
           <AccordionDetails
             style={{
               padding: 0,
+              display: "flex",
+              flexDirection: "column",
               minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
             }}
           >
@@ -435,6 +437,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <AccordionDetails
               style={{
                 padding: 0,
+                display: "flex",
+                flexDirection: "column",
                 minHeight: downLarge || isRightPanelVisible ? "30vh" : "40vh",
               }}
             >
@@ -679,20 +683,24 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "baseline",
               }}
             >
-              <div>
-                <b>Redshift: &nbsp;</b>
-                {source.redshift &&
-                  source.redshift.toFixed(getZRound(source.redshift_error))}
-                {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
-                {source.redshift_error &&
-                  source.redshift_error.toFixed(
-                    getZRound(source.redshift_error),
-                  )}
-                {!isReadOnly && <UpdateSourceRedshift source={source} />}
-                <SourceRedshiftHistory
-                  redshiftHistory={source.redshift_history}
-                />
-              </div>
+              {/* Meaningless for a solar-system object. DM and luminosity
+                  distance derive from it, so they drop out on their own. */}
+              {!source.is_roid && (
+                <div>
+                  <b>Redshift: &nbsp;</b>
+                  {source.redshift &&
+                    source.redshift.toFixed(getZRound(source.redshift_error))}
+                  {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
+                  {source.redshift_error &&
+                    source.redshift_error.toFixed(
+                      getZRound(source.redshift_error),
+                    )}
+                  {!isReadOnly && <UpdateSourceRedshift source={source} />}
+                  <SourceRedshiftHistory
+                    redshiftHistory={source.redshift_history}
+                  />
+                </div>
+              )}
               <div className={classes.dmdlInfo}>
                 {source.dm && (
                   <div>

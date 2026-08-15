@@ -433,3 +433,44 @@ async def save_object_as_candidate(
         cutouts=cutouts,
         annotations_by_filter_id=annotations_by_filter_id,
     )
+
+
+async def save_object_photometry(data, survey, session, user, cutouts=None):
+    """Ingest an Obj and its photometry only — no Candidate/Source. Used for a
+    cross-survey match's counterpart obj, which is linked via a SuperObj rather
+    than scanned as a candidate (no filter_ids/group_ids skips both gates)."""
+    return await _ingest_object(data, survey, session, user, cutouts=cutouts)
+
+
+async def associate_super_obj(session, obj_id, associated_obj_ids):
+    """Group ``obj_id`` and ``associated_obj_ids`` under one SuperObj (the
+    cross-survey "same physical object" link), creating it on first association
+    and adding any not-yet-linked matches otherwise."""
+    import sqlalchemy as sa
+
+    from ..models import ObjToSuperObj, SuperObj
+
+    associated_obj_ids = {m for m in associated_obj_ids if m and m != obj_id}
+    if not associated_obj_ids:
+        return
+    super_obj = await session.scalar(
+        sa.select(SuperObj).join(ObjToSuperObj).where(ObjToSuperObj.obj_id == obj_id)
+    )
+    if super_obj is None:
+        super_obj = SuperObj()
+        session.add(super_obj)
+        await session.flush()  # assign super_obj.id before linking
+        session.add(ObjToSuperObj(obj_id=obj_id, super_obj_id=super_obj.id))
+        linked = set()
+    else:
+        linked = set(
+            (
+                await session.scalars(
+                    sa.select(ObjToSuperObj.obj_id).where(
+                        ObjToSuperObj.super_obj_id == super_obj.id
+                    )
+                )
+            ).all()
+        )
+    for match_id in associated_obj_ids - linked:
+        session.add(ObjToSuperObj(obj_id=match_id, super_obj_id=super_obj.id))

@@ -6,6 +6,7 @@ _REQUIRED_KEYS = {
     "slackPreamble",
     "invitationsEnabled",
     "cosmology",
+    "cosmologyParams",
     "cosmoref",
     "allowedAllocationTypes",
     "allowedSpectrumTypes",
@@ -50,6 +51,24 @@ def test_config_returns_required_keys(view_only_token):
     # The OpenAI api key should never be exposed to the frontend.
     assert isinstance(cfg["openai_summary_apikey_set"], bool)
     assert "api_key" not in cfg["openai_summary_parameters"]
+
+
+def test_config_cosmology_params_full_precision(view_only_token):
+    """cosmologyParams exposes each parameter at full precision; astropy's repr
+    rounds some values (e.g. H0 to 67.7 instead of 67.66)."""
+    from skyportal.models import cosmo
+
+    status, data = api("GET", "config", token=view_only_token)
+    assert status == 200
+    params = data["data"]["cosmologyParams"]
+    assert isinstance(params, list) and params
+    assert all(set(row) == {"name", "value"} for row in params)
+
+    by_name = {row["name"]: row["value"] for row in params}
+    assert by_name["name"] == str(cosmo.name)
+    # H0 shown exactly as used, not rounded by astropy's repr.
+    assert by_name["H0"] == str(cosmo.H0)
+    assert str(cosmo.H0.value) in by_name["H0"]
 
 
 def test_config_requires_authentication():

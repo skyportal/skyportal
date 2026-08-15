@@ -29,6 +29,7 @@ import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import CommentList from "../comment/CommentList";
 import AnnotationsTable from "./AnnotationsTable";
+import { getSpectrumFilename } from "./spectrumFilename";
 import SyntheticPhotometryForm from "../photometry/SyntheticPhotometryForm";
 
 import withRouter from "../withRouter";
@@ -126,10 +127,6 @@ const DeleteSpectrumButton = ({
     </div>
   );
 };
-
-function get_filename(spectrum: any) {
-  return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
-}
 
 function to_csv(spectrum: any) {
   const formatted: any[] = [];
@@ -262,6 +259,7 @@ const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
                 associatedResourceType="spectra"
                 objID={route.id}
                 spectrumID={spectrumID}
+                maxHeightList="350px"
               />
             </Suspense>
           </Paper>
@@ -438,12 +436,17 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       // source-spectra payload, so fetch it on demand. Fall back to a generated
       // CSV only when there is no original file (e.g. API array uploads).
       let data = to_csv(spectrum);
-      let filename = get_filename(spectrum);
+      let filename = getSpectrumFilename(spectrum);
       try {
         const full: any = await fetchSpectrumOriginalFile(specid).unwrap();
         if (full?.original_file_string) {
           data = full.original_file_string;
-          filename = full.original_file_filename || filename;
+          // Keep the uploader's extension (.ascii, .fits, ...), not their name.
+          const original = full.original_file_filename || "";
+          const extension = original.includes(".")
+            ? original.split(".").pop()
+            : "ascii";
+          filename = getSpectrumFilename(spectrum, extension);
         }
       } catch {
         // keep the generated-CSV fallback

@@ -139,6 +139,15 @@ irsa = {
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
 
+# A small metadata lookup, but it blocks one of the app's few worker threads,
+# so fail fast when IRSA hangs rather than stalling every request behind it.
+IRSA_SEARCH_TIMEOUT = (6.05, 5.0)
+
+
+class ZTFRefUnavailable(Exception):
+    """IRSA was unreachable or errored -- transient, so it must not be cached
+    the way a genuine "no reference image here" answer is."""
+
 
 starlist_formats = {
     "Keck": {
@@ -190,8 +199,9 @@ def memcache(f):
 
 
 def get_url(*args, **kwargs):
-    # Connect and read timeouts
-    kwargs["timeout"] = (6.05, 20)
+    # Connect and read timeouts. setdefault, not assignment: callers fetching
+    # something small on the request path need a shorter one than an image pull.
+    kwargs.setdefault("timeout", (6.05, 20))
     try:
         return requests.get(*args, **kwargs)
     except requests.exceptions.RequestException:
@@ -268,7 +278,7 @@ def get_ps1_cds_url(ra, dec, imsize, *args, **kwargs):
 
 
 @memcache
-def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
+def _ztfref_url_and_epoch(ra, dec, imsize):
     """
     From:
     https://gist.github.com/dmitryduev/634bd2b21a77e2b1de89e0bfd39d14b9
@@ -284,23 +294,22 @@ def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
         Declination (J2000) of the source
     imsize : float
         Requested image size (on a size) in arcmin
-    *args : optional
-        Extra args (not needed here)
-    **kwargs : optional
-        Extra kwargs (not needed here)
 
     Returns
     -------
-    str
-        the URL to download the ZTF image
+    tuple
+        (url, epoch) -- an empty url means IRSA has no reference image here.
 
+    Raises
+    ------
+    ZTFRefUnavailable
+        IRSA was unreachable or errored. Raised rather than returned so joblib
+        does not cache an outage as a permanent "no reference image".
     """
 
     def _ret(url, meta=None):
         # Also return the ref coadd midpoint epoch (Time, or None) so PM can be
         # carried forward from the reference epoch.
-        if not return_epoch:
-            return url
         try:
             start = Time(
                 pd.to_datetime(meta.loc[0, "startobsdate"]).tz_convert(None).isoformat()
@@ -318,11 +327,17 @@ def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
     url_ref_meta = os.path.join(
         irsa["url_search"], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
-    r = get_url(url_ref_meta)
+    r = get_url(url_ref_meta, timeout=IRSA_SEARCH_TIMEOUT)
     if r is None:
-        return _ret("")
+        raise ZTFRefUnavailable(f"no response from IRSA for {ra} {dec}")
+    if r.status_code != 200:
+        raise ZTFRefUnavailable(f"IRSA returned {r.status_code} for {ra} {dec}")
     s = r.content
-    c = pd.read_csv(io.StringIO(s.decode("utf-8")))
+    try:
+        c = pd.read_csv(io.StringIO(s.decode("utf-8")))
+    except Exception as e:
+        # An error page rather than the CSV we asked for.
+        raise ZTFRefUnavailable(f"unparseable IRSA response for {ra} {dec}: {e}")
 
     try:
         field = f"{c.loc[0, 'field']:06d}"
@@ -344,6 +359,17 @@ def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
         f"ztf_{field}_{filt}_c{ccd}_q{quad}_refimg.fits",
     )
     return _ret(path_ursa_ref, c)
+
+
+def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
+    """URL of the ZTF reference image covering this position, or "" if there is
+    none (including when IRSA is down -- callers treat ZTFref as optional)."""
+    try:
+        url, epoch = _ztfref_url_and_epoch(ra, dec, imsize)
+    except ZTFRefUnavailable as e:
+        log(f"ZTF reference lookup unavailable: {e}")
+        url, epoch = "", None
+    return (url, epoch) if return_epoch else url
 
 
 def ngps_defaults(mag, magfilter):
@@ -667,6 +693,7 @@ def get_formatted_standards_list(
     magnitude_range=(np.inf, -np.inf),
     show_first_line=False,
     return_dataframe=False,
+    obstime=None,
 ):
     """Returns a list of standard stars in the preferred starlist format.
 
@@ -724,6 +751,35 @@ def get_formatted_standards_list(
         return result
 
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
+    # Where a Gaia DR3 match exists, emit its position (epoch 2016) propagated to
+    # the obstime with its PM (sub-arcsec); otherwise fall back to the listed
+    # catalog position unchanged.
+    if {"gaia_ra", "gaia_dec", "pmra", "pmdec"}.issubset(df.columns):
+        obstime_t = Time(obstime) if obstime else Time(utcnow_naive().isoformat())
+        gra = df["gaia_ra"].to_numpy(dtype=float)
+        has_gaia = np.isfinite(gra)
+        ra_base = np.where(has_gaia, gra, tab.ra.deg)
+        dec_base = np.where(has_gaia, df["gaia_dec"].to_numpy(dtype=float), tab.dec.deg)
+        base_epoch = np.where(has_gaia, 2016.0, df["epoch"].to_numpy(dtype=float))
+        pmra = np.nan_to_num(df["pmra"].to_numpy(dtype=float))
+        pmdec = np.nan_to_num(df["pmdec"].to_numpy(dtype=float))
+        plx = (
+            df["parallax"].to_numpy(dtype=float)
+            if "parallax" in df.columns
+            else np.full(len(df), np.nan)
+        )
+        # distance (kpc) = 1/parallax(mas); fixed fallback when parallax missing.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            dist_kpc = np.where(plx > 0, np.minimum(np.abs(1.0 / plx), 10.0), 10.0)
+        tab = SkyCoord(
+            ra=ra_base * u.deg,
+            dec=dec_base * u.deg,
+            pm_ra_cosdec=pmra * u.mas / u.yr,
+            pm_dec=pmdec * u.mas / u.yr,
+            distance=dist_kpc * u.kpc,
+            obstime=Time(base_epoch, format="jyear"),
+            frame="icrs",
+        ).apply_space_motion(new_obstime=obstime_t)
     df["ra_float"] = tab.ra.value
     df["dec_float"] = tab.dec.value
     df["skycoord"] = [x[1:] for x in format_hmsdms(tab, coord_sep, col_sep)]

@@ -44,6 +44,7 @@ export const getThumbnailAltAndLink = (
   name: string,
   ra: number,
   dec: number,
+  survey?: string,
 ) => {
   let alt = "";
   let link = "";
@@ -95,6 +96,11 @@ export const getThumbnailAltAndLink = (
     default:
       break;
   }
+  // Prefix alert cutouts with their survey (e.g. "ZTF NEW") so a source's own
+  // and its linked cross-survey tiles are distinguishable.
+  if (survey && ["new", "ref", "sub"].includes(name)) {
+    thumbnailName = `${survey.toUpperCase()} ${thumbnailName}`;
+  }
   return { alt, link, thumbnailName };
 };
 
@@ -106,6 +112,9 @@ interface ThumbnailProps {
   ra: number;
   dec: number;
   name: string;
+  // Survey the cutout came from (e.g. ZTF, LSST); prefixes the title for alert
+  // cutouts. Undefined for archival/legacy tiles.
+  survey?: string | undefined;
   src: string;
   size: string;
   minSize: string;
@@ -122,6 +131,7 @@ const Thumbnail = ({
   ra,
   dec,
   name,
+  survey,
   src,
   size,
   minSize,
@@ -208,7 +218,12 @@ const Thumbnail = ({
     };
   }, [src, name, isFetched, retry]);
 
-  const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
+  const { alt, link, thumbnailName } = getThumbnailAltAndLink(
+    name,
+    ra,
+    dec,
+    survey,
+  );
   const imgClasses = grayscale
     ? `${classes.media} ${classes.inverted}`
     : `${classes.media}`;

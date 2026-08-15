@@ -102,6 +102,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   )?.id;
   // The GCN tour runs on an event page; use the most recent event.
   const firstGcnDateobs = (recentGcnEvents as any)?.[0]?.dateobs;
+  // The filter tour runs on a filter page; use the user's first filter.
+  const firstFilterId = ((filters as any[] | undefined) ?? [])[0]?.id;
 
   // `tour` names a PAGE_TOURS entry launched as a how-to on the destination.
   const checklist = [
@@ -125,6 +127,13 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
       to: "/groups",
       tour: "groups",
       help: "Open a group and add an alert filter to start collecting candidates.",
+    },
+    {
+      label: "Build filter logic",
+      explore: true,
+      to: firstFilterId ? `/filter/${firstFilterId}` : "/groups",
+      tour: firstFilterId ? "filter" : undefined,
+      help: "Combine conditions with AND/OR blocks to define which alerts pass your filter.",
     },
     {
       label: "Save your first source",
