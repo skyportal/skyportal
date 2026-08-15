@@ -1753,10 +1753,24 @@ def public_group_gcnevent(public_group, public_gcnevent):
 
 
 @pytest.fixture()
-def public_gcnevent_crossmatch_state(public_gcnevent, public_filter):
+def public_gcnevent_crossmatch_state(public_gcnevent, public_filter, user):
+    # State is tracked per localization (one event can carry several), so the
+    # row needs one belonging to this event.
+    localization = Localization(
+        dateobs=public_gcnevent.dateobs,
+        localization_name=str(uuid.uuid4()),
+        sent_by_id=user.id,
+        uniq=[4 * (4**29) + i for i in range(4)],
+        probdensity=[0.25, 0.25, 0.25, 0.25],
+    )
+    DBSession().add(localization)
+    DBSession().commit()
+    localization_id = localization.id
+
     state = GcnEventCrossmatchState(
         gcnevent_id=public_gcnevent.id,
         filter_id=public_filter.id,
+        localization_id=localization_id,
         status="pending",
     )
     DBSession().add(state)
@@ -1764,6 +1778,7 @@ def public_gcnevent_crossmatch_state(public_gcnevent, public_filter):
     state_id = state.id
     yield state
     resilient_delete(GcnEventCrossmatchState, state_id)
+    resilient_delete(Localization, localization_id)
 
 
 @pytest.fixture()
