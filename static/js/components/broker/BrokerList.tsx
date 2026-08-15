@@ -252,7 +252,11 @@ const BrokerList = () => {
         (isLoading ? (
           <CircularProgress />
         ) : (
-          <Paper variant="outlined" sx={{ mb: 3, overflowX: "auto" }}>
+          <Paper
+            variant="outlined"
+            sx={{ mb: 3, overflowX: "auto" }}
+            data-testid="tour-brokers-list"
+          >
             <Table size="small">
               <TableHead>
                 <TableRow>

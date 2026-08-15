@@ -20,6 +20,8 @@ const FeatureAnnouncementProvider = () => {
   const [updatePreferences] = useUpdateUserPreferencesMutation();
   const [steps, setSteps] = useState<Step[]>([]);
   const announcementID = useRef<string | null>(null);
+  // Already run: profile.preferences only catches up after the mutation.
+  const done = useRef<Set<string>>(new Set());
   const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
     steps,
@@ -41,6 +43,7 @@ const FeatureAnnouncementProvider = () => {
     const pending = FEATURE_ANNOUNCEMENTS.find(
       (announcement) =>
         !seen[announcement.id] &&
+        !done.current.has(announcement.id) &&
         announcement.path.test(location.pathname) &&
         (!createdAt || createdAt < new Date(announcement.announcedAt)),
     );
@@ -92,6 +95,8 @@ const FeatureAnnouncementProvider = () => {
           updatePreferences({
             [SEEN_PREF]: { [announcementID.current]: true },
           });
+          done.current.add(announcementID.current);
+          announcementID.current = null;
         }
       }),
     [on, updatePreferences],
