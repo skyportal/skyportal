@@ -29,12 +29,11 @@ import { useAppDispatch } from "../../types/hooks";
 import store from "../../store";
 import { setSidebar } from "../../ducks/sidebar";
 import { TOUR_STEPS } from "./GettingStartedTour";
+import { useTourStyles } from "../tourStyles";
 
-// Onboarding checklist + guided tour, rendered as a Home Page widget. Shows for
-// every user until dismissed (persisted in `preferences.onboardingDismissed`)
-// and can be reopened at any time. Each checklist step auto-detects completion
-// from the user's profile, groups, filters, saved sources, and preferences.
-// The `classes` prop is injected by the Home Page grid but unused here.
+// Onboarding checklist + guided tour, rendered as a Home Page widget until
+// dismissed (persisted in `preferences.onboardingDismissed`). Each step
+// auto-detects completion from the user's profile, groups, filters and sources.
 const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -48,15 +47,15 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   });
   const { data: recentGcnEvents } = useGetRecentGcnEventsQuery();
   const [updatePreferences] = useUpdateUserPreferencesMutation();
+  const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
     steps: TOUR_STEPS,
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
-    // App sets a low sidebar z-index (~140); lift the tour above it and MUI
-    // modals so tooltips aren't hidden behind the drawer. Show tooltips
-    // directly instead of a click-to-open beacon.
-    options: { zIndex: 2000, skipBeacon: true },
+    options,
+    styles,
+    locale: { last: "Got it" },
   });
 
   // Sidebar-targeted steps need the drawer mounted; on mobile it's a closed
@@ -184,9 +183,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
       tour: firstGcnDateobs ? "gcnevents" : undefined,
       help: "Localizations, counterpart searches, and observation plans for multi-messenger alerts.",
     },
-    // Facility-management tours: shown only to users with the relevant ACL.
-    // These launch a how-to tour rather than track a completion, so they show
-    // no checkbox (there's no per-user signal for who created a telescope/etc.).
+    // Facility-management tours: ACL-gated, and no checkbox since there's no
+    // per-user completion signal.
     {
       label: "Register a telescope",
       explore: true,
