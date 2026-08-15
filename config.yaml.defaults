@@ -20,8 +20,8 @@ app:
     description: >-
       SkyPortal is an open source codebase that serves as a dynamic
       collaborative platform for time-domain astronomy. It is being jointly
-      developed at Caltech, UC Berkeley, the University of Minnesota, and the
-      Observatoire de la Côte d'Azur.
+      developed at Caltech, UC Berkeley, the University of Minnesota, and
+      Université Paris-Saclay.
     homepage_url: https://skyportal.io
     docs_url: https://skyportal.io/docs/
     api_docs_url: https://skyportal.io/docs/api.html

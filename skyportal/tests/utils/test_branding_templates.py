@@ -24,7 +24,9 @@ FRITZ_LIKE = {
             {"url": "/login/iam-oauth2", "image": "/iam.png", "alt_text": "IAM"},
         ],
         "about": {
-            "description": "Fritz is developed at the Observatoire de la Côte d'Azur.",
+            # the apostrophe and accent are load-bearing: they exercise the
+            # JSX escaping the template applies to config prose
+            "description": "Fritz is developed at Université Paris-Saclay; it's great.",
             "homepage_url": "https://fritz.science",
             "docs_url": "https://docs.fritz.science/",
             "api_docs_url": "https://docs.fritz.science/api.html",
@@ -84,8 +86,8 @@ def test_about_template_escapes_characters_jsx_treats_specially():
     generated component fails to build."""
     out = render(ABOUT_TEMPLATE, FRITZ_LIKE)
 
-    assert "Côte d&apos;Azur" in out
-    assert "d'Azur" not in out
+    assert "Université Paris-Saclay; it&apos;s great." in out
+    assert "it's great" not in out
     # the `&` between the two placeholder links
     assert "&amp;" in out
 
