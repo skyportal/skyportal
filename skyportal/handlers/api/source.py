@@ -598,11 +598,11 @@ async def get_source(
         source_info["comment_exists"] = comment_exists is not None
 
     if include_gcn_crossmatches:
+        # Every association, including rejected ones. The source page hangs its
+        # keep/reject control off this list, so filtering rejections out removed
+        # the only way to revisit one -- a mis-click could not be undone.
         gcn_event_obj_result = await session.scalars(
-            GcnEventObj.select(user).where(
-                GcnEventObj.obj_id == obj_id,
-                GcnEventObj.status != "rejected",
-            )
+            GcnEventObj.select(user).where(GcnEventObj.obj_id == obj_id)
         )
         crossmatch_dateobs = list({row.dateobs for row in gcn_event_obj_result.all()})
         gcn_crossmatch_result = await session.scalars(
