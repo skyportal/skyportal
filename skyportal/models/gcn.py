@@ -1103,7 +1103,16 @@ class GcnEventCrossmatchState(Base):
         doc="Cumulative count of alerts matched for this event from this broker.",
     )
 
-    __table_args__ = (UniqueConstraint("gcnevent_id", "filter_id", "localization_id"),)
+    # Named explicitly: the derived name would be 68 characters, over
+    # PostgreSQL's 63-character identifier limit.
+    __table_args__ = (
+        UniqueConstraint(
+            "gcnevent_id",
+            "filter_id",
+            "localization_id",
+            name="uq_gcnevent_crossmatch_states_event_filter_localization",
+        ),
+    )
 
 
 GcnEvent.crossmatch_states = relationship(

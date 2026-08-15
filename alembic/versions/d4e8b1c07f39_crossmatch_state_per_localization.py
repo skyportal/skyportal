@@ -54,7 +54,7 @@ def upgrade():
         unique=False,
     )
     op.create_unique_constraint(
-        "gcnevent_crossmatch_states_gcnevent_id_filter_id_localization_id_key",
+        "uq_gcnevent_crossmatch_states_event_filter_localization",
         "gcnevent_crossmatch_states",
         ["gcnevent_id", "filter_id", "localization_id"],
     )
@@ -64,7 +64,7 @@ def downgrade():
     op.execute("DELETE FROM gcnevent_crossmatch_states")
 
     op.drop_constraint(
-        "gcnevent_crossmatch_states_gcnevent_id_filter_id_localization_id_key",
+        "uq_gcnevent_crossmatch_states_event_filter_localization",
         "gcnevent_crossmatch_states",
         type_="unique",
     )
