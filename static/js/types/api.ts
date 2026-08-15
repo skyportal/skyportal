@@ -8413,7 +8413,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm or reject a source in a gcn
-         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Confirm or reject a source in a gcn
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Confirm or reject a source in a gcn
          */
         post: {
             parameters: {
@@ -8472,7 +8472,7 @@ export interface paths {
         };
         /**
          * Remove the confirmed/rejected status of a source in a GCN
-         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Deletes the confirmed or rejected status of source in a GCN.
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Deletes the confirmed or rejected status of source in a GCN.
          *     Its status can be considered as 'undefined'.
          */
         delete: {
@@ -8514,7 +8514,7 @@ export interface paths {
         head?: never;
         /**
          * Update the confirmed/rejected status of a source in a GCN
-         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Update the confirmed or rejected status of a source in a GCN
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Update the confirmed or rejected status of a source in a GCN
          */
         patch: {
             parameters: {
@@ -26704,10 +26704,14 @@ export interface components {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The Filter this state tracks progress against. */
             readonly filter?: components["schemas"]["Filter"];
+            /** @description The Localization this state tracks progress against. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The GcnEvent being crossmatched. */
             gcnevent_id: number;
             /** @description The Filter this state tracks progress against. */
             filter_id: number;
+            /** @description The Localization (one patch of sky) this state tracks. */
+            localization_id: number;
             /**
              * Format: date-time
              * @description When this event was last queried for this filter.
@@ -26743,10 +26747,14 @@ export interface components {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The Filter this state tracks progress against. */
             readonly filter?: components["schemas"]["Filter"];
+            /** @description The Localization this state tracks progress against. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The GcnEvent being crossmatched. */
             gcnevent_id: number;
             /** @description The Filter this state tracks progress against. */
             filter_id: number;
+            /** @description The Localization (one patch of sky) this state tracks. */
+            localization_id: number;
             /**
              * Format: date-time
              * @description When this event was last queried for this filter.

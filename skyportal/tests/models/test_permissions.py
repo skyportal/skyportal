@@ -2090,15 +2090,17 @@ CASES = [
     ("super_admin_user", "public_source_view", "read", True),
     ("super_admin_user", "public_source_view", "update", True),
     ("super_admin_user", "public_source_view", "delete", True),
-    # --- GcnEventObj  (public_gcn_event_obj)  [PREDICTED - verify in CI] ---
-    ("user", "public_gcn_event_obj", "create", False),
+    # --- GcnEventObj  (public_gcn_event_obj) ---
+    # Vetting follows read access to the event and obj, not an ACL: anyone who
+    # can see both is allowed to judge the association.
+    ("user", "public_gcn_event_obj", "create", True),
     ("user", "public_gcn_event_obj", "read", True),
-    ("user", "public_gcn_event_obj", "update", False),
-    ("user", "public_gcn_event_obj", "delete", False),
-    ("user_group2", "public_gcn_event_obj", "create", False),
+    ("user", "public_gcn_event_obj", "update", True),
+    ("user", "public_gcn_event_obj", "delete", True),
+    ("user_group2", "public_gcn_event_obj", "create", True),
     ("user_group2", "public_gcn_event_obj", "read", True),
-    ("user_group2", "public_gcn_event_obj", "update", False),
-    ("user_group2", "public_gcn_event_obj", "delete", False),
+    ("user_group2", "public_gcn_event_obj", "update", True),
+    ("user_group2", "public_gcn_event_obj", "delete", True),
     ("group_admin_user", "public_gcn_event_obj", "create", True),
     ("group_admin_user", "public_gcn_event_obj", "read", True),
     ("group_admin_user", "public_gcn_event_obj", "update", True),

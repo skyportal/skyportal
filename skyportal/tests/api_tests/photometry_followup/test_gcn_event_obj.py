@@ -183,21 +183,27 @@ def test_patch_unknown_source(super_admin_token, upload_data_token, gcn_GW190814
     assert "not confirmed/rejected" in data["message"]
 
 
-def test_manage_gcns_permission_required(
+def test_vetting_needs_only_access_to_the_event(
     super_admin_token, view_only_token, upload_data_token, gcn_GW190814
 ):
+    """Vetting is not behind an ACL: whoever can see the event and the object
+    can judge the association. A read-only token still cannot write."""
     dateobs = _dateobs(gcn_GW190814)
     source_id = _post_source(upload_data_token)
 
-    # view-only lacks "Manage GCNs" -> cannot confirm
-    status, _ = _confirm(view_only_token, dateobs, source_id, gcn_status="confirmed")
-    assert status == 401
-
-    # but a privileged token can, and view-only can still read it
+    # a token that can post data, with no GCN-specific ACL, can vet
     status, data = _confirm(
-        super_admin_token, dateobs, source_id, gcn_status="confirmed"
+        upload_data_token, dateobs, source_id, gcn_status="confirmed"
     )
     assert status == 200, data
+
+    status, data = api(
+        "GET", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
+    )
+    assert status == 200, data
+    assert data["data"][0]["status"] == "confirmed"
+
+    # read-only remains read-only
     status, _ = api(
         "DELETE", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
     )

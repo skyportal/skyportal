@@ -815,22 +815,14 @@ def test_confirm_reject_source_in_gcn(
         "end_date": "2019-08-19 08:18:05",
     }
 
-    # verify that you can't confirm a source without the Manage GCNs permission
+    # vetting needs no GCN-specific ACL, just the ability to write data
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "POST",
-        f"sources_in_gcn/{dateobs}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -869,15 +861,7 @@ def test_confirm_reject_source_in_gcn(
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "PATCH",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -913,14 +897,7 @@ def test_confirm_reject_source_in_gcn(
         f"sources_in_gcn/{dateobs}/{obj_id}",
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "DELETE",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,

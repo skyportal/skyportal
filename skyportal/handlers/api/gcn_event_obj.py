@@ -203,7 +203,7 @@ class GcnEventObjHandler(BaseHandler):
 
         return self.success(data=sources_in_gcn)
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def post(self, dateobs: str, source_id: str = None):
         """
         ---
@@ -378,7 +378,7 @@ class GcnEventObjHandler(BaseHandler):
 
         return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def patch(self, dateobs: str, source_id: str):
         """
         ---
@@ -498,7 +498,7 @@ class GcnEventObjHandler(BaseHandler):
 
         return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def delete(self, dateobs: str, source_id: str):
         """
         ---

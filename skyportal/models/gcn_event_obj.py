@@ -7,20 +7,11 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     Base,
-    CustomUserAccessControl,
-    public,
 )
 
 from ..enum_types import gcn_event_obj_statuses
 
 _, cfg = load_env()
-
-
-def manage_gcn_event_obj_access_logic(cls, user_or_token):
-    if user_or_token.is_admin or "Manage GCNs" in user_or_token.permissions:
-        return public.select_accessible_rows(cls, user_or_token)
-    else:
-        return sa.select(cls).where(sa.false())
 
 
 class GcnEventObj(Base):
@@ -29,9 +20,12 @@ class GcnEventObj(Base):
     # Scoped to the event: the row ties an obj to a dateobs, so a public read
     # would disclose a restricted event's existence, time and (via the public
     # Obj) position -- see /api/associated_gcns.
-    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
-    create = update = delete = CustomUserAccessControl(
-        manage_gcn_event_obj_access_logic
+    #
+    # Vetting is not behind a GCN-specific ACL: anyone who can see both the
+    # event and the object is in a position to judge the association. The
+    # handler still requires "Upload data", so read-only accounts stay so.
+    read = create = update = delete = AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read", obj="read"
     )
 
     obj_id = sa.Column(
