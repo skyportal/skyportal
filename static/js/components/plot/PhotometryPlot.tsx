@@ -224,7 +224,6 @@ const PeriodAnnotationDialog = ({
         items: {
           type: "string",
           enum: groups?.map((group: any) => group.id.toString()),
-          enumNames: groups?.map((group: any) => group.name),
         },
         uniqueItems: true,
       },
@@ -282,6 +281,9 @@ const PeriodAnnotationDialog = ({
         <DialogContent>
           <Form
             schema={schema}
+            uiSchema={{
+              groupIDs: { "ui:enumNames": groups?.map((g: any) => g.name) },
+            }}
             validator={validator}
             customValidate={validate}
             onSubmit={submitPeriodAnnotation as any}

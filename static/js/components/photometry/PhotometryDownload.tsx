@@ -140,7 +140,6 @@ const PhotometryDownload = ({
         items: {
           type: "string",
           enum: availableDownloadColumns.map((col) => col.key),
-          enumNames: availableDownloadColumns.map((col) => col.label),
         },
         uniqueItems: true,
         minItems: 1,
@@ -161,6 +160,7 @@ const PhotometryDownload = ({
   const downloadUiSchema = {
     columns: {
       "ui:widget": "checkboxes",
+      "ui:enumNames": availableDownloadColumns.map((col) => col.label),
       "ui:options": {
         inline: true,
       },
