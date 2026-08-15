@@ -21,7 +21,9 @@ cfg = load_config()
 
 
 def enter_comment_text(page, comment_text):
-    page.locator('//button[@data-testid="source-chat-button"]').first.click()
+    chat = page.locator('//div[@data-testid="source-chat"]').first
+    if not chat.is_visible():
+        page.locator('//button[@data-testid="source-chat-button"]').first.click()
     comment_box = page.locator(
         "//form[@data-testid='comment-form']//textarea[@name='text']"
     ).first

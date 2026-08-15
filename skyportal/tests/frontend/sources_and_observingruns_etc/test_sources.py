@@ -13,7 +13,7 @@ cfg = load_config()
 
 
 def open_source_chat(page):
-    # Source comments live in a floating chat panel, closed on page load.
+    # Comments live in a chat panel, inline by default but detachable.
     chat = page.locator('//div[@data-testid="source-chat"]').first
     if not chat.is_visible():
         page.locator('//button[@data-testid="source-chat-button"]').first.click()
@@ -269,15 +269,13 @@ def test_feature_announcement_shown_once(page, user, public_source):
 
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    announcement = page.locator('//*[text()="Comments moved here"]').first
+    announcement = page.locator('//*[text()="Comments are now a chat"]').first
     expect(announcement).to_be_visible()
     page.locator('//button[text()="Got it"]').first.click()
     expect(announcement).to_be_hidden()
 
     page.reload()
-    expect(
-        page.locator('//button[@data-testid="source-chat-button"]').first
-    ).to_be_visible()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_visible()
     page.wait_for_timeout(2000)
     expect(announcement).to_be_hidden()
 
@@ -286,9 +284,7 @@ def test_view_only_user_cannot_comment(page, view_only_user, public_source):
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
-    expect(
-        page.locator('//button[@data-testid="source-chat-button"]').first
-    ).to_be_hidden()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_hidden()
     expect(page.locator('//textarea[@name="text"]').first).to_be_hidden()
 
 

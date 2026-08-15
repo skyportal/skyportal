@@ -18,14 +18,13 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     announcedAt: "2026-08-10",
     steps: [
       {
-        target: '[data-testid="source-chat-button"]',
-        title: "Comments moved here",
+        target: '[data-testid="source-chat"]',
+        title: "Comments are now a chat",
         content:
-          "Source comments now live in this chat panel, where side discussions " +
-          "can be split into named conversations. Prefer them in the page? " +
-          "Dock the panel back inline from its header.",
-        isFixed: true,
-        placement: "left",
+          "Comments got a refreshed look and now read like any messaging app, " +
+          "newest at the bottom. Split side discussions into named " +
+          "conversations with +, or detach the panel into a floating window.",
+        placement: "top",
       },
     ],
   },

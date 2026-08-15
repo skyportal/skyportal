@@ -104,10 +104,10 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Inline mode is a user preference kept across all source pages.
+// Inline mode is the default, kept as a user preference across all source pages.
 export const useSourceChat = () => {
   const [inline, setInline] = useState(
-    () => window.localStorage.getItem(INLINE_KEY) === "true",
+    () => window.localStorage.getItem(INLINE_KEY) !== "false",
   );
   const [open, setOpen] = useState(false);
 
