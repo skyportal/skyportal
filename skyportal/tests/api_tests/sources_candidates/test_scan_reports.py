@@ -537,7 +537,7 @@ def test_scan_report_scoped_to_gcn_event(
         f"sources_in_gcn/{dateobs.isoformat()}",
         data={
             "source_id": objs["matched"].id,
-            "confirmed": False,
+            "status": "rejected",
             "explanation": "rock",
             "localization_name": "120.00000_20.00000_0.50000",
             "localization_cumprob": 0.95,
@@ -574,7 +574,7 @@ def test_scan_report_scoped_to_gcn_event(
 
     item = next(i for i in items if i["obj_id"] == objs["matched"].id)
     match = item["data"]["gcn_match"]
-    assert match["confirmed"] is False
+    assert match["status"] == "rejected"
     assert match["explanation"] == "rock"
 
 

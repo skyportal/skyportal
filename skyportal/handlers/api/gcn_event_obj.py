@@ -6,15 +6,16 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
+from ...enum_types import GCN_EVENT_OBJ_STATUSES
 from ...models import (
     GcnEvent,
+    GcnEventObj,
     Localization,
-    SourcesConfirmedInGCN,
 )
 from ...utils.naive_datetime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 
-log = make_log("api/sources_confirmed_in_gcn")
+log = make_log("api/gcn_event_obj")
 
 
 class Validator(Schema):
@@ -23,10 +24,9 @@ class Validator(Schema):
     source_id = fields.String()
     start_date = UTCTZnaiveDateTime(required=False, load_default=None)
     end_date = UTCTZnaiveDateTime(required=False, load_default=None)
-    confirmed = fields.Boolean(
-        truthy=["true", "True", "confirmed", True],
-        falsy=["false", "False", "rejected", False],
+    status = fields.Str(
         required=False,
+        validate=lambda v: v in GCN_EVENT_OBJ_STATUSES,
     )
     explanation = fields.String(required=False)
     notes = fields.String(required=False)
@@ -71,32 +71,7 @@ class Validator(Schema):
                 raise ValidationError("Missing required fields")
 
 
-def _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
-    """Update the obj.gcn_crossmatch list based on confirmation state.
-    Returns True if a change was made (caller should commit).
-    """
-    crossmatches = source_in_gcn.obj.gcn_crossmatch
-    dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
-    if confirmed is True:
-        if crossmatches is None:
-            crossmatches = [dateobs]
-        elif dateobs not in crossmatches:
-            crossmatches.append(dateobs)
-        else:
-            return False
-        source_in_gcn.obj.gcn_crossmatch = crossmatches
-        return True
-    if crossmatches is not None and dateobs_str in crossmatches:
-        crossmatches.remove(dateobs_str)
-        if len(crossmatches) == 0:
-            source_in_gcn.obj.gcn_crossmatch = None
-        else:
-            source_in_gcn.obj.gcn_crossmatch = crossmatches
-        return True
-    return False
-
-
-class SourcesConfirmedInGCNHandler(BaseHandler):
+class GcnEventObjHandler(BaseHandler):
     @auth_or_token
     async def get(self, dateobs: str, source_id: str = None):
         """
@@ -132,7 +107,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           data:
                             type: array
                             items:
-                              $ref: '#/components/schemas/SourcesConfirmedInGCN'
+                              $ref: '#/components/schemas/GcnEventObj'
             400:
               content:
                 application/json:
@@ -171,7 +146,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           data:
                             type: array
                             items:
-                              $ref: '#/components/schemas/SourcesConfirmedInGCN'
+                              $ref: '#/components/schemas/GcnEventObj'
 
             400:
               content:
@@ -213,13 +188,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
 
                 if len(sources_id_list) == 0:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs
+                    stmt = GcnEventObj.select(session.user_or_token).where(
+                        GcnEventObj.dateobs == dateobs
                     )
                 else:
-                    stmt = SourcesConfirmedInGCN.select(session.user_or_token).where(
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                        SourcesConfirmedInGCN.obj_id.in_(sources_id_list),
+                    stmt = GcnEventObj.select(session.user_or_token).where(
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id.in_(sources_id_list),
                     )
                 result = await session.scalars(stmt)
                 sources_in_gcn = result.all()
@@ -228,7 +203,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         return self.success(data=sources_in_gcn)
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def post(self, dateobs: str, source_id: str = None):
         """
         ---
@@ -259,9 +234,10 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                   source_id:
                     type: string
                     description: The source_id of the source to confirm or reject
-                  confirmed:
-                    type: boolean
-                    description: Whether the source is confirmed (True) or rejected (False)
+                  status:
+                    type: string
+                    enum: [pending, confirmed, ambiguous, rejected]
+                    description: Standing of the source against the event.
                   start_date:
                     type: string
                     description: Choose sources with a first detection after start_date, as an arrow parseable string
@@ -272,7 +248,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                   - localization_name
                   - localization_cumprob
                   - source_id
-                  - confirmed
+                  - status
                   - start_date
                   - end_date
         responses:
@@ -289,7 +265,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: The id of the source_confirmed_in_gcn
+                              description: The id of the gcn_event_obj
           400:
             content:
               application/json:
@@ -301,7 +277,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         localization_name = data.get("localization_name")
         localization_cumprob = data.get("localization_cumprob")
         source_id = data.get("source_id")
-        confirmed = data.get("confirmed")
+        status = data.get("status")
         explanation = data.get("explanation")
         notes = data.get("notes")
         start_date = data.get("start_date")
@@ -344,23 +320,23 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error("Localization not found")
 
                 source_in_gcn = await session.scalar(
-                    SourcesConfirmedInGCN.select(session.user_or_token)
-                    .options(selectinload(SourcesConfirmedInGCN.obj))
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
                     .where(
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                        SourcesConfirmedInGCN.obj_id == source_id,
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id == source_id,
                     )
                 )
                 if source_in_gcn:
                     if (
-                        source_in_gcn.confirmed == confirmed
+                        source_in_gcn.status == status
                         and source_in_gcn.explanation == explanation
                         and source_in_gcn.notes == notes
                     ):
                         return self.error(
                             "Source is already confirmed/rejected in this localization with the same explanation and notes"
                         )
-                    source_in_gcn.confirmed = confirmed
+                    source_in_gcn.status = status
                     source_in_gcn.confirmer_id = self.associated_user_object.id
                     if explanation is not None:
                         source_in_gcn.explanation = explanation
@@ -369,13 +345,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     await session.commit()
                     source_in_gcn_id = source_in_gcn.id
                     obj_internal_key = source_in_gcn.obj.internal_key
-                    if _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
-                        await session.commit()
                 else:
-                    source_in_gcn = SourcesConfirmedInGCN(
+                    source_in_gcn = GcnEventObj(
                         obj_id=source_id,
                         dateobs=dateobs,
-                        confirmed=confirmed,
+                        status=status,
                         confirmer_id=self.associated_user_object.id,
                     )
                     if explanation is not None:
@@ -387,13 +361,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     source_in_gcn_id = source_in_gcn.id
                     # reload to pick up the obj relationship
                     source_in_gcn = await session.scalar(
-                        SourcesConfirmedInGCN.select(session.user_or_token)
-                        .options(selectinload(SourcesConfirmedInGCN.obj))
-                        .where(SourcesConfirmedInGCN.id == source_in_gcn_id)
+                        GcnEventObj.select(session.user_or_token)
+                        .options(selectinload(GcnEventObj.obj))
+                        .where(GcnEventObj.id == source_in_gcn_id)
                     )
                     obj_internal_key = source_in_gcn.obj.internal_key
-                    if _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
-                        await session.commit()
             except Exception as e:
                 await session.rollback()
                 return self.error(str(e))
@@ -406,7 +378,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def patch(self, dateobs: str, source_id: str):
         """
         ---
@@ -432,11 +404,12 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  confirmed:
-                    type: boolean
-                    description: Whether the source is confirmed (True) or rejected (False)
+                  status:
+                    type: string
+                    enum: [pending, confirmed, ambiguous, rejected]
+                    description: Standing of the source against the event.
                 required:
-                  - confirmed
+                  - status
 
         responses:
           200:
@@ -452,14 +425,14 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: The id of the modified source_confirmed_in_gcn
+                              description: The id of the modified gcn_event_obj
           400:
             content:
               application/json:
                 schema: Error
         """
         data = self.get_json()
-        confirmed = data.get("confirmed")
+        status = data.get("status")
         explanation = data.get("explanation")
         notes = data.get("notes")
 
@@ -493,18 +466,18 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
 
                 source_in_gcn = await session.scalar(
-                    SourcesConfirmedInGCN.select(session.user_or_token)
-                    .options(selectinload(SourcesConfirmedInGCN.obj))
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
                     .where(
-                        SourcesConfirmedInGCN.dateobs == dateobs,
-                        SourcesConfirmedInGCN.obj_id == source_id,
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id == source_id,
                     )
                 )
                 if not source_in_gcn:
                     return self.error(
                         "Source is not confirmed/rejected in this GCN event"
                     )
-                source_in_gcn.confirmed = confirmed
+                source_in_gcn.status = status
                 source_in_gcn.confirmer_id = self.associated_user_object.id
                 if explanation is not None:
                     source_in_gcn.explanation = explanation
@@ -513,8 +486,6 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 await session.commit()
                 source_in_gcn_id = source_in_gcn.id
                 obj_internal_key = source_in_gcn.obj.internal_key
-                if _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
-                    await session.commit()
             except Exception as e:
                 await session.rollback()
                 return self.error(str(e))
@@ -527,7 +498,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
         return self.success(data={"id": source_in_gcn_id})
 
-    @permissions(["Manage GCNs"])
+    @permissions(["Upload data"])
     async def delete(self, dateobs: str, source_id: str):
         """
         ---
@@ -563,7 +534,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           properties:
                             id:
                               type: integer
-                              description: The id of the deleted source_confirmed_in_gcn
+                              description: The id of the deleted gcn_event_obj
           400:
             content:
               application/json:
@@ -597,26 +568,17 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                 if not gcn_event:
                     return self.error(f"GCN event not found for dateobs: {dateobs}")
                 source_in_gcn = await session.scalar(
-                    SourcesConfirmedInGCN.select(session.user_or_token)
-                    .options(selectinload(SourcesConfirmedInGCN.obj))
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
                     .where(
-                        SourcesConfirmedInGCN.obj_id == source_id,
-                        SourcesConfirmedInGCN.dateobs == dateobs,
+                        GcnEventObj.obj_id == source_id,
+                        GcnEventObj.dateobs == dateobs,
                     )
                 )
                 if not source_in_gcn:
                     return self.error(
                         "Source is not confirmed or rejected in this GCN event"
                     )
-                crossmatches = source_in_gcn.obj.gcn_crossmatch
-                dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
-                if crossmatches is not None and dateobs_str in crossmatches:
-                    crossmatches.remove(dateobs_str)
-                    if len(crossmatches) == 0:
-                        source_in_gcn.obj.gcn_crossmatch = None
-                    else:
-                        source_in_gcn.obj.gcn_crossmatch = crossmatches
-                    await session.commit()
                 source_in_gcn_id = source_in_gcn.id
                 obj_internal_key = source_in_gcn.obj.internal_key
                 await session.delete(source_in_gcn)
@@ -679,15 +641,15 @@ class GCNsAssociatedWithSourceHandler(BaseHandler):
         async with self.AsyncSession() as session:
             try:
                 result = await session.scalars(
-                    SourcesConfirmedInGCN.select(session.user_or_token)
+                    GcnEventObj.select(session.user_or_token)
                     .where(
-                        SourcesConfirmedInGCN.obj_id == source_id,
-                        SourcesConfirmedInGCN.confirmed.is_(True),
+                        GcnEventObj.obj_id == source_id,
+                        GcnEventObj.status == "confirmed",
                     )
                     .distinct()
                 )
-                source_confirmed_in_gcns = result.all()
-                gcns = list({row.dateobs for row in source_confirmed_in_gcns})
+                gcn_event_objs = result.all()
+                gcns = list({row.dateobs for row in gcn_event_objs})
             except Exception as e:
                 return self.error(str(e))
         return self.success(data={"gcns": gcns})

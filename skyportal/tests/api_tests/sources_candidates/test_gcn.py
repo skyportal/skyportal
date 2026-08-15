@@ -810,27 +810,19 @@ def test_confirm_reject_source_in_gcn(
         "source_id": obj_id,
         "localization_name": "LALInference.v1.fits.gz",
         "localization_cumprob": 0.95,
-        "confirmed": True,
+        "status": "confirmed",
         "start_date": "2019-08-13 08:18:05",
         "end_date": "2019-08-19 08:18:05",
     }
 
-    # verify that you can't confirm a source without the Manage GCNs permission
+    # vetting needs no GCN-specific ACL, just the ability to write data
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "POST",
-        f"sources_in_gcn/{dateobs}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -846,7 +838,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is True
+    assert data[0]["status"] == "confirmed"
 
     # find gcns associated to source
     status, data = api(
@@ -860,7 +852,7 @@ def test_confirm_reject_source_in_gcn(
 
     # reject source
     params = {
-        "confirmed": False,
+        "status": "rejected",
     }
 
     status, data = api(
@@ -869,15 +861,7 @@ def test_confirm_reject_source_in_gcn(
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "PATCH",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -893,7 +877,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is False
+    assert data[0]["status"] == "rejected"
 
     # verify that no gcns are associated to source
 
@@ -913,14 +897,7 @@ def test_confirm_reject_source_in_gcn(
         f"sources_in_gcn/{dateobs}/{obj_id}",
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "DELETE",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,

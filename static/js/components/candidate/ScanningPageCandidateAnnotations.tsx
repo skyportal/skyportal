@@ -11,6 +11,7 @@ import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 
+import ConfirmSourceInGCN from "../source/ConfirmSourceInGCN";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
 import type { Annotation, Group } from "../../types";
@@ -48,6 +49,20 @@ const useStyles = makeStyles()((theme) => ({
 
 // Re-exported for the many consumers that import it from this module.
 export { getAnnotationValueString };
+
+const GCN_CROSSMATCH_ORIGIN = "GCN-crossmatch";
+
+// Each key of a GCN-crossmatch annotation is a trigger id whose payload carries
+// the event's dateobs. The crossmatch service writes a pending association
+// alongside the annotation, so vetting here patches that row -- which is why no
+// localization/date arguments are needed.
+const crossmatchedEvents = (annotation: Annotation): [string, string][] =>
+  Object.entries(annotation.data || {})
+    .map(([triggerId, payload]): [string, string] => [
+      triggerId,
+      (payload as { dateobs?: string })?.dateobs ?? "",
+    ])
+    .filter(([, dateobs]) => Boolean(dateobs));
 
 interface ScanningPageCandidateAnnotationsProps {
   annotations: Annotation[];
@@ -200,6 +215,29 @@ const ScanningPageCandidateAnnotations = ({
                   dense
                   disablePadding
                 >
+                  {annotation.origin === GCN_CROSSMATCH_ORIGIN &&
+                    annotation.obj_id &&
+                    crossmatchedEvents(annotation).map(
+                      ([triggerId, dateobs]) => (
+                        <ListItem
+                          key={`vet_${triggerId}`}
+                          className={classes.nested}
+                        >
+                          <ListItemText
+                            slotProps={{
+                              secondary: { sx: { maxWidth: listItemWidth } },
+                            }}
+                            secondary={`vet ${triggerId}`}
+                          />
+                          <ConfirmSourceInGCN
+                            compact
+                            dateobs={dateobs}
+                            source_id={annotation.obj_id as string}
+                            sources_id_list={[annotation.obj_id as string]}
+                          />
+                        </ListItem>
+                      ),
+                    )}
                   {Object.entries(annotation.data).map(([key, value]) => (
                     <ListItem
                       key={`key_${annotation.origin}_${key}`}

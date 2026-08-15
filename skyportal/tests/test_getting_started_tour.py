@@ -1,13 +1,7 @@
-"""Staleness guard for the Getting Started tours and feature announcements.
+"""Staleness guard for the tours and feature announcements.
 
-The Home Page tour (``static/js/components/widget/GettingStartedTour.ts``), the
-per-page how-to tours (``static/js/components/PageTours.ts``) and the one-time
-feature announcements (``static/js/components/FeatureAnnouncements.ts``) each
-point a step at an element by ``data-testid``. If a targeted element is renamed
-or removed the tour silently breaks, so this test parses every tour's
-``data-testid`` targets and asserts each one still exists as a ``data-testid``
-attribute somewhere else in ``static/js``. Pure static check — no server or
-browser needed.
+A tour silently breaks when a targeted element is renamed or removed, so assert
+every ``data-testid`` target still exists somewhere in ``static/js``.
 """
 
 import re
@@ -36,9 +30,8 @@ def _tour_target_testids():
 
 
 def _testids_used_in_static_js():
-    """Every data-testid attribute used in static/js, excluding the tour configs
-    themselves (whose target selectors would otherwise satisfy the check
-    trivially)."""
+    """Every data-testid used in static/js, minus the tour configs themselves
+    (whose selectors would satisfy the check trivially)."""
     used = set()
     for path in STATIC_JS.rglob("*"):
         if path.suffix not in _SRC_SUFFIXES or path in TOUR_FILES:

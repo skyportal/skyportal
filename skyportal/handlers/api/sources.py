@@ -1585,19 +1585,19 @@ async def get_sources(
                 if localization_reject_sources or sort_by == "gcn_status":
                     joins.append(
                         f"""
-                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                        LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                         """
                     )
                     if localization_reject_sources:
                         statements.append(
                             """
-                            sourcesconfirmedingcns.confirmed is not false
+                            gcneventobjs.status <> 'rejected'
                             """
                         )
                 if include_sources_in_gcn:
                     localization_queries.append(
                         f"""
-                        EXISTS (SELECT sourcesconfirmedingcns.obj_id FROM sourcesconfirmedingcns WHERE sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND sourcesconfirmedingcns.confirmed is not false)
+                        EXISTS (SELECT gcneventobjs.obj_id FROM gcneventobjs WHERE gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND gcneventobjs.status <> 'rejected')
                     """
                     )
             except Exception as e:
@@ -1881,7 +1881,7 @@ async def get_sources(
                     if sort_by == "gcn_status":
                         joins.append(
                             f"""
-                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                            LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                             """
                         )
                     elif sort_by == "favorites":
@@ -1948,10 +1948,10 @@ async def get_sources(
                     elif sort_by == "gcn_status":
                         statement += f"""ORDER BY
                             CASE
-                                WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
-                                WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
+                                WHEN bool_and(gcneventobjs.obj_id IS NULL) = true THEN 4
+                                WHEN bool_or(gcneventobjs.status = 'confirmed') = true THEN 3
+                                WHEN bool_and(gcneventobjs.status IN ('pending', 'ambiguous')) = true THEN 2
+                                WHEN bool_or(gcneventobjs.status = 'rejected') = true THEN 1
                                 ELSE 0
                             END {sort_order.upper()}"""
                     elif sort_by == "favorites":

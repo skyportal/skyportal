@@ -115,11 +115,13 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   // The static-schema galaxy/observation upload forms don't hit this.
   const {
     schema: AnalysisSelectionFormSchema,
+    uiSchema: AnalysisSelectionFormUiSchema,
     fileKeys,
     acceptsTriggerTime,
   } = useMemo(() => {
     const service = analysisServiceLookUp[selectedAnalysisServiceId];
     const OptionalParameters: Record<string, any> = {};
+    const OptionalUiSchema: Record<string, any> = {};
     const RequiredParameters: any[] = [];
     const collectedFileKeys: string[] = [];
     let acceptsTriggerTimeParam = false;
@@ -183,29 +185,23 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
             instrumentLookUp[instrument_id] = instrument_name;
           }
         });
-        const instruments = Object.keys(instrumentLookUp).map(
-          (instrument_id) => ({
-            const: parseInt(instrument_id, 10),
-            title: instrumentLookUp[instrument_id],
-          }),
+        const instrumentIds = Object.keys(instrumentLookUp).map(
+          (instrument_id) => parseInt(instrument_id, 10),
         );
         OptionalParameters["input_filters_photometry_filters"] = {
           type: "array",
           title: "Filters to include (optional)",
-          items: {
-            type: "string",
-            anyOf: filters.map((filter: any) => ({
-              const: filter,
-              title: filter,
-            })),
-          },
+          items: { type: "string", enum: filters },
           uniqueItems: true,
         };
         OptionalParameters["input_filters_photometry_instruments"] = {
           type: "array",
           title: "Instruments to include (optional)",
-          items: { type: "integer", anyOf: instruments },
+          items: { type: "integer", enum: instrumentIds },
           uniqueItems: true,
+        };
+        OptionalUiSchema["input_filters_photometry_instruments"] = {
+          "ui:enumNames": instrumentIds.map((id) => instrumentLookUp[id]),
         };
       }
     }
@@ -237,6 +233,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           RequiredParameters,
         ),
       },
+      uiSchema: OptionalUiSchema,
       fileKeys: collectedFileKeys,
       acceptsTriggerTime: acceptsTriggerTimeParam,
     };
@@ -467,6 +464,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         <div>
           <Form
             schema={AnalysisSelectionFormSchema as any}
+            uiSchema={AnalysisSelectionFormUiSchema as any}
             validator={validator}
             onSubmit={handleSubmit as any}
           />

@@ -31,11 +31,9 @@ import { setSidebar } from "../../ducks/sidebar";
 import { TOUR_STEPS } from "./GettingStartedTour";
 import { useTourStyles } from "../tourStyles";
 
-// Onboarding checklist + guided tour, rendered as a Home Page widget. Shows for
-// every user until dismissed (persisted in `preferences.onboardingDismissed`)
-// and can be reopened at any time. Each checklist step auto-detects completion
-// from the user's profile, groups, filters, saved sources, and preferences.
-// The `classes` prop is injected by the Home Page grid but unused here.
+// Onboarding checklist + guided tour, rendered as a Home Page widget until
+// dismissed (persisted in `preferences.onboardingDismissed`). Each step
+// auto-detects completion from the user's profile, groups, filters and sources.
 const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -185,9 +183,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
       tour: firstGcnDateobs ? "gcnevents" : undefined,
       help: "Localizations, counterpart searches, and observation plans for multi-messenger alerts.",
     },
-    // Facility-management tours: shown only to users with the relevant ACL.
-    // These launch a how-to tour rather than track a completion, so they show
-    // no checkbox (there's no per-user signal for who created a telescope/etc.).
+    // Facility-management tours: ACL-gated, and no checkbox since there's no
+    // per-user completion signal.
     {
       label: "Register a telescope",
       explore: true,

@@ -997,13 +997,18 @@ GcnEvent.event_users_ids = column_property(
 
 
 class GcnEventCrossmatchState(Base):
-    """Per-(event, filter) bookkeeping for the GCN alert crossmatch service.
+    """Per-(event, filter, localization) bookkeeping for the GCN crossmatch.
 
     The crossmatch service re-queries an event's localization for as long as the
     event stays inside its active window, because alerts keep arriving after the
     event. This table records how far that has got, keyed per filter: a filter
     carries its own broker, survey and audience, so two filters on one broker
     progress independently.
+
+    It is also keyed per localization. One event can carry several: an EP
+    observation reports each detected source as its own cone under the shared
+    observation timestamp, and those cones can be tens of degrees apart. Each is
+    a separate patch of sky to search, and each needs its own watermark.
 
     Read access follows the event: the fact that a restricted event is being
     crossmatched, and when, is itself information about that event.
@@ -1037,6 +1042,17 @@ class GcnEventCrossmatchState(Base):
 
     filter = relationship(
         "Filter", doc="The Filter this state tracks progress against."
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The Localization (one patch of sky) this state tracks.",
+    )
+
+    localization = relationship(
+        "Localization", doc="The Localization this state tracks progress against."
     )
 
     last_queried = sa.Column(
@@ -1087,7 +1103,16 @@ class GcnEventCrossmatchState(Base):
         doc="Cumulative count of alerts matched for this event from this broker.",
     )
 
-    __table_args__ = (UniqueConstraint("gcnevent_id", "filter_id"),)
+    # Named explicitly: the derived name would be 68 characters, over
+    # PostgreSQL's 63-character identifier limit.
+    __table_args__ = (
+        UniqueConstraint(
+            "gcnevent_id",
+            "filter_id",
+            "localization_id",
+            name="uq_gcnevent_crossmatch_states_event_filter_localization",
+        ),
+    )
 
 
 GcnEvent.crossmatch_states = relationship(

@@ -2985,18 +2985,6 @@ wheels = [
 ]
 
 [[package]]
-name = "penquins"
-version = "2.4.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pymongo" },
-    { name = "pytest" },
-    { name = "requests" },
-    { name = "tqdm" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/2b/419bc7a236c3d6b152ba10fe149c97106ec77390c51a10fd680fa196ae4b/penquins-2.4.2.tar.gz", hash = "sha256:bb29ce5278213ef2ff220f4827d1d03438045ffefd76324823825ea6342ad632", size = 12925, upload-time = "2024-06-25T09:40:22.204Z" }
-
-[[package]]
 name = "phonenumbers"
 version = "9.0.25"
 source = { registry = "https://pypi.org/simple" }
@@ -4257,8 +4245,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "jeepney", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -4459,7 +4447,6 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "pandas" },
     { name = "paramiko" },
-    { name = "penquins" },
     { name = "pillow" },
     { name = "pinecone" },
     { name = "prometheus-client" },
@@ -4592,7 +4579,6 @@ requires-dist = [
     { name = "opentelemetry-sdk", specifier = ">=1.30.0" },
     { name = "pandas", specifier = ">=2.2.0,<4.0.0" },
     { name = "paramiko", specifier = "==5.0.0" },
-    { name = "penquins", specifier = "==2.4.2" },
     { name = "pillow", specifier = ">=8.4.0" },
     { name = "pinecone", specifier = "==8.0.0" },
     { name = "prometheus-client", specifier = ">=0.20.0" },

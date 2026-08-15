@@ -85,6 +85,11 @@ THUMBNAIL_TYPES = (
     "ref_gz",
     "sub_gz",
 )
+# Where an obj stands against a GCN event. "pending" means proposed (e.g. by the
+# crossmatch service) and still awaiting a scanner; "ambiguous" means a scanner
+# looked and could not decide -- reviewed, unlike pending.
+GCN_EVENT_OBJ_STATUSES = ("pending", "confirmed", "ambiguous", "rejected")
+
 INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
 MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst")
 FOLLOWUP_PRIORITIES = ("1", "2", "3", "4", "5")
@@ -167,6 +172,9 @@ thumbnail_types = sa.Enum(
 )
 instrument_types = sa.Enum(
     *INSTRUMENT_TYPES, name="instrument_types", validate_strings=True
+)
+gcn_event_obj_statuses = sa.Enum(
+    *GCN_EVENT_OBJ_STATUSES, name="gcn_event_obj_statuses", validate_strings=True
 )
 mma_detector_types = sa.Enum(
     *MMA_DETECTOR_TYPES, name="mma_detector_types", validate_strings=True

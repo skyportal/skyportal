@@ -1197,19 +1197,16 @@ const SourceTable = ({
     const renderGcnStatus = (params: any) => {
       const source = params.row;
       let statusIcon = null;
+      const gcnStatus = sourcesingcn.filter(
+        (s: any) => s.obj_id === source.id,
+      )[0]?.status;
       if (
         sourcesingcn.filter((s: any) => s.obj_id === source.id).length === 0
       ) {
         statusIcon = <PriorityHigh color="primary" />;
-      } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          ?.confirmed === true
-      ) {
+      } else if (gcnStatus === "confirmed") {
         statusIcon = <CheckIcon color={"green" as any} />;
-      } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          ?.confirmed === false
-      ) {
+      } else if (gcnStatus === "rejected") {
         statusIcon = <ClearIcon color="secondary" />;
       } else {
         statusIcon = <QuestionMarkIcon color="primary" />;

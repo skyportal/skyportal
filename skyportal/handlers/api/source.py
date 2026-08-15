@@ -62,6 +62,7 @@ from ...models import (
     FollowupRequest,
     Galaxy,
     GcnEvent,
+    GcnEventObj,
     Group,
     GroupUser,
     Instrument,
@@ -74,7 +75,6 @@ from ...models import (
     Source,
     SourceLabel,
     SourceNotification,
-    SourcesConfirmedInGCN,
     SourceView,
     Spectrum,
     Telescope,
@@ -125,13 +125,13 @@ Session = scoped_session(sessionmaker())
 
 
 def confirmed_in_gcn_status_to_str(status):
-    if status is True:
-        return "highlighted"
-    if status is False:
-        return "rejected"
-    if status is None:
-        return "ambiguous"
-    return "not vetted"
+    """Map a stored GcnEventObj.status onto the word the UI displays."""
+    return {
+        "confirmed": "highlighted",
+        "rejected": "rejected",
+        "ambiguous": "ambiguous",
+        "pending": "pending",
+    }.get(status, "not vetted")
 
 
 def remove_obj_thumbnails(obj_id):
@@ -602,26 +602,13 @@ async def get_source(
         source_info["comment_exists"] = comment_exists is not None
 
     if include_gcn_crossmatches:
-        if (
-            not isinstance(source_info.get("gcn_crossmatch"), list)
-            or len(source_info.get("gcn_crossmatch")) == 0
-        ):
-            source_info["gcn_crossmatch"] = []
-        confirmed_in_gcn_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
-                SourcesConfirmedInGCN.confirmed.is_not(False),
+        gcn_event_obj_result = await session.scalars(
+            GcnEventObj.select(user).where(
+                GcnEventObj.obj_id == obj_id,
+                GcnEventObj.status != "rejected",
             )
         )
-        confirmed_in_gcn = confirmed_in_gcn_result.all()
-        if len(confirmed_in_gcn) > 0:
-            source_info["gcn_crossmatch"].extend(
-                [gcn.dateobs for gcn in confirmed_in_gcn]
-            )
-
-        crossmatch_dateobs = list(
-            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
-        )
+        crossmatch_dateobs = list({row.dateobs for row in gcn_event_obj_result.all()})
         gcn_crossmatch_result = await session.scalars(
             GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
         )
@@ -643,8 +630,8 @@ async def get_source(
         ):
             source_info["gcn_notes"] = []
         confirmed_in_gcn_notes_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
+            GcnEventObj.select(user).where(
+                GcnEventObj.obj_id == obj_id,
             )
         )
         confirmed_in_gcn_notes = confirmed_in_gcn_notes_result.all()
@@ -655,7 +642,7 @@ async def get_source(
                         "dateobs": gcn.dateobs,
                         "explanation": gcn.explanation,
                         "notes": gcn.notes,
-                        "status": confirmed_in_gcn_status_to_str(gcn.confirmed),
+                        "status": confirmed_in_gcn_status_to_str(gcn.status),
                     }
                     for gcn in confirmed_in_gcn_notes
                 ]

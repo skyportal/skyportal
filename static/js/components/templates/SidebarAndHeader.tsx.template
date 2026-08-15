@@ -18,6 +18,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import MenuIcon from "@mui/icons-material/Menu";
+import AlertsIcon from "@mui/icons-material/NotificationsActive";
 
 {% for group in app.sidebar -%}
   {% if not group.name.startswith('main') and group.icon %}
@@ -31,6 +32,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as Actions from "../../ducks/sidebar";
 import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetBrokersQuery } from "../../ducks/brokers";
 
 import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
@@ -147,6 +149,12 @@ const SidebarAndHeader = () => {
   const open = useAppSelector((state) => (state as any).sidebar.open);
   const { data: currentUser } = useGetProfileQuery();
   const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
+  const { data: brokers } = useGetBrokersQuery(undefined, {
+    skip: !currentUser || currentUser.is_anonymous === true,
+  });
+  const alertBroker = (brokers || []).find(
+    (b) => b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
+  );
   {% for group in app.sidebar -%}
     {% if not group.name.startswith('main') %}
       const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
@@ -204,6 +212,41 @@ const SidebarAndHeader = () => {
 
   {% macro add_items_to_menu(group) -%}
     {% for item in group.subitems -%}
+    {% if item.url == '/brokers' %}
+    {alertBroker && (
+    <Link to={"/brokers/" + alertBroker.id} className={classes.link}>
+      <ListItem
+        {...({ name: "sidebarAlertsButton" } as any)}
+        data-testid="tour-nav-alerts"
+        disablePadding
+        sx={{ "{{ display: 'block' }}" }}
+      >
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              justifyContent: (open || temporaryOpen) ? 'initial' : 'center',
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: (open || temporaryOpen) ? 2 : 'auto',
+                justifyContent: 'center',
+              }}" }}
+            >
+              <AlertsIcon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route={"/brokers/" + alertBroker.id}
+              title="Alerts"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
+      </ListItem>
+    </Link>
+    )}
+    {% endif %}
     {% if item.permissions or not item.anonymous_ok %}
       {(
       {% if item.permissions %}
@@ -233,6 +276,8 @@ const SidebarAndHeader = () => {
         data-testid="tour-nav-groups"
         {%- elif item.url == '/gcn_events' %}
         data-testid="tour-nav-gcn"
+        {%- elif item.url == '/brokers' %}
+        data-testid="tour-nav-brokers"
         {%- endif %}
         disablePadding
         sx={{ "{{ display: 'block' }}" }}

@@ -42,6 +42,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from baselayer.app import models
 from baselayer.log import make_log
+from skyportal.broker_apis._save import save_object_photometry
 from skyportal.broker_apis.interface import survey_permissions
 from skyportal.models import (
     Annotation,
@@ -50,10 +51,10 @@ from skyportal.models import (
     Filter,
     GcnEvent,
     GcnEventCrossmatchState,
+    GcnEventObj,
     Group,
     Localization,
     Obj,
-    SourcesConfirmedInGCN,
     User,
 )
 from skyportal.utils.crossmatch import (
@@ -347,8 +348,9 @@ async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None)
 
     A match is something for a human to scan, not something already accepted:
     the Obj and Candidate make it appear on the scanning page, and it only
-    becomes a Source once someone saves it. Photometry is left to the broker-
-    backed display path rather than written here, for the same reason.
+    becomes a Source once someone saves it. Photometry is ingested separately
+    (see ``ingest_match_photometry``) -- a light curve is what a scanner judges
+    the candidate on, and it implies no acceptance.
 
     Returns True if a candidate now exists for this (obj, filter, epoch).
     """
@@ -400,6 +402,30 @@ async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None)
         )
     )
     return True
+
+
+async def ingest_match_photometry(session, user, broker, obj_id, survey):
+    """Ingest the matched object's light curve, so a scanner has something to
+    judge it on.
+
+    The crossmatch query projects only enough of each alert to place it in space
+    and time -- no detection history -- so the full object is refetched here.
+    Photometry only: the obj is a candidate awaiting review, not a Source.
+
+    Best effort. A broker that cannot serve the history, or an object it no
+    longer has, must not cost us the match itself.
+    """
+    if not broker.broker_class.implements().get("get_alert"):
+        return False
+    try:
+        data = broker.broker_class.get_alert(broker, obj_id, session, survey=survey)
+        if not data:
+            return False
+        await save_object_photometry(data, survey, session, user)
+        return True
+    except Exception as e:
+        log(f"No photometry ingested for {obj_id}: {e}")
+        return False
 
 
 async def process_event_filter(
@@ -553,6 +579,7 @@ async def process_event_filter(
                 filter_.id,
                 survey=survey,
             )
+            await ingest_match_photometry(session, user, broker, object_id, survey)
             await annotate_match(
                 session,
                 user,
@@ -703,81 +730,89 @@ async def run_cycle(config=None, user_id=1):
         for event in events:
             if not event.localizations:
                 continue
-            localization = sorted(
-                event.localizations, key=lambda loc: loc.created_at, reverse=True
-            )[0]
+            # Every localization, not just the newest: one EP observation reports
+            # each detected source as its own cone under the shared observation
+            # timestamp, so a single event can cover several unrelated patches of
+            # sky. Searching only one silently drops the rest.
+            localizations = sorted(event.localizations, key=lambda loc: loc.created_at)
 
-            for filter_ in filters:
-                if not event_matches(filter_, event, localization):
-                    continue
-                broker = filter_.broker
-                settings = filter_settings(filter_, config)
-                if rate_limited_until(broker.id) is not None:
-                    continue
-                state = await session.scalar(
-                    sa.select(GcnEventCrossmatchState).where(
-                        GcnEventCrossmatchState.gcnevent_id == event.id,
-                        GcnEventCrossmatchState.filter_id == filter_.id,
-                    )
-                )
-                if state is None:
-                    state = GcnEventCrossmatchState(
-                        gcnevent_id=event.id, filter_id=filter_.id, status="pending"
-                    )
-                    session.add(state)
-                    await session.commit()
-                elif (
-                    state.last_queried is not None and state.last_queried > stale_before
-                ):
-                    continue
-                elif state.status == "skipped":
-                    continue
-
-                try:
-                    # The pre-event window is searched once, before the first
-                    # forward pass, so a candidate that was already active is
-                    # flagged as such the first time anyone looks at it.
-                    if conf(settings, "archival") and not state.archival_done:
-                        total += await process_event_filter(
-                            session,
-                            user,
-                            event,
-                            localization,
-                            filter_,
-                            state,
-                            settings,
-                            archival=True,
+            for localization in localizations:
+                for filter_ in filters:
+                    if not event_matches(filter_, event, localization):
+                        continue
+                    broker = filter_.broker
+                    settings = filter_settings(filter_, config)
+                    if rate_limited_until(broker.id) is not None:
+                        continue
+                    state = await session.scalar(
+                        sa.select(GcnEventCrossmatchState).where(
+                            GcnEventCrossmatchState.gcnevent_id == event.id,
+                            GcnEventCrossmatchState.filter_id == filter_.id,
+                            GcnEventCrossmatchState.localization_id == localization.id,
                         )
+                    )
+                    if state is None:
+                        state = GcnEventCrossmatchState(
+                            gcnevent_id=event.id,
+                            filter_id=filter_.id,
+                            localization_id=localization.id,
+                            status="pending",
+                        )
+                        session.add(state)
                         await session.commit()
-                        state = await session.get(GcnEventCrossmatchState, state.id)
+                    elif (
+                        state.last_queried is not None
+                        and state.last_queried > stale_before
+                    ):
+                        continue
+                    elif state.status == "skipped":
+                        continue
 
-                    total += await process_event_filter(
-                        session, user, event, localization, filter_, state, settings
-                    )
-                except Exception as e:
-                    traceback.print_exc()
-                    # A broker's HTTP body carries the actual reason (BOOM says
-                    # e.g. which pipeline stage it rejected); raise_for_status
-                    # alone reports only the status code.
-                    detail = getattr(getattr(e, "response", None), "text", "") or ""
-                    message = f"{e}{f' -- {detail[:300]}' if detail else ''}"
-                    state.status = "failed"
-                    state.error = message[:500]
-                    state.last_queried = utcnow_naive()
-                    if is_rate_limited(e):
-                        until = note_rate_limited(
-                            broker.id, conf(settings, "rate_limit_backoff_minutes")
+                    try:
+                        # The pre-event window is searched once, before the first
+                        # forward pass, so a candidate that was already active is
+                        # flagged as such the first time anyone looks at it.
+                        if conf(settings, "archival") and not state.archival_done:
+                            total += await process_event_filter(
+                                session,
+                                user,
+                                event,
+                                localization,
+                                filter_,
+                                state,
+                                settings,
+                                archival=True,
+                            )
+                            await session.commit()
+                            state = await session.get(GcnEventCrossmatchState, state.id)
+
+                        total += await process_event_filter(
+                            session, user, event, localization, filter_, state, settings
                         )
-                        log(
-                            f"{broker.name} rate limited; backing off until "
-                            f"{until.isoformat(timespec='seconds')}: {message}"
-                        )
-                    else:
-                        log(
-                            f"Crossmatch failed for {event.dateobs} / "
-                            f"{filter_.name} ({broker.name}): {message}"
-                        )
-                await session.commit()
+                    except Exception as e:
+                        traceback.print_exc()
+                        # A broker's HTTP body carries the actual reason (BOOM says
+                        # e.g. which pipeline stage it rejected); raise_for_status
+                        # alone reports only the status code.
+                        detail = getattr(getattr(e, "response", None), "text", "") or ""
+                        message = f"{e}{f' -- {detail[:300]}' if detail else ''}"
+                        state.status = "failed"
+                        state.error = message[:500]
+                        state.last_queried = utcnow_naive()
+                        if is_rate_limited(e):
+                            until = note_rate_limited(
+                                broker.id, conf(settings, "rate_limit_backoff_minutes")
+                            )
+                            log(
+                                f"{broker.name} rate limited; backing off until "
+                                f"{until.isoformat(timespec='seconds')}: {message}"
+                            )
+                        else:
+                            log(
+                                f"Crossmatch failed for {event.dateobs} / "
+                                f"{filter_.name} ({broker.name}): {message}"
+                            )
+                    await session.commit()
 
     return total
 
@@ -919,19 +954,22 @@ def cone_match_stage(ra, dec, radius_deg):
 
 
 async def propose_association(session, user_id, obj_id, event_dateobs):
-    """Record the match as awaiting review: confirmed stays NULL until a human
+    """Record the match as awaiting review: status stays 'pending' until a human
     confirms or rejects it. confirmer_id is NOT NULL, so it records the service
     user that proposed the row, not a verdict. Never overwrites an existing one."""
     existing = await session.scalar(
-        sa.select(SourcesConfirmedInGCN).where(
-            SourcesConfirmedInGCN.obj_id == obj_id,
-            SourcesConfirmedInGCN.dateobs == event_dateobs,
+        sa.select(GcnEventObj).where(
+            GcnEventObj.obj_id == obj_id,
+            GcnEventObj.dateobs == event_dateobs,
         )
     )
     if existing is None:
         session.add(
-            SourcesConfirmedInGCN(
-                obj_id=obj_id, dateobs=event_dateobs, confirmer_id=user_id
+            GcnEventObj(
+                obj_id=obj_id,
+                dateobs=event_dateobs,
+                status="pending",
+                confirmer_id=user_id,
             )
         )
 

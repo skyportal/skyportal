@@ -23,12 +23,12 @@ def _post_source(token, ra=24.6258, dec=-32.9024):
     return obj_id
 
 
-def _confirm(token, dateobs, source_id, confirmed=True, **extra):
+def _confirm(token, dateobs, source_id, gcn_status="confirmed", **extra):
     body = {
         "localization_name": LOCALIZATION_NAME,
         "localization_cumprob": 0.95,
         "source_id": source_id,
-        "confirmed": confirmed,
+        "status": gcn_status,
         "start_date": "2019-08-13T00:00:00",
         "end_date": "2019-08-16T00:00:00",
         **extra,
@@ -47,7 +47,7 @@ def test_confirm_get_patch_delete_lifecycle(
         super_admin_token,
         dateobs,
         source_id,
-        confirmed=True,
+        gcn_status="confirmed",
         explanation="in localization",
         notes="looks real",
     )
@@ -62,7 +62,7 @@ def test_confirm_get_patch_delete_lifecycle(
     entries = data["data"]
     assert len(entries) == 1
     assert entries[0]["obj_id"] == source_id
-    assert entries[0]["confirmed"] is True
+    assert entries[0]["status"] == "confirmed"
     assert entries[0]["explanation"] == "in localization"
     assert entries[0]["notes"] == "looks real"
 
@@ -80,7 +80,7 @@ def test_confirm_get_patch_delete_lifecycle(
     status, data = api(
         "PATCH",
         f"sources_in_gcn/{dateobs}/{source_id}",
-        data={"confirmed": False},
+        data={"status": "rejected"},
         token=super_admin_token,
     )
     assert status == 200, data
@@ -89,7 +89,7 @@ def test_confirm_get_patch_delete_lifecycle(
         "GET", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
     )
     assert status == 200, data
-    assert data["data"][0]["confirmed"] is False
+    assert data["data"][0]["status"] == "rejected"
 
     # associated_gcns only returns confirmed associations -> now empty for it
     status, data = api("GET", f"associated_gcns/{source_id}", token=view_only_token)
@@ -117,7 +117,7 @@ def test_list_filters_by_sources_id_list(
     source_b = _post_source(upload_data_token, ra=25.0, dec=-33.0)
 
     for sid in (source_a, source_b):
-        status, data = _confirm(super_admin_token, dateobs, sid, confirmed=True)
+        status, data = _confirm(super_admin_token, dateobs, sid, gcn_status="confirmed")
         assert status == 200, data
 
     # full list has both
@@ -147,7 +147,7 @@ def test_post_requires_existing_localization(
         super_admin_token,
         dateobs,
         source_id,
-        confirmed=True,
+        gcn_status="confirmed",
         localization_name="does-not-exist.fits.gz",
     )
     assert status == 400
@@ -163,7 +163,7 @@ def test_post_missing_required_fields(
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
-        data={"source_id": source_id, "confirmed": True},
+        data={"source_id": source_id, "status": "confirmed"},
         token=super_admin_token,
     )
     assert status == 400
@@ -176,26 +176,34 @@ def test_patch_unknown_source(super_admin_token, upload_data_token, gcn_GW190814
     status, data = api(
         "PATCH",
         f"sources_in_gcn/{dateobs}/{source_id}",
-        data={"confirmed": False},
+        data={"status": "rejected"},
         token=super_admin_token,
     )
     assert status == 400
     assert "not confirmed/rejected" in data["message"]
 
 
-def test_manage_gcns_permission_required(
+def test_vetting_needs_only_access_to_the_event(
     super_admin_token, view_only_token, upload_data_token, gcn_GW190814
 ):
+    """Vetting is not behind an ACL: whoever can see the event and the object
+    can judge the association. A read-only token still cannot write."""
     dateobs = _dateobs(gcn_GW190814)
     source_id = _post_source(upload_data_token)
 
-    # view-only lacks "Manage GCNs" -> cannot confirm
-    status, _ = _confirm(view_only_token, dateobs, source_id, confirmed=True)
-    assert status == 401
-
-    # but a privileged token can, and view-only can still read it
-    status, data = _confirm(super_admin_token, dateobs, source_id, confirmed=True)
+    # a token that can post data, with no GCN-specific ACL, can vet
+    status, data = _confirm(
+        upload_data_token, dateobs, source_id, gcn_status="confirmed"
+    )
     assert status == 200, data
+
+    status, data = api(
+        "GET", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
+    )
+    assert status == 200, data
+    assert data["data"][0]["status"] == "confirmed"
+
+    # read-only remains read-only
     status, _ = api(
         "DELETE", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
     )

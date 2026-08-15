@@ -46,12 +46,12 @@ interface ReportItemProps {
   isMultiGroup: boolean;
 }
 
-// Tri-state: a match the crossmatch proposed is "to review" until a scanner
-// confirms or rejects it.
+// A match the crossmatch proposed stays "to review" until a scanner rules on it.
 const gcnVerdict = (match: any) => {
   if (!match) return null;
-  if (match.confirmed === true) return "confirmed";
-  if (match.confirmed === false) return "rejected";
+  if (match.status === "confirmed") return "confirmed";
+  if (match.status === "rejected") return "rejected";
+  if (match.status === "ambiguous") return "ambiguous";
   return "to review";
 };
 

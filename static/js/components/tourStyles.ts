@@ -7,9 +7,7 @@ export const useTourStyles = () => {
   const dark = theme.palette.mode === "dark";
 
   const options: Partial<Options> = {
-    // The app gives the sidebar a low z-index (~140); lift the tour above it
-    // and MUI modals. Show tooltips directly instead of a click-to-open beacon,
-    // and give lazy-loaded pages time to mount a step's target.
+    // Lift above the app's low sidebar z-index (~140) and MUI modals.
     zIndex: 2000,
     skipBeacon: true,
     targetWaitTimeout: 3000,
@@ -34,7 +32,7 @@ export const useTourStyles = () => {
     },
     tooltipContainer: { textAlign: "left" },
     tooltipTitle: {
-      // Leave room for the close button in the corner.
+      // Room for the close button.
       paddingRight: "1.5rem",
       fontSize: "1.05rem",
       fontWeight: 600,

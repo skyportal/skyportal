@@ -1,4 +1,3 @@
-import { useGetProfileQuery } from "../../ducks/profile";
 import { useState, type ReactNode } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
@@ -118,12 +117,15 @@ const DialogTitle = withStyles(
 
 interface ConfirmSourceInGCNProps {
   dateobs: string;
-  localization_name: string;
-  localization_cumprob: number;
   source_id: string;
-  start_date: string;
-  end_date: string;
   sources_id_list: string[];
+  // Only needed to create an association from scratch (the POST path). Callers
+  // acting on one the crossmatch already proposed are patching an existing row
+  // and can omit them.
+  localization_name?: string;
+  localization_cumprob?: number;
+  start_date?: string;
+  end_date?: string;
   // Optional custom trigger: a compact button and/or a different icon, so
   // callers (e.g. the crossmatch list) can match surrounding controls.
   compact?: boolean;
@@ -142,7 +144,6 @@ const ConfirmSourceInGCN = ({
   triggerIcon,
 }: ConfirmSourceInGCNProps) => {
   const { classes } = useStyles() as any;
-  const { permissions } = useGetProfileQuery().data ?? {};
   const [open, setOpen] = useState(false);
 
   const { control, getValues, register, reset } = useForm();
@@ -177,20 +178,16 @@ const ConfirmSourceInGCN = ({
     sourcesingcn?.length > 0 &&
     sourcesingcn.filter((s: any) => s.obj_id === source_id).length !== 0
   ) {
-    if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      true
-    ) {
+    const status = sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
+      ?.status;
+    if (status === "confirmed") {
       currentState = "confirmed";
       currentExplanation =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
           ?.explanation || "";
       currentNotes =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      false
-    ) {
+    } else if (status === "rejected") {
       currentState = "rejected";
       currentExplanation =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
@@ -207,7 +204,7 @@ const ConfirmSourceInGCN = ({
     }
   }
 
-  const handleVet = async (confirmed: boolean | null) => {
+  const handleVet = async (status: string) => {
     const data = getValues();
     try {
       if (currentState === "not_vetted") {
@@ -219,7 +216,7 @@ const ConfirmSourceInGCN = ({
             end_date,
             localization_name,
             localization_cumprob,
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -229,7 +226,7 @@ const ConfirmSourceInGCN = ({
           dateobs,
           source_id,
           data: {
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -242,11 +239,11 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  const handleHighlight = () => handleVet(true);
+  const handleHighlight = () => handleVet("confirmed");
 
-  const handleReject = () => handleVet(false);
+  const handleReject = () => handleVet("rejected");
 
-  const handleAmbiguous = () => handleVet(null);
+  const handleAmbiguous = () => handleVet("ambiguous");
 
   const handleNotVetted = async () => {
     try {
@@ -258,7 +255,7 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  return permissions?.includes("Manage GCNs") ? (
+  return (
     <div>
       <IconButton
         aria-label="open"
@@ -357,7 +354,7 @@ const ConfirmSourceInGCN = ({
         </Paper>
       )}
     </div>
-  ) : null;
+  );
 };
 
 export default ConfirmSourceInGCN;

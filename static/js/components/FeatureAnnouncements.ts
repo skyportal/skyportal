@@ -28,4 +28,40 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "alerts-sidebar-shortcut",
+    path: /./,
+    announcedAt: "2026-08-15",
+    steps: [
+      {
+        // First: the Alerts step below is skipped without a default broker.
+        target: '[data-testid="tour-nav-brokers"]',
+        title: "New brokers page",
+        content:
+          "This takes you to the list of brokers set up for this instance. " +
+          "Open whichever one you want from there to search its alerts.",
+      },
+      {
+        target: '[data-testid="tour-nav-alerts"]',
+        title: "New alerts shortcut",
+        content:
+          "This shortcut takes you straight to the alert search of this " +
+          "instance's default broker.",
+      },
+    ],
+  },
+  {
+    id: "brokers-page-alert-search",
+    path: /^\/brokers\/?$/,
+    announcedAt: "2026-08-15",
+    steps: [
+      {
+        target: '[data-testid="tour-brokers-list"]',
+        title: "New alert search",
+        content:
+          "Every broker set up for this instance is listed here. Open any of " +
+          "them to search its alerts.",
+      },
+    ],
+  },
 ];
