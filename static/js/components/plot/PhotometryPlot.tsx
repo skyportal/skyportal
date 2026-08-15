@@ -282,7 +282,9 @@ const PeriodAnnotationDialog = ({
           <Form
             schema={schema}
             uiSchema={{
-              groupIDs: { "ui:enumNames": groups?.map((g: any) => g.name) },
+              groupIDs: {
+                "ui:enumNames": groups?.map((group: any) => group.name),
+              },
             }}
             validator={validator}
             customValidate={validate}
