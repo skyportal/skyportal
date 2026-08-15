@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
-from ....models import Filter, GcnEvent, Group, Source, SourcesConfirmedInGCN
+from ....models import Filter, GcnEvent, GcnEventObj, Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ....utils.naive_datetime import utcnow_naive
@@ -80,10 +80,10 @@ async def get_sources_by_objs_in_range(
             # would also sweep in sources that merely sit in the error circle.
             conditions.append(
                 sa.select(1)
-                .select_from(SourcesConfirmedInGCN)
+                .select_from(GcnEventObj)
                 .where(
-                    SourcesConfirmedInGCN.obj_id == Source.obj_id,
-                    SourcesConfirmedInGCN.dateobs == gcn_event_dateobs,
+                    GcnEventObj.obj_id == Source.obj_id,
+                    GcnEventObj.dateobs == gcn_event_dateobs,
                 )
                 .exists()
             )

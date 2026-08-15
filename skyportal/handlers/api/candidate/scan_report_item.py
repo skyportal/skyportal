@@ -14,12 +14,12 @@ from ....models import (
     ClassicalAssignment,
     Comment,
     FollowupRequest,
+    GcnEventObj,
     Obj,
     ObjToSuperObj,
     ObservingRun,
     Photometry,
     Source,
-    SourcesConfirmedInGCN,
 )
 from ....models.phot_stat import PHOT_DETECTION_THRESHOLD
 from ....models.scan_report.scan_report_item import ScanReportItem
@@ -332,9 +332,9 @@ async def create_scan_report_items(
         obj_ids = [obj_id for obj_id, _ in valid]
         verdicts = (
             await session.scalars(
-                SourcesConfirmedInGCN.select(user_or_token).where(
-                    SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                    SourcesConfirmedInGCN.dateobs == gcn_event_dateobs,
+                GcnEventObj.select(user_or_token).where(
+                    GcnEventObj.obj_id.in_(obj_ids),
+                    GcnEventObj.dateobs == gcn_event_dateobs,
                 )
             )
         ).all()
@@ -356,7 +356,7 @@ async def create_scan_report_items(
             entry = dict(measured.pop(verdict.obj_id, {}))
             entry.update(
                 {
-                    "confirmed": verdict.confirmed,
+                    "status": verdict.status,
                     "explanation": verdict.explanation,
                     "notes": verdict.notes,
                 }
@@ -364,7 +364,7 @@ async def create_scan_report_items(
             gcn_match_by_obj[verdict.obj_id] = entry
         # matched by the crossmatch but with no verdict row yet
         for obj_id, payload in measured.items():
-            gcn_match_by_obj[obj_id] = {**payload, "confirmed": None}
+            gcn_match_by_obj[obj_id] = {**payload, "status": "pending"}
 
     objs = {}
     sources_by_obj = defaultdict(list)

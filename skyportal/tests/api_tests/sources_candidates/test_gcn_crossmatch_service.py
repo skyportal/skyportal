@@ -23,12 +23,18 @@ from skyportal.models import (
     Candidate,
     Filter,
     GcnEventCrossmatchState,
+    Instrument,
     Localization,
     Obj,
+    Photometry,
     Source,
 )
 from skyportal.tests import api
-from skyportal.tests.fixtures import FilterFactory, StreamFactory
+from skyportal.tests.fixtures import (
+    FilterFactory,
+    InstrumentFactory,
+    StreamFactory,
+)
 from skyportal.utils.gcn_crossmatch import ANNOTATION_ORIGIN, run_cycle
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -608,3 +614,188 @@ def test_filter_only_runs_against_matching_events(
     assert _calls_at(recorded, "query_kwargs", ra), (
         "filter did not run on a tagged event"
     )
+
+
+@pytest.fixture()
+def ztf_instrument():
+    """Photometry ingest looks the survey instrument up by name."""
+    created_id = None
+    if (
+        models.DBSession().scalar(sa.select(Instrument).where(Instrument.name == "ZTF"))
+        is None
+    ):
+        instrument = InstrumentFactory(name="ZTF")
+        models.DBSession().commit()
+        created_id = instrument.id
+    yield
+    if created_id is not None:
+        with models.DBSession() as session:
+            instrument = session.get(Instrument, created_id)
+            if instrument is not None:
+                session.delete(instrument)
+                session.commit()
+
+
+def _stub_provider_with_photometry(monkeypatch, alerts, saved, ra, dec, history):
+    """A provider that also serves detection history via get_alert."""
+
+    def query_alerts(broker, session, **kwargs):
+        saved.setdefault("query_kwargs", []).append(kwargs)
+        return alerts
+
+    def get_alert(broker, alert_id, session, **kwargs):
+        saved.setdefault("get_alert_calls", []).append(alert_id)
+        if history is None:
+            raise RuntimeError("broker has no history for this object")
+        return {**alerts[0], "prv_candidates": history}
+
+    monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
+    monkeypatch.setattr(GENERICBROKER, "get_alert", staticmethod(get_alert))
+    monkeypatch.setattr(
+        GENERICBROKER,
+        "implements",
+        classmethod(lambda cls: {"query_alerts": True, "get_alert": True}),
+    )
+
+
+def test_crossmatch_ingests_photometry_for_a_match(
+    super_admin_token,
+    public_group2,
+    broker,
+    crossmatch_filter,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A scanner judges a candidate on its light curve, so the match must bring
+    one: the crossmatch query itself returns no detection history."""
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_phot")
+    # get_alert returns the normalized shape: `band`, not the raw `fid`.
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            # the fixture stream's selector is [1, 2], and the programid ->
+            # stream map keys on max(selector)
+            "programid": 2,
+        }
+    ]
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2)],
+        recorded,
+        ra,
+        dec,
+        history,
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), recorded
+    assert obj_id in recorded.get("get_alert_calls", []), (
+        "the full object was never refetched for its history"
+    )
+    with models.DBSession() as session:
+        points = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+    assert len(points) > 0, "the match was saved without any photometry"
+
+
+def test_crossmatch_keeps_the_match_when_photometry_fails(
+    super_admin_token,
+    public_group2,
+    broker,
+    crossmatch_filter,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A broker that cannot serve the history must not cost us the match."""
+    ra, dec = _unique_position()
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_nophot")
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2)],
+        recorded,
+        ra,
+        dec,
+        None,  # get_alert raises
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), "the match was lost with the photometry"
+    with models.DBSession() as session:
+        annotation = session.scalar(
+            sa.select(Annotation).where(
+                Annotation.obj_id == obj_id,
+                Annotation.origin == ANNOTATION_ORIGIN,
+            )
+        )
+    assert annotation is not None, "the match was not annotated"
+
+
+def test_crossmatch_searches_every_localization_of_an_event(
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+):
+    """An EP observation reports each detected source as its own cone under the
+    shared observation timestamp, so one event can cover several unrelated
+    patches of sky. Searching only one silently drops the others.
+    """
+    ra_a, dec_a = _unique_position()
+    # far enough away that the two cones cannot be confused for one another
+    ra_b, dec_b = (ra_a + 60.0) % 360.0, -dec_a
+
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra_a, dec_a)
+    # A second cone on the same event, exactly how a sibling EP source arrives:
+    # posted under the same observation timestamp, which is the event's key.
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "skymap": {"ra": ra_b, "dec": dec_b, "error": ERROR},
+            "tags": ["TEST"],
+            "group_ids": [public_group2.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    event_jd = float(Time(dateobs).jd)
+    obj_a = _unique_id("XM_loc_a")
+    obj_b = _unique_id("XM_loc_b")
+
+    def query_alerts(broker_, session, **kwargs):
+        # serve whichever object lies in the cone being asked about
+        centre_ra = kwargs.get("ra")
+        if centre_ra is None:
+            return []
+        if abs(centre_ra - ra_a) < 1e-4:
+            return [_alert(obj_a, ra_a, dec_a, event_jd + 0.2)]
+        if abs(centre_ra - ra_b) < 1e-4:
+            return [_alert(obj_b, ra_b, dec_b, event_jd + 0.2)]
+        return []
+
+    monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
+    monkeypatch.setattr(
+        GENERICBROKER, "implements", classmethod(lambda cls: {"query_alerts": True})
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    created = _objs_created([obj_a, obj_b])
+    assert obj_a in created, "the first localization was not searched"
+    assert obj_b in created, "a second localization on the event was never searched"

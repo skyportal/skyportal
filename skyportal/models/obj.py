@@ -267,10 +267,6 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.String,
         doc="Minor planet center name.",
     )
-    gcn_crossmatch = sa.Column(
-        sa.ARRAY(sa.String),
-        doc="List of GCN event dateobs for crossmatched events.",
-    )
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",
@@ -452,11 +448,11 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
-    sources_in_gcns = relationship(
-        "SourcesConfirmedInGCN",
+    gcn_events = relationship(
+        "GcnEventObj",
         back_populates="obj",
         passive_deletes=True,
-        doc="Sources in a localization.",
+        doc="GCN events this Obj is associated with.",
     )
 
     sharing_service_submissions = relationship(
