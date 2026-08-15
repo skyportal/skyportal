@@ -76,8 +76,6 @@ export const sourcePublishOptionsSchema = (
   return schema;
 };
 
-// Display names for the enums above; rjsf deprecates enumNames in the schema.
-// Keys for properties the schema omitted are ignored.
 export const sourcePublishOptionsUiSchema = (
   streams: { id: number; name: string }[],
   groups: { id: number; name: string }[],
