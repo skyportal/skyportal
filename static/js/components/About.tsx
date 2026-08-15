@@ -4,7 +4,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 
-import AboutPlugins from "./AboutPlugins";
+import AboutPlugins from "./templates/AboutPlugins";
 import { useGetConfigQuery } from "../ducks/config";
 
 const useStyles = makeStyles()(() => ({
