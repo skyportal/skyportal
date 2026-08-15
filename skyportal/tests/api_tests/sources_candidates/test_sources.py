@@ -2873,9 +2873,9 @@ def test_source_gcn_crossmatch_event_filters(upload_data_token, public_source):
 def test_source_gcn_crossmatch_returns_associated_events(
     super_admin_token, super_admin_user, public_source
 ):
-    # includeGCNCrossmatches reports the events an obj is associated with. That
-    # association now lives in gcneventobjs (it used to be a denormalised array
-    # of dateobs strings on Obj), and rejected ones are excluded.
+    # includeGCNCrossmatches reports every event an obj is associated with,
+    # rejections included: the source page hangs its keep/reject control off
+    # this list, so hiding a rejection would leave no way to revisit it.
     import sqlalchemy as sa
 
     from skyportal.models import DBSession, GcnEvent, GcnEventObj
@@ -2915,7 +2915,9 @@ def test_source_gcn_crossmatch_returns_associated_events(
         crossmatches = data["data"]["gcn_crossmatch"]
         found = {arrow.get(c["dateobs"]).naive for c in crossmatches}
         assert dateobs in found, crossmatches
-        assert rejected_dateobs not in found, "a rejected association was reported"
+        assert rejected_dateobs in found, (
+            "a rejected association vanished, leaving no way to undo it"
+        )
     finally:
         session = DBSession()
         for row in session.scalars(
