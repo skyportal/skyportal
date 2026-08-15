@@ -29,7 +29,27 @@ depends_on = None
 
 STATUSES = ("pending", "confirmed", "ambiguous", "rejected")
 
-OLD_INDEXES = ("created_at", "dateobs", "obj_id")
+
+def _rename_indexes(old, new):
+    """Rename every index carrying the old table's name.
+
+    Discovered from the catalog rather than listed: indexes were added across
+    several migrations, and a missed one leaves the schema diverging from the
+    models (which alembic's autogenerate check then flags).
+    """
+    return f"""
+        DO $$
+        DECLARE i record;
+        BEGIN
+          FOR i IN SELECT indexname FROM pg_indexes
+                    WHERE tablename = '{new}'
+                      AND indexname LIKE 'ix_{old}%'
+          LOOP
+            EXECUTE format('ALTER INDEX %I RENAME TO %I',
+                           i.indexname, replace(i.indexname, '{old}', '{new}'));
+          END LOOP;
+        END $$;
+    """
 
 
 def _rename_constraints(old, new):
@@ -54,12 +74,8 @@ def upgrade():
     status_enum.create(op.get_bind(), checkfirst=True)
 
     op.rename_table("sourcesconfirmedingcns", "gcneventobjs")
-    for col in OLD_INDEXES:
-        op.execute(
-            f"ALTER INDEX IF EXISTS ix_sourcesconfirmedingcns_{col} "
-            f"RENAME TO ix_gcneventobjs_{col}"
-        )
-    # RENAME TABLE leaves constraints and the id sequence under the old name.
+    # RENAME TABLE leaves indexes, constraints and the id sequence behind.
+    op.execute(_rename_indexes("sourcesconfirmedingcns", "gcneventobjs"))
     op.execute(_rename_constraints("sourcesconfirmedingcns", "gcneventobjs"))
     op.execute(
         "ALTER SEQUENCE IF EXISTS sourcesconfirmedingcns_id_seq "
@@ -153,17 +169,13 @@ def downgrade():
     op.drop_index(op.f("ix_gcneventobjs_status"), table_name="gcneventobjs")
     op.drop_column("gcneventobjs", "status")
 
-    for col in OLD_INDEXES:
-        op.execute(
-            f"ALTER INDEX IF EXISTS ix_gcneventobjs_{col} "
-            f"RENAME TO ix_sourcesconfirmedingcns_{col}"
-        )
     op.execute(
         "ALTER SEQUENCE IF EXISTS gcneventobjs_id_seq "
         "RENAME TO sourcesconfirmedingcns_id_seq"
     )
     op.rename_table("gcneventobjs", "sourcesconfirmedingcns")
-    # after the rename: the helper addresses the table by its new name
+    # after the rename: both helpers address the table by its new name
+    op.execute(_rename_indexes("gcneventobjs", "sourcesconfirmedingcns"))
     op.execute(_rename_constraints("gcneventobjs", "sourcesconfirmedingcns"))
 
     sa.Enum(name="gcn_event_obj_statuses").drop(op.get_bind(), checkfirst=True)
