@@ -200,7 +200,6 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           items: { type: "integer", enum: instrumentIds },
           uniqueItems: true,
         };
-        // enum carries the ids; the display names belong in the uiSchema
         OptionalUiSchema["input_filters_photometry_instruments"] = {
           "ui:enumNames": instrumentIds.map((id) => instrumentLookUp[id]),
         };
