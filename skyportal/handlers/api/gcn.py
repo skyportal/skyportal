@@ -62,6 +62,7 @@ from ...models import (
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
+    GcnEventObj,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -83,7 +84,6 @@ from ...models import (
     ObservationPlanRequest,
     PhotStat,
     Source,
-    SourcesConfirmedInGCN,
     SurveyEfficiencyForObservations,
     User,
     UserNotification,
@@ -3432,9 +3432,9 @@ def add_gcn_summary(
             if len(sources) > 0:
                 obj_ids = [source["id"] for source in sources]
                 sources_with_status = session.scalars(
-                    SourcesConfirmedInGCN.select(user).where(
-                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                        SourcesConfirmedInGCN.dateobs == dateobs,
+                    GcnEventObj.select(user).where(
+                        GcnEventObj.obj_id.in_(obj_ids),
+                        GcnEventObj.dateobs == dateobs,
                     )
                 ).all()
 
@@ -3476,7 +3476,7 @@ def add_gcn_summary(
                         None,
                     )
                     if source_in_gcn is not None:
-                        status.append(source_in_gcn.confirmed)
+                        status.append(source_in_gcn.status)
                         explanation.append(source_in_gcn.explanation)
                     else:
                         status.append(None)
@@ -3500,7 +3500,7 @@ def add_gcn_summary(
                             [
                                 source.obj_id
                                 for source in sources_with_status
-                                if source.confirmed is False
+                                if source.status == "rejected"
                             ]
                         )
                     )
@@ -4516,9 +4516,9 @@ def add_gcn_report(
                 if len(sources) > 0:
                     obj_ids = [source["id"] for source in sources]
                     sources_with_status = session.scalars(
-                        SourcesConfirmedInGCN.select(user).where(
-                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                            SourcesConfirmedInGCN.dateobs == dateobs,
+                        GcnEventObj.select(user).where(
+                            GcnEventObj.obj_id.in_(obj_ids),
+                            GcnEventObj.dateobs == dateobs,
                         )
                     ).all()
                     for source in sources:
@@ -5144,11 +5144,9 @@ class GcnReportHandler(BaseHandler):
                                     source["photometry"] = []
 
                                 source["source_in_gcn"] = await session.scalar(
-                                    SourcesConfirmedInGCN.select(
-                                        session.user_or_token
-                                    ).where(
-                                        SourcesConfirmedInGCN.obj_id == source_id,
-                                        SourcesConfirmedInGCN.dateobs == dateobs_parsed,
+                                    GcnEventObj.select(session.user_or_token).where(
+                                        GcnEventObj.obj_id == source_id,
+                                        GcnEventObj.dateobs == dateobs_parsed,
                                     )
                                 )
 
@@ -6168,7 +6166,29 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
             if obj_check is not None:
                 events.append(event.dateobs)
 
-        obj.gcn_crossmatch = events
+        # Record each containment as a pending association: the crossmatch
+        # proposes, a human rules on it. Existing rows are left alone so a
+        # decision already made is not reset to pending.
+        existing = {
+            row.dateobs
+            for row in session.scalars(
+                sa.select(GcnEventObj).where(
+                    GcnEventObj.obj_id == obj.id,
+                    GcnEventObj.dateobs.in_(events),
+                )
+            ).all()
+        }
+        for dateobs in events:
+            if dateobs in existing:
+                continue
+            session.add(
+                GcnEventObj(
+                    obj_id=obj.id,
+                    dateobs=dateobs,
+                    status="pending",
+                    confirmer_id=user_id,
+                )
+            )
         session.commit()
 
         flow = Flow()

@@ -810,7 +810,7 @@ def test_confirm_reject_source_in_gcn(
         "source_id": obj_id,
         "localization_name": "LALInference.v1.fits.gz",
         "localization_cumprob": 0.95,
-        "confirmed": True,
+        "status": "confirmed",
         "start_date": "2019-08-13 08:18:05",
         "end_date": "2019-08-19 08:18:05",
     }
@@ -846,7 +846,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is True
+    assert data[0]["status"] == "confirmed"
 
     # find gcns associated to source
     status, data = api(
@@ -860,7 +860,7 @@ def test_confirm_reject_source_in_gcn(
 
     # reject source
     params = {
-        "confirmed": False,
+        "status": "rejected",
     }
 
     status, data = api(
@@ -893,7 +893,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is False
+    assert data[0]["status"] == "rejected"
 
     # verify that no gcns are associated to source
 

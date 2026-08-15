@@ -24,6 +24,7 @@
         "aladin-lite": "3.8.2",
         "autosuggest-highlight": "3.3.4",
         "buffer": "6.0.3",
+        "check-dependencies": "^2.0.0",
         "choices.js": "11.1.0",
         "clsx": "2.1.1",
         "convert-css-length": "2.0.1",
@@ -699,6 +700,8 @@
     "character-entities-legacy": ["character-entities-legacy@3.0.0", "", {}, "sha512-RpPp0asT/6ufRm//AJVwpViZbGM/MkjQFxJccQRHmISF/22NBtsHqAWmL+/pmkPWoIUJdWyeVleTl1wydHATVQ=="],
 
     "character-reference-invalid": ["character-reference-invalid@2.0.1", "", {}, "sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw=="],
+
+    "check-dependencies": ["check-dependencies@2.0.0", "", { "dependencies": { "picocolors": "^1.0.0", "semver": "^7.5.4" }, "bin": { "check-dependencies": "bin/cli.js" } }, "sha512-ui/u085SyYlRhaYShUDyS0fpTrfBBpz5bS0m+A1AW8HbsQefxrqLBKNzKAllIgdFZvKu0UHjrpzdobvGQ6khdg=="],
 
     "choices.js": ["choices.js@11.1.0", "", { "dependencies": { "fuse.js": "^7.0.0" } }, "sha512-mIt0uLhedHg2ea/K2PACrVpt391vRGHuOoctPAiHcyemezwzNMxj7jOzNEk8e7EbjLh0S0sspDkSCADOKz9kcw=="],
 

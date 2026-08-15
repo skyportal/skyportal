@@ -40,7 +40,7 @@ const useStyles = makeStyles()(() => ({
 
 const renderStatus = (params: any) => {
   const { status } = params.row;
-  // status can be "highlighted", "rejected", or "ambiguous"
+  // status can be "highlighted", "rejected", "ambiguous", or "pending"
   // should never happen here, but show "not vetted" if status is undefined
   let icon = <PriorityHigh color="primary" />;
   if (status === "highlighted") {

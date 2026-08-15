@@ -251,7 +251,12 @@ const GcnEventSourcesPage = ({
         );
         if (match) {
           source.gcn = {
-            status: match.confirmed ? "Highlighted" : "Rejected",
+            status:
+              {
+                confirmed: "Highlighted",
+                rejected: "Rejected",
+                ambiguous: "Ambiguous",
+              }[match.status as string] ?? "Pending",
             explanation: match.explanation,
             notes: match.notes,
           };

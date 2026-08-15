@@ -8396,7 +8396,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
+                            data?: components["schemas"]["GcnEventObj"][];
                         };
                     };
                 };
@@ -8434,8 +8434,11 @@ export interface paths {
                         localization_cumprob: string;
                         /** @description The source_id of the source to confirm or reject */
                         source_id: string;
-                        /** @description Whether the source is confirmed (True) or rejected (False) */
-                        confirmed: boolean;
+                        /**
+                         * @description Standing of the source against the event.
+                         * @enum {string}
+                         */
+                        status: "pending" | "confirmed" | "ambiguous" | "rejected";
                         /** @description Choose sources with a first detection after start_date, as an arrow parseable string */
                         start_date: string;
                         /** @description Choose sources with a last detection before end_date, as an arrow parseable string */
@@ -8451,7 +8454,7 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
-                                /** @description The id of the source_confirmed_in_gcn */
+                                /** @description The id of the gcn_event_obj */
                                 id?: number;
                             };
                         };
@@ -8491,7 +8494,7 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
-                                /** @description The id of the deleted source_confirmed_in_gcn */
+                                /** @description The id of the deleted gcn_event_obj */
                                 id?: number;
                             };
                         };
@@ -8526,8 +8529,11 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        /** @description Whether the source is confirmed (True) or rejected (False) */
-                        confirmed: boolean;
+                        /**
+                         * @description Standing of the source against the event.
+                         * @enum {string}
+                         */
+                        status: "pending" | "confirmed" | "ambiguous" | "rejected";
                     };
                 };
             };
@@ -8539,7 +8545,7 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
-                                /** @description The id of the modified source_confirmed_in_gcn */
+                                /** @description The id of the modified gcn_event_obj */
                                 id?: number;
                             };
                         };
@@ -8592,7 +8598,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
+                            data?: components["schemas"]["GcnEventObj"][];
                         };
                     };
                 };
@@ -26865,6 +26871,84 @@ export interface components {
             message?: string;
             data?: components["schemas"]["GcnEventNoID"][];
         };
+        GcnEventObj: {
+            /** @description The assigned Obj. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The User who created this GcnEventObj. */
+            readonly confirmer?: components["schemas"]["User"];
+            /** @description ID of the Obj. */
+            obj_id: string;
+            /**
+             * Format: date-time
+             * @description UTC event timestamp
+             */
+            dateobs: string;
+            /**
+             * @description Standing of this obj against the event: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
+             * @enum {string}
+             */
+            status?: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /** @description The ID of the User who created this GcnEventObj. */
+            confirmer_id: number;
+            /** @description Explanation on the nature of confirmation or rejection. */
+            explanation?: string | null;
+            /** @description Extra information about the source. */
+            notes?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnEventObj: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventObj"];
+        };
+        ArrayOfGcnEventObjs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventObj"][];
+        };
+        GcnEventObjNoID: {
+            /** @description The assigned Obj. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The GcnEvent this association belongs to. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The User who created this GcnEventObj. */
+            readonly confirmer?: components["schemas"]["User"];
+            /** @description ID of the Obj. */
+            obj_id: string;
+            /**
+             * Format: date-time
+             * @description UTC event timestamp
+             */
+            dateobs: string;
+            /**
+             * @description Standing of this obj against the event: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
+             * @enum {string}
+             */
+            status?: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /** @description The ID of the User who created this GcnEventObj. */
+            confirmer_id: number;
+            /** @description Explanation on the nature of confirmation or rejection. */
+            explanation?: string | null;
+            /** @description Extra information about the source. */
+            notes?: string | null;
+        };
+        SingleGcnEventObjNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventObjNoID"];
+        };
+        ArrayOfGcnEventObjNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventObjNoID"][];
+        };
         GcnEventUser: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             readonly user?: components["schemas"]["User"];
@@ -32643,7 +32727,7 @@ export interface components {
             readonly assignments?: components["schemas"]["ClassicalAssignment"][];
             readonly obj_notifications?: components["schemas"]["SourceNotification"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
-            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly gcn_events?: components["schemas"]["GcnEventObj"][];
             readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Name of the object. */
             id: string;
@@ -32695,8 +32779,6 @@ export interface components {
             is_roid?: boolean | null;
             /** @description Minor planet center name. */
             mpc_name?: string | null;
-            /** @description List of GCN event dateobs for crossmatched events. */
-            gcn_crossmatch?: string[] | null;
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
@@ -32924,7 +33006,7 @@ export interface components {
             readonly assignments?: components["schemas"]["ClassicalAssignment"][];
             readonly obj_notifications?: components["schemas"]["SourceNotification"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
-            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly gcn_events?: components["schemas"]["GcnEventObj"][];
             readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description J2000 Right Ascension at discovery time [deg]. */
             ra_dis?: number | null;
@@ -32974,8 +33056,6 @@ export interface components {
             is_roid?: boolean | null;
             /** @description Minor planet center name. */
             mpc_name?: string | null;
-            /** @description List of GCN event dateobs for crossmatched events. */
-            gcn_crossmatch?: string[] | null;
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
@@ -33031,7 +33111,7 @@ export interface components {
             readonly assignments?: components["schemas"]["ClassicalAssignment"][];
             readonly obj_notifications?: components["schemas"]["SourceNotification"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
-            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly gcn_events?: components["schemas"]["GcnEventObj"][];
             readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Name of the object. */
             id: string;
@@ -33079,8 +33159,6 @@ export interface components {
             is_roid?: boolean | null;
             /** @description Minor planet center name. */
             mpc_name?: string | null;
-            /** @description List of GCN event dateobs for crossmatched events. */
-            gcn_crossmatch?: string[] | null;
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
@@ -36231,78 +36309,6 @@ export interface components {
             message?: string;
             data?: components["schemas"]["SourceViewNoID"][];
         };
-        SourcesConfirmedInGCN: {
-            /** @description The assigned Obj. */
-            readonly obj?: components["schemas"]["Obj"];
-            /** @description The GcnEvent this association belongs to. */
-            readonly gcnevent?: components["schemas"]["GcnEvent"];
-            /** @description The User who created this SourcesConfirmedInGCN. */
-            readonly confirmer?: components["schemas"]["User"];
-            /** @description ID of the Obj. */
-            obj_id: string;
-            /**
-             * Format: date-time
-             * @description UTC event timestamp
-             */
-            dateobs: string;
-            /** @description If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN.If undefined, the source is not yet confirmed or rejected in the GCN. */
-            confirmed?: boolean | null;
-            /** @description The ID of the User who created this SourcesConfirmedInGCN. */
-            confirmer_id: number;
-            /** @description Explanation on the nature of confirmation or rejection. */
-            explanation?: string | null;
-            /** @description Extra information about the source. */
-            notes?: string | null;
-            /** @description Unique object identifier. */
-            id?: number;
-        };
-        SingleSourcesConfirmedInGCN: {
-            /** @enum {string} */
-            status: "success";
-            message?: string;
-            data?: components["schemas"]["SourcesConfirmedInGCN"];
-        };
-        ArrayOfSourcesConfirmedInGCNs: {
-            /** @enum {string} */
-            status: "success";
-            message?: string;
-            data?: components["schemas"]["SourcesConfirmedInGCN"][];
-        };
-        SourcesConfirmedInGCNNoID: {
-            /** @description The assigned Obj. */
-            readonly obj?: components["schemas"]["Obj"];
-            /** @description The GcnEvent this association belongs to. */
-            readonly gcnevent?: components["schemas"]["GcnEvent"];
-            /** @description The User who created this SourcesConfirmedInGCN. */
-            readonly confirmer?: components["schemas"]["User"];
-            /** @description ID of the Obj. */
-            obj_id: string;
-            /**
-             * Format: date-time
-             * @description UTC event timestamp
-             */
-            dateobs: string;
-            /** @description If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN.If undefined, the source is not yet confirmed or rejected in the GCN. */
-            confirmed?: boolean | null;
-            /** @description The ID of the User who created this SourcesConfirmedInGCN. */
-            confirmer_id: number;
-            /** @description Explanation on the nature of confirmation or rejection. */
-            explanation?: string | null;
-            /** @description Extra information about the source. */
-            notes?: string | null;
-        };
-        SingleSourcesConfirmedInGCNNoID: {
-            /** @enum {string} */
-            status: "success";
-            message?: string;
-            data?: components["schemas"]["SourcesConfirmedInGCNNoID"];
-        };
-        ArrayOfSourcesConfirmedInGCNNoIDs: {
-            /** @enum {string} */
-            status: "success";
-            message?: string;
-            data?: components["schemas"]["SourcesConfirmedInGCNNoID"][];
-        };
         SpatialCatalog: {
             readonly entries?: components["schemas"]["SpatialCatalogEntry"][];
             /** @description Name of the catalog. */
@@ -38067,7 +38073,7 @@ export interface components {
             readonly localizationproperties?: components["schemas"]["LocalizationProperty"][];
             readonly notifications?: components["schemas"]["UserNotification"][];
             readonly observing_runs?: components["schemas"]["ObservingRun"][];
-            readonly sources_in_gcn?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly gcn_event_objs?: components["schemas"]["GcnEventObj"][];
             readonly photometryvalidations?: components["schemas"]["PhotometryValidation"][];
             readonly source_notifications?: components["schemas"]["SourceNotification"][];
             readonly sources?: components["schemas"]["Obj"][];
@@ -38242,7 +38248,7 @@ export interface components {
             readonly localizationproperties?: components["schemas"]["LocalizationProperty"][];
             readonly notifications?: components["schemas"]["UserNotification"][];
             readonly observing_runs?: components["schemas"]["ObservingRun"][];
-            readonly sources_in_gcn?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly gcn_event_objs?: components["schemas"]["GcnEventObj"][];
             readonly photometryvalidations?: components["schemas"]["PhotometryValidation"][];
             readonly source_notifications?: components["schemas"]["SourceNotification"][];
             readonly sources?: components["schemas"]["Obj"][];

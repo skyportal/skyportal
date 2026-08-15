@@ -50,10 +50,10 @@ from skyportal.models import (
     Filter,
     GcnEvent,
     GcnEventCrossmatchState,
+    GcnEventObj,
     Group,
     Localization,
     Obj,
-    SourcesConfirmedInGCN,
     User,
 )
 from skyportal.utils.crossmatch import (
@@ -919,19 +919,22 @@ def cone_match_stage(ra, dec, radius_deg):
 
 
 async def propose_association(session, user_id, obj_id, event_dateobs):
-    """Record the match as awaiting review: confirmed stays NULL until a human
+    """Record the match as awaiting review: status stays 'pending' until a human
     confirms or rejects it. confirmer_id is NOT NULL, so it records the service
     user that proposed the row, not a verdict. Never overwrites an existing one."""
     existing = await session.scalar(
-        sa.select(SourcesConfirmedInGCN).where(
-            SourcesConfirmedInGCN.obj_id == obj_id,
-            SourcesConfirmedInGCN.dateobs == event_dateobs,
+        sa.select(GcnEventObj).where(
+            GcnEventObj.obj_id == obj_id,
+            GcnEventObj.dateobs == event_dateobs,
         )
     )
     if existing is None:
         session.add(
-            SourcesConfirmedInGCN(
-                obj_id=obj_id, dateobs=event_dateobs, confirmer_id=user_id
+            GcnEventObj(
+                obj_id=obj_id,
+                dateobs=event_dateobs,
+                status="pending",
+                confirmer_id=user_id,
             )
         )
 

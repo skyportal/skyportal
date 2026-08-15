@@ -1,4 +1,4 @@
-__all__ = ["SourcesConfirmedInGCN"]
+__all__ = ["GcnEventObj"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -11,23 +11,27 @@ from baselayer.app.models import (
     public,
 )
 
+from ..enum_types import gcn_event_obj_statuses
+
 _, cfg = load_env()
 
 
-def manage_sources_confirmed_in_gcn_access_logic(cls, user_or_token):
+def manage_gcn_event_obj_access_logic(cls, user_or_token):
     if user_or_token.is_admin or "Manage GCNs" in user_or_token.permissions:
         return public.select_accessible_rows(cls, user_or_token)
     else:
         return sa.select(cls).where(sa.false())
 
 
-class SourcesConfirmedInGCN(Base):
+class GcnEventObj(Base):
+    """An Obj's standing against a GcnEvent: proposed, ruled on, or rejected."""
+
     # Scoped to the event: the row ties an obj to a dateobs, so a public read
     # would disclose a restricted event's existence, time and (via the public
     # Obj) position -- see /api/associated_gcns.
     read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
     create = update = delete = CustomUserAccessControl(
-        manage_sources_confirmed_in_gcn_access_logic
+        manage_gcn_event_obj_access_logic
     )
 
     obj_id = sa.Column(
@@ -39,7 +43,7 @@ class SourcesConfirmedInGCN(Base):
 
     obj = relationship(
         "Obj",
-        back_populates="sources_in_gcns",
+        back_populates="gcn_events",
         doc="The assigned Obj.",
     )
 
@@ -56,24 +60,28 @@ class SourcesConfirmedInGCN(Base):
         doc="The GcnEvent this association belongs to.",
     )
 
-    confirmed = sa.Column(
-        sa.Boolean,
-        doc="If True, the source is confirmed in the GCN. If False, the source is rejected in the GCN."
-        "If undefined, the source is not yet confirmed or rejected in the GCN.",
+    status = sa.Column(
+        gcn_event_obj_statuses,
+        nullable=False,
+        server_default="pending",
+        index=True,
+        doc="Standing of this obj against the event: 'pending' (proposed, "
+        "awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) "
+        "or 'rejected'.",
     )
 
-    # the person who uploaded the confirmation
+    # the person who recorded the association
     confirmer = relationship(
         "User",
-        back_populates="sources_in_gcn",
-        doc="The User who created this SourcesConfirmedInGCN.",
-        foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+        back_populates="gcn_event_objs",
+        doc="The User who created this GcnEventObj.",
+        foreign_keys="GcnEventObj.confirmer_id",
     )
     confirmer_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="The ID of the User who created this SourcesConfirmedInGCN.",
+        doc="The ID of the User who created this GcnEventObj.",
     )
 
     explanation = sa.Column(

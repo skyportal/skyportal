@@ -177,20 +177,16 @@ const ConfirmSourceInGCN = ({
     sourcesingcn?.length > 0 &&
     sourcesingcn.filter((s: any) => s.obj_id === source_id).length !== 0
   ) {
-    if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      true
-    ) {
+    const status = sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
+      ?.status;
+    if (status === "confirmed") {
       currentState = "confirmed";
       currentExplanation =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
           ?.explanation || "";
       currentNotes =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      false
-    ) {
+    } else if (status === "rejected") {
       currentState = "rejected";
       currentExplanation =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
@@ -207,7 +203,7 @@ const ConfirmSourceInGCN = ({
     }
   }
 
-  const handleVet = async (confirmed: boolean | null) => {
+  const handleVet = async (status: string) => {
     const data = getValues();
     try {
       if (currentState === "not_vetted") {
@@ -219,7 +215,7 @@ const ConfirmSourceInGCN = ({
             end_date,
             localization_name,
             localization_cumprob,
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -229,7 +225,7 @@ const ConfirmSourceInGCN = ({
           dateobs,
           source_id,
           data: {
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -242,11 +238,11 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  const handleHighlight = () => handleVet(true);
+  const handleHighlight = () => handleVet("confirmed");
 
-  const handleReject = () => handleVet(false);
+  const handleReject = () => handleVet("rejected");
 
-  const handleAmbiguous = () => handleVet(null);
+  const handleAmbiguous = () => handleVet("ambiguous");
 
   const handleNotVetted = async () => {
     try {
