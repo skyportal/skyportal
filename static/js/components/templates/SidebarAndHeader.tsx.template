@@ -217,6 +217,7 @@ const SidebarAndHeader = () => {
     <Link to={"/brokers/" + alertBroker.id} className={classes.link}>
       <ListItem
         {...({ name: "sidebarAlertsButton" } as any)}
+        data-testid="tour-nav-alerts"
         disablePadding
         sx={{ "{{ display: 'block' }}" }}
       >
@@ -275,6 +276,8 @@ const SidebarAndHeader = () => {
         data-testid="tour-nav-groups"
         {%- elif item.url == '/gcn_events' %}
         data-testid="tour-nav-gcn"
+        {%- elif item.url == '/brokers' %}
+        data-testid="tour-nav-brokers"
         {%- endif %}
         disablePadding
         sx={{ "{{ display: 'block' }}" }}
