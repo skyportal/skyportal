@@ -294,7 +294,6 @@ const SourceChat = ({
             <CommentList
               key={channel}
               objID={target.id}
-              compact
               channel={channel === MAIN_CHANNEL ? undefined : channel}
             />
           ) : (
@@ -302,7 +301,6 @@ const SourceChat = ({
               associatedResourceType="gcn_event"
               gcnEventID={target.id}
               gcnEventDateobs={target.dateobs}
-              compact
             />
           )}
         </Suspense>

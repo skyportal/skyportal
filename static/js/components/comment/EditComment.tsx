@@ -119,7 +119,6 @@ const EditComment = ({
           <DialogTitle>Edit comment</DialogTitle>
           <DialogContent dividers>
             <CommentEntry
-              compact
               editComment={editComment}
               commentText={commentText}
               attachmentName={attachmentName}

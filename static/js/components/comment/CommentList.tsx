@@ -41,14 +41,6 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles()((theme) => ({
-  commentsContainer: {
-    display: "flex",
-    flexDirection: "column",
-    flex: 1,
-    minHeight: 0,
-    height: "100%",
-    width: "100%",
-  },
   panelContainer: {
     display: "flex",
     flexDirection: "column",
@@ -138,10 +130,6 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: "15px",
     width: "100%",
   },
-  spacer: {
-    width: "20px",
-    padding: "0 10px",
-  },
   commentHeader: {
     display: "flex",
     alignItems: "center",
@@ -163,20 +151,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   commentMessageShift: {
     maxWidth: "47em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  compactCommentMessage: {
-    maxWidth: "34em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  compactCommentMessageShift: {
-    maxWidth: "44em",
     "& > p": {
       margin: "0",
     },
@@ -207,27 +181,6 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: "27px",
     maxWidth: "25em",
   },
-  compactContainer: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: "25px",
-    margin: "0 15px",
-    width: "100%",
-  },
-  compactWrap: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    padding: "0 5px",
-  },
-  compactButtons: {
-    display: "flex",
-    alignItems: "center",
-  },
 }));
 
 interface CommentListProps {
@@ -244,7 +197,6 @@ interface CommentListProps {
   // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
-  compact?: boolean;
 }
 
 const CommentList = ({
@@ -259,7 +211,6 @@ const CommentList = ({
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
   maxHeightList,
-  compact = false,
   channel,
 }: CommentListProps) => {
   const { classes: styles, cx } = useStyles();
@@ -409,11 +360,9 @@ const CommentList = ({
     comments = comments?.filter((comment: any) => comment.bot === false);
   }
 
-  if (compact) {
-    comments = [...comments].sort((a: any, b: any) =>
-      a.created_at < b.created_at ? -1 : 1,
-    );
-  }
+  comments = [...comments].sort((a: any, b: any) =>
+    a.created_at < b.created_at ? -1 : 1,
+  );
 
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
@@ -426,29 +375,19 @@ const CommentList = ({
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (compact && listRef.current) {
+    if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [compact, channel, comments.length]);
+  }, [channel, comments.length]);
 
   return (
-    <div className={compact ? styles.panelContainer : styles.commentsContainer}>
+    <div className={styles.panelContainer}>
       <div
         ref={listRef}
-        className={compact ? styles.panelList : undefined}
-        style={
-          compact
-            ? undefined
-            : {
-                marginTop: "1rem",
-                overflowY: "auto",
-                flex: 1,
-                minHeight: 0,
-                maxHeight: maxHeightList,
-              }
-        }
+        className={styles.panelList}
+        style={{ maxHeight: maxHeightList }}
       >
-        {compact && comments.length === 0 && (
+        {comments.length === 0 && (
           <div className={styles.panelEmpty}>
             {channel
               ? "This conversation is only kept once a message is sent."
@@ -517,19 +456,13 @@ const CommentList = ({
         )}
       </div>
       {!channel && (
-        <div className={compact ? styles.panelBots : undefined}>
+        <div className={styles.panelBots}>
           <FormControlLabel
-            label={
-              compact ? (
-                <span className={styles.panelBotsLabel}>Include bots</span>
-              ) : (
-                "Include Bots?"
-              )
-            }
+            label={<span className={styles.panelBotsLabel}>Include bots</span>}
             control={
               <Checkbox
                 color="primary"
-                size={compact ? "small" : "medium"}
+                size="small"
                 onChange={(event) => setIncludeBots(event.target.checked)}
                 checked={includeBots || false}
                 {...({ title: "Include Bots?", type: "checkbox" } as any)}
@@ -542,22 +475,22 @@ const CommentList = ({
         objID &&
         (associatedResourceType === "object" ||
           associatedResourceType === "spectra") && (
-          <CommentEntry addComment={addComment} compact={compact} />
+          <CommentEntry addComment={addComment} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         gcnEventID &&
         associatedResourceType === "gcn_event" && (
-          <CommentEntry addComment={addGcnEventComment} compact={compact} />
+          <CommentEntry addComment={addGcnEventComment} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         shiftID &&
         associatedResourceType === "shift" && (
-          <CommentEntry addComment={addShiftComment} compact={compact} />
+          <CommentEntry addComment={addShiftComment} />
         )}
       {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         earthquakeID &&
         associatedResourceType === "earthquake" && (
-          <CommentEntry addComment={addEarthquakeComment} compact={compact} />
+          <CommentEntry addComment={addEarthquakeComment} />
         )}
     </div>
   );
