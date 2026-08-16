@@ -458,7 +458,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
             },
           }}
         >
-          <SourceChat sourceID={source.id} {...sourceChat} />
+          <SourceChat
+            target={{ type: "source", id: source.id }}
+            {...sourceChat}
+          />
         </Grid>
       )}
       <Grid
@@ -1656,7 +1659,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
         />
       </Grid>
       {!isReadOnly && !sourceChat.inline && (
-        <SourceChat sourceID={source.id} {...sourceChat} />
+        <SourceChat
+          target={{ type: "source", id: source.id }}
+          {...sourceChat}
+        />
       )}
     </Grid>
   );

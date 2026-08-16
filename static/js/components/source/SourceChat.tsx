@@ -15,6 +15,8 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { makeStyles } from "tss-react/mui";
+import { skipToken } from "@reduxjs/toolkit/query";
+import dayjs from "dayjs";
 
 import {
   useDeleteConversationMutation,
@@ -120,16 +122,20 @@ export const useSourceChat = () => {
   return { inline, open, setOpen, toggleInline };
 };
 
+export type ChatTarget =
+  | { type: "source"; id: string }
+  | { type: "gcn_event"; id: number; dateobs: string };
+
 interface SourceChatProps {
-  sourceID: string;
+  target: ChatTarget;
   inline: boolean;
   open: boolean;
   setOpen: (open: boolean) => void;
-  toggleInline: () => void;
+  toggleInline?: () => void;
 }
 
 const SourceChat = ({
-  sourceID,
+  target,
   inline,
   open,
   setOpen,
@@ -141,9 +147,9 @@ const SourceChat = ({
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
   const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
-  const { data: openedChannels = [] } = useGetConversationsQuery(sourceID, {
-    skip: !inline && !open,
-  });
+  const { data: openedChannels = [] } = useGetConversationsQuery(
+    target.type === "source" && (inline || open) ? target.id : skipToken,
+  );
   const [deleteConversation] = useDeleteConversationMutation();
 
   const channels = [
@@ -170,14 +176,14 @@ const SourceChat = ({
   };
 
   const removeChannel = async (name: string) => {
-    if (openedChannels.includes(name)) {
-      await deleteConversation({ obj_id: sourceID, channel: name });
+    if (target.type === "source" && openedChannels.includes(name)) {
+      await deleteConversation({ obj_id: target.id, channel: name });
     }
     setAddedChannels(addedChannels.filter((added) => added !== name));
     if (channel === name) setChannel(MAIN_CHANNEL);
   };
 
-  const inlineToggle = (
+  const inlineToggle = toggleInline ? (
     <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
       <IconButton
         size="small"
@@ -191,7 +197,7 @@ const SourceChat = ({
         )}
       </IconButton>
     </Tooltip>
-  );
+  ) : null;
 
   const panel = (
     <Paper
@@ -202,7 +208,9 @@ const SourceChat = ({
       {!inline && (
         <div className={classes.header}>
           <Typography variant="h6" className={classes.sourceName}>
-            {sourceID}
+            {target.type === "source"
+              ? target.id
+              : dayjs(target.dateobs).format("YYMMDD HH:mm:ss")}
           </Typography>
           <div>
             {inlineToggle}
@@ -212,66 +220,68 @@ const SourceChat = ({
           </div>
         </div>
       )}
-      <div className={classes.tabs}>
-        <Tabs
-          value={channel}
-          onChange={(_, value) => setChannel(value)}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          {channels.map((name) => (
-            <Tab
-              key={name}
-              value={name}
-              onMouseEnter={() => setHoveredChannel(name)}
-              onMouseLeave={() => setHoveredChannel(null)}
-              label={
-                <span className={classes.tabLabel}>
-                  {name}
-                  {name !== MAIN_CHANNEL && (
-                    <CloseIcon
-                      fontSize="inherit"
-                      className={classes.tabClose}
-                      style={{
-                        visibility:
-                          hoveredChannel === name ? "visible" : "hidden",
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        removeChannel(name);
-                      }}
-                      data-testid={`delete-channel-${name}`}
-                    />
-                  )}
-                </span>
-              }
-            />
-          ))}
-        </Tabs>
-        {newChannel === null ? (
-          <Tooltip title="New conversation">
-            <IconButton
+      {target.type === "source" && (
+        <div className={classes.tabs}>
+          <Tabs
+            value={channel}
+            onChange={(_, value) => setChannel(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {channels.map((name) => (
+              <Tab
+                key={name}
+                value={name}
+                onMouseEnter={() => setHoveredChannel(name)}
+                onMouseLeave={() => setHoveredChannel(null)}
+                label={
+                  <span className={classes.tabLabel}>
+                    {name}
+                    {name !== MAIN_CHANNEL && (
+                      <CloseIcon
+                        fontSize="inherit"
+                        className={classes.tabClose}
+                        style={{
+                          visibility:
+                            hoveredChannel === name ? "visible" : "hidden",
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeChannel(name);
+                        }}
+                        data-testid={`delete-channel-${name}`}
+                      />
+                    )}
+                  </span>
+                }
+              />
+            ))}
+          </Tabs>
+          {newChannel === null ? (
+            <Tooltip title="New conversation">
+              <IconButton
+                size="small"
+                onClick={() => setNewChannel("")}
+                data-testid="new-channel-button"
+              >
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <TextField
+              autoFocus
               size="small"
-              onClick={() => setNewChannel("")}
-              data-testid="new-channel-button"
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <TextField
-            autoFocus
-            size="small"
-            variant="standard"
-            placeholder="Conversation name"
-            value={newChannel}
-            onChange={(event) => setNewChannel(event.target.value)}
-            onKeyDown={onNewChannelKeyDown}
-            onBlur={createChannel}
-          />
-        )}
-        {inline && <div className={classes.detach}>{inlineToggle}</div>}
-      </div>
+              variant="standard"
+              placeholder="Conversation name"
+              value={newChannel}
+              onChange={(event) => setNewChannel(event.target.value)}
+              onKeyDown={onNewChannelKeyDown}
+              onBlur={createChannel}
+            />
+          )}
+          {inline && <div className={classes.detach}>{inlineToggle}</div>}
+        </div>
+      )}
       <div className={classes.comments}>
         <Suspense
           fallback={
@@ -280,12 +290,21 @@ const SourceChat = ({
             </div>
           }
         >
-          <CommentList
-            key={channel}
-            objID={sourceID}
-            compact
-            channel={channel === MAIN_CHANNEL ? undefined : channel}
-          />
+          {target.type === "source" ? (
+            <CommentList
+              key={channel}
+              objID={target.id}
+              compact
+              channel={channel === MAIN_CHANNEL ? undefined : channel}
+            />
+          ) : (
+            <CommentList
+              associatedResourceType="gcn_event"
+              gcnEventID={target.id}
+              gcnEventDateobs={target.dateobs}
+              compact
+            />
+          )}
         </Suspense>
       </div>
     </Paper>
