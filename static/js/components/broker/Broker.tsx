@@ -312,20 +312,22 @@ const Broker = () => {
                 onChange={(e) => setObjectId(e.target.value)}
               />
               {surveys.length > 1 && (
-                <TextField
-                  select
-                  size="small"
-                  label="Survey"
-                  value={searchSurvey}
-                  onChange={(e) => setSurvey(e.target.value)}
-                  sx={{ minWidth: 120 }}
-                >
-                  {surveys.map((s) => (
-                    <MenuItem key={s} value={s}>
-                      {s}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <Tooltip title="Selected automatically from the object ID format, override it if needed">
+                  <TextField
+                    select
+                    size="small"
+                    label="Survey"
+                    value={searchSurvey}
+                    onChange={(e) => setSurvey(e.target.value)}
+                    sx={{ minWidth: 120 }}
+                  >
+                    {surveys.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {s}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Tooltip>
               )}
               <Tooltip title={coneDisabled ? coneReason : ""}>
                 <span>
