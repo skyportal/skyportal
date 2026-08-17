@@ -72,7 +72,7 @@ def test_annotations(
 
     # push the little triangle to expand the table
     page.locator(
-        "//*[@data-testid='spectrum-div']//*[@id='expandable-button']/.."
+        "//*[@data-testid='spectrum-table']//*[@id='expandable-button']/.."
     ).first.click()
     expect(page.locator(f'//div[text()="{annotation_data}"]').first).to_be_visible()
 
