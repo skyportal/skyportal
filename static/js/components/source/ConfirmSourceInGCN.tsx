@@ -171,38 +171,21 @@ const ConfirmSourceInGCN = ({
     return color;
   };
 
-  let currentState = "not_vetted";
-  let currentExplanation = "";
-  let currentNotes = "";
-  if (
-    sourcesingcn?.length > 0 &&
-    sourcesingcn.filter((s: any) => s.obj_id === source_id).length !== 0
-  ) {
-    const status = sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-      ?.status;
-    if (status === "confirmed") {
-      currentState = "confirmed";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else if (status === "rejected") {
-      currentState = "rejected";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else {
-      currentState = "ambiguous";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    }
-  }
+  // What is already recorded for this source, if anything.
+  const saved = sourcesingcn?.find((s: any) => s.obj_id === source_id);
+  const savedStatus: string | null = saved?.status ?? null;
+  const currentExplanation = saved?.explanation || "";
+  const currentNotes = saved?.notes || "";
+  const currentState = savedStatus ?? "not_vetted";
+
+  // The verdict buttons select; SAVE commits. Committing on click meant a
+  // mis-click was written immediately, and left no chance to type the
+  // explanation that records *why* -- which is the whole point of the field.
+  const [selected, setSelected] = useState<string | null>(null);
+  const openDialog = () => {
+    setSelected(savedStatus);
+    setOpen(true);
+  };
 
   const handleVet = async (status: string) => {
     const data = getValues();
@@ -239,11 +222,11 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  const handleHighlight = () => handleVet("confirmed");
-
-  const handleReject = () => handleVet("rejected");
-
-  const handleAmbiguous = () => handleVet("ambiguous");
+  const handleSave = () => {
+    if (selected) {
+      handleVet(selected);
+    }
+  };
 
   const handleNotVetted = async () => {
     try {
@@ -258,11 +241,11 @@ const ConfirmSourceInGCN = ({
   return (
     <div>
       <IconButton
-        aria-label="open"
+        aria-label="vet gcn crossmatch"
         className={classes.closeButton}
         size={compact ? "small" : undefined}
         sx={compact ? { p: 0 } : undefined}
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
       >
         {triggerIcon ?? <EditIcon />}
       </IconButton>
@@ -341,9 +324,26 @@ const ConfirmSourceInGCN = ({
                       />
                     </div>
                     <div>
-                      <Button onClick={handleHighlight}>HIGHLIGHT</Button>
-                      <Button onClick={handleReject}>REJECT</Button>
-                      <Button onClick={handleAmbiguous}>AMBIGUOUS</Button>
+                      {[
+                        ["confirmed", "HIGHLIGHT"],
+                        ["rejected", "REJECT"],
+                        ["ambiguous", "AMBIGUOUS"],
+                      ].map(([status, label]) => (
+                        <Button
+                          key={status}
+                          onClick={() => setSelected(status as string)}
+                          primary={selected === status}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                      <Button
+                        onClick={handleSave}
+                        disabled={!selected}
+                        secondary
+                      >
+                        SAVE
+                      </Button>
                       <Button onClick={handleNotVetted}>NOT VETTED</Button>
                     </div>
                   </form>

@@ -672,8 +672,16 @@ def _stub_provider_with_photometry(monkeypatch, alerts, saved, ra, dec, history)
 
     def get_alert(broker, alert_id, session, **kwargs):
         saved.setdefault("get_alert_calls", []).append(alert_id)
+        saved.setdefault("get_alert_kwargs", []).append(kwargs)
         if history is None:
             raise RuntimeError("broker has no history for this object")
+        # Real brokers fail closed on the stream scope: BOOM turns a missing
+        # `permissions` into an empty programid list, which matches nothing and
+        # returns no rows rather than raising. Mimic that, or a caller that
+        # forgets to pass the scope looks fine here and silently ingests
+        # nothing in production.
+        if not kwargs.get("permissions"):
+            return []
         return {**alerts[0], "prv_candidates": history}
 
     monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
@@ -727,6 +735,9 @@ def test_crossmatch_ingests_photometry_for_a_match(
     assert obj_id in _objs_created([obj_id]), recorded
     assert obj_id in recorded.get("get_alert_calls", []), (
         "the full object was never refetched for its history"
+    )
+    assert all(k.get("permissions") for k in recorded.get("get_alert_kwargs", [])), (
+        "the history fetch ran without a stream scope, which returns nothing"
     )
     with models.DBSession() as session:
         points = session.scalars(
