@@ -13,10 +13,11 @@ cfg = load_config()
 
 
 def open_source_chat(page):
-    # Comments live in a chat panel, inline by default but detachable.
     chat = page.locator('//div[@data-testid="source-chat"]').first
+    button = page.locator('//button[@data-testid="source-chat-button"]').first
+    expect(chat.or_(button).first).to_be_visible()
     if not chat.is_visible():
-        page.locator('//button[@data-testid="source-chat-button"]').first.click()
+        button.click()
     expect(chat).to_be_visible()
 
 
