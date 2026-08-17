@@ -250,6 +250,81 @@ def _boom_photometry_to_prv(photometry):
     return prv
 
 
+# Asteroids stay well under this; the cap is only a runaway guard.
+_SSO_HISTORY_LIMIT = 10000
+
+
+def _fetch_sso_history(broker, survey, designation):
+    """Every detection of one moving object, gathered from BOOM by MPC
+    designation.
+
+    A moving object's detections each land under a different position-keyed
+    ``objectId``, so its light curve has to be gathered by the designation the
+    survey stamps on the detection. Queries the indexed raw field
+    (``candidate.ssnamenr``); the stored candidate already carries the same
+    ``psfFlux`` the Kafka path does, so the points flow through the shared save
+    transform unchanged. ZTF only for now — LSST designations live on the aux
+    collection and are not yet populated upstream. Returns [] on any failure so
+    a backfill hiccup never drops the triggering alert.
+    """
+    if survey != "ZTF":
+        return []
+    try:
+        docs = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": "ZTF_alerts",
+                "filter": {"candidate.ssnamenr": str(designation)},
+                "projection": {
+                    f"candidate.{k}": 1
+                    for k in (
+                        "jd",
+                        "band",
+                        "psfFlux",
+                        "psfFluxErr",
+                        "ra",
+                        "dec",
+                        "programid",
+                        "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                    )
+                },
+                "sort": {"candidate.jd": 1},
+                "limit": _SSO_HISTORY_LIMIT,
+            },
+        )
+    except Exception as e:
+        log(f"SSO history fetch failed for {designation}: {e}")
+        return []
+
+    # Overlapping ZTF fields can report the same epoch twice; dedupe on
+    # (jd, band, programid) so the photometry insert doesn't hit its own
+    # uniqueness constraint mid-batch.
+    prv, seen = [], set()
+    for doc in docs or []:
+        c = doc.get("candidate") or {}
+        if c.get("jd") is None or c.get("band") is None or c.get("psfFluxErr") is None:
+            continue
+        key = (c.get("jd"), c.get("band"), c.get("programid", 1))
+        if key in seen:
+            continue
+        seen.add(key)
+        prv.append(
+            {
+                "jd": c.get("jd"),
+                "band": c.get("band"),
+                "psfFlux": c.get("psfFlux"),
+                "psfFluxErr": c.get("psfFluxErr"),
+                "ra": c.get("ra"),
+                "dec": c.get("dec"),
+                "programid": c.get("programid", 1),
+                "ssmagnr": c.get("ssmagnr"),
+            }
+        )
+    return prv
+
+
 def _normalize_boom_alert(record):
     """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
     into the standard alert shape (``candidate`` + ``prv_candidates`` with
@@ -595,6 +670,7 @@ class BOOMBROKER(BrokerAPI):
         from ..utils.sso_ingest import (
             extract_designation,
             ingest_sso_alert,
+            sidereal_filter_ids,
             sso_filter_targets,
             sso_routing_for,
         )
@@ -675,6 +751,12 @@ class BOOMBROKER(BrokerAPI):
                     if sso_filter_ids
                     else None
                 )
+                # SSO-routed filters never take the sidereal path: a moving object
+                # keyed by sky position yields fixed-position photometry and single-
+                # point sources. Without a designation there is no identity to
+                # ingest, so those alerts are dropped rather than polluting the SSO
+                # group. Non-SSO filters the alert also passed still ingest normally.
+                sidereal_ids = sidereal_filter_ids(filter_ids, sso_filter_ids)
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
@@ -689,14 +771,18 @@ class BOOMBROKER(BrokerAPI):
                                 filter_ids=sso_filter_ids,
                                 passing_alert_id=record.get("candid"),
                                 annotations_by_filter_id=annotations_by_filter_id,
+                                # sync _request offloaded so it can't block the loop.
+                                fetch_history=lambda s, d: asyncio.to_thread(
+                                    _fetch_sso_history, broker, s, d
+                                ),
                             )
-                        else:
+                        elif sidereal_ids:
                             await save_object_as_candidate(
                                 data,
                                 survey,
                                 session,
                                 user,
-                                filter_ids,
+                                sidereal_ids,
                                 passing_alert_id=record.get("candid"),
                                 cutouts=cutouts,
                                 annotations_by_filter_id=annotations_by_filter_id,
@@ -705,7 +791,7 @@ class BOOMBROKER(BrokerAPI):
                             # ingested as a candidate, so we don't create orphan
                             # counterpart objs for alerts nobody is scanning. Moving
                             # objects are matched by designation, not position.
-                            if filter_ids and record.get("survey_matches"):
+                            if record.get("survey_matches"):
                                 await _ingest_survey_matches(
                                     broker,
                                     record,

@@ -175,6 +175,19 @@ def generic_serialize(row, columns):
     }
 
 
+def _add_predicted_mag_column(df):
+    """Flatten the per-point MPC ephemeris mag (stashed in ``altdata`` by the SSO
+    ingest) into a ``predicted_mag`` column so period-finding can detrend on
+    obs - predicted. Absent for non-SSO sources; the column is then all-None."""
+    if "altdata" in df.columns:
+        df["predicted_mag"] = df["altdata"].apply(
+            lambda a: a.get("predicted_mag") if isinstance(a, dict) else None
+        )
+    else:
+        df["predicted_mag"] = None
+    return df
+
+
 def deredden_photometry_df(df, ra, dec):
     """Deredden a photometry DataFrame for Galactic extinction, using the same
     SFD dust map + G23 law as the photometry plot (utils.extinction). Per filter
@@ -225,6 +238,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "limiting_mag",
                 "zp",
                 "instrument_name",
+                "predicted_mag",
             ],
             "id_attr": "obj_id",
         },
@@ -384,24 +398,39 @@ def post_analysis(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            session.scalars(
+                sa.select(SuperObj)
+                .options(selectinload(SuperObj.objs))
+                .where(SuperObj.objs.any(Obj.id == obj_id))
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             input_data = session.scalars(stmt).all()
             if input_type == "photometry":
                 input_data = [serialize(phot, "ab", "both") for phot in input_data]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None
@@ -653,19 +682,35 @@ async def post_analysis_async(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            (
+                await session.scalars(
+                    sa.select(SuperObj)
+                    .options(selectinload(SuperObj.objs))
+                    .where(SuperObj.objs.any(Obj.id == obj_id))
+                )
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             if input_type == "photometry":
                 stmt = stmt.options(joinedload(Photometry.instrument))
@@ -685,6 +730,7 @@ async def post_analysis_async(
                     for phot in input_data
                 ]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None

@@ -21,6 +21,7 @@ from skyportal.utils.sso_ingest import (
     designation_to_obj_id,
     extract_designation,
     ingest_sso_alert,
+    sidereal_filter_ids,
     sso_filter_targets,
     sso_routing_for,
     triggering_detection,
@@ -245,6 +246,18 @@ def test_sso_routing_splits_saving_from_scanning():
     assert sso_routing_for(None, targets) == ([], [])
 
 
+def test_sso_filters_excluded_from_sidereal_path():
+    """An SSO-routed filter must not pollute the SSO group via the sidereal path,
+    even when no designation is found; other filters it passed still ingest."""
+    # Passed an SSO filter (1) and a normal filter (99): only 99 goes sidereal.
+    assert sidereal_filter_ids([1, 99], [1]) == [99]
+    # SSO-only alert with no designation -> nothing takes the sidereal path.
+    assert sidereal_filter_ids([1, 2], [1, 2]) == []
+    assert sidereal_filter_ids(None, [1]) == []
+    # No SSO filters -> everything is sidereal, unchanged.
+    assert sidereal_filter_ids([5, 6], []) == [5, 6]
+
+
 def test_scanning_filter_makes_a_candidate_not_a_source(
     ztf_instrument, designation, public_group, public_stream, super_admin_user
 ):
@@ -390,6 +403,63 @@ def test_boom_alert_ingests_only_its_own_detection(
 
     obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
     assert obj.altdata["last_detection_jd"] == jd
+
+
+def test_backfills_full_history_on_first_sight(
+    ztf_instrument, ztf_stream, designation, public_group, super_admin_user
+):
+    """The first alert for a body backfills its whole light curve; later alerts
+    add only their own detection (no re-fetch)."""
+    obj_id = designation_to_obj_id(designation)
+
+    async def history(survey, desig):
+        # Three past detections, each under a different position-keyed objectId.
+        return [
+            {
+                "jd": 2459990.5 + i,
+                "band": "r",
+                "psfFlux": 1e10,
+                "psfFluxErr": 1e8,
+                "ra": 10.0,
+                "dec": 20.0,
+                "programid": 1,
+            }
+            for i in range(3)
+        ]
+
+    async def _run(data, **kw):
+        async with baselayer_models.async_plain_session_factory() as session:
+            user = await session.get(User, super_admin_user.id)
+            return await ingest_sso_alert(
+                data, "ZTF", session, user, designation, [public_group.id], **kw
+            )
+
+    # First alert: its own detection plus the three backfilled points.
+    asyncio.run(_run(alert(designation, 2460000.5, 10.0, 20.0), fetch_history=history))
+
+    session = DBSession()
+    session.expire_all()
+    phot = session.scalars(
+        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+    ).all()
+    assert len(phot) == 4
+
+    # A later alert must not re-backfill an existing object.
+    calls = []
+
+    async def history_again(survey, desig):
+        calls.append((survey, desig))
+        return []
+
+    asyncio.run(
+        _run(alert(designation, 2460005.5, 10.5, 20.4), fetch_history=history_again)
+    )
+    assert calls == []
+    session.expire_all()
+    phot = session.scalars(
+        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+    ).all()
+    assert len(phot) == 5
 
 
 def test_sso_fields_resolve_from_filter_annotations(
