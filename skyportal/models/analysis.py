@@ -655,8 +655,23 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
     transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
     yet visible to this fresh session and post_analysis fails with "Obj not found".
     """
+    import time
+
     from skyportal.handlers.api.analysis import post_analysis
-    from skyportal.models import User
+    from skyportal.models import Obj, User
+
+    # Wait for the just-saved obj to be visible: a broker-ingested obj is new in
+    # the still-uncommitted triggering transaction, so a fresh session can miss it.
+    for _ in range(20):
+        with DBSession() as probe:
+            if probe.scalar(sa.select(Obj.id).where(Obj.id == obj_id)) is not None:
+                break
+        time.sleep(0.5)
+    else:
+        log(
+            f"Default analysis {default_analysis_id}: obj {obj_id} never became visible"
+        )
+        return
 
     with DBSession() as db_session:
         try:
@@ -715,50 +730,61 @@ def create_default_analysis(mapper, connection, target):
     (by name + probability), within the per-day limit and a shared group."""
     log(f"Checking for default analyses for classification {target.id}")
 
-    @event.listens_for(inspect(target).session, "after_flush", once=True)
-    def receive_after_flush(session, context):
+    # Capture while the row is live; after_commit expires the target.
+    classification_id = target.id
+    obj_id = target.obj_id
+
+    # Dispatch after commit so the (possibly brand-new) obj is visible to the
+    # fresh analysis session — otherwise post_analysis fails with "Obj not found".
+    @event.listens_for(inspect(target).session, "after_commit", once=True)
+    def receive_after_commit(session):
         try:
             from skyportal.utils.asynchronous import run_async
 
-            target_data = target.to_dict()
-            stmt = sa.select(DefaultAnalysis).where(
-                DefaultAnalysis.source_filter["classifications"].contains(
-                    [{"name": target_data["classification"]}]
-                ),
-                _default_analysis_under_limit(),
-                # only those associated with a group the classification is in
-                DefaultAnalysis.groups.any(
-                    Group.id.in_([g.id for g in target_data["groups"]])
-                ),
-            )
-            for default_analysis in session.scalars(stmt).all():
-                classification_filter = next(
-                    (
-                        c
-                        for c in default_analysis.source_filter["classifications"]
-                        if c["name"] == target_data["classification"]
+            with DBSession() as ds:
+                classification = ds.get(Classification, classification_id)
+                if classification is None:
+                    return
+                name = classification.classification
+                probability = classification.probability
+                group_ids = [g.id for g in classification.groups]
+                stmt = sa.select(DefaultAnalysis).where(
+                    DefaultAnalysis.source_filter["classifications"].contains(
+                        [{"name": name}]
                     ),
-                    None,
+                    _default_analysis_under_limit(),
+                    # only those associated with a group the classification is in
+                    DefaultAnalysis.groups.any(Group.id.in_(group_ids)),
                 )
-                if (
-                    classification_filter is not None
-                    and classification_filter["probability"]
-                    <= target_data["probability"]
-                ):
-                    log(
-                        f"Creating default analysis {default_analysis.analysis_service.name} "
-                        f"for classification {target.id}"
+                for default_analysis in ds.scalars(stmt).all():
+                    classification_filter = next(
+                        (
+                            c
+                            for c in default_analysis.source_filter["classifications"]
+                            if c["name"] == name
+                        ),
+                        None,
                     )
-                    run_async(
-                        _run_default_analysis,
-                        default_analysis.id,
-                        default_analysis.author_id,
-                        target.obj_id,
-                        f"Default analysis {default_analysis.analysis_service.name} "
-                        f"triggered by classification {target_data['classification']}",
-                    )
+                    if (
+                        classification_filter is not None
+                        and classification_filter["probability"] <= probability
+                    ):
+                        log(
+                            f"Creating default analysis {default_analysis.analysis_service.name} "
+                            f"for classification {classification_id}"
+                        )
+                        run_async(
+                            _run_default_analysis,
+                            default_analysis.id,
+                            default_analysis.author_id,
+                            obj_id,
+                            f"Default analysis {default_analysis.analysis_service.name} "
+                            f"triggered by classification {name}",
+                        )
         except Exception as e:
-            log(f"Error creating default analyses on classification {target.id}: {e}")
+            log(
+                f"Error creating default analyses on classification {classification_id}: {e}"
+            )
 
 
 @event.listens_for(Source, "after_insert")
@@ -768,30 +794,35 @@ def create_default_analysis_on_save(mapper, connection, target):
     ``source_filter={"group_id": <id>}`` auto-fires here, mirroring
     DefaultFollowupRequest's save-to-group trigger."""
 
-    @event.listens_for(inspect(target).session, "after_flush", once=True)
-    def receive_after_flush(session, context):
+    # Capture while the row is live; after_commit expires the target.
+    obj_id = target.obj_id
+    group_id = target.group_id
+
+    # Dispatch after commit so the (possibly brand-new) obj is visible to the
+    # fresh analysis session — otherwise post_analysis fails with "Obj not found".
+    @event.listens_for(inspect(target).session, "after_commit", once=True)
+    def receive_after_commit(session):
         try:
             from skyportal.utils.asynchronous import run_async
 
-            target_data = target.to_dict()
-            group_id = target_data["group_id"]
             stmt = sa.select(DefaultAnalysis).where(
                 DefaultAnalysis.source_filter["group_id"].astext.cast(sa.Integer)
                 == group_id,
                 _default_analysis_under_limit(),
             )
-            for default_analysis in session.scalars(stmt).all():
-                log(
-                    f"Creating default analysis {default_analysis.analysis_service.name} "
-                    f"for source {target_data['obj_id']} saved to group {group_id}"
-                )
-                run_async(
-                    _run_default_analysis,
-                    default_analysis.id,
-                    default_analysis.author_id,
-                    target_data["obj_id"],
-                    f"Default analysis {default_analysis.analysis_service.name} "
-                    f"triggered by save to group {group_id}",
-                )
+            with DBSession() as ds:
+                for default_analysis in ds.scalars(stmt).all():
+                    log(
+                        f"Creating default analysis {default_analysis.analysis_service.name} "
+                        f"for source {obj_id} saved to group {group_id}"
+                    )
+                    run_async(
+                        _run_default_analysis,
+                        default_analysis.id,
+                        default_analysis.author_id,
+                        obj_id,
+                        f"Default analysis {default_analysis.analysis_service.name} "
+                        f"triggered by save to group {group_id}",
+                    )
         except Exception as e:
             log(f"Error creating default analyses on source save: {e}")
