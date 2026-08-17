@@ -60,6 +60,8 @@ class AMPELBROKER(BrokerAPI):
     (username/password, optional servers/group_id/topics) + ``filter_ids``.
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["LSST"]
     filter_kind = "tags"  # the Hopskotch topics are the science-tag menu
 

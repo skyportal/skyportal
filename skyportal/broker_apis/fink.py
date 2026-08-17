@@ -136,6 +136,8 @@ class FINKBROKER(BrokerAPI):
     science tags (e.g. ``fink_kn_candidates_ztf``).
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["ZTF", "LSST"]
 
     form_json_schema_config = {

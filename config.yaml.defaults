@@ -742,6 +742,11 @@ brokers:
   # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
 
+  # Number of broker_ingest OS processes. Process 0 runs every broker; extra
+  # processes run only providers whose ingestion is safe to replicate (Kafka
+  # consumer groups, which Kafka rebalances) so REST pollers aren't duplicated.
+  ingest_processes: 1
+
 # BOOM-specific settings. The filter builder's user-created modules (variables,
 # list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
 # skyportal's database. Point this at that store, or set the equivalent
