@@ -21,7 +21,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 interface CommentProps {
-  associatedResourceType?: string;
+  resourceType?: string;
   objID?: string | null;
   gcnEventID?: number | null;
   earthquakeID?: string | null;
@@ -39,7 +39,7 @@ interface CommentProps {
 }
 
 const Comment = ({
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   gcnEventID = null,
   earthquakeID = null,
@@ -69,12 +69,7 @@ const Comment = ({
       },
     );
 
-    if (
-      spectrum_id &&
-      objID &&
-      spectra &&
-      associatedResourceType === "object"
-    ) {
+    if (spectrum_id && objID && spectra && resourceType === "sources") {
       const spectrum = spectra.find((spec: any) => spec.id === spectrum_id);
       if (!spectrum) {
         return formattedText;
@@ -96,7 +91,7 @@ const Comment = ({
     );
 
   const commentMessageStyle =
-    associatedResourceType === "shift"
+    resourceType === "shift"
       ? styles["commentMessageShift"]
       : styles["commentMessage"];
 
@@ -147,30 +142,26 @@ const Comment = ({
             }}
           >
             <EditComment
-              {...({
-                associatedResourceType,
-                objID,
-                gcnEventID,
-                earthquakeID,
-                spectrum_id,
-                shiftID,
-                hoverID: isMobile ? id : hoverID,
-                id,
-                commentText: text,
-                attachmentName: attachment_name,
-              } as any)}
+              resourceType={resourceType}
+              objID={objID}
+              gcnEventID={gcnEventID}
+              earthquakeID={earthquakeID}
+              spectrum_id={spectrum_id}
+              shiftID={shiftID}
+              hoverID={isMobile ? id : hoverID}
+              id={id}
+              commentText={text ?? ""}
+              attachmentName={attachment_name ?? ""}
             />
             <DeleteComment
-              {...({
-                associatedResourceType,
-                objID,
-                gcnEventID,
-                earthquakeID,
-                spectrum_id,
-                shiftID,
-                hoverID: isMobile ? id : hoverID,
-                id,
-              } as any)}
+              resourceType={resourceType}
+              objID={objID}
+              gcnEventID={gcnEventID}
+              earthquakeID={earthquakeID}
+              spectrum_id={spectrum_id}
+              shiftID={shiftID}
+              hoverID={isMobile ? id : hoverID}
+              id={id}
             />
           </div>
         </div>
@@ -189,37 +180,36 @@ const Comment = ({
         </div>
         <span>
           {attachment_name &&
-            (associatedResourceType === "object" ||
-              associatedResourceType === "spectra") && (
+            (resourceType === "sources" || resourceType === "spectra") && (
               <CommentAttachmentPreview
                 filename={attachment_name}
                 objectID={spectrum_id || objID}
                 commentId={id}
-                associatedResourceType={spectrum_id ? "spectra" : "sources"}
+                resourceType={spectrum_id ? "spectra" : "sources"}
               />
             )}
-          {attachment_name && associatedResourceType === "gcn_event" && (
+          {attachment_name && resourceType === "gcn_event" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               gcnEventID={gcnEventID}
               commentId={id}
-              associatedResourceType="gcn_event"
+              resourceType="gcn_event"
             />
           )}
-          {attachment_name && associatedResourceType === "shift" && (
+          {attachment_name && resourceType === "shift" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               shiftID={shiftID}
               commentId={id}
-              associatedResourceType="shift"
+              resourceType="shift"
             />
           )}
-          {attachment_name && associatedResourceType === "earthquake" && (
+          {attachment_name && resourceType === "earthquake" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               earthquakeID={earthquakeID}
               commentId={id}
-              associatedResourceType="earthquake"
+              resourceType="earthquake"
             />
           )}
         </span>

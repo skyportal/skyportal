@@ -62,7 +62,7 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import SourceChat, { useSourceChat } from "./SourceChat";
+import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -266,7 +266,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
-  const sourceChat = useSourceChat();
+  const commentPanel = useCommentPanel();
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
     useState(false);
@@ -447,7 +447,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </Accordion>
         </Grid>
       )}
-      {!isReadOnly && sourceChat.inline && (
+      {!isReadOnly && commentPanel.inline && (
         <Grid
           size={{ xs: 12, lg: 6 }}
           sx={{
@@ -458,9 +458,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
             },
           }}
         >
-          <SourceChat
+          <CommentPanel
             target={{ type: "source", id: source.id }}
-            {...sourceChat}
+            {...commentPanel}
           />
         </Grid>
       )}
@@ -1658,10 +1658,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
           t0={source.t0}
         />
       </Grid>
-      {!isReadOnly && !sourceChat.inline && (
-        <SourceChat
+      {!isReadOnly && !commentPanel.inline && (
+        <CommentPanel
           target={{ type: "source", id: source.id }}
-          {...sourceChat}
+          {...commentPanel}
         />
       )}
     </Grid>

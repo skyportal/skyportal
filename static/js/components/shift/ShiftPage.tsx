@@ -17,7 +17,7 @@ import ManageRecurringShifts from "./ManageRecurringShifts";
 import { useGetShiftsQuery, useGetShiftQuery } from "../../ducks/shifts";
 import { useIsReadOnly } from "../../ducks/profile";
 
-const CommentList = React.lazy(() => import("../comment/CommentList"));
+const CommentThread = React.lazy(() => import("../comment/CommentThread"));
 
 const useStyles = makeStyles()((theme) => ({
   paperContent: {
@@ -230,8 +230,8 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             <Paper>
               <div className={classes.comments}>
                 <Suspense fallback={<CircularProgress />}>
-                  <CommentList
-                    associatedResourceType="shift"
+                  <CommentThread
+                    resourceType="shift"
                     shiftID={currentShift?.id}
                     maxHeightList="350px"
                   />

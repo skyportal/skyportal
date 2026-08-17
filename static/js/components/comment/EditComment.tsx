@@ -8,16 +8,18 @@ import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Button from "../Button";
-import CommentEntry from "./CommentEntry";
+import CommentForm from "./CommentForm";
 
 import { useEditCommentMutation } from "../../ducks/source";
 import { useEditCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
 import { useEditCommentOnShiftMutation } from "../../ducks/shifts";
+import { useEditCommentOnEarthquakeMutation } from "../../ducks/earthquake";
 
 interface EditCommentProps {
-  associatedResourceType?: string;
+  resourceType?: string;
   objID?: string | null;
   gcnEventID?: string | number | null;
+  earthquakeID?: string | null;
   spectrum_id?: string | null;
   id?: string | number | null;
   hoverID?: number | null;
@@ -27,9 +29,10 @@ interface EditCommentProps {
 }
 
 const EditComment = ({
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   gcnEventID = null,
+  earthquakeID = null,
   spectrum_id = null,
   id = null,
   hoverID = null,
@@ -40,56 +43,41 @@ const EditComment = ({
   const [editCommentMutation] = useEditCommentMutation();
   const [editCommentOnShiftMutation] = useEditCommentOnShiftMutation();
   const [editCommentOnGcnEventMutation] = useEditCommentOnGcnEventMutation();
+  const [editCommentOnEarthquakeMutation] =
+    useEditCommentOnEarthquakeMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const closeDialog = () => {
     setDialogOpen(false);
   };
 
-  const editCommentOnObject = (
-    sourceID: any,
-    commentID: any,
-    formData: any,
-  ) => {
-    formData.obj_id = sourceID;
-    editCommentMutation({ commentID, formData });
-  };
-
-  const editCommentOnSpectrum = (
-    spectrumID: any,
-    commentID: any,
-    formData: any,
-  ) => {
-    formData.spectrum_id = spectrumID;
-    editCommentMutation({ commentID, formData });
-  };
-
-  const editCommentOnGcnEvent = (gcnID: any, commentID: any, formData: any) => {
-    editCommentOnGcnEventMutation({
-      commentID,
-      gcnEventID: gcnID,
-      formData,
-    });
-  };
-
-  const editCommentOnShift = (shift_id: any, commentID: any, formData: any) => {
-    formData.shift_id = shift_id;
-    editCommentOnShiftMutation({ commentID, formData });
-  };
-
-  const editComment = (data: any) => {
-    switch (associatedResourceType) {
-      case "object":
-        editCommentOnObject(objID, id, data);
+  const editComment = (formData: any) => {
+    switch (resourceType) {
+      case "sources":
+        formData.obj_id = objID;
+        editCommentMutation({ commentID: id!, formData });
         break;
-      case "spectrum":
-        editCommentOnSpectrum(spectrum_id, id, data);
+      case "spectra":
+        formData.spectrum_id = spectrum_id;
+        editCommentMutation({ commentID: id!, formData });
         break;
       case "gcn_event":
-        editCommentOnGcnEvent(gcnEventID, id, data);
+        editCommentOnGcnEventMutation({
+          commentID: id!,
+          gcnEventID: gcnEventID!,
+          formData,
+        });
         break;
       case "shift":
-        editCommentOnShift(shiftID, id, data);
+        formData.shift_id = shiftID;
+        editCommentOnShiftMutation({ commentID: id!, formData });
+        break;
+      case "earthquake":
+        editCommentOnEarthquakeMutation({
+          commentID: id!,
+          earthquakeID: earthquakeID!,
+          formData,
+        });
         break;
       default:
         break;
@@ -118,7 +106,7 @@ const EditComment = ({
         <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
           <DialogTitle>Edit comment</DialogTitle>
           <DialogContent dividers>
-            <CommentEntry
+            <CommentForm
               editComment={editComment}
               commentText={commentText}
               attachmentName={attachmentName}

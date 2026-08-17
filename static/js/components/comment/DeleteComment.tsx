@@ -8,11 +8,13 @@ import {
 } from "../../ducks/source";
 import { useDeleteCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
 import { useDeleteCommentOnShiftMutation } from "../../ducks/shifts";
+import { useDeleteCommentOnEarthquakeMutation } from "../../ducks/earthquake";
 
 interface DeleteCommentProps {
-  associatedResourceType?: string;
+  resourceType?: string;
   objID?: string | null;
   gcnEventID?: string | number | null;
+  earthquakeID?: string | null;
   spectrum_id?: string | null;
   id?: string | number | null;
   hoverID?: number | null;
@@ -20,67 +22,38 @@ interface DeleteCommentProps {
 }
 
 const DeleteComment = ({
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   gcnEventID = null,
+  earthquakeID = null,
   spectrum_id = null,
   id = null,
   hoverID = null,
   shiftID = null,
 }: DeleteCommentProps) => {
-  const [deleteCommentMutation] = useDeleteCommentMutation();
-  const [deleteCommentOnSpectrumMutation] =
-    useDeleteCommentOnSpectrumMutation();
-  const [deleteCommentOnShiftMutation] = useDeleteCommentOnShiftMutation();
-  const [deleteCommentOnGcnEventMutation] =
-    useDeleteCommentOnGcnEventMutation();
-  const deleteCommentOnObject = (
-    sourceID: string | null,
-    commentID: string | number | null,
-  ) => {
-    deleteCommentMutation({ sourceID: sourceID!, commentID: commentID! });
-  };
+  const [deleteComment] = useDeleteCommentMutation();
+  const [deleteCommentOnSpectrum] = useDeleteCommentOnSpectrumMutation();
+  const [deleteCommentOnShift] = useDeleteCommentOnShiftMutation();
+  const [deleteCommentOnGcnEvent] = useDeleteCommentOnGcnEventMutation();
+  const [deleteCommentOnEarthquake] = useDeleteCommentOnEarthquakeMutation();
 
-  const deleteCommentOnSpectrum = (
-    commentSpectrumID: string | null,
-    commentID: string | number | null,
-  ) => {
-    deleteCommentOnSpectrumMutation({
-      spectrumID: commentSpectrumID!,
-      commentID: commentID!,
-    });
-  };
-
-  const deleteCommentOnGcnEvent = (
-    gcnID: string | number | null,
-    commentID: string | number | null,
-  ) => {
-    deleteCommentOnGcnEventMutation({
-      gcnEventID: gcnID!,
-      commentID: commentID!,
-    });
-  };
-
-  const deleteCommentOnShift = (
-    shift_id: number | null,
-    commentID: string | number | null,
-  ) => {
-    deleteCommentOnShiftMutation({ shiftID: shift_id!, commentID: commentID! });
-  };
-
-  const deleteComment = (resourceType: string) => {
+  const onDelete = () => {
+    const commentID = id!;
     switch (resourceType) {
-      case "object":
-        deleteCommentOnObject(objID, id);
+      case "sources":
+        deleteComment({ sourceID: objID!, commentID });
         break;
-      case "spectrum":
-        deleteCommentOnSpectrum(spectrum_id, id);
+      case "spectra":
+        deleteCommentOnSpectrum({ spectrumID: spectrum_id!, commentID });
         break;
       case "gcn_event":
-        deleteCommentOnGcnEvent(gcnEventID, id);
+        deleteCommentOnGcnEvent({ gcnEventID: gcnEventID!, commentID });
         break;
       case "shift":
-        deleteCommentOnShift(shiftID, id);
+        deleteCommentOnShift({ shiftID: shiftID!, commentID });
+        break;
+      case "earthquake":
+        deleteCommentOnEarthquake({ earthquakeID: earthquakeID!, commentID });
         break;
       default:
         break;
@@ -93,7 +66,7 @@ const DeleteComment = ({
         size="small"
         type="button"
         name={`deleteCommentButton${id}`}
-        onClick={() => deleteComment(associatedResourceType)}
+        onClick={onDelete}
         className="commentDelete"
         sx={{
           padding: "0.125rem",

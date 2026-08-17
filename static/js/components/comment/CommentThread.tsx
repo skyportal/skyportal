@@ -34,7 +34,7 @@ import {
   useAddCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
 
-import CommentEntry from "./CommentEntry";
+import CommentForm from "./CommentForm";
 import Comment from "./Comment";
 
 dayjs.extend(relativeTime);
@@ -183,14 +183,14 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface CommentListProps {
+interface CommentThreadProps {
   isCandidate?: boolean;
   objID?: string | null;
   gcnEventID?: number | null;
   gcnEventDateobs?: string | null;
   earthquakeID?: string | null;
   earthquakeEventID?: string | null;
-  associatedResourceType?: string;
+  resourceType?: string;
   spectrumID?: number | null;
   shiftID?: number | null;
   includeCommentsOnAllResourceTypes?: boolean;
@@ -199,9 +199,9 @@ interface CommentListProps {
   channel?: string | undefined;
 }
 
-const CommentList = ({
+const CommentThread = ({
   isCandidate = false,
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   spectrumID = null,
   gcnEventID = null,
@@ -212,7 +212,7 @@ const CommentList = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList,
   channel,
-}: CommentListProps) => {
+}: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
 
@@ -281,40 +281,43 @@ const CommentList = ({
     earthquakeID = earthquake.id;
   }
 
+  const resourceID: Record<string, any> = {
+    sources: objID,
+    spectra: objID,
+    gcn_event: gcnEventID,
+    shift: shiftID,
+    earthquake: earthquakeID,
+  };
+
   const addComment = (formData: any) => {
-    addCommentMutation({
-      obj_id: objID,
-      spectrum_id: spectrumID,
-      channel,
-      ...formData,
-    });
-  };
-
-  const addGcnEventComment = (formData: any) => {
-    addCommentOnGcnEvent({
-      gcnevent_id: gcnEventID,
-      ...formData,
-    });
-  };
-
-  const addEarthquakeComment = (formData: any) => {
-    addCommentOnEarthquake({
-      earthquake_id: earthquakeID,
-      ...formData,
-    });
-  };
-
-  const addShiftComment = (formData: any) => {
-    addCommentOnShift({
-      shiftID,
-      ...formData,
-    });
+    switch (resourceType) {
+      case "sources":
+      case "spectra":
+        addCommentMutation({
+          obj_id: objID,
+          spectrum_id: spectrumID,
+          channel,
+          ...formData,
+        });
+        break;
+      case "gcn_event":
+        addCommentOnGcnEvent({ gcnevent_id: gcnEventID, ...formData });
+        break;
+      case "shift":
+        addCommentOnShift({ shiftID, ...formData });
+        break;
+      case "earthquake":
+        addCommentOnEarthquake({ earthquake_id: earthquakeID, ...formData });
+        break;
+      default:
+        break;
+    }
   };
 
   let comments: any = null;
   let specComments: any = null;
 
-  if (associatedResourceType === "object") {
+  if (resourceType === "sources") {
     comments = channel ? (conversation ?? []) : obj?.comments;
     if (
       includeCommentsOnAllResourceTypes &&
@@ -327,23 +330,23 @@ const CommentList = ({
       comments = specComments.concat(comments);
       comments.sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1));
     }
-  } else if (associatedResourceType === "spectra") {
+  } else if (resourceType === "spectra") {
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
     const spectrum = spectra?.find((spec: any) => spec.id === spectrumID);
     comments = spectrum?.comments;
-  } else if (associatedResourceType === "gcn_event") {
+  } else if (resourceType === "gcn_event") {
     if (gcnEventID === null) {
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
     comments = gcnEvent?.comments;
-  } else if (associatedResourceType === "shift") {
+  } else if (resourceType === "shift") {
     if (shiftID === null) {
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
-  } else if (associatedResourceType === "earthquake") {
+  } else if (resourceType === "earthquake") {
     if (earthquakeID === null) {
       throw new Error(
         "Must specify an earthquakeID for comments on earthquake",
@@ -351,7 +354,7 @@ const CommentList = ({
     }
     comments = earthquake?.comments;
   } else {
-    throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
+    throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
   comments = comments || [];
@@ -403,7 +406,7 @@ const CommentList = ({
             attachment_name,
             groups,
             spectrum_id,
-            resourceType,
+            resourceType: commentResourceType,
             obj_id,
             bot,
           }: any) => (
@@ -435,7 +438,12 @@ const CommentList = ({
                 </Tooltip>
               )}
               <Comment
-                associatedResourceType={resourceType}
+                // Spectra comments are merged into the source thread, so the
+                // type comes from the comment itself when the API sends it.
+                resourceType={
+                  commentResourceType ??
+                  (spectrum_id ? "spectra" : resourceType)
+                }
                 bot={bot}
                 styles={bot ? botStyles : styles}
                 id={id}
@@ -471,29 +479,11 @@ const CommentList = ({
           />
         </div>
       )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        objID &&
-        (associatedResourceType === "object" ||
-          associatedResourceType === "spectra") && (
-          <CommentEntry addComment={addComment} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        gcnEventID &&
-        associatedResourceType === "gcn_event" && (
-          <CommentEntry addComment={addGcnEventComment} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        shiftID &&
-        associatedResourceType === "shift" && (
-          <CommentEntry addComment={addShiftComment} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        earthquakeID &&
-        associatedResourceType === "earthquake" && (
-          <CommentEntry addComment={addEarthquakeComment} />
-        )}
+      {permissions?.includes("Comment") && resourceID[resourceType] && (
+        <CommentForm addComment={addComment} />
+      )}
     </div>
   );
 };
 
-export default CommentList;
+export default CommentThread;

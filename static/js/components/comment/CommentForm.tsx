@@ -59,7 +59,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface CommentEntryProps {
+interface CommentComposerProps {
   addComment?: ((...a: any[]) => void) | null;
   editComment?: ((...a: any[]) => void) | null;
   commentText?: string;
@@ -67,13 +67,13 @@ interface CommentEntryProps {
   closeDialog?: (() => void) | null;
 }
 
-const CommentEntry = ({
+const CommentForm = ({
   addComment = null,
   editComment = null,
   commentText = "",
   attachmentName = "",
   closeDialog = null,
-}: CommentEntryProps) => {
+}: CommentComposerProps) => {
   const { classes: styles } = useStyles();
   const users = useGetUsersQuery().data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
@@ -469,4 +469,4 @@ const CommentEntry = ({
   );
 };
 
-export default CommentEntry;
+export default CommentForm;

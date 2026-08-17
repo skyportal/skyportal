@@ -27,7 +27,7 @@ import Button from "../Button";
 import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
-import CommentList from "../comment/CommentList";
+import CommentThread from "../comment/CommentThread";
 import AnnotationsTable from "./AnnotationsTable";
 import { getSpectrumFilename } from "./spectrumFilename";
 import SyntheticPhotometryForm from "../photometry/SyntheticPhotometryForm";
@@ -255,8 +255,8 @@ const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
           <Paper style={{ padding: "0.5rem" }}>
             <Typography variant="h6">Comments</Typography>
             <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                associatedResourceType="spectra"
+              <CommentThread
+                resourceType="spectra"
                 objID={route.id}
                 spectrumID={spectrumID}
                 maxHeightList="350px"

@@ -33,7 +33,7 @@ import Spinner from "../Spinner";
 import ObservationPlanRequestForm from "../observation_plan/ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "../observation_plan/ObservationPlanRequestLists";
 
-import SourceChat from "../source/SourceChat";
+import CommentPanel from "../comment/CommentPanel";
 import DisplayGraceDB from "./DisplayGraceDB";
 import GcnAdvocates from "./GcnAdvocates";
 import GcnAliases from "./GcnAliases";
@@ -493,7 +493,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
           </div>
         </Drawer>
       </React.Fragment>
-      <SourceChat
+      <CommentPanel
         target={{ type: "gcn_event", id: gcnEvent.id, dateobs }}
         inline={false}
         open={chatOpen}

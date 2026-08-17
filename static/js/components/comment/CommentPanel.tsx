@@ -23,7 +23,7 @@ import {
   useGetConversationsQuery,
 } from "../../ducks/source";
 
-const CommentList = lazy(() => import("../comment/CommentList"));
+const CommentThread = lazy(() => import("../comment/CommentThread"));
 
 const MAIN_CHANNEL = "Comments";
 const INLINE_KEY = "sourceChatInline";
@@ -68,7 +68,7 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "space-between",
     padding: theme.spacing(1, 1, 0, 2),
   },
-  sourceName: {
+  targetName: {
     lineHeight: "1em",
     fontWeight: 900,
     color:
@@ -106,8 +106,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// Inline mode is the default, kept as a user preference across all source pages.
-export const useSourceChat = () => {
+export const useCommentPanel = () => {
   const [inline, setInline] = useState(
     () => window.localStorage.getItem(INLINE_KEY) !== "false",
   );
@@ -122,25 +121,25 @@ export const useSourceChat = () => {
   return { inline, open, setOpen, toggleInline };
 };
 
-export type ChatTarget =
+export type CommentTarget =
   | { type: "source"; id: string }
   | { type: "gcn_event"; id: number; dateobs: string };
 
-interface SourceChatProps {
-  target: ChatTarget;
+interface CommentPanelProps {
+  target: CommentTarget;
   inline: boolean;
   open: boolean;
   setOpen: (open: boolean) => void;
   toggleInline?: () => void;
 }
 
-const SourceChat = ({
+const CommentPanel = ({
   target,
   inline,
   open,
   setOpen,
   toggleInline,
-}: SourceChatProps) => {
+}: CommentPanelProps) => {
   const { classes } = useStyles();
   const [channel, setChannel] = useState<string>(MAIN_CHANNEL);
   const [newChannel, setNewChannel] = useState<string | null>(null);
@@ -207,7 +206,7 @@ const SourceChat = ({
     >
       {!inline && (
         <div className={classes.header}>
-          <Typography variant="h6" className={classes.sourceName}>
+          <Typography variant="h6" className={classes.targetName}>
             {target.type === "source"
               ? target.id
               : dayjs(target.dateobs).format("YYMMDD HH:mm:ss")}
@@ -291,14 +290,14 @@ const SourceChat = ({
           }
         >
           {target.type === "source" ? (
-            <CommentList
+            <CommentThread
               key={channel}
               objID={target.id}
               channel={channel === MAIN_CHANNEL ? undefined : channel}
             />
           ) : (
-            <CommentList
-              associatedResourceType="gcn_event"
+            <CommentThread
+              resourceType="gcn_event"
               gcnEventID={target.id}
               gcnEventDateobs={target.dateobs}
             />
@@ -330,4 +329,4 @@ const SourceChat = ({
   );
 };
 
-export default SourceChat;
+export default CommentPanel;
