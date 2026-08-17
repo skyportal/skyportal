@@ -473,6 +473,8 @@ class BOOMBROKER(BrokerAPI):
     "username", "password", "survey"}``.
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["ZTF", "LSST"]
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
@@ -662,33 +664,22 @@ class BOOMBROKER(BrokerAPI):
         import asyncio
 
         import sqlalchemy as sa
-        from confluent_kafka import Consumer, KafkaError
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import Filter, User
-        from ..utils.sso_ingest import (
-            extract_designation,
-            ingest_sso_alert,
-            sidereal_filter_ids,
-            sso_filter_targets,
-            sso_routing_for,
-        )
-        from ._kafka import kafka_consumer_config, read_avro
-        from ._save import save_object_as_candidate
+        from ..models import Filter
+        from ..utils.sso_ingest import sso_filter_targets
 
         altdata = broker.altdata or {}
         kafka = altdata.get("kafka") or {}
         default_filter_ids = altdata.get("filter_ids") or []
-
-        consumer = Consumer(
-            kafka_consumer_config(kafka, f"skyportal-broker-{broker.id}")
-        )
         topics = kafka.get("topics") or ["ZTF_alerts_results", "LSST_alerts_results"]
-        consumer.subscribe(topics)
-        log(f"BOOM ingestion (broker {broker.id}): subscribed to {topics}")
+        # kafka_consumer_config prefers altdata's group_id; match it so the log
+        # and the actual Kafka group agree.
+        group_id = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
 
-        # Map BOOM filter ids -> skyportal Filter ids once at startup.
+        # Map BOOM filter ids -> skyportal Filter ids once at startup (shared,
+        # read-only across the consumers below).
         async with async_plain_session_factory() as session:
             boom_map = {}
             filters = (await session.scalars(sa.select(Filter))).all()
@@ -700,10 +691,72 @@ class BOOMBROKER(BrokerAPI):
             # solar-system ingest instead of the sidereal one.
             sso_targets = sso_filter_targets(filters)
 
+        # N consumers sharing one group id; Kafka rebalances partitions across
+        # them. Defaults to 1.
+        num_consumers = max(1, int(kafka.get("num_consumers", 1)))
+        log(
+            f"BOOM ingestion (broker {broker.id}): {num_consumers} consumer(s) "
+            f"in group {group_id}, topics {topics}"
+        )
+        # TaskGroup so one consumer crashing cancels its siblings, not orphans them.
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(
+                    BOOMBROKER._consume_stream(
+                        broker,
+                        kafka,
+                        topics,
+                        group_id,
+                        boom_map,
+                        sso_targets,
+                        default_filter_ids,
+                        stop,
+                        max_messages,
+                    )
+                )
+                for _ in range(num_consumers)
+            ]
+        total = sum(t.result() for t in tasks)
+        log(f"BOOM ingestion (broker {broker.id}): consumed {total} alerts")
+        return total
+
+    @staticmethod
+    async def _consume_stream(
+        broker,
+        kafka,
+        topics,
+        group_id,
+        boom_map,
+        sso_targets,
+        default_filter_ids,
+        stop,
+        max_messages,
+    ):
+        """One Kafka consumer's poll/ingest loop. Consumers sharing ``group_id``
+        have Kafka rebalance the topic partitions across them."""
+        import asyncio
+
+        import sqlalchemy as sa
+        from confluent_kafka import Consumer, KafkaError
+
+        from baselayer.app.models import async_plain_session_factory
+
+        from ..models import User
+        from ..utils.sso_ingest import (
+            extract_designation,
+            ingest_sso_alert,
+            sidereal_filter_ids,
+            sso_routing_for,
+        )
+        from ._kafka import kafka_consumer_config, read_avro
+        from ._save import save_object_as_candidate
+
+        consumer = Consumer(kafka_consumer_config(kafka, group_id))
+        consumer.subscribe(topics)
         count = 0
         try:
             while not (stop is not None and stop.is_set()):
-                # poll is blocking; offload so one loop can host several brokers.
+                # poll is blocking; offload so one loop can host several consumers.
                 msg = await asyncio.to_thread(consumer.poll, 2.0)
                 if msg is None:
                     continue

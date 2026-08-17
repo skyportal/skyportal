@@ -66,6 +66,11 @@ class BrokerAPI(_Base):
     instance) plus a DB ``session`` and operation-specific keyword arguments.
     """
 
+    # Safe to run in multiple broker_ingest processes at once? True only for
+    # providers that consume via a shared Kafka consumer group (Kafka rebalances
+    # partitions across them); False for REST pollers, which would duplicate.
+    parallel_ingestion = False
+
     # ------------------------------------------------------------------ #
     # Interactive operations (skyportal -> broker)                       #
     # ------------------------------------------------------------------ #
