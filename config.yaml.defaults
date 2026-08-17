@@ -8,6 +8,34 @@ app:
     <a href="https://github.com/skyportal/skyportal">
       https://github.com/skyportal/skyportal
     </a>
+  # Sign-in buttons on the login page, one per auth provider (zero or more).
+  # `url` is the provider's login route, as registered by the auth backend.
+  login_buttons:
+    - url: /login/google-oauth2
+      image: /static/images/btn_google_signin_dark_normal_web.png
+      alt_text: Click this image to log in
+
+  # Copy for the About page; `title` above supplies the platform name.
+  about:
+    description: >-
+      SkyPortal is an open source codebase that serves as a dynamic
+      collaborative platform for time-domain astronomy. It is being jointly
+      developed at Caltech, UC Berkeley, the University of Minnesota, and
+      Université Paris-Saclay.
+    homepage_url: https://skyportal.io
+    docs_url: https://skyportal.io/docs/
+    api_docs_url: https://skyportal.io/docs/api.html
+    repository_url: https://github.com/skyportal/skyportal
+    funding: >-
+      SkyPortal development is funded by the Moore Foundation, Heising Simons
+      Foundation, National Science Foundation, NASA and the Packard Foundation.
+    # Paragraphs added after the description (zero or more). In `text`, a
+    # {Name} placeholder becomes a link to the matching entry in `links`.
+    extra_paragraphs: []
+    # Repositories whose pull requests are linked above the changelog.
+    changelog_repositories:
+      - name: https://github.com/skyportal/skyportal/pulls
+        url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a

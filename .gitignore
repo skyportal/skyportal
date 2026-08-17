@@ -38,6 +38,7 @@ static/js/components/templates/SidebarAndHeader.tsx
 static/js/components/templates/HeaderContent.tsx
 static/js/components/templates/HomePage.tsx
 static/js/components/templates/HoursBelowAirmassPlot.tsx
+static/js/components/templates/AboutPlugins.tsx
 static/login.html
 static/loginerror.html
 static/index.html
