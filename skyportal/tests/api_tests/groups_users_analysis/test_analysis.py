@@ -887,8 +887,9 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
         status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
         assert status == 200
         assert data["data"]["status"] != "queued"
+        return data["data"]["status"]
 
-    retry_until(analysis_done, timeout=100)
+    analysis_status = retry_until(analysis_done, timeout=100)
 
     # get the analysis associated with the
     # analysis service
