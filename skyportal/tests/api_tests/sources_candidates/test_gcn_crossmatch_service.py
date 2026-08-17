@@ -76,6 +76,15 @@ def _post_event(token, group_ids, ra, dec):
 
 
 @pytest.fixture()
+def crossmatch_event(super_admin_token, public_group2):
+    """Deleted afterwards: run_cycle walks every recent event and loads its skymap."""
+    ra, dec = _unique_position()
+    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    yield dateobs, trigger_id, ra, dec
+    api("DELETE", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token)
+
+
+@pytest.fixture()
 def crossmatch_filter(public_group, broker):
     """A filter opted into the crossmatch.
 
@@ -141,11 +150,13 @@ def _alert(object_id, ra, dec, jd):
 
 
 def test_crossmatch_saves_only_contained_in_window_alerts(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """Only alerts inside the localization *and* inside the epoch window are saved."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -178,15 +189,17 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
 
 
 def test_crossmatch_passes_event_groups_and_epoch_window(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """Saves inherit the event's groups, and the broker is given the epoch window.
 
     The group assertion is the security-relevant one: a restricted event's
     matches must not be saved into wider groups than the event itself.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -216,11 +229,13 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
 
 def test_crossmatch_records_state_and_annotation(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A match leaves per-broker state and an event-relative annotation behind."""
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -319,7 +334,10 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
 
 
 def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """When the broker supports filters, cuts run server-side as a pipeline.
 
@@ -327,8 +345,7 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
     artifacts and asteroids are rejected by the broker rather than transferred
     and discarded here. query_alerts must not be used in this case.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -375,11 +392,13 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
 
 
 def test_annotation_carries_alert_quality_fields(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """The annotation exposes the columns reviewers triage on."""
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -436,7 +455,10 @@ def test_annotation_carries_alert_quality_fields(
 
 
 def test_archival_match_flags_prior_activity_and_survives_forward_pass(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A pre-event detection marks the candidate, and a later match keeps the mark.
 
@@ -444,8 +466,7 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
     would overwrite the archival entry and erase the very fact that rules the
     candidate out.
     """
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -493,15 +514,17 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
 
 
 def test_match_creates_candidate_not_source(
-    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
+    crossmatch_filter,
+    crossmatch_event,
+    broker,
+    monkeypatch,
 ):
     """With a filter configured, a match becomes a scannable Candidate only.
 
     The Obj and Candidate put it on the scanning page; no Source is created,
     so it stays a suggestion until a human saves it.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -535,11 +558,13 @@ def test_match_creates_candidate_not_source(
 
 
 def test_candidate_creation_is_idempotent(
-    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
+    crossmatch_filter,
+    crossmatch_event,
+    broker,
+    monkeypatch,
 ):
     """Re-running must not pile up duplicate candidates for the same epoch."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -570,7 +595,10 @@ def test_candidate_creation_is_idempotent(
 
 
 def test_filter_only_runs_against_matching_events(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A filter scoped by gcn_tags skips events that do not carry one.
 
@@ -580,8 +608,7 @@ def test_filter_only_runs_against_matching_events(
     """
     # capture before opening other sessions: the fixture instance detaches
     filter_id = crossmatch_filter.id
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     alert_jd = Time(dateobs).jd + 0.5
 
     # the event above carries ["TEST"]; scope the filter to something else
@@ -659,17 +686,15 @@ def _stub_provider_with_photometry(monkeypatch, alerts, saved, ra, dec, history)
 
 
 def test_crossmatch_ingests_photometry_for_a_match(
-    super_admin_token,
-    public_group2,
     broker,
     crossmatch_filter,
+    crossmatch_event,
     ztf_instrument,
     monkeypatch,
 ):
     """A scanner judges a candidate on its light curve, so the match must bring
     one: the crossmatch query itself returns no detection history."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     event_jd = float(Time(dateobs).jd)
 
     obj_id = _unique_id("XM_phot")
@@ -711,16 +736,14 @@ def test_crossmatch_ingests_photometry_for_a_match(
 
 
 def test_crossmatch_keeps_the_match_when_photometry_fails(
-    super_admin_token,
-    public_group2,
     broker,
     crossmatch_filter,
+    crossmatch_event,
     ztf_instrument,
     monkeypatch,
 ):
     """A broker that cannot serve the history must not cost us the match."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     event_jd = float(Time(dateobs).jd)
 
     obj_id = _unique_id("XM_nophot")
