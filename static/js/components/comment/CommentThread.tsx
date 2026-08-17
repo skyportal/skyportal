@@ -8,6 +8,8 @@ import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 
+import ReactMarkdown from "react-markdown";
+
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -62,6 +64,23 @@ const useStyles = makeStyles()((theme) => ({
     },
     "& .MuiCheckbox-root": {
       padding: "0.125rem",
+    },
+  },
+  systemComment: {
+    textAlign: "center",
+    color: theme.palette.text.secondary,
+    fontSize: "0.75rem",
+    fontStyle: "italic",
+    padding: "0.4rem 0.5rem",
+    "& > p": {
+      margin: 0,
+    },
+    "& strong": {
+      color: theme.palette.text.primary,
+      fontStyle: "normal",
+    },
+    "& strong:first-of-type": {
+      color: "#76aace",
     },
   },
   panelEmpty: {
@@ -197,6 +216,7 @@ interface CommentThreadProps {
   // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
+  pinned?: boolean;
 }
 
 const CommentThread = ({
@@ -212,6 +232,7 @@ const CommentThread = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList,
   channel,
+  pinned = false,
 }: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
@@ -392,7 +413,7 @@ const CommentThread = ({
       >
         {comments.length === 0 && (
           <div className={styles.panelEmpty}>
-            {channel
+            {channel && !pinned
               ? "This conversation is only kept once a message is sent."
               : "No comment yet."}
           </div>
@@ -409,58 +430,69 @@ const CommentThread = ({
             resourceType: commentResourceType,
             obj_id,
             bot,
-          }: any) => (
-            <span
-              id="comment"
-              key={(spectrum_id ? "Spectrum" : "Source") + id}
-              className={cx(commentStyle, bot && styles.botComment)}
-              onMouseOver={() =>
-                handleMouseHover(id, userProfile, author.username)
-              }
-              onMouseOut={() => handleMouseLeave()}
-              onFocus={() => handleMouseHover(id, userProfile, author.username)}
-              onBlur={() => handleMouseLeave()}
-            >
-              {/* Meta-object provenance: comment aggregated from a linked source */}
-              {obj_id && objID && obj_id !== objID && (
-                <Tooltip title={`From linked source ${obj_id}`}>
-                  <Chip
-                    label={obj_id}
-                    size="small"
-                    variant="outlined"
-                    component="a"
-                    href={`/source/${obj_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                    style={{ height: "18px", marginBottom: "0.2em" }}
-                  />
-                </Tooltip>
-              )}
-              <Comment
-                // Spectra comments are merged into the source thread, so the
-                // type comes from the comment itself when the API sends it.
-                resourceType={
-                  commentResourceType ??
-                  (spectrum_id ? "spectra" : resourceType)
+            system,
+          }: any) =>
+            system ? (
+              <ReactMarkdown
+                key={`system${id}`}
+                className={styles.systemComment}
+              >
+                {text}
+              </ReactMarkdown>
+            ) : (
+              <span
+                id="comment"
+                key={(spectrum_id ? "Spectrum" : "Source") + id}
+                className={cx(commentStyle, bot && styles.botComment)}
+                onMouseOver={() =>
+                  handleMouseHover(id, userProfile, author.username)
                 }
-                bot={bot}
-                styles={bot ? botStyles : styles}
-                id={id}
-                objID={objID}
-                gcnEventID={gcnEventID}
-                earthquakeID={earthquakeID}
-                author={author}
-                created_at={created_at}
-                text={text}
-                attachment_name={attachment_name}
-                groups={groups}
-                spectrum_id={spectrum_id}
-                hoverID={hoverID}
-                shiftID={shiftID}
-              />
-            </span>
-          ),
+                onMouseOut={() => handleMouseLeave()}
+                onFocus={() =>
+                  handleMouseHover(id, userProfile, author.username)
+                }
+                onBlur={() => handleMouseLeave()}
+              >
+                {/* Meta-object provenance: comment aggregated from a linked source */}
+                {obj_id && objID && obj_id !== objID && (
+                  <Tooltip title={`From linked source ${obj_id}`}>
+                    <Chip
+                      label={obj_id}
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={`/source/${obj_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      clickable
+                      style={{ height: "18px", marginBottom: "0.2em" }}
+                    />
+                  </Tooltip>
+                )}
+                <Comment
+                  // Spectra comments are merged into the source thread, so the
+                  // type comes from the comment itself when the API sends it.
+                  resourceType={
+                    commentResourceType ??
+                    (spectrum_id ? "spectra" : resourceType)
+                  }
+                  bot={bot}
+                  styles={bot ? botStyles : styles}
+                  id={id}
+                  objID={objID}
+                  gcnEventID={gcnEventID}
+                  earthquakeID={earthquakeID}
+                  author={author}
+                  created_at={created_at}
+                  text={text}
+                  attachment_name={attachment_name}
+                  groups={groups}
+                  spectrum_id={spectrum_id}
+                  hoverID={hoverID}
+                  shiftID={shiftID}
+                />
+              </span>
+            ),
         )}
       </div>
       {!channel && (

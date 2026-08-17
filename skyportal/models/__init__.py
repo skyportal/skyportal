@@ -43,6 +43,7 @@ from .schema import setup_schema
 from .sharing_service import *
 from .shift import *
 from .source import *
+from .source_interest import *
 from .source_label import *
 from .source_notification import *
 from .source_view import *
