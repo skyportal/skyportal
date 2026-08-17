@@ -537,6 +537,7 @@ async def get_source(
         .options(
             selectinload(Classification.groups),
             selectinload(Classification.votes),
+            selectinload(Classification.edits),
         )
         .where(Classification.obj_id.in_(aggregated_obj_ids))
     )
@@ -547,6 +548,7 @@ async def get_source(
         classification_dict = classification.to_dict()
         classification_dict["groups"] = [g.to_dict() for g in classification.groups]
         classification_dict["votes"] = [g.to_dict() for g in classification.votes]
+        classification_dict["edits"] = [e.to_dict() for e in classification.edits]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
