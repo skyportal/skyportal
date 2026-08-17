@@ -12,7 +12,7 @@ from astropy.time import Time
 
 from skyportal.handlers.api.gcn import add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
-from skyportal.tests import api
+from skyportal.tests import api, retry_until
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -514,29 +514,17 @@ def test_gcn_summary_sources(
     assert status == 200
     summary_id = data["data"]["id"]
 
-    nretries = 0
-    summaries_loaded = False
-    while nretries < 40:
+    def summary_ready():
         status, data = api(
             "GET",
             f"gcn_event/{dateobs}/summary/{summary_id}",
             token=view_only_token,
         )
-        if status == 404:
-            nretries = nretries + 1
-            time.sleep(5)
-        if status == 200:
-            data = data["data"]
-            if data["text"] == "pending":
-                nretries = nretries + 1
-                time.sleep(5)
-            else:
-                summaries_loaded = True
-                break
+        assert status == 200
+        assert data["data"]["text"] != "pending"
+        return data["data"]["text"]
 
-    assert nretries < 40
-    assert summaries_loaded
-    text = data["text"]
+    text = retry_until(summary_ready, timeout=200)
     lines = list(filter(None, text.split("\n")))
 
     def _find(*substrings):
@@ -608,25 +596,19 @@ def test_gcn_summary_galaxies(
 
     params = {"catalog_name": catalog_name}
 
-    nretries = 0
-    galaxies_loaded = False
-    while nretries < 40:
+    def galaxies_loaded():
         status, data = api(
             "GET", "galaxy_catalog", token=view_only_token, params=params
         )
         assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
+        galaxies = data["data"]["galaxies"]
+        assert len(galaxies) == 92
+        assert any(
             d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
-        ):
-            galaxies_loaded = True
-            break
-        nretries = nretries + 1
-        time.sleep(2)
+            for d in galaxies
+        )
 
-    assert nretries < 40
-    assert galaxies_loaded
+    retry_until(galaxies_loaded, timeout=80)
 
     # get the gcn event summary
     data = {
@@ -652,30 +634,18 @@ def test_gcn_summary_galaxies(
     assert status == 200
     summary_id = data["data"]["id"]
 
-    nretries = 0
-    summaries_loaded = False
-    while nretries < 40:
+    def summary_ready():
         status, data = api(
             "GET",
             f"gcn_event/{dateobs}/summary/{summary_id}",
             token=view_only_token,
             params=params,
         )
-        if status == 404:
-            nretries = nretries + 1
-            time.sleep(5)
-        if status == 200:
-            data = data["data"]
-            if data["text"] == "pending":
-                nretries = nretries + 1
-                time.sleep(5)
-            else:
-                summaries_loaded = True
-                break
+        assert status == 200
+        assert data["data"]["text"] != "pending"
+        return data["data"]["text"]
 
-    assert nretries < 40
-    assert summaries_loaded
-    lines = list(filter(None, data["text"].split("\n")))
+    lines = list(filter(None, retry_until(summary_ready, timeout=200).split("\n")))
 
     def _find(*substrings):
         # index of the first line containing all of `substrings`; asserts presence
