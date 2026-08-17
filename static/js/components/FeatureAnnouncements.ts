@@ -51,6 +51,20 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     ],
   },
   {
+    id: "gcn-event-comments",
+    path: /^\/gcn_events\/[^/]+$/,
+    announcedAt: "2026-08-16",
+    steps: [
+      {
+        target: '[data-testid="source-chat-button"]',
+        title: "Comments on GCN events",
+        content:
+          "Event comments have moved to the new detached chat panel. Click this button to open it.",
+        placement: "left",
+      },
+    ],
+  },
+  {
     id: "brokers-page-alert-search",
     path: /^\/brokers\/?$/,
     announcedAt: "2026-08-15",
