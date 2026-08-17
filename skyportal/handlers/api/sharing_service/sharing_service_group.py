@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import sqlalchemy as sa
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -13,31 +16,28 @@ from ....utils.data_access import check_access_to_sharing_service_async
 from ....utils.parse import str_to_bool
 from ...base import BaseHandler
 
+SharingServiceId = Annotated[
+    int, Field(description="The ID of the external sharing service")
+]
+
 log = make_log("api/sharing_service_group")
 
 
 class SharingServiceGroupHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def put(self, sharing_service_id: int, group_id: int | None = None):
+    async def put(
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: Annotated[
+            int | None, Field(description="ID of the group to edit")
+        ] = None,
+    ):
         """
         ---
         summary: Add or edit a group for an external sharing service
         description: Add or edit a group for an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the external sharing service
-            - in: path
-              name: group_id
-              required: false
-              schema:
-                type: integer
-              description: ID of the group to edit
         requestBody:
             content:
                 application/json:
@@ -223,26 +223,22 @@ class SharingServiceGroupHandler(BaseHandler):
                 return self.success(data={"id": sharing_service_group.id})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id: int, group_id: int):
+    async def delete(
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: Annotated[
+            int,
+            Field(
+                description="The ID of the group to remove from the external sharing service"
+            ),
+        ],
+    ):
         """
         ---
         summary: Delete a group from an external sharing service
         description: Delete a group from an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the external sharing service
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the group to remove from the external sharing service
         responses:
             200:
                 content:

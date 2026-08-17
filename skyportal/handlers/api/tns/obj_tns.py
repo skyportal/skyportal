@@ -22,12 +22,6 @@ class ObjTNSHandler(BaseHandler):
         tags:
           - tns
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

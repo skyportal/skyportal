@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -18,29 +21,22 @@ _, cfg = load_env()
 
 
 class AnalysisWebhookHandler(BaseHandler):
-    async def post(self, analysis_resource_type: str, token: str):
+    async def post(
+        self,
+        analysis_resource_type: Annotated[
+            str,
+            Field(
+                description='What underlying data the analysis was performed on: must be "obj" (more to be added in the future)'
+            ),
+        ],
+        token: Annotated[str, Field(description="The unique token for this analysis.")],
+    ):
         """
         ---
         summary: Return the results of an analysis
         description: Return the results of an analysis
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis was performed on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: token
-            required: true
-            schema:
-              type: string
-            description: |
-               The unique token for this analysis.
         requestBody:
           content:
             application/json:

@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Annotated, Any
 
 from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
@@ -98,11 +98,6 @@ class UserObjListHandler(BaseHandler):
         summary: Get user object listings
         description: Retrieve sources from a user's lists
         parameters:
-          - in: path
-            name: user_id
-            required: false
-            schema:
-              type: string
           - in: query
             name: listName
             required: false
@@ -249,12 +244,6 @@ class UserObjListHandler(BaseHandler):
         description: Update an existing listing
         tags:
         - listings
-        parameters:
-        - in: path
-          name: listing_id
-          required: true
-          schema:
-            type: integer
         responses:
           200:
             content:
@@ -310,23 +299,21 @@ class UserObjListHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, listing_id: int | None = None):
+    async def delete(
+        self,
+        listing_id: Annotated[
+            int | None,
+            Field(
+                description="ID of the listing object. If not given, must supply the listing's obj_id and list_name (and user_id) to find the correct listing id from that info."
+            ),
+        ] = None,
+    ):
         """
         ---
         summary: Remove a listing
         description: Remove an existing listing
         tags:
         - listings
-        parameters:
-        - in: path
-          name: listing_id
-          required: false
-          description: |
-            ID of the listing object. If not given, must supply
-            the listing's obj_id and list_name (and user_id)
-            to find the correct listing id from that info.
-          schema:
-            type: integer
         requestBody:
           content:
             application/json:

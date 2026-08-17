@@ -39,12 +39,6 @@ class ObjMPCHandler(BaseHandler):
         description: Retrieve an object's status from Minor Planet Center
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:

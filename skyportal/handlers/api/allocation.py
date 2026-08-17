@@ -44,11 +44,6 @@ class AllocationObservationPlanHandler(BaseHandler):
           - allocations
           - observation plans
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: numPerPage
             nullable: true
@@ -184,11 +179,6 @@ class AllocationHandler(BaseHandler):
           tags:
             - allocations
           parameters:
-            - in: path
-              name: allocation_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: numPerPage
               nullable: true
@@ -605,12 +595,6 @@ class AllocationHandler(BaseHandler):
         description: Update an allocation on a robotic instrument
         tags:
           - allocations
-        parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -705,12 +689,6 @@ class AllocationHandler(BaseHandler):
         description: Delete allocation.
         tags:
           - allocations
-        parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -743,11 +721,6 @@ class AllocationReportHandler(BaseHandler):
         tags:
           - allocations
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: output_format
             nullable: true

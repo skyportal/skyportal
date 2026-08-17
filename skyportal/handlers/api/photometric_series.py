@@ -808,12 +808,6 @@ class PhotometricSeriesHandler(BaseHandler):
           in the request body parameters.
         tags:
           - photometric series
-        parameters:
-          - in: path
-            name: photometric_series_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           {body_schema_docstring}
         responses:
@@ -885,11 +879,6 @@ class PhotometricSeriesHandler(BaseHandler):
           tags:
             - photometric series
           parameters:
-            - in: path
-              name: photometric_series_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: dataFormat
               required: false
@@ -1891,12 +1880,6 @@ class PhotometricSeriesHandler(BaseHandler):
         description: Delete a photometric series
         tags:
           - photometric series
-        parameters:
-          - in: path
-            name: photometric_series_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

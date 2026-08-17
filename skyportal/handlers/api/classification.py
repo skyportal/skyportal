@@ -1,6 +1,9 @@
+from typing import Annotated
+
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -172,11 +175,6 @@ class ClassificationHandler(BaseHandler):
           tags:
             - classifications
           parameters:
-            - in: path
-              name: classification_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: includeTaxonomy
               nullable: true
@@ -433,12 +431,6 @@ class ClassificationHandler(BaseHandler):
         description: Update a classification
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -535,12 +527,6 @@ class ClassificationHandler(BaseHandler):
         description: Delete a classification
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -628,11 +614,6 @@ class ObjClassificationHandler(BaseHandler):
           - classifications
           - sources
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: includeSuperObjs
             required: false
@@ -700,12 +681,6 @@ class ObjClassificationHandler(BaseHandler):
         tags:
           - classifications
           - sources
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -856,21 +831,18 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    async def post(self, classification_id: int):
+    async def post(
+        self,
+        classification_id: Annotated[
+            int, Field(description="ID of classification to indicate the vote for")
+        ],
+    ):
         """
         ---
         summary: Vote for a classification
         description: Vote for a classification.
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of classification to indicate the vote for
         requestBody:
           content:
             application/json:
@@ -958,12 +930,6 @@ class ClassificationVotesHandler(BaseHandler):
         description: Delete classification vote.
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

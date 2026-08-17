@@ -168,12 +168,6 @@ class ObjTagOptionHandler(BaseHandler):
         description: Update an existing tag option's name and/or color
         tags:
           - object tags
-        parameters:
-          - in: path
-            name: tag_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -245,12 +239,6 @@ class ObjTagOptionHandler(BaseHandler):
         description: Delete an existing tag option
         tags:
           - object tags
-        parameters:
-          - in: path
-            name: tag_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -531,12 +519,6 @@ class ObjTagHandler(BaseHandler):
             System admins can remove any group; regular users can only remove their groups.
         tags:
           - object tags
-        parameters:
-          - in: path
-            name: association_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:

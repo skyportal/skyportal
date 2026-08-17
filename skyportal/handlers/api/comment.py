@@ -3,9 +3,11 @@ import os
 import string
 import time
 import unicodedata
+from typing import Annotated
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -34,6 +36,19 @@ from ...utils.fits_display import get_fits_preview
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
+
+AssociatedResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the comment is on: "sources" or "spectra" or "gcn_event" or "earthquake" or "shift".'
+    ),
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the source, spectrum, gcn_event, earthquake, or shift that the comment is posted to. This would be a string for a source ID or an integer for a spectrum, gcn_event, earthquake, or shift."
+    ),
+]
 
 _, cfg = load_env()
 
@@ -169,8 +184,8 @@ class CommentHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        associated_resource_type: str,
-        resource_id: str = None,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId = None,
         comment_id: int | None = None,
     ):
         """
@@ -180,32 +195,6 @@ class CommentHandler(BaseHandler):
           description: Retrieve a comment
           tags:
             - comments
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-              description: |
-                 What underlying data the comment is on:
-                 "sources" or "spectra" or "gcn_event" or "earthquake" or "shift".
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra, gcn_event]
-              description: |
-                 The ID of the source, spectrum, gcn_event, earthquake, or shift
-                 that the comment is posted to.
-                 This would be a string for a source ID
-                 or an integer for a spectrum, gcn_event, earthquake, or shift.
-            - in: path
-              name: comment_id
-              required: true
-              schema:
-                type: integer
-
           responses:
             200:
               content:
@@ -221,24 +210,6 @@ class CommentHandler(BaseHandler):
           tags:
             - comments
           parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources]
-              description: |
-                 What underlying data the comment is on, e.g., "sources"
-                 or "spectra" or "gcn_event" or "earthquake" or "shift".
-            - in: path
-              name: resource_id
-              required: false
-              schema:
-                type: string
-              description: |
-                 The ID of the underlying data.
-                 This would be a string for a source ID
-                 or an integer for other data types like spectrum, gcn_event, earthquake, or shift.
             - in: query
               name: text
               schema:
@@ -442,34 +413,18 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    async def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
+    async def post(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        *ignore_args,
+    ):
         """
         ---
         summary: Post a comment
         description: Post a new comment. If sent through the API (authenticated with a token), it will be flagged as a bot comment.
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event, earthquake, shift]
-            description: |
-               What underlying data the comment is on:
-               "source" or "spectrum" or "gcn_event" or "earthquake" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event, earthquake, shift]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum, gcn_event, earthquake, or shift.
         requestBody:
           content:
             application/json:
@@ -912,7 +867,10 @@ class CommentHandler(BaseHandler):
 
     @permissions(["Comment"])
     async def put(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -920,32 +878,6 @@ class CommentHandler(BaseHandler):
         description: Update a comment
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event, shift]
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra" or "gcn_event" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event, shift]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for an object ID
-               or an integer for a spectrum, gcn_event or shift.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1158,7 +1090,10 @@ class CommentHandler(BaseHandler):
 
     @permissions(["Comment"])
     async def delete(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -1166,32 +1101,6 @@ class CommentHandler(BaseHandler):
         description: Delete a comment
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum or gcn_event.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-
         responses:
           200:
             content:
@@ -1335,7 +1244,10 @@ class CommentHandler(BaseHandler):
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
     async def get(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -1344,31 +1256,6 @@ class CommentAttachmentHandler(BaseHandler):
         tags:
           - comments
         parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event]
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: download
             nullable: True

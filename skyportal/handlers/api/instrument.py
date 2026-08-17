@@ -369,11 +369,6 @@ class InstrumentHandler(BaseHandler):
           tags:
             - instruments
           parameters:
-            - in: path
-              name: instrument_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: includeGeoJSON
               nullable: true
@@ -779,12 +774,6 @@ class InstrumentHandler(BaseHandler):
         description: Update instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1035,11 +1024,6 @@ class InstrumentHandler(BaseHandler):
         tags:
           - instruments
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: fieldsOnly
             nullable: true
@@ -1450,12 +1434,6 @@ class InstrumentFieldHandler(BaseHandler):
         description: Delete fields associated with an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

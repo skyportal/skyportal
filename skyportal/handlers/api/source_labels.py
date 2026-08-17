@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
@@ -31,21 +33,20 @@ class SourceLabelsDeleteBody(BaseModel):
 
 class SourceLabelsHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str, *, body: SourceLabelsPostBody = None):
+    async def post(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of object to indicate source labelling for")
+        ],
+        *,
+        body: SourceLabelsPostBody = None,
+    ):
         """
         ---
         summary: Label a source
         description: Note that a source has been labelled.
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of object to indicate source labelling for
         responses:
           200:
             content:
@@ -91,12 +92,6 @@ class SourceLabelsHandler(BaseHandler):
         description: Delete source labels
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
