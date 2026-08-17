@@ -65,6 +65,21 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     ],
   },
   {
+    id: "source-interests",
+    path: /^\/source\/[^/]+$/,
+    announcedAt: "2026-08-17",
+    steps: [
+      {
+        target: '[data-testid="interested-button"]',
+        title: "Say what you are interested in",
+        content:
+          "Register your interest in a source, with a note and a link to your " +
+          "work. The button shows who else is interested, and opens a " +
+          "conversation with them.",
+      },
+    ],
+  },
+  {
     id: "brokers-page-alert-search",
     path: /^\/brokers\/?$/,
     announcedAt: "2026-08-15",
