@@ -1,7 +1,9 @@
 from skyportal.tests import api
 
 
-def test_source_interest_lifecycle(upload_data_token, view_only_token, public_source):
+def test_source_interest_lifecycle(
+    upload_data_token, view_only_token, view_only_token2, public_source
+):
     obj_id = public_source.id
 
     status, data = api(
@@ -42,7 +44,7 @@ def test_source_interest_lifecycle(upload_data_token, view_only_token, public_so
     assert data["data"][1]["description"] is None
 
     status, data = api(
-        "DELETE", f"sources/{obj_id}/interests/{interest_id}", token=view_only_token
+        "DELETE", f"sources/{obj_id}/interests/{interest_id}", token=view_only_token2
     )
     assert status == 400, data
 
@@ -73,7 +75,7 @@ def test_source_interest_lifecycle(upload_data_token, view_only_token, public_so
 
 
 def test_conversations_stay_out_of_the_main_thread(
-    upload_data_token, view_only_token, public_source
+    comment_token, view_only_token, public_source
 ):
     obj_id = public_source.id
 
@@ -85,7 +87,7 @@ def test_conversations_stay_out_of_the_main_thread(
         if channel:
             body["channel"] = channel
         status, data = api(
-            "POST", f"sources/{obj_id}/comments", data=body, token=upload_data_token
+            "POST", f"sources/{obj_id}/comments", data=body, token=comment_token
         )
         assert status == 200, data
 
@@ -113,7 +115,7 @@ def test_conversations_stay_out_of_the_main_thread(
 
 
 def test_conversation_deletion_permissions(
-    upload_data_token, view_only_token, super_admin_token, public_source
+    comment_token, view_only_token, view_only_token2, super_admin_token, public_source
 ):
     obj_id = public_source.id
 
@@ -121,14 +123,14 @@ def test_conversation_deletion_permissions(
         "POST",
         f"sources/{obj_id}/comments",
         data={"text": "opening", "channel": "Photometry"},
-        token=view_only_token,
+        token=comment_token,
     )
     assert status == 200, data
 
     status, data = api(
         "DELETE",
         f"sources/{obj_id}/comments/channels?channel=Photometry",
-        token=upload_data_token,
+        token=view_only_token2,
     )
     assert status == 403, data
 
