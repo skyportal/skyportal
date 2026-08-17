@@ -12,10 +12,10 @@ from ...models import (
     Annotation,
     Classification,
     Comment,
+    GcnEventObj,
     Obj,
     PhotometricSeries,
     Photometry,
-    SourcesConfirmedInGCN,
     Spectrum,
 )
 from ...utils.calculations import great_circle_distance
@@ -65,7 +65,7 @@ class ObjHandler(BaseHandler):
                 (PhotometricSeries, "photometric series"),
                 (Comment, "comments"),
                 (Classification, "classifications"),
-                (SourcesConfirmedInGCN, "sources in gcns"),
+                (GcnEventObj, "sources in gcns"),
             ):
                 count = await session.scalar(
                     sa.select(func.count()).select_from(

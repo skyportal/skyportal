@@ -5,12 +5,9 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
-
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -19,9 +16,6 @@ import { useUpdatePhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
-  Select: {
-    width: "100%",
-  },
   SelectItem: {
     whiteSpace: "break-spaces",
   },
@@ -41,6 +35,8 @@ interface UpdatePhotometryProps {
     limiting_mag?: number;
     filter?: string;
     magsys?: string;
+    origin?: string;
+    altdata?: Record<string, any>;
     ra?: number;
     dec?: number;
     ra_unc?: number;
@@ -68,6 +64,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
     limiting_mag: phot.limiting_mag,
     filter: phot.filter,
     instrument_id: phot.instrument_id,
+    origin: phot.origin ?? "",
+    altdata: phot.altdata ? JSON.stringify(phot.altdata) : "",
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -87,6 +85,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       limiting_mag: phot.limiting_mag,
       filter: phot.filter,
       instrument_id: phot.instrument_id,
+      origin: phot.origin ?? "",
+      altdata: phot.altdata ? JSON.stringify(phot.altdata) : "",
     });
   }, [phot, setInvalid]);
 
@@ -105,7 +105,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       } else {
         newState.filter = "";
       }
-    } else if (e.target.name === "filter") {
+    } else if (
+      e.target.name === "filter" ||
+      e.target.name === "origin" ||
+      e.target.name === "altdata"
+    ) {
       newState[e.target.name] = e.target.value;
     } else {
       // Accept both "." and "," as the decimal separator so values copy-pasted
@@ -129,17 +133,28 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
 
   const handleSubmit = async (subState: any) => {
     setIsSubmitting(true);
-    const newState: any = {};
+    const newState: any = {
+      mjd: subState.mjd,
+      mag: subState.mag,
+      magerr: subState.magerr,
+      limiting_mag: subState.limiting_mag,
+      filter: subState.filter,
+      instrument_id: subState.instrument_id,
+      magsys,
+    };
 
-    // editable quantities
-    newState.mjd = subState.mjd;
-    newState.mag = subState.mag;
-    newState.magerr = subState.magerr;
-    newState.limiting_mag = subState.limiting_mag;
-    newState.filter = subState.filter;
-    newState.instrument_id = subState.instrument_id;
-    newState.magsys = magsys;
-
+    if (subState.origin) {
+      newState.origin = subState.origin;
+    }
+    if (subState.altdata) {
+      try {
+        newState.altdata = JSON.parse(subState.altdata);
+      } catch {
+        dispatch(showNotification("altdata must be valid JSON", "error"));
+        setIsSubmitting(false);
+        return;
+      }
+    }
     Object.keys(newState).forEach((key) => {
       if (
         newState[key] === null ||
@@ -224,10 +239,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Update Photometry</DialogTitle>
         <DialogContent>
-          <div>
-            {invalid && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
+          {invalid && (
+            <FormValidationError message="Please enter a valid float" />
+          )}
+          <div style={{ marginTop: "0.75rem" }}>
             <TextField
               data-testid="updatePhotometryMJDTextfield"
               size="small"
@@ -237,6 +252,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -253,6 +269,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -269,6 +286,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
@@ -285,22 +303,54 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               onChange={handleChange}
               type="text"
               variant="outlined"
+              fullWidth
               slotProps={{
                 htmlInput: { inputMode: "decimal" },
               }}
             />
           </div>
           <p />
+          <div>
+            <TextField
+              data-testid="updatePhotometryOriginTextfield"
+              size="small"
+              label="Origin"
+              value={state.origin}
+              name="origin"
+              onChange={handleChange}
+              type="text"
+              variant="outlined"
+              fullWidth
+            />
+          </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updatePhotometryAltdataTextfield"
+              size="small"
+              label="Alternative json data"
+              placeholder='{"note": "poor subtraction"}'
+              slotProps={{ inputLabel: { shrink: true } }}
+              value={state.altdata}
+              name="altdata"
+              onChange={handleChange}
+              type="text"
+              variant="outlined"
+              fullWidth
+            />
+          </div>
+          <p />
           <div className={classes.formField}>
-            <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="instrumentSelectLabel"
-              value={state.instrument_id}
+            <TextField
+              select
+              size="small"
+              label="Instrument"
+              value={state.instrument_id ?? ""}
               onChange={handleChange}
               name="instrument_id"
               data-testid="instrumentSelect"
-              className={classes.Select}
+              fullWidth
+              slotProps={{ select: { MenuProps: { disableScrollLock: true } } }}
             >
               {instrumentList?.map((instrument: any) => (
                 <MenuItem
@@ -311,18 +361,20 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
                   {instrument.name}
                 </MenuItem>
               ))}
-            </Select>
+            </TextField>
           </div>
-          <div className={classes.formField}>
-            <InputLabel id="filterSelectLabel">Filter</InputLabel>
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="filterSelectLabel"
-              value={state.filter}
+          <p />
+          <div>
+            <TextField
+              select
+              size="small"
+              label="Filter"
+              value={state.filter ?? ""}
               onChange={handleChange}
               name="filter"
               data-testid="filterSelect"
-              className={classes.Select}
+              fullWidth
+              slotProps={{ select: { MenuProps: { disableScrollLock: true } } }}
             >
               {selectedInstrument?.filters?.map((filt: any) => (
                 <MenuItem
@@ -333,7 +385,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
                   {filt}
                 </MenuItem>
               ))}
-            </Select>
+            </TextField>
           </div>
           <div className={classes.saveButton}>
             <Button

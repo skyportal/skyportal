@@ -51,8 +51,12 @@ PS1_CUTOUT_TIMEOUT = 15  # seconds
 # more headroom since these are on-demand.
 SKYMAPPER_CUTOUT_TIMEOUT = 30  # seconds
 
-# download dustmap if required
-config["data_dir"] = cfg["misc.dustmap_folder"]
+# download dustmap if required; the folder is relative to the repo root, which
+# is not every entry point's cwd (the docs build runs from doc/)
+config["data_dir"] = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    cfg["misc.dustmap_folder"],
+)
 required_files = ["sfd/SFD_dust_4096_ngp.fits", "sfd/SFD_dust_4096_sgp.fits"]
 if any(
     not os.path.isfile(os.path.join(config["data_dir"], required_file))
@@ -60,8 +64,9 @@ if any(
 ):
     try:
         dustmaps.sfd.fetch()
-    except requests.exceptions.HTTPError:
-        pass
+    except Exception as e:
+        # importing models must not depend on a third-party host being up
+        log(f"Could not fetch SFD dustmaps: {e}")
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
@@ -262,10 +267,6 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.String,
         doc="Minor planet center name.",
     )
-    gcn_crossmatch = sa.Column(
-        sa.ARRAY(sa.String),
-        doc="List of GCN event dateobs for crossmatched events.",
-    )
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",
@@ -447,11 +448,11 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
-    sources_in_gcns = relationship(
-        "SourcesConfirmedInGCN",
+    gcn_events = relationship(
+        "GcnEventObj",
         back_populates="obj",
         passive_deletes=True,
-        doc="Sources in a localization.",
+        doc="GCN events this Obj is associated with.",
     )
 
     sharing_service_submissions = relationship(
@@ -469,6 +470,10 @@ class Obj(Base, conesearch_alchemy.Point):
         `panstarrs_url` does a slow, blocking HTTP request; it is resolved off
         the event loop here. Callers that already resolved it (with no DB txn
         open) can pass `ps1_url` to avoid re-fetching."""
+        # Archival cutouts of a moving object's position show the field it was
+        # crossing, not the object; skipping also avoids the PS1 fetch per roid.
+        if self.is_roid:
+            return
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")

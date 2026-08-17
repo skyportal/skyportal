@@ -17,6 +17,7 @@ from .filter import *
 from .followup_request import *
 from .galaxy import *
 from .gcn import *
+from .gcn_event_obj import *
 from .group import *
 from .group_joins import *
 from .instrument import *
@@ -45,7 +46,6 @@ from .source import *
 from .source_label import *
 from .source_notification import *
 from .source_view import *
-from .sources_confirmed_in_gcn import *
 from .spatial_catalog import *
 from .spectrum import *
 from .stream import *

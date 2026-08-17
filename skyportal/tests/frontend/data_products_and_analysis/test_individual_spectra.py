@@ -5,6 +5,7 @@ from playwright.sync_api import expect
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import (
     add_comment_and_wait_for_display,
+    open_source_chat,
 )
 
 
@@ -19,10 +20,11 @@ def test_comments(page, user, public_source):
     # little triangle you push to expand the table
     page.locator("//*[@id='expandable-button']").first.click()
 
-    add_comment_and_wait_for_display(page, comment_text)
+    add_comment_and_wait_for_display(page, comment_text, in_chat=False)
 
     # Make sure individual spectra comments appear on the Source page
     page.goto(f"/source/{public_source.id}")
+    open_source_chat(page)
     expect(
         page.locator(f'//p[contains(text(), "{comment_text}")]').first
     ).to_be_visible()
@@ -70,7 +72,7 @@ def test_annotations(
 
     # push the little triangle to expand the table
     page.locator(
-        "//*[@data-testid='spectrum-div']//*[@id='expandable-button']/.."
+        "//*[@data-testid='spectrum-table']//*[@id='expandable-button']/.."
     ).first.click()
     expect(page.locator(f'//div[text()="{annotation_data}"]').first).to_be_visible()
 

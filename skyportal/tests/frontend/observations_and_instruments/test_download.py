@@ -21,8 +21,11 @@ cfg = load_config()
 
 
 def enter_comment_text(page, comment_text):
+    chat = page.locator('//div[@data-testid="source-chat"]').first
+    if not chat.is_visible():
+        page.locator('//button[@data-testid="source-chat-button"]').first.click()
     comment_box = page.locator(
-        "//div[@data-testid='comments-accordion']//textarea[@name='text']"
+        "//form[@data-testid='comment-form']//textarea[@name='text']"
     ).first
     comment_box.click()
     comment_box.fill(comment_text)
@@ -137,7 +140,7 @@ def test_upload_download_comment_attachment(page, user, public_source):
     enter_comment_text(page, comment_text)
 
     page.locator(
-        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
+        "//form[@data-testid='comment-form']//input[@name='attachment']"
     ).first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -146,18 +149,18 @@ def test_upload_download_comment_attachment(page, user, public_source):
         )
     )
     page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     ).first.click()
 
     comment_p = page.locator(
-        f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+        f'//div[@data-testid="source-chat"]//p[text()="{comment_text}"]'
     ).first
     expect(comment_p).to_be_visible()
 
     # hover the comment to reveal the attachment controls, then open the preview
     comment_p.locator("xpath=../..").hover()
     attachment_button = page.locator(
-        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
+        '//div[@data-testid="source-chat"]//button[@data-testid="attachmentButton_spec"]'
     ).first
     attachment_button.hover()
     attachment_button.click()
@@ -593,6 +596,35 @@ def test_gcn_summary_sources(
     )
     assert status == 200
     assert data["status"] == "success"
+
+    # The summary asks for sources with >= 2 detections inside the localization,
+    # and the detection count comes from PhotStat, which is refreshed
+    # asynchronously. Generating before that lands yields a summary with no
+    # sources section, so wait for the query the summary itself will run.
+    for _ in range(30):
+        status, data = api(
+            "GET",
+            "sources",
+            params={
+                "localizationDateobs": "2019-08-14T21:10:39",
+                "localizationName": "LALInference.v1.fits.gz",
+                "localizationCumprob": 0.95,
+                "startDate": "2019-08-01T00:00:00",
+                "endDate": "2019-09-01T00:00:00",
+                "numberDetections": 2,
+                "group_ids": public_group.id,
+            },
+            token=super_admin_token,
+        )
+        if status == 200 and any(
+            source["id"] == obj_id for source in data["data"]["sources"]
+        ):
+            break
+        time.sleep(2)
+    else:
+        raise AssertionError(
+            f"{obj_id} never became visible to the localization query the summary uses"
+        )
 
     # generate the GCN summary (with sources) and read it back
     text = get_summary(

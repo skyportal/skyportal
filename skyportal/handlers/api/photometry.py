@@ -120,6 +120,8 @@ cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
+# Log-scaled ramp so distinct radio GHz bands stay visually distinct.
+cmap_radio = colormaps["winter"]
 
 
 def hex2rgb(hex):
@@ -221,6 +223,8 @@ def get_color(bandpass, format="hex"):
         bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
     elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
         bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
+    elif 3e5 < wavelength <= 1e12:  # sub-mm to radio (e.g. VLA GHz bands)
+        bandcolor = rgb2hex(cmap_radio((12 - np.log10(wavelength)) / (12 - 5.48))[:3])
     else:
         log(
             f"{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black"
@@ -802,6 +806,16 @@ async def standardize_photometry_data(data, session):
                     f'Error parsing packet "{packet}": missing required field {field}.'
                 )
 
+        # non-detections require limiting_mag
+        limmag_missing = magnull & df["limiting_mag"].isna()
+        if any(limmag_missing):
+            bad_rows = np.argwhere(limmag_missing.values).flatten()
+            bad_mjds = [float(df.iloc[i]["mjd"]) for i in bad_rows]
+            raise ValidationError(
+                f"Non-detections (mag=null) require a limiting_mag. "
+                f"Affected row(s) at MJD: {bad_mjds}."
+            )
+
         # convert the mags to fluxes
         # detections
         detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))
@@ -1240,7 +1254,12 @@ async def insert_new_photometry_data(
 
         # reduce the DB size by ~2x
         keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
-        original_user_data = {key: packet[key] for key in keys if key in packet}
+        original_user_data = {
+            key: packet[key]
+            for key in keys
+            if key in packet
+            and not (isinstance(packet[key], float) and np.isnan(packet[key]))
+        }
         if original_user_data == {}:
             original_user_data = None
 

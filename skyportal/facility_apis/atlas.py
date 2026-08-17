@@ -175,6 +175,19 @@ def commit_photometry(
         cyan = df["filter"] == "c"
         orange = df["filter"] == "o"
 
+        # ATLAS forced photometry should only report "c" or "o"; drop any
+        # other rows instead of failing the whole batch on ingestion
+        known = cyan | orange
+        if not known.all():
+            log(
+                f"Discarding {(~known).sum()} ATLAS forced-photometry row(s) "
+                f"for request {request_id} with unrecognized filter(s) "
+                f"{sorted(df.loc[~known, 'filter'].unique().tolist())}"
+            )
+            df = df[known]
+            cyan = cyan[known]
+            orange = orange[known]
+
         # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
         reject = df["uJy"] / df["duJy"] < 3
         reject |= df["chi/N"] > 10

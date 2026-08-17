@@ -251,7 +251,12 @@ const GcnEventSourcesPage = ({
         );
         if (match) {
           source.gcn = {
-            status: match.confirmed ? "Highlighted" : "Rejected",
+            status:
+              {
+                confirmed: "Highlighted",
+                rejected: "Rejected",
+                ambiguous: "Ambiguous",
+              }[match.status as string] ?? "Pending",
             explanation: match.explanation,
             notes: match.notes,
           };
@@ -424,16 +429,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const selectedLocalizationLoadName = gcnEvent?.localizations?.find(
     (loc: any) => loc.id === selectedLocalizationId,
   )?.localization_name;
-  const { data: analysisLoc, isFetching: fetchingLocalization } =
-    useGetLocalizationQuery(
-      {
-        dateobs: gcnEvent?.dateobs,
-        localization_name: selectedLocalizationLoadName,
-      },
-      {
-        skip: !gcnEvent?.dateobs || !selectedLocalizationLoadName,
-      },
-    );
+  const {
+    data: analysisLoc,
+    isFetching: fetchingLocalization,
+    isLoading: loadingLocalization,
+  } = useGetLocalizationQuery(
+    {
+      dateobs: gcnEvent?.dateobs,
+      localization_name: selectedLocalizationLoadName,
+    },
+    {
+      skip: !gcnEvent?.dateobs || !selectedLocalizationLoadName,
+    },
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] =
@@ -935,7 +943,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         sx={{ display: { xs: "none", sm: "none", md: "block" } }}
       >
         {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
-        !fetchingLocalization ? (
+        !loadingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
             <Suspense fallback={<CircularProgress />}>
               <LocalizationPlot
@@ -1034,7 +1042,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           <Box sx={{ display: { sm: "block", md: "none" } }}>
             {Object.keys(locLookUp).includes(
               analysisLoc?.id?.toString() ?? "",
-            ) && !fetchingLocalization ? (
+            ) && !loadingLocalization ? (
               <Grid container spacing={2}>
                 <Grid
                   size={{ sm: 8, md: 12 }}

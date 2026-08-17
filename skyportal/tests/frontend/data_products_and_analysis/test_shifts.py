@@ -84,7 +84,9 @@ def test_shift(
 
     # add a comment to the shift
     page.locator('//*[@id="root_comment"]').first.fill("This is a comment")
-    page.locator('//button[@type="submitComment"]').first.click()
+    page.locator(
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
+    ).first.click()
 
     expect(page.locator('//*[contains(text(), "This is a comment")]')).to_have_count(1)
 

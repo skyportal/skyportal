@@ -62,6 +62,7 @@ from ...models import (
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
+    GcnEventObj,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -83,7 +84,6 @@ from ...models import (
     ObservationPlanRequest,
     PhotStat,
     Source,
-    SourcesConfirmedInGCN,
     SurveyEfficiencyForObservations,
     User,
     UserNotification,
@@ -2539,7 +2539,7 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
                 if len(filters.get("notice_types", [])) > 0:
                     if not any(
                         notice_type in event_notice_types
-                        for notice_type in filters["notice_type"]
+                        for notice_type in filters["notice_types"]
                     ):
                         continue
                 if len(filters.get("localization_tags", [])) > 0:
@@ -2550,8 +2550,10 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
                 tag_name = default_gcn_tag.default_tag_name
                 if tag_name not in event_tags and tag_name not in gcn_tags:
                     gcn_tags.append(tag_name)
-            except Exception:
-                pass
+            except Exception as e:
+                # Don't let one malformed default stop the others, but say so:
+                # a silent pass here hid a bad filter key for a long time.
+                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
 
         gcn_tags = [
             GcnTag(
@@ -2613,7 +2615,7 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
                 if len(filters.get("notice_types", [])) > 0:
                     if not any(
                         notice_type in event_notice_types
-                        for notice_type in filters["notice_type"]
+                        for notice_type in filters["notice_types"]
                     ):
                         continue
                 if len(filters.get("localization_tags", [])) > 0:
@@ -2624,8 +2626,10 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
                 tag_name = default_gcn_tag.default_tag_name
                 if tag_name not in event_tags and tag_name not in gcn_tags:
                     gcn_tags.append(tag_name)
-            except Exception:
-                pass
+            except Exception as e:
+                # Don't let one malformed default stop the others, but say so:
+                # a silent pass here hid a bad filter key for a long time.
+                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
 
         gcn_tags = [
             GcnTag(
@@ -3428,9 +3432,9 @@ def add_gcn_summary(
             if len(sources) > 0:
                 obj_ids = [source["id"] for source in sources]
                 sources_with_status = session.scalars(
-                    SourcesConfirmedInGCN.select(user).where(
-                        SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                        SourcesConfirmedInGCN.dateobs == dateobs,
+                    GcnEventObj.select(user).where(
+                        GcnEventObj.obj_id.in_(obj_ids),
+                        GcnEventObj.dateobs == dateobs,
                     )
                 ).all()
 
@@ -3472,7 +3476,7 @@ def add_gcn_summary(
                         None,
                     )
                     if source_in_gcn is not None:
-                        status.append(source_in_gcn.confirmed)
+                        status.append(source_in_gcn.status)
                         explanation.append(source_in_gcn.explanation)
                     else:
                         status.append(None)
@@ -3496,7 +3500,7 @@ def add_gcn_summary(
                             [
                                 source.obj_id
                                 for source in sources_with_status
-                                if source.confirmed is False
+                                if source.status == "rejected"
                             ]
                         )
                     )
@@ -4512,9 +4516,9 @@ def add_gcn_report(
                 if len(sources) > 0:
                     obj_ids = [source["id"] for source in sources]
                     sources_with_status = session.scalars(
-                        SourcesConfirmedInGCN.select(user).where(
-                            SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                            SourcesConfirmedInGCN.dateobs == dateobs,
+                        GcnEventObj.select(user).where(
+                            GcnEventObj.obj_id.in_(obj_ids),
+                            GcnEventObj.dateobs == dateobs,
                         )
                     ).all()
                     for source in sources:
@@ -5140,11 +5144,9 @@ class GcnReportHandler(BaseHandler):
                                     source["photometry"] = []
 
                                 source["source_in_gcn"] = await session.scalar(
-                                    SourcesConfirmedInGCN.select(
-                                        session.user_or_token
-                                    ).where(
-                                        SourcesConfirmedInGCN.obj_id == source_id,
-                                        SourcesConfirmedInGCN.dateobs == dateobs_parsed,
+                                    GcnEventObj.select(session.user_or_token).where(
+                                        GcnEventObj.obj_id == source_id,
+                                        GcnEventObj.dateobs == dateobs_parsed,
                                     )
                                 )
 
@@ -5738,47 +5740,43 @@ def apply_gcn_event_filters(
     Shared by the events list handler and the object crossmatch handler. Raises
     ValueError on a malformed property filter (callers translate to self.error).
     """
+    # The outer query already restricts to accessible events, and tags/localizations
+    # are keyed by dateobs (1:1 with an event), so these filters use plain dateobs
+    # IN/NOT IN rather than re-joining the group-access chain per tag subquery.
     if gcn_tag_keep:
-        gcn_tag_subquery = (
-            GcnTag.select(user_or_token).where(GcnTag.text.in_(gcn_tag_keep)).subquery()
-        )
-        query = query.join(
-            gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
+        query = query.where(
+            GcnEvent.dateobs.in_(
+                sa.select(GcnTag.dateobs).where(GcnTag.text.in_(gcn_tag_keep))
+            )
         )
     if gcn_tag_remove:
-        gcn_tag_subquery = (
-            GcnTag.select(user_or_token)
-            .where(GcnTag.text.in_(gcn_tag_remove))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.notin_(
+                sa.select(GcnTag.dateobs).where(GcnTag.text.in_(gcn_tag_remove))
+            )
         )
-        gcn_dateobs_query = GcnEvent.select(
-            user_or_token, columns=[GcnEvent.dateobs]
-        ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
-        query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
     if localization_tag_keep:
-        tag_subquery = (
-            LocalizationTag.select(user_or_token)
-            .where(LocalizationTag.text.in_(localization_tag_keep))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.in_(
+                sa.select(Localization.dateobs)
+                .join(
+                    LocalizationTag,
+                    LocalizationTag.localization_id == Localization.id,
+                )
+                .where(LocalizationTag.text.in_(localization_tag_keep))
+            )
         )
-        localization_id_query = (
-            Localization.select(user_or_token, columns=[Localization.dateobs])
-            .where(Localization.id == tag_subquery.c.localization_id)
-            .subquery()
-        )
-        query = query.where(GcnEvent.dateobs.in_(localization_id_query))
     if localization_tag_remove:
-        tag_subquery = (
-            LocalizationTag.select(user_or_token)
-            .where(LocalizationTag.text.in_(localization_tag_remove))
-            .subquery()
+        query = query.where(
+            GcnEvent.dateobs.notin_(
+                sa.select(Localization.dateobs)
+                .join(
+                    LocalizationTag,
+                    LocalizationTag.localization_id == Localization.id,
+                )
+                .where(LocalizationTag.text.in_(localization_tag_remove))
+            )
         )
-        localization_id_query = (
-            Localization.select(user_or_token, columns=[Localization.dateobs])
-            .where(Localization.id == tag_subquery.c.localization_id)
-            .subquery()
-        )
-        query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
     if gcn_properties_filter is not None:
         for prop_filt in gcn_properties_filter:
             prop_split = prop_filt.split(":")
@@ -6168,7 +6166,29 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
             if obj_check is not None:
                 events.append(event.dateobs)
 
-        obj.gcn_crossmatch = events
+        # Record each containment as a pending association: the crossmatch
+        # proposes, a human rules on it. Existing rows are left alone so a
+        # decision already made is not reset to pending.
+        existing = {
+            row.dateobs
+            for row in session.scalars(
+                sa.select(GcnEventObj).where(
+                    GcnEventObj.obj_id == obj.id,
+                    GcnEventObj.dateobs.in_(events),
+                )
+            ).all()
+        }
+        for dateobs in events:
+            if dateobs in existing:
+                continue
+            session.add(
+                GcnEventObj(
+                    obj_id=obj.id,
+                    dateobs=dateobs,
+                    status="pending",
+                    confirmer_id=user_id,
+                )
+            )
         session.commit()
 
         flow = Flow()

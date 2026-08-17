@@ -46,11 +46,23 @@ interface ReportItemProps {
   isMultiGroup: boolean;
 }
 
+// A match the crossmatch proposed stays "to review" until a scanner rules on it.
+const gcnVerdict = (match: any) => {
+  if (!match) return null;
+  if (match.status === "confirmed") return "confirmed";
+  if (match.status === "rejected") return "rejected";
+  if (match.status === "ambiguous") return "ambiguous";
+  return "to review";
+};
+
 const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
   const { data: reportItems, isFetching: loading } =
     useGetScanReportItemsQuery(reportId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);
+  const hasGcnMatch = (reportItems || []).some(
+    (item: any) => item.data?.gcn_match,
+  );
 
   const displayDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -75,14 +87,25 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
             <FieldTitle>Source</FieldTitle>
             <FieldTitle>TNS name</FieldTitle>
+            <FieldTitle>aliases</FieldTitle>
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
             <FieldTitle>observing run / priority</FieldTitle>
             <FieldTitle>detections (survey)</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>z (DESI)</FieldTitle>
+            <FieldTitle sx={{ flex: 1 }}>offset</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
+            {hasGcnMatch && (
+              <FieldTitle sx={{ flex: 1 }}>&delta;t (d)</FieldTitle>
+            )}
+            {hasGcnMatch && (
+              <FieldTitle sx={{ flex: 1 }}>sep (\u2032)</FieldTitle>
+            )}
+            {hasGcnMatch && <FieldTitle>in GCN?</FieldTitle>}
+            <FieldTitle sx={{ flex: 1 }}>previous mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current mag</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>absolute mag</FieldTitle>
             <FieldTitle sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
@@ -107,7 +130,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 <Field>
                   {reportItem.data.saved_info.map(
                     (info: any, index: number) => (
-                      <div key={index}>{info.saved_by}</div>
+                      <div key={index}>
+                        {[info.saved_by?.first_name, info.saved_by?.last_name]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </div>
                     ),
                   )}
                 </Field>
@@ -135,17 +162,34 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                 </Field>
                 <Field>
                   {reportItem.data.tns_name && (
-                    <Link
-                      to={`https://www.wis-tns.org/object/${reportItem.data.tns_name
+                    // Plain anchor, not react-router Link, so the external TNS URL
+                    // actually navigates instead of being routed inside the app.
+                    <a
+                      href={`https://www.wis-tns.org/object/${reportItem.data.tns_name
                         .trim()
                         .split(" ")
                         .pop()}`}
-                      role="link"
                       target="_blank"
+                      rel="noreferrer"
                     >
                       {reportItem.data.tns_name}
-                    </Link>
+                    </a>
                   )}
+                </Field>
+                <Field>
+                  {reportItem.data.associated_objs?.map((assoc: any) => (
+                    <div key={assoc.obj_id}>
+                      <Link
+                        to={`/source/${assoc.obj_id}`}
+                        role="link"
+                        target="_blank"
+                      >
+                        {assoc.obj_id}
+                      </Link>
+                      {assoc.aliases?.length > 0 &&
+                        ` (${assoc.aliases.join(", ")})`}
+                    </div>
+                  ))}
                 </Field>
                 <Field>{reportItem.data.comment}</Field>
                 <Field>
@@ -155,7 +199,10 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         title={
                           (classification.ml ? "ML: " : "") +
                           classification.classification +
-                          (classification.probability < 0.1 ? "?" : "")
+                          (classification.probability < 0.1 ? "?" : "") +
+                          (classification.created_at
+                            ? ` — ${displayDate(classification.created_at)}`
+                            : "")
                         }
                         key={index}
                       >
@@ -177,7 +224,11 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                       <Tooltip
                         title={`${followup.instrument} (${followup.type}): ${followup.priority}${
                           followup.status ? ` — ${followup.status}` : ""
-                        }${followup.requester ? ` — by ${followup.requester}` : ""}`}
+                        }${followup.requester ? ` — by ${followup.requester}` : ""}${
+                          followup.start_date && followup.end_date
+                            ? ` — ${followup.start_date} to ${followup.end_date}`
+                            : ""
+                        }`}
                         key={index}
                       >
                         <Chip
@@ -218,11 +269,19 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                         const parts = [];
                         if (det.first)
                           parts.push(
-                            `first ${det.first.mag} (${det.first.days_ago}d)`,
+                            `first ${det.first.mag} ${det.first.filter} (${det.first.days_ago}d)${det.first.fp ? " [FP]" : ""}`,
+                          );
+                        if (det.first_real)
+                          parts.push(
+                            `first real ${det.first_real.mag} ${det.first_real.filter} (${det.first_real.days_ago}d)`,
                           );
                         if (det.peak)
                           parts.push(
-                            `peak ${det.peak.mag} (${det.peak.days_ago}d)`,
+                            `peak ${det.peak.mag} ${det.peak.filter} (${det.peak.days_ago}d)`,
+                          );
+                        if (det.last)
+                          parts.push(
+                            `last ${det.last.mag} ${det.last.filter} (${det.last.days_ago}d)`,
                           );
                         return (
                           <Tooltip
@@ -239,9 +298,63 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                     )}
                 </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.host_redshift}</Field>
+                <Field sx={{ flex: 1 }}>{reportItem.data.desi_redshift}</Field>
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.offset && (
+                    <Tooltip
+                      title={`${reportItem.data.offset.arcsec ?? "?"}″ / ${reportItem.data.offset.kpc ?? "?"} kpc`}
+                    >
+                      <span>
+                        {reportItem.data.offset.arcsec ?? "?"}″ (
+                        {reportItem.data.offset.kpc ?? "?"} kpc)
+                      </span>
+                    </Tooltip>
+                  )}
+                </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_age}</Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.current_filter}</Field>
-                <Field sx={{ flex: 1 }}>{reportItem.data.current_mag}</Field>
+                {hasGcnMatch && (
+                  <Field sx={{ flex: 1 }}>
+                    {reportItem.data.gcn_match?.delta_t}
+                  </Field>
+                )}
+                {hasGcnMatch && (
+                  <Field sx={{ flex: 1 }}>
+                    {reportItem.data.gcn_match?.distance_arcmin}
+                  </Field>
+                )}
+                {hasGcnMatch && (
+                  <Field>
+                    {gcnVerdict(reportItem.data.gcn_match)}
+                    {reportItem.data.gcn_match?.explanation && (
+                      <span style={{ color: "grey" }}>
+                        {reportItem.data.gcn_match.explanation}
+                      </span>
+                    )}
+                  </Field>
+                )}
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.previous_mag != null && (
+                    <Tooltip
+                      title={`${reportItem.data.previous_filter ?? "?"} @ MJD ${
+                        reportItem.data.previous_mjd ?? "?"
+                      }`}
+                    >
+                      <span>{reportItem.data.previous_mag}</span>
+                    </Tooltip>
+                  )}
+                </Field>
+                <Field sx={{ flex: 1 }}>
+                  {reportItem.data.current_mag != null && (
+                    <Tooltip
+                      title={`${reportItem.data.current_filter ?? "?"} @ MJD ${
+                        reportItem.data.current_mjd ?? "?"
+                      }`}
+                    >
+                      <span>{reportItem.data.current_mag}</span>
+                    </Tooltip>
+                  )}
+                </Field>
                 <Field sx={{ flex: 1 }}>{reportItem.data.abs_mag}</Field>
                 <Field sx={{ flex: 0, minWidth: "auto", borderRight: "none" }}>
                   <IconButton

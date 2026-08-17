@@ -62,6 +62,7 @@ from ...models import (
     FollowupRequest,
     Galaxy,
     GcnEvent,
+    GcnEventObj,
     Group,
     GroupUser,
     Instrument,
@@ -74,7 +75,6 @@ from ...models import (
     Source,
     SourceLabel,
     SourceNotification,
-    SourcesConfirmedInGCN,
     SourceView,
     Spectrum,
     Telescope,
@@ -125,13 +125,13 @@ Session = scoped_session(sessionmaker())
 
 
 def confirmed_in_gcn_status_to_str(status):
-    if status is True:
-        return "highlighted"
-    if status is False:
-        return "rejected"
-    if status is None:
-        return "ambiguous"
-    return "not vetted"
+    """Map a stored GcnEventObj.status onto the word the UI displays."""
+    return {
+        "confirmed": "highlighted",
+        "rejected": "rejected",
+        "ambiguous": "ambiguous",
+        "pending": "pending",
+    }.get(status, "not vetted")
 
 
 def remove_obj_thumbnails(obj_id):
@@ -290,16 +290,23 @@ async def get_source(
     # refresh maps a broadcast obj_key back to this loaded source by internal_key.
     source_info["internal_key"] = s.internal_key
 
-    # only keep the latest Thumbnail for each type (by created_at)
-    if include_thumbnails and source_info.get("thumbnails"):
-        latest_by_type = {}
-        for t in source_info["thumbnails"]:
-            if (
-                t.type not in latest_by_type
-                or t.created_at > latest_by_type[t.type].created_at
-            ):
-                latest_by_type[t.type] = t
-        source_info["thumbnails"] = list(latest_by_type.values())
+    # Keep the latest Thumbnail per (survey, type) across the SuperObj-linked objs,
+    # so a ZTF source also surfaces its linked LSST cutouts, each carrying its
+    # survey for per-survey labeling. All-sky archival cutouts (sdss/ps1/...) are
+    # survey-independent, so dedupe those on type alone.
+    if include_thumbnails:
+        alert_types = {"new", "ref", "sub"}
+        thumbnails = (
+            await session.scalars(
+                Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
+            )
+        ).all()
+        latest = {}
+        for t in thumbnails:
+            key = (t.survey, t.type) if t.type in alert_types else (None, t.type)
+            if key not in latest or t.created_at > latest[key].created_at:
+                latest[key] = t
+        source_info["thumbnails"] = list(latest.values())
 
     point = ca.Point(ra=s.ra, dec=s.dec)
 
@@ -347,6 +354,10 @@ async def get_source(
 
     async def _galaxies():
         # nearby galaxies (within 10 arcsecs)
+        # A moving object's position is one epoch's, so a positional match says
+        # nothing about association.
+        if s.is_roid:
+            return None
         async with AsyncVerifiedSession(user) as gsession:
             result = await gsession.scalars(
                 Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
@@ -356,11 +367,18 @@ async def get_source(
 
     async def _duplicates():
         # nearby objects (within 4 arcsecs)
+        # Coincidence with a moving object is a transit, not a duplicate: it is
+        # only ever at these coordinates at this epoch.
+        if s.is_roid:
+            return []
         async with AsyncVerifiedSession(user) as dsession:
             duplicate_objs = (
                 Obj.select(user)
                 .where(Obj.within(point, 4 / 3600))
                 .where(Obj.id != s.id)
+                # ... and a moving object passing through is not a duplicate of
+                # whatever it passed. `isnot(True)` also covers pre-existing nulls.
+                .where(Obj.is_roid.isnot(True))
                 .subquery()
             )
             result = await dsession.scalars(
@@ -584,26 +602,13 @@ async def get_source(
         source_info["comment_exists"] = comment_exists is not None
 
     if include_gcn_crossmatches:
-        if (
-            not isinstance(source_info.get("gcn_crossmatch"), list)
-            or len(source_info.get("gcn_crossmatch")) == 0
-        ):
-            source_info["gcn_crossmatch"] = []
-        confirmed_in_gcn_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
-                SourcesConfirmedInGCN.confirmed.is_not(False),
+        gcn_event_obj_result = await session.scalars(
+            GcnEventObj.select(user).where(
+                GcnEventObj.obj_id == obj_id,
+                GcnEventObj.status != "rejected",
             )
         )
-        confirmed_in_gcn = confirmed_in_gcn_result.all()
-        if len(confirmed_in_gcn) > 0:
-            source_info["gcn_crossmatch"].extend(
-                [gcn.dateobs for gcn in confirmed_in_gcn]
-            )
-
-        crossmatch_dateobs = list(
-            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
-        )
+        crossmatch_dateobs = list({row.dateobs for row in gcn_event_obj_result.all()})
         gcn_crossmatch_result = await session.scalars(
             GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
         )
@@ -625,8 +630,8 @@ async def get_source(
         ):
             source_info["gcn_notes"] = []
         confirmed_in_gcn_notes_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
+            GcnEventObj.select(user).where(
+                GcnEventObj.obj_id == obj_id,
             )
         )
         confirmed_in_gcn_notes = confirmed_in_gcn_notes_result.all()
@@ -637,7 +642,7 @@ async def get_source(
                         "dateobs": gcn.dateobs,
                         "explanation": gcn.explanation,
                         "notes": gcn.notes,
-                        "status": confirmed_in_gcn_status_to_str(gcn.confirmed),
+                        "status": confirmed_in_gcn_status_to_str(gcn.status),
                     }
                     for gcn in confirmed_in_gcn_notes
                 ]
@@ -2756,7 +2761,9 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-            if not isinstance(isoparse(obstime), datetime.datetime):
+            try:
+                isoparse(obstime)
+            except (ValueError, TypeError):
                 return self.error("obstime is not valid isoformat")
 
             if facility not in facility_parameters:
@@ -2865,6 +2872,12 @@ class SourceOffsetsHandler(BaseHandler):
 
                     priority, comment = assignment.priority, assignment.comment
 
+            # Commit before the slow Gaia query: holding the transaction across
+            # it trips pgbouncer's idle_transaction_timeout. Capture first, since
+            # commit expires the ORM objects.
+            source_ra, source_dec = source.ra, source.dec
+            await session.commit()
+
             offset_func = functools.partial(
                 get_nearby_offset_stars,
                 ra,
@@ -2903,14 +2916,13 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            await session.commit()
             return self.success(
                 data={
                     "facility": facility,
                     "starlist_str": starlist_str,
                     "starlist_info": starlist_info,
-                    "ra": source.ra,
-                    "dec": source.dec,
+                    "ra": source_ra,
+                    "dec": source_dec,
                     "noffsets": noffsets,
                     "queries_issued": queries_issued,
                     "query": query_string,
@@ -3187,7 +3199,9 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
-        if not isinstance(isoparse(obstime), datetime.datetime):
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
         num_offset_stars = self.get_query_argument("num_offset_stars", "3")

@@ -304,14 +304,14 @@ def test_confirm_reject_source_in_gcn(
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
-        data={"source_id": obj_id, "confirmed": True, **loc_params},
+        data={"source_id": obj_id, "status": "confirmed", **loc_params},
         token=super_admin_token,
     )
     assert status == 200
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
-        data={"source_id": obj_id, "confirmed": False, **loc_params},
+        data={"source_id": obj_id, "status": "rejected", **loc_params},
         token=super_admin_token,
     )
     assert status == 200

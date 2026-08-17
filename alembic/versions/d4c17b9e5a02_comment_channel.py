@@ -1,7 +1,7 @@
 """Add a channel to comments
 
 Revision ID: d4c17b9e5a02
-Revises: 87b838c05b25
+Revises: d4e8b1c07f39
 Create Date: 2026-08-06 00:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d4c17b9e5a02"
-down_revision = "87b838c05b25"
+down_revision = "d4e8b1c07f39"
 branch_labels = None
 depends_on = None
 

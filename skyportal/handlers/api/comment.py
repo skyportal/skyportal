@@ -415,7 +415,7 @@ class CommentHandler(BaseHandler):
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
-                comment_resource_id_str = str(comment.gcn_id)
+                comment_resource_id_str = str(comment.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 comment = await session.scalar(
                     CommentOnShift.select(session.user_or_token).where(
@@ -1049,7 +1049,7 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             "Could not find any accessible comments.", status=403
                         )
-                    comment_resource_id_str = str(c.gcn_id)
+                    comment_resource_id_str = str(c.earthquake_id)
                 elif associated_resource_type.lower() == "shift":
                     schema = CommentOnShift.__schema__()
                     c = await session.scalar(

@@ -34,16 +34,13 @@ import {
   useAddCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
 
-import CommentEntry from "./CommentEntry";
+import CommentForm from "./CommentForm";
 import Comment from "./Comment";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles()((theme) => ({
-  commentsContainer: {
-    width: "100%",
-  },
   panelContainer: {
     display: "flex",
     flexDirection: "column",
@@ -133,10 +130,6 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: "15px",
     width: "100%",
   },
-  spacer: {
-    width: "20px",
-    padding: "0 10px",
-  },
   commentHeader: {
     display: "flex",
     alignItems: "center",
@@ -158,20 +151,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   commentMessageShift: {
     maxWidth: "47em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  compactCommentMessage: {
-    maxWidth: "34em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  compactCommentMessageShift: {
-    maxWidth: "44em",
     "& > p": {
       margin: "0",
     },
@@ -202,48 +181,27 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: "27px",
     maxWidth: "25em",
   },
-  compactContainer: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: "25px",
-    margin: "0 15px",
-    width: "100%",
-  },
-  compactWrap: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    padding: "0 5px",
-  },
-  compactButtons: {
-    display: "flex",
-    alignItems: "center",
-  },
 }));
 
-interface CommentListProps {
+interface CommentThreadProps {
   isCandidate?: boolean;
   objID?: string | null;
   gcnEventID?: number | null;
   gcnEventDateobs?: string | null;
   earthquakeID?: string | null;
   earthquakeEventID?: string | null;
-  associatedResourceType?: string;
+  resourceType?: string;
   spectrumID?: number | null;
   shiftID?: number | null;
   includeCommentsOnAllResourceTypes?: boolean;
+  // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
-  compact?: boolean;
 }
 
-const CommentList = ({
+const CommentThread = ({
   isCandidate = false,
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   spectrumID = null,
   gcnEventID = null,
@@ -252,10 +210,9 @@ const CommentList = ({
   earthquakeEventID = null,
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
-  maxHeightList = "350px",
-  compact = false,
+  maxHeightList,
   channel,
-}: CommentListProps) => {
+}: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
 
@@ -324,40 +281,43 @@ const CommentList = ({
     earthquakeID = earthquake.id;
   }
 
+  const resourceID: Record<string, any> = {
+    sources: objID,
+    spectra: objID,
+    gcn_event: gcnEventID,
+    shift: shiftID,
+    earthquake: earthquakeID,
+  };
+
   const addComment = (formData: any) => {
-    addCommentMutation({
-      obj_id: objID,
-      spectrum_id: spectrumID,
-      channel,
-      ...formData,
-    });
-  };
-
-  const addGcnEventComment = (formData: any) => {
-    addCommentOnGcnEvent({
-      gcnevent_id: gcnEventID,
-      ...formData,
-    });
-  };
-
-  const addEarthquakeComment = (formData: any) => {
-    addCommentOnEarthquake({
-      earthquake_id: earthquakeID,
-      ...formData,
-    });
-  };
-
-  const addShiftComment = (formData: any) => {
-    addCommentOnShift({
-      shiftID,
-      ...formData,
-    });
+    switch (resourceType) {
+      case "sources":
+      case "spectra":
+        addCommentMutation({
+          obj_id: objID,
+          spectrum_id: spectrumID,
+          channel,
+          ...formData,
+        });
+        break;
+      case "gcn_event":
+        addCommentOnGcnEvent({ gcnevent_id: gcnEventID, ...formData });
+        break;
+      case "shift":
+        addCommentOnShift({ shiftID, ...formData });
+        break;
+      case "earthquake":
+        addCommentOnEarthquake({ earthquake_id: earthquakeID, ...formData });
+        break;
+      default:
+        break;
+    }
   };
 
   let comments: any = null;
   let specComments: any = null;
 
-  if (associatedResourceType === "object") {
+  if (resourceType === "sources") {
     comments = channel ? (conversation ?? []) : obj?.comments;
     if (
       includeCommentsOnAllResourceTypes &&
@@ -370,23 +330,23 @@ const CommentList = ({
       comments = specComments.concat(comments);
       comments.sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1));
     }
-  } else if (associatedResourceType === "spectra") {
+  } else if (resourceType === "spectra") {
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
     const spectrum = spectra?.find((spec: any) => spec.id === spectrumID);
     comments = spectrum?.comments;
-  } else if (associatedResourceType === "gcn_event") {
+  } else if (resourceType === "gcn_event") {
     if (gcnEventID === null) {
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
     comments = gcnEvent?.comments;
-  } else if (associatedResourceType === "shift") {
+  } else if (resourceType === "shift") {
     if (shiftID === null) {
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
-  } else if (associatedResourceType === "earthquake") {
+  } else if (resourceType === "earthquake") {
     if (earthquakeID === null) {
       throw new Error(
         "Must specify an earthquakeID for comments on earthquake",
@@ -394,7 +354,7 @@ const CommentList = ({
     }
     comments = earthquake?.comments;
   } else {
-    throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
+    throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
   comments = comments || [];
@@ -403,11 +363,9 @@ const CommentList = ({
     comments = comments?.filter((comment: any) => comment.bot === false);
   }
 
-  if (compact) {
-    comments = [...comments].sort((a: any, b: any) =>
-      a.created_at < b.created_at ? -1 : 1,
-    );
-  }
+  comments = [...comments].sort((a: any, b: any) =>
+    a.created_at < b.created_at ? -1 : 1,
+  );
 
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
@@ -420,27 +378,19 @@ const CommentList = ({
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (compact && listRef.current) {
+    if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [compact, channel, comments.length]);
+  }, [channel, comments.length]);
 
   return (
-    <div className={compact ? styles.panelContainer : styles.commentsContainer}>
+    <div className={styles.panelContainer}>
       <div
         ref={listRef}
-        className={compact ? styles.panelList : undefined}
-        style={
-          compact
-            ? undefined
-            : {
-                marginTop: "1rem",
-                overflowY: "scroll",
-                maxHeight: maxHeightList,
-              }
-        }
+        className={styles.panelList}
+        style={{ maxHeight: maxHeightList }}
       >
-        {compact && comments.length === 0 && (
+        {comments.length === 0 && (
           <div className={styles.panelEmpty}>
             {channel
               ? "This conversation is only kept once a message is sent."
@@ -456,7 +406,7 @@ const CommentList = ({
             attachment_name,
             groups,
             spectrum_id,
-            resourceType,
+            resourceType: commentResourceType,
             obj_id,
             bot,
           }: any) => (
@@ -488,7 +438,12 @@ const CommentList = ({
                 </Tooltip>
               )}
               <Comment
-                associatedResourceType={resourceType}
+                // Spectra comments are merged into the source thread, so the
+                // type comes from the comment itself when the API sends it.
+                resourceType={
+                  commentResourceType ??
+                  (spectrum_id ? "spectra" : resourceType)
+                }
                 bot={bot}
                 styles={bot ? botStyles : styles}
                 id={id}
@@ -509,19 +464,13 @@ const CommentList = ({
         )}
       </div>
       {!channel && (
-        <div className={compact ? styles.panelBots : undefined}>
+        <div className={styles.panelBots}>
           <FormControlLabel
-            label={
-              compact ? (
-                <span className={styles.panelBotsLabel}>Include bots</span>
-              ) : (
-                "Include Bots?"
-              )
-            }
+            label={<span className={styles.panelBotsLabel}>Include bots</span>}
             control={
               <Checkbox
                 color="primary"
-                size={compact ? "small" : "medium"}
+                size="small"
                 onChange={(event) => setIncludeBots(event.target.checked)}
                 checked={includeBots || false}
                 {...({ title: "Include Bots?", type: "checkbox" } as any)}
@@ -530,29 +479,11 @@ const CommentList = ({
           />
         </div>
       )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        objID &&
-        (associatedResourceType === "object" ||
-          associatedResourceType === "spectra") && (
-          <CommentEntry addComment={addComment} compact={compact} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        gcnEventID &&
-        associatedResourceType === "gcn_event" && (
-          <CommentEntry addComment={addGcnEventComment} compact={compact} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        shiftID &&
-        associatedResourceType === "shift" && (
-          <CommentEntry addComment={addShiftComment} compact={compact} />
-        )}
-      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
-        earthquakeID &&
-        associatedResourceType === "earthquake" && (
-          <CommentEntry addComment={addEarthquakeComment} compact={compact} />
-        )}
+      {permissions?.includes("Comment") && resourceID[resourceType] && (
+        <CommentForm addComment={addComment} />
+      )}
     </div>
   );
 };
 
-export default CommentList;
+export default CommentThread;

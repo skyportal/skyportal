@@ -50,6 +50,7 @@ from skyportal.models import (
     GalaxyCatalog,
     GcnEvent,
     GcnEventCrossmatchState,
+    GcnEventObj,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -125,7 +126,6 @@ from skyportal.models import (
     ShiftUser,
     Source,
     SourceLabel,
-    SourcesConfirmedInGCN,
     SourceView,
     SpatialCatalog,
     Spectrum,
@@ -1753,10 +1753,24 @@ def public_group_gcnevent(public_group, public_gcnevent):
 
 
 @pytest.fixture()
-def public_gcnevent_crossmatch_state(public_gcnevent, broker):
+def public_gcnevent_crossmatch_state(public_gcnevent, public_filter, user):
+    # State is tracked per localization (one event can carry several), so the
+    # row needs one belonging to this event.
+    localization = Localization(
+        dateobs=public_gcnevent.dateobs,
+        localization_name=str(uuid.uuid4()),
+        sent_by_id=user.id,
+        uniq=[4 * (4**29) + i for i in range(4)],
+        probdensity=[0.25, 0.25, 0.25, 0.25],
+    )
+    DBSession().add(localization)
+    DBSession().commit()
+    localization_id = localization.id
+
     state = GcnEventCrossmatchState(
         gcnevent_id=public_gcnevent.id,
-        broker_id=broker.id,
+        filter_id=public_filter.id,
+        localization_id=localization_id,
         status="pending",
     )
     DBSession().add(state)
@@ -1764,6 +1778,7 @@ def public_gcnevent_crossmatch_state(public_gcnevent, broker):
     state_id = state.id
     yield state
     resilient_delete(GcnEventCrossmatchState, state_id)
+    resilient_delete(Localization, localization_id)
 
 
 @pytest.fixture()
@@ -6847,7 +6862,7 @@ def public_source_view(public_source, user):
 
 
 @pytest.fixture()
-def public_sources_confirmed_in_gcn(public_source, user):
+def public_gcn_event_obj(public_source, user):
     dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
@@ -6859,28 +6874,24 @@ def public_sources_confirmed_in_gcn(public_source, user):
     DBSession.add(gcnevent)
     DBSession.commit()
 
-    sources_confirmed_in_gcn = SourcesConfirmedInGCN(
+    gcn_event_obj = GcnEventObj(
         obj_id=public_source.id,
         dateobs=dateobs,
         confirmer_id=user.id,
-        confirmed=True,
+        status="confirmed",
         explanation="test confirmation",
         notes="test notes",
     )
-    DBSession.add(sources_confirmed_in_gcn)
+    DBSession.add(gcn_event_obj)
     DBSession.commit()
-    sources_confirmed_in_gcn_id = sources_confirmed_in_gcn.id
+    gcn_event_obj_id = gcn_event_obj.id
     gcnevent_dateobs = gcnevent.dateobs
 
-    yield sources_confirmed_in_gcn
+    yield gcn_event_obj
 
     row = (
         DBSession()
-        .execute(
-            sa.select(SourcesConfirmedInGCN).filter(
-                SourcesConfirmedInGCN.id == sources_confirmed_in_gcn_id
-            )
-        )
+        .execute(sa.select(GcnEventObj).filter(GcnEventObj.id == gcn_event_obj_id))
         .scalars()
         .first()
     )
@@ -7070,7 +7081,7 @@ def public_stream_invitation(public_stream, user):
     # Look up the "Full user" Role required by the NOT NULL role_id column.
     role = DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
     # Invitation has several nullable=False columns: token, role_id,
-    # admin_for_groups, can_save_to_groups, used. Fill them all.
+    # admin_for_groups, can_save_to_groups, can_share_photometry_for_groups, used. Fill them all.
     # NOTE: Invitation fires an after_insert listener that sends an email; the
     # test suite sets invitations.disable_emailing so it only logs instead.
     invitation = Invitation(
@@ -7078,6 +7089,7 @@ def public_stream_invitation(public_stream, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="user@email.com",
         invited_by=user,
         used=False,
@@ -7545,6 +7557,7 @@ def public_user_invitation(public_group, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="invitee@email.com",
         used=False,
         groups=[public_group],

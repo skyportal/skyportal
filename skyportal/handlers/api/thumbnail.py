@@ -33,6 +33,11 @@ class ThumbnailPostBody(BaseModel):
         description="Thumbnail type. Must be one of 'new', 'ref', 'sub', "
         "'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'"
     )
+    survey: str | None = Field(
+        default=None,
+        description="Survey the cutout came from (e.g. ZTF, LSST). NULL for "
+        "all-sky archival thumbnails.",
+    )
 
 
 class ThumbnailPostResponse(BaseModel):
@@ -112,6 +117,7 @@ async def post_thumbnail(data, user_id, session):
         t = Thumbnail(
             obj_id=data["obj_id"],
             type=data["ttype"],
+            survey=data.get("survey"),
             file_uri=file_uri,
             public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
         )

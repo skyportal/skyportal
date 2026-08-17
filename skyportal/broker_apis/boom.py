@@ -87,6 +87,56 @@ def _survey(broker, kwargs):
     return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
 
 
+# BOOM rejects a filter test whose window is wider than this ("JD window for
+# filter test cannot exceed 7.0 JD").
+MAX_TEST_WINDOW_DAYS = 7.0
+
+# ... and one whose pipeline does not end in a $project carrying objectId
+# ("the last stage must be a $project stage that includes objectId").
+DEFAULT_PROJECT_STAGE = {
+    "$project": {"objectId": 1, "candid": 1, "candidate": 1, "coordinates": 1}
+}
+
+
+def _ensure_project_stage(pipeline):
+    """Append BOOM's required terminal $project unless the caller wrote one."""
+    stages = list(pipeline or [])
+    if stages and "$project" in stages[-1]:
+        return stages
+    return [*stages, DEFAULT_PROJECT_STAGE]
+
+
+def _top_n(docs, sort_by, sort_order, limit):
+    """The first ``limit`` docs by ``sort_by``, as the broker would have ordered
+    them had the window not been split."""
+
+    def key(doc):
+        value = doc
+        for part in str(sort_by).split("."):
+            value = (value or {}).get(part) if isinstance(value, dict) else None
+        return (value is None, value if value is not None else 0)
+
+    ordered = sorted(docs, key=key, reverse=str(sort_order).lower() != "ascending")
+    return ordered[: int(limit)] if limit else ordered
+
+
+def _jd_windows(start_jd, end_jd, max_days):
+    """Split [start_jd, end_jd] into consecutive spans of at most max_days.
+
+    Truncating instead would silently drop most of the requested epoch range.
+    """
+    if start_jd is None or end_jd is None or max_days <= 0:
+        return [(start_jd, end_jd)]
+    if end_jd - start_jd <= max_days:
+        return [(start_jd, end_jd)]
+    windows, lo = [], start_jd
+    while lo < end_jd:
+        hi = min(lo + max_days, end_jd)
+        windows.append((lo, hi))
+        lo = hi
+    return windows
+
+
 def _programids(kwargs, survey):
     """The programids the requester may see for ``survey``.
 
@@ -175,12 +225,11 @@ def _modules_db(broker):
 _BOOM_SENTINEL = -99999.0
 
 
-def _normalize_boom_alert(record):
-    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
-    into the standard alert shape (``candidate`` + ``prv_candidates`` with
-    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+def _boom_photometry_to_prv(photometry):
+    """BOOM native ``photometry[]`` (flux in nJy) -> standard ``prv_candidates``
+    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     prv = []
-    for p in record.get("photometry") or []:
+    for p in photometry or []:
         flux_err = p.get("flux_err")
         if flux_err is None or flux_err == _BOOM_SENTINEL:
             continue
@@ -198,16 +247,86 @@ def _normalize_boom_alert(record):
                 "programid": p.get("programid", 1),
             }
         )
+    return prv
+
+
+def _normalize_boom_alert(record):
+    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
+    into the standard alert shape (``candidate`` + ``prv_candidates`` with
+    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     return {
         "objectId": record.get("objectId"),
         "candid": record.get("candid"),
+        # The alert's own epoch, which identifies its detection within `prv`.
+        "jd": record.get("jd"),
+        "properties": record.get("properties"),
         "candidate": {
             "ra": record.get("ra"),
             "dec": record.get("dec"),
             "drb": record.get("drb"),
         },
-        "prv_candidates": prv,
+        "prv_candidates": _boom_photometry_to_prv(record.get("photometry")),
     }
+
+
+async def _ingest_survey_matches(
+    broker, record, main_obj_id, main_survey, session, user
+):
+    """Ingest BOOM's cross-survey matches for a passing alert: create each
+    counterpart Obj + its photometry (and, on first sight, its cutout thumbnails)
+    and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
+    (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
+    alert has a counterpart in another survey."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import associate_super_obj, save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    matches = record.get("survey_matches") or {}
+    if not isinstance(matches, dict):
+        return
+    associated = set()
+    for match_survey, match in matches.items():
+        if not isinstance(match, dict):
+            continue
+        match_survey = str(match_survey).upper()
+        match_obj_id = match.get("objectId")
+        if match_survey == main_survey or not match_obj_id:
+            continue
+        match_obj_id = str(match_obj_id)
+        is_new = (
+            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
+        ) is None
+        match_data = {
+            "objectId": match_obj_id,
+            "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
+            "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
+        }
+        try:
+            await save_object_photometry(match_data, match_survey, session, user)
+            associated.add(match_obj_id)
+        except Exception as e:
+            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
+            continue
+        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
+        if is_new and broker is not None:
+            try:
+                cutouts = _request(
+                    broker,
+                    "GET",
+                    f"surveys/{match_survey}/cutouts",
+                    params={"objectId": match_obj_id},
+                )
+                if isinstance(cutouts, dict):
+                    await add_thumbnails(
+                        match_obj_id, cutouts, match_survey, session, user_id=user.id
+                    )
+            except Exception as e:
+                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
+    if associated:
+        await associate_super_obj(session, main_obj_id, associated)
+        await session.commit()
 
 
 # Collections that belong to surveys/alerts, not reference catalogs.
@@ -283,6 +402,7 @@ class BOOMBROKER(BrokerAPI):
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
     cross_match_catalogs = True
+    filter_pipeline = "mongo"
 
     form_json_schema_config = {
         "type": "object",
@@ -472,6 +592,12 @@ class BOOMBROKER(BrokerAPI):
         from baselayer.app.models import async_plain_session_factory
 
         from ..models import Filter, User
+        from ..utils.sso_ingest import (
+            extract_designation,
+            ingest_sso_alert,
+            sso_filter_targets,
+            sso_routing_for,
+        )
         from ._kafka import kafka_consumer_config, read_avro
         from ._save import save_object_as_candidate
 
@@ -489,10 +615,14 @@ class BOOMBROKER(BrokerAPI):
         # Map BOOM filter ids -> skyportal Filter ids once at startup.
         async with async_plain_session_factory() as session:
             boom_map = {}
-            for f in (await session.scalars(sa.select(Filter))).all():
-                boom = (f.altdata or {}).get("boom") if f.altdata else None
+            filters = (await session.scalars(sa.select(Filter))).all()
+            for f in filters:
+                boom = (f.altdata or {}).get("boom")
                 if boom and boom.get("filter_id") is not None:
                     boom_map[boom["filter_id"]] = f.id
+            # Filters marked `altdata['sso']` route their alerts to the
+            # solar-system ingest instead of the sidereal one.
+            sso_targets = sso_filter_targets(filters)
 
         count = 0
         try:
@@ -539,19 +669,51 @@ class BOOMBROKER(BrokerAPI):
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
                     if record.get(k) is not None
                 } or None
+                sso_filter_ids, sso_group_ids = sso_routing_for(filter_ids, sso_targets)
+                designation = (
+                    extract_designation(data, annotations_by_filter_id)
+                    if sso_filter_ids
+                    else None
+                )
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
-                        await save_object_as_candidate(
-                            data,
-                            survey,
-                            session,
-                            user,
-                            filter_ids,
-                            passing_alert_id=record.get("candid"),
-                            cutouts=cutouts,
-                            annotations_by_filter_id=annotations_by_filter_id,
-                        )
+                        if designation:
+                            await ingest_sso_alert(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                designation,
+                                sso_group_ids,
+                                filter_ids=sso_filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                        else:
+                            await save_object_as_candidate(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                cutouts=cutouts,
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                            # Only associate cross-survey matches when the primary was
+                            # ingested as a candidate, so we don't create orphan
+                            # counterpart objs for alerts nobody is scanning. Moving
+                            # objects are matched by designation, not position.
+                            if filter_ids and record.get("survey_matches"):
+                                await _ingest_survey_matches(
+                                    broker,
+                                    record,
+                                    data["objectId"],
+                                    survey,
+                                    session,
+                                    user,
+                                )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
                 count += 1
@@ -645,11 +807,12 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def update_filter(broker, session, **kwargs):
-        """Activate a version (``active``/``active_fid``) on BOOM. ``skip_validation``
-        tells BOOM to skip its inline activation check (skyportal gates instead)."""
+        """Activate a version (``active``/``active_fid``) or rename (``name``) on
+        BOOM. ``skip_validation`` tells BOOM to skip its inline activation check
+        (skyportal gates instead)."""
         payload = {
             k: kwargs[k]
-            for k in ("active", "active_fid", "skip_validation")
+            for k in ("active", "active_fid", "skip_validation", "name")
             if k in kwargs
         }
         return _request(
@@ -714,9 +877,21 @@ class BOOMBROKER(BrokerAPI):
                     else sorted(set(selector) & set(programids))
                 )
 
+        if programids is None:
+            # BOOM rejects an empty permissions map, so an unrestricted user
+            # needs every programid the instance's streams grant spelled out.
+            import sqlalchemy as sa
+
+            from ..models import Stream
+            from .interface import survey_permissions
+
+            programids = survey_permissions(
+                session.scalars(sa.select(Stream)).all()
+            ).get(survey)
+
         payload = {
             "survey": survey,
-            "pipeline": kwargs["pipeline"],
+            "pipeline": _ensure_project_stage(kwargs["pipeline"]),
             "permissions": {survey: programids} if programids is not None else {},
             "start_jd": kwargs.get("start_jd"),
             "end_jd": kwargs.get("end_jd"),
@@ -729,11 +904,34 @@ class BOOMBROKER(BrokerAPI):
                     "limit": kwargs.get("limit", 50),
                 }
             )
-            res = _request(broker, "POST", "filters/test", json=payload)
-            if isinstance(res, dict) and isinstance(res.get("results"), list):
-                # stringify Mongo _id so large ids survive JS number precision.
-                res["results"] = [
-                    {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
-                ]
+            # BOOM caps a filter test at MAX_TEST_WINDOW_DAYS, so a wider window
+            # is walked in slices here rather than pushed onto every caller.
+            results = []
+            res = None
+            sort_order = kwargs.get("sort_order", "Descending")
+            limit = kwargs.get("limit", 50)
+            window_args = (
+                payload["start_jd"],
+                payload["end_jd"],
+                MAX_TEST_WINDOW_DAYS,
+            )
+            for start_jd, end_jd in _jd_windows(*window_args):
+                res = _request(
+                    broker,
+                    "POST",
+                    "filters/test",
+                    json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                )
+                if isinstance(res, dict) and isinstance(res.get("results"), list):
+                    # stringify Mongo _id so large ids survive JS number precision.
+                    results.extend(
+                        {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
+                    )
+            if isinstance(res, dict):
+                # limit is per request, so a sliced window would otherwise return
+                # slices x limit rows: re-sort the union and honour it once.
+                if len(_jd_windows(*window_args)) > 1:
+                    results = _top_n(results, payload["sort_by"], sort_order, limit)
+                return {**res, "results": results}
             return res
         return _request(broker, "POST", "filters/test/count", json=payload)

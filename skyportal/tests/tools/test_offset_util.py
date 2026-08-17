@@ -1,4 +1,6 @@
 import uuid
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as npt
@@ -9,6 +11,7 @@ from requests.exceptions import ConnectionError, HTTPError, MissingSchema, Timeo
 from skyportal.models import Photometry
 from skyportal.tests import api
 from skyportal.utils.offset import (
+    IRSA_SEARCH_TIMEOUT,
     _calculate_best_position_for_offset_stars,
     get_finding_chart,
     get_nearby_offset_stars,
@@ -275,3 +278,73 @@ def test_get_finding_chart():
     )
     assert isinstance(rez, dict)
     assert not rez["success"]
+
+
+def _fake_response(status_code=200, body=b""):
+    return SimpleNamespace(status_code=status_code, content=body)
+
+
+# A real CSV reply, trimmed to the columns get_ztfref_url reads.
+_IRSA_CSV = b"field,filtercode,qid,ccdid\n600,zr,2,10\n"
+
+
+def _fresh_position():
+    """Coordinates unused by any earlier run.
+
+    _ztfref_url_and_epoch is memoised to disk on (ra, dec, imsize), so a fixed
+    position would be answered from a previous run's cache and the test would
+    never exercise the code it is checking.
+    """
+    return float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 60))
+
+
+def test_ztfref_outage_is_not_cached():
+    """An IRSA outage must not be remembered as 'no reference image here'.
+
+    The lookup is disk-memoised, so caching a transient failure would hide the
+    reference for that position long after IRSA recovered.
+    """
+    ra, dec = _fresh_position()
+    calls = []
+
+    def flaky(url, **kwargs):
+        calls.append(url)
+        if len(calls) == 1:
+            return _fake_response(status_code=502, body=b"<html>Bad Gateway</html>")
+        return _fake_response(body=_IRSA_CSV)
+
+    with patch("skyportal.utils.offset.get_url", side_effect=flaky):
+        first = get_ztfref_url(ra, dec, 2)
+        assert first == "", "an errored lookup should yield no url"
+        second = get_ztfref_url(ra, dec, 2)
+
+    assert len(calls) == 2, "the failure was cached instead of being retried"
+    assert "irsa" in second and second.endswith("_refimg.fits"), second
+
+
+def test_ztfref_absent_reference_is_reported_without_error():
+    """IRSA answering 'nothing here' is a real answer, not a failure."""
+    ra, dec = _fresh_position()
+    empty_csv = _fake_response(body=b"nothing\n")
+    with patch("skyportal.utils.offset.get_url", return_value=empty_csv):
+        assert get_ztfref_url(ra, dec, 2) == ""
+        url, epoch = get_ztfref_url(ra, dec, 2, return_epoch=True)
+    assert url == "" and epoch is None
+
+
+def test_ztfref_lookup_uses_the_short_timeout():
+    """The lookup sits on a worker thread, so it must not use the 20s default."""
+    ra, dec = _fresh_position()
+    seen = {}
+
+    def capture(url, **kwargs):
+        seen.update(kwargs)
+        return _fake_response(body=_IRSA_CSV)
+
+    with patch("skyportal.utils.offset.get_url", side_effect=capture):
+        get_ztfref_url(ra, dec, 2)
+
+    assert seen.get("timeout") == IRSA_SEARCH_TIMEOUT
+    assert IRSA_SEARCH_TIMEOUT[1] <= 10, (
+        "read timeout is back to a thread-stalling value"
+    )
