@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
+import CheckIcon from "@mui/icons-material/Check";
 import GroupIcon from "@mui/icons-material/Group";
 import SendIcon from "@mui/icons-material/Send";
 import Checkbox from "@mui/material/Checkbox";
@@ -30,6 +31,9 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "flex-end",
     gap: "0.25rem",
     padding: theme.spacing(1, 1, 1.5),
+  },
+  composerInline: {
+    padding: 0,
   },
   suggestionsPopup: {
     position: "absolute",
@@ -64,7 +68,7 @@ interface CommentComposerProps {
   editComment?: ((...a: any[]) => void) | null;
   commentText?: string;
   attachmentName?: string;
-  closeDialog?: (() => void) | null;
+  onClose?: (() => void) | null;
 }
 
 const CommentForm = ({
@@ -72,9 +76,9 @@ const CommentForm = ({
   editComment = null,
   commentText = "",
   attachmentName = "",
-  closeDialog = null,
+  onClose = null,
 }: CommentComposerProps) => {
-  const { classes: styles } = useStyles();
+  const { classes: styles, cx } = useStyles();
   const users = useGetUsersQuery().data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
@@ -191,9 +195,7 @@ const CommentForm = ({
     setGroupFilter("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
-    if (closeDialog) {
-      closeDialog();
-    }
+    onClose?.();
   };
 
   const handleTextInputChange = (event: any) => {
@@ -245,6 +247,9 @@ const CommentForm = ({
     ) {
       event.preventDefault();
       handleSubmit(onSubmit)();
+    } else if (event.key === "Escape" && isEdit) {
+      event.preventDefault();
+      onClose?.();
     }
   };
 
@@ -350,7 +355,6 @@ const CommentForm = ({
 
   return (
     <form
-      id={editComment ? "edit-comment-form" : undefined}
       className={styles.commentEntry}
       onSubmit={handleSubmit(onSubmit)}
       data-testid="comment-form"
@@ -370,11 +374,12 @@ const CommentForm = ({
           )}
         </div>
       )}
-      <div className={styles.composer}>
+      <div className={cx(styles.composer, isEdit && styles.composerInline)}>
         <Controller
           render={() => (
             <TextField
               id="root_comment"
+              autoFocus={isEdit}
               value={textValue}
               onChange={handleTextInputChange}
               placeholder={editComment ? "Edit comment" : "Add a comment"}
@@ -452,18 +457,22 @@ const CommentForm = ({
               </MenuItem>
             ))}
         </Menu>
-        {addComment && (
-          <IconButton
-            type="submit"
-            color="primary"
-            size="small"
-            disabled={!textValue.trim()}
-            name="submitCommentButton"
-            data-testid="submitCommentButton"
-          >
+        <IconButton
+          type="submit"
+          color="primary"
+          size="small"
+          disabled={isAdd && !textValue.trim()}
+          name={isEdit ? "editCommentSubmitButton" : "submitCommentButton"}
+          data-testid={
+            isEdit ? "editCommentSubmitButton" : "submitCommentButton"
+          }
+        >
+          {isEdit ? (
+            <CheckIcon fontSize="small" />
+          ) : (
             <SendIcon fontSize="small" />
-          </IconButton>
-        )}
+          )}
+        </IconButton>
       </div>
     </form>
   );
