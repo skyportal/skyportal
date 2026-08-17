@@ -1,8 +1,7 @@
 import Typography from "@mui/material/Typography";
 import { Controller, useForm } from "react-hook-form";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
+import SearchableSelect from "../SearchableSelect";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
@@ -74,23 +73,20 @@ const AddGroupOfUsersForm = ({ groupID }: AddGroupOfUsersFormProps) => {
           <Controller
             name="groups"
             render={({ field: { onChange, value } }) => (
-              <Autocomplete
+              <SearchableSelect
                 multiple
                 id="addUsersFromGroupsSelect"
-                onChange={(_e, data) => onChange(data)}
+                label="Select Groups/Users"
+                onChange={(data: any) => onChange(data)}
                 value={value}
                 options={groups}
-                getOptionLabel={(group: Group) => group.name}
+                getOptionLabel={(group: any) => (group as Group).name}
                 filterSelectedOptions
                 sx={{ width: 300 }}
-                renderInput={(field) => (
-                  <TextField
-                    {...field}
-                    error={!!errors["groups"]}
-                    label="Select Groups/Users"
-                    data-testid="addUsersFromGroupsTextField"
-                  />
-                )}
+                error={!!errors["groups"]}
+                textFieldProps={{
+                  "data-testid": "addUsersFromGroupsTextField",
+                }}
               />
             )}
             control={control}

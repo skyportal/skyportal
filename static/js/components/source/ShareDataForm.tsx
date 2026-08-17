@@ -4,8 +4,6 @@ import { Controller, useForm } from "react-hook-form";
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import GetAppIcon from "@mui/icons-material/GetApp";
@@ -19,6 +17,7 @@ import Papa from "papaparse";
 import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
+import SearchableSelect from "../SearchableSelect";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -808,23 +807,17 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
           <Controller
             name="groups"
             render={({ field: { onChange, value } }) => (
-              <Autocomplete
+              <SearchableSelect
                 multiple
                 id="dataSharingFormGroupsSelect"
+                label="Select Groups/Users"
                 options={groups}
                 value={value}
-                onChange={(_e, data) => onChange(data)}
+                onChange={(data: any) => onChange(data)}
                 getOptionLabel={(group: any) => group.name}
                 filterSelectedOptions
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    error={!!errors["groups"]}
-                    variant="outlined"
-                    label="Select Groups/Users"
-                    className={classes.groupSelect}
-                  />
-                )}
+                error={!!errors["groups"]}
+                textFieldProps={{ className: classes.groupSelect }}
               />
             )}
             control={control}

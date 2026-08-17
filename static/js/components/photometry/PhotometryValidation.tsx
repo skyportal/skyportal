@@ -13,7 +13,8 @@ import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { grey } from "@mui/material/colors";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 
 import Button from "../Button";
 
@@ -226,11 +227,13 @@ const PhotometryValidation = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
+                        <SearchableSelect
                           id="explanation"
+                          label="Explanation"
                           freeSolo
                           disableClearable
-                          filterOptions={(options, params) => {
+                          fullWidth
+                          filterOptions={(options: any[], params: any) => {
                             const filtered = filter(options, params);
 
                             if (params.inputValue !== "") {
@@ -239,11 +242,10 @@ const PhotometryValidation = ({
 
                             return filtered;
                           }}
-                          // eslint-disable-next-line no-shadow
-                          onChange={(_e, value) => onChange(value)}
+                          onChange={(newValue: any) => onChange(newValue)}
                           options={defaultExplanations}
                           value={value}
-                          renderOption={(props, option) => (
+                          renderOption={(props: any, option: any) => (
                             <Typography
                               style={{ color: getOptionTextColor(option) }}
                               {...props}
@@ -251,15 +253,9 @@ const PhotometryValidation = ({
                               {option}
                             </Typography>
                           )}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Explanation"
-                              variant="outlined"
-                              fullWidth
-                              onChange={(e) => onChange(e.target.value)}
-                            />
-                          )}
+                          textFieldProps={{
+                            onChange: (e: any) => onChange(e.target.value),
+                          }}
                         />
                       )}
                       name="explanation"

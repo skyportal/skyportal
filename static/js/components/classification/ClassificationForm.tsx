@@ -6,8 +6,9 @@ import Select from "@mui/material/Select";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import { makeStyles } from "tss-react/mui";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -186,11 +187,11 @@ const CustomClassificationWidget = ({
     stringify: (option) => option,
   });
   return (
-    <Autocomplete
+    <SearchableSelect
       id="classification"
       filterOptions={filteringOptions}
       options={options.enumOptions?.map((option: any) => option.value) ?? []}
-      onChange={(_event, newValue) => {
+      onChange={(newValue: any) => {
         onChange(newValue);
       }}
       value={value || ""}
@@ -216,14 +217,8 @@ const CustomClassificationWidget = ({
           </div>
         );
       }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label="Classification"
-          variant="outlined"
-          required
-        />
-      )}
+      label="Classification"
+      required
     />
   );
 };
