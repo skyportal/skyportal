@@ -114,6 +114,36 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
       },
       invalidatesTags: ["Earthquake"],
     }),
+    editCommentOnEarthquake: build.mutation<
+      unknown,
+      {
+        commentID: number | string;
+        earthquakeID: number | string;
+        formData: any;
+      }
+    >({
+      queryFn: async (
+        { commentID, earthquakeID, formData },
+        _api,
+        _extra,
+        baseQuery,
+      ) => {
+        const body = { ...formData };
+        if (body.attachment) {
+          body.attachment = await fileReaderPromise(body.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/earthquake/${earthquakeID}/comments/${commentID}`,
+          method: "PUT",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["Earthquake"],
+    }),
     deleteCommentOnEarthquake: build.mutation<
       unknown,
       { earthquakeID: number | string; commentID: number | string }
@@ -145,5 +175,6 @@ export const {
   useSubmitEarthquakeMutation,
   useSubmitPredictionMutation,
   useAddCommentOnEarthquakeMutation,
+  useEditCommentOnEarthquakeMutation,
   useDeleteCommentOnEarthquakeMutation,
 } = earthquakeApi;

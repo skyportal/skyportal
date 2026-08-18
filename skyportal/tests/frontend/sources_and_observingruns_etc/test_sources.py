@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 
 import pytest
 from playwright.sync_api import expect
@@ -11,7 +12,18 @@ from skyportal.tests import api, expect_vega_plot
 cfg = load_config()
 
 
-def enter_comment_text(page, comment_text):
+def open_source_chat(page):
+    chat = page.locator('//div[@data-testid="source-chat"]').first
+    button = page.locator('//button[@data-testid="source-chat-button"]').first
+    expect(chat.or_(button).first).to_be_visible()
+    if not chat.is_visible():
+        button.click()
+    expect(chat).to_be_visible()
+
+
+def enter_comment_text(page, comment_text, in_chat=True):
+    if in_chat:
+        open_source_chat(page)
     comment_box = page.locator(
         '//form[@data-testid="comment-form"]//textarea[@name="text"]'
     ).first
@@ -22,11 +34,15 @@ def enter_comment_text(page, comment_text):
         comment_box.press_sequentially(comment_text)
 
 
-def add_comment(page, comment_text):
-    enter_comment_text(page, comment_text)
+def submit_comment(page):
     page.locator(
         '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     ).first.click()
+
+
+def add_comment(page, comment_text, in_chat=True):
+    enter_comment_text(page, comment_text, in_chat=in_chat)
+    submit_comment(page)
 
 
 def wait_for_comment_text_found(page, comment_text):
@@ -35,21 +51,24 @@ def wait_for_comment_text_found(page, comment_text):
     ).to_be_visible()
 
 
-def wait_for_comment_display(page, comment_text):
-    # Comments occasionally fail to render on first paint (especially under CI
-    # load); a reload + expand of the comments panel forces them. Used both
-    # right after posting and when viewing an existing comment as another user.
+def wait_for_comment_display(page, comment_text, in_chat=True):
+    # Comments occasionally fail to render on first paint under CI load.
+    if in_chat:
+        open_source_chat(page)
     try:
         wait_for_comment_text_found(page, comment_text)
     except AssertionError:
         page.reload()
-        page.locator("//*[@id='expandable-button']").first.click()
+        if in_chat:
+            open_source_chat(page)
+        else:
+            page.locator("//*[@id='expandable-button']").first.click()
         wait_for_comment_text_found(page, comment_text)
 
 
-def add_comment_and_wait_for_display(page, comment_text):
-    add_comment(page, comment_text)
-    wait_for_comment_display(page, comment_text)
+def add_comment_and_wait_for_display(page, comment_text, in_chat=True):
+    add_comment(page, comment_text, in_chat=in_chat)
+    wait_for_comment_display(page, comment_text, in_chat=in_chat)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -71,9 +90,7 @@ def test_comment_username_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -88,9 +105,7 @@ def test_comment_user_last_name_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -105,9 +120,7 @@ def test_comment_user_first_name_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -235,39 +248,44 @@ def test_comment_groups_validation(page, user, public_source, public_group):
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
     comment_text = str(uuid.uuid4())
-    enter_comment_text(page, comment_text)
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
-    expect(
-        page.locator(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        ).first
-    ).to_be_visible()
+    add_comment_and_wait_for_display(page, comment_text)
 
-    enter_comment_text(page, "")
     comment_text = str(uuid.uuid4())
     enter_comment_text(page, comment_text)
+    page.locator('//*[@data-testid="customizeGroupsButton"]').first.click()
     page.locator(
-        "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access (public if not specified)']"
+        f"//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     ).first.click()
-    page.locator(
-        f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
-    ).first.click()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
-    expect(
-        page.locator(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        ).first
-    ).to_be_visible()
+    page.keyboard.press("Escape")
+    submit_comment(page)
+    wait_for_comment_display(page, comment_text)
+
+
+@pytest.mark.flaky(reruns=2)
+def test_feature_announcement_shown_once(page, user, public_source):
+    # Announcements only run for users created before the feature shipped.
+    user.created_at = datetime(2020, 1, 1)
+    DBSession().add(user)
+    DBSession().commit()
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    announcement = page.locator('//*[text()="Comments are now a chat"]').first
+    expect(announcement).to_be_visible()
+    page.locator('//button[text()="Got it"]').first.click()
+    expect(announcement).to_be_hidden()
+
+    page.reload()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_visible()
+    page.wait_for_timeout(2000)
+    expect(announcement).to_be_hidden()
 
 
 def test_view_only_user_cannot_comment(page, view_only_user, public_source):
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_hidden()
     expect(page.locator('//textarea[@name="text"]').first).to_be_hidden()
 
 

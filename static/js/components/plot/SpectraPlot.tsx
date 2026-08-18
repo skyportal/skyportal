@@ -964,11 +964,11 @@ const SpectraPlot = ({
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
-      {types?.length > 0 && (
+      {types?.length > 1 && (
         <Tabs
           value={tabIndex}
           onChange={handleChangeTab}
-          aria-label="gcn_tabs"
+          aria-label="spectrum_type_tabs"
           variant="scrollable"
           {...({ xs: 12 } as any)}
           sx={{

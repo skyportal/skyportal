@@ -13,6 +13,23 @@ export interface FeatureAnnouncement {
 
 export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
   {
+    id: "source-chat",
+    path: /^\/source\/[^/]+$/,
+    announcedAt: "2026-08-10",
+    steps: [
+      {
+        target:
+          '[data-testid="source-chat"], [data-testid="source-chat-button"]',
+        title: "Comments are now a chat",
+        content:
+          "Comments got a refreshed look and now read like any messaging app, " +
+          "newest at the bottom. Split side discussions into named " +
+          "conversations with +, or detach the panel into a floating window.",
+        placement: "top",
+      },
+    ],
+  },
+  {
     id: "alerts-sidebar-shortcut",
     path: /./,
     announcedAt: "2026-08-15",
@@ -31,6 +48,20 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
         content:
           "This shortcut takes you straight to the alert search of this " +
           "instance's default broker.",
+      },
+    ],
+  },
+  {
+    id: "gcn-event-comments",
+    path: /^\/gcn_events\/[^/]+$/,
+    announcedAt: "2026-08-16",
+    steps: [
+      {
+        target: '[data-testid="source-chat-button"]',
+        title: "Comments on GCN events",
+        content:
+          "Event comments have moved to the new detached chat panel. Click this button to open it.",
+        placement: "left",
       },
     ],
   },

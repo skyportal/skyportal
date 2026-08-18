@@ -21,7 +21,7 @@ import { flattenAnnotationData } from "../candidate/annotationValue";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import { useDeleteAnnotationMutation as useDeleteSourceAnnotationMutation } from "../../ducks/source";
-import { useDeleteAnnotationMutation } from "../../ducks/spectra";
+import { useDeleteSpectrumAnnotationMutation } from "../../ducks/spectra";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -67,7 +67,7 @@ const AnnotationsTable = ({
 }: AnnotationsTableProps) => {
   const { classes } = useStyles();
   const [deleteSourceAnnotation] = useDeleteSourceAnnotationMutation();
-  const [deleteSpectrumAnnotation] = useDeleteAnnotationMutation();
+  const [deleteSpectrumAnnotation] = useDeleteSpectrumAnnotationMutation();
 
   const [openAnnotations, setOpenAnnotations] = useState(false);
   const [isRemoving, setIsRemoving] = useState<any>(null);

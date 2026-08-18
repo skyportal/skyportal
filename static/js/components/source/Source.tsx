@@ -62,6 +62,7 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
+import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -103,8 +104,6 @@ import { useGetBrokersQuery } from "../../ducks/brokers";
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
 const Font: any = "font";
-
-const CommentList = React.lazy(() => import("../comment/CommentList"));
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -267,6 +266,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const commentPanel = useCommentPanel();
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
     useState(false);
@@ -447,39 +447,23 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </Accordion>
         </Grid>
       )}
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
-          order: { xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 },
-        }}
-      >
-        <Accordion
-          defaultExpanded
-          className={classes.flexColumn}
-          data-testid="comments-accordion"
+      {!isReadOnly && commentPanel.inline && (
+        <Grid
+          size={{ xs: 12, lg: 6 }}
+          sx={{
+            order: {
+              xs: 3,
+              md: 3,
+              lg: downLarge || isRightPanelVisible ? 5 : 4,
+            },
+          }}
         >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="comments-content"
-            id="comments-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Comments
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              minHeight: downLarge || isRightPanelVisible ? "55.5vh" : "63.5vh",
-            }}
-          >
-            <Suspense fallback={<CircularProgress />}>
-              <CommentList objID={source.id} />
-            </Suspense>
-          </AccordionDetails>
-        </Accordion>
-      </Grid>
+          <CommentPanel
+            target={{ type: "source", id: source.id }}
+            {...commentPanel}
+          />
+        </Grid>
+      )}
       <Grid
         size={12}
         sx={{
@@ -1674,6 +1658,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           t0={source.t0}
         />
       </Grid>
+      {!isReadOnly && !commentPanel.inline && (
+        <CommentPanel
+          target={{ type: "source", id: source.id }}
+          {...commentPanel}
+        />
+      )}
     </Grid>
   );
 };
@@ -1698,27 +1688,13 @@ const Source = ({ route }: SourceProps) => {
     }
   }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (isError) {
-    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
-  }
-  if (isLoading || !source) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  }
-  if (source.id === undefined) {
-    return <div>Source not found</div>;
-  }
+  if (isError) return (error as any)?.error ?? "Error while loading source";
+  if (isLoading || !source) return <Spinner />;
+  if (source.id === undefined) return "Source not found";
   // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;
 
-  return (
-    <div>
-      <SourceContent source={source} />
-    </div>
-  );
+  return <SourceContent source={source} />;
 };
 
 export default withRouter(Source);

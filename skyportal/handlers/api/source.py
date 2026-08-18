@@ -469,7 +469,9 @@ async def get_source(
                     selectinload(Comment.author),
                     selectinload(Comment.groups),
                 ],
-            ).where(Comment.obj_id.in_(aggregated_obj_ids))
+            )
+            .where(Comment.obj_id.in_(aggregated_obj_ids))
+            .where(Comment.channel.is_(None))
         )
         comments = comments_result.unique().all()
         source_info["comments"] = sorted(
@@ -595,7 +597,9 @@ async def get_source(
         source_info["spectrum_exists"] = spectrum_exists is not None
     if include_comment_exists:
         comment_exists = await session.scalar(
-            Comment.select(user).where(Comment.obj_id == obj_id)
+            Comment.select(user)
+            .where(Comment.obj_id == obj_id)
+            .where(Comment.channel.is_(None))
         )
         source_info["comment_exists"] = comment_exists is not None
 

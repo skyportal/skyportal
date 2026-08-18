@@ -107,11 +107,13 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
         "announce a discovery or classification to the community.",
     },
     {
-      target: '[data-testid="comments-accordion"]',
+      target: '[data-testid="source-chat"]',
       title: "Comments",
       content:
-        "Discuss a source with your collaborators. Comments can be public or " +
-        "scoped to a single group, so you control who sees them.",
+        "Discuss a source with your collaborators in the chat panel. Comments " +
+        "can be public or scoped to a single group, so you control who sees " +
+        "them, and can be split into named conversations. The panel can also " +
+        "be detached into a floating window.",
     },
     {
       target: '[data-testid="add-tag-button"]',
