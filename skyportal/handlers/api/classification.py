@@ -10,6 +10,7 @@ from baselayer.app.flow import Flow
 
 from ...models import (
     Classification,
+    ClassificationEdit,
     ClassificationVote,
     Group,
     Obj,
@@ -501,8 +502,20 @@ class ClassificationHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
+            old_probability = c.probability
             for k in data:
                 setattr(c, k, data[k])
+
+            if c.probability != old_probability:
+                session.add(
+                    ClassificationEdit(
+                        classification_id=c.id,
+                        editor_id=self.associated_user_object.id,
+                        editor_name=self.associated_user_object.username,
+                        old_probability=old_probability,
+                        new_probability=c.probability,
+                    )
+                )
 
             if group_ids is not None:
                 groups_result = await session.scalars(
@@ -671,7 +684,10 @@ class ObjClassificationHandler(BaseHandler):
 
             result = await session.scalars(
                 Classification.select(session.user_or_token)
-                .options(selectinload(Classification.votes))
+                .options(
+                    selectinload(Classification.votes),
+                    selectinload(Classification.edits),
+                )
                 .where(Classification.obj_id.in_(obj_ids))
             )
             classifications = result.unique().all()
@@ -686,6 +702,9 @@ class ObjClassificationHandler(BaseHandler):
                 classification_dict = classification.to_dict()
                 classification_dict["votes"] = [
                     v.to_dict() for v in classification.votes
+                ]
+                classification_dict["edits"] = [
+                    e.to_dict() for e in classification.edits
                 ]
                 classifications_json.append(classification_dict)
 

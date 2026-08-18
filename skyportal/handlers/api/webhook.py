@@ -5,7 +5,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import ObjAnalysis
+from ...models import Annotation, ObjAnalysis
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -119,6 +119,11 @@ class AnalysisWebhookHandler(BaseHandler):
                     f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
                 )
 
+            # A service may return annotations (e.g. a period for phase-folding on
+            # the source page). Upsert one per origin so a re-run refreshes rather
+            # than piling up; default the origin to the service name.
+            await _upsert_analysis_annotations(session, analysis, results)
+
             await session.commit()
 
             try:
@@ -168,6 +173,40 @@ class AnalysisWebhookHandler(BaseHandler):
         return self.success(data={"status": "success"})
 
 
+async def _upsert_analysis_annotations(session, analysis, results):
+    """Create or refresh the annotations an analysis service returned.
+
+    Each entry is ``{"data": {...}, "origin": <optional>}``; the origin defaults
+    to the service name and one annotation is kept per origin, so a re-run
+    refreshes in place and the source page reads the latest.
+    """
+    import sqlalchemy as sa
+
+    annotations = results.get("annotations") if isinstance(results, dict) else None
+    for ann in annotations or []:
+        if not isinstance(ann, dict) or not isinstance(ann.get("data"), dict):
+            continue
+        origin = ann.get("origin") or analysis.analysis_service.name
+        existing = await session.scalar(
+            sa.select(Annotation).where(
+                Annotation.obj_id == analysis.obj_id,
+                Annotation.origin == origin,
+            )
+        )
+        if existing is not None:
+            existing.data = ann["data"]
+        else:
+            session.add(
+                Annotation(
+                    obj_id=analysis.obj_id,
+                    origin=origin,
+                    data=ann["data"],
+                    author_id=analysis.author_id,
+                    groups=list(analysis.groups),
+                )
+            )
+
+
 def sa_select_analysis_by_token(token):
     """Build the eager-loaded SELECT for the analysis row keyed by token."""
     import sqlalchemy as sa
@@ -179,5 +218,6 @@ def sa_select_analysis_by_token(token):
             selectinload(ObjAnalysis.analysis_service),
             selectinload(ObjAnalysis.obj),
             selectinload(ObjAnalysis.author),
+            selectinload(ObjAnalysis.groups),
         )
     )

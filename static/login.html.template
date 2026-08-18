@@ -22,14 +22,13 @@
         {% block loginText -%}
         <p>{{ app.login_message }}</p>
         {%- endblock %}
+        {%- for button in app.login_buttons %}
         <div class="loginButton">
-          <a href="/login/google-oauth2">
-            <img
-              src="/static/images/btn_google_signin_dark_normal_web.png"
-              alt="Click this image to log in"
-            />
+          <a href="{{ button.url }}">
+            <img src="{{ button.image }}" alt="{{ button.alt_text }}" />
           </a>
         </div>
+        {%- endfor %}
       </div>
     </div>
   </body>

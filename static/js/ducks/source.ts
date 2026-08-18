@@ -288,6 +288,18 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: (_result, _error, formData) =>
         sourceTag(formData?.["obj_id"]),
     }),
+    updateClassification: build.mutation<
+      any,
+      { classificationID: number | string; formData: Record<string, any> }
+    >({
+      query: ({ classificationID, formData }) => ({
+        url: `api/classification/${classificationID}`,
+        method: "PUT",
+        body: formData,
+      }),
+      invalidatesTags: (_result, _error, { formData }) =>
+        sourceTag(formData?.["obj_id"]),
+    }),
     deleteClassification: build.mutation<any, number | string>({
       query: (classificationID) => ({
         url: `api/classification/${classificationID}`,
@@ -761,6 +773,7 @@ export const {
   useDeclineSaveRequestMutation,
   useAddSourceViewMutation,
   useAddClassificationMutation,
+  useUpdateClassificationMutation,
   useDeleteClassificationMutation,
   useDeleteClassificationsMutation,
   useAddClassificationVoteMutation,

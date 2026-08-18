@@ -4,6 +4,7 @@ import concurrent.futures
 import sentry_sdk
 import sqlalchemy as sa
 import tornado.web
+from astropy.utils.iers import conf as iers_conf
 from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
@@ -729,6 +730,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("  Your server is insecure. Please update the secret string ")
         print("  in the configuration file!")
         print("!" * 80)
+
+    if cfg.get("testing", False):
+        iers_conf.auto_download = False
+        iers_conf.iers_degraded_accuracy = "ignore"
 
     handlers = baselayer_handlers + skyportal_handlers
 

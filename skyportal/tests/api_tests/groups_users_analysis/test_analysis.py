@@ -7,7 +7,7 @@ import uuid
 
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, retry_until
 
 analysis_port = 6802
 
@@ -606,26 +606,21 @@ def test_run_analysis_with_correct_and_incorrect_token(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
     params = {"includeAnalysisData": True}
 
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_started():
         status, data = api(
             "GET", f"obj/analysis/{analysis_id}", token=analysis_token, params=params
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(5)
-    else:
-        assert False, (
+        assert data["data"]["status"] != "queued", (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+        return data
+
+    data = retry_until(analysis_started, timeout=100)
+    analysis_status = data["data"]["status"]
 
     # Since this is random data, this fit might succeed (usually) or fail (seldom)
     # that's ok because it means we're getting the
@@ -753,20 +748,13 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_done():
         status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
         assert status == 200
-        analysis_status = data["data"]["status"]
+        assert data["data"]["status"] != "queued"
+        return data["data"]["status"]
 
-        max_attempts -= 1
-        time.sleep(5)
-
-    assert analysis_status == "failure"
+    assert retry_until(analysis_done, timeout=100) == "failure"
 
     # now try a bad endpoint
     name_bad_endpoint = str(uuid.uuid4())
@@ -805,20 +793,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     assert status == 200
     assert data["status"] == "success"
 
-    max_attempts = 5
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
-        status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
-        assert status == 200
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(1)
-
-    assert analysis_status == "failure"
+    assert retry_until(analysis_done, timeout=10) == "failure"
 
 
 def test_delete_analysis(
@@ -908,18 +883,13 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    # wait until the analysis is done
-    max_attempts = 20
-    analysis_status = "queued"
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_done():
         status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
         assert status == 200
-        analysis_status = data["data"]["status"]
+        assert data["data"]["status"] != "queued"
+        return data["data"]["status"]
 
-        max_attempts -= 1
-        time.sleep(5)
+    analysis_status = retry_until(analysis_done, timeout=100)
 
     # get the analysis associated with the
     # analysis service
@@ -1001,12 +971,7 @@ def test_retrieve_data_products(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status not in ["queued", "pending"]:
-            break
+    def analysis_started():
         status, data = api(
             "GET",
             f"obj/analysis/{analysis_id}",
@@ -1014,14 +979,12 @@ def test_retrieve_data_products(
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(3)
-    else:
-        assert False, (
+        assert data["data"]["status"] not in ["queued", "pending"], (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+        return data["data"]["status"]
+
+    analysis_status = retry_until(analysis_started, timeout=60)
 
     if analysis_status == "completed":
         # try to get a plot
@@ -1222,26 +1185,19 @@ def test_run_analysis_with_file_input(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
     params = {"includeAnalysisData": True}
 
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_started():
         status, data = api(
             "GET", f"obj/analysis/{analysis_id}", token=analysis_token, params=params
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(5)
-    else:
-        assert False, (
+        assert data["data"]["status"] != "queued", (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+
+    retry_until(analysis_started, timeout=100)
 
 
 def test_default_analysis(

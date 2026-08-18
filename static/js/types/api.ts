@@ -24655,6 +24655,7 @@ export interface components {
             readonly obj?: components["schemas"]["Obj"];
             readonly groups?: components["schemas"]["Group"][];
             readonly votes?: components["schemas"]["ClassificationVote"][];
+            readonly edits?: components["schemas"]["ClassificationEdit"][];
             /** @description The assigned class. */
             classification: string;
             /** @description String describing the source of this classification. */
@@ -24686,6 +24687,64 @@ export interface components {
             message?: string;
             data?: components["schemas"]["Classification"][];
         };
+        ClassificationEdit: {
+            /** @description The Classification this edit was made to. */
+            readonly classification?: components["schemas"]["Classification"];
+            /** @description The User that made this edit. */
+            readonly editor?: components["schemas"]["User"];
+            /** @description ID of the Classification that was edited. */
+            classification_id: number;
+            /** @description ID of the User that made this edit. */
+            editor_id: number;
+            /** @description User.username or Token.id of the editor. */
+            editor_name: string;
+            /** @description Probability before the edit. */
+            old_probability?: number | null;
+            /** @description Probability after the edit. */
+            new_probability?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleClassificationEdit: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ClassificationEdit"];
+        };
+        ArrayOfClassificationEdits: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ClassificationEdit"][];
+        };
+        ClassificationEditNoID: {
+            /** @description The Classification this edit was made to. */
+            readonly classification?: components["schemas"]["Classification"];
+            /** @description The User that made this edit. */
+            readonly editor?: components["schemas"]["User"];
+            /** @description ID of the Classification that was edited. */
+            classification_id: number;
+            /** @description ID of the User that made this edit. */
+            editor_id: number;
+            /** @description User.username or Token.id of the editor. */
+            editor_name: string;
+            /** @description Probability before the edit. */
+            old_probability?: number | null;
+            /** @description Probability after the edit. */
+            new_probability?: number | null;
+        };
+        SingleClassificationEditNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ClassificationEditNoID"];
+        };
+        ArrayOfClassificationEditNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ClassificationEditNoID"][];
+        };
         ClassificationNoID: {
             /** @description Taxonomy in which this Classification was made. */
             readonly taxonomy?: components["schemas"]["Taxonomy"];
@@ -24695,6 +24754,7 @@ export interface components {
             readonly obj?: components["schemas"]["Obj"];
             readonly groups?: components["schemas"]["Group"][];
             readonly votes?: components["schemas"]["ClassificationVote"][];
+            readonly edits?: components["schemas"]["ClassificationEdit"][];
             /** @description The assigned class. */
             classification: string;
             /** @description String describing the source of this classification. */

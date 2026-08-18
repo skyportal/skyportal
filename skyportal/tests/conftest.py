@@ -24,6 +24,7 @@ from skyportal.models import (
     Broker,
     Candidate,
     CatalogQuery,
+    ClassificationEdit,
     ClassificationVote,
     CommentOnEarthquake,
     CommentOnGCN,
@@ -2706,6 +2707,40 @@ def public_classificationvote(public_group, public_source, user):
     )
     if vote_obj is not None:
         DBSession().delete(vote_obj)
+        DBSession().commit()
+    ClassificationFactory.teardown(classification)
+    TaxonomyFactory.teardown(taxonomy_id)
+
+
+@pytest.fixture()
+def public_classificationedit(public_group, public_source, user):
+    taxonomy = TaxonomyFactory(groups=[public_group])
+    taxonomy_id = taxonomy.id
+    classification = ClassificationFactory(
+        obj=public_source,
+        groups=[public_group],
+        author=user,
+        taxonomy=taxonomy,
+    )
+    edit = ClassificationEdit(
+        classification_id=classification.id,
+        editor_id=user.id,
+        editor_name=user.username,
+        old_probability=1.0,
+        new_probability=0.0,
+    )
+    DBSession.add(edit)
+    DBSession.commit()
+    edit_id = edit.id
+    yield edit
+    edit_obj = (
+        DBSession()
+        .execute(sa.select(ClassificationEdit).filter(ClassificationEdit.id == edit_id))
+        .scalars()
+        .first()
+    )
+    if edit_obj is not None:
+        DBSession().delete(edit_obj)
         DBSession().commit()
     ClassificationFactory.teardown(classification)
     TaxonomyFactory.teardown(taxonomy_id)
