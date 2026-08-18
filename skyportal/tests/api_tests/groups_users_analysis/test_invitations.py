@@ -1,81 +1,60 @@
 import uuid
 
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.invitations import InvitationPost
+
+from skyportal.tests import client
 
 
 def test_invite_new_user(manage_users_token, public_stream, public_group):
-    status, data = api(
-        "POST",
-        "invitations",
-        data={
-            "userEmail": "string",
-            "streamIDs": [public_stream.id],
-            "groupIDs": [public_group.id],
-            "groupAdmin": [True],
-        },
-        token=manage_users_token,
+    client(manage_users_token).post_invitation(
+        InvitationPost(
+            user_email="string",
+            stream_ids=[public_stream.id],
+            group_ids=[public_group.id],
+            group_admin=[True],
+        )
     )
-    print(status)
-    print(data)
-    assert status == 200
 
 
 def test_invite_new_user_forbidden(view_only_token, public_stream, public_group):
-    status, data = api(
-        "POST",
-        "invitations",
-        data={
-            "userEmail": "string",
-            "streamIDs": [public_stream.id],
-            "groupIDs": [public_group.id],
-            "groupAdmin": [True],
-        },
-        token=view_only_token,
-    )
-
-    assert status == 401
-    assert "Unauthorized" in data["message"]
+    with pytest.raises(SkyPortalError, match="Unauthorized") as err:
+        client(view_only_token).post_invitation(
+            InvitationPost(
+                user_email="string",
+                stream_ids=[public_stream.id],
+                group_ids=[public_group.id],
+                group_admin=[True],
+            )
+        )
+    assert err.value.status_code == 401
 
 
 def test_get_invitations(
     manage_users_token, manage_users_token_group2, public_stream, public_group
 ):
-    status, data = api(
-        "POST",
-        "invitations",
-        data={
-            "userEmail": "string",
-            "streamIDs": [public_stream.id],
-            "groupIDs": [public_group.id],
-            "groupAdmin": [True],
-        },
-        token=manage_users_token,
+    invitation_id = (
+        client(manage_users_token)
+        .post_invitation(
+            InvitationPost(
+                user_email="string",
+                stream_ids=[public_stream.id],
+                group_ids=[public_group.id],
+                group_admin=[True],
+            )
+        )
+        .id
     )
-    print(status)
-    print(data)
-    assert status == 200
-    invitation_id = data["data"]["id"]
 
     # Whoever created the invitation can fetch it
-    status, data = api(
-        "GET",
-        "invitations",
-        params={"group": public_group.name},
-        token=manage_users_token,
-    )
-    assert status == 200
-    assert data["data"]["totalMatches"] == 1
-    assert data["data"]["invitations"][0]["id"] == invitation_id
+    page = client(manage_users_token).fetch_invitations(group=public_group.name)
+    assert page.total_matches == 1
+    assert page.invitations[0].id == invitation_id
 
     # Only invitors can see the invitation
-    status, data = api(
-        "GET",
-        "invitations",
-        params={"group": public_group.name},
-        token=manage_users_token_group2,
-    )
-    assert status == 200
-    assert data["data"]["totalMatches"] == 0
+    page = client(manage_users_token_group2).fetch_invitations(group=public_group.name)
+    assert page.total_matches == 0
 
 
 def test_patch_invitation(
@@ -86,53 +65,36 @@ def test_patch_invitation(
     public_group2,
 ):
     user_email = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "invitations",
-        data={
-            "userEmail": user_email,
-            "streamIDs": [public_stream.id],
-            "groupIDs": [public_group.id],
-            "groupAdmin": [True],
-        },
-        token=manage_users_token,
+    invitation_id = (
+        client(manage_users_token)
+        .post_invitation(
+            InvitationPost(
+                user_email=user_email,
+                stream_ids=[public_stream.id],
+                group_ids=[public_group.id],
+                group_admin=[True],
+            )
+        )
+        .id
     )
-    print(status)
-    print(data)
-    assert status == 200
-    invitation_id = data["data"]["id"]
 
     # Only the invitor should be able to patch
-    status, data = api(
-        "PATCH", f"invitations/{invitation_id}", token=manage_users_token_group2
-    )
-    assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    with pytest.raises(SkyPortalError, match="Insufficient permissions") as err:
+        client(manage_users_token_group2).update_invitation(invitation_id)
+    assert err.value.status_code == 400
 
     # Need one of groupIDs or streamIDs
-    status, data = api(
-        "PATCH", f"invitations/{invitation_id}", token=manage_users_token
-    )
-    assert status == 400
-    assert "At least one of" in data["message"]
+    with pytest.raises(SkyPortalError, match="At least one of") as err:
+        client(manage_users_token).update_invitation(invitation_id)
+    assert err.value.status_code == 400
 
     # Try adding group2 to the invited user
-    status, _ = api(
-        "PATCH",
-        f"invitations/{invitation_id}",
-        data={"groupIDs": [public_group2.id]},
-        token=manage_users_token,
+    client(manage_users_token).update_invitation(
+        invitation_id, group_ids=[public_group2.id]
     )
-    assert status == 200
 
     # Try updating role to View only
-    status, _ = api(
-        "PATCH",
-        f"invitations/{invitation_id}",
-        data={"role": "View only"},
-        token=manage_users_token,
-    )
-    assert status == 200
+    client(manage_users_token).update_invitation(invitation_id, role="View only")
 
 
 def test_delete_invitation(
@@ -143,36 +105,23 @@ def test_delete_invitation(
     public_group2,
 ):
     user_email = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "invitations",
-        data={
-            "userEmail": user_email,
-            "streamIDs": [public_stream.id],
-            "groupIDs": [public_group.id],
-            "groupAdmin": [True],
-        },
-        token=manage_users_token,
+    invitation_id = (
+        client(manage_users_token)
+        .post_invitation(
+            InvitationPost(
+                user_email=user_email,
+                stream_ids=[public_stream.id],
+                group_ids=[public_group.id],
+                group_admin=[True],
+            )
+        )
+        .id
     )
-    print(status)
-    print(data)
-    assert status == 200
-    invitation_id = data["data"]["id"]
 
     # Only the invitor should be able to delete
-    status, data = api(
-        "DELETE", f"invitations/{invitation_id}", token=manage_users_token_group2
-    )
-    print("-------")
-    print(status)
-    print(data)
-    assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    with pytest.raises(SkyPortalError, match="Insufficient permissions") as err:
+        client(manage_users_token_group2).delete_invitation(invitation_id)
+    assert err.value.status_code == 400
 
     # Try deleting invitation
-    status, _ = api(
-        "DELETE",
-        f"invitations/{invitation_id}",
-        token=manage_users_token,
-    )
-    assert status == 200
+    client(manage_users_token).delete_invitation(invitation_id)

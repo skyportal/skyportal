@@ -1,61 +1,33 @@
 import uuid
 
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 
 def test_add_and_delete_tokens(super_admin_token, user):
+    sp = client(super_admin_token)
     token_name = str(uuid.uuid4())
 
-    data = {
-        "acls": ["Classify", "Annotate", "Comment"],
-        "user_id": user.id,
-        "name": token_name,
-    }
+    token_id = sp.post_token(
+        token_name, ["Classify", "Annotate", "Comment"], user_id=user.id
+    ).token_id
 
-    status, data = api("POST", "internal/tokens", token=super_admin_token, data=data)
-    assert status == 200
-    token_id = data["data"]["token_id"]
+    assert any(token.id == token_id for token in sp.fetch_tokens())
 
-    status, data = api("GET", "internal/tokens", token=super_admin_token)
-    assert status == 200
-    assert any(token["id"] == token_id for token in data["data"])
+    sp.delete_token(token_id)
 
-    status, data = api("DELETE", f"internal/tokens/{token_id}", token=super_admin_token)
-    assert status == 200
-
-    status, data = api("GET", "internal/tokens", token=super_admin_token)
-    assert status == 200
-    assert all(token["id"] != token_id for token in data["data"])
+    assert all(token.id != token_id for token in sp.fetch_tokens())
 
 
 def test_multiple_tokens(super_admin_token, user, annotation_token):
-    token_name_1 = str(uuid.uuid4())
+    sp = client(super_admin_token)
+    acls = ["Classify", "Annotate", "Comment"]
 
-    data = {
-        "acls": ["Classify", "Annotate", "Comment"],
-        "user_id": user.id,
-        "name": token_name_1,
-    }
+    sp.post_token(str(uuid.uuid4()), acls, user_id=user.id)
+    sp.post_token(str(uuid.uuid4()), acls, user_id=user.id)
 
-    status, data = api("POST", "internal/tokens", token=super_admin_token, data=data)
-    assert status == 200
-
-    token_name_2 = str(uuid.uuid4())
-    data = {
-        "acls": ["Classify", "Annotate", "Comment"],
-        "user_id": user.id,
-        "name": token_name_2,
-    }
-
-    status, data = api("POST", "internal/tokens", token=super_admin_token, data=data)
-    assert status == 200
-
-    token_name_3 = str(uuid.uuid4())
-    data = {
-        "acls": ["Classify", "Annotate", "Comment"],
-        "user_id": user.id,
-        "name": token_name_3,
-    }
-
-    status, data = api("POST", "internal/tokens", token=annotation_token, data=data)
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        client(annotation_token).post_token(str(uuid.uuid4()), acls, user_id=user.id)
+    assert err.value.status_code == 400

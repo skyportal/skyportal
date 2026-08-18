@@ -1,27 +1,19 @@
 import uuid
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from skyportal_py import SkyPortalError
 
-from skyportal.models import ObjTagOption
-from skyportal.tests import api
+from skyportal.tests import api, client
 
 
 # --- Testing ObjTagOption API
 def test_get_tag(super_admin_token):
-    tag_to_create = {"name": f"TestTag{uuid.uuid4().hex}"}
-    status, data = api(
-        "POST", "objtagoption", data=tag_to_create, token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp = client(super_admin_token)
+    tag_name = f"TestTag{uuid.uuid4().hex}"
+    sp.post_obj_tag_option(tag_name)
 
-    status, data = api("GET", "objtagoption", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    tag_names = [tag["name"] for tag in data["data"]]
-    assert tag_to_create["name"] in tag_names
+    tag_names = [tag.name for tag in sp.fetch_obj_tag_options()]
+    assert tag_name in tag_names
 
 
 @pytest.mark.parametrize(
@@ -33,13 +25,11 @@ def test_get_tag(super_admin_token):
     ],
 )
 def test_add_tag_case_sensitive(super_admin_token, invalid_tag_name):
-    status, data = api(
-        "POST", "objtagoption", data={"name": invalid_tag_name}, token=super_admin_token
-    )
-
-    assert status == 400
-    assert data["status"] == "error"
-    assert "must contain only letters and numbers" in data["message"]
+    with pytest.raises(
+        SkyPortalError, match="must contain only letters and numbers"
+    ) as err:
+        client(super_admin_token).post_obj_tag_option(invalid_tag_name)
+    assert err.value.status_code == 400
 
 
 @pytest.mark.parametrize(
@@ -69,38 +59,34 @@ def test_tag_color_validation(
     super_admin_token, color, expected_status, should_be_valid
 ):
     """Test creating tags with valid and invalid color values"""
-    tag_data = {"name": f"TestTag{uuid.uuid4().hex}", "color": color}
-
-    status, data = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
-    assert status == expected_status
+    sp = client(super_admin_token)
+    tag_name = f"TestTag{uuid.uuid4().hex}"
 
     if should_be_valid:
-        assert data["status"] == "success"
-        assert data["data"]["name"] == tag_data["name"]
-        assert data["data"]["color"] == color
+        tag = sp.post_obj_tag_option(tag_name, color=color)
+        assert tag.name == tag_name
+        assert tag.color == color
     else:
-        assert data["status"] == "error"
-        assert "must be a valid hex color code" in data["message"]
+        with pytest.raises(
+            SkyPortalError, match="must be a valid hex color code"
+        ) as err:
+            sp.post_obj_tag_option(tag_name, color=color)
+        assert err.value.status_code == expected_status
 
 
 def test_add_tag(super_admin_token):
-    tag_to_create = {"name": f"TagAdded{uuid.uuid4().hex}"}
-    status, data = api(
-        "POST", "objtagoption", data=tag_to_create, token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["name"] == tag_to_create["name"]
+    sp = client(super_admin_token)
+    tag_name = f"TagAdded{uuid.uuid4().hex}"
+    tag = sp.post_obj_tag_option(tag_name)
+    assert tag.name == tag_name
 
     # Verification that we can't create the same tag twice
-    status, data = api(
-        "POST", "objtagoption", data=tag_to_create, token=super_admin_token
-    )
-    assert status == 409
-    assert data["status"] == "error"
-    assert "already exists" in data["message"]
+    with pytest.raises(SkyPortalError, match="already exists") as err:
+        sp.post_obj_tag_option(tag_name)
+    assert err.value.status_code == 409
 
     # Verification that we can't create a tag without a name
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api("POST", "objtagoption", data="", token=super_admin_token)
     assert status == 500
     assert data["status"] == "error"
@@ -108,39 +94,24 @@ def test_add_tag(super_admin_token):
 
 
 def test_modify_tag(super_admin_token):
+    sp = client(super_admin_token)
     # Creation of a tag to modify
-    tag_data = {"name": f"TagToModify{uuid.uuid4().hex}"}
-    create_status, created_tag = api(
-        "POST", "objtagoption", data=tag_data, token=super_admin_token
-    )
-    assert create_status == 200
-    assert created_tag["status"] == "success"
-
-    tag_id = created_tag["data"]["id"]
-    tag_to_rename = {"name": f"TagRenamed{uuid.uuid4().hex}"}
+    tag_id = sp.post_obj_tag_option(f"TagToModify{uuid.uuid4().hex}").id
 
     # Testing nominal case
-    status, data = api(
-        "PATCH", f"objtagoption/{tag_id}", data=tag_to_rename, token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp.update_obj_tag_option(tag_id, f"TagRenamed{uuid.uuid4().hex}")
 
     # Testing to rename a tag with an existing name
-    tag_to_create = {"name": f"TagAdded{uuid.uuid4().hex}"}
-    status, data = api(
-        "POST", "objtagoption", data=tag_to_create, token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    status, data = api(
-        "PATCH", f"objtagoption/{tag_id}", data=tag_to_create, token=super_admin_token
-    )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "This tag name already exists for another tag" in data["message"]
+    existing_name = f"TagAdded{uuid.uuid4().hex}"
+    sp.post_obj_tag_option(existing_name)
+    with pytest.raises(
+        SkyPortalError, match="This tag name already exists for another tag"
+    ) as err:
+        sp.update_obj_tag_option(tag_id, existing_name)
+    assert err.value.status_code == 400
 
     # Testing to rename a tag without name
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "PATCH", f"objtagoption/{tag_id}", data="", token=super_admin_token
     )
@@ -149,154 +120,88 @@ def test_modify_tag(super_admin_token):
     assert "Please ensure posted data is of type application/json" in data["message"]
 
     # Testing to rename a non existing tag
-    data = {"name": f"TagNotFound{uuid.uuid4().hex}"}
-    status, data = api(
-        "PATCH", "objtagoption/9999999", data=data, token=super_admin_token
-    )
-    assert status == 404
-    assert data["status"] == "error"
-    assert "Tag not found" in data["message"]
+    with pytest.raises(SkyPortalError, match="Tag not found") as err:
+        sp.update_obj_tag_option(9999999, f"TagNotFound{uuid.uuid4().hex}")
+    assert err.value.status_code == 404
 
 
 def test_modify_tag_without_providing_color(super_admin_token):
     """Test setting tag color back to null"""
-    tag_data = {"name": f"TagColorToNull{uuid.uuid4().hex}", "color": "#3a87ad"}
-    create_status, created_tag = api(
-        "POST", "objtagoption", data=tag_data, token=super_admin_token
-    )
-    assert create_status == 200
-    tag_id = created_tag["data"]["id"]
+    sp = client(super_admin_token)
+    tag_name = f"TagColorToNull{uuid.uuid4().hex}"
+    tag_id = sp.post_obj_tag_option(tag_name, color="#3a87ad").id
 
     # Update without providing color (should keep existing color)
-    update_data = {"name": tag_data["name"]}
-    status, data = api(
-        "PATCH", f"objtagoption/{tag_id}", data=update_data, token=super_admin_token
-    )
-    assert status == 200
+    sp.update_obj_tag_option(tag_id, tag_name)
 
-    status, data = api("GET", "objtagoption", token=super_admin_token)
-    updated_tag = next((tag for tag in data["data"] if tag["id"] == tag_id), None)
-    assert updated_tag["color"] == "#3a87ad"
+    updated_tag = next(
+        (tag for tag in sp.fetch_obj_tag_options() if tag.id == tag_id), None
+    )
+    assert updated_tag.color == "#3a87ad"
 
 
 def test_change_tag_color(super_admin_token):
     """Test changing the color of an existing tag"""
+    sp = client(super_admin_token)
     initial_color = "#ff0000"
-    tag_data = {"name": f"TagColorChange{uuid.uuid4().hex}", "color": initial_color}
-    create_status, created_tag = api(
-        "POST", "objtagoption", data=tag_data, token=super_admin_token
-    )
-    assert create_status == 200
-    assert created_tag["status"] == "success"
-    assert created_tag["data"]["color"] == initial_color
+    tag_name = f"TagColorChange{uuid.uuid4().hex}"
+    created_tag = sp.post_obj_tag_option(tag_name, color=initial_color)
+    assert created_tag.color == initial_color
 
-    tag_id = created_tag["data"]["id"]
+    tag_id = created_tag.id
 
     new_color = "#3a87ad"
-    update_data = {"name": tag_data["name"], "color": new_color}
-    status, data = api(
-        "PATCH", f"objtagoption/{tag_id}", data=update_data, token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp.update_obj_tag_option(tag_id, tag_name, color=new_color)
 
     # Verify the color was changed
-    status, data = api("GET", "objtagoption", token=super_admin_token)
-    assert status == 200
-    updated_tag = next((tag for tag in data["data"] if tag["id"] == tag_id), None)
+    updated_tag = next(
+        (tag for tag in sp.fetch_obj_tag_options() if tag.id == tag_id), None
+    )
     assert updated_tag is not None
-    assert updated_tag["color"] == new_color
+    assert updated_tag.color == new_color
 
 
 def test_delete_tag(super_admin_token):
+    sp = client(super_admin_token)
     # Creation of a tag to delete
-    tag_data = {"name": f"TagToDelete{uuid.uuid4().hex}"}
-    create_status, created_tag = api(
-        "POST", "objtagoption", data=tag_data, token=super_admin_token
-    )
-    assert create_status == 200
-    assert created_tag["status"] == "success"
-
-    tag_id = created_tag["data"]["id"]
+    tag_id = sp.post_obj_tag_option(f"TagToDelete{uuid.uuid4().hex}").id
 
     # Delete the tag
-    delete_status, data = api(
-        "DELETE", f"objtagoption/{tag_id}", token=super_admin_token
-    )
-    assert delete_status == 200
-    assert created_tag["status"] == "success"
-    assert "Successfully deleted tag" in data["data"]
+    sp.delete_obj_tag_option(tag_id)
 
     # Verification that we can't delete a tag that doesn't exist
-    delete_status, data = api(
-        "DELETE", f"objtagoption/{tag_id}", token=super_admin_token
-    )
-    assert delete_status == 404
-    assert data["status"] == "error"
-    assert "Tag not found" in data["message"]
+    with pytest.raises(SkyPortalError, match="Tag not found") as err:
+        sp.delete_obj_tag_option(tag_id)
+    assert err.value.status_code == 404
 
 
 # --- Testing ObjTag API
 def test_create_tag_obj_association(super_admin_token, public_source, public_group):
+    sp = client(super_admin_token)
     # Create a tag option
-    tag_data = {"name": f"Tag{uuid.uuid4().hex}"}
-    status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
-    assert status == 200
-    assert tag["status"] == "success"
+    tag = sp.post_obj_tag_option(f"Tag{uuid.uuid4().hex}")
 
-    assoc_data = {
-        "objtagoption_id": tag["data"]["id"],
-        "obj_id": public_source.id,
-        "group_ids": [public_group.id],
-    }
-
-    status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assoc_id = data["data"]["id"]
-
-    status, data = api("GET", "objtag", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    assoc_id = sp.post_obj_tag(public_source.id, tag.id, group_ids=[public_group.id]).id
 
     created_assoc = next(
-        (assoc for assoc in data["data"] if assoc["id"] == assoc_id), None
+        (assoc for assoc in sp.fetch_obj_tags() if assoc.id == assoc_id), None
     )
     assert created_assoc is not None
 
-    assert created_assoc["objtagoption_id"] == tag["data"]["id"]
-    assert created_assoc["obj_id"] == public_source.id
+    assert created_assoc.objtagoption_id == tag.id
+    assert created_assoc.obj_id == public_source.id
 
-    status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.post_obj_tag(public_source.id, tag.id, group_ids=[public_group.id])
 
 
 def test_delete_association(super_admin_token, public_source, public_group):
-    tag_data = {"name": f"TagDeleteAssociation{uuid.uuid4().hex}"}
-    status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
-    assert status == 200
-    assert tag["status"] == "success"
+    sp = client(super_admin_token)
+    tag = sp.post_obj_tag_option(f"TagDeleteAssociation{uuid.uuid4().hex}")
 
-    assoc_data = {
-        "objtagoption_id": tag["data"]["id"],
-        "obj_id": public_source.id,
-        "group_ids": [public_group.id],
-    }
-    status, assoc = api("POST", "objtag", data=assoc_data, token=super_admin_token)
-    assert status == 200
-    assert assoc["status"] == "success"
+    assoc_id = sp.post_obj_tag(public_source.id, tag.id, group_ids=[public_group.id]).id
 
-    status, data = api(
-        "DELETE", f"objtag/{assoc['data']['id']}", token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert "Successfully deleted association" in data["data"]
+    sp.delete_obj_tag(assoc_id)
 
-    status, data = api(
-        "DELETE", f"objtag/{assoc['data']['id']}", token=super_admin_token
-    )
-    assert status == 404
-    assert data["status"] == "error"
-    assert "Association not found" in data["message"]
+    with pytest.raises(SkyPortalError, match="Association not found") as err:
+        sp.delete_obj_tag(assoc_id)
+    assert err.value.status_code == 404
