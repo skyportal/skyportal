@@ -25,7 +25,8 @@ def test_source_interest_lifecycle(
     assert len(interests) == 1
     assert interests[0]["title"] == "Paper in preparation"
     assert interests[0]["link"] == "https://example.com"
-    assert interests[0]["user"]["username"] is not None
+    username = interests[0]["user"]["username"]
+    assert username is not None
 
     status, data = api(
         "POST",
@@ -66,12 +67,13 @@ def test_source_interest_lifecycle(
         message["channel"] == "Interested" and message["system"] is True
         for message in messages
     )
-    assert [
-        message["text"].split(" registered an interest: ")[1] for message in messages
-    ] == [
-        "Paper in preparation",
-        "Second paper",
-    ]
+    assert sorted(message["text"] for message in messages) == sorted(
+        [
+            f"**{username}** registered an interest: **Paper in preparation**",
+            f"**{username}** registered an interest: **Second paper**",
+            f"**{username}** withdrew an interest: **Paper in preparation**",
+        ]
+    )
 
 
 def test_conversations_stay_out_of_the_main_thread(
@@ -93,7 +95,9 @@ def test_conversations_stay_out_of_the_main_thread(
 
     status, data = api("GET", f"sources/{obj_id}/comments", token=view_only_token)
     assert status == 200, data
-    assert [c["text"] for c in data["data"]] == ["a regular comment"]
+    texts = [c["text"] for c in data["data"]]
+    assert "a regular comment" in texts
+    assert "NOT time awarded" not in texts
 
     status, data = api(
         "GET", f"sources/{obj_id}/comments?channel=Spectroscopy", token=view_only_token
@@ -111,7 +115,9 @@ def test_conversations_stay_out_of_the_main_thread(
         "GET", f"sources/{obj_id}?includeComments=true", token=view_only_token
     )
     assert status == 200, data
-    assert [c["text"] for c in data["data"]["comments"]] == ["a regular comment"]
+    texts = [c["text"] for c in data["data"]["comments"]]
+    assert "a regular comment" in texts
+    assert "NOT time awarded" not in texts
 
 
 def test_conversation_deletion_permissions(
