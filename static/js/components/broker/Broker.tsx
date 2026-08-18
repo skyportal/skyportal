@@ -312,7 +312,10 @@ const Broker = () => {
                 onChange={(e) => setObjectId(e.target.value)}
               />
               {surveys.length > 1 && (
-                <Tooltip title="Selected automatically from the object ID format, override it if needed">
+                <Tooltip
+                  placement="top"
+                  title="Selected automatically from the object ID format, override it if needed"
+                >
                   <TextField
                     select
                     size="small"
