@@ -320,6 +320,7 @@ const CommentThread = ({
   if (resourceType === "sources") {
     comments = channel ? (conversation ?? []) : obj?.comments;
     if (
+      !channel &&
       includeCommentsOnAllResourceTypes &&
       Array.isArray(spectra) &&
       objID != null
