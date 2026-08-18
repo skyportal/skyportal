@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skyportal-db-schema"
+version = "0.1.0"
+description = "SQLAlchemy models and migrations for the SkyPortal database"
+readme = "README.md"
+authors = [{ name = "Leo Conforti", email = "leo@leoconforti.us" }]
+license = "BSD-3-Clause"
+# PyPI rejects any distribution carrying a `Private ::` classifier, so an
+# accidental `uv publish` of this package fails instead of leaking it.
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["sqlalchemy>=2"]
+requires-python = ">=3.12,<3.13"
+
+[tool.setuptools.packages.find]
+include = ["skyportal_db_schema*"]

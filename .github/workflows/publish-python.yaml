@@ -1,0 +1,47 @@
+name: Upload Python Packages
+
+# One `pypi-v*` tag releases every published package at their shared version.
+# SkyPortal's own app releases use plain `vX.Y.Z` tags and are unaffected.
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+env:
+  PACKAGES: skyportal-py-models skyportal-py
+
+jobs:
+  deploy:
+    if: startsWith(github.event.release.tag_name, 'pypi-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive # uv needs every workspace member present
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      - name: Check the tag matches the committed versions
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 tools/check_published_versions.py
+          version="${TAG#pypi-v}"
+          for pkg in $PACKAGES; do
+            got=$(uv version --package "$pkg" --short --frozen)
+            if [ "$got" != "$version" ]; then
+              echo "::error::$pkg is $got, tag says $version"; exit 1
+            fi
+          done
+
+      - name: Build every published package
+        run: |
+          for pkg in $PACKAGES; do uv build --package "$pkg"; done
+
+      # Uploading together is what lets the client pin the models exactly: both
+      # land on PyPI in one call, so neither has to be released first.
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0

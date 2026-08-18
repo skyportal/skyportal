@@ -1,0 +1,31 @@
+# One changelog for every package published to PyPI from projects/. They share a
+# version and a `pypi-v*` tag, so a per-package changelog would just fragment the
+# same release notes.
+[tool.towncrier]
+directory = "changes.d"
+filename = "CHANGES.md"
+start_string = "<!-- towncrier release notes start -->\n"
+underlines = ["", "", ""]
+title_format = "## {version} ({project_date})"
+issue_format = "[#{issue}](https://github.com/skyportal/skyportal/pull/{issue})"
+ignore = ["README.md"]
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "New features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Other changes"
+showcontent = true

@@ -67,6 +67,8 @@ venv/
 
 # distribution files (for releases)
 dists/
+dist/
+*.egg-info/
 
 # postgres persistent volume
 data/dbdata/

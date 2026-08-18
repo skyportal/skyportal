@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skyportal-mcp-tools"
+version = "0.1.0"
+description = "MCP server exposing SkyPortal as tools for LLM agents"
+readme = "README.md"
+authors = [{ name = "Leo Conforti", email = "leo@leoconforti.us" }]
+license = "BSD-3-Clause"
+# PyPI rejects any distribution carrying a `Private ::` classifier, so an
+# accidental `uv publish` of this package fails instead of leaking it.
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["mcp>=1.2", "skyportal-py"]
+requires-python = ">=3.11"
+
+[tool.uv.sources]
+skyportal-py = { workspace = true }
+
+[tool.setuptools.packages.find]
+include = ["skyportal_mcp_tools*"]

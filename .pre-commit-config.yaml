@@ -25,6 +25,12 @@ repos:
           - prettier@3.8.3
   - repo: local
     hooks:
+      - id: published-versions
+        name: Published packages share one version
+        entry: python3 tools/check_published_versions.py
+        language: system
+        files: ^projects/.*/pyproject\.toml$
+        pass_filenames: false
       - id: ESLint
         name: ESLint
         entry: bun x eslint -c eslint.config.js --fix

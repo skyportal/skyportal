@@ -126,6 +126,8 @@ brokers-all = ["skyportal[pittgoogle]"]
 [dependency-groups]
 dev = [
     "pre-commit",
+    # drives the shared changelog for the published packages under projects/
+    "towncrier",
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.1.0",
     "pytest-rerunfailures>=14.0",
@@ -144,7 +146,15 @@ docs = [
 
 [tool.uv]
 package = false
-workspace = { members = ["baselayer"] }
+# Listed explicitly rather than globbed: projects/ also holds JS packages, and a
+# `projects/*` glob errors on any member without a pyproject.toml.
+workspace = { members = [
+    "baselayer",
+    "projects/api-models",
+    "projects/db-schema",
+    "projects/mcp-tools",
+    "projects/python-client",
+] }
 
 [tool.uv.sources]
 baselayer = { workspace = true }

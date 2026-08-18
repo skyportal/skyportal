@@ -1,0 +1,34 @@
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      # `towncrier check` diffs the whole repo regardless of --dir, so without
+      # this gate every backend PR would be asked for a client changelog entry.
+      - id: touched
+        run: |
+          git diff --quiet origin/${{ github.base_ref }}...HEAD \
+            -- projects/python-client projects/api-models \
+            && echo "changed=false" >> "$GITHUB_OUTPUT" \
+            || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - if: steps.touched.outputs.changed == 'true'
+        run: >
+          uv run --locked --only-group dev
+          towncrier check --dir projects
+          --compare-with origin/${{ github.base_ref }}

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skyportal-py-models"
+version = "0.1.0"
+description = "Shared pydantic request/response models for the SkyPortal API"
+readme = "README.md"
+authors = [{ name = "Leo Conforti", email = "leo@leoconforti.us" }]
+license = "BSD-3-Clause"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = ["pydantic>=2"]
+requires-python = ">=3.11"
+
+[project.urls]
+source = "https://github.com/skyportal/skyportal"
+
+[tool.setuptools.packages.find]
+include = ["skyportal_py_models*"]
