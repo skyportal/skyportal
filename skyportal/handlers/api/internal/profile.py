@@ -314,7 +314,13 @@ class ProfileHandler(BaseHandler):
             for k, v in preferences.items():
                 if isinstance(v, dict):
                     preferences[k] = {key: val for key, val in v.items() if val != ""}
-            user_prefs = deepcopy(user.preferences)
+            user_prefs = deepcopy(
+                await session.scalar(
+                    sa.select(User.preferences)
+                    .where(User.id == user_id)
+                    .with_for_update()
+                )
+            )
             if not user_prefs:
                 user_prefs = preferences
             else:
