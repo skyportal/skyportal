@@ -121,7 +121,11 @@ def test_conversations_stay_out_of_the_main_thread(
 
 
 def test_conversation_deletion_permissions(
-    comment_token, view_only_token, view_only_token2, super_admin_token, public_source
+    comment_token,
+    comment_token_two_groups,
+    view_only_token,
+    super_admin_token,
+    public_source,
 ):
     obj_id = public_source.id
 
@@ -136,7 +140,7 @@ def test_conversation_deletion_permissions(
     status, data = api(
         "DELETE",
         f"sources/{obj_id}/comments/channels?channel=Photometry",
-        token=view_only_token2,
+        token=comment_token_two_groups,
     )
     assert status == 403, data
 
@@ -156,6 +160,6 @@ def test_conversation_deletion_permissions(
     status, data = api(
         "DELETE",
         f"sources/{obj_id}/comments/channels?channel=Unknown",
-        token=view_only_token,
+        token=comment_token,
     )
     assert status == 400, data
