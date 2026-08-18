@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.survey import survey_from_object_id
 from .interface import BrokerAPI, normalize_module_streams
 
 log = make_log("broker/boom")
@@ -83,8 +84,20 @@ def _request(broker, method, path, *, params=None, json=None):
     return payload.get("data", payload) if isinstance(payload, dict) else payload
 
 
-def _survey(broker, kwargs):
-    return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+def _survey(broker, kwargs, object_id=None):
+    return (
+        kwargs.get("survey")
+        or survey_from_object_id(
+            object_id or kwargs.get("objectId"), BOOMBROKER.surveys
+        )
+        or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+    )
+
+
+def _object_id_clause(object_id):
+    """Mongo clause matching an objectId stored as text or, for LSST, as an int64."""
+    text = str(object_id)
+    return {"$in": [text, int(text)]} if text.isdigit() else text
 
 
 # BOOM rejects a filter test whose window is wider than this ("JD window for
@@ -150,11 +163,17 @@ def _programids(kwargs, survey):
     return list(permissions.get(survey) or [])
 
 
+NO_PROGRAMID_SURVEYS = {"LSST"}
+DENY_ALL = {"_id": {"$in": []}}
+
+
 def _scope_filter(kwargs, survey):
     """Mongo clause restricting a query to the requester's accessible programids."""
     programids = _programids(kwargs, survey)
     if programids is None:
         return {}
+    if survey in NO_PROGRAMID_SURVEYS:
+        return {} if programids else DENY_ALL
     return {"candidate.programid": {"$in": programids}}
 
 
@@ -527,9 +546,9 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        survey = _survey(broker, kwargs)
-        catalog = f"{survey}_alerts"
         object_id = kwargs.get("objectId")
+        survey = _survey(broker, kwargs, object_id)
+        catalog = f"{survey}_alerts"
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
         scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
 
@@ -540,7 +559,7 @@ class BOOMBROKER(BrokerAPI):
                 "queries/find",
                 json={
                     "catalog_name": catalog,
-                    "filter": {"objectId": object_id, **scope},
+                    "filter": {"objectId": _object_id_clause(object_id), **scope},
                     "projection": NO_CUTOUT_PROJECTION,
                     "max_time_ms": 10000,
                 },
@@ -568,11 +587,16 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
         # Full object: brightest alert joined with its aux history.
-        survey = _survey(broker, kwargs)
+        survey = _survey(broker, kwargs, alert_id)
         catalog = f"{survey}_alerts"
         programids = _programids(kwargs, survey)
         pipeline = [
-            {"$match": {"objectId": alert_id, **_scope_filter(kwargs, survey)}},
+            {
+                "$match": {
+                    "objectId": _object_id_clause(alert_id),
+                    **_scope_filter(kwargs, survey),
+                }
+            },
             {"$sort": {"candidate.magpsf": 1}},
             {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
             {"$replaceRoot": {"newRoot": "$data"}},

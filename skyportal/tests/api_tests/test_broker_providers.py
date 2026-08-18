@@ -257,6 +257,37 @@ def test_boom_query_alerts_unrestricted_for_admins(monkeypatch):
     assert calls[0]["json"]["filter"] == {"objectId": "ZTF20aapnxry"}
 
 
+def test_boom_query_alerts_infers_survey_from_object_id(monkeypatch):
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="170591514995458386", permissions=None
+    )
+    assert calls[0]["json"]["catalog_name"] == "LSST_alerts"
+    assert calls[0]["json"]["filter"]["objectId"] == {
+        "$in": ["170591514995458386", 170591514995458386]
+    }
+
+
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"LSST": [1]}, {}),
+        ({"ZTF": [1]}, {"_id": {"$in": []}}),
+        ({}, {"_id": {"$in": []}}),
+    ],
+)
+def test_boom_query_alerts_lsst_scoped_by_stream(monkeypatch, permissions, expected):
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="170591514995458386", permissions=permissions
+    )
+    filter_ = dict(calls[0]["json"]["filter"])
+    filter_.pop("objectId")
+    assert filter_ == expected
+
+
 def test_boom_get_alert_drops_out_of_scope_history(monkeypatch):
     record = {
         "objectId": "ZTF20aapnxry",

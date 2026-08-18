@@ -5,6 +5,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
 import Pagination from "@mui/material/Pagination";
 import Paper from "@mui/material/Paper";
 import Tab from "@mui/material/Tab";
@@ -81,13 +82,25 @@ const normalizeAlert = (a: any): NormalizedAlert => {
       a?.object_id ??
       a?.object ??
       cand?.objectId,
-    candid: cand?.candid ?? a?.candid,
+    candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
     ra: cand?.ra ?? a?.ra,
     dec: cand?.dec ?? a?.dec,
     magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
     jd: cand?.jd ?? a?.jd,
     raw: a,
   };
+};
+
+// Mirrors the backend's survey_from_object_id.
+const surveyFromObjectId = (
+  objectId: string,
+  surveys: string[],
+): string | undefined => {
+  const id = objectId.trim();
+  let survey;
+  if (/^ZTF\d{2}[a-z]{7}$/.test(id)) survey = "ZTF";
+  else if (/^\d+$/.test(id)) survey = "LSST";
+  return survey && surveys.includes(survey) ? survey : undefined;
 };
 
 const TooltipTab = ({ tooltip, ...tabProps }: any) => (
@@ -108,6 +121,8 @@ const Broker = () => {
   const [ra, setRa] = useState("");
   const [dec, setDec] = useState("");
   const [radius, setRadius] = useState("");
+  const [survey, setSurvey] = useState("");
+  const [queriedSurvey, setQueriedSurvey] = useState("");
   const [mode, setMode] = useState<"search" | "preview">("search");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState(0);
@@ -127,7 +142,9 @@ const Broker = () => {
   const isFetching = alertFetching || filterFetching;
 
   const broker = (brokers || []).find((b) => b.id === brokerId);
-  const survey = broker?.surveys?.[0] ?? "ZTF";
+  const surveys = broker?.surveys ?? [];
+  const searchSurvey =
+    survey || surveyFromObjectId(objectId, surveys) || surveys[0] || "ZTF";
   const canQuery = Boolean(broker?.capabilities?.["query_alerts"]);
   const canPreview = Boolean(broker?.capabilities?.["test_filter"]);
   const hasFilters = Boolean(broker && broker.filter_kind !== "none");
@@ -163,10 +180,17 @@ const Broker = () => {
     const uRadius = searchParams.get("radius") || "";
     if (!oid && !uRa) return;
 
+    const uSurvey =
+      searchParams.get("survey") ||
+      surveyFromObjectId(oid, broker.surveys ?? []) ||
+      broker.surveys?.[0] ||
+      "ZTF";
     setObjectId(oid);
     setRa(uRa);
     setDec(uDec);
     setRadius(uRadius);
+    setSurvey(uSurvey);
+    setQueriedSurvey(uSurvey);
     setMode("search");
     setPage(1);
     triggerAlerts({
@@ -177,6 +201,7 @@ const Broker = () => {
         dec: uDec || undefined,
         radius: uRadius || undefined,
         radius_units: uRadius ? "arcsec" : undefined,
+        survey: uSurvey,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -192,6 +217,7 @@ const Broker = () => {
     setMode("search");
     setPage(1);
     setFilters([]);
+    setQueriedSurvey(searchSurvey);
     triggerAlerts({
       brokerId,
       params: {
@@ -200,6 +226,7 @@ const Broker = () => {
         dec: coneDisabled ? undefined : dec || undefined,
         radius: coneDisabled ? undefined : radius || undefined,
         radius_units: !coneDisabled && radius ? "arcsec" : undefined,
+        survey: searchSurvey,
       },
     });
   };
@@ -284,6 +311,24 @@ const Broker = () => {
                 value={objectId}
                 onChange={(e) => setObjectId(e.target.value)}
               />
+              {surveys.length > 1 && (
+                <Tooltip title="Selected automatically from the object ID format, override it if needed">
+                  <TextField
+                    select
+                    size="small"
+                    label="Survey"
+                    value={searchSurvey}
+                    onChange={(e) => setSurvey(e.target.value)}
+                    sx={{ minWidth: 120 }}
+                  >
+                    {surveys.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {s}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Tooltip>
+              )}
               <Tooltip title={coneDisabled ? coneReason : ""}>
                 <span>
                   <TextField
@@ -333,7 +378,7 @@ const Broker = () => {
             ) : broker.filter_kind === "query" && canPreview ? (
               <LasairFilterBuilder
                 brokerId={brokerId}
-                survey={survey}
+                survey={searchSurvey}
                 onPreview={onPreview}
               />
             ) : (
@@ -393,7 +438,7 @@ const Broker = () => {
                                 brokerId={brokerId}
                                 brokerClassname={broker.broker_classname}
                                 objectId={g.objectId}
-                                survey={survey}
+                                survey={queriedSurvey || searchSurvey}
                                 alerts={g.alerts}
                                 expanded={pageGroups.length === 1}
                               />

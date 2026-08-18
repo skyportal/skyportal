@@ -44,7 +44,8 @@ const CutoutTriplet = ({
       setDataUris({});
       return;
     }
-    fetch(`/api/brokers/${brokerId}/alerts/${candid}/cutouts`, {
+    const qs = survey ? `?survey=${encodeURIComponent(survey)}` : "";
+    fetch(`/api/brokers/${brokerId}/alerts/${candid}/cutouts${qs}`, {
       credentials: "include",
     })
       .then((r) => r.json())
