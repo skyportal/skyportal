@@ -8,12 +8,16 @@ annotation, and the per-(event, broker) state bookkeeping.
 """
 
 import asyncio
+import base64
+import gzip
+import io
 import uuid
 from datetime import timedelta
 
 import numpy as np
 import pytest
 import sqlalchemy as sa
+from astropy.io import fits
 from astropy.time import Time
 
 from baselayer.app import models
@@ -28,6 +32,7 @@ from skyportal.models import (
     Obj,
     Photometry,
     Source,
+    Thumbnail,
 )
 from skyportal.tests import api
 from skyportal.tests.fixtures import (
@@ -145,8 +150,18 @@ def _calls_at(recorded, key, ra):
     return out
 
 
-def _alert(object_id, ra, dec, jd):
-    return {"objectId": object_id, "candidate": {"ra": ra, "dec": dec, "jd": jd}}
+def _alert(object_id, ra, dec, jd, candid=None):
+    candidate = {"ra": ra, "dec": dec, "jd": jd}
+    if candid is not None:
+        candidate["candid"] = candid
+    return {"objectId": object_id, "candidate": candidate}
+
+
+def _fits_cutout():
+    """One cutout in the wire format a ZTF alert carries: gzipped FITS, base64."""
+    buff = io.BytesIO()
+    fits.PrimaryHDU(np.arange(64, dtype=np.float32).reshape(8, 8)).writeto(buff)
+    return base64.b64encode(gzip.compress(buff.getvalue())).decode()
 
 
 def test_crossmatch_saves_only_contained_in_window_alerts(
@@ -663,12 +678,22 @@ def ztf_instrument():
                 session.commit()
 
 
-def _stub_provider_with_photometry(monkeypatch, alerts, saved, ra, dec, history):
-    """A provider that also serves detection history via get_alert."""
+def _stub_provider_with_photometry(
+    monkeypatch, alerts, saved, ra, dec, history, cutouts=None
+):
+    """A provider that also serves detection history via get_alert, and cutouts
+    via get_cutouts. With no ``cutouts`` the cutout call raises, which is the
+    common case: capability advertised, this particular alert unavailable."""
 
     def query_alerts(broker, session, **kwargs):
         saved.setdefault("query_kwargs", []).append(kwargs)
         return alerts
+
+    def get_cutouts(broker, candid, session, **kwargs):
+        saved.setdefault("get_cutouts_calls", []).append(candid)
+        if cutouts is None:
+            raise RuntimeError("broker has no cutouts for this alert")
+        return cutouts
 
     def get_alert(broker, alert_id, session, **kwargs):
         saved.setdefault("get_alert_calls", []).append(alert_id)
@@ -686,10 +711,17 @@ def _stub_provider_with_photometry(monkeypatch, alerts, saved, ra, dec, history)
 
     monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
     monkeypatch.setattr(GENERICBROKER, "get_alert", staticmethod(get_alert))
+    monkeypatch.setattr(GENERICBROKER, "get_cutouts", staticmethod(get_cutouts))
     monkeypatch.setattr(
         GENERICBROKER,
         "implements",
-        classmethod(lambda cls: {"query_alerts": True, "get_alert": True}),
+        classmethod(
+            lambda cls: {
+                "query_alerts": True,
+                "get_alert": True,
+                "get_cutouts": True,
+            }
+        ),
     )
 
 
@@ -744,6 +776,110 @@ def test_crossmatch_ingests_photometry_for_a_match(
             sa.select(Photometry).where(Photometry.obj_id == obj_id)
         ).all()
     assert len(points) > 0, "the match was saved without any photometry"
+
+
+def test_crossmatch_ingests_cutouts_for_a_match(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A scanner reads the science/reference/difference stamps before anything
+    else, so the match must bring them too. They are keyed by candid, not object
+    id, which is only available on the refetched alert."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_cutout")
+    candid = 3515302280815015022
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            "programid": 2,
+        }
+    ]
+    stamp = _fits_cutout()
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2, candid=candid)],
+        recorded,
+        ra,
+        dec,
+        history,
+        cutouts={
+            "cutoutScience": stamp,
+            "cutoutTemplate": stamp,
+            "cutoutDifference": stamp,
+        },
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), recorded
+    assert candid in recorded.get("get_cutouts_calls", []), (
+        "cutouts were never fetched, or were fetched by object id rather than candid"
+    )
+    with models.DBSession() as session:
+        types = set(
+            session.scalars(
+                sa.select(Thumbnail.type).where(Thumbnail.obj_id == obj_id)
+            ).all()
+        )
+    assert {"new", "ref", "sub"} <= {str(t) for t in types}, (
+        f"the match was saved without its alert stamps: {types}"
+    )
+
+
+def test_crossmatch_keeps_the_photometry_when_cutouts_fail(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """Stamps are the nice-to-have; the light curve is not. A broker that cannot
+    serve cutouts must still leave the scanner something to judge."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_nocutout")
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            "programid": 2,
+        }
+    ]
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2, candid=1234)],
+        recorded,
+        ra,
+        dec,
+        history,
+        cutouts=None,  # get_cutouts raises
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), "the match was lost with the cutouts"
+    with models.DBSession() as session:
+        points = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+    assert len(points) > 0, "a failed cutout fetch took the photometry with it"
 
 
 def test_crossmatch_keeps_the_match_when_photometry_fails(

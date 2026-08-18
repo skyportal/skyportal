@@ -592,6 +592,15 @@ async def recreate_thumbnails_from_broker(obj_id, user_id, session):
     serve both an alert and its cutouts. Returns whether anything was posted.
     """
     from ...broker_apis._thumbnails import add_thumbnails
+    from .broker import alert_permissions_async
+
+    user = await session.get(User, user_id)
+    if user is None:
+        return False
+    # Providers fail closed on the stream scope: BOOM turns a missing
+    # `permissions` into an empty programid list, which matches no alert and
+    # returns nothing rather than raising, so the rebuild quietly does nothing.
+    permissions = await alert_permissions_async(user, session)
 
     brokers = (
         await session.scalars(
@@ -606,16 +615,20 @@ async def recreate_thumbnails_from_broker(obj_id, user_id, session):
         if not (capabilities.get("get_alert") and capabilities.get("get_cutouts")):
             continue
         try:
-            data = broker.broker_class.get_alert(broker, obj_id, session)
+            data = broker.broker_class.get_alert(
+                broker, obj_id, session, permissions=permissions
+            )
             candid = (data or {}).get("candid") or (
                 (data or {}).get("candidate") or {}
             ).get("candid")
             if candid is None:
                 continue
-            cutouts = broker.broker_class.get_cutouts(broker, candid, session)
+            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
+            cutouts = broker.broker_class.get_cutouts(
+                broker, candid, session, survey=survey, permissions=permissions
+            )
             if not cutouts:
                 continue
-            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
             await add_thumbnails(obj_id, cutouts, survey, session, user_id=user_id)
             return True
         except Exception as e:
