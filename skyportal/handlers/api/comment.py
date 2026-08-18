@@ -24,6 +24,7 @@ from ...models import (
     GcnEvent,
     Group,
     Instrument,
+    Obj,
     Shift,
     Spectrum,
     Token,
@@ -349,6 +350,7 @@ class CommentHandler(BaseHandler):
                             **c.to_dict(),
                             "resourceType": "gcn_event",
                             "dateobs": c.gcn.dateobs,
+                            "author": c.construct_author_info_dict(),
                         }
                         for c in comments
                     ]
@@ -1575,7 +1577,7 @@ class CommentChannelHandler(BaseHandler):
             )
             return self.success(data=sorted(channels.all()))
 
-    @auth_or_token
+    @permissions(["Comment"])
     async def delete(self, obj_id: str):
         """
         ---
@@ -1608,35 +1610,45 @@ class CommentChannelHandler(BaseHandler):
             return self.error("`channel` must be provided")
 
         async with self.AsyncSession() as session:
-            comments = (
-                (
-                    await session.scalars(
-                        Comment.select(session.user_or_token)
-                        .where(Comment.obj_id == obj_id, Comment.channel == channel)
-                        .order_by(Comment.created_at)
-                    )
-                )
-                .unique()
-                .all()
+            opener_id = await session.scalar(
+                sa.select(Comment.author_id)
+                .where(Comment.obj_id == obj_id, Comment.channel == channel)
+                .order_by(Comment.created_at)
+                .limit(1)
             )
-            if not comments:
+            if opener_id is None:
                 return self.error("Invalid channel")
 
             if (
                 not self.current_user.is_system_admin
-                and comments[0].author_id != self.associated_user_object.id
+                and opener_id != self.associated_user_object.id
             ):
                 return self.error(
                     "Only the user who opened this conversation can delete it",
                     status=403,
                 )
 
-            await session.execute(
-                sa.delete(Comment).where(
-                    Comment.obj_id == obj_id, Comment.channel == channel
+            comment_ids = (
+                (
+                    await session.scalars(
+                        Comment.select(
+                            session.user_or_token, columns=[Comment.id]
+                        ).where(Comment.obj_id == obj_id, Comment.channel == channel)
+                    )
                 )
+                .unique()
+                .all()
             )
+            if not comment_ids:
+                return self.error("Invalid channel")
+
+            await session.execute(sa.delete(Comment).where(Comment.id.in_(comment_ids)))
             await session.commit()
 
-            self.push_all(action="skyportal/REFRESH_SOURCE", payload={"obj_id": obj_id})
+            target_obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            if target_obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": target_obj.internal_key},
+                )
             return self.success()
