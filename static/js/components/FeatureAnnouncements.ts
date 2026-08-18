@@ -18,7 +18,8 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     announcedAt: "2026-08-10",
     steps: [
       {
-        target: '[data-testid="source-chat"]',
+        target:
+          '[data-testid="source-chat"], [data-testid="source-chat-button"]',
         title: "Comments are now a chat",
         content:
           "Comments got a refreshed look and now read like any messaging app, " +
