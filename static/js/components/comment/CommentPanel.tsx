@@ -22,6 +22,7 @@ import {
   useDeleteConversationMutation,
   useGetConversationsQuery,
 } from "../../ducks/source";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 const CommentThread = lazy(() => import("../comment/CommentThread"));
 
@@ -145,6 +146,7 @@ const CommentPanel = ({
   const [newChannel, setNewChannel] = useState<string | null>(null);
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
   const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
+  const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
   const { data: openedChannels = [] } = useGetConversationsQuery(
     target.type === "source" && (inline || open) ? target.id : skipToken,
@@ -174,12 +176,27 @@ const CommentPanel = ({
     if (event.key === "Escape") setNewChannel(null);
   };
 
-  const removeChannel = async (name: string) => {
-    if (target.type === "source" && openedChannels.includes(name)) {
-      await deleteConversation({ obj_id: target.id, channel: name });
-    }
+  const forgetChannel = (name: string) => {
     setAddedChannels(addedChannels.filter((added) => added !== name));
     if (channel === name) setChannel(MAIN_CHANNEL);
+  };
+
+  const removeChannel = (name: string) => {
+    if (target.type === "source" && openedChannels.includes(name)) {
+      setChannelToDelete(name);
+    } else {
+      forgetChannel(name);
+    }
+  };
+
+  const confirmRemoveChannel = () => {
+    if (target.type !== "source" || !channelToDelete) return;
+    const name = channelToDelete;
+    setChannelToDelete(null);
+    deleteConversation({ obj_id: target.id, channel: name })
+      .unwrap()
+      .then(() => forgetChannel(name))
+      .catch(() => {});
   };
 
   const inlineToggle = toggleInline ? (
@@ -304,6 +321,12 @@ const CommentPanel = ({
           )}
         </Suspense>
       </div>
+      <ConfirmDeletionDialog
+        dialogOpen={channelToDelete !== null}
+        closeDialog={() => setChannelToDelete(null)}
+        deleteFunction={confirmRemoveChannel}
+        resourceName={`conversation "${channelToDelete}" and all its comments`}
+      />
     </Paper>
   );
 
