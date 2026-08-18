@@ -404,7 +404,7 @@ async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None)
     return True
 
 
-async def ingest_match_photometry(session, user, broker, obj_id, survey):
+async def ingest_match_photometry(session, user, broker, obj_id, survey, permissions):
     """Ingest the matched object's light curve, so a scanner has something to
     judge it on.
 
@@ -412,14 +412,24 @@ async def ingest_match_photometry(session, user, broker, obj_id, survey):
     and time -- no detection history -- so the full object is refetched here.
     Photometry only: the obj is a candidate awaiting review, not a Source.
 
+    ``permissions`` must be the same stream scope the alert query ran under.
+    Brokers fail closed on it -- BOOM reads the accessible programids straight
+    out of it -- so omitting it matches nothing instead of raising.
+
     Best effort. A broker that cannot serve the history, or an object it no
     longer has, must not cost us the match itself.
     """
     if not broker.broker_class.implements().get("get_alert"):
         return False
     try:
-        data = broker.broker_class.get_alert(broker, obj_id, session, survey=survey)
+        data = broker.broker_class.get_alert(
+            broker, obj_id, session, survey=survey, permissions=permissions
+        )
+        # get_alert may hand back the raw pipeline result rather than one object
+        if isinstance(data, list):
+            data = data[0] if data else None
         if not data:
+            log(f"No photometry for {obj_id}: {broker.name} returned no alert")
             return False
         await save_object_photometry(data, survey, session, user)
         return True
@@ -579,7 +589,9 @@ async def process_event_filter(
                 filter_.id,
                 survey=survey,
             )
-            await ingest_match_photometry(session, user, broker, object_id, survey)
+            await ingest_match_photometry(
+                session, user, broker, object_id, survey, permissions
+            )
             await annotate_match(
                 session,
                 user,

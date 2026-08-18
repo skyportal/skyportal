@@ -1,6 +1,7 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
+import HistoryIcon from "@mui/icons-material/History";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import GroupIcon from "@mui/icons-material/Group";
@@ -179,6 +180,7 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
       taxonomy_id,
       groups,
       obj_id,
+      edits,
     }: any) => {
       // Meta-object provenance: when this classification was aggregated from a
       // different underlying source (SuperObj member), show which one.
@@ -299,6 +301,28 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
                     <span>{`(P=${probability}, origin=${origin})`}</span>
                   ) : (
                     <span>{`(P=${probability})`}</span>
+                  )}
+                  {edits?.length > 0 && (
+                    <Tooltip
+                      title={
+                        <div>
+                          {edits.map((edit: any) => (
+                            <div key={`edit_${edit.id}`}>
+                              {`${edit.editor_name}: ${
+                                edit.old_probability ?? "none"
+                              } → ${edit.new_probability ?? "none"}, ${dayjs().to(
+                                dayjs.utc(`${edit.created_at}Z`),
+                              )}`}
+                            </div>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <HistoryIcon
+                        fontSize="small"
+                        style={{ marginLeft: "0.2em", color: "gray" }}
+                      />
+                    </Tooltip>
                   )}
                 </div>
                 <div>

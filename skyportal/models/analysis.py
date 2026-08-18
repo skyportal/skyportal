@@ -655,8 +655,23 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
     transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
     yet visible to this fresh session and post_analysis fails with "Obj not found".
     """
+    import time
+
     from skyportal.handlers.api.analysis import post_analysis
-    from skyportal.models import User
+    from skyportal.models import Obj, User
+
+    # Wait for the just-saved obj to be visible: a broker-ingested obj is new in
+    # the still-uncommitted triggering transaction, so a fresh session can miss it.
+    for _ in range(20):
+        with DBSession() as probe:
+            if probe.scalar(sa.select(Obj.id).where(Obj.id == obj_id)) is not None:
+                break
+        time.sleep(0.5)
+    else:
+        log(
+            f"Default analysis {default_analysis_id}: obj {obj_id} never became visible"
+        )
+        return
 
     with DBSession() as db_session:
         try:

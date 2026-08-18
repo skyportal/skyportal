@@ -167,6 +167,19 @@ def sso_routing_for(filter_ids, sso_targets):
     return matched, group_ids
 
 
+def sidereal_filter_ids(filter_ids, sso_filter_ids):
+    """Filters that keep the normal sidereal path: everything the alert passed
+    except the SSO-routed ones.
+
+    An SSO filter must never fall through to the sidereal path — a moving object
+    keyed by sky position yields fixed-position photometry and single-point
+    sources — so it is excluded here regardless of whether a designation was
+    found.
+    """
+    sso = set(sso_filter_ids or ())
+    return [fid for fid in filter_ids or [] if fid not in sso]
+
+
 # Alert and photometry JDs come from the same source, so they should match
 # exactly; allow ~0.1s of slack against float round-tripping.
 _JD_TOLERANCE = 1e-6
@@ -226,6 +239,7 @@ async def ingest_sso_alert(
     filter_ids=None,
     passing_alert_id=None,
     annotations_by_filter_id=None,
+    fetch_history=None,
 ):
     """Ingest one alert as a detection of a known solar-system object.
 
@@ -251,13 +265,22 @@ async def ingest_sso_alert(
     annotations_by_filter_id : dict, optional
         Each passing filter's annotations, which may carry the `sso` fields when
         the alert itself does not.
+    fetch_history : callable, optional
+        ``async (survey, designation) -> list of prv_candidates points``. Called
+        once, the first time a body is seen, to backfill its full light curve
+        from the broker (each detection lands under a different position-keyed
+        object id, so the history has to be gathered by designation).
 
     Returns
     -------
     dict
         ``{"id": obj_id}``.
     """
-    from ..broker_apis._save import build_photometry_groups, programid_to_stream_ids
+    from ..broker_apis._save import (
+        _normalize_band,
+        build_photometry_groups,
+        programid_to_stream_ids,
+    )
     from ..handlers.api.photometry import add_external_photometry
     from ..models import Instrument
 
@@ -275,7 +298,8 @@ async def ingest_sso_alert(
         raise ValueError(f"Instrument '{survey}' not found in the database.")
 
     obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-    if obj is None:
+    is_new = obj is None
+    if is_new:
         obj = Obj(id=obj_id, origin=survey)
         session.add(obj)
 
@@ -335,22 +359,43 @@ async def ingest_sso_alert(
         else:
             source.active = True
 
-    # Reuse the shared transform on the triggering detection alone, so units,
-    # band naming and stream gating cannot drift from the sidereal path.
-    if detection:
+    # Reuse the shared transform so units, band naming and stream gating cannot
+    # drift from the sidereal path. The triggering detection is always ingested;
+    # the first time a body is seen we also backfill its full history from the
+    # broker. add_external_photometry dedupes, so the overlap is harmless.
+    # The triggering detection's ephemeris mag lives on the alert candidate.
+    if detection and detection.get("ssmagnr") is None:
+        detection["ssmagnr"] = cand.get("ssmagnr")
+    points = [detection] if detection else []
+    if is_new and fetch_history is not None:
+        history = await fetch_history(survey, designation)
+        if history:
+            points = history + points
+    if points:
+        # Per-epoch MPC ephemeris mag, keyed the same way build_photometry_groups
+        # keys its arrays, so periodfind can detrend the geometry (obs - predicted).
+        pred_by_key = {}
+        for p in points:
+            ss, jd, band = p.get("ssmagnr"), p.get("jd"), p.get("band")
+            if ss is not None and ss > 0 and jd is not None and band:
+                key = (jd - 2400000.5, f"{survey.lower()}{_normalize_band(band)}")
+                pred_by_key[key] = float(ss)
+
         programid2streamid = await programid_to_stream_ids(session)
         photometry_data = build_photometry_groups(
             obj_id,
             survey,
-            {"prv_candidates": [detection]},
+            {"prv_candidates": points},
             instrument_id,
             programid2streamid,
         )
         for pd in photometry_data.values():
-            if pd["mjd"]:
-                await add_external_photometry(
-                    pd, user, session, apply_default_share=False
-                )
+            if not pd["mjd"]:
+                continue
+            preds = [pred_by_key.get((m, f)) for m, f in zip(pd["mjd"], pd["filter"])]
+            if any(v is not None for v in preds):
+                pd["altdata"] = {"predicted_mag": preds}
+            await add_external_photometry(pd, user, session, apply_default_share=False)
 
     await _link_designation(session, obj_id, designation)
     await session.commit()

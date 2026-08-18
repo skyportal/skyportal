@@ -49,7 +49,7 @@ const buildQuery = (params: Record<string, string | number | undefined>) => {
 };
 
 // 64-bit alert ids: JSON.parse would round them, so keep them as strings.
-const ID_KEYS = /"(candid|diaSourceId|diaObjectId)":\s*(\d{16,})/g;
+const ID_KEYS = /"(candid|_id|diaSourceId|diaObjectId)":\s*(\d{16,})/g;
 const parseKeepingIds = async (response: Response) => {
   const text = await response.text();
   return JSON.parse(text.replace(ID_KEYS, '"$1":"$2"'));

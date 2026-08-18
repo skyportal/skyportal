@@ -32,6 +32,7 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "../source/EditSourceGroups";
+import UpdateSourceMPC from "../source/UpdateSourceMPC";
 import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
@@ -565,6 +566,25 @@ const CandidateInfo = ({
               (l,b= {candidateObj.gal_lon.toFixed(3)}, &nbsp;
               {candidateObj.gal_lat.toFixed(3)})
             </div>
+          </div>
+          <div className={classes.infoItem}>
+            <b>MPC: </b>
+            {candidateObj.is_roid && (
+              <Chip
+                size="small"
+                label={candidateObj.alias?.[0] ?? candidateObj.mpc_name}
+                className={classes.chip}
+              />
+            )}
+            {!isReadOnly && (
+              <UpdateSourceMPC
+                source={{
+                  id: candidateObj.id,
+                  mpc_name: candidateObj.mpc_name,
+                  first_detected: candidateObj.last_detected_at,
+                }}
+              />
+            )}
           </div>
           <div className={classes.infoItem}>
             <CandidatePlugins {...({ candidate: candidateObj } as any)} />
