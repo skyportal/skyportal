@@ -1,7 +1,7 @@
 """Add a channel to comments
 
 Revision ID: d4c17b9e5a02
-Revises: d4e8b1c07f39
+Revises: b3f2a7c14d58
 Create Date: 2026-08-06 00:00:00.000000
 
 """
