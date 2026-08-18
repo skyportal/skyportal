@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import sqlalchemy as sa
+from pydantic import Field
 from sqlalchemy.orm import joinedload, undefer
 
 from baselayer.app.access import auth_or_token
@@ -220,7 +223,12 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, sharing_service_submission_id: int | None = None):
+    async def get(
+        self,
+        sharing_service_submission_id: Annotated[
+            int | None, Field(description="The ID of the sharing service submission")
+        ] = None,
+    ):
         """
         ---
         single:
@@ -229,12 +237,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             tags:
                 - sharing service submission
             parameters:
-                - in: path
-                  name: sharing_service_submission_id
-                  required: true
-                  schema:
-                    type: integer
-                  description: The ID of the sharing service submission
                 - in: query
                   name: sharing_service_id
                   required: true
@@ -256,12 +258,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             tags:
                 - external sharing service
             parameters:
-                - in: path
-                  name: sharing_service_id
-                  required: true
-                  schema:
-                    type: integer
-                  description: The ID of the SharingService to which the submissions belong
                 - in: query
                   name: pageNumber
                   required: false

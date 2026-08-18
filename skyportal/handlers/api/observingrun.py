@@ -118,12 +118,6 @@ class ObservingRunHandler(BaseHandler):
           description: Retrieve an observing run
           tags:
             - observing runs
-          parameters:
-            - in: path
-              name: run_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -289,12 +283,6 @@ class ObservingRunHandler(BaseHandler):
         description: Update observing run
         tags:
           - observing runs
-        parameters:
-          - in: path
-            name: run_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -369,12 +357,6 @@ class ObservingRunHandler(BaseHandler):
         description: Delete an observing run
         tags:
           - observing runs
-        parameters:
-          - in: path
-            name: run_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -435,12 +417,6 @@ class ObservingRunBulkEditHandler(BaseHandler):
         description: Update observing run assignments in bulk
         tags:
           - observing runs
-        parameters:
-          - in: path
-            name: run_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

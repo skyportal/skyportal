@@ -164,12 +164,6 @@ class ThumbnailHandler(BaseHandler):
         description: Retrieve a thumbnail
         tags:
           - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -198,12 +192,6 @@ class ThumbnailHandler(BaseHandler):
         description: Update thumbnail
         tags:
           - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -238,12 +226,6 @@ class ThumbnailHandler(BaseHandler):
         description: Delete a thumbnail
         tags:
           - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

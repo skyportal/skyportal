@@ -1,7 +1,9 @@
 import traceback
+from typing import Annotated
 
 import arrow
 import sqlalchemy as sa
+from pydantic import Field
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -21,7 +23,9 @@ _, cfg = load_env()
 
 class MovingObjectFollowupHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_name: str):
+    async def post(
+        self, obj_name: Annotated[str, Field(description="Name of the moving object")]
+    ):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object
@@ -29,13 +33,6 @@ class MovingObjectFollowupHandler(BaseHandler):
         tags:
         - moving objects
         - follow-up
-        parameters:
-          - in: path
-            name: obj_name
-            required: true
-            schema:
-                type: string
-            description: Name of the moving object
         requestBody:
             content:
                 application/json:

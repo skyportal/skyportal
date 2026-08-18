@@ -25,12 +25,6 @@ class CachedSourceFinderHandler(BaseHandler):
           - sources
           - finding chart
           - public
-        parameters:
-          - in: path
-            name: cache_key
-            required: true
-            schema:
-              type: string
         responses:
           200:
             description: A PDF/PNG finding chart file

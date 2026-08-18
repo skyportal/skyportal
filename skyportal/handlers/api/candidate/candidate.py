@@ -306,12 +306,6 @@ class CandidateHandler(BaseHandler):
           description: Check if a Candidate exists
           tags:
             - candidates
-          parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
           responses:
             200:
               content:
@@ -352,11 +346,6 @@ class CandidateHandler(BaseHandler):
           tags:
             - candidates
           parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
             - in: query
               name: includeComments
               nullable: true
@@ -1723,17 +1712,6 @@ class CandidateHandler(BaseHandler):
         description: Delete candidate(s)
         tags:
           - candidates
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

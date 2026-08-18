@@ -4,6 +4,7 @@ import traceback
 import uuid
 from collections import defaultdict
 from io import StringIO
+from typing import Annotated
 
 import arrow
 import astropy.utils.data
@@ -16,6 +17,7 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
+from pydantic import Field
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, load_only, selectinload
@@ -1878,34 +1880,6 @@ class PhotometryHandler(BaseHandler):
         description: Update and/or upload photometry, resolving potential duplicates
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: refresh
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true, triggers a refresh of the object's photometry on the web page,
-              only for the users that have the object's source page open.
-          - in: path
-            name: duplicate_ignore_flux
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true, will not use the flux/fluxerr of existing rows when looking for duplicates
-              but only mjd, instrument_id, filter, and origin. Reserved to super admin users only,
-              to avoid misuse and permanent data loss.
-          - in: path
-            name: overwrite_flux
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of
-              existing rows (duplicates) with the new values. Applies only to rows with
-              an origin already specified. If existing duplicates have no origin, the update
-              will be skipped.
         requestBody:
           content:
             application/json:
@@ -2168,7 +2142,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id=None):
+    def get(self, photometry_id: int | None = None):
         # The route's id is optional (shared with POST), so a bare
         # GET /api/photometry lands here without one. Tornado also passes the
         # captured id as a string, so convert it explicitly.
@@ -2204,12 +2178,6 @@ class PhotometryHandler(BaseHandler):
         description: Update photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -2393,12 +2361,6 @@ class PhotometryHandler(BaseHandler):
         description: Delete photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -2467,7 +2429,12 @@ class PhotometryHandler(BaseHandler):
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id: str):
+    def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve photometry for")
+        ],
+    ):
         # docstring/OpenAPI spec is set via ObjPhotometryHandler.get.__doc__ below
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
@@ -2666,12 +2633,6 @@ class ObjPhotometryHandler(BaseHandler):
         description: Delete object photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2726,12 +2687,6 @@ class BulkDeletePhotometryHandler(BaseHandler):
         description: Delete bulk-uploaded photometry set
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: upload_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2846,11 +2801,6 @@ PhotometryHandler.get.__doc__ = f"""
         tags:
           - photometry
         parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: format
             required: false
@@ -2893,12 +2843,6 @@ ObjPhotometryHandler.get.__doc__ = f"""
         tags:
           - photometry
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve photometry for
           - in: query
             name: format
             required: false

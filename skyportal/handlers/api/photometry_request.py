@@ -15,12 +15,6 @@ class PhotometryRequestHandler(BaseHandler):
         description: Get photometry request.
         tags:
           - followup requests
-        parameters:
-          - in: path
-            name: request_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

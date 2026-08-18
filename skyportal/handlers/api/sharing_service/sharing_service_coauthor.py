@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -6,31 +9,28 @@ from baselayer.log import make_log
 from ....models import SharingService, SharingServiceCoauthor, User
 from ...base import BaseHandler
 
+SharingServiceId = Annotated[
+    int, Field(description="ID of the external sharing service")
+]
+
 log = make_log("api/sharing_service_coauthor")
 
 
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def post(self, sharing_service_id: int, user_id: int | None = None):
+    async def post(
+        self,
+        sharing_service_id: SharingServiceId,
+        user_id: Annotated[
+            int | None, Field(description="ID of the user to add as a coauthor")
+        ] = None,
+    ):
         """
         ---
         summary: Add a coauthor to an external sharing service
         description: Add a coauthor to an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the sharing service
-            - in: path
-              name: user_id
-              required: false
-              schema:
-                type: integer
-              description: ID of the user to add as a coauthor
         requestBody:
             content:
                 application/json:
@@ -113,26 +113,19 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.success(data={"id": coauthor.id})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id: int, user_id: int):
+    async def delete(
+        self,
+        sharing_service_id: SharingServiceId,
+        user_id: Annotated[
+            int, Field(description="ID of the user to remove as a coauthor")
+        ],
+    ):
         """
         ---
         summary: Remove a coauthor from an external sharing service
         description: Remove a coauthor from an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the external sharing service
-            - in: path
-              name: user_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the user to remove as a coauthor
         responses:
             200:
                 content:

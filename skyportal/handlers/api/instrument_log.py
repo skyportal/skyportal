@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Annotated, Any
 
 import arrow
 import astropy.units as u
@@ -13,6 +13,10 @@ from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
+
+InstrumentId = Annotated[
+    int, Field(description="The instrument ID to update the status for")
+]
 
 
 class InstrumentLogPostBody(BaseModel):
@@ -52,7 +56,7 @@ class InstrumentStatusPutBody(BaseModel):
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
     async def post(
-        self, instrument_id: int, *, body: InstrumentLogPostBody = None
+        self, instrument_id: InstrumentId, *, body: InstrumentLogPostBody = None
     ) -> InstrumentLogPostResponse:
         """
         ---
@@ -60,13 +64,6 @@ class InstrumentLogHandler(BaseHandler):
         description: Add log messages from an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to post logs for
         """
         body = self.parse_body(InstrumentLogPostBody)
         try:
@@ -156,7 +153,12 @@ class InstrumentLogHandler(BaseHandler):
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def get(self, allocation_id: int):
+    async def get(
+        self,
+        allocation_id: Annotated[
+            int, Field(description="ID for the allocation to retrieve")
+        ],
+    ):
         """
         ---
         summary: Get instrument logs from external API
@@ -164,13 +166,6 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         tags:
           - instruments
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to retrieve
           - in: query
             name: startDate
             required: true
@@ -255,20 +250,15 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, instrument_id: int, *, body: InstrumentStatusPutBody = None):
+    async def put(
+        self, instrument_id: InstrumentId, *, body: InstrumentStatusPutBody = None
+    ):
         """
         ---
         summary: Update instrument status
         description: Update the status of an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to update the status for
         responses:
           200:
             content:

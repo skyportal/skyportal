@@ -166,12 +166,6 @@ class SourceGroupsHandler(BaseHandler):
         description: Update a Source table row
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
