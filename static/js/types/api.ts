@@ -17368,7 +17368,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a conversation on a source
-         * @description Delete a named conversation and every comment it holds. Restricted to the user who opened it (the author of its first comment) and to system admins.
+         * @description <b>Permission(s) required:</b> <em>Comment (or System admin)</em><br><br>Delete a named conversation and every comment it holds. Restricted to the user who opened it (the author of its first comment) and to system admins.
          */
         delete: {
             parameters: {
