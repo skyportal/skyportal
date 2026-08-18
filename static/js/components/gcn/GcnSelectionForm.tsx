@@ -942,8 +942,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         size={{ sm: 4 }}
         sx={{ display: { xs: "none", sm: "none", md: "block" } }}
       >
-        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
-        !loadingLocalization ? (
+        {analysisLoc?.id === selectedLocalizationId && !loadingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
             <Suspense fallback={<CircularProgress />}>
               <LocalizationPlot
@@ -1040,9 +1039,8 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
         {tabIndex === 0 && (
           <Box sx={{ display: { sm: "block", md: "none" } }}>
-            {Object.keys(locLookUp).includes(
-              analysisLoc?.id?.toString() ?? "",
-            ) && !loadingLocalization ? (
+            {analysisLoc?.id === selectedLocalizationId &&
+            !loadingLocalization ? (
               <Grid container spacing={2}>
                 <Grid
                   size={{ sm: 8, md: 12 }}
