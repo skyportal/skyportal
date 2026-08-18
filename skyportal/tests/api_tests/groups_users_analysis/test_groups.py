@@ -45,23 +45,17 @@ def test_fetch_group_by_name(super_admin_token, super_admin_user):
         .id
     )
 
-    # skyportal-py gap: fetch_groups has no name= filter
-    status, data = api("GET", f"groups?name={group_name}", token=super_admin_token)
-    assert data["status"] == "success"
-    assert len(data["data"]) == 1
-    assert data["data"][0]["name"] == group_name
-    assert data["data"][0]["id"] == new_group_id
+    matches = client(super_admin_token).fetch_groups_by_name(group_name)
+    assert len(matches) == 1
+    assert matches[0].name == group_name
+    assert matches[0].id == new_group_id
 
 
 def test_fetch_group_exclude_users(super_admin_token, public_group):
-    # skyportal-py gap: fetch_group has no includeGroupUsers= parameter
-    status, data = api(
-        "GET",
-        f"groups/{public_group.id}?includeGroupUsers=False",
-        token=super_admin_token,
+    group = client(super_admin_token).fetch_group(
+        public_group.id, include_group_users=False
     )
-    assert data["status"] == "success"
-    assert "users" not in data["data"]
+    assert group.users is None
 
 
 def test_token_user_request_all_groups(super_admin_token, super_admin_user):
@@ -214,17 +208,13 @@ def test_post_new_filter_delete_stream_deletes_filter(
 
 
 def test_cannot_delete_sitewide_public_group(super_admin_token):
-    # skyportal-py gap: fetch_groups has no name= filter
-    status, data = api(
-        "GET", f"groups?name={cfg['misc.public_group_name']}", token=super_admin_token
-    )
-    assert data["status"] == "success"
-    assert len(data["data"]) == 1
-    assert data["data"][0]["name"] == cfg["misc.public_group_name"]
-    group_id = data["data"][0]["id"]
+    sp = client(super_admin_token)
+    matches = sp.fetch_groups_by_name(cfg["misc.public_group_name"])
+    assert len(matches) == 1
+    assert matches[0].name == cfg["misc.public_group_name"]
 
     with pytest.raises(SkyPortalError, match="Cannot find Group with id"):
-        client(super_admin_token).delete_group(group_id)
+        sp.delete_group(matches[0].id)
 
 
 def test_obj_groups(public_source, public_group, super_admin_token):
