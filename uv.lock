@@ -4245,8 +4245,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "jeepney", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "cryptography" },
+    { name = "jeepney" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -4508,6 +4508,7 @@ dev = [
     { name = "pytest-playwright" },
     { name = "pytest-randomly" },
     { name = "pytest-rerunfailures" },
+    { name = "skyportal-py" },
 ]
 docs = [
     { name = "eralchemy2" },
@@ -4632,6 +4633,7 @@ dev = [
     { name = "pytest-playwright", specifier = "==0.8.0" },
     { name = "pytest-randomly", specifier = "==4.1.0" },
     { name = "pytest-rerunfailures", specifier = ">=14.0" },
+    { name = "skyportal-py", specifier = "==0.2.0" },
 ]
 docs = [
     { name = "eralchemy2" },
@@ -4641,6 +4643,19 @@ docs = [
     { name = "recommonmark" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
     { name = "sphinx-book-theme" },
+]
+
+[[package]]
+name = "skyportal-py"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/d1/3e2731a6e78ff44f48f9d9fe7149b84f44c1ffab7ac396f17362cdbbc3c4/skyportal_py-0.2.0.tar.gz", hash = "sha256:b153f058d7c919c4a6557995b35f5aba9f03e9bad6c423ac7f727c82c7238304", size = 147483, upload-time = "2026-08-18T21:43:19.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/04/1c525d771483edbf8e22dfdf62269395f2139b38b6a06f43a8c6dabbb3a5/skyportal_py-0.2.0-py3-none-any.whl", hash = "sha256:73176f98d131f50cd8b9e1dd6fad69cc26fd70ef2cbf35db84942bc899e2d3aa", size = 154843, upload-time = "2026-08-18T21:43:17.799Z" },
 ]
 
 [[package]]
