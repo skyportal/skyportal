@@ -244,11 +244,15 @@ class TornadoPathArgTest(AsyncHTTPTestCase):
         )
 
     def setUp(self):
-        # baselayer's prepare() wants a database and a message flow; skip it so
-        # this covers skyportal's half of the chain only.
-        patcher = patch.object(BaselayerHandler, "prepare", lambda self: None)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # This handler touches no database, so stub baselayer's per-request
+        # session hooks. Both have to go together: prepare() is what gives a
+        # request its own `session_context_id`, and without that on_finish()
+        # would DBSession.remove() the session the test fixtures are using and
+        # strand their transaction.
+        for name in ("prepare", "on_finish"):
+            patcher = patch.object(BaselayerHandler, name, lambda self: None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         super().setUp()
 
     def test_method_receives_coerced_arguments(self):
