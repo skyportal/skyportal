@@ -221,11 +221,7 @@ const RecentSourcesList = ({
   }, [sources]);
 
   if (sources === undefined) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress />;
   }
 
   if (sources.length === 0 && !search) {

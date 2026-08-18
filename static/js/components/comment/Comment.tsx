@@ -1,8 +1,14 @@
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { isMobile } from "react-device-detect";
 
+import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
 import GroupIcon from "@mui/icons-material/Group";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -10,17 +16,38 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
+import {
+  useEditCommentMutation,
+  useDeleteCommentMutation,
+  useDeleteCommentOnSpectrumMutation,
+} from "../../ducks/source";
+import {
+  useEditCommentOnGcnEventMutation,
+  useDeleteCommentOnGcnEventMutation,
+} from "../../ducks/gcnEvent";
+import {
+  useEditCommentOnShiftMutation,
+  useDeleteCommentOnShiftMutation,
+} from "../../ducks/shifts";
+import {
+  useEditCommentOnEarthquakeMutation,
+  useDeleteCommentOnEarthquakeMutation,
+} from "../../ducks/earthquake";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
-import DeleteComment from "./DeleteComment";
-import EditComment from "./EditComment";
+import CommentForm from "./CommentForm";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
+const actionButtonStyle = {
+  padding: "0.125rem",
+  color: "text.secondary",
+};
+
 interface CommentProps {
-  associatedResourceType?: string;
+  resourceType?: string;
   objID?: string | null;
   gcnEventID?: number | null;
   earthquakeID?: string | null;
@@ -32,12 +59,13 @@ interface CommentProps {
   attachment_name?: string | null;
   groups?: { name: string; [key: string]: any }[];
   spectrum_id?: string | null;
+  bot?: boolean;
   hoverID?: number | null;
   shiftID?: number | null;
 }
 
 const Comment = ({
-  associatedResourceType = "object",
+  resourceType = "sources",
   objID = null,
   gcnEventID = null,
   earthquakeID = null,
@@ -49,13 +77,90 @@ const Comment = ({
   attachment_name = null,
   groups = [],
   spectrum_id = null,
+  bot = false,
   hoverID = null,
   shiftID = null,
 }: CommentProps) => {
+  const [editing, setEditing] = useState(false);
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
     { skip: !objID },
   );
+  const [editCommentMutation] = useEditCommentMutation();
+  const [editCommentOnGcnEvent] = useEditCommentOnGcnEventMutation();
+  const [editCommentOnShift] = useEditCommentOnShiftMutation();
+  const [editCommentOnEarthquake] = useEditCommentOnEarthquakeMutation();
+  const [deleteCommentMutation] = useDeleteCommentMutation();
+  const [deleteCommentOnSpectrum] = useDeleteCommentOnSpectrumMutation();
+  const [deleteCommentOnGcnEvent] = useDeleteCommentOnGcnEventMutation();
+  const [deleteCommentOnShift] = useDeleteCommentOnShiftMutation();
+  const [deleteCommentOnEarthquake] = useDeleteCommentOnEarthquakeMutation();
+
+  const showActions = (isMobile || hoverID === id) && !editing;
+
+  const editComment = (formData: any) => {
+    switch (resourceType) {
+      case "sources":
+        editCommentMutation({
+          commentID: id,
+          formData: { ...formData, obj_id: objID },
+        });
+        break;
+      case "spectra":
+        editCommentMutation({
+          commentID: id,
+          formData: { ...formData, spectrum_id },
+        });
+        break;
+      case "gcn_event":
+        editCommentOnGcnEvent({
+          commentID: id,
+          gcnEventID: gcnEventID!,
+          formData,
+        });
+        break;
+      case "shift":
+        editCommentOnShift({
+          commentID: id,
+          formData: { ...formData, shift_id: shiftID },
+        });
+        break;
+      case "earthquake":
+        editCommentOnEarthquake({
+          commentID: id,
+          earthquakeID: earthquakeID!,
+          formData,
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  const deleteComment = () => {
+    switch (resourceType) {
+      case "sources":
+        deleteCommentMutation({ sourceID: objID!, commentID: id });
+        break;
+      case "spectra":
+        deleteCommentOnSpectrum({ spectrumID: spectrum_id!, commentID: id });
+        break;
+      case "gcn_event":
+        deleteCommentOnGcnEvent({ gcnEventID: gcnEventID!, commentID: id });
+        break;
+      case "shift":
+        deleteCommentOnShift({ shiftID: shiftID!, commentID: id });
+        break;
+      case "earthquake":
+        deleteCommentOnEarthquake({
+          earthquakeID: earthquakeID!,
+          commentID: id,
+        });
+        break;
+      default:
+        break;
+    }
+  };
 
   const renderCommentText = () => {
     // Format the text to highlight mentions
@@ -66,12 +171,7 @@ const Comment = ({
       },
     );
 
-    if (
-      spectrum_id &&
-      objID &&
-      spectra &&
-      associatedResourceType === "object"
-    ) {
+    if (spectrum_id && objID && spectra && resourceType === "sources") {
       const spectrum = spectra.find((spec: any) => spec.id === spectrum_id);
       if (!spectrum) {
         return formattedText;
@@ -93,7 +193,7 @@ const Comment = ({
     );
 
   const commentMessageStyle =
-    associatedResourceType === "shift"
+    resourceType === "shift"
       ? styles["commentMessageShift"]
       : styles["commentMessage"];
 
@@ -114,7 +214,14 @@ const Comment = ({
           <div className={styles["commentHeaderContent"]}>
             <span className={styles["commentUser"]}>
               <span className={styles["commentUserName"]}>
-                {author["username"]}
+                {bot ? (
+                  <>
+                    <SmartToyIcon fontSize="inherit" />
+                    Bot message ({author["username"]})
+                  </>
+                ) : (
+                  author["username"]
+                )}
               </span>
             </span>
             <span className={styles["commentTime"]}>
@@ -134,82 +241,91 @@ const Comment = ({
               alignItems: "center",
               gap: "0.25rem",
               width: "30%",
+              visibility: showActions ? "visible" : "hidden",
             }}
           >
-            <EditComment
-              {...({
-                associatedResourceType,
-                objID,
-                gcnEventID,
-                earthquakeID,
-                spectrum_id,
-                shiftID,
-                hoverID: isMobile ? id : hoverID,
-                id,
-                commentText: text,
-                attachmentName: attachment_name,
-              } as any)}
-            />
-            <DeleteComment
-              {...({
-                associatedResourceType,
-                objID,
-                gcnEventID,
-                earthquakeID,
-                spectrum_id,
-                shiftID,
-                hoverID: isMobile ? id : hoverID,
-                id,
-              } as any)}
-            />
+            <Tooltip title="Edit">
+              <IconButton
+                size="small"
+                name={`editCommentButton${id}`}
+                onClick={() => setEditing(true)}
+                sx={actionButtonStyle}
+              >
+                <EditIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton
+                size="small"
+                name={`deleteCommentButton${id}`}
+                onClick={deleteComment}
+                className="commentDelete"
+                sx={actionButtonStyle}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
           </div>
         </div>
-        <div
-          className={styles["wrap"]}
-          {...({
-            name: `commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`,
-          } as any)}
-        >
-          <ReactMarkdown
-            className={commentMessageStyle}
-            components={{ text: emojiSupport }}
+        {editing ? (
+          <>
+            <CommentForm
+              editComment={editComment}
+              commentText={text ?? ""}
+              attachmentName={attachment_name ?? ""}
+              onClose={() => setEditing(false)}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Enter to save, Escape to cancel
+            </Typography>
+          </>
+        ) : (
+          <div
+            className={styles["wrap"]}
+            {...({
+              name: `commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`,
+            } as any)}
           >
-            {renderCommentText()}
-          </ReactMarkdown>
-        </div>
+            <ReactMarkdown
+              className={commentMessageStyle}
+              components={{ text: emojiSupport }}
+            >
+              {renderCommentText()}
+            </ReactMarkdown>
+          </div>
+        )}
         <span>
           {attachment_name &&
-            (associatedResourceType === "object" ||
-              associatedResourceType === "spectra") && (
+            (resourceType === "sources" || resourceType === "spectra") && (
               <CommentAttachmentPreview
                 filename={attachment_name}
                 objectID={spectrum_id || objID}
                 commentId={id}
-                associatedResourceType={spectrum_id ? "spectra" : "sources"}
+                resourceType={spectrum_id ? "spectra" : "sources"}
               />
             )}
-          {attachment_name && associatedResourceType === "gcn_event" && (
+          {attachment_name && resourceType === "gcn_event" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               gcnEventID={gcnEventID}
               commentId={id}
-              associatedResourceType="gcn_event"
+              resourceType="gcn_event"
             />
           )}
-          {attachment_name && associatedResourceType === "shift" && (
+          {attachment_name && resourceType === "shift" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               shiftID={shiftID}
               commentId={id}
-              associatedResourceType="shift"
+              resourceType="shift"
             />
           )}
-          {attachment_name && associatedResourceType === "earthquake" && (
+          {attachment_name && resourceType === "earthquake" && (
             <CommentAttachmentPreview
               filename={attachment_name}
               earthquakeID={earthquakeID}
               commentId={id}
-              associatedResourceType="earthquake"
+              resourceType="earthquake"
             />
           )}
         </span>

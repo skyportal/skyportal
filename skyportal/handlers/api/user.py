@@ -247,12 +247,6 @@ class UserHandler(BaseHandler):
           description: Retrieve a user
           tags:
             - users
-          parameters:
-            - in: path
-              name: user_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -641,12 +635,6 @@ class UserHandler(BaseHandler):
         description: Update a User record
         tags:
           - users
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -713,12 +701,6 @@ class UserHandler(BaseHandler):
         description: Delete a user
         tags:
           - users
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

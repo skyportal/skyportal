@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import numpy as np
+from pydantic import Field
 
 from baselayer.app.access import auth_or_token
 
@@ -91,7 +94,12 @@ def get_color_mag(annotations, **kwargs):
 
 class ObjColorMagHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve photometry for")
+        ],
+    ):
         """
         ---
         summary: Get color and absolute magnitude of a source
@@ -101,12 +109,6 @@ class ObjColorMagHandler(BaseHandler):
         tags:
           - objs
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve photometry for
           - in: query
             name: catalog
             required: false

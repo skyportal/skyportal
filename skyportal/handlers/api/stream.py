@@ -80,12 +80,6 @@ class StreamHandler(BaseHandler):
           description: Retrieve a stream
           tags:
             - streams
-          parameters:
-            - in: path
-              name: filter_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -153,12 +147,6 @@ class StreamHandler(BaseHandler):
         description: Update a stream
         tags:
           - streams
-        parameters:
-          - in: path
-            name: stream_id
-            required: True
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -200,12 +188,6 @@ class StreamHandler(BaseHandler):
         description: Delete a stream
         tags:
           - streams
-        parameters:
-          - in: path
-            name: stream_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -245,12 +227,6 @@ class StreamUserHandler(BaseHandler):
         tags:
           - streams
           - users
-        parameters:
-          - in: path
-            name: stream_id
-            required: true
-            schema:
-              type: integer
         """
         body = self.parse_body(StreamUserPostBody)
         user_id = body.user_id
@@ -305,17 +281,6 @@ class StreamUserHandler(BaseHandler):
         tags:
           - streams
           - users
-        parameters:
-          - in: path
-            name: stream_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

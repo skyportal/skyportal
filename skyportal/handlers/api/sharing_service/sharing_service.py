@@ -326,12 +326,6 @@ class SharingServiceHandler(BaseHandler):
           description: Retrieve an external sharing service
           tags:
             - external sharing service
-          parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -399,12 +393,6 @@ class SharingServiceHandler(BaseHandler):
         description: Delete an external sharing service
         tags:
           - external sharing service
-        parameters:
-          - in: path
-            name: sharing_service_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

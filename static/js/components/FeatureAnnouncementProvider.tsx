@@ -22,6 +22,8 @@ const FeatureAnnouncementProvider = () => {
   const announcementID = useRef<string | null>(null);
   // Already run: profile.preferences only catches up after the mutation.
   const done = useRef<Set<string>>(new Set());
+  const unavailable = useRef<Set<string>>(new Set());
+  const [attempt, setAttempt] = useState(0);
   const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
     steps,
@@ -44,6 +46,7 @@ const FeatureAnnouncementProvider = () => {
       (announcement) =>
         !seen[announcement.id] &&
         !done.current.has(announcement.id) &&
+        !unavailable.current.has(`${announcement.id}@${location.pathname}`) &&
         announcement.path.test(location.pathname) &&
         (!createdAt || createdAt < new Date(announcement.announcedAt)),
     );
@@ -58,7 +61,7 @@ const FeatureAnnouncementProvider = () => {
     }
     announcementID.current = pending.id;
     setSteps(applicable);
-  }, [profile, location.pathname]);
+  }, [profile, location.pathname, attempt]);
 
   // Start only once the target has actually mounted, otherwise the tour runs
   // against an empty DOM and silently gives up.
@@ -80,13 +83,20 @@ const FeatureAnnouncementProvider = () => {
         controls.start(0);
       } else if (tries++ < 100) {
         window.setTimeout(startWhenReady, 100);
+      } else if (announcementID.current) {
+        unavailable.current.add(
+          `${announcementID.current}@${location.pathname}`,
+        );
+        announcementID.current = null;
+        setSteps([]);
+        setAttempt((count) => count + 1);
       }
     };
     startWhenReady();
     return () => {
       cancelled = true;
     };
-  }, [steps, controls]);
+  }, [steps, controls, location.pathname]);
 
   useEffect(
     () =>

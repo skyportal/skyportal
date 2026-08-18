@@ -1,8 +1,11 @@
+from typing import Annotated
+
 import astropy.io.ascii
 import astropy.units as u
 import requests
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from pydantic import Field
 
 try:
     from dl import queryClient as qc
@@ -35,6 +38,10 @@ from ...models import (
 )
 from ..base import BaseHandler
 
+ObjId = Annotated[
+    str, Field(description="ID of the object to retrieve the Vizier crossmatch for")
+]
+
 _, cfg = load_env()
 
 PS1_URL = cfg["app.ps1_endpoint"]
@@ -44,7 +51,7 @@ gaia = GaiaQuery()
 
 class GaiaQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: ObjId):
         """
         ---
         summary: Add Gaia annotations
@@ -53,13 +60,6 @@ class GaiaQueryHandler(BaseHandler):
             based on cross-match to the Gaia DR3.
         tags:
             - annotations
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve Gaia colors for
         requestBody:
           content:
             application/json:
@@ -276,7 +276,7 @@ class GaiaQueryHandler(BaseHandler):
 
 class IRSAQueryWISEHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: ObjId):
         """
         ---
         summary: Add WISE annotations
@@ -285,13 +285,6 @@ class IRSAQueryWISEHandler(BaseHandler):
             based on cross-matches to some catalog (default is allwise_p3as_psd).
         tags:
             - annotations
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve WISE colors for
         requestBody:
           content:
             application/json:
@@ -437,7 +430,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
 class VizierQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: ObjId):
         """
         ---
         summary: Add Vizier annotations
@@ -447,13 +440,6 @@ class VizierQueryHandler(BaseHandler):
             (default is VII/290, i.e. the million quasar catalog).
         tags:
             - annotations
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve the Vizier crossmatch for
         requestBody:
           content:
             application/json:
@@ -611,12 +597,6 @@ class DatalabQueryHandler(BaseHandler):
     tags:
         - annotations
     parameters:
-      - in: path
-        name: obj_id
-        required: true
-        schema:
-          type: string
-        description: ID of the object to retrieve photoz's for
       - in: query
         name: catalog
         required: false
@@ -751,7 +731,7 @@ class DatalabQueryHandler(BaseHandler):
 
 class PS1QueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: ObjId):
         """
         ---
         summary: Add PS1 annotations
@@ -759,13 +739,6 @@ class PS1QueryHandler(BaseHandler):
             get PS1 sources and post them as an annotation
         tags:
             - annotations
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve PS1 sources for
         requestBody:
           content:
             application/json:

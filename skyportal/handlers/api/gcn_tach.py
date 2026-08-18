@@ -1,9 +1,11 @@
 import re
+from typing import Annotated
 
 import arrow
 import requests
 import sqlalchemy as sa
 from astropy.time import Time
+from pydantic import Field
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
@@ -270,20 +272,19 @@ def post_aliases(dateobs, tach_id, user_id):
 
 class GcnTachHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs: str):
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+    ):
         """
         ---
         summary: Retrieve GCN Event aliases from TACH
         description: Scrape aliases of a GCN Event from GCNs notice/circulars
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-            description: The dateobs of the event, as an arrow parseable string
         responses:
           200:
             content:

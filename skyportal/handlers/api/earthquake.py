@@ -246,12 +246,6 @@ class EarthquakeHandler(BaseHandler):
           description: Retrieve an Earthquake event
           tags:
             - earthquakes
-          parameters:
-            - in: path
-              name: event_id
-              required: false
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -476,12 +470,6 @@ class EarthquakeHandler(BaseHandler):
         description: Delete an Earthquake event
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: event_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -522,17 +510,6 @@ class EarthquakePredictionHandler(BaseHandler):
         description: Perform a prediction analysis for the earthquake.
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: earthquake_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: mma_detector_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -673,17 +650,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
         description: Provide a ground velocity measurement for the earthquake.
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: earthquake_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: mma_detector_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -759,17 +725,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
         description: Retrieve a ground velocity measurement for the earthquake.
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: earthquake_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: mma_detector_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -808,17 +763,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
         description: Update a ground velocity measurement for the earthquake.
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: earthquake_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: mma_detector_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -885,17 +829,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
         description: Delete a ground velocity measurement for the earthquake.
         tags:
           - earthquakes
-        parameters:
-          - in: path
-            name: earthquake_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: mma_detector_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

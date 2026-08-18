@@ -10,6 +10,7 @@ import operator  # noqa: F401
 import os
 import tempfile
 import traceback
+from typing import Annotated
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -31,6 +32,7 @@ from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
+from pydantic import Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     joinedload,
@@ -967,20 +969,19 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
 
 class GcnEventAliasesHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs: str):
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+    ):
         """
         ---
         summary: Post a GCN Event alias
         description: Post a GCN Event alias
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-            description: The dateobs of the event, as an arrow parseable string
         requestBody:
           content:
             application/json:
@@ -1051,12 +1052,6 @@ class GcnEventAliasesHandler(BaseHandler):
         description: Delete a GCN event alias
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
         requestBody:
           content:
             application/json:
@@ -1247,11 +1242,6 @@ class GcnEventTagsHandler(BaseHandler):
         tags:
           - gcn events
         parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
           - in: query
             name: tag
             required: true
@@ -1344,12 +1334,6 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
         description: Get survey efficiency analyses of the GcnEvent.
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: gcnevent_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1396,12 +1380,6 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
         description: Get observation plan requests of the GcnEvent.
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: gcnevent_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1472,12 +1450,6 @@ class GcnEventCatalogQueryHandler(BaseHandler):
         description: Get catalog queries of the GcnEvent.
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: gcnevent_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1583,11 +1555,6 @@ class GcnEventHandler(BaseHandler):
           tags:
             - gcn events
           parameters:
-            - in: path
-              name: dateobs
-              required: false
-              schema:
-                type: string
             - in: query
               name: excludeNoticeContent
               nullable: true
@@ -2129,12 +2096,6 @@ class GcnEventHandler(BaseHandler):
         description: Delete a GCN event
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
         responses:
           200:
             content:
@@ -2205,12 +2166,6 @@ class GcnEventUserHandler(BaseHandler):
         tags:
           - gcn events
           - users
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -2301,17 +2256,6 @@ class GcnEventUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -2977,16 +2921,6 @@ class LocalizationHandler(BaseHandler):
         tags:
           - localizations
         parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
           - in: query
             name: include2DMap
             nullable: true
@@ -3060,17 +2994,6 @@ class LocalizationHandler(BaseHandler):
         description: Delete a GCN localization
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -4233,17 +4156,6 @@ class GcnSummaryHandler(BaseHandler):
         tags:
           - gcn events
           - gcn event summaries
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: summary_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -4290,17 +4202,6 @@ class GcnSummaryHandler(BaseHandler):
         tags:
           - gcn events
           - gcn event summaries
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: summary_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -4373,12 +4274,6 @@ class GcnSummaryHandler(BaseHandler):
         tags:
           - gcn events
           - gcn event summaries
-        parameters:
-          - in: path
-            name: summary_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -4948,17 +4843,6 @@ class GcnReportHandler(BaseHandler):
         description: Retrieve a GCN report
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: summary_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -5027,17 +4911,6 @@ class GcnReportHandler(BaseHandler):
         description: Update a GCN report
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -5188,12 +5061,6 @@ class GcnReportHandler(BaseHandler):
         description: Delete a GCN report
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -5263,17 +5130,6 @@ class LocalizationDownloadHandler(BaseHandler):
         description: Download a GCN localization skymap
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -5356,17 +5212,6 @@ class LocalizationCrossmatchHandler(BaseHandler):
         description: A fits file corresponding to the intersection of the input fits files.
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
-          - in: path
-            name: localization_name
-            required: true
-            schema:
-              type: localization_name
         responses:
           200:
             content:
@@ -5470,16 +5315,6 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
           - localizations
           - instruments
         parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: Instrument ID
-            required: true
-            schema:
-              type: integer
           - in: query
             name: localization_name
             required: true
@@ -5881,12 +5716,6 @@ class ObjGcnEventHandler(BaseHandler):
         description: Retrieve an object's in-out critera for GcnEvents
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -6282,12 +6111,6 @@ class DefaultGcnTagHandler(BaseHandler):
           description: Retrieve a single default gcn tag
           tags:
             - gcn event default tags
-          parameters:
-            - in: path
-              name: default_gcn_tag_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -6349,12 +6172,6 @@ class DefaultGcnTagHandler(BaseHandler):
         description: Delete a default gcn tag
         tags:
           - gcn event default tags
-        parameters:
-          - in: path
-            name: default_gcn_tag_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -6394,17 +6211,6 @@ class GcnEventNoticeDownloadHandler(BaseHandler):
         description: Download a GCN notice
         tags:
           - gcn notices
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: notice_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

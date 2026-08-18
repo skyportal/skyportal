@@ -1,5 +1,5 @@
 import time
-from typing import Any
+from typing import Annotated, Any
 
 from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,6 +20,19 @@ from ...models import (
 )
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
+
+AssociatedResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the annotation is on: must be one of "sources", "spectra", or "photometry."'
+    ),
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the underlying data. This would be a string for an object ID, or an integer for other data types, e.g., a spectrum."
+    ),
+]
 
 log = make_log("api/annotation")
 
@@ -118,8 +131,8 @@ class AnnotationHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        associated_resource_type: str,
-        resource_id: str,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
         annotation_id: int | None = None,
     ):
         """
@@ -131,30 +144,6 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra, photometry]
-              description: |
-                 What underlying data the annotation is on:
-                 must be one of "sources", "spectra", or "photometry."
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                 The ID of the underlying data.
-                 This would be a string for a source ID
-                 or an integer for other data types like spectra.
-            - in: path
-              name: annotation_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -171,25 +160,6 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra]
-              description: |
-                 What underlying data the annotation is on:
-                 must be one of either "sources" or "spectra".
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                The ID of the underlying data.
-                This would be a string for a source ID
-                or an integer for other data types like spectra.
           responses:
             200:
               content:
@@ -271,8 +241,8 @@ class AnnotationHandler(BaseHandler):
     @permissions(["Annotate"])
     async def post(
         self,
-        associated_resource_type: str,
-        resource_id: str,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
         *,
         body: AnnotationPostBody = None,
     ) -> AnnotationPostResponse:
@@ -282,25 +252,6 @@ class AnnotationHandler(BaseHandler):
         description: Post an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID,
-               or an integer for other data types,
-               e.g., a spectrum.
         """
         body = self.parse_body(AnnotationPostBody)
         origin = body.origin
@@ -437,8 +388,8 @@ class AnnotationHandler(BaseHandler):
     @permissions(["Annotate"])
     async def put(
         self,
-        associated_resource_type: str,
-        resource_id: str,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
         annotation_id: int,
         *,
         body: AnnotationPutBody = None,
@@ -449,29 +400,6 @@ class AnnotationHandler(BaseHandler):
         description: Update an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for other data types like spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -551,7 +479,10 @@ class AnnotationHandler(BaseHandler):
 
     @permissions(["Annotate"])
     async def delete(
-        self, associated_resource_type: str, resource_id: str, annotation_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        annotation_id: int,
     ):
         """
         ---
@@ -559,29 +490,6 @@ class AnnotationHandler(BaseHandler):
         description: Delete an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for a spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

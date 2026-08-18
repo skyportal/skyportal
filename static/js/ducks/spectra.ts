@@ -121,7 +121,7 @@ export const spectraApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Spectra"],
     }),
-    deleteAnnotation: build.mutation<
+    deleteSpectrumAnnotation: build.mutation<
       unknown,
       { id: number | string; annotationID: number | string }
     >({
@@ -142,11 +142,10 @@ invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
 export const {
   useGetBulkSpectraQuery,
   useFetchSourceSpectraQuery,
-  useLazyFetchSourceSpectraQuery,
   useLazyFetchSpectrumOriginalFileQuery,
   useParseASCIISpectrumMutation,
   useAddSyntheticPhotometryMutation,
   useDeleteSpectrumMutation,
   useUploadASCIISpectrumMutation,
-  useDeleteAnnotationMutation,
+  useDeleteSpectrumAnnotationMutation,
 } = spectraApi;
