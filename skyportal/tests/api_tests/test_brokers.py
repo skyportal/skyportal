@@ -5,9 +5,11 @@ from urllib.parse import parse_qs
 
 import pytest
 import responses
+from skyportal_py import SkyPortalError
+from skyportal_py.brokers import BrokerPost
 
 from skyportal.broker_apis import GENERICBROKER, BrokerAPI
-from skyportal.tests import api
+from skyportal.tests import api, client
 
 
 def _force_active(broker_id):
@@ -35,200 +37,140 @@ def _broker_payload(**overrides):
 
 def test_broker_crud(super_admin_token):
     payload = _broker_payload()
-    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
-    assert status == 200
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(BrokerPost(**payload)).id
 
     # system admin sees decrypted altdata + capabilities
-    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
-    assert status == 200
-    assert data["data"]["name"] == payload["name"]
-    assert data["data"]["broker_classname"] == "GENERICBROKER"
-    assert data["data"]["altdata"]["base_url"] == "https://broker.test"
-    assert data["data"]["capabilities"]["query_alerts"] is True
-    assert data["data"]["capabilities"]["cone_search"] is False
+    broker = sp.fetch_broker(broker_id)
+    assert broker.name == payload["name"]
+    assert broker.broker_classname == "GENERICBROKER"
+    assert broker.altdata["base_url"] == "https://broker.test"
+    assert broker.capabilities.query_alerts is True
+    assert broker.capabilities.cone_search is False
 
     # update
-    status, data = api(
-        "PATCH", f"brokers/{broker_id}", data={"active": False}, token=super_admin_token
-    )
-    assert status == 200
-    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
-    assert data["data"]["active"] is False
+    sp.update_broker(broker_id, active=False)
+    assert sp.fetch_broker(broker_id).active is False
 
     # delete
-    status, data = api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
-    assert status == 200
-    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
-    assert status == 400
+    sp.delete_broker(broker_id)
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_broker(broker_id)
+    assert err.value.status_code == 400
 
 
 def test_broker_capabilities_expose_cross_match_catalogs(super_admin_token):
     """GET /brokers surfaces cross_match_catalogs in capabilities -- the flag the
     source-page centroid overlay reads to pick a reference-catalog broker (so it
     only cone_searches BOOM, never alert-only brokers)."""
-    status, data = api(
-        "POST",
-        "brokers",
-        data=_broker_payload(
-            broker_classname="BOOMBROKER",
-            altdata={"host": "boom.test", "username": "x", "password": "y"},
-        ),
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    boom_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    boom_id = sp.post_broker(
+        BrokerPost(
+            **_broker_payload(
+                broker_classname="BOOMBROKER",
+                altdata={"host": "boom.test", "username": "x", "password": "y"},
+            )
+        )
+    ).id
 
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200, data
-    generic_id = data["data"]["id"]
+    generic_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
     try:
-        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
-        assert status == 200, data
-        assert data["data"]["capabilities"]["cross_match_catalogs"] is True
+        assert sp.fetch_broker(boom_id).capabilities.cross_match_catalogs is True
 
-        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
-        assert status == 200, data
-        assert data["data"]["capabilities"]["cross_match_catalogs"] is False
+        assert sp.fetch_broker(generic_id).capabilities.cross_match_catalogs is False
     finally:
-        api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
-        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+        sp.delete_broker(boom_id)
+        sp.delete_broker(generic_id)
 
 
 def test_activation_checks_credentials(super_admin_token):
-    status, data = api(
-        "POST",
-        "brokers",
-        data=_broker_payload(
-            broker_classname="BOOMBROKER",
-            altdata={"host": "boom.test"},
-            active=True,
-        ),
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    boom_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    boom_id = sp.post_broker(
+        BrokerPost(
+            **_broker_payload(
+                broker_classname="BOOMBROKER",
+                altdata={"host": "boom.test"},
+                active=True,
+            )
+        )
+    ).id
 
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(active=False), token=super_admin_token
-    )
-    assert status == 200, data
-    generic_id = data["data"]["id"]
+    generic_id = sp.post_broker(BrokerPost(**_broker_payload(active=False))).id
 
     try:
-        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
-        assert data["data"]["active"] is False
+        assert sp.fetch_broker(boom_id).active is False
 
-        status, data = api(
-            "PATCH",
-            f"brokers/{boom_id}",
-            data={"active": True},
-            token=super_admin_token,
-        )
-        assert status == 400, data
+        with pytest.raises(SkyPortalError) as err:
+            sp.update_broker(boom_id, active=True)
+        assert err.value.status_code == 400
         # the handler names the refused action and the underlying reason
-        assert "cannot be activated" in data["message"]
-        assert "username" in data["message"] and "password" in data["message"]
+        assert "cannot be activated" in str(err.value)
+        assert "username" in str(err.value) and "password" in str(err.value)
 
-        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
-        assert data["data"]["active"] is False
+        assert sp.fetch_broker(boom_id).active is False
 
-        status, data = api(
-            "PATCH",
-            f"brokers/{generic_id}",
-            data={"active": True},
-            token=super_admin_token,
-        )
-        assert status == 200, data
-        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
-        assert data["data"]["active"] is True
+        sp.update_broker(generic_id, active=True)
+        assert sp.fetch_broker(generic_id).active is True
     finally:
-        api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
-        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+        sp.delete_broker(boom_id)
+        sp.delete_broker(generic_id)
 
 
 def test_default_requires_the_capability(super_admin_token):
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200, data
-    generic_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    generic_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
     try:
-        status, data = api(
-            "PATCH",
-            f"brokers/{generic_id}",
-            data={"default_crossmatch": True},
-            token=super_admin_token,
-        )
-        assert status == 400, data
-        assert "cross_match_catalogs" in data["message"]
+        with pytest.raises(SkyPortalError) as err:
+            sp.update_broker(generic_id, default_crossmatch=True)
+        assert err.value.status_code == 400
+        assert "cross_match_catalogs" in str(err.value)
 
-        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
-        assert data["data"]["default_crossmatch"] is False
+        assert sp.fetch_broker(generic_id).default_crossmatch is False
 
-        status, data = api(
-            "PATCH",
-            f"brokers/{generic_id}",
-            data={"default_alert_search": True},
-            token=super_admin_token,
-        )
-        assert status == 200, data
+        sp.update_broker(generic_id, default_alert_search=True)
     finally:
-        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+        sp.delete_broker(generic_id)
 
 
 def test_broker_defaults_are_exclusive(super_admin_token):
-    status, data = api(
-        "POST",
-        "brokers",
-        data=_broker_payload(
-            broker_classname="BOOMBROKER",
-            altdata={"host": "boom.test"},
-            default_alert_search=True,
-            default_crossmatch=True,
-        ),
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    first_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    first_id = sp.post_broker(
+        BrokerPost(
+            **_broker_payload(
+                broker_classname="BOOMBROKER",
+                altdata={"host": "boom.test"},
+                default_alert_search=True,
+                default_crossmatch=True,
+            )
+        )
+    ).id
 
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200, data
-    second_id = data["data"]["id"]
+    second_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
     try:
-        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
-        assert data["data"]["default_alert_search"] is True
-        assert data["data"]["default_crossmatch"] is True
+        first = sp.fetch_broker(first_id)
+        assert first.default_alert_search is True
+        assert first.default_crossmatch is True
 
-        status, data = api(
-            "PATCH",
-            f"brokers/{second_id}",
-            data={"default_alert_search": True},
-            token=super_admin_token,
-        )
-        assert status == 200, data
+        sp.update_broker(second_id, default_alert_search=True)
 
-        status, data = api("GET", f"brokers/{second_id}", token=super_admin_token)
-        assert data["data"]["default_alert_search"] is True
-        assert data["data"]["default_crossmatch"] is False
+        second = sp.fetch_broker(second_id)
+        assert second.default_alert_search is True
+        assert second.default_crossmatch is False
 
-        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
-        assert data["data"]["default_alert_search"] is False
-        assert data["data"]["default_crossmatch"] is True
+        first = sp.fetch_broker(first_id)
+        assert first.default_alert_search is False
+        assert first.default_crossmatch is True
     finally:
-        api("DELETE", f"brokers/{first_id}", token=super_admin_token)
-        api("DELETE", f"brokers/{second_id}", token=super_admin_token)
+        sp.delete_broker(first_id)
+        sp.delete_broker(second_id)
 
 
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)
     assert status == 400
 
@@ -236,22 +178,21 @@ def test_broker_invalid_classname(super_admin_token):
 def test_broker_invalid_config(super_admin_token):
     # GENERICBROKER.validate_config requires base_url
     payload = _broker_payload(altdata={})
-    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        client(super_admin_token).post_broker(BrokerPost(**payload))
+    assert err.value.status_code == 400
 
 
 def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_token):
     # non-admin cannot create
-    status, data = api("POST", "brokers", data=_broker_payload(), token=view_only_token)
-    assert status != 200
+    with pytest.raises(SkyPortalError):
+        client(view_only_token).post_broker(BrokerPost(**_broker_payload()))
 
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
     # non-admin can read the broker, but altdata is redacted
+    # raw api: raw-JSON shape assertion the typed model would mask
     status, data = api("GET", f"brokers/{broker_id}", token=view_only_token)
     assert status == 200
     assert "altdata" not in data["data"]
@@ -259,21 +200,13 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
 
     # admins get the config, minus the credentials (GENERICBROKER renders
     # `token` as a password field)
-    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
-    assert status == 200
-    assert data["data"]["altdata"]["base_url"] == "https://broker.test"
-    assert "token" not in data["data"]["altdata"]
+    broker = sp.fetch_broker(broker_id)
+    assert broker.altdata["base_url"] == "https://broker.test"
+    assert "token" not in broker.altdata
 
     # so editing another field must not wipe the stored credential
-    status, _ = api(
-        "PATCH",
-        f"brokers/{broker_id}",
-        data={"altdata": {"base_url": "https://broker2.test"}},
-        token=super_admin_token,
-    )
-    assert status == 200
-    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
-    assert data["data"]["altdata"]["base_url"] == "https://broker2.test"
+    sp.update_broker(broker_id, altdata={"base_url": "https://broker2.test"})
+    assert sp.fetch_broker(broker_id).altdata["base_url"] == "https://broker2.test"
 
 
 def test_altdata_merge_and_redaction():
@@ -322,6 +255,7 @@ def test_secret_config_fields_cover_every_provider():
 
 
 def test_broker_apis_discovery(view_only_token):
+    # raw api: internal dashboard-config endpoint, outside skyportal-py's scope
     status, data = api("GET", "internal/broker_apis", token=view_only_token)
     assert status == 200
     assert "GENERICBROKER" in data["data"]
@@ -333,12 +267,11 @@ def test_broker_apis_discovery(view_only_token):
 
 
 def test_broker_alerts_inactive(super_admin_token):
-    payload = _broker_payload(active=False)
-    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
-    assert status == 200
-    broker_id = data["data"]["id"]
-    status, data = api("GET", f"brokers/{broker_id}/alerts", token=super_admin_token)
-    assert status == 400
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(BrokerPost(**_broker_payload(active=False))).id
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_broker_alerts(broker_id)
+    assert err.value.status_code == 400
 
 
 # --- provider-level unit tests (no running server needed) ---
@@ -578,20 +511,18 @@ def test_boombroker_cone_search():
 
 @pytest.fixture
 def lasair_broker_id(super_admin_token):
-    status, data = api(
-        "POST",
-        "brokers",
-        data=_broker_payload(
-            broker_classname="LASAIRBROKER",
-            altdata={"token": "t", "endpoint": "https://x/api"},
-        ),
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(
+        BrokerPost(
+            **_broker_payload(
+                broker_classname="LASAIRBROKER",
+                altdata={"token": "t", "endpoint": "https://x/api"},
+            )
+        )
+    ).id
     _force_active(broker_id)
     yield broker_id
-    api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+    sp.delete_broker(broker_id)
 
 
 def test_filter_module_round_trip_normalizes_streams(
@@ -600,22 +531,13 @@ def test_filter_module_round_trip_normalizes_streams(
     """A module saved with a full stream name is stored under the bare survey
     token -- the builder filters saved modules on the token, so anything else is
     invisible in the builder that wrote it."""
-    status, data = api(
-        "POST",
-        f"brokers/{lasair_broker_id}/filter_modules/myvar",
-        data={"elements": "variables", "data": {"streams": ["ZTF (1, 2)"], "x": 1}},
-        token=super_admin_token,
+    sp = client(super_admin_token)
+    sp.post_broker_filter_module(
+        lasair_broker_id, "myvar", "variables", {"streams": ["ZTF (1, 2)"], "x": 1}
     )
-    assert status == 200, data
 
-    status, data = api(
-        "GET",
-        f"brokers/{lasair_broker_id}/filter_modules",
-        params={"elements": "variables"},
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert data["data"]["variables"] == [
+    modules = sp.fetch_broker_filter_modules(lasair_broker_id, elements="variables")
+    assert modules["variables"] == [
         {"name": "myvar", "streams": ["ZTF"], "x": 1},
     ]
 
@@ -623,89 +545,49 @@ def test_filter_module_round_trip_normalizes_streams(
 def test_filter_module_lookup_by_name(lasair_broker_id, super_admin_token):
     """The by-name read backs the builder's name-availability check: a real doc
     for a hit, null for a miss (never an empty list, which reads as a hit)."""
-    status, _ = api(
-        "POST",
-        f"brokers/{lasair_broker_id}/filter_modules/known",
-        data={"elements": "blocks", "data": {"streams": ["ZTF Alerts"]}},
-        token=super_admin_token,
+    sp = client(super_admin_token)
+    sp.post_broker_filter_module(
+        lasair_broker_id, "known", "blocks", {"streams": ["ZTF Alerts"]}
     )
-    assert status == 200
 
-    status, data = api(
-        "GET",
-        f"brokers/{lasair_broker_id}/filter_modules/known",
-        params={"elements": "blocks"},
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert data["data"]["blocks"]["name"] == "known"
-    assert data["data"]["blocks"]["streams"] == ["ZTF"]
+    module = sp.fetch_broker_filter_module(lasair_broker_id, "known", elements="blocks")
+    assert module["blocks"]["name"] == "known"
+    assert module["blocks"]["streams"] == ["ZTF"]
 
-    status, data = api(
-        "GET",
-        f"brokers/{lasair_broker_id}/filter_modules/nope",
-        params={"elements": "blocks"},
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert data["data"]["blocks"] is None
+    module = sp.fetch_broker_filter_module(lasair_broker_id, "nope", elements="blocks")
+    assert module["blocks"] is None
 
 
 def test_filter_module_update(lasair_broker_id, super_admin_token):
-    status, _ = api(
-        "POST",
-        f"brokers/{lasair_broker_id}/filter_modules/v",
-        data={"elements": "variables", "data": {"streams": ["ZTF"], "x": 1}},
-        token=super_admin_token,
+    sp = client(super_admin_token)
+    sp.post_broker_filter_module(
+        lasair_broker_id, "v", "variables", {"streams": ["ZTF"], "x": 1}
     )
-    assert status == 200
 
-    status, data = api(
-        "PUT",
-        f"brokers/{lasair_broker_id}/filter_modules/v",
-        data={"elements": "variables", "data": {"x": 2}},
-        token=super_admin_token,
-    )
-    assert status == 200, data
+    sp.update_broker_filter_module(lasair_broker_id, "v", "variables", {"x": 2})
 
-    status, data = api(
-        "GET",
-        f"brokers/{lasair_broker_id}/filter_modules/v",
-        params={"elements": "variables"},
-        token=super_admin_token,
-    )
-    assert data["data"]["variables"]["x"] == 2
+    module = sp.fetch_broker_filter_module(lasair_broker_id, "v", elements="variables")
+    assert module["variables"]["x"] == 2
 
     # updating a module that does not exist is an error, not an insert
-    status, data = api(
-        "PUT",
-        f"brokers/{lasair_broker_id}/filter_modules/ghost",
-        data={"elements": "variables", "data": {"x": 1}},
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "No variables named 'ghost'" in data["message"]
+    with pytest.raises(SkyPortalError) as err:
+        sp.update_broker_filter_module(lasair_broker_id, "ghost", "variables", {"x": 1})
+    assert err.value.status_code == 400
+    assert "No variables named 'ghost'" in str(err.value)
 
 
 def test_filter_module_invalid_elements(lasair_broker_id, super_admin_token):
     """'elements' is validated on read too -- it used to reach the store as an
     arbitrary collection name."""
-    status, data = api(
-        "GET",
-        f"brokers/{lasair_broker_id}/filter_modules",
-        params={"elements": "; drop"},
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "must be 'schema' or one of" in data["message"]
+    sp = client(super_admin_token)
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_broker_filter_modules(lasair_broker_id, elements="; drop")
+    assert err.value.status_code == 400
+    assert "must be 'schema' or one of" in str(err.value)
 
-    status, data = api(
-        "POST",
-        f"brokers/{lasair_broker_id}/filter_modules/x",
-        data={"elements": "bogus", "data": {}},
-        token=super_admin_token,
-    )
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        sp.post_broker_filter_module(lasair_broker_id, "x", "bogus", {})
+    assert err.value.status_code == 400
 
 
 def test_normalize_module_streams():
@@ -832,29 +714,20 @@ def test_boom_write_filter_module(monkeypatch):
 
 def test_broker_cone_search_unsupported(super_admin_token):
     """A broker whose provider does not implement cone_search is rejected."""
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
-    status, data = api(
-        "GET",
-        f"brokers/{broker_id}/cone_search",
-        params={"ra": 10.0, "dec": 20.0, "radius": 5.0},
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "does not support cone_search" in data["message"]
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_broker_cone_search(broker_id, ra=10.0, dec=20.0, radius=5.0)
+    assert err.value.status_code == 400
+    assert "does not support cone_search" in str(err.value)
 
 
 def test_broker_cone_search_missing_params(super_admin_token):
-    status, data = api(
-        "POST", "brokers", data=_broker_payload(), token=super_admin_token
-    )
-    assert status == 200
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(BrokerPost(**_broker_payload())).id
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "GET", f"brokers/{broker_id}/cone_search", token=super_admin_token
     )
@@ -872,17 +745,15 @@ def test_boom_filter_activation_requires_validation(
 
     from skyportal.models import DBSession, Filter
 
-    status, data = api(
-        "POST",
-        "brokers",
-        data=_broker_payload(
-            broker_classname="BOOMBROKER",
-            altdata={"host": "boom.test", "username": "x", "password": "y"},
-        ),
-        token=super_admin_token,
-    )
-    assert status == 200
-    broker_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    broker_id = sp.post_broker(
+        BrokerPost(
+            **_broker_payload(
+                broker_classname="BOOMBROKER",
+                altdata={"host": "boom.test", "username": "x", "password": "y"},
+            )
+        )
+    ).id
     _force_active(broker_id)
     try:
         # Mark the filter broker-managed with no validation on record.
@@ -895,23 +766,19 @@ def test_boom_filter_activation_requires_validation(
         flag_modified(f, "altdata")
         DBSession().commit()
 
-        status, data = api(
-            "PATCH",
-            f"brokers/{broker_id}/filters/{public_filter.id}",
-            data={"active": True, "active_fid": "v1"},
-            token=upload_data_token,
-        )
-        assert status == 400
-        assert "validat" in data["message"].lower()
+        with pytest.raises(SkyPortalError) as err:
+            client(upload_data_token).update_broker_filter(
+                broker_id, public_filter.id, active=True, active_fid="v1"
+            )
+        assert err.value.status_code == 400
+        assert "validat" in str(err.value).lower()
 
         # An admin bypasses the gate: it gets past validation and only then fails
         # at the unreachable test BOOM, so the error is not the validation one.
-        status, data = api(
-            "PATCH",
-            f"brokers/{broker_id}/filters/{public_filter.id}",
-            data={"active": True, "active_fid": "v1"},
-            token=super_admin_token,
-        )
-        assert "validat" not in (data.get("message") or "").lower()
+        with pytest.raises(SkyPortalError) as err:
+            sp.update_broker_filter(
+                broker_id, public_filter.id, active=True, active_fid="v1"
+            )
+        assert "validat" not in str(err.value).lower()
     finally:
-        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+        sp.delete_broker(broker_id)

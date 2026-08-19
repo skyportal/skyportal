@@ -16,8 +16,11 @@ import uuid
 from datetime import datetime, timedelta
 
 import numpy as np
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.gcn_events import GcnEventPost
 
-from skyportal.tests import api
+from skyportal.tests import api, client
 from skyportal.utils.naive_datetime import utcnow_naive
 
 # Wide enough that post_gcn_source does not fire (SOURCE_RADIUS_THRESHOLD is
@@ -41,17 +44,15 @@ def _post_cone_event(token, group_ids=None):
     dateobs = _unique_dateobs()
     ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-30, 30))
     tag = str(uuid.uuid4())
-    event_data = {
-        "dateobs": dateobs.isoformat(),
-        "skymap": {"ra": ra, "dec": dec, "error": CONE_ERROR_DEG},
-        "tags": [tag],
-    }
-    if group_ids is not None:
-        event_data["group_ids"] = group_ids
 
-    status, data = api("POST", "gcn_event", data=event_data, token=token)
-    assert status == 200, data
-    assert data["status"] == "success"
+    client(token).post_gcn_event(
+        GcnEventPost(
+            dateobs=dateobs.isoformat(),
+            skymap={"ra": ra, "dec": dec, "error": CONE_ERROR_DEG},
+            tags=[tag],
+            group_ids=group_ids,
+        )
+    )
 
     localization_name = f"{ra:.5f}_{dec:.5f}_{CONE_ERROR_DEG:.5f}"
     return dateobs.strftime("%Y-%m-%d %H:%M:%S"), localization_name, tag
@@ -64,16 +65,15 @@ def test_restricted_gcn_event_hidden_from_non_members(
     dateobs, _, _ = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
 
     # a member of the owning group can read it
-    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token_group2)
-    assert status == 200, data
+    client(view_only_token_group2).fetch_gcn_event(dateobs)
 
     # a user who is not in the owning group cannot
-    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token)
-    assert status in (400, 403, 404), data
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_gcn_event(dateobs)
+    assert err.value.status_code in (400, 403, 404)
 
     # system admins bypass the restriction
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200, data
+    client(super_admin_token).fetch_gcn_event(dateobs)
 
 
 def test_gcn_event_defaults_to_public_group(
@@ -83,8 +83,7 @@ def test_gcn_event_defaults_to_public_group(
     dateobs, _, _ = _post_cone_event(super_admin_token)
 
     for token in (view_only_token, view_only_token_group2):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=token)
-        assert status == 200, data
+        client(token).fetch_gcn_event(dateobs)
 
 
 def test_restricted_gcn_event_absent_from_listing(
@@ -95,15 +94,11 @@ def test_restricted_gcn_event_absent_from_listing(
 
     # filter by the event's unique tag so the assertion does not depend on
     # pagination or on how much other GCN data the test database holds
-    params = {"gcnTagKeep": tag}
+    page = client(view_only_token).fetch_gcn_events(gcn_tag_keep=[tag])
+    assert page.events == []
 
-    status, data = api("GET", "gcn_event", params=params, token=view_only_token)
-    assert status == 200, data
-    assert data["data"]["events"] == []
-
-    status, data = api("GET", "gcn_event", params=params, token=view_only_token_group2)
-    assert status == 200, data
-    listed = {e["dateobs"] for e in data["data"]["events"]}
+    page = client(view_only_token_group2).fetch_gcn_events(gcn_tag_keep=[tag])
+    listed = {e.dateobs.isoformat() for e in page.events}
     assert dateobs.replace(" ", "T") in listed
 
 
@@ -117,11 +112,10 @@ def test_localization_tags_listing_is_access_scoped(gcn_GW190425, view_only_toke
     guards both that scoping and that the endpoint still composes with
     .distinct() rather than erroring.
     """
-    status, data = api("GET", "localization/tags", token=view_only_token)
-    assert status == 200, data
+    tags = client(view_only_token).fetch_localization_tags()
     # gcn_GW190425's localization carries the "Test" tag and its event is
     # attached to the public group the token's user belongs to
-    assert "Test" in data["data"], data["data"]
+    assert "Test" in tags, tags
 
 
 def test_restricted_localization_hidden_from_non_members(
@@ -132,19 +126,11 @@ def test_restricted_localization_hidden_from_non_members(
         super_admin_token, group_ids=[public_group2.id]
     )
 
-    status, data = api(
-        "GET",
-        f"localization/{dateobs}/name/{localization_name}",
-        token=view_only_token_group2,
-    )
-    assert status == 200, data
+    client(view_only_token_group2).fetch_localization(dateobs, localization_name)
 
-    status, data = api(
-        "GET",
-        f"localization/{dateobs}/name/{localization_name}",
-        token=view_only_token,
-    )
-    assert status in (400, 403, 404), data
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_localization(dateobs, localization_name)
+    assert err.value.status_code in (400, 403, 404)
 
 
 def test_restricted_localization_does_not_leak_position_via_sources(
@@ -167,20 +153,20 @@ def test_restricted_localization_does_not_leak_position_via_sources(
     # ever exercising the access check.
     event_time = datetime.fromisoformat(dateobs.replace(" ", "T"))
     params = {
-        "localizationDateobs": dateobs,
-        "localizationName": localization_name,
-        "startDate": (event_time - timedelta(days=1)).isoformat(),
-        "endDate": (event_time + timedelta(days=1)).isoformat(),
+        "localization_dateobs": dateobs,
+        "localization_name": localization_name,
+        "start_date": (event_time - timedelta(days=1)).isoformat(),
+        "end_date": (event_time + timedelta(days=1)).isoformat(),
     }
 
     # a group2 member resolves the localization fine (proving the window and
     # names are valid, so the non-member failure below is about access only)
-    status, data = api("GET", "sources", params=params, token=view_only_token_group2)
-    assert status == 200, data
+    client(view_only_token_group2).fetch_sources(**params)
 
-    status, data = api("GET", "sources", params=params, token=view_only_token)
-    assert status == 400, data
-    assert "not found" in str(data.get("message", "")).lower(), data
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_sources(**params)
+    assert err.value.status_code == 400
+    assert "not found" in str(err.value).lower()
 
 
 def test_events_list_filters_by_group(
@@ -191,24 +177,16 @@ def test_events_list_filters_by_group(
     _, _, tag_b = _post_cone_event(super_admin_token)  # public group
 
     # restricted to group2: the group2 event is there
-    status, data = api(
-        "GET",
-        "gcn_event",
-        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag_a},
-        token=view_only_token_group2,
+    page = client(view_only_token_group2).fetch_gcn_events(
+        group_ids=[public_group2.id], gcn_tag_keep=[tag_a]
     )
-    assert status == 200, data
-    assert len(data["data"]["events"]) == 1, data["data"]["events"]
+    assert len(page.events) == 1, page.events
 
     # ...and the public-group event is excluded by the same filter
-    status, data = api(
-        "GET",
-        "gcn_event",
-        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag_b},
-        token=view_only_token_group2,
+    page = client(view_only_token_group2).fetch_gcn_events(
+        group_ids=[public_group2.id], gcn_tag_keep=[tag_b]
     )
-    assert status == 200, data
-    assert data["data"]["events"] == [], data["data"]["events"]
+    assert page.events == [], page.events
 
 
 def test_events_list_group_filter_cannot_widen_access(
@@ -217,17 +195,14 @@ def test_events_list_group_filter_cannot_widen_access(
     """Asking for a group you are not in returns nothing, not someone else's events."""
     _, _, tag = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
 
-    status, data = api(
-        "GET",
-        "gcn_event",
-        params={"groupIds": str(public_group2.id), "gcnTagKeep": tag},
-        token=view_only_token,
+    page = client(view_only_token).fetch_gcn_events(
+        group_ids=[public_group2.id], gcn_tag_keep=[tag]
     )
-    assert status == 200, data
-    assert data["data"]["events"] == [], data["data"]["events"]
+    assert page.events == [], page.events
 
 
 def test_events_list_rejects_bad_group_ids(super_admin_token):
+    # raw api: intentionally malformed groupIds the typed client can't produce
     status, data = api(
         "GET", "gcn_event", params={"groupIds": "not-an-int"}, token=super_admin_token
     )

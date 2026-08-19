@@ -1,180 +1,123 @@
 import uuid
 
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 
 def test_super_obj_create_and_retrieve(
     super_admin_token, public_source, public_source_two_groups
 ):
+    sp = client(super_admin_token)
     name = f"asteroid-{uuid.uuid4().hex}"
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={
-            "name": name,
-            "is_roid": True,
-            "obj_ids": [public_source.id, public_source_two_groups.id],
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
+    super_obj_id = sp.post_super_obj(
+        name=name,
+        is_roid=True,
+        obj_ids=[public_source.id, public_source_two_groups.id],
+    ).id
 
-    status, data = api("GET", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert status == 200
-    assert data["data"]["name"] == name
-    assert data["data"]["is_roid"] is True
-    assert {obj["id"] for obj in data["data"]["objs"]} == {
+    super_obj = sp.fetch_super_obj(super_obj_id)
+    assert super_obj.name == name
+    assert super_obj.is_roid is True
+    assert {obj.id for obj in super_obj.objs} == {
         public_source.id,
         public_source_two_groups.id,
     }
 
 
 def test_super_obj_filters(super_admin_token, public_source):
+    sp = client(super_admin_token)
     name = f"asteroid-{uuid.uuid4().hex}"
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": name, "is_roid": True, "obj_ids": [public_source.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
+    super_obj_id = sp.post_super_obj(
+        name=name, is_roid=True, obj_ids=[public_source.id]
+    ).id
 
-    status, data = api("GET", f"super_objs?name={name}", token=super_admin_token)
-    assert status == 200
-    assert [s["id"] for s in data["data"]] == [super_obj_id]
+    assert [s.id for s in sp.fetch_super_objs(name=name)] == [super_obj_id]
 
-    status, data = api(
-        "GET", f"super_objs?objID={public_source.id}", token=super_admin_token
-    )
-    assert status == 200
-    assert super_obj_id in [s["id"] for s in data["data"]]
+    assert super_obj_id in [s.id for s in sp.fetch_super_objs(obj_id=public_source.id)]
 
-    status, data = api(
-        "GET", f"super_objs?name={name}&isRoid=false", token=super_admin_token
-    )
-    assert status == 200
-    assert data["data"] == []
+    assert sp.fetch_super_objs(name=name, is_roid=False) == []
 
 
 def test_super_obj_membership_updates(
     super_admin_token, public_source, public_source_two_groups
 ):
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": f"asteroid-{uuid.uuid4().hex}", "obj_ids": [public_source.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    super_obj_id = sp.post_super_obj(
+        name=f"asteroid-{uuid.uuid4().hex}", obj_ids=[public_source.id]
+    ).id
 
-    status, _ = api(
-        "PATCH",
-        f"super_objs/{super_obj_id}",
-        data={"add_obj_ids": [public_source_two_groups.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.update_super_obj(super_obj_id, add_obj_ids=[public_source_two_groups.id])
 
-    status, data = api("GET", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert {obj["id"] for obj in data["data"]["objs"]} == {
+    super_obj = sp.fetch_super_obj(super_obj_id)
+    assert {obj.id for obj in super_obj.objs} == {
         public_source.id,
         public_source_two_groups.id,
     }
 
     # adding the same Obj again must not duplicate it
-    status, _ = api(
-        "PATCH",
-        f"super_objs/{super_obj_id}",
-        data={"add_obj_ids": [public_source_two_groups.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.update_super_obj(super_obj_id, add_obj_ids=[public_source_two_groups.id])
 
-    status, data = api("GET", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert len(data["data"]["objs"]) == 2
+    assert len(sp.fetch_super_obj(super_obj_id).objs) == 2
 
-    status, _ = api(
-        "PATCH",
-        f"super_objs/{super_obj_id}",
-        data={"remove_obj_ids": [public_source.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.update_super_obj(super_obj_id, remove_obj_ids=[public_source.id])
 
-    status, data = api("GET", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert [obj["id"] for obj in data["data"]["objs"]] == [public_source_two_groups.id]
+    assert [obj.id for obj in sp.fetch_super_obj(super_obj_id).objs] == [
+        public_source_two_groups.id
+    ]
 
 
 def test_super_obj_rejects_conflicting_membership_args(
     super_admin_token, public_source
 ):
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": f"asteroid-{uuid.uuid4().hex}"},
-        token=super_admin_token,
-    )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    super_obj_id = sp.post_super_obj(name=f"asteroid-{uuid.uuid4().hex}").id
 
-    status, data = api(
-        "PATCH",
-        f"super_objs/{super_obj_id}",
-        data={"obj_ids": [public_source.id], "add_obj_ids": [public_source.id]},
-        token=super_admin_token,
-    )
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        sp.update_super_obj(
+            super_obj_id,
+            obj_ids=[public_source.id],
+            add_obj_ids=[public_source.id],
+        )
+    assert err.value.status_code == 400
 
 
 def test_super_obj_rejects_unknown_obj(super_admin_token):
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": f"asteroid-{uuid.uuid4().hex}", "obj_ids": ["does-not-exist"]},
-        token=super_admin_token,
-    )
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        client(super_admin_token).post_super_obj(
+            name=f"asteroid-{uuid.uuid4().hex}", obj_ids=["does-not-exist"]
+        )
+    assert err.value.status_code == 400
 
 
 def test_super_obj_delete_leaves_objs(super_admin_token, public_source):
     """Deleting a SuperObj must not delete the Objs it links."""
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": f"asteroid-{uuid.uuid4().hex}", "obj_ids": [public_source.id]},
-        token=super_admin_token,
-    )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    super_obj_id = sp.post_super_obj(
+        name=f"asteroid-{uuid.uuid4().hex}", obj_ids=[public_source.id]
+    ).id
 
-    status, _ = api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert status == 200
+    sp.delete_super_obj(super_obj_id)
 
-    status, _ = api("GET", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_super_obj(super_obj_id)
+    assert err.value.status_code == 400
 
-    status, data = api("GET", f"sources/{public_source.id}", token=super_admin_token)
-    assert status == 200
-    assert data["data"]["id"] == public_source.id
+    assert sp.fetch_source(public_source.id).id == public_source.id
 
 
 def test_super_obj_delete_requires_admin(
     super_admin_token, upload_data_token, public_source
 ):
-    status, data = api(
-        "POST",
-        "super_objs",
-        data={"name": f"asteroid-{uuid.uuid4().hex}", "obj_ids": [public_source.id]},
-        token=upload_data_token,
+    super_obj_id = (
+        client(upload_data_token)
+        .post_super_obj(name=f"asteroid-{uuid.uuid4().hex}", obj_ids=[public_source.id])
+        .id
     )
-    assert status == 200
-    super_obj_id = data["data"]["id"]
 
-    status, _ = api("DELETE", f"super_objs/{super_obj_id}", token=upload_data_token)
-    assert status == 401
+    with pytest.raises(SkyPortalError) as err:
+        client(upload_data_token).delete_super_obj(super_obj_id)
+    assert err.value.status_code == 401
 
-    status, _ = api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
-    assert status == 200
+    client(super_admin_token).delete_super_obj(super_obj_id)
