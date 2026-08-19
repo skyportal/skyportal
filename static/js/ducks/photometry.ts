@@ -10,11 +10,13 @@
  * logic (only refresh when the currently-loaded source matches the pushed
  * obj_id).
  */
+import type { PhotometryUpdate } from "skyportal-js/Photometry";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import store from "../store";
 import { configApi } from "./config";
-import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
 
@@ -58,16 +60,13 @@ export const photometryApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["Photometry"],
     }),
-    deletePhotometry: build.mutation<
-      RouteData<"DELETE /api/photometry/{photometry_id}">,
-      number | string
-    >({
-      query: (id) => ({
-        url: `/api/photometry/${id}`,
-        method: "DELETE",
-      }),
+    deletePhotometry: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deletePhotometry(Number(id))),
       invalidatesTags: ["Photometry"],
     }),
+    // raw: the client's postPhotometry cannot send `refresh` yet
+    // (skyportal-js#6 adds it).
     submitPhotometry: build.mutation<unknown, any>({
       query: (photometry) => ({
         url: "/api/photometry?refresh=true",
@@ -77,14 +76,13 @@ export const photometryApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Photometry"],
     }),
     updatePhotometry: build.mutation<
-      RouteData<"PATCH /api/photometry/{photometry_id}">,
-      { id: number | string; photometry: any }
+      void,
+      { id: number | string; photometry: PhotometryUpdate }
     >({
-      query: ({ id, photometry }) => ({
-        url: `/api/photometry/${id}?refresh=true`,
-        method: "PATCH",
-        body: photometry,
-      }),
+      queryFn: ({ id, photometry }, api) =>
+        clientQuery(api, (client) =>
+          client.updatePhotometry(Number(id), photometry, { refresh: true }),
+        ),
       invalidatesTags: ["Photometry"],
     }),
   }),

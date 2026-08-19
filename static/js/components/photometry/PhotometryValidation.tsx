@@ -161,7 +161,8 @@ const PhotometryValidation = ({
   const submitOrPatch = async (validated: boolean | null) => {
     const data = getValues();
     const body = {
-      validated,
+      // an omitted `validated` is what the handler reads as "undefined status"
+      ...(validated === null ? {} : { validated }),
       explanation: data["explanation"],
       notes: data["notes"],
       magsys,
