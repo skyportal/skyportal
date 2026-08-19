@@ -81,7 +81,7 @@ def test_a_verified_github_signin_links_to_the_existing_account(user):
         [{"email": user.contact_email, "primary": True, "verified": True}]
     )
 
-    resolved = resolve_user(
+    resolved, _ = resolve_user(
         FakeStrategy(),
         FakeBackend(),
         f"gh-id-{uuid.uuid4().hex[:8]}",
@@ -99,7 +99,7 @@ def test_an_unverified_github_signin_does_not_link(user):
         [{"email": user.contact_email, "primary": True, "verified": False}]
     )
 
-    resolved = resolve_user(
+    resolved, _ = resolve_user(
         FakeStrategy(),
         FakeBackend(),
         f"gh-id-{uuid.uuid4().hex[:8]}",
