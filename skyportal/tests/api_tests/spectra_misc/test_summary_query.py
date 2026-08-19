@@ -1,34 +1,43 @@
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.summary_query import SummaryQueryPost
+
+from skyportal.tests import client
 
 
 def test_bad_queries(view_only_token):
+    sp = client(view_only_token)
     # no query
-    query_data = {}
-    status, data = api("POST", "summary_query", data=query_data, token=view_only_token)
-    assert status == 400
-    assert data["message"].find("Missing one of the required") != -1
+    with pytest.raises(SkyPortalError, match="Missing one of the required") as err:
+        sp.post_summary_query(SummaryQueryPost())
+    assert err.value.status_code == 400
 
     # bad z range
-    query_data = {
-        "q": "Test query. This is my test query on the sources?",
-        "z_min": 0.2,
-        "z_max": 0.1,
-    }
-    status, data = api("POST", "summary_query", data=query_data, token=view_only_token)
-    assert status == 400
-    assert data["message"].find("z_min must be <= z_max") != -1
+    with pytest.raises(SkyPortalError, match="z_min must be <= z_max") as err:
+        sp.post_summary_query(
+            SummaryQueryPost(
+                q="Test query. This is my test query on the sources?",
+                z_min=0.2,
+                z_max=0.1,
+            )
+        )
+    assert err.value.status_code == 400
 
     # bad k
-    query_data = {"q": "Test query. This is my test query on the sources?", "k": 101}
-    status, data = api("POST", "summary_query", data=query_data, token=view_only_token)
-    assert status == 400
-    assert data["message"].find("k must be 1<=k<=100") != -1
+    with pytest.raises(SkyPortalError, match="k must be 1<=k<=100") as err:
+        sp.post_summary_query(
+            SummaryQueryPost(
+                q="Test query. This is my test query on the sources?", k=101
+            )
+        )
+    assert err.value.status_code == 400
 
     # send both a query and objID
-    query_data = {
-        "q": "Test query. This is my test query on the sources?",
-        "objID": "ZTF20abm",
-    }
-    status, data = api("POST", "summary_query", data=query_data, token=view_only_token)
-    assert status == 400
-    assert data["message"].find("Cannot specify both") != -1
+    with pytest.raises(SkyPortalError, match="Cannot specify both") as err:
+        sp.post_summary_query(
+            SummaryQueryPost(
+                q="Test query. This is my test query on the sources?",
+                obj_id="ZTF20abm",
+            )
+        )
+    assert err.value.status_code == 400

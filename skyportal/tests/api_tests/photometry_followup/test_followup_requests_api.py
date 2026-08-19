@@ -1,9 +1,15 @@
 import asyncio
 import uuid
 
+import pytest
 import sqlalchemy as sa
+from skyportal_py import SkyPortalError
+from skyportal_py.followup_requests import (
+    DefaultFollowupRequestPost,
+    FollowupRequestPost,
+)
 
-from skyportal.tests import api
+from skyportal.tests import client
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -25,19 +31,13 @@ def test_token_user_post_robotic_followup_request(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp = client(upload_data_token)
+    id = sp.post_followup_request(FollowupRequestPost(**request_data)).id
 
-    status, data = api("GET", f"followup_request/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
+    followup_request = sp.fetch_followup_request(id)
 
     for key in request_data:
-        assert data["data"][key] == request_data[key]
+        assert getattr(followup_request, key) == request_data[key]
 
 
 def test_gemini_followup_blank_note_title(
@@ -59,11 +59,7 @@ def test_gemini_followup_blank_note_title(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200, data
-    assert data["status"] == "success"
+    client(upload_data_token).post_followup_request(FollowupRequestPost(**request_data))
 
 
 def test_winter_followup_submit(
@@ -81,11 +77,7 @@ def test_winter_followup_submit(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200, data
-    assert data["status"] == "success"
+    client(upload_data_token).post_followup_request(FollowupRequestPost(**request_data))
 
 
 def test_token_user_delete_owned_followup_request(
@@ -108,16 +100,10 @@ def test_token_user_delete_owned_followup_request(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp = client(upload_data_token)
+    id = sp.post_followup_request(FollowupRequestPost(**request_data)).id
 
-    status, data = api("DELETE", f"followup_request/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.delete_followup_request(id)
 
 
 def test_token_user_modify_owned_followup_request(
@@ -137,12 +123,8 @@ def test_token_user_modify_owned_followup_request(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp = client(upload_data_token)
+    id = sp.post_followup_request(FollowupRequestPost(**request_data)).id
 
     new_request_data = {
         "allocation_id": public_group_sedm_allocation.id,
@@ -158,17 +140,12 @@ def test_token_user_modify_owned_followup_request(
         },
     }
 
-    status, data = api(
-        "PUT", f"followup_request/{id}", data=new_request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp.update_followup_request(id, **new_request_data)
 
-    status, data = api("GET", f"followup_request/{id}", token=upload_data_token)
-    assert status == 200
+    followup_request = sp.fetch_followup_request(id)
 
     for k in new_request_data:
-        assert data["data"][k] == new_request_data[k]
+        assert getattr(followup_request, k) == new_request_data[k]
 
 
 def test_regular_user_delete_super_admin_followup_request(
@@ -194,16 +171,13 @@ def test_regular_user_delete_super_admin_followup_request(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=super_admin_token
+    id = (
+        client(super_admin_token)
+        .post_followup_request(FollowupRequestPost(**request_data))
+        .id
     )
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
 
-    status, data = api("DELETE", f"followup_request/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(upload_data_token).delete_followup_request(id)
 
 
 def test_group1_user_cannot_see_group2_followup_request(
@@ -226,20 +200,18 @@ def test_group1_user_cannot_see_group2_followup_request(
         },
     }
 
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=super_admin_token
+    id = (
+        client(super_admin_token)
+        .post_followup_request(FollowupRequestPost(**request_data))
+        .id
     )
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
 
-    status, data = api("GET", f"followup_request/{id}", token=view_only_token)
-    assert status == 400
-    assert data["status"] == "error"
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_followup_request(id)
+    assert err.value.status_code == 400
 
-    status, data = api("GET", "followup_request/", token=view_only_token)
-    assert status == 200
-    assert id not in [a["id"] for a in data["data"]["followup_requests"]]
+    page = client(view_only_token).fetch_followup_requests()
+    assert id not in [a.id for a in page.followup_requests]
 
 
 def test_filter_followup_request(
@@ -263,55 +235,18 @@ def test_filter_followup_request(
     }
 
     time_before_post = utcnow_naive().isoformat()
-    status, data = api(
-        "POST", "followup_request", data=request_data, token=upload_data_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    client(upload_data_token).post_followup_request(FollowupRequestPost(**request_data))
 
-    params = {"startDate": time_before_post}
-
-    status, data = api(
-        "GET",
-        "followup_request",
-        params=params,
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert any(
-        s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
-    )
+    page = client(view_only_token).fetch_followup_requests(start_date=time_before_post)
+    assert any(s.obj_id == public_source.id for s in page.followup_requests)
 
     time_after_post = utcnow_naive().isoformat()
 
-    params = {"startDate": time_after_post}
+    page = client(view_only_token).fetch_followup_requests(start_date=time_after_post)
+    assert not any(s.obj_id == public_source.id for s in page.followup_requests)
 
-    status, data = api(
-        "GET",
-        "followup_request",
-        params=params,
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert not any(
-        s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
-    )
-
-    params = {"sourceID": public_source.id}
-
-    status, data = api(
-        "GET",
-        "followup_request",
-        params=params,
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert any(
-        s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
-    )
+    page = client(view_only_token).fetch_followup_requests(source_id=public_source.id)
+    assert any(s.obj_id == public_source.id for s in page.followup_requests)
 
 
 def _default_followup_payload(public_group, allocation, **extra):
@@ -347,19 +282,14 @@ def test_default_followup_request_stores_constraints(
         implements_update=False,
     )
 
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=request_data,
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    new_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    new_id = sp.post_default_followup_request(
+        DefaultFollowupRequestPost(**request_data)
+    ).id
 
-    status, data = api("GET", "default_followup_request", token=super_admin_token)
-    assert status == 200
-    match = next(r for r in data["data"] if r["id"] == new_id)
-    constraints = match["constraints"]
+    requests = sp.fetch_default_followup_requests()
+    match = next(r for r in requests if r.id == new_id)
+    constraints = match.constraints
     assert constraints is not None
     assert constraints["not_if_classified"] is True
     assert constraints["not_if_duplicates"] is True
@@ -368,62 +298,44 @@ def test_default_followup_request_stores_constraints(
     # constraints not supplied are absent (not defaulted)
     assert "not_if_spectra_exist" not in constraints
     # priority_order / validity_days / comment are stored for the auto-trigger path
-    assert match["priority_order"] == "desc"
-    assert match["validity_days"] == 3
-    assert match["comment"] == "auto-trigger test"
-    assert match["implements_update"] is False
+    assert match.priority_order == "desc"
+    assert match.validity_days == 3
+    assert match.comment == "auto-trigger test"
+    assert match.implements_update is False
 
 
 def test_default_followup_request_source_filter_regex_validation(
     public_group, public_group_sedm_allocation, super_admin_token
 ):
     def make(name):
-        return _default_followup_payload(
-            public_group,
-            public_group_sedm_allocation,
-            source_filter={"name": name, "group_id": public_group.id},
+        return DefaultFollowupRequestPost(
+            **_default_followup_payload(
+                public_group,
+                public_group_sedm_allocation,
+                source_filter={"name": name, "group_id": public_group.id},
+            )
         )
 
+    sp = client(super_admin_token)
+
     # A valid regex is accepted.
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=make("^ZTF2[0-9].*"),
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert data["status"] == "success"
+    sp.post_default_followup_request(make("^ZTF2[0-9].*"))
 
     # A malformed regex is rejected at creation (would otherwise error in
     # Postgres on every source save).
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=make("([unterminated"),
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "valid regular expression" in data["message"]
+    with pytest.raises(SkyPortalError, match="valid regular expression") as err:
+        sp.post_default_followup_request(make("([unterminated"))
+    assert err.value.status_code == 400
 
     # A catastrophic-backtracking pattern is rejected at creation (ReDoS guard).
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=make("(a+)+$"),
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "catastrophic backtracking" in data["message"]
+    with pytest.raises(SkyPortalError, match="catastrophic backtracking") as err:
+        sp.post_default_followup_request(make("(a+)+$"))
+    assert err.value.status_code == 400
 
     # An oversized pattern is rejected.
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=make("a" * 1001),
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert "at most" in data["message"]
+    with pytest.raises(SkyPortalError, match="at most") as err:
+        sp.post_default_followup_request(make("a" * 1001))
+    assert err.value.status_code == 400
 
 
 def test_default_followup_request_without_constraints_is_null(
@@ -431,20 +343,15 @@ def test_default_followup_request_without_constraints_is_null(
 ):
     request_data = _default_followup_payload(public_group, public_group_sedm_allocation)
 
-    status, data = api(
-        "POST",
-        "default_followup_request",
-        data=request_data,
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    new_id = data["data"]["id"]
+    sp = client(super_admin_token)
+    new_id = sp.post_default_followup_request(
+        DefaultFollowupRequestPost(**request_data)
+    ).id
 
-    status, data = api("GET", "default_followup_request", token=super_admin_token)
-    assert status == 200
-    match = next(r for r in data["data"] if r["id"] == new_id)
+    requests = sp.fetch_default_followup_requests()
+    match = next(r for r in requests if r.id == new_id)
     # no constraint keys supplied -> stored as null (always submit)
-    assert match["constraints"] is None
+    assert match.constraints is None
 
 
 def test_auto_followup_request_flushes_before_submit(
