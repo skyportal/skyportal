@@ -7,6 +7,7 @@
  * `getPlanWithSameNameExists` checks whether a plan name is already taken.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
 export interface AllocationObservationPlans {
   observation_plan_requests: any[];
@@ -30,14 +31,17 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
       AllocationObservationPlans,
       GetAllocationObservationPlansArg
     >({
-      query: ({ id, params = {} }) => ({
-        url: `api/allocation/observation_plans/${id}`,
-        params,
-      }),
+      queryFn: ({ id, params = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchAllocationObservationPlans(Number(id), params),
+        ),
       providesTags: ["ObservationPlan"],
     }),
     getPlanWithSameNameExists: build.query<PlanNameExists, string>({
-      query: (name) => `api/observation_plan/plan_names?name=${name}`,
+      queryFn: (name, api) =>
+        clientQuery(api, async (client) => ({
+          exists: await client.fetchObservationPlanNameExists(name),
+        })),
       providesTags: ["ObservationPlan"],
     }),
   }),

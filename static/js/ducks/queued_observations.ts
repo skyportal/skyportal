@@ -26,21 +26,19 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { buildQueryString as buildQuery } from "../API";
+import type {
+  ObservationQueues,
+  ObservationsPage,
+} from "skyportal-js/Observations";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { components } from "../types/api";
-import type { RouteData } from "../types/routeSchemaMap";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 type FilterParams = Record<string, unknown>;
-
-const buildQueryString = (filterParams: FilterParams): string => {
-  const params = buildQuery(filterParams);
-  return params ? `api/observation?${params}` : "api/observation";
-};
 
 const withQueuedObservationDefaults = (
   filterParams: FilterParams,
@@ -93,7 +91,9 @@ interface FetchGcnEventQueuedObservationsArg {
 
 interface RequestAPIQueuesArg {
   id: number | string;
-  data?: Record<string, unknown> | undefined;
+  data?:
+    | { queuesOnly?: boolean; startDate?: string; endDate?: string }
+    | undefined;
 }
 
 interface DeleteAPIQueueArg {
@@ -103,57 +103,52 @@ interface DeleteAPIQueueArg {
 
 export const queuedObservationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getQueuedObservations: build.query<
-      {
-        observations: components["schemas"]["QueuedObservation"][];
-        totalMatches: number;
-        geojson?: object[] | null;
-        field_ids?: number[] | null;
-        probability?: number | null;
-        area?: number | null;
-        min_observations_per_field?: number | null;
+    getQueuedObservations: build.query<ObservationsPage, FilterParams | void>({
+      queryFn: (filterParams, api) => {
+        const { startDate, endDate, ...rest } = withQueuedObservationDefaults(
+          filterParams ?? {},
+        );
+        return clientQuery(api, (client) =>
+          client.fetchObservations(
+            String(startDate ?? ""),
+            String(endDate ?? ""),
+            rest,
+          ),
+        );
       },
-      FilterParams | void
-    >({
-      query: (filterParams) =>
-        buildQueryString(withQueuedObservationDefaults(filterParams ?? {})),
       providesTags: ["QueuedObservations", "Observation"],
     }),
     getGcnEventQueuedObservations: build.query<
-      {
-        observations: components["schemas"]["QueuedObservation"][];
-        totalMatches: number;
-        geojson?: object[] | null;
-        field_ids?: number[] | null;
-        probability?: number | null;
-        area?: number | null;
-        min_observations_per_field?: number | null;
-      },
+      ObservationsPage,
       FetchGcnEventQueuedObservationsArg
     >({
-      query: ({ dateobs, filterParams }) =>
-        buildQueryString(
-          withGcnEventQueuedObservationDefaults(dateobs, filterParams ?? {}),
-        ),
+      queryFn: ({ dateobs, filterParams }, api) => {
+        const { startDate, endDate, ...rest } =
+          withGcnEventQueuedObservationDefaults(dateobs, filterParams ?? {});
+        return clientQuery(api, (client) =>
+          client.fetchObservations(
+            String(startDate ?? ""),
+            String(endDate ?? ""),
+            rest,
+          ),
+        );
+      },
       providesTags: ["QueuedObservations", "Observation"],
     }),
-    requestAPIQueues: build.query<
-      RouteData<"GET /api/observation/external_api/{allocation_id}">,
-      RequestAPIQueuesArg
-    >({
-      query: ({ id, data = { queuesOnly: true } }) => {
-        const params = buildQuery(data);
-        return params
-          ? `api/observation/external_api/${id}?${params}`
-          : `api/observation/external_api/${id}`;
-      },
+    requestAPIQueues: build.query<ObservationQueues, RequestAPIQueuesArg>({
+      queryFn: ({ id, data = { queuesOnly: true } }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchObservationExternalApi(Number(id), data),
+        ),
     }),
-    deleteAPIQueue: build.mutation<any, DeleteAPIQueueArg>({
-      query: ({ id, data = {} }) => ({
-        url: `api/observation/external_api/${id}`,
-        method: "DELETE",
-        body: data,
-      }),
+    deleteAPIQueue: build.mutation<void, DeleteAPIQueueArg>({
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationExternalApi(
+            Number(id),
+            String(data?.["queueName"] ?? ""),
+          ),
+        ),
       invalidatesTags: ["QueuedObservations", "Observation"],
     }),
   }),
