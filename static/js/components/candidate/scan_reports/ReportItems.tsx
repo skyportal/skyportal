@@ -85,6 +85,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle sx={{ flex: 1 }}>date</FieldTitle>
             <FieldTitle>scanner</FieldTitle>
             {isMultiGroup && <FieldTitle>group</FieldTitle>}
+            <FieldTitle>groups</FieldTitle>
             <FieldTitle>Source</FieldTitle>
             <FieldTitle>TNS name</FieldTitle>
             <FieldTitle>aliases</FieldTitle>
@@ -151,6 +152,17 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                     )}
                   </Field>
                 )}
+                <Field>
+                  {reportItem.data.groups_saved_to?.map(
+                    (groupName: string, index: number) => (
+                      <Chip
+                        label={groupName.substring(0, 15)}
+                        size="small"
+                        key={index}
+                      />
+                    ),
+                  )}
+                </Field>
                 <Field>
                   <Link
                     to={`/source/${reportItem.obj_id}`}
@@ -281,7 +293,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                           );
                         if (det.last)
                           parts.push(
-                            `last ${det.last.mag} ${det.last.filter} (${det.last.days_ago}d)`,
+                            `last ${det.last.mag} ${det.last.filter} (${det.last.days_ago}d)${det.last.fp ? " [FP]" : ""}`,
                           );
                         return (
                           <Tooltip

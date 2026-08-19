@@ -9,6 +9,7 @@ from skyportal.onboarding import (
     cfg,
     create_user,
     get_username,
+    resolve_user,
     setup_invited_user_permissions,
     user_details,
 )
@@ -20,6 +21,14 @@ class FakeStorageUser:
 
     def __init__(self):
         self.changed_users = []
+        # (provider, uid) -> association, as UserSocialAuth would hold them
+        self.social_auths = {}
+
+    def get_social_auth(self, provider, uid):
+        # Keyed as stored, so a re-keyed association is not found under its new
+        # uid — the app runs its session without autoflush, and a query there
+        # likewise does not see one.
+        return self.social_auths.get((provider, uid))
 
     def get_username(self, user):
         return user.username
@@ -55,8 +64,9 @@ class FakeStrategy:
 
 
 class FakeBackend:
-    def __init__(self, settings=None):
+    def __init__(self, settings=None, name="google-oauth2"):
         self.settings = settings or {}
+        self.name = name
 
     def setting(self, name, default=None):
         return self.settings.get(name, default)
@@ -365,3 +375,105 @@ def test_user_details_does_not_overwrite_protected_fields(user, cleanup_users):
 
     assert blank.username == original_username
     assert blank.first_name == "Ada"
+
+
+class FakeSocialAuth:
+    """A stored (provider, uid) -> user association."""
+
+    def __init__(self, provider, uid, user):
+        self.provider, self.uid, self.user = provider, uid, user
+
+
+def test_resolve_user_joins_on_provider_and_subject(user):
+    strategy = FakeStrategy()
+    backend = FakeBackend(name="orcid")
+    subject = f"sub-{uuid.uuid4().hex[:8]}"
+    strategy.storage.user.social_auths[("orcid", subject)] = FakeSocialAuth(
+        "orcid", subject, user
+    )
+
+    resolved, social = resolve_user(strategy, backend, subject, details_for("ignored"))
+
+    assert resolved.id == user.id
+    assert social is strategy.storage.user.social_auths[("orcid", subject)]
+
+
+def test_resolve_user_ignores_another_providers_association(user):
+    strategy = FakeStrategy()
+    subject = f"sub-{uuid.uuid4().hex[:8]}"
+    strategy.storage.user.social_auths[("orcid", subject)] = FakeSocialAuth(
+        "orcid", subject, user
+    )
+
+    # Same subject string, different provider: not the same identity.
+    resolved, social = resolve_user(
+        strategy, FakeBackend(name="github"), subject, details_for("ignored")
+    )
+    assert (resolved, social) == (None, None)
+
+
+def test_resolve_user_rekeys_a_legacy_email_association(user):
+    strategy = FakeStrategy()
+    details = details_for(f"legacy{uuid.uuid4().hex[:8]}")
+    association = FakeSocialAuth("google-oauth2", details["email"], user)
+    strategy.storage.user.social_auths[("google-oauth2", details["email"])] = (
+        association
+    )
+    subject = f"sub-{uuid.uuid4().hex[:8]}"
+
+    resolved, social = resolve_user(strategy, FakeBackend(), subject, details)
+
+    assert resolved.id == user.id
+    assert association.uid == subject  # re-keyed in place, not duplicated
+    assert user.oauth_uid == subject
+    # Handed back rather than looked up again: the re-key is not yet flushed.
+    assert social is association
+
+
+def test_create_user_hands_back_the_association_it_matched(invitations_disabled, user):
+    """Otherwise associate_user creates a second one and collides on (provider,
+    uid) — which is what a legacy sign-in did after subject-keyed uids landed."""
+    strategy = FakeStrategy()
+    details = details_for(f"legacy{uuid.uuid4().hex[:8]}")
+    association = FakeSocialAuth("google-oauth2", details["email"], user)
+    strategy.storage.user.social_auths[("google-oauth2", details["email"])] = (
+        association
+    )
+    subject = f"sub-{uuid.uuid4().hex[:8]}"
+
+    result = create_user(strategy, details, FakeBackend(), subject)
+
+    assert result["is_new"] is False
+    assert result["user"].id == user.id
+    assert result["social"] is association
+
+
+def test_resolve_user_will_not_link_an_unverified_email(user):
+    user.contact_email = f"verified{uuid.uuid4().hex[:8]}@example.com"
+    DBSession().commit()
+    details = details_for("someone", email=user.contact_email)
+
+    # A provider that neither asserts email_verified nor is trusted
+    resolved, _ = resolve_user(
+        FakeStrategy(),
+        FakeBackend(name="untrusted-provider"),
+        f"sub-{uuid.uuid4().hex[:8]}",
+        details,
+        response={},
+    )
+    assert resolved is None
+
+
+def test_resolve_user_links_a_provider_verified_email(user):
+    user.contact_email = f"verified{uuid.uuid4().hex[:8]}@example.com"
+    DBSession().commit()
+    details = details_for("someone", email=user.contact_email)
+
+    resolved, _ = resolve_user(
+        FakeStrategy(),
+        FakeBackend(name="orcid"),
+        f"sub-{uuid.uuid4().hex[:8]}",
+        details,
+        response={"email_verified": True},
+    )
+    assert resolved.id == user.id

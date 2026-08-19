@@ -37,6 +37,7 @@ from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload, undefer
 from sqlalchemy.sql.expression import cast
 from tornado.ioloop import IOLoop
@@ -3126,7 +3127,15 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 user_id=session.user_or_token.id,
                 followuprequest_id=followup_request_id,
             )
-            session.add(watcher)
+            try:
+                # Concurrent posts (a double click, say) both clear the check
+                # above; the loser hits the unique constraint here.
+                async with session.begin_nested():
+                    session.add(watcher)
+                    await session.flush()
+            except IntegrityError:
+                return self.error("User already watching this request")
+
             await session.commit()
 
             flow = Flow()

@@ -2,6 +2,7 @@ import datetime
 
 import sqlalchemy as sa
 
+from baselayer.app.auth_backends import backend_trusts_email, default_auth_backend
 from baselayer.app.env import load_env
 from skyportal.handlers.api import (
     set_default_acls,
@@ -23,12 +24,83 @@ env, cfg = load_env()
 USER_FIELDS = ["username", "email"]
 
 
+def _email_is_verified(backend, details, response):
+    """Whether the provider vouches for the address it just handed us.
+
+    An unverified address must never attach a sign-in to an existing account:
+    anyone who can claim `alice@example.org` at a sloppy provider would inherit
+    Alice's groups and streams.
+    """
+    if response and response.get("email_verified") in (True, "true", "True"):
+        return True
+    return backend_trusts_email(backend.name)
+
+
+def resolve_user(strategy, backend, uid, details, response=None):
+    """Find the account this sign-in belongs to, and the association it came
+    through; (None, None) when there is no account to sign in to.
+
+    Joins on (provider, subject) — never on the email alone, which is not
+    unique across providers and can be reassigned. Falls back to linking a
+    provider-verified email to an existing account.
+    """
+    session = DBSession()
+    storage = strategy.storage
+    provider, email = backend.name, details.get("email")
+
+    social = storage.user.get_social_auth(provider, uid)
+    if social is not None:
+        return social.user, social
+
+    # Associations predating subject-keyed uids hold the email instead; re-key
+    # them in place, so existing users are not handed brand-new accounts.
+    if email:
+        legacy = storage.user.get_social_auth(provider, email)
+        if legacy is not None:
+            legacy.uid = uid
+            legacy.user.oauth_uid = uid
+            return legacy.user, legacy
+
+    if provider == default_auth_backend():
+        # Users with no association carry only User.oauth_uid, which could only
+        # have come from the single backend configured at the time — an email
+        # for a provider that keyed on one, otherwise the subject itself.
+        candidates = [value for value in (uid, email) if value]
+        legacy_user = session.scalar(
+            sa.select(User).where(User.oauth_uid.in_(candidates))
+        )
+        if legacy_user is not None:
+            legacy_user.oauth_uid = uid
+            return legacy_user, None
+
+    if email and _email_is_verified(backend, details, response):
+        return session.scalar(sa.select(User).where(User.contact_email == email)), None
+
+    return None, None
+
+
+def matched_user(user, social):
+    """Pipeline result for a sign-in that landed on an existing account.
+
+    The association goes back with it: `social_user` ran before the account was
+    matched, and re-keying one is not visible to a fresh lookup until the
+    session flushes, so `associate_user` would otherwise create a second
+    association and collide on (provider, uid).
+    """
+    result = {"is_new": False, "user": user}
+    if social is not None:
+        result["social"] = social
+    return result
+
+
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
     session = DBSession()
 
     try:
-        existing_user = session.scalar(sa.select(User).where(User.oauth_uid == uid))
+        existing_user, existing_social = resolve_user(
+            strategy, backend, uid, details, kwargs.get("response")
+        )
 
         if cfg["invitations.enabled"]:
             if existing_user is None and invite_token is None:
@@ -36,7 +108,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Missing invite token. A valid invite token is required."
                 )
             elif existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(existing_user, existing_social)
 
             try:
                 n_days = int(cfg["invitations.days_until_expiry"])
@@ -84,7 +156,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             return {"is_new": True, "user": user}
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(existing_user, existing_social)
 
             if user is not None:  # Matching user already exists
                 return {"is_new": False, "user": user}
@@ -129,7 +201,9 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     storage = strategy.storage
     session = DBSession()
 
-    existing_user = session.scalar(sa.select(User).where(User.oauth_uid == uid))
+    existing_user, _ = resolve_user(
+        strategy, backend, uid, details, kwargs.get("response")
+    )
 
     if not user and existing_user is None:
         email_as_username = strategy.setting("USERNAME_IS_FULL_EMAIL", False)
@@ -156,7 +230,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         return
 
     session = DBSession()
-    existing_user = session.scalar(sa.select(User).where(User.oauth_uid == uid))
+    existing_user = user
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
@@ -249,7 +323,7 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
         return
 
     session = DBSession()
-    existing_user = session.scalar(sa.select(User).where(User.oauth_uid == uid))
+    existing_user = user
 
     if not (
         existing_user.contact_email is None

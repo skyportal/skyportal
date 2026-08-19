@@ -783,6 +783,10 @@ async def post_source_async(data, user_id, session, refresh_source=True):
 
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
+    # Obj.id is a string column; numeric survey ids arrive as JSON numbers and
+    # would blow up the checks below (and the varchar comparison) untouched.
+    data["id"] = str(data["id"])
+
     if " " in data["id"]:
         raise AttributeError("No spaces allowed in source ID")
 
@@ -1050,6 +1054,10 @@ def post_source(data, user_id, session, refresh_source=True):
     warnings = []
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    # Obj.id is a string column; numeric survey ids arrive as JSON numbers and
+    # would blow up the checks below (and the varchar comparison) untouched.
+    data["id"] = str(data["id"])
 
     if " " in data["id"]:
         raise AttributeError("No spaces allowed in source ID")

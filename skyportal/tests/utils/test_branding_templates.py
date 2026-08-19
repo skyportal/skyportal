@@ -8,6 +8,7 @@ import pathlib
 
 import jinja2
 
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 
 ROOT = pathlib.Path(__file__).parents[3]
@@ -15,6 +16,10 @@ ABOUT_TEMPLATE = ROOT / "static/js/components/templates/AboutPlugins.tsx.templat
 LOGIN_TEMPLATE = ROOT / "static/login.html.template"
 
 FRITZ_LIKE = {
+    "auth_backends": [
+        {"name": "google-oauth2", "label": "Sign in with Google"},
+        {"name": "iam-oauth2", "label": "Sign in with IAM"},
+    ],
     "app": {
         "title": "Fritz",
         "logos": [{"src": "/static/images/GROWTH_logo.png", "alt_text": "GROWTH"}],
@@ -49,12 +54,16 @@ FRITZ_LIKE = {
                 {"name": "BOOM", "url": "https://github.com/boom-astro/boom/pulls"},
             ],
         },
-    }
+    },
 }
 
 
 def render(template_path, config):
-    """Render as fill_conf_values does: no autoescape, loader rooted at the file."""
+    """Render as fill_conf_values does: no autoescape, loader rooted at the file,
+    and the resolved auth backends injected (the login page draws its buttons
+    from those, so leaving them out renders a page with no way to log in)."""
+    if "auth_backends" not in config:
+        config["auth_backends"] = configured_backends()
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(template_path.parent)))
     return env.get_template(template_path.name).render(config)
 
@@ -125,3 +134,24 @@ def test_templates_render_against_the_shipped_config():
     for button in cfg["app.login_buttons"]:
         assert button["url"] in login
         assert button["image"] in login
+
+
+def test_login_template_skips_artwork_for_an_unconfigured_backend():
+    """Artwork is matched to a provider by url; an entry naming a provider that
+    is not configured must not render a button pointing nowhere."""
+    config = {
+        "auth_backends": [{"name": "google-oauth2", "label": "Sign in with Google"}],
+        "app": {
+            **FRITZ_LIKE["app"],
+            "login_buttons": [
+                {"url": "/login/google-oauth2", "image": "/g.png", "alt_text": "G"},
+                {"url": "/login/retired", "image": "/old.png", "alt_text": "Retired"},
+            ],
+        },
+    }
+
+    out = render(LOGIN_TEMPLATE, config)
+
+    assert out.count('class="loginButton"') == 1
+    assert "/login/retired" not in out
+    assert "/old.png" not in out

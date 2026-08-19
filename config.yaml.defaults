@@ -8,8 +8,9 @@ app:
     <a href="https://github.com/skyportal/skyportal">
       https://github.com/skyportal/skyportal
     </a>
-  # Sign-in buttons on the login page, one per auth provider (zero or more).
-  # `url` is the provider's login route, as registered by the auth backend.
+  # Artwork for the login page buttons. The buttons themselves come from
+  # `server.auth.backends`, so a provider needs no entry here; add one, matched
+  # on `url`, to replace that provider's text button with an image.
   login_buttons:
     - url: /login/google-oauth2
       image: /static/images/btn_google_signin_dark_normal_web.png
