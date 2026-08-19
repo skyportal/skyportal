@@ -75,7 +75,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
   const deleteAlias = () => {
     deleteGcnAlias({
       dateobs: gcnEvent.dateobs as string,
-      params: { alias: aliasToDelete },
+      params: { alias: aliasToDelete ?? "" },
     })
       .unwrap()
       .then(() => {

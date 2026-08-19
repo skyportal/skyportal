@@ -56,7 +56,7 @@ const AddGcnAlias = ({ gcnEvent }: AddGcnAliasProps) => {
     try {
       await postGcnAlias({
         dateobs: gcnEvent.dateobs as string,
-        params: { alias },
+        params: { alias: alias ?? "" },
       }).unwrap();
       dispatch(showNotification("GCN Event Alias successfully added."));
       setDialogOpen(false);

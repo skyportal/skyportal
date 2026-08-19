@@ -16,16 +16,32 @@
  * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
  * the active (currently-loaded) event's queries refetch.
  */
-import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+import type { CommentAttachment } from "skyportal-js/Comments";
+import type {
+  GcnCatalogQuery,
+  GcnEvent,
+  GcnEventIdResponse,
+  GcnEventPost,
+  GcnEventPostResponse,
+  GcnEventTachInfo,
+  GcnReport,
+  GcnReportPost,
+  GcnSummary,
+  GcnSummaryPost,
+  GcnTrigger,
+} from "skyportal-js/GcnEvents";
+import type {
+  ObservationPlanIdsResponse,
+  ObservationPlanPost,
+  ObservationPlanRequest,
+} from "skyportal-js/ObservationPlans";
+import type { SurveyEfficiencyForObservations } from "skyportal-js/SurveyEfficiency";
 
-export interface CommentAttachment {
-  commentId: number | string;
-  text: string;
-  attachment: string;
-  attachment_name: string;
-}
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+
+export type { CommentAttachment };
 
 function fileReaderPromise(
   file: File,
@@ -41,377 +57,399 @@ function fileReaderPromise(
 export const gcnEventApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // ----- Main event + read-only sub-fetches -----
-    getGcnEvent: build.query<RouteData<"GET /api/gcn_event/{dateobs}">, string>(
-      {
-        query: (dateobs) =>
-          `api/gcn_event/${dateobs}?excludeNoticeContent=true`,
-        // Broad "GcnEvent" tag (so mutations / other REFRESH_* events still
-        // refetch) plus a per-id tag keyed by dateobs, so REFRESH_GCN_EVENT only
-        // refetches the event a client is actually viewing.
-        providesTags: (_result, _error, dateobs) => [
-          "GcnEvent",
-          { type: "GcnEvent", id: dateobs },
-        ],
-      },
-    ),
-    getGcnTach: build.query<{ circulars?: Record<string, string> }, string>({
-      query: (dateobs) => `api/gcn_event/${dateobs}/tach`,
+    getGcnEvent: build.query<GcnEvent, string>({
+      queryFn: (dateobs, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEvent(dateobs, { excludeNoticeContent: true }),
+        ),
+      // Broad "GcnEvent" tag (so mutations / other REFRESH_* events still
+      // refetch) plus a per-id tag keyed by dateobs, so REFRESH_GCN_EVENT only
+      // refetches the event a client is actually viewing.
+      providesTags: (_result, _error, dateobs) => [
+        "GcnEvent",
+        { type: "GcnEvent", id: dateobs },
+      ],
+    }),
+    getGcnTach: build.query<GcnEventTachInfo, string>({
+      queryFn: (dateobs, api) =>
+        clientQuery(api, (client) => client.fetchGcnEventTach(dateobs)),
       providesTags: (_result, _error, dateobs) => [
         "GcnEvent",
         { type: "GcnEvent", id: dateobs },
       ],
     }),
     getGcnTrigger: build.query<
-      any,
+      GcnTrigger[],
       { dateobs: string; allocationID?: number | string | null }
     >({
-      query: ({ dateobs, allocationID = null }) =>
-        allocationID
-          ? `api/gcn_event/${dateobs}/triggered/${allocationID}`
-          : `api/gcn_event/${dateobs}/triggered`,
+      queryFn: ({ dateobs, allocationID = null }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventTriggers(dateobs, {
+            ...(allocationID ? { allocationId: Number(allocationID) } : {}),
+          }),
+        ),
       providesTags: ["GcnEvent"],
     }),
     getGcnEventSurveyEfficiency: build.query<
-      RouteData<"GET /api/gcn_event/{gcnevent_id}/survey_efficiency">,
+      SurveyEfficiencyForObservations[],
       { gcnID: number | string }
     >({
-      query: ({ gcnID }) => `api/gcn_event/${gcnID}/survey_efficiency`,
+      queryFn: ({ gcnID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventSurveyEfficiency(Number(gcnID)),
+        ),
       providesTags: ["GcnEvent"],
     }),
     getGcnEventCatalogQueries: build.query<
-      RouteData<"GET /api/gcn_event/{gcnevent_id}/catalog_query">,
+      GcnCatalogQuery[],
       { gcnID: number | string }
     >({
-      query: ({ gcnID }) => `api/gcn_event/${gcnID}/catalog_query`,
+      queryFn: ({ gcnID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventCatalogQueries(Number(gcnID)),
+        ),
       providesTags: ["GcnEvent"],
     }),
     getObservationPlanRequests: build.query<
-      RouteData<"GET /api/gcn_event/{gcnevent_id}/observation_plan_requests">,
+      ObservationPlanRequest[],
       number | string
     >({
-      query: (gcnEventID) =>
-        `api/gcn_event/${gcnEventID}/observation_plan_requests`,
+      queryFn: (gcnEventID, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventObservationPlanRequests(Number(gcnEventID)),
+        ),
       providesTags: ["GcnEvent"],
     }),
-    getObservationPlan: build.query<
-      RouteData<"GET /api/observation_plan/{observation_plan_request_id}">,
-      number | string
-    >({
-      query: (id) =>
-        `api/observation_plan/${id}?includePlannedObservations=true`,
+    getObservationPlan: build.query<ObservationPlanRequest, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchObservationPlan(Number(id), {
+            includePlannedObservations: true,
+          }),
+        ),
     }),
     getGcnEventReport: build.query<
-      RouteData<"GET /api/gcn_event/{dateobs}/report/{report_id}">,
+      GcnReport,
       { dateobs: string; reportID: number | string }
     >({
-      query: ({ dateobs, reportID }) =>
-        `api/gcn_event/${dateobs}/report/${reportID}`,
+      queryFn: ({ dateobs, reportID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnReport(dateobs, Number(reportID)),
+        ),
       providesTags: ["GcnEvent"],
     }),
-    getGcnEventReports: build.query<any, string>({
-      query: (dateobs) => `api/gcn_event/${dateobs}/report`,
+    getGcnEventReports: build.query<GcnReport[], string>({
+      queryFn: (dateobs, api) =>
+        clientQuery(api, (client) => client.fetchGcnReports(dateobs)),
       providesTags: ["GcnEvent"],
     }),
     getGcnEventSummary: build.query<
-      RouteData<"GET /api/gcn_event/{dateobs}/summary/{summary_id}">,
+      GcnSummary,
       { dateobs: string; summaryID: number | string }
     >({
-      query: ({ dateobs, summaryID }) =>
-        `api/gcn_event/${dateobs}/summary/${summaryID}`,
+      queryFn: ({ dateobs, summaryID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnSummary(dateobs, Number(summaryID)),
+        ),
     }),
+    // The empty download/preview values are what select the JSON form; any
+    // non-empty value (even "false") reads as truthy server-side.
     getCommentOnGcnEventTextAttachment: build.query<
       CommentAttachment,
       { gcnEventID: number | string; commentID: number | string }
     >({
-      query: ({ gcnEventID, commentID }) =>
-        `api/gcn_event/${gcnEventID}/comments/${commentID}/attachment?download=false&preview=false`,
+      queryFn: ({ gcnEventID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachmentText(gcnEventID, Number(commentID), {
+            resourceType: "gcn_event",
+          }),
+        ),
     }),
 
     // ----- Event-level mutations -----
-    submitGcnEvent: build.mutation<RouteData<"POST /api/gcn_event">, any>({
-      query: (data) => ({
-        url: "api/gcn_event",
-        method: "POST",
-        body: data,
-      }),
+    submitGcnEvent: build.mutation<GcnEventPostResponse, GcnEventPost>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.postGcnEvent(data)),
       invalidatesTags: ["GcnEvent"],
     }),
-    postGcnTach: build.mutation<any, string>({
-      query: (dateobs) => ({
-        url: `api/gcn_event/${dateobs}/tach`,
-        method: "POST",
-      }),
+    postGcnTach: build.mutation<GcnEventIdResponse, string>({
+      queryFn: (dateobs, api) =>
+        clientQuery(api, (client) => client.postGcnEventTach(dateobs)),
       invalidatesTags: ["GcnEvent"],
     }),
-    postGcnGraceDB: build.mutation<any, string>({
-      query: (dateobs) => ({
-        url: `api/gcn_event/${dateobs}/gracedb`,
-        method: "POST",
-      }),
+    postGcnGraceDB: build.mutation<GcnEventIdResponse, string>({
+      queryFn: (dateobs, api) =>
+        clientQuery(api, (client) => client.postGcnEventGracedb(dateobs)),
       invalidatesTags: ["GcnEvent"],
     }),
     postGcnAlias: build.mutation<
-      any,
-      { dateobs: string; params?: Record<string, any> | undefined }
+      void,
+      { dateobs: string; params: { alias: string } }
     >({
-      query: ({ dateobs, params = {} }) => ({
-        url: `api/gcn_event/${dateobs}/alias`,
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ dateobs, params }, api) =>
+        clientQuery(api, (client) =>
+          client.postGcnEventAlias(dateobs, params.alias),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteGcnAlias: build.mutation<
-      any,
-      { dateobs: string; params?: Record<string, any> | undefined }
+      void,
+      { dateobs: string; params: { alias: string } }
     >({
-      query: ({ dateobs, params = {} }) => ({
-        url: `api/gcn_event/${dateobs}/alias`,
-        method: "DELETE",
-        body: params,
-      }),
+      queryFn: ({ dateobs, params }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnEventAlias(dateobs, params.alias),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     putGcnTrigger: build.mutation<
-      any,
+      GcnTrigger,
       {
         dateobs: string;
         allocationID: number | string;
         triggered: boolean;
       }
     >({
-      query: ({ dateobs, allocationID, triggered }) => ({
-        url: `api/gcn_event/${dateobs}/triggered/${allocationID}`,
-        method: "PUT",
-        body: { triggered },
-      }),
+      queryFn: ({ dateobs, allocationID, triggered }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGcnEventTrigger(
+            dateobs,
+            Number(allocationID),
+            triggered,
+          ),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteGcnTrigger: build.mutation<
-      any,
+      GcnTrigger,
       { dateobs: string; allocationID: number | string }
     >({
-      query: ({ dateobs, allocationID }) => ({
-        url: `api/gcn_event/${dateobs}/triggered/${allocationID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ dateobs, allocationID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnEventTrigger(dateobs, Number(allocationID)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
 
     // ----- Comments -----
     addCommentOnGcnEvent: build.mutation<
-      RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
-      any
+      { comment_id: number },
+      {
+        gcnevent_id: number | string;
+        text: string;
+        group_ids?: number[];
+        attachment?: File;
+      }
     >({
-      queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/gcn_event/${body.gcnevent_id}/comments`,
-          method: "POST",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return {
-          data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
-        };
+      queryFn: async ({ gcnevent_id, text, group_ids, attachment }, api) => {
+        const file = attachment
+          ? await fileReaderPromise(attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          file
+            ? client.postCommentWithAttachment(
+                gcnevent_id,
+                text,
+                file.name,
+                String(file.body),
+                { resourceType: "gcn_event", groupIds: group_ids },
+              )
+            : client.postComment(gcnevent_id, text, {
+                resourceType: "gcn_event",
+                groupIds: group_ids,
+              }),
+        );
       },
       invalidatesTags: ["GcnEvent"],
     }),
     editCommentOnGcnEvent: build.mutation<
-      RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+      void,
       {
         commentID: number | string;
         gcnEventID: number | string;
-        formData: any;
+        formData: {
+          text?: string;
+          group_ids?: number[];
+          attachment?: File;
+        };
       }
     >({
-      queryFn: async (
-        { commentID, gcnEventID, formData },
-        _api,
-        _extra,
-        baseQuery,
-      ) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/gcn_event/${gcnEventID}/comments/${commentID}`,
-          method: "PUT",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return {
-          data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
-        };
+      queryFn: async ({ commentID, gcnEventID, formData }, api) => {
+        const file = formData.attachment
+          ? await fileReaderPromise(formData.attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          client.updateComment(gcnEventID, Number(commentID), {
+            resourceType: "gcn_event",
+            text: formData.text,
+            groupIds: formData.group_ids,
+            ...(file
+              ? { attachmentName: file.name, attachmentBody: String(file.body) }
+              : {}),
+          }),
+        );
       },
       invalidatesTags: ["GcnEvent"],
     }),
     deleteCommentOnGcnEvent: build.mutation<
-      any,
+      void,
       { gcnEventID: number | string; commentID: number | string }
     >({
-      query: ({ gcnEventID, commentID }) => ({
-        url: `api/gcn_event/${gcnEventID}/comments/${commentID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ gcnEventID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteComment(gcnEventID, Number(commentID), {
+            resourceType: "gcn_event",
+          }),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
 
     // ----- Observation plan requests -----
-    submitObservationPlanRequest: build.mutation<any, any>({
-      query: (params) => {
-        const { instrument_name, ...paramsToSubmit } = params;
-        return {
-          url: "api/observation_plan",
-          method: "POST",
-          body: paramsToSubmit,
-        };
-      },
+    // The form submits a batch (one plan per queued allocation), which the
+    // handler takes as `observation_plans` + `combine_plans`.
+    submitObservationPlanRequest: build.mutation<
+      ObservationPlanIdsResponse,
+      { observation_plans: ObservationPlanPost[]; combine_plans?: boolean }
+    >({
+      queryFn: ({ observation_plans, combine_plans }, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationPlans(observation_plans, {
+            combinePlans: combine_plans,
+          }),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     sendObservationPlanRequest: build.mutation<
-      RouteData<"POST /api/observation_plan/{observation_plan_request_id}/queue">,
+      ObservationPlanRequest | null,
       number | string
     >({
-      query: (id) => ({
-        url: `api/observation_plan/${id}/queue`,
-        method: "POST",
-      }),
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationPlanQueue(Number(id)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     removeObservationPlanRequest: build.mutation<
-      RouteData<"DELETE /api/observation_plan/{observation_plan_request_id}/queue">,
+      ObservationPlanRequest,
       number | string
     >({
-      query: (id) => ({
-        url: `api/observation_plan/${id}/queue`,
-        method: "DELETE",
-      }),
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationPlanQueue(Number(id)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
-    deleteObservationPlanRequest: build.mutation<any, number | string>({
-      query: (id) => ({
-        url: `api/observation_plan/${id}`,
-        method: "DELETE",
-      }),
+    deleteObservationPlanRequest: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteObservationPlan(Number(id))),
       invalidatesTags: ["GcnEvent"],
     }),
     submitObservationPlanRequestTreasureMap: build.mutation<
-      any,
+      void,
       number | string
     >({
-      query: (id) => ({
-        url: `api/observation_plan/${id}/treasuremap`,
-        method: "POST",
-      }),
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationPlanTreasuremap(Number(id)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteObservationPlanRequestTreasureMap: build.mutation<
-      any,
+      void,
       number | string
     >({
-      query: (id) => ({
-        url: `api/observation_plan/${id}/treasuremap`,
-        method: "DELETE",
-      }),
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationPlanTreasuremap(Number(id)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     createObservationPlanRequestObservingRun: build.mutation<
-      any,
-      { id: number | string; params?: Record<string, any> | undefined }
+      void,
+      { id: number | string; params?: { groupIds?: number[] } | undefined }
     >({
-      query: ({ id, params = {} }) => ({
-        url: `api/observation_plan/${id}/observing_run`,
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ id, params = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationPlanObservingRun(Number(id), params),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteObservationPlanFields: build.mutation<
-      RouteData<"DELETE /api/observation_plan/{observation_plan_request_id}/fields">,
-      { id: number | string; fieldIds: any }
+      void,
+      { id: number | string; fieldIds: number[] }
     >({
-      query: ({ id, fieldIds }) => ({
-        url: `api/observation_plan/${id}/fields`,
-        method: "DELETE",
-        body: { fieldIds },
-      }),
+      queryFn: ({ id, fieldIds }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationPlanFields(Number(id), fieldIds),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
 
     // ----- Summaries -----
     postGcnEventSummary: build.mutation<
-      any,
-      { dateobs: string; params: Record<string, any> }
+      GcnEventIdResponse,
+      { dateobs: string; params: GcnSummaryPost }
     >({
-      query: ({ dateobs, params }) => ({
-        url: `api/gcn_event/${dateobs}/summary`,
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ dateobs, params }, api) =>
+        clientQuery(api, (client) => client.postGcnSummary(dateobs, params)),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteGcnEventSummary: build.mutation<
-      any,
+      void,
       { dateobs: string; summaryID: number | string }
     >({
-      query: ({ dateobs, summaryID }) => ({
-        url: `api/gcn_event/${dateobs}/summary/${summaryID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ dateobs, summaryID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnSummary(dateobs, Number(summaryID)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     patchGcnEventSummary: build.mutation<
-      any,
-      { dateobs: string; summaryID: number | string; formData: any }
+      GcnSummary,
+      {
+        dateobs: string;
+        summaryID: number | string;
+        formData: { body: string };
+      }
     >({
-      query: ({ dateobs, summaryID, formData }) => ({
-        url: `api/gcn_event/${dateobs}/summary/${summaryID}`,
-        method: "PATCH",
-        body: formData,
-      }),
+      queryFn: ({ dateobs, summaryID, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGcnSummary(dateobs, Number(summaryID), formData.body),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
 
     // ----- Reports -----
     postGcnEventReport: build.mutation<
-      any,
-      { dateobs: string; params: Record<string, any> }
+      GcnEventIdResponse,
+      { dateobs: string; params: GcnReportPost }
     >({
-      query: ({ dateobs, params }) => ({
-        url: `api/gcn_event/${dateobs}/report`,
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ dateobs, params }, api) =>
+        clientQuery(api, (client) => client.postGcnReport(dateobs, params)),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteGcnEventReport: build.mutation<
-      any,
+      void,
       { dateobs: string; reportID: number | string }
     >({
-      query: ({ dateobs, reportID }) => ({
-        url: `api/gcn_event/${dateobs}/report/${reportID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ dateobs, reportID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnReport(dateobs, Number(reportID)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     patchGcnEventReport: build.mutation<
-      any,
-      { dateobs: string; reportID: number | string; formData: any }
+      GcnReport,
+      {
+        dateobs: string;
+        reportID: number | string;
+        formData: { data?: Record<string, unknown>; published?: boolean };
+      }
     >({
-      query: ({ dateobs, reportID, formData }) => ({
-        url: `api/gcn_event/${dateobs}/report/${reportID}`,
-        method: "PATCH",
-        body: formData,
-      }),
+      queryFn: ({ dateobs, reportID, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGcnReport(dateobs, Number(reportID), formData),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
   }),
