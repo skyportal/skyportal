@@ -11,7 +11,12 @@ from numpy import random
 from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
-from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
+from skyportal.tests import (
+    api,
+    retry_until,
+    wait_for_gcn_event,
+    wait_for_localization,
+)
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -21,8 +26,11 @@ cfg = load_config()
 
 
 def enter_comment_text(page, comment_text):
+    chat = page.locator('//div[@data-testid="source-chat"]').first
+    if not chat.is_visible():
+        page.locator('//button[@data-testid="source-chat-button"]').first.click()
     comment_box = page.locator(
-        "//div[@data-testid='comments-accordion']//textarea[@name='text']"
+        "//form[@data-testid='comment-form']//textarea[@name='text']"
     ).first
     comment_box.click()
     comment_box.fill(comment_text)
@@ -137,7 +145,7 @@ def test_upload_download_comment_attachment(page, user, public_source):
     enter_comment_text(page, comment_text)
 
     page.locator(
-        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
+        "//form[@data-testid='comment-form']//input[@name='attachment']"
     ).first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -146,18 +154,18 @@ def test_upload_download_comment_attachment(page, user, public_source):
         )
     )
     page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     ).first.click()
 
     comment_p = page.locator(
-        f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+        f'//div[@data-testid="source-chat"]//p[text()="{comment_text}"]'
     ).first
     expect(comment_p).to_be_visible()
 
     # hover the comment to reveal the attachment controls, then open the preview
     comment_p.locator("xpath=../..").hover()
     attachment_button = page.locator(
-        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
+        '//div[@data-testid="source-chat"]//button[@data-testid="attachmentButton_spec"]'
     ).first
     attachment_button.hover()
     attachment_button.click()
@@ -267,23 +275,23 @@ def test_gcn_summary_observations(
 
     id = data["data"]["ids"][0]
 
-    # wait for the observation plan to finish loading
-    time.sleep(15)
+    def plan_ready():
+        status, data = api(
+            "GET",
+            f"observation_plan/{id}",
+            params={"includePlannedObservations": "true"},
+            token=super_admin_token,
+        )
+        assert status == 200
+        assert data["status"] == "success"
 
-    status, data = api(
-        "GET",
-        f"observation_plan/{id}",
-        params={"includePlannedObservations": "true"},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
+        assert data["data"]["gcnevent_id"] == gcnevent_id
+        assert data["data"]["allocation_id"] == allocation_id
+        assert data["data"]["payload"] == request_data["payload"]
 
-    assert data["data"]["gcnevent_id"] == gcnevent_id
-    assert data["data"]["allocation_id"] == allocation_id
-    assert data["data"]["payload"] == request_data["payload"]
+        assert len(data["data"]["observation_plans"]) == 1
 
-    assert len(data["data"]["observation_plans"]) == 1
+    retry_until(plan_ready, timeout=60)
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/sample_observation_gw.csv"
     data = {
@@ -305,24 +313,13 @@ def test_gcn_summary_observations(
         "startDate": "2019-08-13 08:18:05",
         "endDate": "2019-08-19 08:18:05",
     }
-    nretries = 0
-    observations_loaded = False
-    while not observations_loaded and nretries < 25:
-        try:
-            status, data = api(
-                "GET", "observation", params=params, token=super_admin_token
-            )
-            assert status == 200
-            data = data["data"]
-            assert len(data["observations"]) >= 9
-            observations_loaded = True
-        except AssertionError:
-            nretries = nretries + 1
-            time.sleep(2)
 
-    assert nretries < 25
-    assert status == 200
-    assert observations_loaded is True
+    def observations_loaded():
+        status, data = api("GET", "observation", params=params, token=super_admin_token)
+        assert status == 200
+        assert len(data["data"]["observations"]) >= 9
+
+    retry_until(observations_loaded, timeout=50)
     # generate the GCN summary (with observations) and read it back
     text = get_summary(
         page, super_admin_user, public_group, False, False, True, super_admin_token
@@ -413,25 +410,19 @@ def test_gcn_summary_galaxies(
 
     params = {"catalog_name": catalog_name}
 
-    nretries = 0
-    galaxies_loaded = False
-    while nretries < 40:
+    def galaxies_loaded():
         status, data = api(
             "GET", "galaxy_catalog", token=view_only_token, params=params
         )
         assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
+        galaxies = data["data"]["galaxies"]
+        assert len(galaxies) == 92
+        assert any(
             d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
-        ):
-            galaxies_loaded = True
-            break
-        nretries = nretries + 1
-        time.sleep(2)
+            for d in galaxies
+        )
 
-    assert nretries < 40
-    assert galaxies_loaded
+    retry_until(galaxies_loaded, timeout=80)
 
     # The catalog row count being ready doesn't mean the galaxies are yet matchable
     # within the localization (the probability cross-match lags), and the summary's
@@ -445,18 +436,15 @@ def test_gcn_summary_galaxies(
         "localizationCumprob": 0.95,
         "returnProbability": True,
     }
-    nretries = 0
-    galaxies_in_localization = False
-    while nretries < 40:
+
+    def galaxies_in_localization():
         status, data = api(
             "GET", "galaxy_catalog", token=super_admin_token, params=loc_params
         )
-        if status == 200 and len(data["data"]["galaxies"]) > 0:
-            galaxies_in_localization = True
-            break
-        nretries += 1
-        time.sleep(2)
-    assert galaxies_in_localization
+        assert status == 200
+        assert len(data["data"]["galaxies"]) > 0
+
+    retry_until(galaxies_in_localization, timeout=80)
 
     text = get_summary(
         page, super_admin_user, public_group, False, True, False, super_admin_token
@@ -696,17 +684,17 @@ def get_summary(
         time.sleep(2)
     assert summary_id is not None, "GCN summary was not created by the Generate action"
 
-    summary_text = "pending"
-    for _ in range(40):
+    def summary_ready():
         status, data = api(
             "GET", f"gcn_event/{dateobs}/summary/{summary_id}", token=token
         )
-        if status == 200 and data["data"]["text"] != "pending":
-            summary_text = data["data"]["text"]
-            break
-        time.sleep(5)
-    assert summary_text != "pending", "GCN summary text did not finish generating"
-    return summary_text
+        assert status == 200
+        assert data["data"]["text"] != "pending", (
+            "GCN summary text did not finish generating"
+        )
+        return data["data"]["text"]
+
+    return retry_until(summary_ready, timeout=200)
 
 
 def test_download_localization(super_admin_token):

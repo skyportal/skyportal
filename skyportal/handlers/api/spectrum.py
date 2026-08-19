@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Annotated
 
 import arrow
 import numpy as np
@@ -9,6 +10,7 @@ import sqlalchemy as sa
 from arrow import ParserError
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy import or_
 from sqlalchemy.orm import defer, selectinload
 
@@ -316,11 +318,6 @@ class SpectrumHandler(BaseHandler):
           tags:
             - spectra
           parameters:
-            - in: path
-              name: spectrum_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: includeOriginalFile
               nullable: true
@@ -957,12 +954,6 @@ class SpectrumHandler(BaseHandler):
         description: Update a spectrum
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1148,12 +1139,6 @@ class SpectrumHandler(BaseHandler):
         description: Delete a spectrum
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1491,7 +1476,12 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
 
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve spectra for")
+        ],
+    ):
         """
         ---
         summary: Get spectra for an object
@@ -1499,12 +1489,6 @@ class ObjSpectraHandler(BaseHandler):
         tags:
           - spectra
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve spectra for
           - in: query
             name: normalization
             required: false
@@ -1982,11 +1966,6 @@ class SyntheticPhotometryHandler(BaseHandler):
         tags:
           - spectra
         parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: filters
             schema:

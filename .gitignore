@@ -38,6 +38,7 @@ static/js/components/templates/SidebarAndHeader.tsx
 static/js/components/templates/HeaderContent.tsx
 static/js/components/templates/HomePage.tsx
 static/js/components/templates/HoursBelowAirmassPlot.tsx
+static/js/components/templates/AboutPlugins.tsx
 static/login.html
 static/loginerror.html
 static/index.html
@@ -78,6 +79,9 @@ observability/tests/token
 services/pgbouncer/pgbouncer.ini
 services/pgbouncer/supervisor.conf
 services/pgbouncer/userlist.txt
+
+# Generated broker_ingest config (from services/broker_ingest/*.template)
+services/broker_ingest/supervisor.conf
 
 # GCN Kafka credential (local only)
 credential

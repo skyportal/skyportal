@@ -225,12 +225,6 @@ class AssignmentHandler(BaseHandler):
           description: Retrieve an observing run assignment
           tags:
             - assignments
-          parameters:
-            - in: path
-              name: assignment_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
                content:
@@ -361,12 +355,6 @@ class AssignmentHandler(BaseHandler):
         description: Update an assignment
         tags:
           - assignments
-        parameters:
-          - in: path
-            name: assignment_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -435,12 +423,6 @@ class AssignmentHandler(BaseHandler):
         description: Delete assignment.
         tags:
           - assignments
-        parameters:
-          - in: path
-            name: assignment_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1123,12 +1105,6 @@ class FollowupRequestHandler(BaseHandler):
           description: Retrieve a followup request
           tags:
             - followup requests
-          parameters:
-            - in: path
-              name: followup_request_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
                content:
@@ -1611,12 +1587,6 @@ class FollowupRequestHandler(BaseHandler):
         description: Update a follow-up request
         tags:
           - followup requests
-        parameters:
-          - in: path
-            name: request_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -1765,12 +1735,6 @@ class FollowupRequestHandler(BaseHandler):
         description: Delete follow-up request.
         tags:
           - followup requests
-        parameters:
-          - in: path
-            name: request_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1841,11 +1805,6 @@ class FollowupRequestCommentHandler(BaseHandler):
         tags:
           - followup requests
         parameters:
-          - in: path
-            name: followup_request_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: comment
             nullable: true
@@ -3019,12 +2978,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
           description: Retrieve a single default follow-up request
           tags:
             - default followup requests
-          parameters:
-            - in: path
-              name: default_followup_request_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -3093,12 +3046,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
         description: Delete a default follow-up request
         tags:
           - filters
-        parameters:
-          - in: path
-            name: default_followup_request_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -3132,12 +3079,6 @@ class FollowupRequestWatcherHandler(BaseHandler):
         description: Add follow-up request to watch list
         tags:
             - followup requests
-        parameters:
-            - in: path
-              name: followup_request_id
-              required: true
-              schema:
-                type: integer
         responses:
             200:
                content:
@@ -3211,12 +3152,6 @@ class FollowupRequestWatcherHandler(BaseHandler):
         description: Delete follow-up request from watch list
         tags:
             - followup requests
-        parameters:
-            - in: path
-              name: followup_request_id
-              required: true
-              schema:
-                type: integer
         responses:
             200:
                content:

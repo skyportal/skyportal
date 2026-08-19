@@ -4,6 +4,7 @@ import concurrent.futures
 import sentry_sdk
 import sqlalchemy as sa
 import tornado.web
+from astropy.utils.iers import conf as iers_conf
 from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
@@ -47,6 +48,7 @@ from skyportal.handlers.api import (
     ClassificationVotesHandler,
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
+    CommentChannelHandler,
     CommentHandler,
     ConfigHandler,
     DatalabQueryHandler,
@@ -81,6 +83,7 @@ from skyportal.handlers.api import (
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventNoticeDownloadHandler,
+    GcnEventObjHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
     GcnEventSurveyEfficiencyHandler,
@@ -193,7 +196,6 @@ from skyportal.handlers.api import (
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
-    SourcesConfirmedInGCNHandler,
     SpatialCatalogASCIIFileHandler,
     SpatialCatalogHandler,
     SpectrumASCIIFileHandler,
@@ -204,6 +206,7 @@ from skyportal.handlers.api import (
     StreamHandler,
     StreamUserHandler,
     SummaryQueryHandler,
+    SuperObjHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
     SurveyThumbnailHandler,
@@ -415,7 +418,7 @@ skyportal_handlers = [
     (r"/api/gcn_event/tags(/.*)?", GcnEventTagsHandler),
     (r"/api/gcn_event/properties", GcnEventPropertiesHandler),
     (r"/api/gcn_event(/.*)?", GcnEventHandler),
-    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", SourcesConfirmedInGCNHandler),
+    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", GcnEventObjHandler),
     (r"/api/associated_gcns/(.*)", GCNsAssociatedWithSourceHandler),
     (
         r"/api/localization(/[0-9]+)/observability",
@@ -547,6 +550,7 @@ skyportal_handlers = [
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
         SourceObservabilityPlotHandler,
     ),
+    (r"/api/sources/([0-9A-Za-z-_\.\+]+)/comments/channels", CommentChannelHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments", CommentHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?", CommentHandler),
     (
@@ -593,6 +597,7 @@ skyportal_handlers = [
     # End deprecated
     (r"/api/streams(/[0-9]+)/users(/.*)?", StreamUserHandler),
     (r"/api/streams(/[0-9]+)?", StreamHandler),
+    (r"/api/super_objs(/[0-9]+)?", SuperObjHandler),
     (
         r"/api/survey_efficiency/observations(/[0-9]+)?",
         SurveyEfficiencyForObservationsHandler,
@@ -728,6 +733,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("  Your server is insecure. Please update the secret string ")
         print("  in the configuration file!")
         print("!" * 80)
+
+    if cfg.get("testing", False):
+        iers_conf.auto_download = False
+        iers_conf.iers_degraded_accuracy = "ignore"
 
     handlers = baselayer_handlers + skyportal_handlers
 

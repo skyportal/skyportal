@@ -4,6 +4,7 @@ import functools
 import io
 import json
 import os
+from typing import Annotated
 from urllib.parse import urljoin, urlparse
 
 import numpy as np
@@ -12,6 +13,7 @@ import requests
 import sqlalchemy as sa
 import yaml
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from requests_oauthlib import OAuth1
 from sqlalchemy import func, select
@@ -52,6 +54,22 @@ from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
+
+AnalysisResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the analysis is on: must be "obj" (more to be added in the future)'
+    ),
+]
+AnalysisServiceId = Annotated[
+    int, Field(description="the analysis service id to be used")
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the underlying data. This would be a string for an object ID."
+    ),
+]
 
 log = make_log("app/analysis")
 
@@ -175,6 +193,19 @@ def generic_serialize(row, columns):
     }
 
 
+def _add_predicted_mag_column(df):
+    """Flatten the per-point MPC ephemeris mag (stashed in ``altdata`` by the SSO
+    ingest) into a ``predicted_mag`` column so period-finding can detrend on
+    obs - predicted. Absent for non-SSO sources; the column is then all-None."""
+    if "altdata" in df.columns:
+        df["predicted_mag"] = df["altdata"].apply(
+            lambda a: a.get("predicted_mag") if isinstance(a, dict) else None
+        )
+    else:
+        df["predicted_mag"] = None
+    return df
+
+
 def deredden_photometry_df(df, ra, dec):
     """Deredden a photometry DataFrame for Galactic extinction, using the same
     SFD dust map + G23 law as the photometry plot (utils.extinction). Per filter
@@ -225,6 +256,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "limiting_mag",
                 "zp",
                 "instrument_name",
+                "predicted_mag",
             ],
             "id_attr": "obj_id",
         },
@@ -384,24 +416,39 @@ def post_analysis(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            session.scalars(
+                sa.select(SuperObj)
+                .options(selectinload(SuperObj.objs))
+                .where(SuperObj.objs.any(Obj.id == obj_id))
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             input_data = session.scalars(stmt).all()
             if input_type == "photometry":
                 input_data = [serialize(phot, "ab", "both") for phot in input_data]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None
@@ -653,19 +700,35 @@ async def post_analysis_async(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            (
+                await session.scalars(
+                    sa.select(SuperObj)
+                    .options(selectinload(SuperObj.objs))
+                    .where(SuperObj.objs.any(Obj.id == obj_id))
+                )
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             if input_type == "photometry":
                 stmt = stmt.options(joinedload(Photometry.instrument))
@@ -685,6 +748,7 @@ async def post_analysis_async(
                     for phot in input_data
                 ]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None
@@ -1089,12 +1153,6 @@ class AnalysisServiceHandler(BaseHandler):
           description: Retrieve an Analysis Service by id
           tags:
             - analysis services
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -1182,12 +1240,6 @@ class AnalysisServiceHandler(BaseHandler):
         description: Update an Analysis Service.
         tags:
           - analysis services
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: True
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1348,12 +1400,6 @@ class AnalysisServiceHandler(BaseHandler):
         description: Delete an Analysis Service.
         tags:
           - analysis services
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1384,7 +1430,10 @@ class AnalysisServiceHandler(BaseHandler):
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
     async def post(
-        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+        self,
+        analysis_resource_type: AnalysisResourceType,
+        resource_id: ResourceId,
+        analysis_service_id: AnalysisServiceId,
     ):
         """
         ---
@@ -1392,29 +1441,6 @@ class AnalysisHandler(BaseHandler):
         description: Begin an analysis run
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis is on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID.
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: string
-            description: the analysis service id to be used
         requestBody:
           content:
             application/json:
@@ -1596,9 +1622,11 @@ class AnalysisHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        analysis_resource_type: str,
+        analysis_resource_type: AnalysisResourceType,
         obj_id_path: str | None = None,
-        analysis_id: int | None = None,
+        analysis_id: Annotated[
+            int | None, Field(description="ID of the analysis to return.")
+        ] = None,
     ):
         """
         ---
@@ -1608,21 +1636,6 @@ class AnalysisHandler(BaseHandler):
           tags:
             - analysis
           parameters:
-            - in: path
-              name: analysis_resource_type
-              required: true
-              schema:
-                type: string
-              description: |
-                What underlying data the analysis is on:
-                must be "obj" (more to be added in the future)
-            - in: path
-              name: analysis_id
-              required: false
-              schema:
-                type: integer
-              description: |
-                ID of the analysis to return.
             - in: query
               name: objID
               nullable: true
@@ -1865,12 +1878,6 @@ class AnalysisHandler(BaseHandler):
         description: Delete an Analysis.
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1940,10 +1947,20 @@ class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        analysis_resource_type: str,
+        analysis_resource_type: AnalysisResourceType,
         analysis_id: int,
-        product_type: str,
-        plot_number: int = 0,
+        product_type: Annotated[
+            str,
+            Field(
+                description='What type of data to retrieve: must be one of "results" or "plot"'
+            ),
+        ],
+        plot_number: Annotated[
+            int,
+            Field(
+                description='if product_type == "plot", which plot number should be returned? Default to zero (first plot).'
+            ),
+        ] = 0,
     ):
         """
         ---
@@ -1951,37 +1968,6 @@ class AnalysisProductsHandler(BaseHandler):
         description: Retrieve primary data associated with an Analysis.
         tags:
         - analysis
-        parameters:
-        - in: path
-          name: analysis_resource_type
-          required: true
-          schema:
-            type: string
-          description: |
-            What underlying data the analysis is on:
-            must be "obj" (more to be added in the future)
-        - in: path
-          name: analysis_id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: product_type
-          required: true
-          schema:
-            type: string
-          description: |
-            What type of data to retrieve:
-            must be one of "results" or "plot"
-        - in: path
-          name: plot_number
-          required: false
-          schema:
-            type: integer
-          description: |
-            if product_type == "plot", which
-            plot number should be returned?
-            Default to zero (first plot).
         requestBody:
           content:
             application/json:
@@ -2097,7 +2083,10 @@ class AnalysisProductsHandler(BaseHandler):
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
     async def post(
-        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+        self,
+        analysis_resource_type: AnalysisResourceType,
+        resource_id: ResourceId,
+        analysis_service_id: AnalysisServiceId,
     ):
         """
         ---
@@ -2105,29 +2094,6 @@ class AnalysisUploadOnlyHandler(BaseHandler):
         description: Upload an upload_only analysis result
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis is on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID.
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: string
-            description: the analysis service id to be used
         requestBody:
           content:
             application/json:
@@ -2305,15 +2271,6 @@ class DefaultAnalysisHandler(BaseHandler):
           description: Retrieve a default analysis
           tags:
             - default analyses
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              description: Analysis service ID
-            - in: path
-              name: default_analysis_id
-              required: true
-              description: Default analysis ID
           responses:
             200:
               content:
@@ -2328,11 +2285,6 @@ class DefaultAnalysisHandler(BaseHandler):
           description: Retrieve all default analyses
           tags:
             - default analyses
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: false
-              description: Analysis service ID, if not provided, return all default analyses for all analysis services
           responses:
             200:
               content:
@@ -2413,15 +2365,6 @@ class DefaultAnalysisHandler(BaseHandler):
         description: Create a new default analysis
         tags:
           - default analyses
-        parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              description: Analysis service ID
-            - in: path
-              name: default_analysis_id
-              required: false
-              description: Default analysis ID
         requestBody:
             content:
                 application/json:
@@ -2633,17 +2576,6 @@ class DefaultAnalysisHandler(BaseHandler):
             show_corner may be supplied; omitted fields are left unchanged.
         tags:
           - default analyses
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: default_analysis_id
-            required: true
-            schema:
-              type: integer
         requestBody:
             content:
                 application/json:
@@ -2811,19 +2743,6 @@ class DefaultAnalysisHandler(BaseHandler):
         description: Delete a default analysis
         tags:
             - default analyses
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
-            description: Analysis service ID
-          - in: path
-            name: default_analysis_id
-            required: true
-            schema:
-              type: integer
-            description: Default analysis ID
         responses:
           200:
             content:

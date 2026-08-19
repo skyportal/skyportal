@@ -9,6 +9,7 @@ from . import __version__
 from .models import schema
 from .utils.api_validate import (
     body_model_from,
+    path_parameters_from,
     register_pydantic_schema,
     response_model_from,
 )
@@ -16,6 +17,20 @@ from .utils.api_validate import (
 HTTP_METHODS = ("head", "get", "post", "put", "patch", "delete", "options")
 
 api_description = pjoin(os.path.dirname(__file__), "api_description.md")
+
+
+def _inject_path_parameters(subspec, method, path):
+    """Document `path`'s placeholders from the handler signature, dropping any
+    hand-written `in: path` entries so the two cannot drift apart."""
+    parameters = path_parameters_from(method, path) + [
+        parameter
+        for parameter in subspec.get("parameters", [])
+        if parameter.get("in") != "path"
+    ]
+    if parameters:
+        subspec["parameters"] = parameters
+    else:
+        subspec.pop("parameters", None)
 
 
 def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
@@ -189,11 +204,13 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
             for subspec in [single_spec, other_spec]:
                 if subspec:
                     path = path_template.format(*parameters)
+                    _inject_path_parameters(subspec, method, path)
                     openapi_spec.path(path=path, operations={http_method: subspec})
 
             if multiple_spec:
                 multiple_path_template = path_template.rsplit("/", 1)[0]
                 multiple_path = multiple_path_template.format(*parameters[:-1])
+                _inject_path_parameters(multiple_spec, method, multiple_path)
                 openapi_spec.path(
                     path=multiple_path, operations={http_method: multiple_spec}
                 )

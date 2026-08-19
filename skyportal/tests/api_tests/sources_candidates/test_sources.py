@@ -2870,30 +2870,38 @@ def test_source_gcn_crossmatch_event_filters(upload_data_token, public_source):
     assert "Cannot find GcnEvents" in data["message"]
 
 
-def test_source_gcn_crossmatch_string_dateobs(
+def test_source_gcn_crossmatch_returns_associated_events(
     super_admin_token, super_admin_user, public_source
 ):
-    # Regression test for a psycopg3 type mismatch. Obj.gcn_crossmatch is an
-    # ARRAY(String) column, so its GCN-event dateobs round-trip out of the DB as
-    # strings. get_source() then filters GcnEvent.dateobs (a timestamp) with that
-    # list; under psycopg3 a "timestamp = varchar" comparison raises
-    # UndefinedFunction unless the values are coerced to datetimes first. Before
-    # the fix this request 500'd; it should return the crossmatched event.
+    # includeGCNCrossmatches reports every event an obj is associated with,
+    # rejections included: the source page hangs its keep/reject control off
+    # this list, so hiding a rejection would leave no way to revisit it.
     import sqlalchemy as sa
 
-    from skyportal.models import DBSession, GcnEvent, Obj
+    from skyportal.models import DBSession, GcnEvent, GcnEventObj
 
     dateobs = datetime(2019, 4, 25, 8, 18, 5)
-    # Exactly how the value round-trips out of the ARRAY(String) column: psycopg
-    # renders the timestamp with a space (not a "T") separator.
-    dateobs_str = "2019-04-25 08:18:05"
+    rejected_dateobs = datetime(2019, 4, 26, 8, 18, 5)
 
     session = DBSession()
-    event = GcnEvent(dateobs=dateobs, sent_by_id=super_admin_user.id)
-    session.add(event)
-    obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-    # Populate the crossmatch column the way LocalizationCrossmatchHandler does.
-    obj.gcn_crossmatch = [dateobs_str]
+    for d in (dateobs, rejected_dateobs):
+        session.add(GcnEvent(dateobs=d, sent_by_id=super_admin_user.id))
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=dateobs,
+            status="confirmed",
+            confirmer_id=super_admin_user.id,
+        )
+    )
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=rejected_dateobs,
+            status="rejected",
+            confirmer_id=super_admin_user.id,
+        )
+    )
     session.commit()
 
     try:
@@ -2904,17 +2912,20 @@ def test_source_gcn_crossmatch_string_dateobs(
             token=super_admin_token,
         )
         assert status == 200, data
-        assert data["status"] == "success"
         crossmatches = data["data"]["gcn_crossmatch"]
-        assert any(arrow.get(c["dateobs"]).naive == dateobs for c in crossmatches), (
-            crossmatches
+        found = {arrow.get(c["dateobs"]).naive for c in crossmatches}
+        assert dateobs in found, crossmatches
+        assert rejected_dateobs in found, (
+            "a rejected association vanished, leaving no way to undo it"
         )
     finally:
         session = DBSession()
-        obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-        if obj is not None:
-            obj.gcn_crossmatch = None
-        event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs))
-        if event is not None:
-            session.delete(event)
+        for row in session.scalars(
+            sa.select(GcnEventObj).where(GcnEventObj.obj_id == public_source.id)
+        ).all():
+            session.delete(row)
+        for d in (dateobs, rejected_dateobs):
+            event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == d))
+            if event is not None:
+                session.delete(event)
         session.commit()

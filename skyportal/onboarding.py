@@ -267,13 +267,22 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             session.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
-    for group_id, admin, can_save in zip(
-        group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
+    # strict: a short array would silently drop the trailing groups.
+    for group_id, admin, can_save, can_share_photometry in zip(
+        group_ids,
+        invitation.admin_for_groups,
+        invitation.can_save_to_groups,
+        invitation.can_share_photometry_for_groups,
+        strict=True,
     ):
         if group_id not in existing_group_ids:
             session.add(
                 GroupUser(
-                    user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
+                    user_id=user.id,
+                    group_id=group_id,
+                    admin=admin,
+                    can_save=can_save,
+                    can_share_photometry=can_share_photometry,
                 )
             )
 

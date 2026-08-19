@@ -1,3 +1,14 @@
+{#- Render config prose as JSX text: escape the characters JSX treats specially,
+    then expand {Name} placeholders into links from the paragraph's `links` map. -#}
+{%- macro jsx(text, links={}) -%}
+{%- set ns = namespace(t = text | trim
+      | replace("&", "&amp;") | replace("'", "&apos;")
+      | replace('"', "&quot;") | replace(">", "&gt;") | replace("<", "&lt;")) -%}
+{%- for name, url in (links or {}).items() -%}
+{%- set ns.t = ns.t | replace("{" ~ name ~ "}", '<a href="' ~ url ~ '">' ~ name ~ "</a>") -%}
+{%- endfor -%}
+{{ ns.t }}
+{%- endmacro -%}
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -10,8 +21,8 @@ import Typography from "@mui/material/Typography";
 
 import clsx from "clsx";
 import dayjs from "dayjs";
-import { useGetSysInfoQuery } from "../ducks/sysInfo";
-import Button from "./Button";
+import { useGetSysInfoQuery } from "../../ducks/sysInfo";
+import Button from "../Button";
 
 const useStyles = makeStyles()((theme) => ({
   bibcard: {
@@ -85,38 +96,41 @@ const AboutPlugins = () => {
   return (
     <div>
       <Typography variant="h5">
-        This is SkyPortal&nbsp;
+        This is {{ app.title }}&nbsp;
         <code>v{version}</code>.
       </Typography>
       <Typography variant="body1">
-        SkyPortal is an open source codebase that serves as a dynamic
-        collaborative platform for time-domain astronomy. It is being jointly
-        developed at Caltech, UC Berkeley, the University of Minnesota, and the
-        Observatoire de la Côte d&apos;Azur.
+        {{ jsx(app.about.description) }}
       </Typography>
+{%- for paragraph in app.about.extra_paragraphs %}
+      <Typography variant="body1">
+        {{ jsx(paragraph.text, paragraph.links) }}
+      </Typography>
+{%- endfor %}
       <Typography variant="body1">
         The project homepage is at&nbsp;
-        <a href="https://skyportal.io">https://skyportal.io</a>
+        <a href="{{ app.about.homepage_url }}">{{ app.about.homepage_url }}</a>
       </Typography>
       <Typography variant="body1">
         Documentation lives at&nbsp;
-        <a href="https://skyportal.io">https://skyportal.io/docs/</a>
+        <a href="{{ app.about.docs_url }}">{{ app.about.docs_url }}</a>
       </Typography>
       <Typography variant="body1">
-        You may also interact with SkyPortal through its API. Generate a token
-        from your&nbsp;
+        You may also interact with {{ app.title }} through its API. Generate a
+        token from your&nbsp;
         <Link to="/profile">profile</Link>&nbsp; page, then refer to the&nbsp;
-        <a href="https://skyportal.io/docs/api.html">API documentation</a>.
+        <a href="{{ app.about.api_docs_url }}">API documentation</a>.
       </Typography>
       <Typography variant="body1">
         Please file issues on our GitHub page at&nbsp;
-        <a href="https://github.com/skyportal/skyportal">
-          https://github.com/skyportal/skyportal
+        <a href="{{ app.about.repository_url }}">
+          {{ app.about.repository_url }}
         </a>
       </Typography>
       <div>
-        If you found SkyPortal useful, please consider citing our work:
-        <BibLink
+        If you found {{ app.title }} useful, please consider citing our work:
+{#- BibTeX below contains {{ and {% sequences; keep Jinja out of it. #}
+{% raw %}        <BibLink
           bibtex={`@article{Coughlin_2023,
   doi = {10.3847/1538-4365/acdee1},
   url = {https://dx.doi.org/10.3847/1538-4365/acdee1},
@@ -243,26 +257,23 @@ archivePrefix = {arXiv},
           </em>
           <a href="https://arxiv.org/abs/2111.12142">arXiv:2111.12142</a>.
         </BibLink>
-      </div>
+      </div>{% endraw %}
       <Typography variant="body1">
-        SkyPortal development is funded by the Moore Foundation, Heising Simons
-        Foundation, National Science Foundation, NASA and the Packard
-        Foundation.
+        {{ jsx(app.about.funding) }}
       </Typography>
       {gitlog && (
         <>
           <Typography variant="h5">Recent Changelog</Typography>
           <Paper className={classes.gitlogPaper}>
-            <Box
-              sx={{
-                p: 1,
-              }}
-            >
+            <Box {% raw %}sx={{ p: 1 }}{% endraw %}>
               <div>
                 See all pull requests at{" "}
-                <a href="https://github.com/skyportal/skyportal/pulls?q=is%3Apr+">
-                  https://github.com/skyportal/skyportal/pulls
-                </a>
+{%- for repo in app.about.changelog_repositories %}
+                <a href="{{ repo.url }}">{{ repo.name }}</a>
+{%- if not loop.last %}
+                {", "}
+{%- endif %}
+{%- endfor %}
               </div>
               <ul className={classes.gitlogList}>
                 {gitlog.map(

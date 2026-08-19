@@ -1,6 +1,9 @@
+from typing import Annotated
+
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -10,6 +13,7 @@ from baselayer.app.flow import Flow
 
 from ...models import (
     Classification,
+    ClassificationEdit,
     ClassificationVote,
     Group,
     Obj,
@@ -172,11 +176,6 @@ class ClassificationHandler(BaseHandler):
           tags:
             - classifications
           parameters:
-            - in: path
-              name: classification_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: includeTaxonomy
               nullable: true
@@ -433,12 +432,6 @@ class ClassificationHandler(BaseHandler):
         description: Update a classification
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -501,8 +494,20 @@ class ClassificationHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
+            old_probability = c.probability
             for k in data:
                 setattr(c, k, data[k])
+
+            if c.probability != old_probability:
+                session.add(
+                    ClassificationEdit(
+                        classification_id=c.id,
+                        editor_id=self.associated_user_object.id,
+                        editor_name=self.associated_user_object.username,
+                        old_probability=old_probability,
+                        new_probability=c.probability,
+                    )
+                )
 
             if group_ids is not None:
                 groups_result = await session.scalars(
@@ -535,12 +540,6 @@ class ClassificationHandler(BaseHandler):
         description: Delete a classification
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -628,11 +627,6 @@ class ObjClassificationHandler(BaseHandler):
           - classifications
           - sources
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: includeSuperObjs
             required: false
@@ -671,7 +665,10 @@ class ObjClassificationHandler(BaseHandler):
 
             result = await session.scalars(
                 Classification.select(session.user_or_token)
-                .options(selectinload(Classification.votes))
+                .options(
+                    selectinload(Classification.votes),
+                    selectinload(Classification.edits),
+                )
                 .where(Classification.obj_id.in_(obj_ids))
             )
             classifications = result.unique().all()
@@ -687,6 +684,9 @@ class ObjClassificationHandler(BaseHandler):
                 classification_dict["votes"] = [
                     v.to_dict() for v in classification.votes
                 ]
+                classification_dict["edits"] = [
+                    e.to_dict() for e in classification.edits
+                ]
                 classifications_json.append(classification_dict)
 
             return self.success(data=classifications_json)
@@ -700,12 +700,6 @@ class ObjClassificationHandler(BaseHandler):
         tags:
           - classifications
           - sources
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -856,21 +850,18 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    async def post(self, classification_id: int):
+    async def post(
+        self,
+        classification_id: Annotated[
+            int, Field(description="ID of classification to indicate the vote for")
+        ],
+    ):
         """
         ---
         summary: Vote for a classification
         description: Vote for a classification.
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of classification to indicate the vote for
         requestBody:
           content:
             application/json:
@@ -958,12 +949,6 @@ class ClassificationVotesHandler(BaseHandler):
         description: Delete classification vote.
         tags:
           - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

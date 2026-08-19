@@ -3,9 +3,11 @@ import os
 import string
 import time
 import unicodedata
+from typing import Annotated
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -24,6 +26,7 @@ from ...models import (
     GcnEvent,
     Group,
     Instrument,
+    Obj,
     Shift,
     Spectrum,
     Token,
@@ -34,6 +37,19 @@ from ...utils.fits_display import get_fits_preview
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
+
+AssociatedResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the comment is on: "sources" or "spectra" or "gcn_event" or "earthquake" or "shift".'
+    ),
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the source, spectrum, gcn_event, earthquake, or shift that the comment is posted to. This would be a string for a source ID or an integer for a spectrum, gcn_event, earthquake, or shift."
+    ),
+]
 
 _, cfg = load_env()
 
@@ -169,8 +185,8 @@ class CommentHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        associated_resource_type: str,
-        resource_id: str = None,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId = None,
         comment_id: int | None = None,
     ):
         """
@@ -180,32 +196,6 @@ class CommentHandler(BaseHandler):
           description: Retrieve a comment
           tags:
             - comments
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-              description: |
-                 What underlying data the comment is on:
-                 "sources" or "spectra" or "gcn_event" or "earthquake" or "shift".
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra, gcn_event]
-              description: |
-                 The ID of the source, spectrum, gcn_event, earthquake, or shift
-                 that the comment is posted to.
-                 This would be a string for a source ID
-                 or an integer for a spectrum, gcn_event, earthquake, or shift.
-            - in: path
-              name: comment_id
-              required: true
-              schema:
-                type: integer
-
           responses:
             200:
               content:
@@ -221,24 +211,6 @@ class CommentHandler(BaseHandler):
           tags:
             - comments
           parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources]
-              description: |
-                 What underlying data the comment is on, e.g., "sources"
-                 or "spectra" or "gcn_event" or "earthquake" or "shift".
-            - in: path
-              name: resource_id
-              required: false
-              schema:
-                type: string
-              description: |
-                 The ID of the underlying data.
-                 This would be a string for a source ID
-                 or an integer for other data types like spectrum, gcn_event, earthquake, or shift.
             - in: query
               name: text
               schema:
@@ -301,7 +273,16 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
 
-                stmt = table.select(session.user_or_token)
+                stmt = table.select(
+                    session.user_or_token, options=[selectinload(table.author)]
+                )
+                if table is Comment:
+                    channel = self.get_query_argument("channel", None)
+                    stmt = stmt.where(
+                        Comment.channel == channel
+                        if channel
+                        else Comment.channel.is_(None)
+                    )
                 if resource_id is not None:
                     coerced = _coerce_comment_resource_id(
                         associated_resource_type, resource_id
@@ -330,6 +311,7 @@ class CommentHandler(BaseHandler):
                         {
                             **c.to_dict(),
                             "resourceType": associated_resource_type.lower(),
+                            "author": c.construct_author_info_dict(),
                         }
                         for c in comments
                     ]
@@ -339,6 +321,7 @@ class CommentHandler(BaseHandler):
                             **c.to_dict(),
                             "resourceType": "gcn_event",
                             "dateobs": c.gcn.dateobs,
+                            "author": c.construct_author_info_dict(),
                         }
                         for c in comments
                     ]
@@ -405,7 +388,7 @@ class CommentHandler(BaseHandler):
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
-                comment_resource_id_str = str(comment.gcn_id)
+                comment_resource_id_str = str(comment.earthquake_id)
             elif associated_resource_type.lower() == "shift":
                 comment = await session.scalar(
                     CommentOnShift.select(session.user_or_token).where(
@@ -442,34 +425,18 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    async def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
+    async def post(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        *ignore_args,
+    ):
         """
         ---
         summary: Post a comment
         description: Post a new comment. If sent through the API (authenticated with a token), it will be flagged as a bot comment.
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event, earthquake, shift]
-            description: |
-               What underlying data the comment is on:
-               "source" or "spectrum" or "gcn_event" or "earthquake" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event, earthquake, shift]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum, gcn_event, earthquake, or shift.
         requestBody:
           content:
             application/json:
@@ -570,12 +537,16 @@ class CommentHandler(BaseHandler):
 
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
+                    channel = data.get("channel") or None
                     existing_result = await session.scalars(
                         Comment.select(session.user_or_token)
                         .options(selectinload(Comment.groups))
                         .where(
                             Comment.text == comment_text,
                             Comment.obj_id == obj_id,
+                            Comment.channel.is_(None)
+                            if channel is None
+                            else Comment.channel == channel,
                             Comment.attachment_bytes == attachment_bytes,
                             Comment.attachment_name == attachment_name,
                             Comment.author_id == author_id,
@@ -590,6 +561,7 @@ class CommentHandler(BaseHandler):
                         comment = Comment(
                             text=comment_text,
                             obj_id=obj_id,
+                            channel=channel,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
                             author_id=author_id,
@@ -912,7 +884,10 @@ class CommentHandler(BaseHandler):
 
     @permissions(["Comment"])
     async def put(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -920,32 +895,6 @@ class CommentHandler(BaseHandler):
         description: Update a comment
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event, shift]
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra" or "gcn_event" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event, shift]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for an object ID
-               or an integer for a spectrum, gcn_event or shift.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1034,7 +983,7 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             "Could not find any accessible comments.", status=403
                         )
-                    comment_resource_id_str = str(c.gcn_id)
+                    comment_resource_id_str = str(c.earthquake_id)
                 elif associated_resource_type.lower() == "shift":
                     schema = CommentOnShift.__schema__()
                     c = await session.scalar(
@@ -1158,7 +1107,10 @@ class CommentHandler(BaseHandler):
 
     @permissions(["Comment"])
     async def delete(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -1166,32 +1118,6 @@ class CommentHandler(BaseHandler):
         description: Delete a comment
         tags:
           - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum or gcn_event.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-
         responses:
           200:
             content:
@@ -1335,7 +1261,10 @@ class CommentHandler(BaseHandler):
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
     async def get(
-        self, associated_resource_type: str, resource_id: str, comment_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        comment_id: int,
     ):
         """
         ---
@@ -1344,31 +1273,6 @@ class CommentAttachmentHandler(BaseHandler):
         tags:
           - comments
         parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectrum, gcn_event]
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra, gcn_event]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: download
             nullable: True
@@ -1527,3 +1431,111 @@ class CommentAttachmentHandler(BaseHandler):
                 )
 
             return self.success(data=comment_data)
+
+
+class CommentChannelHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id: str):
+        """
+        ---
+        summary: List the conversations opened on a source
+        description: >
+            Retrieve the names of the source's named conversations. A
+            conversation exists as soon as a comment carries its name.
+        tags:
+          - comments
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        async with self.AsyncSession() as session:
+            channels = await session.scalars(
+                Comment.select(session.user_or_token, columns=[Comment.channel])
+                .where(Comment.obj_id == obj_id, Comment.channel.isnot(None))
+                .distinct()
+            )
+            return self.success(data=sorted(channels.all()))
+
+    @permissions(["Comment"])
+    async def delete(self, obj_id: str):
+        """
+        ---
+        summary: Delete a conversation on a source
+        description: >
+            Delete a named conversation and every comment it holds. Restricted
+            to the user who opened it (the author of its first comment) and to
+            system admins.
+        tags:
+          - comments
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: channel
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        channel = self.get_query_argument("channel", None)
+        if not channel:
+            return self.error("`channel` must be provided")
+
+        async with self.AsyncSession() as session:
+            opener_id = await session.scalar(
+                sa.select(Comment.author_id)
+                .where(Comment.obj_id == obj_id, Comment.channel == channel)
+                .order_by(Comment.created_at)
+                .limit(1)
+            )
+            if opener_id is None:
+                return self.error("Invalid channel")
+
+            if (
+                not self.current_user.is_system_admin
+                and opener_id != self.associated_user_object.id
+            ):
+                return self.error(
+                    "Only the user who opened this conversation can delete it",
+                    status=403,
+                )
+
+            comment_ids = (
+                (
+                    await session.scalars(
+                        Comment.select(
+                            session.user_or_token, columns=[Comment.id]
+                        ).where(Comment.obj_id == obj_id, Comment.channel == channel)
+                    )
+                )
+                .unique()
+                .all()
+            )
+            if not comment_ids:
+                return self.error("Invalid channel")
+
+            await session.execute(sa.delete(Comment).where(Comment.id.in_(comment_ids)))
+            await session.commit()
+
+            target_obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            if target_obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": target_obj.internal_key},
+                )
+            return self.success()

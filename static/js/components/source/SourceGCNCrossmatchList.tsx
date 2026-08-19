@@ -56,6 +56,47 @@ interface SourceForCrossmatch {
   photstats?: { first_detected_mjd?: number }[];
 }
 
+// A cone localization is named "<ra>_<dec>_<radius>" (see Localization.from_cone).
+// Anything else (a real skymap) has no position encoded in its name.
+const coneCenter = (name?: string): { ra: number; dec: number } | null => {
+  const parts = String(name ?? "").split("_");
+  if (parts.length !== 3) return null;
+  const ra = Number(parts[0]);
+  const dec = Number(parts[1]);
+  return Number.isFinite(ra) && Number.isFinite(dec) ? { ra, dec } : null;
+};
+
+// Pick the localization this source actually sits in. One event can carry
+// several: an EP observation reports each detected source as its own cone under
+// the shared observation timestamp, and those cones can be tens of degrees
+// apart, so the first one is frequently the wrong patch of sky.
+const localizationForSource = (
+  gcnEvent: any,
+  source: SourceForCrossmatch,
+): string | undefined => {
+  const localizations = gcnEvent?.localizations ?? [];
+  if (localizations.length <= 1 || source?.ra == null || source?.dec == null) {
+    return localizations[0]?.localization_name;
+  }
+  const cosDec = Math.cos((source.dec * Math.PI) / 180);
+  let best = localizations[0];
+  let bestSep = Number.POSITIVE_INFINITY;
+  localizations.forEach((loc: any) => {
+    const center = coneCenter(loc?.localization_name);
+    if (!center) return;
+    // Flat-sky separation is ample here: we are choosing between cones that are
+    // degrees apart, not measuring one.
+    const dRa = (center.ra - (source.ra as number)) * cosDec;
+    const dDec = center.dec - (source.dec as number);
+    const sep = dRa * dRa + dDec * dDec;
+    if (sep < bestSep) {
+      bestSep = sep;
+      best = loc;
+    }
+  });
+  return best?.localization_name;
+};
+
 // One proposed crossmatch: a link to the event plus the full keep/reject
 // (Highlight / Reject / Ambiguous / Not vetted) vetting control.
 const CrossmatchItem = ({
@@ -74,8 +115,7 @@ const CrossmatchItem = ({
   const { data: gcnEvent } = useGetGcnEventQuery(dateobsT, {
     skip: !dateobs,
   });
-  const localizationName = (gcnEvent as any)?.localizations?.[0]
-    ?.localization_name;
+  const localizationName = localizationForSource(gcnEvent, source);
 
   // Hover inset: the skymap with the object marked. The localization (with its
   // contour) is only fetched while hovering. Keep the popover open while the
@@ -98,7 +138,7 @@ const CrossmatchItem = ({
     setAnchorEl(e.currentTarget);
   };
   const { data: localization } = useGetLocalizationQuery(
-    { dateobs: dateobsT, localization_name: localizationName },
+    { dateobs: dateobsT, localization_name: localizationName as string },
     { skip: !hovering || !localizationName },
   );
   const sourcesForPlot =

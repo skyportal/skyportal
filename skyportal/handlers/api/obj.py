@@ -12,10 +12,10 @@ from ...models import (
     Annotation,
     Classification,
     Comment,
+    GcnEventObj,
     Obj,
     PhotometricSeries,
     Photometry,
-    SourcesConfirmedInGCN,
     Spectrum,
 )
 from ...utils.calculations import great_circle_distance
@@ -34,12 +34,6 @@ class ObjHandler(BaseHandler):
         description: Delete an Obj
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -65,7 +59,7 @@ class ObjHandler(BaseHandler):
                 (PhotometricSeries, "photometric series"),
                 (Comment, "comments"),
                 (Classification, "classifications"),
-                (SourcesConfirmedInGCN, "sources in gcns"),
+                (GcnEventObj, "sources in gcns"),
             ):
                 count = await session.scalar(
                     sa.select(func.count()).select_from(
@@ -144,12 +138,6 @@ class ObjPositionHandler(BaseHandler):
         description: Calculate the position of an Obj using its photometry
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

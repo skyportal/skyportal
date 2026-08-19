@@ -109,12 +109,6 @@ class TokenHandler(BaseHandler):
           description: Retrieve a token
           tags:
             - tokens
-          parameters:
-            - in: path
-              name: token_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -169,12 +163,6 @@ class TokenHandler(BaseHandler):
         description: Update token
         tags:
           - tokens
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -262,12 +250,6 @@ class TokenHandler(BaseHandler):
         """
         ---
         description: Delete a token
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

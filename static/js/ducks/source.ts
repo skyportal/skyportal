@@ -288,6 +288,18 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: (_result, _error, formData) =>
         sourceTag(formData?.["obj_id"]),
     }),
+    updateClassification: build.mutation<
+      any,
+      { classificationID: number | string; formData: Record<string, any> }
+    >({
+      query: ({ classificationID, formData }) => ({
+        url: `api/classification/${classificationID}`,
+        method: "PUT",
+        body: formData,
+      }),
+      invalidatesTags: (_result, _error, { formData }) =>
+        sourceTag(formData?.["obj_id"]),
+    }),
     deleteClassification: build.mutation<any, number | string>({
       query: (classificationID) => ({
         url: `api/classification/${classificationID}`,
@@ -363,6 +375,27 @@ export const sourceApi = skyportalApi.injectEndpoints({
       },
       invalidatesTags: (_result, _error, { formData }) =>
         sourceTag(formData?.["obj_id"]),
+    }),
+    getConversations: build.query<string[], string>({
+      query: (obj_id) => `api/sources/${obj_id}/comments/channels`,
+      providesTags: (_result, _error, obj_id) => sourceTag(obj_id),
+    }),
+    getConversation: build.query<any[], { obj_id: string; channel: string }>({
+      query: ({ obj_id, channel }) =>
+        `api/sources/${obj_id}/comments?channel=${encodeURIComponent(channel)}`,
+      transformResponse: (data: any[]) =>
+        (data ?? []).map(({ resourceType, ...comment }) => comment),
+      providesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
+    }),
+    deleteConversation: build.mutation<
+      any,
+      { obj_id: string; channel: string }
+    >({
+      query: ({ obj_id, channel }) => ({
+        url: `api/sources/${obj_id}/comments/channels?channel=${encodeURIComponent(channel)}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
     }),
     deleteComment: build.mutation<
       any,
@@ -722,23 +755,16 @@ invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 export const {
   useGetSourceQuery,
   useGetObjGroupsQuery,
-  useLazyGetSourceQuery,
   useGetSourcePositionQuery,
   useGetAssociatedGcnsQuery,
   useGetAnalysesQuery,
   useGetAnalysisQuery,
-  useLazyGetAnalysisQuery,
   useGetAnalysisResultsQuery,
-  useLazyGetAnalysisResultsQuery,
   useCheckSourceMutation,
-  useGetPhotometryRequestQuery,
   useLazyGetPhotometryRequestQuery,
-  useGetSourceFinderChartQuery,
   useLazyGetSourceFinderChartQuery,
   useGetFinderChartFacilitiesQuery,
-  useGetCommentTextAttachmentQuery,
   useLazyGetCommentTextAttachmentQuery,
-  useGetCommentOnSpectrumTextAttachmentQuery,
   useLazyGetCommentOnSpectrumTextAttachmentQuery,
   useSaveSourceMutation,
   useUpdateSourceMutation,
@@ -747,12 +773,16 @@ export const {
   useDeclineSaveRequestMutation,
   useAddSourceViewMutation,
   useAddClassificationMutation,
+  useUpdateClassificationMutation,
   useDeleteClassificationMutation,
   useDeleteClassificationsMutation,
   useAddClassificationVoteMutation,
   useAddCommentMutation,
   useEditCommentMutation,
   useDeleteCommentMutation,
+  useGetConversationsQuery,
+  useGetConversationQuery,
+  useDeleteConversationMutation,
   useDeleteCommentOnSpectrumMutation,
   useAddAnnotationMutation,
   useDeleteAnnotationMutation,

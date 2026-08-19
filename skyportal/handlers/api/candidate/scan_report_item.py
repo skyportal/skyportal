@@ -1,7 +1,11 @@
 from collections import defaultdict
+from typing import Annotated
 
+import astropy.units as u
+import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy.orm import joinedload, selectinload
+from pydantic import Field
+from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -12,38 +16,79 @@ from ....models import (
     ClassicalAssignment,
     Comment,
     FollowupRequest,
+    GcnEventObj,
     Obj,
+    ObjToSuperObj,
     ObservingRun,
+    Photometry,
     Source,
-    SourcesConfirmedInGCN,
 )
+from ....models.phot_stat import PHOT_DETECTION_THRESHOLD
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.gcn_crossmatch import ANNOTATION_ORIGIN as GCN_CROSSMATCH_ORIGIN
 from ....utils.parse import safe_round
 from ...base import BaseHandler
 
+ReportId = Annotated[
+    int, Field(description="ID of the report where the item is located")
+]
+
 log = make_log("api/scan_report_item")
 
+# Datalab crossmatch catalogs are posted as Annotations with origin
+# "<catalog>-<source_id>" (see DatalabQueryHandler); DESI catalogs are all
+# named "desi_*" (e.g. "desi_dr1").
+DESI_ORIGIN_PREFIX = "desi_"
 
-def _survey_of(bandpass):
-    """Map a bandpass name to its survey label for the detections summary."""
-    if not bandpass:
+
+def _survey_of(band):
+    """Map a band name to its survey label for the detections summary."""
+    if not band:
         return None
-    b = bandpass.lower()
+    b = band.lower()
     if b.startswith("ztf"):
         return "ZTF"
     if b.startswith("lsst"):
         return "LSST"
-    return bandpass
+    return band
 
 
-def _followup_request_type(allocation, instrument):
+def _followup_request_type(allocation, instrument, payload=None):
     """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
     if allocation and allocation.types and "forced_photometry" in allocation.types:
         return "forced_photometry"
+    if instrument and instrument.name == "SEDM":
+        # SEDM is an "imaging spectrograph" but most of its request modes
+        # (e.g. "3-shot (gri)") are pure photometry; only modes that include
+        # the IFU are spectroscopy.
+        payload = payload or {}
+        observation_type = payload.get("observation_type") or ""
+        observation_choices = payload.get("observation_choices") or []
+        if "IFU" in observation_type or "IFU" in observation_choices:
+            return "spectroscopy"
+        return "photometry"
     if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
         return "spectroscopy"
     return "photometry"
+
+
+def _host_offset(obj):
+    """Angular (arcsec) and physical (kpc) separation from the obj to its host galaxy."""
+    if not obj.host:
+        return None, None
+    arcsec = None
+    kpc = None
+    try:
+        sep = obj.host_offset
+        arcsec = safe_round(sep.arcsec, 3) if sep is not None else None
+    except Exception:
+        arcsec = None
+    try:
+        dist = obj.host_distance
+        kpc = safe_round(dist.to(u.kpc).value, 3) if dist is not None else None
+    except Exception:
+        kpc = None
+    return arcsec, kpc
 
 
 def _build_scan_report_item(
@@ -55,17 +100,22 @@ def _build_scan_report_item(
     comment,
     now_mjd,
     gcn_match=None,
+    desi_annotation=None,
+    associated_objs=None,
+    previous=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
         current_filter = obj.photstats[0].last_detected_filter
         current_mag = obj.photstats[0].last_detected_mag
+        current_mjd = obj.photstats[0].last_detected_mjd
         current_age = now_mjd - obj.photstats[0].first_detected_mjd
         dm = obj.dm
         abs_mag = current_mag - dm if dm else None
     else:
         current_filter = None
         current_mag = None
+        current_mjd = None
         current_age = None
         abs_mag = None
 
@@ -76,6 +126,7 @@ def _build_scan_report_item(
                 "probability": classification.probability,
                 "classification": classification.classification,
                 "ml": classification.ml,
+                "created_at": classification.created_at.isoformat(),
             }
             for classification in obj.classifications
         ]
@@ -85,7 +136,10 @@ def _build_scan_report_item(
         saved_info = [
             {
                 "saved_at": source.saved_at.isoformat(),
-                "saved_by": source.saved_by.username,
+                "saved_by": {
+                    "first_name": source.saved_by.first_name,
+                    "last_name": source.saved_by.last_name,
+                },
                 "group": source.group.name,
             }
             for source in sources
@@ -96,8 +150,12 @@ def _build_scan_report_item(
     followups = [
         {
             "instrument": followup.instrument.name,
-            "type": _followup_request_type(followup.allocation, followup.instrument),
+            "type": _followup_request_type(
+                followup.allocation, followup.instrument, followup.payload
+            ),
             "priority": (followup.payload or {}).get("priority"),
+            "start_date": (followup.payload or {}).get("start_date"),
+            "end_date": (followup.payload or {}).get("end_date"),
             "status": followup.status,
             "requester": followup.requester.username if followup.requester else None,
         }
@@ -130,47 +188,109 @@ def _build_scan_report_item(
     if obj.photstats:
         ps = obj.photstats[0]
 
-        def _entry(mjd, mag):
+        def _entry(mjd, mag, filt, fp=None):
             if mjd is None:
                 return None
-            return {
+            entry = {
                 "mag": safe_round(mag, 3),
                 "mjd": safe_round(mjd, 5),
+                "filter": filt,
                 "days_ago": safe_round(now_mjd - mjd, 2),
             }
+            if fp is not None:
+                entry["fp"] = fp
+            return entry
 
-        first_entry = _entry(ps.first_detected_mjd, ps.first_detected_mag)
+        # The global first detection can be a forced-photometry point; PhotStat
+        # separately tracks the first non-forced-phot detection, which is >= it
+        # (a strict superset filtered down), so a mismatch means the true first
+        # detection was FP.
+        is_first_fp = ps.first_detected_mjd is not None and (
+            ps.first_detected_no_forced_phot_mjd is None
+            or ps.first_detected_no_forced_phot_mjd > ps.first_detected_mjd
+        )
+        first_entry = _entry(
+            ps.first_detected_mjd,
+            ps.first_detected_mag,
+            ps.first_detected_filter,
+            fp=is_first_fp,
+        )
         first_survey = _survey_of(ps.first_detected_filter)
 
-        peak_by_survey = {}  # survey -> (mag, mjd), brightest (min mag) across filters
+        # If the first detection is FP, also surface the first "real" (non-FP)
+        # detection so scanners aren't misled by an FP-only rise.
+        first_real_entry = None
+        first_real_survey = None
+        if is_first_fp:
+            first_real_entry = _entry(
+                ps.first_detected_no_forced_phot_mjd,
+                ps.first_detected_no_forced_phot_mag,
+                ps.first_detected_no_forced_phot_filter,
+                fp=False,
+            )
+            first_real_survey = _survey_of(ps.first_detected_no_forced_phot_filter)
+
+        # survey -> (mag, mjd, filter), brightest (min mag) across the survey's filters
+        peak_by_survey = {}
         peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
-        for bandpass, mag in (ps.peak_mag_per_filter or {}).items():
+        for band, mag in (ps.peak_mag_per_filter or {}).items():
             if mag is None:
                 continue
-            survey = _survey_of(bandpass)
+            survey = _survey_of(band)
             current = peak_by_survey.get(survey)
             if current is None or mag < current[0]:
-                peak_by_survey[survey] = (mag, peak_mjd_per_filter.get(bandpass))
+                peak_by_survey[survey] = (
+                    mag,
+                    peak_mjd_per_filter.get(band),
+                    band,
+                )
 
-        for survey in set(peak_by_survey) | ({first_survey} if first_survey else set()):
+        surveys = (
+            set(peak_by_survey)
+            | ({first_survey} if first_survey else set())
+            | ({first_real_survey} if first_real_survey else set())
+        )
+        for survey in surveys:
             peak = peak_by_survey.get(survey)
             detections_by_survey[survey] = {
                 "first": first_entry if survey == first_survey else None,
-                "peak": _entry(peak[1], peak[0]) if peak else None,
+                "first_real": (
+                    first_real_entry if survey == first_real_survey else None
+                ),
+                "peak": _entry(peak[1], peak[0], peak[2]) if peak else None,
             }
     detections_by_survey = detections_by_survey or None
+
+    host_offset_arcsec, host_offset_kpc = _host_offset(obj)
 
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
+            # Other Objs (e.g. an LSST detection) linked to this one via a shared
+            # SuperObj, each with its own aliases, if any.
+            "associated_objs": associated_objs,
             "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
+            # Spectroscopic redshift from a DESI crossmatch, when one exists.
+            "desi_redshift": (desi_annotation.data or {}).get("z")
+            if desi_annotation
+            else None,
+            "offset": (
+                {"arcsec": host_offset_arcsec, "kpc": host_offset_kpc}
+                if host_offset_arcsec is not None or host_offset_kpc is not None
+                else None
+            ),
             "current_filter": current_filter,
             "abs_mag": safe_round(abs_mag, 3),
             "current_mag": safe_round(current_mag, 3),
+            "current_mjd": safe_round(current_mjd, 5),
             "current_age": safe_round(current_age, 2),
+            # The detection immediately before the current one, in the same filter.
+            "previous_mag": safe_round((previous or {}).get("mag"), 3),
+            "previous_mjd": safe_round((previous or {}).get("mjd"), 5),
+            "previous_filter": (previous or {}).get("filter"),
             "classifications": classifications,
             "saved_info": saved_info,
             "followups": followups,
@@ -218,9 +338,9 @@ async def create_scan_report_items(
         obj_ids = [obj_id for obj_id, _ in valid]
         verdicts = (
             await session.scalars(
-                SourcesConfirmedInGCN.select(user_or_token).where(
-                    SourcesConfirmedInGCN.obj_id.in_(obj_ids),
-                    SourcesConfirmedInGCN.dateobs == gcn_event_dateobs,
+                GcnEventObj.select(user_or_token).where(
+                    GcnEventObj.obj_id.in_(obj_ids),
+                    GcnEventObj.dateobs == gcn_event_dateobs,
                 )
             )
         ).all()
@@ -242,7 +362,7 @@ async def create_scan_report_items(
             entry = dict(measured.pop(verdict.obj_id, {}))
             entry.update(
                 {
-                    "confirmed": verdict.confirmed,
+                    "status": verdict.status,
                     "explanation": verdict.explanation,
                     "notes": verdict.notes,
                 }
@@ -250,13 +370,16 @@ async def create_scan_report_items(
             gcn_match_by_obj[verdict.obj_id] = entry
         # matched by the crossmatch but with no verdict row yet
         for obj_id, payload in measured.items():
-            gcn_match_by_obj[obj_id] = {**payload, "confirmed": None}
+            gcn_match_by_obj[obj_id] = {**payload, "status": "pending"}
 
     objs = {}
     sources_by_obj = defaultdict(list)
     followups_by_obj = defaultdict(list)
     assignments_by_obj = defaultdict(list)
     comment_by_obj = {}  # obj_id -> most recent non-bot scanner comment
+    desi_by_obj = {}  # obj_id -> most recent DESI crossmatch Annotation
+    associated_by_obj = defaultdict(dict)  # obj_id -> {assoc_obj_id: aliases}
+    previous_by_obj = {}  # obj_id -> {mag, mjd, filter} of the detection before the last
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -272,11 +395,49 @@ async def create_scan_report_items(
                 .options(
                     selectinload(Obj.photstats),
                     selectinload(Obj.classifications),
+                    selectinload(Obj.host),
                 )
                 .where(Obj.id.in_(chunk_obj_ids))
             )
         ).all():
             objs[obj.id] = obj
+
+        # The detection immediately before each obj's current (last-detected) one,
+        # in that same filter. PhotStat only tracks first/last/peak, not the
+        # runner-up, so this needs raw Photometry -- ranked via a window function
+        # and filtered to rn == 2 in SQL so only that one row per (obj, filter)
+        # pair is ever pulled back, not the object's full photometry history.
+        pairs = [
+            (obj_id, objs[obj_id].photstats[0].last_detected_filter)
+            for obj_id in chunk_obj_ids
+            if objs.get(obj_id)
+            and objs[obj_id].photstats
+            and objs[obj_id].photstats[0].last_detected_filter
+        ]
+        if pairs:
+            ranked = (
+                Photometry.select(user_or_token, mode="read")
+                .where(
+                    sa.tuple_(Photometry.obj_id, Photometry.filter).in_(pairs),
+                    Photometry.snr > PHOT_DETECTION_THRESHOLD,
+                )
+                .add_columns(
+                    Photometry.mag.label("mag"),
+                    sa.func.row_number()
+                    .over(
+                        partition_by=Photometry.obj_id,
+                        order_by=Photometry.mjd.desc(),
+                    )
+                    .label("rn"),
+                )
+                .subquery()
+            )
+            for obj_id, filt, mjd, mag in await session.execute(
+                sa.select(
+                    ranked.c.obj_id, ranked.c.filter, ranked.c.mjd, ranked.c.mag
+                ).where(ranked.c.rn == 2)
+            ):
+                previous_by_obj[obj_id] = {"mag": mag, "mjd": mjd, "filter": filt}
 
         for source in (
             await session.scalars(
@@ -333,6 +494,37 @@ async def create_scan_report_items(
         ).all():
             comment_by_obj.setdefault(comment.obj_id, comment)
 
+        for annotation in (
+            await session.scalars(
+                Annotation.select(user_or_token, mode="read")
+                .where(
+                    Annotation.obj_id.in_(chunk_obj_ids),
+                    Annotation.origin.startswith(DESI_ORIGIN_PREFIX),
+                )
+                .order_by(Annotation.created_at.desc())
+            )
+        ).all():
+            desi_by_obj.setdefault(annotation.obj_id, annotation)
+
+        # Objs sharing a SuperObj with one of this chunk's objs (e.g. the LSST
+        # detection linked to a ZTF one), via a self-join on the link table.
+        # Joined against the access-controlled Obj select so an associated obj
+        # the user can't read is silently dropped, not leaked.
+        accessible_objs = Obj.select(user_or_token, mode="read").subquery()
+        o2s_this = aliased(ObjToSuperObj)
+        o2s_other = aliased(ObjToSuperObj)
+        for obj_id, assoc_obj_id, assoc_alias in await session.execute(
+            sa.select(o2s_this.obj_id, accessible_objs.c.id, accessible_objs.c.alias)
+            .select_from(o2s_this)
+            .join(o2s_other, o2s_other.super_obj_id == o2s_this.super_obj_id)
+            .join(accessible_objs, accessible_objs.c.id == o2s_other.obj_id)
+            .where(
+                o2s_this.obj_id.in_(chunk_obj_ids),
+                o2s_other.obj_id != o2s_this.obj_id,
+            )
+        ):
+            associated_by_obj[obj_id][assoc_obj_id] = assoc_alias
+
     now_mjd = Time.now().mjd
     items = []
     for obj_id, _source_ids in valid:
@@ -349,6 +541,15 @@ async def create_scan_report_items(
                 comment_by_obj.get(obj_id),
                 now_mjd,
                 gcn_match=gcn_match_by_obj.get(obj_id),
+                desi_annotation=desi_by_obj.get(obj_id),
+                previous=previous_by_obj.get(obj_id),
+                associated_objs=[
+                    {"obj_id": assoc_obj_id, "aliases": aliases}
+                    for assoc_obj_id, aliases in associated_by_obj.get(
+                        obj_id, {}
+                    ).items()
+                ]
+                or None,
             )
         )
     return items
@@ -356,25 +557,16 @@ async def create_scan_report_items(
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    async def patch(self, report_id: int, item_id: int):
+    async def patch(
+        self,
+        report_id: ReportId,
+        item_id: Annotated[int, Field(description="ID of the report item to update")],
+    ):
         """
         ---
         summary: Update an item from a scanning report
         tags:
           - report item
-        parameters:
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report where the item is located
-          - in: path
-            name: item_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report item to update
         requestBody:
           content:
             application/json:
@@ -430,19 +622,12 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, report_id: int, _):
+    async def get(self, report_id: ReportId, _):
         """
         ---
         summary: Retrieve all items in a scanning report
         tags:
           - report item
-        parameters:
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report to retrieve items from
         responses:
           200:
             content:

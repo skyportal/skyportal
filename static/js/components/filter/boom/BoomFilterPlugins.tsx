@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
@@ -255,7 +256,13 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   );
 
   // forms
-  const [inlineNewVersion, setInlineNewVersion] = React.useState(false);
+  const location = useLocation();
+  // Read once at mount, during render (before PageTourProvider's effect can
+  // clear location.state) so the "filter" page tour's targets are already
+  // mounted when it starts polling for them.
+  const [inlineNewVersion, setInlineNewVersion] = React.useState(
+    () => (location.state as any)?.tour === "filter",
+  );
   const [showAnnotationBuilder, setShowAnnotationBuilder] = useState(false);
 
   useEffect(() => {

@@ -59,3 +59,21 @@ def test_slider_classifications(
     # reload to see the classification
     page.goto(f"/group_sources/{public_group.id}")
     expect(page.locator("//*[text()[contains(., 'Algol')]]").first).to_be_visible()
+
+    # Setting the probability back to 0 updates the existing classification, so
+    # the source is no longer shown as being of that class (#3483)
+    page.locator("//*[@id='expandable-button']").first.click()
+    page.locator(f"//*[@id='taxonomy-select-{public_source.id}']").first.click()
+    page.locator(f"//li[text()='{test_taxonomy}']").first.click()
+    page.locator("//h6[text()='Stellar variable']").first.click()
+
+    thumb = page.locator("//span[@id='Algol']//input[@type='range']").first
+    thumb.focus()
+    thumb.press("ArrowLeft")
+    thumb.press("ArrowLeft")
+
+    page.locator("//button[@name='submitClassificationsButton']").first.click()
+
+    page.goto(f"/group_sources/{public_group.id}")
+    expect(page.locator("//*[text()[contains(., 'Eclipsing')]]").first).to_be_visible()
+    expect(page.locator("//*[text()[contains(., 'Algol')]]").first).not_to_be_visible()

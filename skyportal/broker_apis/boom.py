@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.survey import survey_from_object_id
 from .interface import BrokerAPI, normalize_module_streams
 
 log = make_log("broker/boom")
@@ -83,8 +84,20 @@ def _request(broker, method, path, *, params=None, json=None):
     return payload.get("data", payload) if isinstance(payload, dict) else payload
 
 
-def _survey(broker, kwargs):
-    return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+def _survey(broker, kwargs, object_id=None):
+    return (
+        kwargs.get("survey")
+        or survey_from_object_id(
+            object_id or kwargs.get("objectId"), BOOMBROKER.surveys
+        )
+        or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+    )
+
+
+def _object_id_clause(object_id):
+    """Mongo clause matching an objectId stored as text or, for LSST, as an int64."""
+    text = str(object_id)
+    return {"$in": [text, int(text)]} if text.isdigit() else text
 
 
 # BOOM rejects a filter test whose window is wider than this ("JD window for
@@ -150,11 +163,17 @@ def _programids(kwargs, survey):
     return list(permissions.get(survey) or [])
 
 
+NO_PROGRAMID_SURVEYS = {"LSST"}
+DENY_ALL = {"_id": {"$in": []}}
+
+
 def _scope_filter(kwargs, survey):
     """Mongo clause restricting a query to the requester's accessible programids."""
     programids = _programids(kwargs, survey)
     if programids is None:
         return {}
+    if survey in NO_PROGRAMID_SURVEYS:
+        return {} if programids else DENY_ALL
     return {"candidate.programid": {"$in": programids}}
 
 
@@ -225,12 +244,11 @@ def _modules_db(broker):
 _BOOM_SENTINEL = -99999.0
 
 
-def _normalize_boom_alert(record):
-    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
-    into the standard alert shape (``candidate`` + ``prv_candidates`` with
-    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+def _boom_photometry_to_prv(photometry):
+    """BOOM native ``photometry[]`` (flux in nJy) -> standard ``prv_candidates``
+    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     prv = []
-    for p in record.get("photometry") or []:
+    for p in photometry or []:
         flux_err = p.get("flux_err")
         if flux_err is None or flux_err == _BOOM_SENTINEL:
             continue
@@ -248,16 +266,161 @@ def _normalize_boom_alert(record):
                 "programid": p.get("programid", 1),
             }
         )
+    return prv
+
+
+# Asteroids stay well under this; the cap is only a runaway guard.
+_SSO_HISTORY_LIMIT = 10000
+
+
+def _fetch_sso_history(broker, survey, designation):
+    """Every detection of one moving object, gathered from BOOM by MPC
+    designation.
+
+    A moving object's detections each land under a different position-keyed
+    ``objectId``, so its light curve has to be gathered by the designation the
+    survey stamps on the detection. Queries the indexed raw field
+    (``candidate.ssnamenr``); the stored candidate already carries the same
+    ``psfFlux`` the Kafka path does, so the points flow through the shared save
+    transform unchanged. ZTF only for now — LSST designations live on the aux
+    collection and are not yet populated upstream. Returns [] on any failure so
+    a backfill hiccup never drops the triggering alert.
+    """
+    if survey != "ZTF":
+        return []
+    try:
+        docs = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": "ZTF_alerts",
+                "filter": {"candidate.ssnamenr": str(designation)},
+                "projection": {
+                    f"candidate.{k}": 1
+                    for k in (
+                        "jd",
+                        "band",
+                        "psfFlux",
+                        "psfFluxErr",
+                        "ra",
+                        "dec",
+                        "programid",
+                        "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                    )
+                },
+                "sort": {"candidate.jd": 1},
+                "limit": _SSO_HISTORY_LIMIT,
+            },
+        )
+    except Exception as e:
+        log(f"SSO history fetch failed for {designation}: {e}")
+        return []
+
+    # Overlapping ZTF fields can report the same epoch twice; dedupe on
+    # (jd, band, programid) so the photometry insert doesn't hit its own
+    # uniqueness constraint mid-batch.
+    prv, seen = [], set()
+    for doc in docs or []:
+        c = doc.get("candidate") or {}
+        if c.get("jd") is None or c.get("band") is None or c.get("psfFluxErr") is None:
+            continue
+        key = (c.get("jd"), c.get("band"), c.get("programid", 1))
+        if key in seen:
+            continue
+        seen.add(key)
+        prv.append(
+            {
+                "jd": c.get("jd"),
+                "band": c.get("band"),
+                "psfFlux": c.get("psfFlux"),
+                "psfFluxErr": c.get("psfFluxErr"),
+                "ra": c.get("ra"),
+                "dec": c.get("dec"),
+                "programid": c.get("programid", 1),
+                "ssmagnr": c.get("ssmagnr"),
+            }
+        )
+    return prv
+
+
+def _normalize_boom_alert(record):
+    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
+    into the standard alert shape (``candidate`` + ``prv_candidates`` with
+    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
     return {
         "objectId": record.get("objectId"),
         "candid": record.get("candid"),
+        # The alert's own epoch, which identifies its detection within `prv`.
+        "jd": record.get("jd"),
+        "properties": record.get("properties"),
         "candidate": {
             "ra": record.get("ra"),
             "dec": record.get("dec"),
             "drb": record.get("drb"),
         },
-        "prv_candidates": prv,
+        "prv_candidates": _boom_photometry_to_prv(record.get("photometry")),
     }
+
+
+async def _ingest_survey_matches(
+    broker, record, main_obj_id, main_survey, session, user
+):
+    """Ingest BOOM's cross-survey matches for a passing alert: create each
+    counterpart Obj + its photometry (and, on first sight, its cutout thumbnails)
+    and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
+    (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
+    alert has a counterpart in another survey."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import associate_super_obj, save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    matches = record.get("survey_matches") or {}
+    if not isinstance(matches, dict):
+        return
+    associated = set()
+    for match_survey, match in matches.items():
+        if not isinstance(match, dict):
+            continue
+        match_survey = str(match_survey).upper()
+        match_obj_id = match.get("objectId")
+        if match_survey == main_survey or not match_obj_id:
+            continue
+        match_obj_id = str(match_obj_id)
+        is_new = (
+            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
+        ) is None
+        match_data = {
+            "objectId": match_obj_id,
+            "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
+            "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
+        }
+        try:
+            await save_object_photometry(match_data, match_survey, session, user)
+            associated.add(match_obj_id)
+        except Exception as e:
+            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
+            continue
+        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
+        if is_new and broker is not None:
+            try:
+                cutouts = _request(
+                    broker,
+                    "GET",
+                    f"surveys/{match_survey}/cutouts",
+                    params={"objectId": match_obj_id},
+                )
+                if isinstance(cutouts, dict):
+                    await add_thumbnails(
+                        match_obj_id, cutouts, match_survey, session, user_id=user.id
+                    )
+            except Exception as e:
+                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
+    if associated:
+        await associate_super_obj(session, main_obj_id, associated)
+        await session.commit()
 
 
 # Collections that belong to surveys/alerts, not reference catalogs.
@@ -329,6 +492,8 @@ class BOOMBROKER(BrokerAPI):
     "username", "password", "survey"}``.
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["ZTF", "LSST"]
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
@@ -381,9 +546,9 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        survey = _survey(broker, kwargs)
-        catalog = f"{survey}_alerts"
         object_id = kwargs.get("objectId")
+        survey = _survey(broker, kwargs, object_id)
+        catalog = f"{survey}_alerts"
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
         scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
 
@@ -394,7 +559,7 @@ class BOOMBROKER(BrokerAPI):
                 "queries/find",
                 json={
                     "catalog_name": catalog,
-                    "filter": {"objectId": object_id, **scope},
+                    "filter": {"objectId": _object_id_clause(object_id), **scope},
                     "projection": NO_CUTOUT_PROJECTION,
                     "max_time_ms": 10000,
                 },
@@ -422,11 +587,16 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
         # Full object: brightest alert joined with its aux history.
-        survey = _survey(broker, kwargs)
+        survey = _survey(broker, kwargs, alert_id)
         catalog = f"{survey}_alerts"
         programids = _programids(kwargs, survey)
         pipeline = [
-            {"$match": {"objectId": alert_id, **_scope_filter(kwargs, survey)}},
+            {
+                "$match": {
+                    "objectId": _object_id_clause(alert_id),
+                    **_scope_filter(kwargs, survey),
+                }
+            },
             {"$sort": {"candidate.magpsf": 1}},
             {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
             {"$replaceRoot": {"newRoot": "$data"}},
@@ -518,37 +688,99 @@ class BOOMBROKER(BrokerAPI):
         import asyncio
 
         import sqlalchemy as sa
-        from confluent_kafka import Consumer, KafkaError
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import Filter, User
-        from ._kafka import kafka_consumer_config, read_avro
-        from ._save import save_object_as_candidate
+        from ..models import Filter
+        from ..utils.sso_ingest import sso_filter_targets
 
         altdata = broker.altdata or {}
         kafka = altdata.get("kafka") or {}
         default_filter_ids = altdata.get("filter_ids") or []
-
-        consumer = Consumer(
-            kafka_consumer_config(kafka, f"skyportal-broker-{broker.id}")
-        )
         topics = kafka.get("topics") or ["ZTF_alerts_results", "LSST_alerts_results"]
-        consumer.subscribe(topics)
-        log(f"BOOM ingestion (broker {broker.id}): subscribed to {topics}")
+        # kafka_consumer_config prefers altdata's group_id; match it so the log
+        # and the actual Kafka group agree.
+        group_id = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
 
-        # Map BOOM filter ids -> skyportal Filter ids once at startup.
+        # Map BOOM filter ids -> skyportal Filter ids once at startup (shared,
+        # read-only across the consumers below).
         async with async_plain_session_factory() as session:
             boom_map = {}
-            for f in (await session.scalars(sa.select(Filter))).all():
-                boom = (f.altdata or {}).get("boom") if f.altdata else None
+            filters = (await session.scalars(sa.select(Filter))).all()
+            for f in filters:
+                boom = (f.altdata or {}).get("boom")
                 if boom and boom.get("filter_id") is not None:
                     boom_map[boom["filter_id"]] = f.id
+            # Filters marked `altdata['sso']` route their alerts to the
+            # solar-system ingest instead of the sidereal one.
+            sso_targets = sso_filter_targets(filters)
 
+        # N consumers sharing one group id; Kafka rebalances partitions across
+        # them. Defaults to 1.
+        num_consumers = max(1, int(kafka.get("num_consumers", 1)))
+        log(
+            f"BOOM ingestion (broker {broker.id}): {num_consumers} consumer(s) "
+            f"in group {group_id}, topics {topics}"
+        )
+        # TaskGroup so one consumer crashing cancels its siblings, not orphans them.
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(
+                    BOOMBROKER._consume_stream(
+                        broker,
+                        kafka,
+                        topics,
+                        group_id,
+                        boom_map,
+                        sso_targets,
+                        default_filter_ids,
+                        stop,
+                        max_messages,
+                    )
+                )
+                for _ in range(num_consumers)
+            ]
+        total = sum(t.result() for t in tasks)
+        log(f"BOOM ingestion (broker {broker.id}): consumed {total} alerts")
+        return total
+
+    @staticmethod
+    async def _consume_stream(
+        broker,
+        kafka,
+        topics,
+        group_id,
+        boom_map,
+        sso_targets,
+        default_filter_ids,
+        stop,
+        max_messages,
+    ):
+        """One Kafka consumer's poll/ingest loop. Consumers sharing ``group_id``
+        have Kafka rebalance the topic partitions across them."""
+        import asyncio
+
+        import sqlalchemy as sa
+        from confluent_kafka import Consumer, KafkaError
+
+        from baselayer.app.models import async_plain_session_factory
+
+        from ..models import User
+        from ..utils.sso_ingest import (
+            extract_designation,
+            ingest_sso_alert,
+            sidereal_filter_ids,
+            sso_routing_for,
+        )
+        from ._kafka import kafka_consumer_config, read_avro
+        from ._save import save_object_as_candidate
+
+        consumer = Consumer(kafka_consumer_config(kafka, group_id))
+        consumer.subscribe(topics)
         count = 0
         try:
             while not (stop is not None and stop.is_set()):
-                # poll is blocking; offload so one loop can host several brokers.
+                # poll is blocking; offload so one loop can host several consumers.
                 msg = await asyncio.to_thread(consumer.poll, 2.0)
                 if msg is None:
                     continue
@@ -590,19 +822,61 @@ class BOOMBROKER(BrokerAPI):
                     for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
                     if record.get(k) is not None
                 } or None
+                sso_filter_ids, sso_group_ids = sso_routing_for(filter_ids, sso_targets)
+                designation = (
+                    extract_designation(data, annotations_by_filter_id)
+                    if sso_filter_ids
+                    else None
+                )
+                # SSO-routed filters never take the sidereal path: a moving object
+                # keyed by sky position yields fixed-position photometry and single-
+                # point sources. Without a designation there is no identity to
+                # ingest, so those alerts are dropped rather than polluting the SSO
+                # group. Non-SSO filters the alert also passed still ingest normally.
+                sidereal_ids = sidereal_filter_ids(filter_ids, sso_filter_ids)
                 try:
                     async with async_plain_session_factory() as session:
                         user = await session.scalar(sa.select(User).where(User.id == 1))
-                        await save_object_as_candidate(
-                            data,
-                            survey,
-                            session,
-                            user,
-                            filter_ids,
-                            passing_alert_id=record.get("candid"),
-                            cutouts=cutouts,
-                            annotations_by_filter_id=annotations_by_filter_id,
-                        )
+                        if designation:
+                            await ingest_sso_alert(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                designation,
+                                sso_group_ids,
+                                filter_ids=sso_filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                annotations_by_filter_id=annotations_by_filter_id,
+                                # sync _request offloaded so it can't block the loop.
+                                fetch_history=lambda s, d: asyncio.to_thread(
+                                    _fetch_sso_history, broker, s, d
+                                ),
+                            )
+                        elif sidereal_ids:
+                            await save_object_as_candidate(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                sidereal_ids,
+                                passing_alert_id=record.get("candid"),
+                                cutouts=cutouts,
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                            # Only associate cross-survey matches when the primary was
+                            # ingested as a candidate, so we don't create orphan
+                            # counterpart objs for alerts nobody is scanning. Moving
+                            # objects are matched by designation, not position.
+                            if record.get("survey_matches"):
+                                await _ingest_survey_matches(
+                                    broker,
+                                    record,
+                                    data["objectId"],
+                                    survey,
+                                    session,
+                                    user,
+                                )
                 except Exception as e:
                     log(f"Error ingesting alert {record.get('objectId')}: {e}")
                 count += 1
@@ -765,6 +1039,18 @@ class BOOMBROKER(BrokerAPI):
                     if programids is None
                     else sorted(set(selector) & set(programids))
                 )
+
+        if programids is None:
+            # BOOM rejects an empty permissions map, so an unrestricted user
+            # needs every programid the instance's streams grant spelled out.
+            import sqlalchemy as sa
+
+            from ..models import Stream
+            from .interface import survey_permissions
+
+            programids = survey_permissions(
+                session.scalars(sa.select(Stream)).all()
+            ).get(survey)
 
         payload = {
             "survey": survey,

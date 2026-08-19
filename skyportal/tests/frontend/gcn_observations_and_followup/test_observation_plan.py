@@ -159,8 +159,6 @@ def test_observationplan_request(
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
-    page.locator("//*[@id='observationplan-header']").first.click()
-
     page.locator(
         '//*[@role="combobox" and (contains(@aria-labelledby, "allocationSelectLabel") or contains(@id, "allocationSelectLabel"))]'
     ).first.click()

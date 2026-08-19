@@ -8,6 +8,35 @@ app:
     <a href="https://github.com/skyportal/skyportal">
       https://github.com/skyportal/skyportal
     </a>
+  # Artwork for the login page buttons. The buttons themselves come from
+  # `server.auth.backends`, so a provider needs no entry here; add one, matched
+  # on `url`, to replace that provider's text button with an image.
+  login_buttons:
+    - url: /login/google-oauth2
+      image: /static/images/btn_google_signin_dark_normal_web.png
+      alt_text: Click this image to log in
+
+  # Copy for the About page; `title` above supplies the platform name.
+  about:
+    description: >-
+      SkyPortal is an open source codebase that serves as a dynamic
+      collaborative platform for time-domain astronomy. It is being jointly
+      developed at Caltech, UC Berkeley, the University of Minnesota, and
+      Université Paris-Saclay.
+    homepage_url: https://skyportal.io
+    docs_url: https://skyportal.io/docs/
+    api_docs_url: https://skyportal.io/docs/api.html
+    repository_url: https://github.com/skyportal/skyportal
+    funding: >-
+      SkyPortal development is funded by the Moore Foundation, Heising Simons
+      Foundation, National Science Foundation, NASA and the Packard Foundation.
+    # Paragraphs added after the description (zero or more). In `text`, a
+    # {Name} placeholder becomes a link to the matching entry in `links`.
+    extra_paragraphs: []
+    # Repositories whose pull requests are linked above the changelog.
+    changelog_repositories:
+      - name: https://github.com/skyportal/skyportal/pulls
+        url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
@@ -295,6 +324,10 @@ app:
           icon: Search
           url: /candidates
 
+        - name: Brokers
+          icon: Hub
+          url: /brokers
+
         - name: Favorites
           icon: Star
           url: /favorites
@@ -328,10 +361,6 @@ app:
           icon: SubwayRounded
           url: /shifts
 
-        - name: Summary Search
-          icon: Troubleshoot
-          url: /summary_search
-
         - name: Source Statistics
           icon: ScatterPlot
           url: /source_statistics
@@ -361,10 +390,6 @@ app:
         - name: Allocations
           icon: HourglassEmptyOutlined
           url: /allocations
-
-        - name: Brokers
-          icon: Hub
-          url: /brokers
 
         - name: Observations
           icon: ZoomInOutlined
@@ -400,6 +425,10 @@ app:
         - name: Recurring API
           icon: Restore
           url: /recurring_apis
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: Taxonomies
           icon: WallpaperOutlined
@@ -714,6 +743,11 @@ brokers:
   # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
 
+  # Number of broker_ingest OS processes. Process 0 runs every broker; extra
+  # processes run only providers whose ingestion is safe to replicate (Kafka
+  # consumer groups, which Kafka rebalances) so REST pollers aren't duplicated.
+  ingest_processes: 1
+
 # BOOM-specific settings. The filter builder's user-created modules (variables,
 # list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
 # skyportal's database. Point this at that store, or set the equivalent
@@ -1017,6 +1051,20 @@ hosts:
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
   slack: 127.0.0.1
+
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+scout:
+  topic:  # e.g. lco.scout-neo-too-test
+  kafka_server: kafka.scimma.org
+  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_password:
+  group_ids: []  # groups the NEO candidates are saved to
+  bot_user_id:  # user recorded as saving the sources and authoring the annotations
+  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  # The bridge can publish under a `relaxed_test` filter mode that waives all but
+  # the identity filters. Off by default so test traffic can't look like a trigger.
+  allow_relaxed_test: False
 
 gcn:
   server: gcn.nasa.gov

@@ -8,12 +8,16 @@ annotation, and the per-(event, broker) state bookkeeping.
 """
 
 import asyncio
+import base64
+import gzip
+import io
 import uuid
 from datetime import timedelta
 
 import numpy as np
 import pytest
 import sqlalchemy as sa
+from astropy.io import fits
 from astropy.time import Time
 
 from baselayer.app import models
@@ -23,12 +27,19 @@ from skyportal.models import (
     Candidate,
     Filter,
     GcnEventCrossmatchState,
+    Instrument,
     Localization,
     Obj,
+    Photometry,
     Source,
+    Thumbnail,
 )
 from skyportal.tests import api
-from skyportal.tests.fixtures import FilterFactory, StreamFactory
+from skyportal.tests.fixtures import (
+    FilterFactory,
+    InstrumentFactory,
+    StreamFactory,
+)
 from skyportal.utils.gcn_crossmatch import ANNOTATION_ORIGIN, run_cycle
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -67,6 +78,15 @@ def _post_event(token, group_ids, ra, dec):
     status, data = api("POST", "gcn_event", data=payload, token=token)
     assert status == 200, data
     return dateobs, payload["trigger_id"]
+
+
+@pytest.fixture()
+def crossmatch_event(super_admin_token, public_group2):
+    """Deleted afterwards: run_cycle walks every recent event and loads its skymap."""
+    ra, dec = _unique_position()
+    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    yield dateobs, trigger_id, ra, dec
+    api("DELETE", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token)
 
 
 @pytest.fixture()
@@ -130,16 +150,28 @@ def _calls_at(recorded, key, ra):
     return out
 
 
-def _alert(object_id, ra, dec, jd):
-    return {"objectId": object_id, "candidate": {"ra": ra, "dec": dec, "jd": jd}}
+def _alert(object_id, ra, dec, jd, candid=None):
+    candidate = {"ra": ra, "dec": dec, "jd": jd}
+    if candid is not None:
+        candidate["candid"] = candid
+    return {"objectId": object_id, "candidate": candidate}
+
+
+def _fits_cutout():
+    """One cutout in the wire format a ZTF alert carries: gzipped FITS, base64."""
+    buff = io.BytesIO()
+    fits.PrimaryHDU(np.arange(64, dtype=np.float32).reshape(8, 8)).writeto(buff)
+    return base64.b64encode(gzip.compress(buff.getvalue())).decode()
 
 
 def test_crossmatch_saves_only_contained_in_window_alerts(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """Only alerts inside the localization *and* inside the epoch window are saved."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -172,15 +204,17 @@ def test_crossmatch_saves_only_contained_in_window_alerts(
 
 
 def test_crossmatch_passes_event_groups_and_epoch_window(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """Saves inherit the event's groups, and the broker is given the epoch window.
 
     The group assertion is the security-relevant one: a restricted event's
     matches must not be saved into wider groups than the event itself.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -210,11 +244,13 @@ def test_crossmatch_passes_event_groups_and_epoch_window(
 
 
 def test_crossmatch_records_state_and_annotation(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A match leaves per-broker state and an event-relative annotation behind."""
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -313,7 +349,10 @@ def _stub_filter_provider(monkeypatch, alerts, recorded, ra=0.0, dec=0.0):
 
 
 def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """When the broker supports filters, cuts run server-side as a pipeline.
 
@@ -321,8 +360,7 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
     artifacts and asteroids are rejected by the broker rather than transferred
     and discarded here. query_alerts must not be used in this case.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -369,11 +407,13 @@ def test_crossmatch_runs_quality_cuts_as_a_broker_filter(
 
 
 def test_annotation_carries_alert_quality_fields(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """The annotation exposes the columns reviewers triage on."""
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -430,7 +470,10 @@ def test_annotation_carries_alert_quality_fields(
 
 
 def test_archival_match_flags_prior_activity_and_survives_forward_pass(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A pre-event detection marks the candidate, and a later match keeps the mark.
 
@@ -438,8 +481,7 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
     would overwrite the archival entry and erase the very fact that rules the
     candidate out.
     """
-    ra, dec = _unique_position()
-    dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, trigger_id, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -487,15 +529,17 @@ def test_archival_match_flags_prior_activity_and_survives_forward_pass(
 
 
 def test_match_creates_candidate_not_source(
-    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
+    crossmatch_filter,
+    crossmatch_event,
+    broker,
+    monkeypatch,
 ):
     """With a filter configured, a match becomes a scannable Candidate only.
 
     The Obj and Candidate put it on the scanning page; no Source is created,
     so it stays a suggestion until a human saves it.
     """
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -529,11 +573,13 @@ def test_match_creates_candidate_not_source(
 
 
 def test_candidate_creation_is_idempotent(
-    super_admin_token, public_group2, crossmatch_filter, broker, monkeypatch
+    crossmatch_filter,
+    crossmatch_event,
+    broker,
+    monkeypatch,
 ):
     """Re-running must not pile up duplicate candidates for the same epoch."""
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     from astropy.time import Time
 
     event_jd = float(Time(dateobs).jd)
@@ -564,7 +610,10 @@ def test_candidate_creation_is_idempotent(
 
 
 def test_filter_only_runs_against_matching_events(
-    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
 ):
     """A filter scoped by gcn_tags skips events that do not carry one.
 
@@ -574,8 +623,7 @@ def test_filter_only_runs_against_matching_events(
     """
     # capture before opening other sessions: the fixture instance detaches
     filter_id = crossmatch_filter.id
-    ra, dec = _unique_position()
-    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra, dec)
+    dateobs, _, ra, dec = crossmatch_event
     alert_jd = Time(dateobs).jd + 0.5
 
     # the event above carries ["TEST"]; scope the filter to something else
@@ -608,3 +656,316 @@ def test_filter_only_runs_against_matching_events(
     assert _calls_at(recorded, "query_kwargs", ra), (
         "filter did not run on a tagged event"
     )
+
+
+@pytest.fixture()
+def ztf_instrument():
+    """Photometry ingest looks the survey instrument up by name."""
+    created_id = None
+    if (
+        models.DBSession().scalar(sa.select(Instrument).where(Instrument.name == "ZTF"))
+        is None
+    ):
+        instrument = InstrumentFactory(name="ZTF")
+        models.DBSession().commit()
+        created_id = instrument.id
+    yield
+    if created_id is not None:
+        with models.DBSession() as session:
+            instrument = session.get(Instrument, created_id)
+            if instrument is not None:
+                session.delete(instrument)
+                session.commit()
+
+
+def _stub_provider_with_photometry(
+    monkeypatch, alerts, saved, ra, dec, history, cutouts=None
+):
+    """A provider that also serves detection history via get_alert, and cutouts
+    via get_cutouts. With no ``cutouts`` the cutout call raises, which is the
+    common case: capability advertised, this particular alert unavailable."""
+
+    def query_alerts(broker, session, **kwargs):
+        saved.setdefault("query_kwargs", []).append(kwargs)
+        return alerts
+
+    def get_cutouts(broker, candid, session, **kwargs):
+        saved.setdefault("get_cutouts_calls", []).append(candid)
+        if cutouts is None:
+            raise RuntimeError("broker has no cutouts for this alert")
+        return cutouts
+
+    def get_alert(broker, alert_id, session, **kwargs):
+        saved.setdefault("get_alert_calls", []).append(alert_id)
+        saved.setdefault("get_alert_kwargs", []).append(kwargs)
+        if history is None:
+            raise RuntimeError("broker has no history for this object")
+        # Real brokers fail closed on the stream scope: BOOM turns a missing
+        # `permissions` into an empty programid list, which matches nothing and
+        # returns no rows rather than raising. Mimic that, or a caller that
+        # forgets to pass the scope looks fine here and silently ingests
+        # nothing in production.
+        if not kwargs.get("permissions"):
+            return []
+        return {**alerts[0], "prv_candidates": history}
+
+    monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
+    monkeypatch.setattr(GENERICBROKER, "get_alert", staticmethod(get_alert))
+    monkeypatch.setattr(GENERICBROKER, "get_cutouts", staticmethod(get_cutouts))
+    monkeypatch.setattr(
+        GENERICBROKER,
+        "implements",
+        classmethod(
+            lambda cls: {
+                "query_alerts": True,
+                "get_alert": True,
+                "get_cutouts": True,
+            }
+        ),
+    )
+
+
+def test_crossmatch_ingests_photometry_for_a_match(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A scanner judges a candidate on its light curve, so the match must bring
+    one: the crossmatch query itself returns no detection history."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_phot")
+    # get_alert returns the normalized shape: `band`, not the raw `fid`.
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            # the fixture stream's selector is [1, 2], and the programid ->
+            # stream map keys on max(selector)
+            "programid": 2,
+        }
+    ]
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2)],
+        recorded,
+        ra,
+        dec,
+        history,
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), recorded
+    assert obj_id in recorded.get("get_alert_calls", []), (
+        "the full object was never refetched for its history"
+    )
+    assert all(k.get("permissions") for k in recorded.get("get_alert_kwargs", [])), (
+        "the history fetch ran without a stream scope, which returns nothing"
+    )
+    with models.DBSession() as session:
+        points = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+    assert len(points) > 0, "the match was saved without any photometry"
+
+
+def test_crossmatch_ingests_cutouts_for_a_match(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A scanner reads the science/reference/difference stamps before anything
+    else, so the match must bring them too. They are keyed by candid, not object
+    id, which is only available on the refetched alert."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_cutout")
+    candid = 3515302280815015022
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            "programid": 2,
+        }
+    ]
+    stamp = _fits_cutout()
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2, candid=candid)],
+        recorded,
+        ra,
+        dec,
+        history,
+        cutouts={
+            "cutoutScience": stamp,
+            "cutoutTemplate": stamp,
+            "cutoutDifference": stamp,
+        },
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), recorded
+    assert candid in recorded.get("get_cutouts_calls", []), (
+        "cutouts were never fetched, or were fetched by object id rather than candid"
+    )
+    with models.DBSession() as session:
+        types = set(
+            session.scalars(
+                sa.select(Thumbnail.type).where(Thumbnail.obj_id == obj_id)
+            ).all()
+        )
+    assert {"new", "ref", "sub"} <= {str(t) for t in types}, (
+        f"the match was saved without its alert stamps: {types}"
+    )
+
+
+def test_crossmatch_keeps_the_photometry_when_cutouts_fail(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """Stamps are the nice-to-have; the light curve is not. A broker that cannot
+    serve cutouts must still leave the scanner something to judge."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_nocutout")
+    history = [
+        {
+            "magpsf": 19.1,
+            "sigmapsf": 0.1,
+            "jd": event_jd - 1.0,
+            "band": "ztfg",
+            "ra": ra,
+            "dec": dec,
+            "programid": 2,
+        }
+    ]
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2, candid=1234)],
+        recorded,
+        ra,
+        dec,
+        history,
+        cutouts=None,  # get_cutouts raises
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), "the match was lost with the cutouts"
+    with models.DBSession() as session:
+        points = session.scalars(
+            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+        ).all()
+    assert len(points) > 0, "a failed cutout fetch took the photometry with it"
+
+
+def test_crossmatch_keeps_the_match_when_photometry_fails(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    ztf_instrument,
+    monkeypatch,
+):
+    """A broker that cannot serve the history must not cost us the match."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    obj_id = _unique_id("XM_nophot")
+    recorded = {}
+    _stub_provider_with_photometry(
+        monkeypatch,
+        [_alert(obj_id, ra, dec, event_jd + 0.2)],
+        recorded,
+        ra,
+        dec,
+        None,  # get_alert raises
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    assert obj_id in _objs_created([obj_id]), "the match was lost with the photometry"
+    with models.DBSession() as session:
+        annotation = session.scalar(
+            sa.select(Annotation).where(
+                Annotation.obj_id == obj_id,
+                Annotation.origin == ANNOTATION_ORIGIN,
+            )
+        )
+    assert annotation is not None, "the match was not annotated"
+
+
+def test_crossmatch_searches_every_localization_of_an_event(
+    super_admin_token, public_group2, broker, crossmatch_filter, monkeypatch
+):
+    """An EP observation reports each detected source as its own cone under the
+    shared observation timestamp, so one event can cover several unrelated
+    patches of sky. Searching only one silently drops the others.
+    """
+    ra_a, dec_a = _unique_position()
+    # far enough away that the two cones cannot be confused for one another
+    ra_b, dec_b = (ra_a + 60.0) % 360.0, -dec_a
+
+    dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra_a, dec_a)
+    # A second cone on the same event, exactly how a sibling EP source arrives:
+    # posted under the same observation timestamp, which is the event's key.
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "skymap": {"ra": ra_b, "dec": dec_b, "error": ERROR},
+            "tags": ["TEST"],
+            "group_ids": [public_group2.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    event_jd = float(Time(dateobs).jd)
+    obj_a = _unique_id("XM_loc_a")
+    obj_b = _unique_id("XM_loc_b")
+
+    def query_alerts(broker_, session, **kwargs):
+        # serve whichever object lies in the cone being asked about
+        centre_ra = kwargs.get("ra")
+        if centre_ra is None:
+            return []
+        if abs(centre_ra - ra_a) < 1e-4:
+            return [_alert(obj_a, ra_a, dec_a, event_jd + 0.2)]
+        if abs(centre_ra - ra_b) < 1e-4:
+            return [_alert(obj_b, ra_b, dec_b, event_jd + 0.2)]
+        return []
+
+    monkeypatch.setattr(GENERICBROKER, "query_alerts", staticmethod(query_alerts))
+    monkeypatch.setattr(
+        GENERICBROKER, "implements", classmethod(lambda cls: {"query_alerts": True})
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    created = _objs_created([obj_a, obj_b])
+    assert obj_a in created, "the first localization was not searched"
+    assert obj_b in created, "a second localization on the event was never searched"

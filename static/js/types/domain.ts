@@ -125,6 +125,7 @@ export interface Source {
   alias?: string[] | null;
   tns_name?: string | null;
   mpc_name?: string | null;
+  is_roid?: boolean | null;
   host?: { name?: string; [key: string]: unknown } | null;
   host_offset?: number | null;
   annotations?: Annotation[];

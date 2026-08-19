@@ -842,12 +842,6 @@ class GalaxyCatalogHandler(BaseHandler):
         description: Delete a galaxy catalog
         tags:
           - galaxies
-        parameters:
-          - in: path
-            name: catalog_name
-            required: true
-            schema:
-              type: str
         responses:
           200:
             content:
@@ -1516,12 +1510,6 @@ class ObjHostHandler(BaseHandler):
         tags:
           - objs
           - galaxies
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -1582,12 +1570,6 @@ class ObjHostHandler(BaseHandler):
         tags:
           - objs
           - galaxies
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

@@ -304,14 +304,14 @@ def test_confirm_reject_source_in_gcn(
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
-        data={"source_id": obj_id, "confirmed": True, **loc_params},
+        data={"source_id": obj_id, "status": "confirmed", **loc_params},
         token=super_admin_token,
     )
     assert status == 200
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
-        data={"source_id": obj_id, "confirmed": False, **loc_params},
+        data={"source_id": obj_id, "status": "rejected", **loc_params},
         token=super_admin_token,
     )
     assert status == 200
@@ -326,3 +326,29 @@ def test_confirm_reject_source_in_gcn(
     page.goto(f"/source/{obj_id}")
     expect(page.locator('//*[contains(., "GCN Crossmatches:")]').first).to_be_visible()
     expect(page.locator(f'//*[contains(., "{dateobs}")]').first).to_be_visible()
+
+    # Choosing a verdict must not write it: the buttons select, SAVE commits.
+    # Committing on click meant a mis-click was recorded instantly, with no
+    # chance to add the explanation that says why (or to back out).
+    page.get_by_role("button", name="vet gcn crossmatch").first.click()
+    expect(page.get_by_role("button", name="HIGHLIGHT")).to_be_visible()
+    page.get_by_role("button", name="HIGHLIGHT").click()
+
+    status, data = api(
+        "GET", f"sources_in_gcn/{dateobs}/{obj_id}", token=super_admin_token
+    )
+    assert status == 200, data
+    assert data["data"][0]["status"] == "rejected", (
+        "selecting a verdict wrote it without SAVE"
+    )
+
+    page.get_by_role("button", name="SAVE").click()
+
+    for _ in range(30):
+        status, data = api(
+            "GET", f"sources_in_gcn/{dateobs}/{obj_id}", token=super_admin_token
+        )
+        if status == 200 and data["data"][0]["status"] == "confirmed":
+            break
+        time.sleep(1)
+    assert data["data"][0]["status"] == "confirmed", "SAVE did not record the verdict"

@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Filter
+from ...models import Filter, set_autosave
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
 
@@ -54,6 +54,11 @@ class FilterPatchBody(BaseModel):
         description="ID of the Filter's Stream. Cannot be changed; accepted "
         "only if it matches the current value.",
     )
+    autosave: bool | None = Field(
+        default=None,
+        description="Whether objects passing this filter during broker ingestion "
+        "are auto-saved as Sources to the Filter's Group.",
+    )
 
 
 class FilterHandler(BaseHandler):
@@ -66,12 +71,6 @@ class FilterHandler(BaseHandler):
           description: Retrieve a filter
           tags:
             - filters
-          parameters:
-            - in: path
-              name: filter_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -142,12 +141,6 @@ class FilterHandler(BaseHandler):
         description: Update filter name
         tags:
           - filters
-        parameters:
-          - in: path
-            name: filter_id
-            required: True
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -217,6 +210,8 @@ class FilterHandler(BaseHandler):
                 f.name = body.name
             if body.altdata is not None:
                 f.altdata = body.altdata
+            if body.autosave is not None:
+                set_autosave(f, body.autosave)
 
             await session.commit()
             return self.success()
@@ -229,12 +224,6 @@ class FilterHandler(BaseHandler):
         description: Delete a filter
         tags:
           - filters
-        parameters:
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

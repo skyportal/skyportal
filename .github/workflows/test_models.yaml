@@ -13,8 +13,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  scope:
+    uses: ./.github/workflows/ci_scope.yaml
+
   test-models:
-    if: github.event.pull_request.draft == false
+    needs: scope
+    if: ${{ github.event.pull_request.draft == false && needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 

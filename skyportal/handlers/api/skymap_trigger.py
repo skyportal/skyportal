@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import sqlalchemy as sa
 from astropy.time import Time
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -13,6 +16,10 @@ from ...models import (
     LocalizationTile,
 )
 from ..base import BaseHandler
+
+AllocationId = Annotated[
+    int, Field(description="ID for the allocation to delete queue")
+]
 
 
 class SkymapTriggerAPIHandler(BaseHandler):
@@ -179,7 +186,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def get(self, allocation_id: int):
+    async def get(self, allocation_id: AllocationId):
         """
         ---
         summary: Retrieve skymap-based trigger from external API
@@ -187,14 +194,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
         tags:
           - localizations
           - observations
-        parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to retrieve
         responses:
           200:
             content:
@@ -245,7 +244,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def delete(self, allocation_id: int):
+    async def delete(self, allocation_id: AllocationId):
         """
         ---
         summary: Delete skymap-based trigger from external API
@@ -253,13 +252,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
         tags:
           - observations
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to delete queue
           - in: query
             name: queueName
             required: true

@@ -9,6 +9,7 @@ import re
 import time
 import traceback
 from json.decoder import JSONDecodeError
+from typing import Annotated
 
 import arrow
 import astropy
@@ -32,6 +33,7 @@ from dateutil.parser import isoparse
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
+from pydantic import Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import (
     scoped_session,
@@ -62,6 +64,7 @@ from ...models import (
     FollowupRequest,
     Galaxy,
     GcnEvent,
+    GcnEventObj,
     Group,
     GroupUser,
     Instrument,
@@ -74,7 +77,6 @@ from ...models import (
     Source,
     SourceLabel,
     SourceNotification,
-    SourcesConfirmedInGCN,
     SourceView,
     Spectrum,
     Telescope,
@@ -112,6 +114,10 @@ from .color_mag import get_color_mag
 from .photometry import add_external_photometry, serialize
 from .sources import get_sources
 
+ObjId = Annotated[
+    str, Field(description="ID of object to generate observability plot for")
+]
+
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
@@ -125,13 +131,13 @@ Session = scoped_session(sessionmaker())
 
 
 def confirmed_in_gcn_status_to_str(status):
-    if status is True:
-        return "highlighted"
-    if status is False:
-        return "rejected"
-    if status is None:
-        return "ambiguous"
-    return "not vetted"
+    """Map a stored GcnEventObj.status onto the word the UI displays."""
+    return {
+        "confirmed": "highlighted",
+        "rejected": "rejected",
+        "ambiguous": "ambiguous",
+        "pending": "pending",
+    }.get(status, "not vetted")
 
 
 def remove_obj_thumbnails(obj_id):
@@ -290,16 +296,23 @@ async def get_source(
     # refresh maps a broadcast obj_key back to this loaded source by internal_key.
     source_info["internal_key"] = s.internal_key
 
-    # only keep the latest Thumbnail for each type (by created_at)
-    if include_thumbnails and source_info.get("thumbnails"):
-        latest_by_type = {}
-        for t in source_info["thumbnails"]:
-            if (
-                t.type not in latest_by_type
-                or t.created_at > latest_by_type[t.type].created_at
-            ):
-                latest_by_type[t.type] = t
-        source_info["thumbnails"] = list(latest_by_type.values())
+    # Keep the latest Thumbnail per (survey, type) across the SuperObj-linked objs,
+    # so a ZTF source also surfaces its linked LSST cutouts, each carrying its
+    # survey for per-survey labeling. All-sky archival cutouts (sdss/ps1/...) are
+    # survey-independent, so dedupe those on type alone.
+    if include_thumbnails:
+        alert_types = {"new", "ref", "sub"}
+        thumbnails = (
+            await session.scalars(
+                Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
+            )
+        ).all()
+        latest = {}
+        for t in thumbnails:
+            key = (t.survey, t.type) if t.type in alert_types else (None, t.type)
+            if key not in latest or t.created_at > latest[key].created_at:
+                latest[key] = t
+        source_info["thumbnails"] = list(latest.values())
 
     point = ca.Point(ra=s.ra, dec=s.dec)
 
@@ -347,6 +360,10 @@ async def get_source(
 
     async def _galaxies():
         # nearby galaxies (within 10 arcsecs)
+        # A moving object's position is one epoch's, so a positional match says
+        # nothing about association.
+        if s.is_roid:
+            return None
         async with AsyncVerifiedSession(user) as gsession:
             result = await gsession.scalars(
                 Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
@@ -356,11 +373,18 @@ async def get_source(
 
     async def _duplicates():
         # nearby objects (within 4 arcsecs)
+        # Coincidence with a moving object is a transit, not a duplicate: it is
+        # only ever at these coordinates at this epoch.
+        if s.is_roid:
+            return []
         async with AsyncVerifiedSession(user) as dsession:
             duplicate_objs = (
                 Obj.select(user)
                 .where(Obj.within(point, 4 / 3600))
                 .where(Obj.id != s.id)
+                # ... and a moving object passing through is not a duplicate of
+                # whatever it passed. `isnot(True)` also covers pre-existing nulls.
+                .where(Obj.is_roid.isnot(True))
                 .subquery()
             )
             result = await dsession.scalars(
@@ -451,7 +475,9 @@ async def get_source(
                     selectinload(Comment.author),
                     selectinload(Comment.groups),
                 ],
-            ).where(Comment.obj_id.in_(aggregated_obj_ids))
+            )
+            .where(Comment.obj_id.in_(aggregated_obj_ids))
+            .where(Comment.channel.is_(None))
         )
         comments = comments_result.unique().all()
         source_info["comments"] = sorted(
@@ -519,6 +545,7 @@ async def get_source(
         .options(
             selectinload(Classification.groups),
             selectinload(Classification.votes),
+            selectinload(Classification.edits),
         )
         .where(Classification.obj_id.in_(aggregated_obj_ids))
     )
@@ -529,6 +556,7 @@ async def get_source(
         classification_dict = classification.to_dict()
         classification_dict["groups"] = [g.to_dict() for g in classification.groups]
         classification_dict["votes"] = [g.to_dict() for g in classification.votes]
+        classification_dict["edits"] = [e.to_dict() for e in classification.edits]
         readable_classifications_json.append(classification_dict)
 
     source_info["classifications"] = readable_classifications_json
@@ -575,31 +603,20 @@ async def get_source(
         source_info["spectrum_exists"] = spectrum_exists is not None
     if include_comment_exists:
         comment_exists = await session.scalar(
-            Comment.select(user).where(Comment.obj_id == obj_id)
+            Comment.select(user)
+            .where(Comment.obj_id == obj_id)
+            .where(Comment.channel.is_(None))
         )
         source_info["comment_exists"] = comment_exists is not None
 
     if include_gcn_crossmatches:
-        if (
-            not isinstance(source_info.get("gcn_crossmatch"), list)
-            or len(source_info.get("gcn_crossmatch")) == 0
-        ):
-            source_info["gcn_crossmatch"] = []
-        confirmed_in_gcn_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
-                SourcesConfirmedInGCN.confirmed.is_not(False),
-            )
+        # Every association, including rejected ones. The source page hangs its
+        # keep/reject control off this list, so filtering rejections out removed
+        # the only way to revisit one -- a mis-click could not be undone.
+        gcn_event_obj_result = await session.scalars(
+            GcnEventObj.select(user).where(GcnEventObj.obj_id == obj_id)
         )
-        confirmed_in_gcn = confirmed_in_gcn_result.all()
-        if len(confirmed_in_gcn) > 0:
-            source_info["gcn_crossmatch"].extend(
-                [gcn.dateobs for gcn in confirmed_in_gcn]
-            )
-
-        crossmatch_dateobs = list(
-            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
-        )
+        crossmatch_dateobs = list({row.dateobs for row in gcn_event_obj_result.all()})
         gcn_crossmatch_result = await session.scalars(
             GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
         )
@@ -621,8 +638,8 @@ async def get_source(
         ):
             source_info["gcn_notes"] = []
         confirmed_in_gcn_notes_result = await session.scalars(
-            SourcesConfirmedInGCN.select(user).where(
-                SourcesConfirmedInGCN.obj_id == obj_id,
+            GcnEventObj.select(user).where(
+                GcnEventObj.obj_id == obj_id,
             )
         )
         confirmed_in_gcn_notes = confirmed_in_gcn_notes_result.all()
@@ -633,7 +650,7 @@ async def get_source(
                         "dateobs": gcn.dateobs,
                         "explanation": gcn.explanation,
                         "notes": gcn.notes,
-                        "status": confirmed_in_gcn_status_to_str(gcn.confirmed),
+                        "status": confirmed_in_gcn_status_to_str(gcn.status),
                     }
                     for gcn in confirmed_in_gcn_notes
                 ]
@@ -1303,12 +1320,6 @@ class SourceHandler(BaseHandler):
         description: Check if a Source exists
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1344,7 +1355,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: ObjId = None):
         """
         ---
         single:
@@ -1353,12 +1364,6 @@ class SourceHandler(BaseHandler):
           tags:
             - sources
           parameters:
-            - in: path
-              name: obj_id
-              required: false
-              schema:
-                type: string
-              description: Source ID
             - in: query
               name: TNSname
               nullable: true
@@ -2481,12 +2486,6 @@ class SourceHandler(BaseHandler):
         description: Update a source
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: True
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -2570,11 +2569,6 @@ class SourceHandler(BaseHandler):
         tags:
           - sources
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: group_id
             required: true
@@ -2625,11 +2619,6 @@ class SourceOffsetsHandler(BaseHandler):
         tags:
           - sources
         parameters:
-        - in: path
-          name: obj_id
-          required: true
-          schema:
-            type: string
         - in: query
           name: facility
           nullable: true
@@ -3072,11 +3061,6 @@ class SourceFinderHandler(BaseHandler):
           - sources
           - finding chart
         parameters:
-        - in: path
-          name: obj_id
-          required: true
-          schema:
-            type: string
         - in: query
           name: imsize
           schema:
@@ -3542,7 +3526,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
 class SourceObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, obj_id: ObjId):
         """
         ---
         summary: Generate observability plot for a source
@@ -3550,13 +3534,6 @@ class SourceObservabilityPlotHandler(BaseHandler):
         tags:
           - localizations
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of object to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -3659,7 +3636,15 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, target_id: str):
+    async def post(
+        self,
+        target_id: Annotated[
+            str,
+            Field(
+                description="The obj_id of the target Source (to which the photometry is being copied to)"
+            ),
+        ],
+    ):
         """
         ---
         summary: Copy photometry from one source to another
@@ -3667,14 +3652,6 @@ class SourceCopyPhotometryHandler(BaseHandler):
         tags:
           - sources
           - photometry
-        parameters:
-          - in: path
-            name: target_id
-            required: true
-            schema:
-              type: string
-            description: |
-              The obj_id of the target Source (to which the photometry is being copied to)
         requestBody:
           content:
             application/json:

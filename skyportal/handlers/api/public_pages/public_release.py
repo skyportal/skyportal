@@ -132,12 +132,6 @@ class PublicReleaseHandler(BaseHandler):
         description: Update a public release
         tags:
           - public
-        parameters:
-          - in: path
-            name: release_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -293,12 +287,6 @@ class PublicReleaseHandler(BaseHandler):
         description: Delete a public release
         tags:
           - public
-        parameters:
-          - in: path
-            name: release_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

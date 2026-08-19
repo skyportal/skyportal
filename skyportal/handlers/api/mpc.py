@@ -39,12 +39,6 @@ class ObjMPCHandler(BaseHandler):
         description: Retrieve an object's status from Minor Planet Center
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -161,6 +155,21 @@ class ObjMPCHandler(BaseHandler):
             return self.success()
 
 
+# Row: "<designation>  <RA hh mm ss.s>  <Dec ±dd mm ss>  ...".
+_MPC_ROW = re.compile(
+    r"^(?P<desig>.+?)\s+\d{2} \d{2} \d{2}\.\d\s+[-+]\d{2} \d{2} \d{2}\b"
+)
+
+
+def _parse_mpc_designation(pre_text):
+    """First minor-planet designation in an MPChecker <pre> block, or None."""
+    for line in pre_text.splitlines():
+        match = _MPC_ROW.match(line)
+        if match:
+            return match.group("desig").strip()
+    return None
+
+
 def query_mpc(obj_id, user_id, url):
     """Query MPC for a given object.
     obj_id : str
@@ -186,16 +195,20 @@ def query_mpc(obj_id, user_id, url):
         requests_session = requests.Session()
         response = requests_session.get(url)
 
-        if re.findall("The following objects,.*", response.text):
-            responseSplit = response.text.split("(1)")[-1].split(" ")
-            mpc_name = list(filter(None, responseSplit))[0]
+        # Matches are the data rows inside <pre>; empty <pre> means none.
+        pre = re.search(r"<pre>(.*?)</pre>", response.text, re.DOTALL)
+        mpc_name = _parse_mpc_designation(pre.group(1)) if pre else None
 
+        if mpc_name is not None:
             log(f"{obj_id}: identified MPC name {mpc_name}")
-
             obj.is_roid = True
             obj.mpc_name = mpc_name
+            number = re.match(r"\((\d+)\)", mpc_name)
+            alias = f"SSO {number.group(1)}" if number else mpc_name
+            if alias not in (obj.alias or []):
+                obj.alias = (obj.alias or []) + [alias]
             session.commit()
-        elif re.findall("No known minor planets,.*", response.text):
+        elif pre is not None:
             log(f"{obj_id}: No known minor planets")
             obj.is_roid = False
             session.commit()
@@ -207,6 +220,12 @@ def query_mpc(obj_id, user_id, url):
             "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
+        )
+        # Also refresh the scanning-page card in place, if shown.
+        flow.push(
+            "*",
+            "skyportal/REFRESH_CANDIDATE",
+            payload={"id": obj.internal_key},
         )
 
     except Exception as e:

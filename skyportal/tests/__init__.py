@@ -122,6 +122,22 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
             raise Exception(f"Expected status {expected_status}, got {status}")
 
 
+def retry_until(check, timeout=60, interval=1):
+    """Call `check` until it stops raising AssertionError, then return its result.
+
+    Polls on a short interval instead of sleeping a fixed amount, so a test only
+    waits as long as the background work actually takes.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            return check()
+        except AssertionError:
+            if time.time() >= deadline:
+                raise
+            time.sleep(interval)
+
+
 def wait_for_gcn_event(dateobs, token, timeout=120):
     """Poll until the GCN event for `dateobs` has finished processing.
 

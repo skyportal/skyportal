@@ -51,7 +51,7 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .color_mag import ObjColorMagHandler
-from .comment import CommentAttachmentHandler, CommentHandler
+from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
 from .db_stats import StatsHandler
@@ -105,6 +105,10 @@ from .gcn import (
     ObjGcnEventHandler,
 )
 from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
+from .gcn_event_obj import (
+    GcnEventObjHandler,
+    GCNsAssociatedWithSourceHandler,
+)
 from .gcn_gracedb import GcnGraceDBHandler
 from .gcn_tach import GcnTachHandler
 from .group import (
@@ -212,10 +216,6 @@ from .source import (
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
 from .source_labels import SourceLabelsHandler
-from .sources_confirmed_in_gcn import (
-    GCNsAssociatedWithSourceHandler,
-    SourcesConfirmedInGCNHandler,
-)
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
     BulkSpectraHandler,
@@ -228,6 +228,7 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .summary_query import SummaryQueryHandler
+from .super_obj import SuperObjHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,

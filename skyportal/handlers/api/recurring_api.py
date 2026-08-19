@@ -104,12 +104,6 @@ class RecurringAPIHandler(BaseHandler):
           description: Retrieve an Recurring API by id
           tags:
             - recurring apis
-          parameters:
-            - in: path
-              name: recurring_api_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -179,12 +173,6 @@ class RecurringAPIHandler(BaseHandler):
         description: Delete an Recurring API.
         tags:
           - recurring apis
-        parameters:
-          - in: path
-            name: recurring_api_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

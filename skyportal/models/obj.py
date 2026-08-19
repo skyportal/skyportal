@@ -267,10 +267,6 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.String,
         doc="Minor planet center name.",
     )
-    gcn_crossmatch = sa.Column(
-        sa.ARRAY(sa.String),
-        doc="List of GCN event dateobs for crossmatched events.",
-    )
     tns_name = sa.Column(
         sa.String,
         doc="Transient Name Server name.",
@@ -452,11 +448,11 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Analyses assocated with this obj.",
     )
 
-    sources_in_gcns = relationship(
-        "SourcesConfirmedInGCN",
+    gcn_events = relationship(
+        "GcnEventObj",
         back_populates="obj",
         passive_deletes=True,
-        doc="Sources in a localization.",
+        doc="GCN events this Obj is associated with.",
     )
 
     sharing_service_submissions = relationship(
@@ -474,6 +470,10 @@ class Obj(Base, conesearch_alchemy.Point):
         `panstarrs_url` does a slow, blocking HTTP request; it is resolved off
         the event loop here. Callers that already resolved it (with no DB txn
         open) can pass `ps1_url` to avoid re-fetching."""
+        # Archival cutouts of a moving object's position show the field it was
+        # crossing, not the object; skipping also avoids the PS1 fetch per roid.
+        if self.is_roid:
+            return
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
