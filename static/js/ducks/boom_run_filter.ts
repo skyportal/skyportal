@@ -9,9 +9,10 @@
  * broker via `brokerFilterBase()` (`/api/brokers/{id}/filter/test`).
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { brokerFilterBase } from "./brokerFilterTarget";
+import { clientQuery } from "../api/skyportalClient";
+import { brokerFilterTargetId } from "./brokerFilterTarget";
 
-export interface RunBoomFilterArg {
+export interface RunBoomFilterArg extends Record<string, unknown> {
   pipeline: any;
   selectedCollection: any;
   start_jd: any;
@@ -27,11 +28,10 @@ export interface RunBoomFilterArg {
 export const boomRunFilterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     runBoomFilter: build.mutation<any, RunBoomFilterArg>({
-      query: (body) => ({
-        url: `${brokerFilterBase()}/filter/test`,
-        method: "POST",
-        body,
-      }),
+      queryFn: (body, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilterTest(brokerFilterTargetId(), body),
+        ),
     }),
   }),
 });

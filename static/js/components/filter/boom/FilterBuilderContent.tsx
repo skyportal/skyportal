@@ -20,10 +20,7 @@ import { isRawMongoPipeline } from "./pipelineFormat";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
 
-import {
-  useBoomFilterVersion,
-  useUpdateBoomGroupFilterMutation,
-} from "../../../ducks/boom_filter";
+import { useUpdateBoomGroupFilterMutation } from "../../../ducks/boom_filter";
 import { useFilterSchema } from "../../../ducks/boom_filter_modules";
 
 interface FilterBuilderContentProps {
@@ -86,7 +83,6 @@ const FilterBuilderContent = ({
   } = useFilterBuilder();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { data: filter_v } = useBoomFilterVersion();
   const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
   const {
     data: store_schema,
@@ -373,7 +369,6 @@ const FilterBuilderContent = ({
         filter_id: filter.id,
         altdata: mongoQuery,
         filters: versionData,
-        name: filter_v?.name,
       });
       dispatch(showNotification("Filter saved to boom database!"));
       if (!result.error) {

@@ -11,41 +11,54 @@
 import { useParams } from "react-router-dom";
 
 import { skyportalApi } from "../api/skyportalApi";
-import { brokerFilterBase } from "./brokerFilterTarget";
+import { clientQuery } from "../api/skyportalClient";
+import { brokerFilterTargetId } from "./brokerFilterTarget";
 
 export const boomFilterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getBoomFilterVersion: build.query<any, string>({
-      query: (id) => `${brokerFilterBase()}/filters/${id}`,
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerFilter(brokerFilterTargetId(), Number(id)),
+        ),
     }),
     editBoomFilterVersion: build.mutation<
       any,
       { filter_id: any; active: any; active_fid: any }
     >({
-      query: ({ filter_id, active, active_fid }) => ({
-        url: `${brokerFilterBase()}/filters/${filter_id}`,
-        method: "PATCH",
-        body: { active, active_fid },
-      }),
+      queryFn: ({ filter_id, active, active_fid }, api) =>
+        clientQuery(api, (client) =>
+          client.updateBrokerFilter(brokerFilterTargetId(), Number(filter_id), {
+            active,
+            activeFid: active_fid,
+          }),
+        ),
     }),
     updateBoomGroupFilter: build.mutation<
       any,
-      { filter_id: any; altdata?: any; filters?: any; name?: any }
+      // `name` is not sent: the handler names the version after the skyportal
+      // Filter row it is attached to.
+      { filter_id: any; altdata?: any; filters?: any }
     >({
-      query: ({ filter_id, altdata, filters, name }) => ({
-        url: `${brokerFilterBase()}/filters/${filter_id}`,
-        method: "POST",
-        body: { altdata, filters, name },
-      }),
+      queryFn: ({ filter_id, altdata, filters }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilter(brokerFilterTargetId(), Number(filter_id), {
+            altdata,
+            filters,
+          }),
+        ),
     }),
     // Slow: runs the filter over a night of alerts on the broker. Records the
     // verdict server-side (keyed on fid) so the version can then be activated.
     validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({
-      query: ({ filter_id, fid }) => ({
-        url: `${brokerFilterBase()}/filters/${filter_id}/validate`,
-        method: "POST",
-        body: fid ? { fid } : {},
-      }),
+      queryFn: ({ filter_id, fid }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilterValidation(
+            brokerFilterTargetId(),
+            Number(filter_id),
+            fid ? { fid } : {},
+          ),
+        ),
     }),
   }),
 });
