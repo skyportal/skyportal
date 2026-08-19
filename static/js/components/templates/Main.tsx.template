@@ -78,7 +78,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
   const isAnonymous = useIsAnonymous();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
-  const marginLeft = isSmall ? "0" : open ? "170px" : "65px";
+  const marginLeft = isSmall ? "0" : open ? "220px" : "65px";
 
   useEffect(() => {
     store.dispatch(rotateLogoActions.rotateLogo());
