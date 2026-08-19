@@ -16,6 +16,7 @@ import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useSendAlertMutation } from "../../ducks/source";
+import type { SourceNotificationPost } from "skyportal-js/Sources";
 
 const useStyles = makeStyles()((theme) => ({
   formControl: {
@@ -63,9 +64,9 @@ const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
   const dispatch = useAppDispatch();
   const [sendAlert] = useSendAlertMutation();
 
-  const initialFormState = {
+  const initialFormState: SourceNotificationPost = {
     additionalNotes: "",
-    groupIds: [] as any[],
+    groupIds: [] as number[],
     level: "soft",
     sourceId,
   };

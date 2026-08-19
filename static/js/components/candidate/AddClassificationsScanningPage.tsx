@@ -57,8 +57,12 @@ const AddClassificationsScanningPage = ({
 
   const onSubmit = () => {
     selectedClassifications.forEach(async (classification) => {
+      const taxonomy_id = classificationsAndTaxonomyIds[classification];
+      if (taxonomy_id === undefined) {
+        return;
+      }
       const data = {
-        taxonomy_id: classificationsAndTaxonomyIds[classification],
+        taxonomy_id,
         obj_id,
         classification,
         probability: 1,

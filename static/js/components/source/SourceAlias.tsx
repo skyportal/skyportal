@@ -71,7 +71,9 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const newAliasList = [...(source.alias || []), alias];
+    const newAliasList = [...(source.alias || []), alias].filter(
+      (name): name is string => name != null,
+    );
     try {
       await updateSource({
         id: source.id,

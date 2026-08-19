@@ -16,8 +16,37 @@
  * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
  * the active (currently-loaded) source's queries refetch.
  */
-import { buildQueryString } from "../API";
+import type { AnalysisPost, ObjAnalysis } from "skyportal-js/Analysis";
+import type {
+  AssignmentPost,
+  UpdateAssignmentOptions,
+} from "skyportal-js/Assignments";
+import type {
+  ClassificationPost,
+  ClassificationUpdate,
+} from "skyportal-js/Classifications";
+import type { Comment, CommentAttachment } from "skyportal-js/Comments";
+import type {
+  FollowupRequestPost,
+  UpdateFollowupRequestOptions,
+} from "skyportal-js/FollowupRequests";
+import type { ObjPosition } from "skyportal-js/Objs";
+import type { SourceGroupsPost } from "skyportal-js/SourceGroups";
+import type {
+  FinderChartFacility,
+  Source,
+  SourceExists,
+  SourceFinderChart,
+  SourceGcnEventCrossmatchPost,
+  SourceMpcQueryPost,
+  SourceNotificationPost,
+  SourcePost,
+  SourceSavedGroup,
+  UpdateSourceOptions,
+} from "skyportal-js/Sources";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 import { sourceTag } from "./sourceTags";
@@ -26,28 +55,11 @@ export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
 
-export interface SourcePosition {
-  ra?: number | undefined;
-  dec?: number | undefined;
-  gal_lon?: number | undefined;
-  gal_lat?: number | undefined;
-  ebv?: number | undefined;
-  separation?: number | undefined;
-  [key: string]: any;
-}
+export type SourcePosition = ObjPosition;
 
-export interface AssociatedGcns {
-  gcns?: string[] | undefined;
-  [key: string]: any;
-}
+export type AssociatedGcns = string[];
 
-export interface CommentAttachment {
-  commentId: number | string;
-  text: string;
-  attachment: string;
-  attachment_name: string;
-  [key: string]: any;
-}
+export type { CommentAttachment };
 
 function fileReaderPromise(
   file: File,
@@ -82,14 +94,11 @@ const sourceIncludeParams = {
 export const sourceApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // ----- Main source + read-only sub-fetches -----
-    getSource: build.query<
-      RouteData<"GET /api/sources/{obj_id}">,
-      number | string
-    >({
-      query: (id) => {
-        const queryString = buildQueryString(sourceIncludeParams);
-        return `api/sources/${id}?${queryString}`;
-      },
+    getSource: build.query<Source, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSource(String(id), sourceIncludeParams),
+        ),
       // Provides both the broad "Source" tag (so the existing mutations, which
       // invalidate ["Source"], keep refetching) and a per-id tag so a websocket
       // REFRESH for one source invalidates only that source's cache entry.
@@ -97,12 +106,14 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
     // Lightweight: the groups an obj is currently saved/requested to (empty for an
     // unsaved candidate). Used to seed the toolbar save-to-groups dialog.
-    getObjGroups: build.query<any[], number | string>({
-      query: (id) => `api/sources/${id}/groups`,
+    getObjGroups: build.query<SourceSavedGroup[], number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchSourceSavedGroups(String(id))),
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
     getSourcePosition: build.query<SourcePosition, number | string>({
-      query: (id) => `api/sources/${id}/position`,
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchObjPosition(String(id))),
       // Position has its own REFRESH_SOURCE_POSITION event, so it gets its own
       // per-id tag (a REFRESH_SOURCE from e.g. a comment must NOT refetch it).
       // The broad "Source" tag is kept so source mutations still refetch it.
@@ -113,58 +124,73 @@ export const sourceApi = skyportalApi.injectEndpoints({
       ],
     }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
-      query: (id) => `api/associated_gcns/${id}`,
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventsAssociatedWithSource(String(id)),
+        ),
       // Broad "Source" (so any broad source mutation still refetches it) plus a
       // per-id tag so per-source mutations (e.g. addGCNCrossmatch) refresh only
       // this source's associated GCNs.
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
+    // `analysis_resource_type` is always "obj" (the only resource type the API
+    // serves analyses for), so the client's obj-scoped endpoints cover it.
     getAnalyses: build.query<
-      RouteData<"GET /api/{analysis_resource_type}/analysis">,
+      ObjAnalysis[],
       {
         analysis_resource_type?: string | undefined;
-        params?: Record<string, any> | undefined;
+        params?:
+          | {
+              objID?: string;
+              analysisServiceID?: number;
+              summaryOnly?: boolean;
+              includeFilename?: boolean;
+            }
+          | undefined;
       }
     >({
-      query: ({ analysis_resource_type = "obj", params = {} }) => ({
-        url: `api/${analysis_resource_type}/analysis`,
-        params,
-      }),
+      queryFn: ({ params = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchAnalyses({
+            objId: params.objID,
+            analysisServiceId: params.analysisServiceID,
+            summaryOnly: params.summaryOnly,
+            includeFilename: params.includeFilename,
+          }),
+        ),
       providesTags: ["Source"],
     }),
     getAnalysis: build.query<
-      RouteData<"GET /api/{analysis_resource_type}/analysis/{analysis_id}">,
+      ObjAnalysis,
       {
         analysis_id: number | string;
         analysis_resource_type?: string | undefined;
-        params?: Record<string, any> | undefined;
+        params?:
+          | { includeAnalysisData?: boolean; includeFilename?: boolean }
+          | undefined;
       }
     >({
-      query: ({
-        analysis_id,
-        analysis_resource_type = "obj",
-        params = {},
-      }) => ({
-        url: `api/${analysis_resource_type}/analysis/${analysis_id}`,
-        params,
-      }),
+      queryFn: ({ analysis_id, params = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchAnalysis(Number(analysis_id), params),
+        ),
     }),
     getAnalysisResults: build.query<
-      any,
+      Record<string, unknown>,
       {
         analysis_id: number | string;
         analysis_resource_type?: string | undefined;
-        params?: Record<string, any> | undefined;
       }
     >({
-      query: ({
-        analysis_id,
-        analysis_resource_type = "obj",
-        params = {},
-      }) => ({
-        url: `api/${analysis_resource_type}/analysis/${analysis_id}/results`,
-        params,
-      }),
+      queryFn: ({ analysis_id }, api) =>
+        clientQuery(
+          api,
+          async (client) =>
+            (await client.fetchAnalysisResults(Number(analysis_id))) as Record<
+              string,
+              unknown
+            >,
+        ),
     }),
     // An imperative one-off existence check (used in submit handlers via
     // `await checkSource(...).unwrap()`), so it's a mutation, not a lazy query:
@@ -172,103 +198,131 @@ export const sourceApi = skyportalApi.injectEndpoints({
     // teardown, which the callers' empty `catch` swallows — silently aborting
     // the subsequent saveSource.
     checkSource: build.mutation<
-      any,
-      { id: number | string; params: Record<string, any> }
+      SourceExists,
+      {
+        id: number | string;
+        params: { nameOnly?: boolean; ra?: number; dec?: number };
+      }
     >({
-      query: ({ id, params }) => {
-        const queryParams = params["nameOnly"]
-          ? ""
-          : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
-        return {
-          url: `api/source_exists/${id}${queryParams}`,
-          method: "GET",
-        };
-      },
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSourceExists({
+            objId: String(id),
+            ...(params.nameOnly
+              ? {}
+              : { ra: params.ra, dec: params.dec, radius: 0.0003 }),
+          }),
+        ),
     }),
     getPhotometryRequest: build.query<
-      any,
-      { id: number | string; params?: Record<string, any> | undefined }
+      { request_status?: string | null | undefined },
+      {
+        id: number | string;
+        params?: { refreshRequests?: boolean } | undefined;
+      }
     >({
-      query: ({ id, params = {} }) => ({
-        url: `api/photometry_request/${id}`,
-        params,
-      }),
+      queryFn: ({ id, params = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.requestFollowupPhotometry(Number(id), {
+            refreshRequests: params.refreshRequests,
+          }),
+        ),
     }),
     getSourceFinderChart: build.query<
-      any,
+      SourceFinderChart,
       { id: number | string; params: Record<string, any> }
     >({
-      query: ({ id, params }) => ({
-        url: `api/sources/${id}/finder`,
-        params,
-      }),
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSourceFinderJson(String(id), params),
+        ),
     }),
-    getFinderChartFacilities: build.query<Record<string, any>, void>({
-      query: () => "api/finder_chart/facilities",
+    getFinderChartFacilities: build.query<
+      Record<string, FinderChartFacility>,
+      void
+    >({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchFinderChartFacilities()),
     }),
+    // The empty download/preview values are what select the JSON form; any
+    // non-empty value (even "false") reads as truthy server-side.
     getCommentTextAttachment: build.query<
       CommentAttachment,
       { sourceID: number | string; commentID: number | string }
     >({
-      query: ({ sourceID, commentID }) =>
-        `api/sources/${sourceID}/comments/${commentID}/attachment?download=false&preview=false`,
+      queryFn: ({ sourceID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachmentText(sourceID, Number(commentID)),
+        ),
     }),
     getCommentOnSpectrumTextAttachment: build.query<
       CommentAttachment,
       { spectrumID: number | string; commentID: number | string }
     >({
-      query: ({ spectrumID, commentID }) =>
-        `api/spectra/${spectrumID}/comments/${commentID}/attachment?download=false&preview=false`,
+      queryFn: ({ spectrumID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachmentText(spectrumID, Number(commentID), {
+            resourceType: "spectra",
+          }),
+        ),
     }),
 
     // ----- Save / update / transfer -----
-    saveSource: build.mutation<any, Record<string, any>>({
-      query: (payload) => ({
-        url: "api/sources",
-        method: "POST",
-        body: payload,
-      }),
+    saveSource: build.mutation<{ id: string }, SourcePost>({
+      queryFn: (payload, api) =>
+        clientQuery(api, (client) => client.postSource(payload)),
       invalidatesTags: ["Source"],
     }),
     updateSource: build.mutation<
-      RouteData<"PATCH /api/sources/{obj_id}">,
-      { id: number | string; payload: Record<string, any> }
+      void,
+      {
+        id: number | string;
+        // alias/t0/tns_name land in UpdateSourceOptions with skyportal-js#6;
+        // the handler already loads them through the Obj schema.
+        payload: UpdateSourceOptions & {
+          alias?: string[];
+          t0?: number | null;
+          tns_name?: string;
+        };
+      }
     >({
-      query: ({ id, payload }) => ({
-        url: `api/sources/${id}`,
-        method: "PATCH",
-        body: payload,
-      }),
+      queryFn: ({ id, payload }, api) =>
+        clientQuery(api, (client) => client.updateSource(String(id), payload)),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
-    updateSourceGroups: build.mutation<any, Record<string, any>>({
-      query: (payload) => ({
-        url: "api/source_groups",
-        method: "POST",
-        body: payload,
-      }),
+    updateSourceGroups: build.mutation<void, SourceGroupsPost>({
+      queryFn: (payload, api) =>
+        clientQuery(api, (client) => client.postSourceGroups(payload)),
       invalidatesTags: ["Source"],
     }),
     acceptSaveRequest: build.mutation<
-      any,
+      void,
       { sourceID: number | string; groupID: number | string }
     >({
-      query: ({ sourceID, groupID }) => ({
-        url: `api/source_groups/${sourceID}`,
-        method: "PATCH",
-        body: { groupID, active: true, requested: false },
-      }),
+      queryFn: ({ sourceID, groupID }, api) =>
+        clientQuery(api, (client) =>
+          client.updateSourceGroup(
+            String(sourceID),
+            Number(groupID),
+            true,
+            false,
+          ),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     declineSaveRequest: build.mutation<
-      any,
+      void,
       { sourceID: number | string; groupID: number | string }
     >({
-      query: ({ sourceID, groupID }) => ({
-        url: `api/source_groups/${sourceID}`,
-        method: "PATCH",
-        body: { groupID, active: false, requested: false },
-      }),
+      queryFn: ({ sourceID, groupID }, api) =>
+        clientQuery(api, (client) =>
+          client.updateSourceGroup(
+            String(sourceID),
+            Number(groupID),
+            false,
+            false,
+          ),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     addSourceView: build.mutation<any, number | string>({
@@ -279,57 +333,63 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Classifications -----
-    addClassification: build.mutation<any, Record<string, any>>({
-      query: (formData) => ({
-        url: "api/classification",
-        method: "POST",
-        body: formData,
-      }),
+    addClassification: build.mutation<
+      { classification_id: number },
+      ClassificationPost
+    >({
+      queryFn: (formData, api) =>
+        clientQuery(api, (client) => client.postClassification(formData)),
       invalidatesTags: (_result, _error, formData) =>
-        sourceTag(formData?.["obj_id"]),
+        sourceTag(formData?.obj_id),
     }),
     updateClassification: build.mutation<
-      any,
-      { classificationID: number | string; formData: Record<string, any> }
+      void,
+      {
+        classificationID: number | string;
+        formData: ClassificationUpdate & { obj_id?: string };
+      }
     >({
-      query: ({ classificationID, formData }) => ({
-        url: `api/classification/${classificationID}`,
-        method: "PUT",
-        body: formData,
-      }),
+      queryFn: ({ classificationID, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.updateClassification(Number(classificationID), formData),
+        ),
       invalidatesTags: (_result, _error, { formData }) =>
-        sourceTag(formData?.["obj_id"]),
+        sourceTag(formData?.obj_id),
     }),
-    deleteClassification: build.mutation<any, number | string>({
-      query: (classificationID) => ({
-        url: `api/classification/${classificationID}`,
-        method: "DELETE",
-      }),
+    deleteClassification: build.mutation<void, number | string>({
+      queryFn: (classificationID, api) =>
+        clientQuery(api, (client) =>
+          client.deleteClassification(Number(classificationID)),
+        ),
       invalidatesTags: ["Source"],
     }),
-    deleteClassifications: build.mutation<any, number | string>({
-      query: (sourceID) => ({
-        url: `api/sources/${sourceID}/classifications`,
-        method: "DELETE",
-      }),
+    deleteClassifications: build.mutation<void, number | string>({
+      queryFn: (sourceID, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSourceClassifications(String(sourceID)),
+        ),
       invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     addClassificationVote: build.mutation<
-      any,
+      void,
       {
         classification_id: number | string;
-        data?: Record<string, any> | undefined;
+        data?: { vote?: number } | undefined;
       }
     >({
-      query: ({ classification_id, data = {} }) => ({
-        url: `api/classification/votes/${classification_id}`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ classification_id, data = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.postClassificationVote(
+            Number(classification_id),
+            data.vote ?? 1,
+          ),
+        ),
       invalidatesTags: ["Source"],
     }),
 
     // ----- Comments -----
+    // raw: comments carry a conversation `channel` the client cannot send yet
+    // (skyportal-js#6 adds it)
     addComment: build.mutation<
       RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
       Record<string, any>
@@ -376,15 +436,17 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: (_result, _error, { formData }) =>
         sourceTag(formData?.["obj_id"]),
     }),
+    // raw until skyportal-js#6 ships fetchCommentChannels/deleteCommentChannel
     getConversations: build.query<string[], string>({
       query: (obj_id) => `api/sources/${obj_id}/comments/channels`,
       providesTags: (_result, _error, obj_id) => sourceTag(obj_id),
     }),
-    getConversation: build.query<any[], { obj_id: string; channel: string }>({
-      query: ({ obj_id, channel }) =>
-        `api/sources/${obj_id}/comments?channel=${encodeURIComponent(channel)}`,
-      transformResponse: (data: any[]) =>
-        (data ?? []).map(({ resourceType, ...comment }) => comment),
+    getConversation: build.query<
+      Comment[],
+      { obj_id: string; channel: string }
+    >({
+      queryFn: ({ obj_id, channel }, api) =>
+        clientQuery(api, (client) => client.fetchComments(obj_id, { channel })),
       providesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
     }),
     deleteConversation: build.mutation<
@@ -398,160 +460,161 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
     }),
     deleteComment: build.mutation<
-      any,
+      void,
       { sourceID: number | string; commentID: number | string }
     >({
-      query: ({ sourceID, commentID }) => ({
-        url: `api/sources/${sourceID}/comments/${commentID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ sourceID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteComment(sourceID, Number(commentID)),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     deleteCommentOnSpectrum: build.mutation<
-      any,
+      void,
       { spectrumID: number | string; commentID: number | string }
     >({
-      query: ({ spectrumID, commentID }) => ({
-        url: `api/spectra/${spectrumID}/comments/${commentID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ spectrumID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteComment(spectrumID, Number(commentID), {
+            resourceType: "spectra",
+          }),
+        ),
       invalidatesTags: ["Source"],
     }),
 
     // ----- Annotations -----
     addAnnotation: build.mutation<
-      any,
-      { sourceID: number | string; formData: Record<string, any> }
+      { annotation_id: number },
+      {
+        sourceID: number | string;
+        formData: {
+          origin: string;
+          data: Record<string, unknown>;
+          group_ids?: number[];
+        };
+      }
     >({
-      query: ({ sourceID, formData }) => ({
-        url: `api/sources/${sourceID}/annotations`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ sourceID, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.postAnnotation(sourceID, formData.origin, formData.data, {
+            groupIds: formData.group_ids,
+          }),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     deleteAnnotation: build.mutation<
-      any,
+      void,
       { sourceID: number | string; annotationID: number | string }
     >({
-      query: ({ sourceID, annotationID }) => ({
-        url: `api/sources/${sourceID}/annotations/${annotationID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ sourceID, annotationID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteAnnotation(sourceID, Number(annotationID)),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
 
     // ----- Labels -----
     addSourceLabels: build.mutation<
-      any,
-      { id: number | string; data: Record<string, any> }
+      void,
+      { id: number | string; data: { groupIds: number[] } }
     >({
-      query: ({ id, data }) => ({
-        url: `api/sources/${id}/labels`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.postSourceLabels(String(id), data.groupIds),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     deleteSourceLabels: build.mutation<
-      any,
-      { id: number | string; data: Record<string, any> }
+      void,
+      { id: number | string; data: { groupIds: number[] } }
     >({
-      query: ({ id, data }) => ({
-        url: `api/sources/${id}/labels`,
-        method: "DELETE",
-        body: data,
-      }),
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSourceLabels(String(id), data.groupIds),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- Follow-up requests -----
     submitFollowupRequest: build.mutation<
-      RouteData<"POST /api/followup_request">,
-      Record<string, any>
+      { id: number },
+      FollowupRequestPost & { instrument_name?: string }
     >({
-      query: (params) => {
-        const { instrument_name, ...paramsToSubmit } = params;
-        return {
-          url: "api/followup_request",
-          method: "POST",
-          body: paramsToSubmit,
-        };
-      },
+      queryFn: ({ instrument_name, ...paramsToSubmit }, api) =>
+        clientQuery(api, (client) =>
+          client.postFollowupRequest(paramsToSubmit),
+        ),
       invalidatesTags: ["Source"],
     }),
     editFollowupRequest: build.mutation<
-      RouteData<"PUT /api/followup_request/{request_id}">,
-      { params: Record<string, any>; requestID: number | string }
+      void,
+      {
+        params: UpdateFollowupRequestOptions & { instrument_name?: string };
+        requestID: number | string;
+      }
     >({
-      query: ({ params, requestID }) => {
+      queryFn: ({ params, requestID }, api) => {
         const { instrument_name, ...paramsToSubmit } = params;
-        return {
-          url: `api/followup_request/${requestID}`,
-          method: "PUT",
-          body: paramsToSubmit,
-        };
+        return clientQuery(api, (client) =>
+          client.updateFollowupRequest(Number(requestID), paramsToSubmit),
+        );
       },
       invalidatesTags: ["Source"],
     }),
     deleteFollowupRequest: build.mutation<
-      any,
-      { id: number | string; params?: Record<string, any> | undefined }
+      void,
+      { id: number | string; params?: Record<string, unknown> | undefined }
     >({
-      query: ({ id, params = {} }) => ({
-        url: `api/followup_request/${id}`,
-        method: "DELETE",
-        body: params,
-      }),
+      queryFn: ({ id }, api) =>
+        clientQuery(api, (client) => client.deleteFollowupRequest(Number(id))),
       invalidatesTags: ["Source"],
     }),
 
     // ----- Assignments -----
-    submitAssignment: build.mutation<any, Record<string, any>>({
-      query: (params) => ({
-        url: "api/assignment",
-        method: "POST",
-        body: params,
-      }),
+    submitAssignment: build.mutation<{ id: number }, AssignmentPost>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.postAssignment(params)),
       invalidatesTags: ["Source"],
     }),
     editAssignment: build.mutation<
-      any,
-      { params: Record<string, any>; assignmentID: number | string }
+      void,
+      { params: UpdateAssignmentOptions; assignmentID: number | string }
     >({
-      query: ({ params, assignmentID }) => ({
-        url: `api/assignment/${assignmentID}`,
-        method: "PUT",
-        body: params,
-      }),
+      queryFn: ({ params, assignmentID }, api) =>
+        clientQuery(api, (client) =>
+          client.updateAssignment(Number(assignmentID), params),
+        ),
       invalidatesTags: ["Source"],
     }),
-    deleteAssignment: build.mutation<any, number | string>({
-      query: (id) => ({
-        url: `api/assignment/${id}`,
-        method: "DELETE",
-      }),
+    deleteAssignment: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteAssignment(Number(id))),
       invalidatesTags: ["Source"],
     }),
 
     // ----- Notifications / sharing / photometry -----
-    sendAlert: build.mutation<
-      RouteData<"POST /api/source_notifications">,
-      Record<string, any>
+    sendAlert: build.mutation<{ id: number }, SourceNotificationPost>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.postSourceNotification(params)),
+    }),
+    shareData: build.mutation<
+      void,
+      {
+        groupIDs: number[];
+        photometryIDs?: number[];
+        spectrumIDs?: number[];
+      }
     >({
-      query: (params) => ({
-        url: "api/source_notifications",
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ groupIDs, photometryIDs, spectrumIDs }, api) =>
+        clientQuery(api, (client) =>
+          client.postSharing(groupIDs, {
+            photometryIds: photometryIDs,
+            spectrumIds: spectrumIDs,
+          }),
+        ),
     }),
-    shareData: build.mutation<any, Record<string, any>>({
-      query: (data) => ({
-        url: "api/sharing",
-        method: "POST",
-        body: data,
-      }),
-    }),
+    // raw: the client's postPhotometry cannot send `refresh` yet
+    // (skyportal-js#6 adds it)
     uploadPhotometry: build.mutation<any, Record<string, any>>({
       query: (data) => ({
         url: "api/photometry?refresh=true",
@@ -561,151 +624,140 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     copySourcePhotometry: build.mutation<
-      any,
-      { id: number | string; formData?: Record<string, any> | undefined }
+      void,
+      {
+        id: number | string;
+        formData: { origin_id: string; group_ids: number[] };
+      }
     >({
-      query: ({ id, formData = {} }) => ({
-        url: `api/sources/${id}/copy_photometry`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.postSourcePhotometryCopy(
+            String(id),
+            formData.origin_id,
+            formData.group_ids,
+          ),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- External-catalog annotations -----
-    fetchGaia: build.mutation<
-      RouteData<"POST /api/sources/{obj_id}/annotations/gaia">,
-      number | string
-    >({
-      query: (sourceID) => ({
-        url: `api/sources/${sourceID}/annotations/gaia`,
-        method: "POST",
-      }),
+    fetchGaia: build.mutation<void, number | string>({
+      queryFn: (sourceID, api) =>
+        clientQuery(api, (client) =>
+          client.postGaiaAnnotation(String(sourceID)),
+        ),
       invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
-    fetchWise: build.mutation<
-      RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
-      number | string
-    >({
-      query: (sourceID) => ({
-        url: `api/sources/${sourceID}/annotations/irsa`,
-        method: "POST",
-      }),
+    fetchWise: build.mutation<void, number | string>({
+      queryFn: (sourceID, api) =>
+        clientQuery(api, (client) =>
+          client.postIrsaAnnotation(String(sourceID)),
+        ),
       invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     fetchVizier: build.mutation<
-      RouteData<"POST /api/sources/{obj_id}/annotations/vizier">,
+      void,
       { sourceID: number | string; catalog?: string | undefined }
     >({
-      query: ({ sourceID, catalog = "VII/290" }) => ({
-        url: `api/sources/${sourceID}/annotations/vizier`,
-        method: "POST",
-        body: { catalog },
-      }),
+      queryFn: ({ sourceID, catalog = "VII/290" }, api) =>
+        clientQuery(api, (client) =>
+          client.postVizierAnnotation(String(sourceID), { catalog }),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     fetchDatalab: build.mutation<
-      any,
+      void,
       { sourceID: number | string; catalog?: string | undefined }
     >({
-      query: ({ sourceID, catalog = "ls_dr10" }) => ({
-        url: `api/sources/${sourceID}/annotations/datalab`,
-        method: "POST",
-        body: { catalog },
-      }),
+      queryFn: ({ sourceID, catalog = "ls_dr10" }, api) =>
+        clientQuery(api, (client) =>
+          client.postDatalabAnnotation(String(sourceID), { catalog }),
+        ),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
-    fetchPS1: build.mutation<
-      RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
-      number | string
-    >({
-      query: (sourceID) => ({
-        url: `api/sources/${sourceID}/annotations/ps1`,
-        method: "POST",
-      }),
+    fetchPS1: build.mutation<void, number | string>({
+      queryFn: (sourceID, api) =>
+        clientQuery(api, (client) =>
+          client.postPs1Annotation(String(sourceID)),
+        ),
       invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
 
     // ----- TNS / host / MPC / GCN crossmatch -----
     addTNS: build.mutation<
-      any,
-      { id: number | string; formData: Record<string, any> }
+      void,
+      {
+        id: number | string;
+        formData: { radius?: number; tnsrobot_id?: number };
+      }
     >({
-      query: ({ id, formData }) => ({
-        url: `api/sources/${id}/tns`,
-        params: formData,
-      }),
+      queryFn: ({ id, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSourceTns(String(id), formData),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     addHost: build.mutation<
-      any,
-      { id: number | string; formData: Record<string, any> }
+      void,
+      { id: number | string; formData: { galaxyName: string } }
     >({
-      query: ({ id, formData }) => ({
-        url: `api/sources/${id}/host`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.postSourceHost(String(id), formData.galaxyName),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
-    removeHost: build.mutation<any, number | string>({
-      query: (id) => ({
-        url: `api/sources/${id}/host`,
-        method: "DELETE",
-      }),
+    removeHost: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteSourceHost(String(id))),
       invalidatesTags: (_result, _error, id) => sourceTag(id),
     }),
     addMPC: build.mutation<
-      any,
-      { id: number | string; formData: Record<string, any> }
+      void,
+      { id: number | string; formData: SourceMpcQueryPost }
     >({
-      query: ({ id, formData }) => ({
-        url: `api/sources/${id}/mpc`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.postSourceMpcQuery(String(id), formData),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     addGCNCrossmatch: build.mutation<
-      any,
-      { id: number | string; formData: Record<string, any> }
+      void,
+      { id: number | string; formData: SourceGcnEventCrossmatchPost }
     >({
-      query: ({ id, formData }) => ({
-        url: `api/sources/${id}/gcn_event`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, formData }, api) =>
+        clientQuery(api, (client) =>
+          client.postSourceGcnEventCrossmatch(String(id), formData),
+        ),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- Analyses (start / delete) -----
     startAnalysis: build.mutation<
-      RouteData<"POST /api/{analysis_resource_type}/{resource_id}/analysis/{analysis_service_id}">,
+      { id: number },
       {
         id: number | string;
         analysis_service_id: number | string;
-        formData?: Record<string, any> | undefined;
+        formData?: AnalysisPost | undefined;
       }
     >({
-      query: ({ id, analysis_service_id, formData = {} }) => ({
-        url: `api/obj/${id}/analysis/${analysis_service_id}`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, analysis_service_id, formData = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.postAnalysis(
+            String(id),
+            Number(analysis_service_id),
+            formData,
+          ),
+        ),
       invalidatesTags: ["Source"],
     }),
-    deleteAnalysis: build.mutation<
-      any,
-      {
-        analysis_id: number | string;
-        formData?: Record<string, any> | undefined;
-      }
-    >({
-      query: ({ analysis_id, formData = {} }) => ({
-        url: `api/obj/analysis/${analysis_id}`,
-        method: "DELETE",
-        body: formData,
-      }),
+    deleteAnalysis: build.mutation<void, { analysis_id: number | string }>({
+      queryFn: ({ analysis_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteAnalysis(Number(analysis_id)),
+        ),
       invalidatesTags: ["Source"],
     }),
   }),
