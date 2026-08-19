@@ -13,8 +13,11 @@ import uuid
 from datetime import timedelta
 
 import numpy as np
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.gcn_events import GcnEventPost
 
-from skyportal.tests import api
+from skyportal.tests import client
 from skyportal.utils.naive_datetime import utcnow_naive
 
 RADIUS_MULTIPLIER = 1.0
@@ -34,13 +37,13 @@ def _ep_payload(
         dec = float(np.random.uniform(-30, 30))
 
     error = pos_err * RADIUS_MULTIPLIER
-    payload = {
-        "dateobs": dateobs.isoformat(),
-        "trigger_id": name,
-        "aliases": [f"EP#{name}"],
-        "skymap": {"ra": ra, "dec": dec, "error": error},
-        "tags": ["EP", "X-ray"] + ([tag] if tag else []),
-        "properties": {
+    payload = GcnEventPost(
+        dateobs=dateobs.isoformat(),
+        trigger_id=name,
+        aliases=[f"EP#{name}"],
+        skymap={"ra": ra, "dec": dec, "error": error},
+        tags=["EP", "X-ray"] + ([tag] if tag else []),
+        properties={
             "ep_name": name,
             "ep_version": "1",
             "flux": 1.2e-10,
@@ -51,8 +54,8 @@ def _ep_payload(
             "net_rate": 0.35,
             "exp_time": 1200.0,
         },
-        "group_ids": list(group_ids),
-    }
+        group_ids=list(group_ids),
+    )
     localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
     return payload, dateobs, localization_name
 
@@ -64,27 +67,21 @@ def test_ep_candidate_creates_restricted_event(
     name = f"EP{uuid.uuid4().hex[:10]}"
     payload, dateobs, localization_name = _ep_payload(name, [public_group2.id])
 
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    client(super_admin_token).post_gcn_event(payload)
 
     dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
 
-    status, data = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token_group2)
-    assert status == 200, data
-    assert data["data"]["trigger_id"] == name
-    assert "EP" in data["data"]["tags"]
+    event = client(view_only_token_group2).fetch_gcn_event(dateobs_str)
+    assert event.trigger_id == name
+    assert "EP" in event.tags
 
     # the proprietary feed must not be visible outside the EP group
-    status, data = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token)
-    assert status in (400, 403, 404), data
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_gcn_event(dateobs_str)
+    assert err.value.status_code in (400, 403, 404)
 
     # the cone localization was built from ra/dec/pos_err
-    status, data = api(
-        "GET",
-        f"localization/{dateobs_str}/name/{localization_name}",
-        token=view_only_token_group2,
-    )
-    assert status == 200, data
+    client(view_only_token_group2).fetch_localization(dateobs_str, localization_name)
 
 
 def test_ep_new_version_reuses_event_via_trigger_id(
@@ -103,8 +100,7 @@ def test_ep_new_version_reuses_event_via_trigger_id(
     payload_v1, dateobs_v1, loc_v1 = _ep_payload(
         name, [public_group2.id], tag=tag, ra=10.0, dec=20.0, pos_err=0.05
     )
-    status, data = api("POST", "gcn_event", data=payload_v1, token=super_admin_token)
-    assert status == 200, data
+    client(super_admin_token).post_gcn_event(payload_v1)
 
     # version 2: refined position AND a shifted observation start
     payload_v2, _, loc_v2 = _ep_payload(
@@ -116,28 +112,20 @@ def test_ep_new_version_reuses_event_via_trigger_id(
         pos_err=0.02,
         tag=tag,
     )
-    payload_v2["properties"]["ep_version"] = "2"
-    status, data = api("POST", "gcn_event", data=payload_v2, token=super_admin_token)
-    assert status == 200, data
+    payload_v2.properties["ep_version"] = "2"
+    client(super_admin_token).post_gcn_event(payload_v2)
 
     # exactly one event carries this candidate's tag -- v2 did not fork a new one
-    status, data = api(
-        "GET", "gcn_event", params={"gcnTagKeep": tag}, token=view_only_token_group2
-    )
-    assert status == 200, data
-    events = data["data"]["events"]
+    events = client(view_only_token_group2).fetch_gcn_events(gcn_tag_keep=[tag]).events
     assert len(events) == 1, events
-    assert events[0]["trigger_id"] == name
+    assert events[0].trigger_id == name
 
     # and the event keeps its original dateobs, with both localizations attached
     dateobs_str = dateobs_v1.strftime("%Y-%m-%d %H:%M:%S")
     for localization_name in (loc_v1, loc_v2):
-        status, data = api(
-            "GET",
-            f"localization/{dateobs_str}/name/{localization_name}",
-            token=view_only_token_group2,
+        client(view_only_token_group2).fetch_localization(
+            dateobs_str, localization_name
         )
-        assert status == 200, data
 
 
 def test_ep_properties_recorded(
@@ -147,16 +135,14 @@ def test_ep_properties_recorded(
     name = f"EP{uuid.uuid4().hex[:10]}"
     payload, dateobs, _ = _ep_payload(name, [public_group2.id])
 
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    client(super_admin_token).post_gcn_event(payload)
 
     dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
-    status, data = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token_group2)
-    assert status == 200, data
+    event = client(view_only_token_group2).fetch_gcn_event(dateobs_str)
 
-    properties = data["data"].get("properties") or []
-    assert properties, data["data"]
-    recorded = properties[0]["data"]
+    properties = event.properties or []
+    assert properties, event
+    recorded = properties[0].data
     assert recorded["ep_name"] == name
     assert recorded["ep_version"] == "1"
     assert recorded["net_counts"] == 42.0
@@ -179,17 +165,19 @@ def test_restricted_ep_event_does_not_leak_position_as_source(
     # mid-range of the real EP pos_err distribution (0.031-0.053 deg)
     payload, dateobs, _ = _ep_payload(name, [public_group2.id], pos_err=0.04)
 
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    client(super_admin_token).post_gcn_event(payload)
 
     dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
-    status, _ = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token)
-    assert status in (400, 403, 404), "the event itself should be hidden"
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_gcn_event(dateobs_str)
+    assert err.value.status_code in (400, 403, 404), "the event itself should be hidden"
 
     stamp = dateobs.strftime("%y%m%d_%H%M%S")
     leaked = []
     for obj_id in (f"EP-{stamp}", f"GCN-{stamp}", f"GRB-{stamp}", stamp):
-        status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-        if status == 200:
-            leaked.append((obj_id, data["data"].get("ra"), data["data"].get("dec")))
+        try:
+            source = client(view_only_token).fetch_source(obj_id)
+        except SkyPortalError:
+            continue
+        leaked.append((obj_id, source.ra, source.dec))
     assert not leaked, f"restricted EP position exposed via object(s): {leaked}"

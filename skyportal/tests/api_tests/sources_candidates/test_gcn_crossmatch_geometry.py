@@ -14,10 +14,11 @@ from datetime import timedelta
 
 import numpy as np
 import sqlalchemy as sa
+from skyportal_py.gcn_events import GcnEventPost
 
 from baselayer.app import models
 from skyportal.models import Localization
-from skyportal.tests import api
+from skyportal.tests import client
 from skyportal.utils.crossmatch import (
     contained_in_localization,
     search_cone,
@@ -61,15 +62,14 @@ def test_cone_containment_is_exact(super_admin_token, public_group2):
     """A cone localization resolves membership analytically."""
     dateobs = _unique_dateobs()
     ra, dec, error = 42.0, 12.0, 0.5
-    payload = {
-        "dateobs": dateobs.isoformat(),
-        "trigger_id": f"EP{uuid.uuid4().hex[:10]}",
-        "skymap": {"ra": ra, "dec": dec, "error": error},
-        "tags": ["EP"],
-        "group_ids": [public_group2.id],
-    }
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    payload = GcnEventPost(
+        dateobs=dateobs.isoformat(),
+        trigger_id=f"EP{uuid.uuid4().hex[:10]}",
+        skymap={"ra": ra, "dec": dec, "error": error},
+        tags=["EP"],
+        group_ids=[public_group2.id],
+    )
+    client(super_admin_token).post_gcn_event(payload)
 
     name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
     localization = _localization(dateobs, name)
@@ -109,14 +109,13 @@ def test_skymap_containment_uses_localization_tiles(super_admin_token, public_gr
         (ra0 + 2.0, dec0 + 2.0),
         (ra0 - 2.0, dec0 + 2.0),
     ]
-    payload = {
-        "dateobs": dateobs.isoformat(),
-        "skymap": {"polygon": polygon, "localization_name": name},
-        "tags": ["TEST"],
-        "group_ids": [public_group2.id],
-    }
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    payload = GcnEventPost(
+        dateobs=dateobs.isoformat(),
+        skymap={"polygon": polygon, "localization_name": name},
+        tags=["TEST"],
+        group_ids=[public_group2.id],
+    )
+    client(super_admin_token).post_gcn_event(payload)
 
     localization = _localization(dateobs, name)
     assert localization is not None

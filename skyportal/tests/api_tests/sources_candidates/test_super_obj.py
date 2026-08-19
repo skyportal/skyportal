@@ -14,28 +14,31 @@ import uuid
 
 import sqlalchemy as sa
 from PIL import Image
+from skyportal_py.classifications import ClassificationPost
+from skyportal_py.photometry import PhotometryPost
+from skyportal_py.taxonomies import TaxonomyPost
+from skyportal_py.thumbnails import ThumbnailPost
 from tdtax import __version__, taxonomy
 
 from skyportal.models import DBSession, Obj, SuperObj
-from skyportal.tests import api
+from skyportal.tests import client
 
 
 def _post_thumbnail(token, obj_id, ttype, survey):
     buf = io.BytesIO()
     Image.new("RGB", (16, 16), (10, 20, 30)).save(buf, format="PNG")
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={
-            "obj_id": obj_id,
-            "data": base64.b64encode(buf.getvalue()).decode("utf-8"),
-            "ttype": ttype,
-            "survey": survey,
-        },
-        token=token,
+    return (
+        client(token)
+        .post_thumbnail(
+            ThumbnailPost(
+                obj_id=obj_id,
+                data=base64.b64encode(buf.getvalue()).decode("utf-8"),
+                ttype=ttype,
+                survey=survey,
+            )
+        )
+        .id
     )
-    assert status == 200, data
-    return data["data"]["id"]
 
 
 def _link_super_obj(obj_ids):
@@ -63,63 +66,60 @@ def _link_super_obj(obj_ids):
 
 
 def _obj_ids(entries):
-    return {e["obj_id"] for e in entries}
+    return {e.obj_id for e in entries}
 
 
 def _post_taxonomy(token, group_ids):
-    status, data = api(
-        "POST",
-        "taxonomy",
-        data={
-            "name": "test taxonomy" + str(uuid.uuid4()),
-            "hierarchy": taxonomy,
-            "group_ids": group_ids,
-            "provenance": f"tdtax_{__version__}",
-            "version": __version__,
-            "isLatest": True,
-        },
-        token=token,
+    return (
+        client(token)
+        .post_taxonomy(
+            TaxonomyPost(
+                name="test taxonomy" + str(uuid.uuid4()),
+                hierarchy=taxonomy,
+                group_ids=group_ids,
+                provenance=f"tdtax_{__version__}",
+                version=__version__,
+                is_latest=True,
+            )
+        )
+        .taxonomy_id
     )
-    assert status == 200, data
-    return data["data"]["taxonomy_id"]
 
 
 def _post_classification(token, obj_id, taxonomy_id, group_ids, classification):
-    status, data = api(
-        "POST",
-        "classification",
-        data={
-            "obj_id": obj_id,
-            "classification": classification,
-            "taxonomy_id": taxonomy_id,
-            "probability": 1.0,
-            "group_ids": group_ids,
-        },
-        token=token,
+    return (
+        client(token)
+        .post_classification(
+            ClassificationPost(
+                obj_id=obj_id,
+                classification=classification,
+                taxonomy_id=taxonomy_id,
+                probability=1.0,
+                group_ids=group_ids,
+            )
+        )
+        .classification_id
     )
-    assert status == 200, data
-    return data["data"]["classification_id"]
 
 
 def _post_photometry(token, obj_id, instrument_id, group_ids, mjd):
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": obj_id,
-            "mjd": mjd,
-            "instrument_id": instrument_id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "group_ids": group_ids,
-        },
-        token=token,
+    return (
+        client(token)
+        .post_photometry(
+            PhotometryPost(
+                obj_id=obj_id,
+                mjd=mjd,
+                instrument_id=instrument_id,
+                flux=12.24,
+                fluxerr=0.031,
+                zp=25.0,
+                magsys="ab",
+                filter="ztfg",
+                group_ids=group_ids,
+            )
+        )
+        .ids[0]
     )
-    assert status == 200, data
-    return data["data"]["ids"][0]
 
 
 def _seed_obj(token, obj_id, group_id, taxonomy_id, label):
@@ -127,45 +127,18 @@ def _seed_obj(token, obj_id, group_id, taxonomy_id, label):
     scoped to group_id. label distinguishes this obj's entries."""
     _post_classification(token, obj_id, taxonomy_id, [group_id], "RRab")
 
-    status, data = api(
-        "POST",
-        f"sources/{obj_id}/annotations",
-        data={
-            "origin": f"origin_{label}",
-            "data": {f"key_{label}": label},
-            "group_ids": [group_id],
-        },
-        token=token,
+    sp = client(token)
+    sp.post_annotation(
+        obj_id,
+        f"origin_{label}",
+        {f"key_{label}": label},
+        group_ids=[group_id],
     )
-    assert status == 200, data
 
-    status, data = api(
-        "POST",
-        f"sources/{obj_id}/comments",
-        data={"text": f"comment_{label}", "group_ids": [group_id]},
-        token=token,
-    )
-    assert status == 200, data
+    sp.post_comment(obj_id, f"comment_{label}", group_ids=[group_id])
 
-    status, data = api(
-        "POST",
-        "objtagoption",
-        data={"name": f"Tag{label}{uuid.uuid4().hex[:8]}"},
-        token=token,
-    )
-    assert status == 200, data
-    objtagoption_id = data["data"]["id"]
-    status, data = api(
-        "POST",
-        "objtag",
-        data={
-            "objtagoption_id": objtagoption_id,
-            "obj_id": obj_id,
-            "group_ids": [group_id],
-        },
-        token=token,
-    )
-    assert status == 200, data
+    objtagoption_id = sp.post_obj_tag_option(f"Tag{label}{uuid.uuid4().hex[:8]}").id
+    sp.post_obj_tag(obj_id, objtagoption_id, group_ids=[group_id])
 
 
 def test_super_obj_flag_on_without_super_obj_is_noop(
@@ -184,39 +157,24 @@ def test_super_obj_flag_on_without_super_obj_is_noop(
     _seed_obj(super_admin_token, obj1, public_group.id, taxonomy_id, "solo")
     _post_photometry(super_admin_token, obj1, ztf_camera.id, [public_group.id], 58000.0)
 
+    sp = client(super_admin_token)
+
     # Embedded source response: flag on, but no SuperObj -> own entries only.
-    status, data = api(
-        "GET",
-        f"sources/{obj1}?includeSuperObjs=true&includeComments=true",
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    src = data["data"]
+    src = sp.fetch_source(obj1, include_super_objs=True, include_comments=True)
     for key in ["classifications", "annotations", "comments", "tags"]:
-        assert _obj_ids(src[key]) == {obj1}, f"{key} changed for a non-meta source"
+        assert _obj_ids(getattr(src, key)) == {obj1}, (
+            f"{key} changed for a non-meta source"
+        )
 
     # Per-type endpoints: flag on is likewise a no-op.
-    status, data = api(
-        "GET",
-        f"sources/{obj1}/classifications?includeSuperObjs=true",
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert _obj_ids(data["data"]) == {obj1}
+    classes = sp.fetch_classifications(obj1, include_super_objs=True)
+    assert _obj_ids(classes) == {obj1}
 
-    status, data = api(
-        "GET", f"objtag?obj_id={obj1}&includeSuperObjs=true", token=super_admin_token
-    )
-    assert status == 200, data
-    assert _obj_ids(data["data"]) == {obj1}
+    tags = sp.fetch_obj_tags(obj_id=obj1, include_super_objs=True)
+    assert _obj_ids(tags) == {obj1}
 
-    status, data = api(
-        "GET",
-        f"sources/{obj1}/photometry?includeSuperObjsPhotometry=true",
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert {p["obj_id"] for p in data["data"]} == {obj1}
+    points = sp.fetch_photometry(obj1, include_super_objs_photometry=True)
+    assert {p.obj_id for p in points} == {obj1}
 
 
 def test_super_obj_photometry_aggregation_and_rls(
@@ -242,26 +200,21 @@ def test_super_obj_photometry_aggregation_and_rls(
 
     super_obj_id, teardown = _link_super_obj([obj1, obj2])
     try:
-        url = f"sources/{obj1}/photometry"
-
         # --- Flag off: only the source's own photometry ---
-        status, data = api("GET", url, token=super_admin_token)
-        assert status == 200, data
-        assert {p["obj_id"] for p in data["data"]} == {obj1}
+        points = client(super_admin_token).fetch_photometry(obj1)
+        assert {p.obj_id for p in points} == {obj1}
 
         # --- Flag on, admin: union across both linked Objs, with provenance ---
-        status, data = api(
-            "GET", f"{url}?includeSuperObjsPhotometry=true", token=super_admin_token
+        points = client(super_admin_token).fetch_photometry(
+            obj1, include_super_objs_photometry=True
         )
-        assert status == 200, data
-        assert {p["obj_id"] for p in data["data"]} == {obj1, obj2}
+        assert {p.obj_id for p in points} == {obj1, obj2}
 
         # --- Flag on, RLS: a group1-only user must NOT see group2's points ---
-        status, data = api(
-            "GET", f"{url}?includeSuperObjsPhotometry=true", token=view_only_token
+        points = client(view_only_token).fetch_photometry(
+            obj1, include_super_objs_photometry=True
         )
-        assert status == 200, data
-        assert {p["obj_id"] for p in data["data"]} == {obj1}
+        assert {p.obj_id for p in points} == {obj1}
     finally:
         teardown()
 
@@ -296,50 +249,41 @@ def test_super_obj_classification_aggregation_and_rls(
     super_obj_id, teardown = _link_super_obj([obj1, obj2])
     try:
         # --- Flag off: behavior is unchanged (only the source's own class.) ---
-        status, data = api("GET", f"sources/{obj1}", token=super_admin_token)
-        assert status == 200, data
-        classes = data["data"]["classifications"]
-        assert {c["classification"] for c in classes} == {"RRab"}
-        assert all(c["obj_id"] == obj1 for c in classes)
+        classes = client(super_admin_token).fetch_source(obj1).classifications
+        assert {c.classification for c in classes} == {"RRab"}
+        assert all(c.obj_id == obj1 for c in classes)
 
         # --- Flag on, admin: union across both linked Objs, with provenance ---
-        status, data = api(
-            "GET", f"sources/{obj1}?includeSuperObjs=true", token=super_admin_token
+        classes = (
+            client(super_admin_token)
+            .fetch_source(obj1, include_super_objs=True)
+            .classifications
         )
-        assert status == 200, data
-        classes = data["data"]["classifications"]
-        assert {c["classification"] for c in classes} == {"RRab", "RRc"}
-        by_class = {c["classification"]: c["obj_id"] for c in classes}
+        assert {c.classification for c in classes} == {"RRab", "RRc"}
+        by_class = {c.classification: c.obj_id for c in classes}
         assert by_class["RRab"] == obj1
         assert by_class["RRc"] == obj2  # provenance: traceable to source B
 
         # --- Flag on, RLS: a group1-only user must NOT see group2's class. ---
-        status, data = api(
-            "GET", f"sources/{obj1}?includeSuperObjs=true", token=view_only_token
+        classes = (
+            client(view_only_token)
+            .fetch_source(obj1, include_super_objs=True)
+            .classifications
         )
-        assert status == 200, data
-        classes = data["data"]["classifications"]
-        assert {c["classification"] for c in classes} == {"RRab"}
-        assert all(c["obj_id"] == obj1 for c in classes)
+        assert {c.classification for c in classes} == {"RRab"}
+        assert all(c.obj_id == obj1 for c in classes)
 
         # --- Per-type endpoint honors the same flag (admin: union) ---
-        status, data = api(
-            "GET",
-            f"sources/{obj1}/classifications?includeSuperObjs=true",
-            token=super_admin_token,
+        classes = client(super_admin_token).fetch_classifications(
+            obj1, include_super_objs=True
         )
-        assert status == 200, data
-        classes = data["data"]
-        assert {c["classification"] for c in classes} == {"RRab", "RRc"}
+        assert {c.classification for c in classes} == {"RRab", "RRc"}
 
         # --- Per-type endpoint, RLS: group1-only user sees only its own ---
-        status, data = api(
-            "GET",
-            f"sources/{obj1}/classifications?includeSuperObjs=true",
-            token=view_only_token,
+        classes = client(view_only_token).fetch_classifications(
+            obj1, include_super_objs=True
         )
-        assert status == 200, data
-        assert {c["classification"] for c in data["data"]} == {"RRab"}
+        assert {c.classification for c in classes} == {"RRab"}
     finally:
         teardown()
 
@@ -367,52 +311,40 @@ def test_super_obj_all_aggregations_and_rls(
     super_obj_id, teardown = _link_super_obj([obj1, obj2])
     try:
         # --- Flag off: each type is just the source's own (no aggregation) ---
-        status, data = api(
-            "GET", f"sources/{obj1}?includeComments=true", token=super_admin_token
-        )
-        assert status == 200, data
-        src = data["data"]
+        src = client(super_admin_token).fetch_source(obj1, include_comments=True)
         for key in ["classifications", "annotations", "comments", "tags"]:
-            assert _obj_ids(src[key]) == {obj1}, f"{key} should be obj1-only when off"
+            assert _obj_ids(getattr(src, key)) == {obj1}, (
+                f"{key} should be obj1-only when off"
+            )
 
         # --- Flag on, admin: every type is the union across both linked Objs ---
-        status, data = api(
-            "GET",
-            f"sources/{obj1}?includeSuperObjs=true&includeComments=true",
-            token=super_admin_token,
+        src = client(super_admin_token).fetch_source(
+            obj1, include_super_objs=True, include_comments=True
         )
-        assert status == 200, data
-        src = data["data"]
         for key in ["classifications", "annotations", "comments", "tags"]:
-            assert _obj_ids(src[key]) == {obj1, obj2}, f"{key} union missing a source"
+            assert _obj_ids(getattr(src, key)) == {obj1, obj2}, (
+                f"{key} union missing a source"
+            )
 
         # --- Flag on, RLS: a group1-only user sees only the group1 source ---
-        status, data = api(
-            "GET",
-            f"sources/{obj1}?includeSuperObjs=true&includeComments=true",
-            token=view_only_token,
+        src = client(view_only_token).fetch_source(
+            obj1, include_super_objs=True, include_comments=True
         )
-        assert status == 200, data
-        src = data["data"]
         for key in ["classifications", "annotations", "comments", "tags"]:
-            assert _obj_ids(src[key]) == {obj1}, f"{key} leaked a forbidden source"
+            assert _obj_ids(getattr(src, key)) == {obj1}, (
+                f"{key} leaked a forbidden source"
+            )
 
         # --- Per-type tag endpoint honors the flag + RLS too ---
-        status, data = api(
-            "GET",
-            f"objtag?obj_id={obj1}&includeSuperObjs=true",
-            token=super_admin_token,
+        tags = client(super_admin_token).fetch_obj_tags(
+            obj_id=obj1, include_super_objs=True
         )
-        assert status == 200, data
-        assert _obj_ids(data["data"]) == {obj1, obj2}
+        assert _obj_ids(tags) == {obj1, obj2}
 
-        status, data = api(
-            "GET",
-            f"objtag?obj_id={obj1}&includeSuperObjs=true",
-            token=view_only_token,
+        tags = client(view_only_token).fetch_obj_tags(
+            obj_id=obj1, include_super_objs=True
         )
-        assert status == 200, data
-        assert _obj_ids(data["data"]) == {obj1}
+        assert _obj_ids(tags) == {obj1}
     finally:
         teardown()
 
@@ -432,31 +364,21 @@ def test_super_obj_thumbnail_aggregation(
     _post_thumbnail(super_admin_token, obj1, "new", "ZTF")
     _post_thumbnail(super_admin_token, obj2, "new", "LSST")
 
-    def new_pairs(payload):
-        return {
-            (t.get("survey"), t["obj_id"])
-            for t in payload["data"]["thumbnails"]
-            if t["type"] == "new"
-        }
+    def new_pairs(source):
+        return {(t.survey, t.obj_id) for t in source.thumbnails if t.type == "new"}
 
     super_obj_id, teardown = _link_super_obj([obj1, obj2])
     try:
         # Flag off: only the source's own cutout (survey-tagged), not the link's.
-        status, data = api(
-            "GET", f"sources/{obj1}?includeThumbnails=true", token=super_admin_token
-        )
-        assert status == 200, data
-        pairs = new_pairs(data)
+        source = client(super_admin_token).fetch_source(obj1, include_thumbnails=True)
+        pairs = new_pairs(source)
         assert ("ZTF", obj1) in pairs
         assert not any(oid == obj2 for _, oid in pairs)
 
         # Flag on: both surveys' cutouts, each carrying its survey label.
-        status, data = api(
-            "GET",
-            f"sources/{obj1}?includeThumbnails=true&includeSuperObjs=true",
-            token=super_admin_token,
+        source = client(super_admin_token).fetch_source(
+            obj1, include_thumbnails=True, include_super_objs=True
         )
-        assert status == 200, data
-        assert {("ZTF", obj1), ("LSST", obj2)} <= new_pairs(data)
+        assert {("ZTF", obj1), ("LSST", obj2)} <= new_pairs(source)
     finally:
         teardown()
