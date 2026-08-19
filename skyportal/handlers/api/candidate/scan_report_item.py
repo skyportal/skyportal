@@ -40,6 +40,39 @@ log = make_log("api/scan_report_item")
 # named "desi_*" (e.g. "desi_dr1").
 DESI_ORIGIN_PREFIX = "desi_"
 
+# FollowUpAPI classes (Instrument.api_classname) whose requests are always
+# photometric or always spectroscopic -- instrument.type is often too coarse
+# (e.g. "imager"/"imaging spectrograph" doesn't capture LCO's per-camera split),
+# so the API class itself is the reliable signal for these.
+_PHOTOMETRY_ONLY_APIS = {
+    "ATLASAPI",
+    "PS1API",
+    "ZTFAPI",
+    "BLANCOAPI",
+    "NEWFIRMAPI",
+    "COLIBRIAPI",
+    "KAITAPI",
+    "SINISTROAPI",
+    "SPECTRALAPI",
+    "MUSCATAPI",
+    "IOOAPI",
+    "IOIAPI",
+    "SOARGHTSIMAGERAPI",
+    "TAROTAPI",
+    "TESSAPI",
+    "TRTAPI",
+    "TTTAPI",
+    "WINTERAPI",
+    "SPRINGAPI",
+}
+_SPECTROSCOPY_ONLY_APIS = {
+    "FLOYDSAPI",
+    "SPRATAPI",
+    "NGPSAPI",
+    "SOARGHTSAPI",
+    "SOARTSPECAPI",
+}
+
 
 def _survey_of(band):
     """Map a band name to its survey label for the detections summary."""
@@ -57,16 +90,50 @@ def _followup_request_type(allocation, instrument, payload=None):
     """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
     if allocation and allocation.types and "forced_photometry" in allocation.types:
         return "forced_photometry"
+
+    payload = payload or {}
+    api_classname = getattr(instrument, "api_classname", None)
+
     if instrument and instrument.name == "SEDM":
         # SEDM is an "imaging spectrograph" but most of its request modes
         # (e.g. "3-shot (gri)") are pure photometry; only modes that include
         # the IFU are spectroscopy.
-        payload = payload or {}
         observation_type = payload.get("observation_type") or ""
         observation_choices = payload.get("observation_choices") or []
         if "IFU" in observation_type or "IFU" in observation_choices:
             return "spectroscopy"
         return "photometry"
+
+    if api_classname == "SEDMV2API":
+        # observation_choice is a filter (g/r/i/z) for photometry, or "IFU".
+        return (
+            "spectroscopy"
+            if payload.get("observation_choice") == "IFU"
+            else "photometry"
+        )
+
+    if api_classname in ("BINOSPECAPI", "MMIRSAPI"):
+        # MMT's imaging/spectroscopy modes on the same instrument+API class.
+        return (
+            "spectroscopy"
+            if payload.get("observation_type") == "Spectroscopy"
+            else "photometry"
+        )
+
+    if api_classname == "UVOTXRTAPI":
+        # obs_type is one of Spectroscopy/Light Curve/Position/Timing; only
+        # the first is spectroscopic, the rest are photometric/timing.
+        return (
+            "spectroscopy"
+            if payload.get("obs_type") == "Spectroscopy"
+            else "photometry"
+        )
+
+    if api_classname in _PHOTOMETRY_ONLY_APIS:
+        return "photometry"
+    if api_classname in _SPECTROSCOPY_ONLY_APIS:
+        return "spectroscopy"
+
     if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
         return "spectroscopy"
     return "photometry"

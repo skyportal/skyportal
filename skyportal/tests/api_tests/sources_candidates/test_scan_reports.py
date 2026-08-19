@@ -1,8 +1,10 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
 
+from skyportal.handlers.api.candidate.scan_report_item import _followup_request_type
 from skyportal.models import (
     Candidate,
     DBSession,
@@ -647,3 +649,99 @@ def test_scan_report_rejects_inaccessible_gcn_event(
     )
     assert status == 400, data
     assert "not found or not accessible" in data["message"]
+
+
+def _followup_request_case(
+    api_classname, instrument_type="imager", instrument_name="Test", payload=None
+):
+    allocation = SimpleNamespace(types=[])
+    instrument = SimpleNamespace(
+        name=instrument_name, type=instrument_type, api_classname=api_classname
+    )
+    return _followup_request_type(allocation, instrument, payload)
+
+
+def test_followup_request_type_classification():
+    """Distinguish photometry vs spectroscopy requests, per Instrument.api_classname
+    and (for API classes that submit both) the request payload -- not just
+    instrument.type, which is too coarse for e.g. LCO's per-camera API split."""
+    # allocation.types takes precedence over everything else.
+    assert (
+        _followup_request_type(
+            SimpleNamespace(types=["forced_photometry"]),
+            SimpleNamespace(name="ATLAS", type="imager", api_classname="ATLASAPI"),
+        )
+        == "forced_photometry"
+    )
+
+    # SEDM: IFU vs any other (imaging) choice, from observation_type/observation_choices.
+    assert (
+        _followup_request_case(
+            "SEDMAPI",
+            instrument_name="SEDM",
+            payload={"observation_type": "IFU"},
+        )
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case(
+            "SEDMAPI",
+            instrument_name="SEDM",
+            payload={"observation_choices": ["3-shot (gri)"]},
+        )
+        == "photometry"
+    )
+
+    # SEDMv2: observation_choice is "IFU" or a filter (g/r/i/z).
+    assert (
+        _followup_request_case("SEDMV2API", payload={"observation_choice": "IFU"})
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("SEDMV2API", payload={"observation_choice": "g"})
+        == "photometry"
+    )
+
+    # MMT (Binospec/MMIRS): same API class submits both, split by observation_type.
+    for api_classname in ("BINOSPECAPI", "MMIRSAPI"):
+        assert (
+            _followup_request_case(
+                api_classname, payload={"observation_type": "Spectroscopy"}
+            )
+            == "spectroscopy"
+        )
+        assert (
+            _followup_request_case(
+                api_classname, payload={"observation_type": "Imaging"}
+            )
+            == "photometry"
+        )
+
+    # Swift UVOT/XRT: obs_type is one of Spectroscopy/Light Curve/Position/Timing.
+    assert (
+        _followup_request_case("UVOTXRTAPI", payload={"obs_type": "Spectroscopy"})
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("UVOTXRTAPI", payload={"obs_type": "Light Curve"})
+        == "photometry"
+    )
+
+    # Photometry-only and spectroscopy-only API classes ignore the payload entirely.
+    assert (
+        _followup_request_case("PS1API", payload={"observation_type": "Spectroscopy"})
+        == "photometry"
+    )
+    assert (
+        _followup_request_case("FLOYDSAPI", payload={"observation_type": "Imaging"})
+        == "spectroscopy"
+    )
+
+    # An API class not in either set falls back to instrument.type.
+    assert (
+        _followup_request_case("SOMEOTHERAPI", instrument_type="spectrograph")
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("SOMEOTHERAPI", instrument_type="imager") == "photometry"
+    )
