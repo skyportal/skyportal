@@ -27,7 +27,7 @@ import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewBrokerFilterForm from "./NewBrokerFilterForm";
 import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
 import Spinner from "../Spinner";
-import { decToDeg, raToDeg } from "./coneCoords";
+import { dec_to_deg, ra_to_deg } from "../../units";
 
 const PAGE_SIZE = 12;
 
@@ -198,8 +198,8 @@ const Broker = () => {
       brokerId,
       params: {
         objectId: oid || undefined,
-        ra: uRa ? raToDeg(uRa) : undefined,
-        dec: uDec ? decToDeg(uDec) : undefined,
+        ra: uRa ? ra_to_deg(uRa) : undefined,
+        dec: uDec ? dec_to_deg(uDec) : undefined,
         radius: uRadius || undefined,
         radius_units: uRadius ? "arcsec" : undefined,
         survey: uSurvey,
@@ -223,8 +223,8 @@ const Broker = () => {
       brokerId,
       params: {
         objectId: objectId || undefined,
-        ra: coneDisabled || !ra ? undefined : raToDeg(ra),
-        dec: coneDisabled || !dec ? undefined : decToDeg(dec),
+        ra: coneDisabled || !ra ? undefined : ra_to_deg(ra),
+        dec: coneDisabled || !dec ? undefined : dec_to_deg(dec),
         radius: coneDisabled ? undefined : radius || undefined,
         radius_units: !coneDisabled && radius ? "arcsec" : undefined,
         survey: searchSurvey,
