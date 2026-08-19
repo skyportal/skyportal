@@ -24,6 +24,8 @@ export interface SysInfo {
   version?: string | undefined;
 }
 
+// raw: the running version rides on the response envelope, which the client
+// discards; skyportal-js#6 adds fetchSysinfoWithVersion.
 export const sysInfoApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getSysInfo: build.query<SysInfo, void>({

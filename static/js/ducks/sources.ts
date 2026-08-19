@@ -102,6 +102,9 @@ const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
   return `/api/sources?${queryString}`;
 };
 
+// raw: the list queries need the include* params (thumbnails, colour
+// magnitude, detection stats, labellers) that skyportal-js#6 adds to
+// fetchSources; converting before that ships would drop them silently.
 export const sourcesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     fetchSources: build.query<SourcesResult, FilterParams | void>({

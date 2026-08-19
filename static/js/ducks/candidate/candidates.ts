@@ -65,6 +65,8 @@ let activeCandidatesArg: any = null;
 
 export const candidatesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // raw: the scanning form sends a wide, dynamic filter bag, so this stays on
+    // the pass-through query rather than an explicitly mapped client call.
     getCandidates: build.query({
       query: (filterParams = {}) => {
         const cleaned = { ...filterParams };

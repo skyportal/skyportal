@@ -17,6 +17,8 @@ export interface Config {
   [key: string]: unknown;
 }
 
+// raw: the running version rides on the response envelope, which the client
+// discards; skyportal-js#6 adds fetchConfigWithVersion.
 export const configApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getConfig: build.query<Config, void>({

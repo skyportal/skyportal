@@ -47,6 +47,8 @@ interface AcrossQueryArgs {
   end?: string;
 }
 
+// raw: /api/internal/across/* is an internal UI endpoint, outside the client's
+// scope.
 export const acrossApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getAcrossInstruments: build.query<AcrossInstrument[], void>({

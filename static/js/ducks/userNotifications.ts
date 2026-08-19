@@ -21,6 +21,8 @@ export interface UserNotification {
   [key: string]: unknown;
 }
 
+// raw: /api/internal/notifications is an internal UI endpoint, outside the
+// client's scope (as in the Python client).
 export const userNotificationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getNotifications: build.query<UserNotification[], void>({
