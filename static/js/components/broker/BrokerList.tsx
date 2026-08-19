@@ -44,13 +44,14 @@ import {
   useGetBrokersQuery,
   useUpdateBrokerMutation,
 } from "../../ducks/brokers";
+import type { BrokerClassname } from "skyportal-js/Brokers";
 import { useGetProfileQuery } from "../../ducks/profile";
 import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
 
 // Which of the unified capabilities a broker actually exposes.
-const capabilityChips = (caps: Record<string, boolean>) =>
+const capabilityChips = (caps: Broker["capabilities"]) =>
   [
     { label: "search", on: Boolean(caps?.["query_alerts"]) },
     { label: "ingest", on: Boolean(caps?.["run_ingestion"]) },
@@ -144,7 +145,7 @@ const BrokerList = () => {
   const [updateBroker] = useUpdateBrokerMutation();
   const [deleteBroker] = useDeleteBrokerMutation();
 
-  const [newClass, setNewClass] = useState("");
+  const [newClass, setNewClass] = useState<BrokerClassname | "">("");
   const [newName, setNewName] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
 
@@ -186,9 +187,11 @@ const BrokerList = () => {
   };
 
   const openEdit = (broker: Broker) => {
+    // the ?? fallbacks go away once skyportal-js models these NOT NULL columns
+    // as required (skyportal-js#6)
     setEditing(broker);
-    setNewName(broker.name);
-    setNewClass(broker.broker_classname);
+    setNewName(broker.name ?? "");
+    setNewClass(broker.broker_classname ?? "");
     setFormData((broker.altdata as Record<string, unknown>) ?? {});
     setAddOpen(true);
   };
@@ -309,7 +312,7 @@ const BrokerList = () => {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
-                        checked={b.active}
+                        checked={b.active ?? false}
                         disabled={!isSystemAdmin}
                         onChange={(e) =>
                           updateBroker({

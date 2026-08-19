@@ -2,34 +2,23 @@
  * Alert brokers: list configured brokers and query their alerts through the
  * generic `/api/brokers` API (dispatched server-side to the broker's provider).
  */
+import type {
+  Broker,
+  BrokerFilter,
+  BrokerFilterAttachResponse,
+  BrokerFilterPostResponse,
+  BrokerPost,
+} from "skyportal-js/Brokers";
+
 import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
-export interface Broker {
-  id: number;
-  name: string;
-  broker_classname: string;
-  active: boolean;
-  default_alert_search: boolean;
-  default_crossmatch: boolean;
-  capabilities: Record<string, boolean>;
-  surveys: string[];
-  filter_kind: string;
-  altdata?: Record<string, unknown>;
-}
+export type { Broker, BrokerFilter } from "skyportal-js/Brokers";
 
 export interface BrokerAlertQuery {
   brokerId: number;
   params: Record<string, string | number | undefined>;
-}
-
-export interface BrokerFilter {
-  id: number;
-  name: string;
-  group_id: number;
-  stream_id: number;
-  broker_id: number | null;
-  altdata?: Record<string, unknown>;
 }
 
 export interface FilterCatalogQuery {
@@ -39,6 +28,15 @@ export interface FilterCatalogQuery {
   groupID?: number | "" | undefined;
   streamID?: number | "" | undefined;
   brokerID?: number | "" | "none" | undefined;
+}
+
+/** The broker fields the list page edits, in the API's snake_case. */
+interface BrokerPatch {
+  name?: string;
+  active?: boolean;
+  altdata?: Record<string, unknown>;
+  default_alert_search?: boolean;
+  default_crossmatch?: boolean;
 }
 
 const DEFAULT_FIELDS = ["default_alert_search", "default_crossmatch"] as const;
@@ -58,9 +56,13 @@ const parseKeepingIds = async (response: Response) => {
 export const brokersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getBrokers: build.query<Broker[], void>({
-      query: () => "api/brokers",
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchBrokers()),
       providesTags: ["Broker"],
     }),
+    // raw: alert payloads carry 64-bit ids that must survive JSON parsing, so
+    // they need the custom responseHandler below; the client parses with
+    // response.json().
     getBrokerAlerts: build.query<unknown, BrokerAlertQuery>({
       query: ({ brokerId, params }) => ({
         url: `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
@@ -79,7 +81,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
     // Cross-match a position against a broker's reference catalogs (Gaia, PS1,
     // AllWISE, ...). Returns matched sources keyed by catalog name.
     getBrokerConeSearch: build.query<
-      Record<string, any[]>,
+      Record<string, unknown>,
       {
         brokerId: number;
         ra: number | string;
@@ -88,8 +90,16 @@ export const brokersApi = skyportalApi.injectEndpoints({
         radiusUnits?: string;
       }
     >({
-      query: ({ brokerId, ra, dec, radius, radiusUnits = "arcsec" }) =>
-        `api/brokers/${brokerId}/cone_search?ra=${ra}&dec=${dec}&radius=${radius}&radius_units=${radiusUnits}`,
+      queryFn: ({ brokerId, ra, dec, radius, radiusUnits = "arcsec" }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerConeSearch(
+            brokerId,
+            Number(ra),
+            Number(dec),
+            Number(radius),
+            { radiusUnits },
+          ),
+        ),
     }),
     // Display photometry for an object: persisted DB rows merged with photometry
     // fetched on demand from the broker (never written to Postgres). Returns the
@@ -105,17 +115,15 @@ export const brokersApi = skyportalApi.injectEndpoints({
         refresh?: boolean;
       }
     >({
-      query: ({ brokerId, alertId, survey, format, magsys, refresh }) => {
-        const params = new URLSearchParams();
-        if (survey) params.set("survey", survey);
-        if (format) params.set("format", format);
-        if (magsys) params.set("magsys", magsys);
-        if (refresh) params.set("refresh", "true");
-        const qs = params.toString();
-        return `api/brokers/${brokerId}/alerts/${alertId}/photometry${
-          qs ? `?${qs}` : ""
-        }`;
-      },
+      queryFn: ({ brokerId, alertId, survey, format, magsys, refresh }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerPhotometry(brokerId, alertId, {
+            survey,
+            format,
+            magsys,
+            refresh,
+          }),
+        ),
     }),
     // Preview a broker filter (params are filter_kind-specific).
     testBrokerFilter: build.query<
@@ -132,22 +140,24 @@ export const brokersApi = skyportalApi.injectEndpoints({
     // Quiet lookup of whether an object is already a saved source (a miss is
     // expected and must not raise an error notification).
     getSourceIfSaved: build.query<any, string>({
-      query: (objectId) => `api/sources/${objectId}`,
-      extraOptions: { suppressErrorNotification: true },
+      queryFn: (objectId, api) =>
+        clientQuery(api, (client) => client.fetchSource(objectId), {
+          suppressErrorNotification: true,
+        }),
     }),
     saveBrokerAlertAsSource: build.mutation<
       { id: string },
       { brokerId: number; alertId: string; groupIds: number[] }
     >({
-      query: ({ brokerId, alertId, groupIds }) => ({
-        url: `api/brokers/${brokerId}/alerts/${alertId}/save`,
-        method: "POST",
-        body: { group_ids: groupIds },
-      }),
+      queryFn: ({ brokerId, alertId, groupIds }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerAlertSave(brokerId, alertId, groupIds),
+        ),
     }),
     // Filters this broker manages (skyportal Filter rows with broker altdata).
     getBrokerFilters: build.query<BrokerFilter[], number>({
-      query: (brokerId) => `api/brokers/${brokerId}/filters`,
+      queryFn: (brokerId, api) =>
+        clientQuery(api, (client) => client.fetchBrokerFilters(brokerId)),
       providesTags: ["Broker"],
     }),
     // Every filter with its broker, and the binding that attaches one.
@@ -155,24 +165,36 @@ export const brokersApi = skyportalApi.injectEndpoints({
       { filters: BrokerFilter[]; totalMatches: number },
       FilterCatalogQuery
     >({
-      query: (params) => `api/brokers/filters${buildQuery({ ...params })}`,
+      queryFn: (
+        { pageNumber, numPerPage, name, groupID, streamID, brokerID },
+        api,
+      ) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerFilterCatalog({
+            pageNumber,
+            numPerPage,
+            name,
+            groupId: groupID === "" ? undefined : groupID,
+            streamId: streamID === "" ? undefined : streamID,
+            brokerId: brokerID === "" ? undefined : brokerID,
+          }),
+        ),
       providesTags: ["Broker"],
     }),
     attachFilterToBroker: build.mutation<
-      { id: number; broker_id: number },
+      BrokerFilterAttachResponse,
       { filterId: number; brokerId: number }
     >({
-      query: ({ filterId, brokerId }) => ({
-        url: `api/brokers/filters/${filterId}/attach`,
-        method: "POST",
-        body: { broker_id: brokerId },
-      }),
+      queryFn: ({ filterId, brokerId }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilterAttach(filterId, brokerId),
+        ),
       invalidatesTags: ["Broker"],
     }),
     // Save a query-kind broker filter (Lasair): stores selected/tables/conditions
     // on the skyportal Filter's altdata.
     saveBrokerFilter: build.mutation<
-      { id: number; altdata?: Record<string, unknown> },
+      BrokerFilterPostResponse,
       {
         brokerId: number;
         filterId: number;
@@ -180,11 +202,10 @@ export const brokersApi = skyportalApi.injectEndpoints({
         autosave?: boolean;
       }
     >({
-      query: ({ brokerId, filterId, query, autosave }) => ({
-        url: `api/brokers/${brokerId}/filters/${filterId}`,
-        method: "POST",
-        body: { query, autosave },
-      }),
+      queryFn: ({ brokerId, filterId, query, autosave }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilter(brokerId, filterId, { query, autosave }),
+        ),
       invalidatesTags: ["Broker"],
     }),
     // Registered provider classes + their config form schemas / capabilities.
@@ -203,27 +224,22 @@ export const brokersApi = skyportalApi.injectEndpoints({
     >({
       query: () => "api/internal/broker_apis",
     }),
-    createBroker: build.mutation<
-      { id: number },
-      {
-        name: string;
-        broker_classname: string;
-        altdata: Record<string, unknown>;
-        active?: boolean;
-      }
-    >({
-      query: (body) => ({ url: "api/brokers", method: "POST", body }),
+    createBroker: build.mutation<{ id: number }, BrokerPost>({
+      queryFn: (body, api) =>
+        clientQuery(api, (client) => client.postBroker(body)),
       invalidatesTags: ["Broker"],
     }),
-    updateBroker: build.mutation<
-      void,
-      { id: number; patch: Record<string, unknown> }
-    >({
-      query: ({ id, patch }) => ({
-        url: `api/brokers/${id}`,
-        method: "PATCH",
-        body: patch,
-      }),
+    updateBroker: build.mutation<void, { id: number; patch: BrokerPatch }>({
+      queryFn: ({ id, patch }, api) =>
+        clientQuery(api, (client) =>
+          client.updateBroker(id, {
+            name: patch.name,
+            active: patch.active,
+            altdata: patch.altdata,
+            defaultAlertSearch: patch.default_alert_search,
+            defaultCrossmatch: patch.default_crossmatch,
+          }),
+        ),
       async onQueryStarted({ id, patch }, { dispatch, queryFulfilled }) {
         const rollback = dispatch(
           brokersApi.util.updateQueryData("getBrokers", undefined, (draft) => {
@@ -247,7 +263,8 @@ export const brokersApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Broker"],
     }),
     deleteBroker: build.mutation<void, number>({
-      query: (id) => ({ url: `api/brokers/${id}`, method: "DELETE" }),
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteBroker(id)),
       invalidatesTags: ["Broker"],
     }),
   }),

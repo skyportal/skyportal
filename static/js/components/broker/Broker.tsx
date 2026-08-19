@@ -439,7 +439,7 @@ const Broker = () => {
                               <BrokerAlertCard
                                 key={g.objectId}
                                 brokerId={brokerId}
-                                brokerClassname={broker.broker_classname}
+                                brokerClassname={broker.broker_classname ?? ""}
                                 objectId={g.objectId}
                                 survey={queriedSurvey || searchSurvey}
                                 alerts={g.alerts}

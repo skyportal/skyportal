@@ -24,6 +24,7 @@ import {
   useGetBrokersQuery,
   useGetFilterCatalogQuery,
 } from "../../ducks/brokers";
+import type { BrokerFilter } from "skyportal-js/Brokers";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 
@@ -64,7 +65,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const attachable = brokerList.filter(
     (b) => b.active && b.filter_kind !== "none",
   );
-  const hasPipeline = (f: { altdata?: Record<string, unknown> }) =>
+  const hasPipeline = (f: BrokerFilter) =>
     Boolean((f.altdata as { boom?: unknown } | undefined)?.boom);
 
   const onFilterChange =
@@ -207,8 +208,8 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                     />
                   )}
                 </TableCell>
-                <TableCell>{groupName(f.group_id)}</TableCell>
-                <TableCell>{streamName(f.stream_id)}</TableCell>
+                <TableCell>{groupName(f.group_id ?? 0)}</TableCell>
+                <TableCell>{streamName(f.stream_id ?? 0)}</TableCell>
                 {brokerId ? null : (
                   <>
                     <TableCell>
