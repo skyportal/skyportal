@@ -78,6 +78,20 @@ def resolve_user(strategy, backend, uid, details, response=None):
     return None
 
 
+def matched_user(strategy, backend, uid, user):
+    """Pipeline result for a sign-in that landed on an existing account.
+
+    Hands back the association as well: `social_user` ran before the account was
+    matched (or its association re-keyed), so without this `associate_user`
+    creates a second one and collides on (provider, uid).
+    """
+    result = {"is_new": False, "user": user}
+    social = strategy.storage.user.get_social_auth(backend.name, uid)
+    if social is not None:
+        result["social"] = social
+    return result
+
+
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
     session = DBSession()
@@ -93,7 +107,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Missing invite token. A valid invite token is required."
                 )
             elif existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(strategy, backend, uid, existing_user)
 
             try:
                 n_days = int(cfg["invitations.days_until_expiry"])
@@ -141,7 +155,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             return {"is_new": True, "user": user}
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(strategy, backend, uid, existing_user)
 
             if user is not None:  # Matching user already exists
                 return {"is_new": False, "user": user}

@@ -25,7 +25,16 @@ class FakeStorageUser:
         self.social_auths = {}
 
     def get_social_auth(self, provider, uid):
-        return self.social_auths.get((provider, uid))
+        # Matched on the association's own fields, like the query it stands in
+        # for: a re-keyed association is found under its new uid.
+        return next(
+            (
+                social
+                for social in self.social_auths.values()
+                if (social.provider, social.uid) == (provider, uid)
+            ),
+            None,
+        )
 
     def get_username(self, user):
         return user.username
@@ -422,6 +431,24 @@ def test_resolve_user_rekeys_a_legacy_email_association(user):
     assert resolved.id == user.id
     assert association.uid == subject  # re-keyed in place, not duplicated
     assert user.oauth_uid == subject
+
+
+def test_create_user_hands_back_the_association_it_matched(invitations_disabled, user):
+    """Otherwise associate_user creates a second one and collides on (provider,
+    uid) — which is what a legacy sign-in did after subject-keyed uids landed."""
+    strategy = FakeStrategy()
+    details = details_for(f"legacy{uuid.uuid4().hex[:8]}")
+    association = FakeSocialAuth("google-oauth2", details["email"], user)
+    strategy.storage.user.social_auths[("google-oauth2", details["email"])] = (
+        association
+    )
+    subject = f"sub-{uuid.uuid4().hex[:8]}"
+
+    result = create_user(strategy, details, FakeBackend(), subject)
+
+    assert result["is_new"] is False
+    assert result["user"].id == user.id
+    assert result["social"] is association
 
 
 def test_resolve_user_will_not_link_an_unverified_email(user):
