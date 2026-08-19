@@ -12,43 +12,39 @@
  * when the pushed id matches a catalog that is currently cached) to cache
  * invalidation.
  */
-import { buildQueryString } from "../API";
+import type { SpatialCatalog } from "skyportal-js/SpatialCatalogs";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const spatialCatalogsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getSpatialCatalogs: build.query<
-      RouteData<"GET /api/spatial_catalog">,
-      Record<string, unknown> | void
-    >({
-      query: (filterParams) => {
-        const params = buildQueryString(filterParams ?? {});
-        return params ? `api/spatial_catalog?${params}` : "api/spatial_catalog";
-      },
+    // The handler's only query param (catalog_name) is read but never applied,
+    // so the old duck's filter params had no effect.
+    getSpatialCatalogs: build.query<SpatialCatalog[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchSpatialCatalogs()),
       providesTags: ["SpatialCatalogs"],
     }),
-    getSpatialCatalog: build.query<
-      RouteData<"GET /api/spatial_catalog/{catalog_id}">,
-      number | string
-    >({
-      query: (id) => `api/spatial_catalog/${id}`,
+    getSpatialCatalog: build.query<SpatialCatalog, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchSpatialCatalog(Number(id))),
       providesTags: ["SpatialCatalog"],
     }),
-    uploadSpatialCatalogs: build.mutation<unknown, Record<string, unknown>>({
-      query: (data) => ({
-        url: "api/spatial_catalog/ascii",
-        method: "POST",
-        body: data,
-      }),
+    uploadSpatialCatalogs: build.mutation<
+      { id: number },
+      { catalogName: string; catalogData: string }
+    >({
+      queryFn: ({ catalogName, catalogData }, api) =>
+        clientQuery(api, (client) =>
+          client.postSpatialCatalogAscii(catalogName, catalogData),
+        ),
       invalidatesTags: ["SpatialCatalogs"],
     }),
-    deleteSpatialCatalog: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/spatial_catalog/${id}`,
-        method: "DELETE",
-      }),
+    deleteSpatialCatalog: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteSpatialCatalog(Number(id))),
       invalidatesTags: ["SpatialCatalogs", "SpatialCatalog"],
     }),
   }),

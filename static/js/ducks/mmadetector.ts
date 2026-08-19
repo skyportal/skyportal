@@ -13,32 +13,27 @@
  * pushed one; with RTK Query, invalidating the `MMADetector` tag only refetches
  * whichever detector detail query is currently mounted.
  */
+import type { MmaDetector, MmaDetectorPost } from "skyportal-js/MmaDetectors";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const mmadetectorApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getMMADetector: build.query<
-      RouteData<"GET /api/mmadetector/{mmadetector_id}">,
-      number | string
-    >({
-      query: (id) => `api/mmadetector/${id}`,
+    getMMADetector: build.query<MmaDetector, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchMmaDetector(Number(id))),
       providesTags: ["MMADetector"],
     }),
-    getMMADetectors: build.query<RouteData<"GET /api/mmadetector">, void>({
-      query: () => "api/mmadetector",
+    getMMADetectors: build.query<MmaDetector[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchMmaDetectors()),
       providesTags: ["MMADetectors"],
     }),
-    submitMMADetector: build.mutation<
-      RouteData<"POST /api/mmadetector">,
-      Record<string, unknown>
-    >({
-      query: (run) => ({
-        url: "api/mmadetector",
-        method: "POST",
-        body: run,
-      }),
+    submitMMADetector: build.mutation<{ id: number }, MmaDetectorPost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postMmaDetector(run)),
       invalidatesTags: ["MMADetectors"],
     }),
   }),

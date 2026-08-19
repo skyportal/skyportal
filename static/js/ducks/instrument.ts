@@ -10,15 +10,21 @@
  * via `invalidateOnMessage`, preserving the old gate: only refresh when the
  * pushed `instrument_id` matches a currently-loaded instrument.
  */
-import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+import type {
+  FetchInstrumentLogsOptions,
+  Instrument,
+  InstrumentLog,
+  InstrumentPost,
+  InstrumentPut,
+} from "skyportal-js/Instruments";
 
-type Instrument = Record<string, any>;
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface FetchInstrumentLogsArg {
   id: number | string;
-  params?: Record<string, unknown> | undefined;
+  params?: FetchInstrumentLogsOptions | undefined;
 }
 
 interface FetchInstrumentSkymapArg {
@@ -29,71 +35,55 @@ interface FetchInstrumentSkymapArg {
 
 interface ModifyInstrumentArg {
   id: number | string;
-  params: Record<string, unknown>;
+  params: InstrumentPut;
 }
 
 export const instrumentApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getInstrument: build.query<
-      RouteData<"GET /api/instrument/{instrument_id}"> & {
-        log_exists?: boolean;
-      },
-      number | string
-    >({
-      query: (id) => `api/instrument/${id}`,
+    getInstrument: build.query<Instrument, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchInstrument(Number(id))),
       providesTags: ["Instrument"],
     }),
-    getInstrumentLogs: build.query<Instrument, FetchInstrumentLogsArg>({
-      query: ({ id, params = {} }) => ({
-        url: `api/instrument/${id}/log`,
-        params,
-      }),
+    getInstrumentLogs: build.query<InstrumentLog[], FetchInstrumentLogsArg>({
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchInstrumentLogs(Number(id), params ?? {}),
+        ),
       providesTags: ["Instrument"],
     }),
-    getInstrumentSkymap: build.query<
-      RouteData<"GET /api/instrument/{instrument_id}">,
-      FetchInstrumentSkymapArg
-    >({
-      query: ({ id, localization, airmassTime = null }) => {
-        const base = `api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
-        return airmassTime ? `${base}&airmassTime=${airmassTime}` : base;
-      },
+    getInstrumentSkymap: build.query<Instrument, FetchInstrumentSkymapArg>({
+      queryFn: ({ id, localization, airmassTime = null }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchInstrument(Number(id), {
+            includeGeoJSONSummary: true,
+            localizationDateobs: localization.dateobs,
+            localizationName: localization.localization_name,
+            ...(airmassTime ? { airmassTime } : {}),
+          }),
+        ),
       providesTags: ["Instrument"],
     }),
-    submitInstrument: build.mutation<Instrument, Record<string, unknown>>({
-      query: (run) => ({
-        url: "api/instrument",
-        method: "POST",
-        body: run,
-      }),
+    submitInstrument: build.mutation<{ id: number }, InstrumentPost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postInstrument(run)),
       invalidatesTags: ["Instrument"],
     }),
-    modifyInstrument: build.mutation<
-      RouteData<"PUT /api/instrument/{instrument_id}">,
-      ModifyInstrumentArg
-    >({
-      query: ({ id, params }) => ({
-        url: `api/instrument/${id}`,
-        method: "PUT",
-        body: params,
-      }),
+    modifyInstrument: build.mutation<void, ModifyInstrumentArg>({
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.updateInstrument(Number(id), params),
+        ),
       invalidatesTags: ["Instrument"],
     }),
-    deleteInstrument: build.mutation<
-      RouteData<"DELETE /api/instrument/{instrument_id}">,
-      number | string
-    >({
-      query: (id) => ({
-        url: `api/instrument/${id}`,
-        method: "DELETE",
-      }),
+    deleteInstrument: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteInstrument(Number(id))),
       invalidatesTags: ["Instrument"],
     }),
-    updateInstrumentStatus: build.mutation<Instrument, number | string>({
-      query: (id) => ({
-        url: `api/instrument/${id}/status`,
-        method: "PUT",
-      }),
+    updateInstrumentStatus: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.updateInstrumentStatus(Number(id))),
       invalidatesTags: ["Instrument"],
     }),
   }),

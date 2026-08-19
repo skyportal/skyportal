@@ -10,66 +10,53 @@
  * invalidation, preserving the old guard that only refetched when the
  * currently-loaded GCN event matched the pushed event.
  */
-import { buildQueryString } from "../API";
+import type {
+  FetchGalaxiesOptions,
+  GalaxiesPage,
+  GalaxyCatalogAsciiPost,
+  GalaxyCatalogCount,
+} from "skyportal-js/Galaxies";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface GcnEventGalaxiesArg {
   dateobs: string;
-  filterParams?: Record<string, unknown> | undefined;
-}
-
-interface UploadGalaxiesArg {
-  catalogData: string;
-  catalogName: string;
-  [key: string]: unknown;
+  filterParams?: FetchGalaxiesOptions | undefined;
 }
 
 export const galaxiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGalaxies: build.query<any, Record<string, unknown> | void>({
-      query: (filterParams) => {
-        const qs = buildQueryString(
-          (filterParams as Record<string, unknown>) ?? {},
-        );
-        return qs ? `api/galaxy_catalog?${qs}` : "api/galaxy_catalog";
-      },
+    getGalaxies: build.query<GalaxiesPage, FetchGalaxiesOptions | void>({
+      queryFn: (filterParams, api) =>
+        clientQuery(api, (client) => client.fetchGalaxies(filterParams ?? {})),
       providesTags: ["Galaxies"],
     }),
-    getGcnEventGalaxies: build.query<any, GcnEventGalaxiesArg>({
-      query: ({ dateobs, filterParams }) => {
-        const qs = buildQueryString({
-          ...(filterParams ?? {}),
-          localizationDateobs: dateobs,
-          includeGeoJSON: true,
-        });
-        return `api/galaxy_catalog?${qs}`;
-      },
+    getGcnEventGalaxies: build.query<GalaxiesPage, GcnEventGalaxiesArg>({
+      queryFn: ({ dateobs, filterParams }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGalaxies({
+            ...(filterParams ?? {}),
+            localizationDateobs: dateobs,
+            includeGeoJSON: true,
+          }),
+        ),
       providesTags: ["Galaxies"],
     }),
-    getGalaxyCatalogs: build.query<any, Record<string, unknown> | void>({
-      query: (filterParams) => {
-        const qs = buildQueryString({
-          ...((filterParams as Record<string, unknown>) ?? {}),
-          catalogNamesOnly: true,
-        });
-        return `api/galaxy_catalog?${qs}`;
-      },
+    getGalaxyCatalogs: build.query<GalaxyCatalogCount[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchGalaxyCatalogs()),
       providesTags: ["Galaxies"],
     }),
-    uploadGalaxies: build.mutation<any, UploadGalaxiesArg>({
-      query: (data) => ({
-        url: "api/galaxy_catalog/ascii",
-        method: "POST",
-        body: data,
-      }),
+    uploadGalaxies: build.mutation<void, GalaxyCatalogAsciiPost>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.postGalaxyCatalogAscii(data)),
       invalidatesTags: ["Galaxies"],
     }),
-    deleteCatalog: build.mutation<any, string>({
-      query: (catalog) => ({
-        url: `api/galaxy_catalog/${catalog}`,
-        method: "DELETE",
-      }),
+    deleteCatalog: build.mutation<void, string>({
+      queryFn: (catalog, api) =>
+        clientQuery(api, (client) => client.deleteGalaxyCatalog(catalog)),
       invalidatesTags: ["Galaxies"],
     }),
   }),
