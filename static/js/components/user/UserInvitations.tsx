@@ -65,6 +65,14 @@ const cellSx = {
   alignItems: "center",
   gap: 0.5,
   flexWrap: "wrap",
+  "& .MuiChip-deleteIcon": { display: "none" },
+  "& .MuiChip-root:hover .MuiChip-deleteIcon": { display: "inline-block" },
+} as const;
+
+const chipCellSx = {
+  ...cellSx,
+  "& > .MuiIconButton-root": { display: "none" },
+  ".MuiDataGrid-cell:hover & > .MuiIconButton-root": { display: "inline-flex" },
 } as const;
 
 const renderExpirationDateHeader = () => (
@@ -83,11 +91,7 @@ const InvitationsToolbar = ({
 }: any) => (
   <DataGridToolbar title="Pending Invitations" showQuickFilter={false}>
     <Tooltip title="Filter Table">
-      <IconButton
-        size="small"
-        data-testid="Filter Table-iconButton"
-        onClick={onOpenFilters}
-      >
+      <IconButton size="small" onClick={onOpenFilters}>
         <FilterListIcon />
       </IconButton>
     </Tooltip>
@@ -149,7 +153,6 @@ const AddEntitiesDialog = ({
                     error={error}
                     variant="outlined"
                     label={`Select ${kind}`}
-                    data-testid={`addInvitation${kind}TextField`}
                   />
                 )}
               />
@@ -159,7 +162,6 @@ const AddEntitiesDialog = ({
             <Button
               primary
               type="submit"
-              name={`submitAddInvitation${kind}Button`}
               data-testid={`submitAddInvitation${kind}Button`}
             >
               Submit
@@ -375,7 +377,6 @@ const UserInvitations = () => {
       <Tooltip title="Copy invitation link to clipboard">
         <IconButton
           aria-label="copy-invitation-link"
-          data-testid={`copyInvitationLink_${invitation.user_email}`}
           onClick={() => handleCopyInvitationLink(invitation)}
           size="small"
         >
@@ -410,14 +411,15 @@ const UserInvitations = () => {
   const renderEntities = (kind: EntityKind, invitation: any) => {
     const { field, singular } = ENTITIES[kind];
     return (
-      <Box sx={cellSx}>
+      <Box sx={chipCellSx}>
         <IconButton
           aria-label={`add-invitation-${field}`}
           data-testid={`addInvitation${kind}Button${invitation.user_email}`}
           onClick={() => openInvitationDialog(invitation, field)}
           size="small"
+          sx={{ p: 0.375 }}
         >
-          <AddCircleIcon color="disabled" />
+          <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
         </IconButton>
         {invitation[field]?.map((entity: any) => (
           <Chip
@@ -445,7 +447,6 @@ const UserInvitations = () => {
         : ""}
       <IconButton
         aria-label="edit-expiration"
-        data-testid={`editUserExpirationDate${invitation.id}`}
         onClick={() => openInvitationDialog(invitation, "date")}
         size="small"
       >
@@ -465,13 +466,13 @@ const UserInvitations = () => {
     {
       field: "groups",
       headerName: "Groups",
-      minWidth: 150,
+      minWidth: 220,
       renderCell: ({ row }: any) => renderEntities("Groups", row),
     },
     {
       field: "streams",
       headerName: "Streams",
-      minWidth: 150,
+      minWidth: 220,
       renderCell: ({ row }: any) => renderEntities("Streams", row),
     },
     {
@@ -526,6 +527,7 @@ const UserInvitations = () => {
           columns={columns}
           rows={invitationsData?.invitations || []}
           getRowId={(row: any) => row.id}
+          getRowHeight={() => "auto"}
           paginationMode="server"
           sortingMode="server"
           rowCount={invitationsData?.totalMatches ?? 0}
@@ -690,12 +692,7 @@ const UserInvitations = () => {
               defaultValue={null}
             />
             <Box>
-              <Button
-                primary
-                type="submit"
-                name="submitExpirationDateButton"
-                data-testid="submitExpirationDateButton"
-              >
+              <Button primary type="submit" name="submitExpirationDateButton">
                 Submit
               </Button>
             </Box>
