@@ -17,6 +17,9 @@ _, cfg = load_env()
 
 DEFAULT_SURVEY = "ZTF"
 DEFAULT_TIMEOUT = 30  # seconds
+# Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
+# the default; give the slow endpoints their own budget.
+VALIDATE_TIMEOUT = 180  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
 
@@ -62,7 +65,7 @@ def _get_token(altdata, force=False):
     return token
 
 
-def _request(broker, method, path, *, params=None, json=None):
+def _request(broker, method, path, *, params=None, json=None, timeout=DEFAULT_TIMEOUT):
     """Authenticated BOOM request; refreshes the token once on a 401."""
     altdata = broker.altdata or {}
     base_url = _base_url(altdata)
@@ -75,7 +78,7 @@ def _request(broker, method, path, *, params=None, json=None):
             params=params,
             json=json,
             headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
-            timeout=DEFAULT_TIMEOUT,
+            timeout=timeout,
         )
         if response.status_code != 401:
             break
@@ -113,6 +116,10 @@ DEFAULT_PROJECT_STAGE = {
 
 def _ensure_project_stage(pipeline):
     """Append BOOM's required terminal $project unless the caller wrote one."""
+    # BOOM stores pipelines as JSON strings; parse so list() doesn't split the
+    # string into single characters and send BOOM a garbage pipeline.
+    if isinstance(pipeline, str):
+        pipeline = json.loads(pipeline or "[]")
     stages = list(pipeline or [])
     if stages and "$project" in stages[-1]:
         return stages
@@ -992,6 +999,7 @@ class BOOMBROKER(BrokerAPI):
             "POST",
             f"filters/{kwargs['boom_filter_id']}/validate",
             params=params,
+            timeout=VALIDATE_TIMEOUT,
         )
 
     @staticmethod
