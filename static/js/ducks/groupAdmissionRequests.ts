@@ -9,48 +9,54 @@
  * The websocket `FETCH_GROUP_ADMISSION_REQUESTS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type {
+  GroupAdmissionRequest,
+  GroupAdmissionRequestStatus,
+} from "skyportal-js/GroupAdmissionRequests";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getGroupAdmissionRequests: build.query<
-      RouteData<"GET /api/group_admission_requests">,
+      GroupAdmissionRequest[],
       number | string
     >({
-      query: (groupID) => `api/group_admission_requests?groupID=${groupID}`,
+      queryFn: (groupID, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGroupAdmissionRequests({ groupId: Number(groupID) }),
+        ),
       providesTags: ["GroupAdmissionRequest"],
     }),
     requestGroupAdmission: build.mutation<
-      unknown,
+      { id: number },
       { userID: number | string; groupID: number | string }
     >({
-      query: ({ userID, groupID }) => ({
-        url: "api/group_admission_requests",
-        method: "POST",
-        body: { userID, groupID },
-      }),
+      queryFn: ({ userID, groupID }, api) =>
+        clientQuery(api, (client) =>
+          client.postGroupAdmissionRequest(Number(groupID), Number(userID)),
+        ),
       // Also invalidate Group: an auto-accept group grants membership here, so
       // the groups list must refetch to move it into the user's groups.
       invalidatesTags: ["GroupAdmissionRequest", "Group"],
     }),
-    deleteAdmissionRequest: build.mutation<unknown, number | string>({
-      query: (ID) => ({
-        url: `api/group_admission_requests/${ID}`,
-        method: "DELETE",
-      }),
+    deleteAdmissionRequest: build.mutation<void, number | string>({
+      queryFn: (ID, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGroupAdmissionRequest(Number(ID)),
+        ),
       invalidatesTags: ["GroupAdmissionRequest"],
     }),
     updateAdmissionRequestStatus: build.mutation<
-      unknown,
-      { requestID: number | string; status: string }
+      void,
+      { requestID: number | string; status: GroupAdmissionRequestStatus }
     >({
-      query: ({ requestID, status }) => ({
-        url: `api/group_admission_requests/${requestID}`,
-        method: "PATCH",
-        body: { status },
-      }),
+      queryFn: ({ requestID, status }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGroupAdmissionRequest(Number(requestID), status),
+        ),
       invalidatesTags: ["GroupAdmissionRequest"],
     }),
   }),

@@ -10,34 +10,21 @@
  * The websocket `FETCH_USER_PROFILE` message is bridged to cache invalidation
  * via `invalidateOnMessage`.
  */
+import type { ProfilePatch, UserProfile } from "skyportal-js/Profile";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-export interface Profile {
+/**
+ * The logged-in user's profile, as modelled by the client, with `preferences`
+ * left as free-form `any`: it is an open JSON blob that many components index
+ * into, and `unknown` values would need a cast at each of them.
+ */
+export type Profile = Omit<UserProfile, "preferences" | "id"> & {
   id: number;
-  username: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
-  gravatar_url?: string;
-  affiliations?: any[];
-  bio?: string | null;
-  oauth_uid?: string | null;
-  is_bot?: boolean;
-  created_at?: string;
-  expiration_date?: string | null;
-  streams?: any[];
-  permissions: string[];
-  acls: string[];
-  roles: any[];
   preferences: Record<string, any>;
-  groups: any[];
-  tokens?: any[];
-  groupAdmissionRequests?: any[];
-  is_anonymous?: boolean;
-  [key: string]: any;
-}
+};
 
 // Deep-merge `source` into `target` (an Immer draft), matching the backend's
 // deep merge of preferences, so an optimistic update is correct without a
@@ -63,15 +50,19 @@ function deepMergePreferences(target: any, source: any) {
 export const profileApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getProfile: build.query<Profile, void>({
-      query: () => "api/internal/profile",
+      queryFn: (_arg, api) =>
+        // The client types `id` as optional; the column is NOT NULL and the
+        // handler serializes the whole user, so it is always present
+        // (skyportal-js#6 tightens the model).
+        clientQuery(
+          api,
+          async (client) => (await client.fetchProfile()) as Profile,
+        ),
       providesTags: ["Profile"],
     }),
-    updateUserPreferences: build.mutation<unknown, any>({
-      query: (preferences) => ({
-        url: "api/internal/profile",
-        method: "PATCH",
-        body: { preferences },
-      }),
+    updateUserPreferences: build.mutation<void, Record<string, unknown>>({
+      queryFn: (preferences, api) =>
+        clientQuery(api, (client) => client.updateProfile({ preferences })),
       // Optimistically merge the new preferences into the cached profile instead
       // of invalidating "Profile": that blanket refetch re-renders the ~89
       // components reading the profile on every settings change, which churns
@@ -91,40 +82,42 @@ export const profileApi = skyportalApi.injectEndpoints({
       },
     }),
     updateBasicUserInfo: build.mutation<
-      unknown,
-      { formData: any; user_id?: number | string }
+      void,
+      { formData: ProfilePatch; user_id?: number | string }
     >({
-      query: ({ formData, user_id }) => ({
-        url: `api/internal/profile${user_id ? `/${user_id}` : ""}`,
-        method: "PATCH",
-        body: formData,
-      }),
+      queryFn: ({ formData, user_id }, api) =>
+        clientQuery(api, (client) =>
+          client.updateProfile(
+            formData,
+            user_id ? { userId: Number(user_id) } : {},
+          ),
+        ),
       invalidatesTags: ["Profile"],
     }),
-    createToken: build.mutation<unknown, any>({
-      query: (form_data) => ({
-        url: "api/internal/tokens",
-        method: "POST",
-        body: form_data,
-      }),
+    createToken: build.mutation<
+      { token_id: string },
+      { name: string; acls: string[] }
+    >({
+      queryFn: ({ name, acls }, api) =>
+        clientQuery(api, (client) => client.postToken(name, acls)),
       invalidatesTags: ["Profile"],
     }),
     updateToken: build.mutation<
-      unknown,
-      { tokenID: number | string; form_data: any }
+      void,
+      {
+        tokenID: number | string;
+        form_data: { name?: string; acls?: string[] };
+      }
     >({
-      query: ({ tokenID, form_data }) => ({
-        url: `api/internal/tokens/${tokenID}`,
-        method: "PUT",
-        body: form_data,
-      }),
+      queryFn: ({ tokenID, form_data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateToken(String(tokenID), form_data),
+        ),
       invalidatesTags: ["Profile"],
     }),
-    deleteToken: build.mutation<unknown, number | string>({
-      query: (tokenID) => ({
-        url: `api/internal/tokens/${tokenID}`,
-        method: "DELETE",
-      }),
+    deleteToken: build.mutation<void, number | string>({
+      queryFn: (tokenID, api) =>
+        clientQuery(api, (client) => client.deleteToken(String(tokenID))),
       invalidatesTags: ["Profile"],
     }),
   }),

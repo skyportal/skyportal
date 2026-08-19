@@ -7,61 +7,52 @@
  * `REFRESH_ANALYSIS_SERVICES` message is bridged to cache invalidation via
  * `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import type {
+  AnalysisService,
+  AnalysisServicePost,
+  AnalysisServiceUpdate,
+} from "skyportal-js/Analysis";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 interface ModifyAnalysisServiceArg {
   id: number | string;
-  params: Record<string, unknown>;
+  params: AnalysisServiceUpdate;
 }
 
 export const analysisServicesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getAnalysisServices: build.query<
-      RouteData<"GET /api/analysis_service">,
-      Record<string, unknown> | void
-    >({
-      query: (params) => {
-        const queryString = buildQueryString(params ?? {});
-        return queryString
-          ? `api/analysis_service?${queryString}`
-          : "api/analysis_service";
-      },
+    // The handler takes no query parameters; the old duck passed params that
+    // the server ignored.
+    getAnalysisServices: build.query<AnalysisService[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchAnalysisServices()),
       providesTags: ["AnalysisServices"],
     }),
-    getAnalysisService: build.query<
-      RouteData<"GET /api/analysis_service/{analysis_service_id}">,
-      number | string
-    >({
-      query: (id) => `api/analysis_service/${id}`,
+    getAnalysisService: build.query<AnalysisService, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchAnalysisService(Number(id))),
       providesTags: ["AnalysisService"],
     }),
-    submitAnalysisService: build.mutation<
-      RouteData<"POST /api/analysis_service">,
-      Record<string, unknown>
-    >({
-      query: (run) => ({
-        url: "api/analysis_service",
-        method: "POST",
-        body: run,
-      }),
+    submitAnalysisService: build.mutation<{ id: number }, AnalysisServicePost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postAnalysisService(run)),
       invalidatesTags: ["AnalysisServices"],
     }),
-    modifyAnalysisService: build.mutation<unknown, ModifyAnalysisServiceArg>({
-      query: ({ id, params }) => ({
-        url: `api/analysis_service/${id}`,
-        method: "PUT",
-        body: params,
-      }),
+    // PATCH, not PUT: the handler implements no put(), so the old request was
+    // answered with 405.
+    modifyAnalysisService: build.mutation<void, ModifyAnalysisServiceArg>({
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.updateAnalysisService(Number(id), params),
+        ),
       invalidatesTags: ["AnalysisService", "AnalysisServices"],
     }),
-    deleteAnalysisService: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/analysis_service/${id}`,
-        method: "DELETE",
-      }),
+    deleteAnalysisService: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteAnalysisService(Number(id))),
       invalidatesTags: ["AnalysisService", "AnalysisServices"],
     }),
   }),

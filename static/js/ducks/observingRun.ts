@@ -11,63 +11,61 @@
  * behaviour: only invalidate the run that was actually pushed (the per-id tag),
  * so an unrelated run's view does not refetch.
  */
+import type {
+  ObservingRun,
+  ObservingRunPost,
+  ObservingRunUpdate,
+} from "skyportal-js/ObservingRuns";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const observingRunApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getObservingRun: build.query<
-      RouteData<"GET /api/observing_run/{run_id}">,
-      number | string
-    >({
-      query: (id) => `api/observing_run/${id}`,
+    getObservingRun: build.query<ObservingRun, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchObservingRun(Number(id))),
       providesTags: (_result, _error, id) => [
         { type: "ObservingRun", id },
         "ObservingRun",
       ],
     }),
-    submitObservingRun: build.mutation<
-      RouteData<"POST /api/observing_run">,
-      Record<string, any>
-    >({
-      query: (run) => ({
-        url: "api/observing_run",
-        method: "POST",
-        body: run,
-      }),
+    submitObservingRun: build.mutation<{ id: number }, ObservingRunPost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postObservingRun(run)),
       invalidatesTags: ["ObservingRun"],
     }),
     modifyObservingRun: build.mutation<
-      RouteData<"PUT /api/observing_run/{run_id}">,
-      { id: number | string; run: Record<string, any> }
+      void,
+      { id: number | string; run: ObservingRunUpdate }
     >({
-      query: ({ id, run }) => ({
-        url: `api/observing_run/${id}`,
-        method: "PUT",
-        body: run,
-      }),
+      queryFn: ({ id, run }, api) =>
+        clientQuery(api, (client) =>
+          client.updateObservingRun(Number(id), run),
+        ),
       invalidatesTags: (_result, _error, { id }) => [
         { type: "ObservingRun", id },
         "ObservingRun",
       ],
     }),
-    deleteObservingRun: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/observing_run/${id}`,
-        method: "DELETE",
-      }),
+    deleteObservingRun: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteObservingRun(Number(id))),
       invalidatesTags: (_result, _error, id) => [
         { type: "ObservingRun", id },
         "ObservingRun",
       ],
     }),
-    putObservingRunNotObserved: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/observing_run/${id}/not_observed`,
-        method: "PUT",
-        body: { current_status: "pending", new_status: "not observed" },
-      }),
+    putObservingRunNotObserved: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.updateObservingRunNotObserved(
+            Number(id),
+            "pending",
+            "not observed",
+          ),
+        ),
       invalidatesTags: (_result, _error, id) => [
         { type: "ObservingRun", id },
         "ObservingRun",
