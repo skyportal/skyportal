@@ -24,6 +24,7 @@ import {
   usePatchSourceInGcnMutation,
   useDeleteSourceInGcnMutation,
 } from "../../ducks/sourcesingcn";
+import type { GcnEventObjStatus } from "skyportal-js/GcnEvents";
 
 dayjs.extend(utc);
 
@@ -173,7 +174,7 @@ const ConfirmSourceInGCN = ({
 
   // What is already recorded for this source, if anything.
   const saved = sourcesingcn?.find((s: any) => s.obj_id === source_id);
-  const savedStatus: string | null = saved?.status ?? null;
+  const savedStatus: GcnEventObjStatus | null = saved?.status ?? null;
   const currentExplanation = saved?.explanation || "";
   const currentNotes = saved?.notes || "";
   const currentState = savedStatus ?? "not_vetted";
@@ -181,16 +182,27 @@ const ConfirmSourceInGCN = ({
   // The verdict buttons select; SAVE commits. Committing on click meant a
   // mis-click was written immediately, and left no chance to type the
   // explanation that records *why* -- which is the whole point of the field.
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<GcnEventObjStatus | null>(null);
   const openDialog = () => {
     setSelected(savedStatus);
     setOpen(true);
   };
 
-  const handleVet = async (status: string) => {
+  const handleVet = async (status: GcnEventObjStatus) => {
     const data = getValues();
     try {
       if (currentState === "not_vetted") {
+        // The first vet creates the record, which the API only accepts with a
+        // localization and a date range; callers without one (the scanning
+        // page) can only update an existing record.
+        if (
+          localization_name === undefined ||
+          localization_cumprob === undefined ||
+          start_date === undefined ||
+          end_date === undefined
+        ) {
+          return;
+        }
         await submitSourceInGcn({
           dateobs,
           data: {
@@ -324,14 +336,16 @@ const ConfirmSourceInGCN = ({
                       />
                     </div>
                     <div>
-                      {[
-                        ["confirmed", "HIGHLIGHT"],
-                        ["rejected", "REJECT"],
-                        ["ambiguous", "AMBIGUOUS"],
-                      ].map(([status, label]) => (
+                      {(
+                        [
+                          ["confirmed", "HIGHLIGHT"],
+                          ["rejected", "REJECT"],
+                          ["ambiguous", "AMBIGUOUS"],
+                        ] as [GcnEventObjStatus, string][]
+                      ).map(([status, label]) => (
                         <Button
                           key={status}
-                          onClick={() => setSelected(status as string)}
+                          onClick={() => setSelected(status)}
                           primary={selected === status}
                         >
                           {label}

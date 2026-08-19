@@ -10,46 +10,42 @@
  * a file to the browser (they are side-effecting blob fetches, not cacheable
  * data, so they do not fit the query/mutation model).
  */
+import type {
+  FetchFollowupRequestsOptions,
+  FollowupRequestsPage,
+  UpdateFollowupRequestPrioritizationOptions,
+} from "skyportal-js/FollowupRequests";
+
 import * as API from "../API";
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import { buildQueryString, filterOutEmptyValues } from "../API";
-import type { RouteData } from "../types/routeSchemaMap";
 
-type FollowupRequestsArg = Record<string, any> | void;
-
-const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
-  const withDefaults = { ...params };
-  if (!Object.keys(withDefaults).includes("numPerPage")) {
-    withDefaults["numPerPage"] = 10;
-  }
-  const filtered = filterOutEmptyValues(withDefaults);
-  const queryString = buildQueryString(filtered);
-  return queryString
-    ? `api/followup_request?${queryString}`
-    : "api/followup_request";
-};
+type FollowupRequestsArg = FetchFollowupRequestsOptions | void;
 
 export const followupRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getFollowupRequests: build.query<
-      RouteData<"GET /api/followup_request">,
-      FollowupRequestsArg
-    >({
-      query: (params) => buildFollowupRequestsUrl(params ?? {}),
-      providesTags: ["FollowupRequest"],
-    }),
+    getFollowupRequests: build.query<FollowupRequestsPage, FollowupRequestsArg>(
+      {
+        queryFn: (params, api) =>
+          clientQuery(api, (client) =>
+            client.fetchFollowupRequests({ numPerPage: 10, ...(params ?? {}) }),
+          ),
+        providesTags: ["FollowupRequest"],
+      },
+    ),
     prioritizeFollowupRequests: build.mutation<
-      RouteData<"PUT /api/followup_request/prioritization">,
-      Record<string, any>
+      void,
+      { requestIds: number[] } & UpdateFollowupRequestPrioritizationOptions
     >({
-      query: (body) => ({
-        url: "api/followup_request/prioritization",
-        method: "PUT",
-        body,
-      }),
+      queryFn: ({ requestIds, ...options }, api) =>
+        clientQuery(api, (client) =>
+          client.updateFollowupRequestPrioritization(requestIds, options),
+        ),
       invalidatesTags: ["FollowupRequest"],
     }),
+    // raw: the client's watcher endpoints cannot send refreshRequests yet
+    // (skyportal-js#6 adds it), and the request table relies on that push.
     addToWatchList: build.mutation<
       unknown,
       { id: number | string; params?: Record<string, any> }
