@@ -4,12 +4,19 @@ Revision ID: 02dff366befe
 Revises: d4c17b9e5a02
 Create Date: 2026-08-18
 
-Backfills survey='ZTF' on legacy new/ref/sub thumbnails (added before the
-survey column existed, when ZTF was the only broker source), drops the
-resulting duplicate rows, and enforces one new/ref/sub thumbnail per
-obj/survey going forward. See #6558-era "thumbnails are duplicated for ztf"
+Backfills survey on legacy new/ref/sub thumbnails (added before the survey
+column existed) whose object was later reprocessed under a known survey,
+drops the resulting duplicate rows, and enforces one new/ref/sub thumbnail
+per obj/survey going forward. See "thumbnails are duplicated for ztf"
 report: rows with survey=NULL and survey='ZTF' for the same obj/type were
 being rendered as separate tiles by the source page.
+
+The backfill only touches a NULL row when a sibling row for the same
+obj/type already carries a real survey value (i.e. the object was
+reprocessed post-migration) - that's the object's own observed survey, not
+a guess. A NULL row with no such sibling is left alone: with only one row
+for that obj/type it isn't rendered as a duplicate, and we don't know it
+was ZTF (LSST/BOOM ingestion may predate this column too).
 """
 
 import sqlalchemy as sa
@@ -25,8 +32,16 @@ depends_on = None
 
 def upgrade():
     op.execute(
-        "UPDATE thumbnails SET survey = 'ZTF' "
-        "WHERE survey IS NULL AND type IN ('new', 'ref', 'sub')"
+        """
+        UPDATE thumbnails t
+        SET survey = t2.survey
+        FROM thumbnails t2
+        WHERE t.obj_id = t2.obj_id
+          AND t.type = t2.type
+          AND t.survey IS NULL
+          AND t2.survey IS NOT NULL
+          AND t.type IN ('new', 'ref', 'sub')
+        """
     )
     # Keep the most recent row per (obj_id, type, survey); the shared file on
     # disk (path is keyed on obj_id/type only) is untouched by this raw delete.
