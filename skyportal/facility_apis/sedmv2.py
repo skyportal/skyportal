@@ -589,13 +589,13 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         End time for the request.
     """
 
-    from ..models import DBSession, InstrumentLog
+    from ..models import InstrumentLog, get_db_engine
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)

@@ -59,7 +59,6 @@ from ...models import (
     Allocation,
     CatalogQuery,
     CommentOnGCN,
-    DBSession,
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     EventObservationPlan,
@@ -89,6 +88,7 @@ from ...models import (
     SurveyEfficiencyForObservations,
     User,
     UserNotification,
+    get_db_engine,
 )
 from ...utils.gcn import (
     from_bytes,
@@ -2318,7 +2318,7 @@ def add_tiles_and_properties_and_contour(
         if Session.registry.has():
             session = Session()
         else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            session = Session(bind=get_db_engine())
     else:
         session = parent_session
 
@@ -2595,7 +2595,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         if Session.registry.has():
             session = Session()
         else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            session = Session(bind=get_db_engine())
     else:
         session = parent_session
 
@@ -2885,7 +2885,7 @@ def add_tiles_properties_contour_and_obsplan(
         if Session.registry.has():
             session = Session()
         else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            session = Session(bind=get_db_engine())
     else:
         session = parent_session
 
@@ -3233,7 +3233,7 @@ def add_gcn_summary(
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         user = session.get(User, user_id)
@@ -4349,7 +4349,7 @@ def add_gcn_report(
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         user = session.get(User, user_id)
@@ -5913,7 +5913,7 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 

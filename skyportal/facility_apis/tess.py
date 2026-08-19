@@ -37,13 +37,13 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import DBSession, FollowupRequest, PhotometricSeries
+    from ..models import FollowupRequest, PhotometricSeries, get_db_engine
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         request = session.query(FollowupRequest).get(request_id)

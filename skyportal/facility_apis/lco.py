@@ -516,13 +516,13 @@ def download_observations(request_id, results, count):
         Number of frames returned by the archive query
     """
 
-    from ..models import Comment, DBSession, FollowupRequest, Group
+    from ..models import Comment, FollowupRequest, Group, get_db_engine
 
     Session = scoped_session(sessionmaker())
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         req = session.scalars(
