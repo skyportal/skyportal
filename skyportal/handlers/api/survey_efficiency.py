@@ -21,12 +21,6 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
             - survey efficiency
           summary: Retrieve an observation plan efficiency analysis
           description: Retrieve an observation plan efficiency analysis
-          parameters:
-            - in: path
-              name: survey_efficiency_analysis_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
                content:
@@ -105,12 +99,6 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
             - survey efficiency
           summary: Retrieve an observation efficiency analysis
           description: Retrieve an observation efficiency analysis
-          parameters:
-            - in: path
-              name: survey_efficiency_analysis_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
                content:
@@ -236,12 +224,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
           description: Retrieve a single default survey efficiency
           tags:
             - default survey efficiency
-          parameters:
-            - in: path
-              name: default_survey_efficiency_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -320,12 +302,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
         description: Delete a default survey efficiency
         tags:
           - default survey efficiency
-        parameters:
-          - in: path
-            name: default_survey_efficiency_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

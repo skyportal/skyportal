@@ -118,12 +118,6 @@ class TelescopeHandler(BaseHandler):
           description: Retrieve a telescope
           tags:
             - telescopes
-          parameters:
-            - in: path
-              name: telescope_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -264,12 +258,6 @@ class TelescopeHandler(BaseHandler):
         description: Update telescope
         tags:
           - telescopes
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -319,12 +307,6 @@ class TelescopeHandler(BaseHandler):
         description: Delete a telescope
         tags:
           - telescopes
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

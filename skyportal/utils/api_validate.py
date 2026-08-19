@@ -11,13 +11,22 @@ explicitly with `BaseHandler.parse_body`, which 400s with field-level errors:
     @permissions(["..."])
     async def post(self, obj_id: str, *, body: MyBody = None) -> MyResponse:
         body = self.parse_body(MyBody)
+
+Positional parameters are path parameters. Their annotations drive both
+coercion (`BaseHandler.prepare`) and the `in: path` entries of the spec, so
+they need no docstring block; use `Annotated[T, Field(description=...)]` to
+document one:
+
+    async def get(self, obj_id: str, filter_id: int | None = None):
 """
 
 import inspect
+import re
 import types
 import typing
+from functools import cache
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 REF_TEMPLATE = "#/components/schemas/{model}"
 
@@ -37,7 +46,7 @@ def body_model_from(method):
     """Pydantic model annotating a keyword-only parameter of `method`, or None.
 
     `inspect.signature` follows `__wrapped__`, so this sees through
-    `@permissions` and the path-parameter validation wrapper.
+    `@permissions` / `@auth_or_token`.
     """
     for param in inspect.signature(method).parameters.values():
         if param.kind is inspect.Parameter.KEYWORD_ONLY:
@@ -50,6 +59,37 @@ def body_model_from(method):
 def response_model_from(method):
     """Pydantic model in the return annotation of `method`, or None."""
     return model_from_annotation(inspect.signature(method).return_annotation)
+
+
+def path_parameters_of(method):
+    """Positional parameters of a handler method, in URL-capture order.
+
+    `inspect.signature` follows `__wrapped__`, so this sees through
+    `@permissions` / `@auth_or_token`.
+    """
+    return [
+        param
+        for param in list(inspect.signature(method).parameters.values())[1:]
+        if param.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+
+
+@cache
+def path_adapters_for(handler_cls, method_name):
+    """`(index, name, TypeAdapter)` per annotated path parameter of a handler
+    method, for coercing tornado's captured strings in `BaseHandler.prepare`.
+
+    Cached on the handler class: signatures are fixed at import time.
+    """
+    method = getattr(handler_cls, method_name, None)
+    if method is None:
+        return ()
+    return tuple(
+        (index, param.name, TypeAdapter(param.annotation))
+        for index, param in enumerate(path_parameters_of(method))
+        if param.annotation is not inspect.Parameter.empty
+    )
 
 
 def format_validation_errors(exc):
@@ -78,6 +118,40 @@ def _to_openapi_30(node):
             node["anyOf"] = rest
         node["nullable"] = True
     return node
+
+
+def path_parameters_from(method, path):
+    """Render the `{name}` placeholders of `path` as OpenAPI `parameters`
+    entries, typed from the matching positional parameters of `method`.
+
+    Driving this off the rendered path (rather than the signature alone) keeps
+    the documented parameters and the URL template in lockstep: a path cannot
+    gain a placeholder that goes undocumented, or document one it lacks.
+    """
+    annotations = {
+        param.name: param.annotation
+        for param in path_parameters_of(method)
+        if param.annotation is not inspect.Parameter.empty
+    }
+    parameters = []
+    for name in re.findall(r"\{(\w+)\}", path):
+        parameter = {"in": "path", "name": name, "required": True}
+        annotation = annotations.get(name)
+        schema = (
+            _to_openapi_30(TypeAdapter(annotation).json_schema())
+            if annotation is not None
+            else {"type": "string"}
+        )
+        schema.pop("title", None)
+        # `T | None` marks an optional trailing capture, which is expressed as
+        # a separate (shorter) path rather than a nullable path parameter.
+        schema.pop("nullable", None)
+        description = schema.pop("description", None)
+        if description:
+            parameter["description"] = description
+        parameter["schema"] = schema
+        parameters.append(parameter)
+    return parameters
 
 
 def register_pydantic_schema(spec, model):

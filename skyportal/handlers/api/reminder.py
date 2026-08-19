@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import arrow
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -22,6 +25,19 @@ from ...models import (
     UserNotification,
 )
 from ..base import BaseHandler
+
+AssociatedResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the reminder is on: "sources" or "spectra" or "gcn_event" or "shift" or "earthquake"'
+    ),
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the source, spectrum, gcn_event or shift that the reminder is posted to. This would be a string for a source ID or an integer for a spectrum or gcn_event"
+    ),
+]
 
 
 def _coerce_resource_id(associated_resource_type, resource_id):
@@ -195,8 +211,8 @@ class ReminderHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        associated_resource_type: str,
-        resource_id: str,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
         reminder_id: int | None = None,
     ):
         """
@@ -208,32 +224,6 @@ class ReminderHandler(BaseHandler):
             - reminders
             - sources
             - spectra
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [source, spectra, gcn_event, shift, earthquake]
-              description: |
-                What underlying data the reminder is on:
-                "sources" or "spectra" or "gcn_event" or "shift" or "earthquake"
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                 The ID of the source, spectrum, gcn_event or shift
-                 that the reminder is posted to.
-                 This would be a string for a source ID
-                 or an integer for a spectrum or gcn_event
-            - in: path
-              name: reminder_id
-              required: true
-              schema:
-                type: integer
-
           responses:
             200:
               content:
@@ -252,25 +242,6 @@ class ReminderHandler(BaseHandler):
             - sources
             - gcn events
             - earthquakes
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [source, spectra, gcn_event, shift]
-              description: |
-                What underlying data the reminder is on:
-                "sources" or "spectra" or "gcn_event" or "shift" or "earthquake".
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                 The ID of the underlying data.
-                 This would be a string for a source ID
-                 or an integer for other data types like spectrum or gcn_event.
           responses:
             200:
               content:
@@ -384,7 +355,10 @@ class ReminderHandler(BaseHandler):
 
     @permissions(["Reminder"])
     async def post(
-        self, associated_resource_type: str, resource_id: str, *ignored_args
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        *ignored_args,
     ):
         """
         ---
@@ -392,26 +366,6 @@ class ReminderHandler(BaseHandler):
         description: Post a reminder
         tags:
           - reminders
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [source, spectra, gcn_event, shift]
-            description: |
-              What underlying data the reminder is on:
-              "sources" or "spectra" or "gcn_event" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the source or spectrum
-               that the reminder is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum.
         requestBody:
           content:
             application/json:
@@ -570,7 +524,10 @@ class ReminderHandler(BaseHandler):
 
     @permissions(["Reminder"])
     async def patch(
-        self, associated_resource_type: str, resource_id: str, reminder_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        reminder_id: int,
     ):
         """
         ---
@@ -578,31 +535,6 @@ class ReminderHandler(BaseHandler):
         description: Update a reminder
         tags:
           - reminders
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [source, spectra, gcn_event, shift]
-            description: |
-              What underlying data the reminder is on:
-              "sources" or "spectra" or "gcn_event" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the source or spectrum
-               that the reminder is posted to.
-               This would be a string for an object ID
-               or an integer for a spectrum, gcn_event or shift.
-          - in: path
-            name: reminder_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -814,7 +746,10 @@ class ReminderHandler(BaseHandler):
 
     @permissions(["Reminder"])
     async def delete(
-        self, associated_resource_type: str, resource_id: str, reminder_id: int
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        reminder_id: int,
     ):
         """
         ---
@@ -822,32 +757,6 @@ class ReminderHandler(BaseHandler):
         description: Delete a reminder
         tags:
           - reminders
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [source, spectra, gcn_event, shift]
-            description: |
-              What underlying data the reminder is on:
-              "sources" or "spectra" or "gcn_event" or "shift".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the source or spectrum
-               that the reminder is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum or gcn_event.
-          - in: path
-            name: reminder_id
-            required: true
-            schema:
-              type: integer
-
         responses:
           200:
             content:

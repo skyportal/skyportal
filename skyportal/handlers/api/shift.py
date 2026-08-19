@@ -1,6 +1,9 @@
+from typing import Annotated
+
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -120,7 +123,12 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    async def get(self, shift_id: int | None = None):
+    async def get(
+        self,
+        shift_id: Annotated[
+            int | None, Field(description="ID of the shift to retrieve")
+        ] = None,
+    ):
         """
         ---
         single:
@@ -128,13 +136,6 @@ class ShiftHandler(BaseHandler):
           description: Retrieve a single shift by its ID.
           tags:
             - shifts
-          parameters:
-            - in: path
-              name: shift_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the shift to retrieve
           responses:
             200:
               content:
@@ -299,12 +300,6 @@ class ShiftHandler(BaseHandler):
         description: Update a shift
         tags:
           - shifts
-        parameters:
-          - in: path
-            name: shift_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -392,12 +387,6 @@ class ShiftHandler(BaseHandler):
         description: Delete a shift
         tags:
           - shifts
-        parameters:
-          - in: path
-            name: shift_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -441,12 +430,6 @@ class ShiftUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        parameters:
-          - in: path
-            name: shift_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -577,12 +560,6 @@ class ShiftUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        parameters:
-          - in: path
-            name: shift_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -700,17 +677,6 @@ class ShiftUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        parameters:
-          - in: path
-            name: shift_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -765,11 +731,6 @@ class ShiftSummary(BaseHandler):
         tags:
           - shifts
         parameters:
-          - in: path
-            name: shift_id
-            required: false
-            schema:
-              type: integer
           - in: query
             name: startDate
             required: false

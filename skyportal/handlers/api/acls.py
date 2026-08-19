@@ -57,12 +57,6 @@ class UserACLHandler(BaseHandler):
         description: Grant new ACL(s) to a user
         tags:
           - acls
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -109,17 +103,6 @@ class UserACLHandler(BaseHandler):
         description: Remove ACL from user permissions
         tags:
           - acls
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: acl_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

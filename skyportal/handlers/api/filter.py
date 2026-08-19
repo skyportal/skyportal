@@ -71,12 +71,6 @@ class FilterHandler(BaseHandler):
           description: Retrieve a filter
           tags:
             - filters
-          parameters:
-            - in: path
-              name: filter_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -147,12 +141,6 @@ class FilterHandler(BaseHandler):
         description: Update filter name
         tags:
           - filters
-        parameters:
-          - in: path
-            name: filter_id
-            required: True
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -236,12 +224,6 @@ class FilterHandler(BaseHandler):
         description: Delete a filter
         tags:
           - filters
-        parameters:
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

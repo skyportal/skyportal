@@ -82,11 +82,6 @@ class GroupHandler(BaseHandler):
           tags:
             - groups
           parameters:
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: includeGroupUsers
               nullable: true
@@ -399,11 +394,6 @@ class GroupHandler(BaseHandler):
         description: Update a group
         tags:
           - groups
-        parameters:
-          - in: path
-            name: group_id
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -463,12 +453,6 @@ class GroupHandler(BaseHandler):
         description: Delete a group
         tags:
           - groups
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -510,12 +494,6 @@ class GroupUserHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -677,12 +655,6 @@ class GroupUserHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -779,17 +751,6 @@ class GroupUserHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -849,12 +810,6 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -957,12 +912,6 @@ class GroupStreamHandler(BaseHandler):
         tags:
           - groups
           - streams
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1065,17 +1014,6 @@ class GroupStreamHandler(BaseHandler):
         tags:
           - groups
           - streams
-        parameters:
-          - in: path
-            name: group_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: stream_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1130,12 +1068,6 @@ class ObjGroupsHandler(BaseHandler):
         tags:
           - groups
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

@@ -84,12 +84,6 @@ class MMADetectorHandler(BaseHandler):
           description: Retrieve a Multimessenger Astronomical Detector (MMADetector)
           tags:
             - mma detectors
-          parameters:
-            - in: path
-              name: mmadetector_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -156,12 +150,6 @@ class MMADetectorHandler(BaseHandler):
         description: Update a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mma detectors
-        parameters:
-          - in: path
-            name: mmadetector_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -237,12 +225,6 @@ class MMADetectorHandler(BaseHandler):
         description: Delete a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mma detectors
-        parameters:
-          - in: path
-            name: mmadetector_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -389,12 +371,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
           description: Retrieve an mmadetector spectrum
           tags:
             - mma detector spectra
-          parameters:
-            - in: path
-              name: spectrum_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -528,12 +504,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
         description: Update mmadetector spectrum
         tags:
           - mma detector spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -625,12 +595,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
         description: Delete an mmadetector spectrum
         tags:
           - mma detector spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -797,12 +761,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           description: Retrieve an mmadetector time_interval
           tags:
             - mma detector time intervals
-          parameters:
-            - in: path
-              name: time_interval_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -964,12 +922,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         description: Update mmadetector time_interval
         tags:
           - mma detector time intervals
-        parameters:
-          - in: path
-            name: time_interval_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1052,12 +1004,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         description: Delete an mmadetector time_interval
         tags:
           - mma detector time intervals
-        parameters:
-          - in: path
-            name: time_interval_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

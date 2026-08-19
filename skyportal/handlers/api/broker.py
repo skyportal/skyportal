@@ -1,7 +1,8 @@
 import copy
-from typing import Any
+from typing import Annotated, Any
 
 import sqlalchemy as sa
+from pydantic import Field
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -11,6 +12,11 @@ from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
 from ...models import Broker, Filter, Stream, set_autosave
 from ..base import BaseHandler
+
+AlertId = Annotated[
+    str,
+    Field(description="Alert identifier (e.g. candid) the provider keys cutouts on."),
+]
 
 
 def alert_permissions(user, session):
@@ -205,7 +211,7 @@ class BrokerHandler(BaseHandler):
             return self.success(data={"id": broker.id})
 
     @auth_or_token
-    def get(self, broker_id=None):
+    def get(self, broker_id: int | None = None):
         """
         ---
         summary: Retrieve broker(s)
@@ -213,12 +219,6 @@ class BrokerHandler(BaseHandler):
           only included for system admins.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: false
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -246,7 +246,7 @@ class BrokerHandler(BaseHandler):
             )
 
     @permissions(["System admin"])
-    def patch(self, broker_id):
+    def patch(self, broker_id: int):
         """
         ---
         summary: Update a broker
@@ -255,12 +255,6 @@ class BrokerHandler(BaseHandler):
           reaches the broker, and fails if the credentials are refused.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -336,18 +330,12 @@ class BrokerHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
-    def delete(self, broker_id):
+    def delete(self, broker_id: int):
         """
         ---
         summary: Delete a broker
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -373,7 +361,7 @@ class BrokerHandler(BaseHandler):
 
 class BrokerAlertsHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id, alert_id=None):
+    def get(self, broker_id: int, alert_id=None):
         """
         ---
         summary: Query broker alerts
@@ -381,17 +369,6 @@ class BrokerAlertsHandler(BaseHandler):
           to the broker's registered provider.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: alert_id
-            required: false
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -442,7 +419,7 @@ class BrokerAlertsHandler(BaseHandler):
 
 class BrokerCutoutsHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id, alert_id):
+    def get(self, broker_id: int, alert_id: AlertId):
         """
         ---
         summary: Get an alert's cutouts from a broker
@@ -450,18 +427,6 @@ class BrokerCutoutsHandler(BaseHandler):
           dispatched to the broker's provider.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: alert_id
-            required: true
-            schema:
-              type: string
-            description: Alert identifier (e.g. candid) the provider keys cutouts on.
         responses:
           200:
             content:
@@ -498,7 +463,7 @@ class BrokerCutoutsHandler(BaseHandler):
 
 class BrokerConeSearchHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id):
+    def get(self, broker_id: int):
         """
         ---
         summary: Cross-match a position against a broker's archival catalogs
@@ -508,11 +473,6 @@ class BrokerConeSearchHandler(BaseHandler):
         tags:
           - brokers
         parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: ra
             required: true
@@ -578,7 +538,7 @@ class BrokerConeSearchHandler(BaseHandler):
 
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, broker_id, alert_id):
+    async def post(self, broker_id: int, alert_id: AlertId):
         """
         ---
         summary: Save a broker alert as a source
@@ -586,18 +546,6 @@ class BrokerSaveHandler(BaseHandler):
           Obj/Source with photometry, dispatched to the broker's provider.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: alert_id
-            required: true
-            schema:
-              type: string
-            description: Object identifier to save.
         requestBody:
           content:
             application/json:
@@ -658,7 +606,7 @@ class BrokerSaveHandler(BaseHandler):
 
 class BrokerPhotometryHandler(BaseHandler):
     @auth_or_token
-    async def get(self, broker_id, alert_id):
+    async def get(self, broker_id: int, alert_id: AlertId):
         """
         ---
         summary: Display photometry for an object (DB + on-demand broker)
@@ -674,17 +622,6 @@ class BrokerPhotometryHandler(BaseHandler):
           - brokers
           - photometry
         parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: alert_id
-            required: true
-            schema:
-              type: string
-            description: Object identifier (objectId) to fetch photometry for.
           - in: query
             name: survey
             schema:
@@ -783,11 +720,6 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
           - brokers
           - photometry
         parameters:
-          - in: path
-            name: object_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: survey
             required: true
@@ -846,7 +778,7 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
 
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id):
+    def post(self, broker_id: int):
         """
         ---
         summary: Preview a broker filter
@@ -856,12 +788,6 @@ class BrokerFilterTestHandler(BaseHandler):
           selected/tables/conditions, BOOM's pipeline).
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -901,7 +827,7 @@ class BrokerFilterTestHandler(BaseHandler):
 
 class BrokerFilterValidateHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id, filter_id):
+    def post(self, broker_id: int, filter_id: int):
         """
         ---
         summary: Validate a broker filter version for activation
@@ -910,17 +836,6 @@ class BrokerFilterValidateHandler(BaseHandler):
           be activated (skyportal gates activation on this).
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -984,7 +899,7 @@ _FILTER_MODULE_ELEMENTS = ("variables", "listVariables", "switchCases", "blocks"
 
 class BrokerFilterModulesHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id, name=None):
+    def get(self, broker_id: int, name=None):
         """
         ---
         summary: Broker filter-building vocabulary
@@ -994,17 +909,6 @@ class BrokerFilterModulesHandler(BaseHandler):
           segment, returns just that module (or null when there is no such module).
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: name
-            required: false
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1045,7 +949,7 @@ class BrokerFilterModulesHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def post(self, broker_id, name):
+    def post(self, broker_id: int, name):
         """
         ---
         summary: Create a broker custom filter module
@@ -1054,17 +958,6 @@ class BrokerFilterModulesHandler(BaseHandler):
           filter builder. Where it is stored is up to the broker's provider.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: name
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -1083,7 +976,7 @@ class BrokerFilterModulesHandler(BaseHandler):
         return self._write_module(broker_id, name, insert=True)
 
     @permissions(["Upload data"])
-    def put(self, broker_id, name):
+    def put(self, broker_id: int, name):
         """
         ---
         summary: Update a broker custom filter module
@@ -1091,17 +984,6 @@ class BrokerFilterModulesHandler(BaseHandler):
           element named ``name``.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: name
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -1157,7 +1039,7 @@ class BrokerFiltersHandler(BaseHandler):
     """
 
     @auth_or_token
-    def get(self, broker_id, filter_id=None):
+    def get(self, broker_id: int, filter_id: int | None = None):
         """
         ---
         summary: Get broker filter(s)
@@ -1165,17 +1047,6 @@ class BrokerFiltersHandler(BaseHandler):
           broker-side versions/active state (via the provider).
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: filter_id
-            required: false
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1257,7 +1128,7 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data=result)
 
     @permissions(["Upload data"])
-    def post(self, broker_id, filter_id=None):
+    def post(self, broker_id: int, filter_id: int | None = None):
         """
         ---
         summary: Create a broker filter version
@@ -1267,17 +1138,6 @@ class BrokerFiltersHandler(BaseHandler):
           broker and the broker-side ids are stored in the Filter's altdata.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1393,7 +1253,7 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data={"id": f.id})
 
     @permissions(["Upload data"])
-    def patch(self, broker_id, filter_id):
+    def patch(self, broker_id: int, filter_id: int):
         """
         ---
         summary: Update a broker filter
@@ -1401,17 +1261,6 @@ class BrokerFiltersHandler(BaseHandler):
           the broker) or toggle autoAnnotate/autoSave/autoFollowup flags.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -1481,7 +1330,7 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, broker_id, filter_id):
+    def delete(self, broker_id: int, filter_id: int):
         """
         ---
         summary: Delete a broker filter
@@ -1489,17 +1338,6 @@ class BrokerFiltersHandler(BaseHandler):
           filter via the provider.
         tags:
           - brokers
-        parameters:
-          - in: path
-            name: broker_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1658,7 +1496,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
 
 class BrokerFilterAttachHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, filter_id):
+    def post(self, filter_id: int):
         """
         ---
         summary: Attach a filter to a broker
@@ -1666,12 +1504,6 @@ class BrokerFilterAttachHandler(BaseHandler):
         tags:
           - brokers
           - filters
-        parameters:
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:

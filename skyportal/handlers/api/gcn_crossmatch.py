@@ -22,12 +22,6 @@ class GcnEventCrossmatchHandler(BaseHandler):
           matches it has saved, and any error.
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -80,12 +74,6 @@ class GcnEventCrossmatchHandler(BaseHandler):
           search parameters.
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

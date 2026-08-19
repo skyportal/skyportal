@@ -36,8 +36,20 @@ def cutout_broker():
     DBSession().commit()
 
 
-def stub_provider(monkeypatch, cutouts, capabilities=None):
-    """Point GENERICBROKER at canned responses instead of the network."""
+def stub_provider(monkeypatch, cutouts, capabilities=None, seen=None):
+    """Point GENERICBROKER at canned responses instead of the network. ``seen``
+    collects the kwargs each call received."""
+
+    def get_alert(broker, alert_id, session, **kw):
+        if seen is not None:
+            seen["get_alert"] = kw
+        return {"candid": 1234567890, "survey": "ZTF"}
+
+    def get_cutouts(broker, alert_id, session, **kw):
+        if seen is not None:
+            seen["get_cutouts"] = kw
+        return cutouts
+
     monkeypatch.setattr(
         generic.GENERICBROKER,
         "implements",
@@ -45,21 +57,8 @@ def stub_provider(monkeypatch, cutouts, capabilities=None):
             lambda cls: capabilities or {"get_alert": True, "get_cutouts": True}
         ),
     )
-    monkeypatch.setattr(
-        generic.GENERICBROKER,
-        "get_alert",
-        staticmethod(
-            lambda broker, alert_id, session, **kw: {
-                "candid": 1234567890,
-                "survey": "ZTF",
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        generic.GENERICBROKER,
-        "get_cutouts",
-        staticmethod(lambda broker, alert_id, session, **kw: cutouts),
-    )
+    monkeypatch.setattr(generic.GENERICBROKER, "get_alert", staticmethod(get_alert))
+    monkeypatch.setattr(generic.GENERICBROKER, "get_cutouts", staticmethod(get_cutouts))
 
 
 def rebuild(obj_id, user_id):
@@ -93,6 +92,24 @@ def test_rebuild_posts_thumbnails_from_broker_cutouts(monkeypatch, cutout_broker
             USER_ID,
         )
     ]
+
+
+def test_rebuild_passes_the_requester_stream_scope(monkeypatch, cutout_broker):
+    """Both broker calls must carry the scope. Providers fail closed on it --
+    BOOM reads its accessible programids straight out of `permissions`, so an
+    omitted scope matches no alert and the rebuild silently posts nothing."""
+    seen = {}
+
+    async def fake_add_thumbnails(*args, **kwargs):
+        pass
+
+    stub_provider(monkeypatch, {"cutoutScience": b"fits"}, seen=seen)
+    monkeypatch.setattr(_thumbnails, "add_thumbnails", fake_add_thumbnails)
+
+    assert rebuild(OBJ_ID, USER_ID) is True
+    # present-and-None means unrestricted (a system admin); absent means deny all
+    assert "permissions" in seen["get_alert"], "the alert fetch ran unscoped"
+    assert "permissions" in seen["get_cutouts"], "the cutout fetch ran unscoped"
 
 
 def test_rebuild_skips_brokers_that_cannot_serve_cutouts(monkeypatch, cutout_broker):

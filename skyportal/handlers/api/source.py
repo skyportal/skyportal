@@ -9,6 +9,7 @@ import re
 import time
 import traceback
 from json.decoder import JSONDecodeError
+from typing import Annotated
 
 import arrow
 import astropy
@@ -32,6 +33,7 @@ from dateutil.parser import isoparse
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
+from pydantic import Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import (
     scoped_session,
@@ -111,6 +113,10 @@ from .candidate.candidate import (
 from .color_mag import get_color_mag
 from .photometry import add_external_photometry, serialize
 from .sources import get_sources
+
+ObjId = Annotated[
+    str, Field(description="ID of object to generate observability plot for")
+]
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
@@ -1314,12 +1320,6 @@ class SourceHandler(BaseHandler):
         description: Check if a Source exists
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1355,7 +1355,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: ObjId = None):
         """
         ---
         single:
@@ -1364,12 +1364,6 @@ class SourceHandler(BaseHandler):
           tags:
             - sources
           parameters:
-            - in: path
-              name: obj_id
-              required: false
-              schema:
-                type: string
-              description: Source ID
             - in: query
               name: TNSname
               nullable: true
@@ -2492,12 +2486,6 @@ class SourceHandler(BaseHandler):
         description: Update a source
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: True
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -2581,11 +2569,6 @@ class SourceHandler(BaseHandler):
         tags:
           - sources
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: group_id
             required: true
@@ -2636,11 +2619,6 @@ class SourceOffsetsHandler(BaseHandler):
         tags:
           - sources
         parameters:
-        - in: path
-          name: obj_id
-          required: true
-          schema:
-            type: string
         - in: query
           name: facility
           nullable: true
@@ -3083,11 +3061,6 @@ class SourceFinderHandler(BaseHandler):
           - sources
           - finding chart
         parameters:
-        - in: path
-          name: obj_id
-          required: true
-          schema:
-            type: string
         - in: query
           name: imsize
           schema:
@@ -3553,7 +3526,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
 class SourceObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, obj_id: ObjId):
         """
         ---
         summary: Generate observability plot for a source
@@ -3561,13 +3534,6 @@ class SourceObservabilityPlotHandler(BaseHandler):
         tags:
           - localizations
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of object to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -3670,7 +3636,15 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, target_id: str):
+    async def post(
+        self,
+        target_id: Annotated[
+            str,
+            Field(
+                description="The obj_id of the target Source (to which the photometry is being copied to)"
+            ),
+        ],
+    ):
         """
         ---
         summary: Copy photometry from one source to another
@@ -3678,14 +3652,6 @@ class SourceCopyPhotometryHandler(BaseHandler):
         tags:
           - sources
           - photometry
-        parameters:
-          - in: path
-            name: target_id
-            required: true
-            schema:
-              type: string
-            description: |
-              The obj_id of the target Source (to which the photometry is being copied to)
         requestBody:
           content:
             application/json:
