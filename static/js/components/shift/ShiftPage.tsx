@@ -53,7 +53,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
     getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
   );
   const { data: shiftList } = useGetShiftsQuery({
-    end_date_limit: endDateLimit,
+    endDateLimit,
   });
   const [currentShiftId, setCurrentShiftId] = useState<number | null>(null);
   const { data: currentShift } = useGetShiftQuery(currentShiftId as number, {

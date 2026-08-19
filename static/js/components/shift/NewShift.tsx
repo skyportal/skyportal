@@ -11,6 +11,7 @@ import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch } from "../../types/hooks";
 import { useSubmitShiftMutation } from "../../ducks/shifts";
+import type { ShiftPost } from "skyportal-js/Shifts";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
 
@@ -81,25 +82,25 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   }
 
   const handleSubmit = async () => {
-    const dataToSubmit: Record<string, any> = {
+    const local = formData["localTime"] === "local";
+    const dataToSubmit: ShiftPost = {
       group_id: formData["group_id"],
       shift_admins: formData["shift_admins"],
       name: formData["name"],
       required_users_number: formData["required_users_number"],
       description: formData["description"],
-      start_date: formData["start_date"],
-      end_date: formData["end_date"],
+      // the form can collect local times, which the API takes as UTC
+      start_date: local
+        ? fromLocalToUtc(formData["start_date"])
+        : formData["start_date"],
+      end_date: local
+        ? fromLocalToUtc(formData["end_date"])
+        : formData["end_date"],
     };
-
-    // Convert dates to UTC format
-    if (formData["localTime"] === "local") {
-      dataToSubmit["start_date"] = fromLocalToUtc(dataToSubmit["start_date"]);
-      dataToSubmit["end_date"] = fromLocalToUtc(dataToSubmit["end_date"]);
-    }
 
     const startDate = dayjs(dataToSubmit["start_date"]);
     const endDate = dayjs(dataToSubmit["end_date"]);
-    const shifts: Record<string, any>[] = [];
+    const shifts: ShiftPost[] = [];
 
     switch (formData["divide"]) {
       case "Divide per Day": {

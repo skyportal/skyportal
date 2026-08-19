@@ -11,10 +11,18 @@
  * The websocket `REFRESH_SHIFT` / `REFRESH_SHIFTS` messages are bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import type { CommentAttachment } from "skyportal-js/Comments";
+import type {
+  FetchShiftsOptions,
+  Shift,
+  ShiftPost,
+  ShiftSummaryReport,
+  UpdateShiftOptions,
+} from "skyportal-js/Shifts";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 interface ShiftSummaryArg {
   shiftID?: number | string | undefined;
@@ -29,21 +37,18 @@ interface ShiftUserArg {
   needs_replacement?: boolean | undefined;
 }
 
-interface CommentAttachment {
-  commentId: number | string;
-  text: string;
-  attachment: string;
-  attachment_name: string;
-}
-
 interface CommentAttachmentArg {
   shiftID: number | string;
   commentID: number | string;
 }
 
-function shiftStringDateToDate<
-  T extends { start_date?: string | Date; end_date?: string | Date },
->(shift: T): T {
+/** A shift whose UTC date strings have been parsed into `Date`s. */
+export type ShiftWithDates = Omit<Shift, "start_date" | "end_date"> & {
+  start_date: Date;
+  end_date: Date;
+};
+
+function shiftStringDateToDate(shift: Shift): ShiftWithDates {
   return {
     ...shift,
     start_date: new Date(`${shift.start_date}Z`),
@@ -64,153 +69,162 @@ function fileReaderPromise(
 
 export const shiftsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getShift: build.query<
-      RouteData<"GET /api/shifts/{shift_id}">,
-      number | string
-    >({
-      query: (id) => `api/shifts/${id}`,
-      transformResponse: (data: RouteData<"GET /api/shifts/{shift_id}">) =>
-        shiftStringDateToDate(data),
+    getShift: build.query<ShiftWithDates, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, async (client) =>
+          shiftStringDateToDate(await client.fetchShift(Number(id))),
+        ),
       providesTags: ["Shift"],
     }),
-    getShifts: build.query<
-      RouteData<"GET /api/shifts">,
-      Record<string, unknown> | void
-    >({
-      query: (params) => {
-        const search = buildQueryString(params ?? {});
-        return search ? `api/shifts?${search}` : "api/shifts";
-      },
-      transformResponse: (data: RouteData<"GET /api/shifts">) =>
-        (data ?? []).map((shift) => shiftStringDateToDate(shift)),
+    getShifts: build.query<ShiftWithDates[], FetchShiftsOptions | void>({
+      queryFn: (params, api) =>
+        clientQuery(api, async (client) =>
+          (await client.fetchShifts(params ?? {})).map((shift) =>
+            shiftStringDateToDate(shift),
+          ),
+        ),
       providesTags: ["Shift"],
     }),
-    getShiftsSummary: build.query<any, ShiftSummaryArg>({
-      query: ({ shiftID, startDate, endDate }) => {
-        if (startDate && endDate) {
-          const search = buildQueryString({
-            startDate,
-            endDate,
-          });
-          return `api/shifts/summary?${search}`;
-        }
-        if (shiftID) {
-          return `api/shifts/summary/${shiftID}`;
-        }
-        return "api/shifts/summary";
-      },
+    getShiftsSummary: build.query<ShiftSummaryReport, ShiftSummaryArg>({
+      queryFn: ({ shiftID, startDate, endDate }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchShiftSummary(
+            startDate && endDate
+              ? { startDate, endDate }
+              : shiftID
+                ? { shiftId: Number(shiftID) }
+                : {},
+          ),
+        ),
       providesTags: ["Shift"],
     }),
+    // download/preview must be empty for the JSON form: the handler treats any
+    // non-empty value (including "false") as truthy and streams the file.
     getCommentOnShiftAttachment: build.query<
       CommentAttachment,
       CommentAttachmentArg
     >({
-      query: ({ shiftID, commentID }) =>
-        `api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
+      queryFn: ({ shiftID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachmentText(shiftID, Number(commentID), {
+            resourceType: "shift",
+          }),
+        ),
     }),
-    submitShift: build.mutation<RouteData<"POST /api/shifts">, any>({
-      query: (run) => ({
-        url: "api/shifts",
-        method: "POST",
-        body: run,
-      }),
+    submitShift: build.mutation<{ id: number }, ShiftPost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postShift(run)),
       invalidatesTags: ["Shift"],
     }),
     updateShift: build.mutation<
-      RouteData<"PATCH /api/shifts/{shift_id}">,
-      { id: number | string; payload: any }
+      void,
+      { id: number | string; payload: UpdateShiftOptions }
     >({
-      query: ({ id, payload }) => ({
-        url: `api/shifts/${id}`,
-        method: "PATCH",
-        body: payload,
-      }),
+      queryFn: ({ id, payload }, api) =>
+        clientQuery(api, (client) => client.updateShift(Number(id), payload)),
       invalidatesTags: ["Shift"],
     }),
-    deleteShift: build.mutation<unknown, number | string>({
-      query: (shiftID) => ({
-        url: `api/shifts/${shiftID}`,
-        method: "DELETE",
-      }),
+    deleteShift: build.mutation<void, number | string>({
+      queryFn: (shiftID, api) =>
+        clientQuery(api, (client) => client.deleteShift(Number(shiftID))),
       invalidatesTags: ["Shift"],
     }),
     addShiftUser: build.mutation<
-      RouteData<"POST /api/shifts/{shift_id}/users">,
+      { shift_id: number; user_id: number; admin: boolean },
       ShiftUserArg
     >({
-      query: ({ userID, shiftID, admin }) => ({
-        url: `api/shifts/${shiftID}/users`,
-        method: "POST",
-        body: { userID, shiftID, admin },
-      }),
+      queryFn: ({ userID, shiftID, admin }, api) =>
+        clientQuery(api, (client) =>
+          client.postShiftUser(Number(shiftID), Number(userID), { admin }),
+        ),
       invalidatesTags: ["Shift"],
     }),
-    updateShiftUser: build.mutation<
-      RouteData<"PATCH /api/shifts/{shift_id}/users/{user_id}">,
-      ShiftUserArg
+    updateShiftUser: build.mutation<void, ShiftUserArg>({
+      queryFn: ({ shiftID, userID, admin, needs_replacement }, api) =>
+        clientQuery(api, (client) =>
+          client.updateShiftUser(Number(shiftID), Number(userID), {
+            admin,
+            needsReplacement: needs_replacement,
+          }),
+        ),
+      invalidatesTags: ["Shift"],
+    }),
+    deleteShiftUser: build.mutation<void, ShiftUserArg>({
+      queryFn: ({ userID, shiftID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteShiftUser(Number(shiftID), Number(userID)),
+        ),
+      invalidatesTags: ["Shift"],
+    }),
+    addCommentOnShift: build.mutation<
+      { comment_id: number },
+      {
+        shiftID: number | string;
+        text: string;
+        group_ids?: number[];
+        attachment?: File;
+      }
     >({
-      query: ({ shiftID, userID, admin, needs_replacement }) => ({
-        url: `api/shifts/${shiftID}/users/${userID}`,
-        method: "PATCH",
-        body: { admin, needs_replacement },
-      }),
-      invalidatesTags: ["Shift"],
-    }),
-    deleteShiftUser: build.mutation<unknown, ShiftUserArg>({
-      query: ({ userID, shiftID }) => ({
-        url: `api/shifts/${shiftID}/users/${userID}`,
-        method: "DELETE",
-        body: { userID, shiftID },
-      }),
-      invalidatesTags: ["Shift"],
-    }),
-    addCommentOnShift: build.mutation<unknown, any>({
-      queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/shift/${body.shiftID}/comments`,
-          method: "POST",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return { data: result.data };
+      queryFn: async ({ shiftID, text, group_ids, attachment }, api) => {
+        const file = attachment
+          ? await fileReaderPromise(attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          file
+            ? client.postCommentWithAttachment(
+                shiftID,
+                text,
+                file.name,
+                String(file.body),
+                { resourceType: "shift", groupIds: group_ids },
+              )
+            : client.postComment(shiftID, text, {
+                resourceType: "shift",
+                groupIds: group_ids,
+              }),
+        );
       },
       invalidatesTags: ["Shift"],
     }),
     editCommentOnShift: build.mutation<
-      unknown,
-      { commentID: number | string; formData: any }
+      void,
+      {
+        commentID: number | string;
+        formData: {
+          shift_id: number | string;
+          text?: string;
+          group_ids?: number[];
+          attachment?: File;
+        };
+      }
     >({
-      queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/shift/${body.shift_id}/comments/${commentID}`,
-          method: "PUT",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return { data: result.data };
+      queryFn: async ({ commentID, formData }, api) => {
+        const file = formData.attachment
+          ? await fileReaderPromise(formData.attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          client.updateComment(formData.shift_id, Number(commentID), {
+            resourceType: "shift",
+            text: formData.text,
+            groupIds: formData.group_ids,
+            ...(file
+              ? { attachmentName: file.name, attachmentBody: String(file.body) }
+              : {}),
+          }),
+        );
       },
       invalidatesTags: ["Shift"],
     }),
     deleteCommentOnShift: build.mutation<
-      unknown,
+      void,
       { shiftID: number | string; commentID: number | string }
     >({
-      query: ({ shiftID, commentID }) => ({
-        url: `api/shift/${shiftID}/comments/${commentID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ shiftID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteComment(shiftID, Number(commentID), {
+            resourceType: "shift",
+          }),
+        ),
       invalidatesTags: ["Shift"],
     }),
   }),

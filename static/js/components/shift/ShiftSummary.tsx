@@ -325,14 +325,17 @@ const ShiftSummary = ({
           liveValidate
         />
       </Paper>
-      {shiftsSummary?.shifts?.total > 1 && (
+      {(shiftsSummary?.shifts?.total ?? 0) > 1 && (
         <Paper className={classes.content}>
-          {displayShiftsList(shiftsSummary.shifts.data)}
+          {displayShiftsList(shiftsSummary?.shifts?.data ?? [])}
         </Paper>
       )}
       {shiftsSummary?.gcns && (
         <Paper className={classes.content}>
-          {displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
+          {displayShiftsGCN(
+            shiftsSummary?.shifts?.data ?? [],
+            shiftsSummary.gcns.data ?? [],
+          )}
         </Paper>
       )}
     </div>
