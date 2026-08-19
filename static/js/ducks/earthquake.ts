@@ -12,17 +12,18 @@
  * The websocket `REFRESH_EARTHQUAKE` / `REFRESH_EARTHQUAKES` messages are
  * bridged to cache invalidation via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
-import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+import type { CommentAttachment } from "skyportal-js/Comments";
+import type {
+  Earthquake,
+  EarthquakePost,
+  EarthquakePostResponse,
+  EarthquakesPage,
+  FetchEarthquakesOptions,
+} from "skyportal-js/Earthquakes";
 
-interface CommentAttachment {
-  commentId: number | string;
-  text: string;
-  attachment: string;
-  attachment_name: string;
-}
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface CommentAttachmentArg {
   earthquakeID: number | string;
@@ -42,75 +43,85 @@ function fileReaderPromise(
 
 export const earthquakeApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getEarthquake: build.query<
-      RouteData<"GET /api/earthquake/{event_id}">,
-      number | string
-    >({
-      query: (id) => `api/earthquake/${id}`,
+    getEarthquake: build.query<Earthquake, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchEarthquake(String(id))),
       providesTags: ["Earthquake"],
     }),
     getEarthquakes: build.query<
-      RouteData<"GET /api/earthquake">,
-      Record<string, unknown> | void
+      EarthquakesPage,
+      FetchEarthquakesOptions | void
     >({
-      query: (params) => {
-        const search = buildQueryString(params ?? {});
-        return search ? `api/earthquake?${search}` : "api/earthquake";
-      },
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.fetchEarthquakes(params ?? {})),
       providesTags: ["Earthquakes"],
     }),
+    // Downloads the attachment itself; the text form below returns JSON.
     getCommentOnEarthquakeAttachment: build.query<
-      CommentAttachment,
+      Uint8Array,
       CommentAttachmentArg
     >({
-      query: ({ earthquakeID, commentID }) =>
-        `api/earthquake/${earthquakeID}/comments/${commentID}/attachment`,
+      queryFn: ({ earthquakeID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachment(earthquakeID, Number(commentID), {
+            resourceType: "earthquake",
+          }),
+        ),
     }),
     getCommentOnEarthquakeTextAttachment: build.query<
       CommentAttachment,
       CommentAttachmentArg
     >({
-      query: ({ earthquakeID, commentID }) =>
-        `api/earthquake/${earthquakeID}/comments/${commentID}/attachment?download=false&preview=false`,
+      queryFn: ({ earthquakeID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchCommentAttachmentText(earthquakeID, Number(commentID), {
+            resourceType: "earthquake",
+          }),
+        ),
     }),
-    submitEarthquake: build.mutation<RouteData<"POST /api/earthquake">, any>({
-      query: (run) => ({
-        url: "api/earthquake",
-        method: "POST",
-        body: run,
-      }),
+    submitEarthquake: build.mutation<EarthquakePostResponse, EarthquakePost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postEarthquake(run)),
       invalidatesTags: ["Earthquakes"],
     }),
+    // The handler reads no body, so the form data the caller passes is unused.
     submitPrediction: build.mutation<
-      RouteData<"POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/predictions">,
-      {
-        id: number | string;
-        mmadetector_id: number | string;
-        params?: Record<string, unknown> | undefined;
-      }
+      void,
+      { id: number | string; mmadetector_id: number | string }
     >({
-      query: ({ id, mmadetector_id, params = {} }) => ({
-        url: `api/earthquake/${id}/mmadetector/${mmadetector_id}/predictions`,
-        method: "POST",
-        body: params,
-      }),
+      queryFn: ({ id, mmadetector_id }, api) =>
+        clientQuery(api, (client) =>
+          client.postEarthquakePrediction(String(id), Number(mmadetector_id)),
+        ),
       invalidatesTags: ["Earthquake"],
     }),
-    addCommentOnEarthquake: build.mutation<unknown, any>({
-      queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/earthquake/${body.earthquake_id}/comments`,
-          method: "POST",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return { data: result.data };
+    addCommentOnEarthquake: build.mutation<
+      { comment_id: number },
+      {
+        earthquake_id: number | string;
+        text: string;
+        group_ids?: number[];
+        attachment?: File;
+      }
+    >({
+      queryFn: async ({ earthquake_id, text, group_ids, attachment }, api) => {
+        const file = attachment
+          ? await fileReaderPromise(attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          file
+            ? client.postCommentWithAttachment(
+                earthquake_id,
+                text,
+                file.name,
+                String(file.body),
+                { resourceType: "earthquake", groupIds: group_ids },
+              )
+            : client.postComment(earthquake_id, text, {
+                resourceType: "earthquake",
+                groupIds: group_ids,
+              }),
+        );
       },
       invalidatesTags: ["Earthquake"],
     }),
@@ -122,36 +133,33 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
         formData: any;
       }
     >({
-      queryFn: async (
-        { commentID, earthquakeID, formData },
-        _api,
-        _extra,
-        baseQuery,
-      ) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
-        }
-        const result = await baseQuery({
-          url: `api/earthquake/${earthquakeID}/comments/${commentID}`,
-          method: "PUT",
-          body,
-        });
-        if (result.error) {
-          return { error: result.error };
-        }
-        return { data: result.data };
+      queryFn: async ({ commentID, earthquakeID, formData }, api) => {
+        const file = formData.attachment
+          ? await fileReaderPromise(formData.attachment)
+          : undefined;
+        return clientQuery(api, (client) =>
+          client.updateComment(earthquakeID, Number(commentID), {
+            resourceType: "earthquake",
+            text: formData.text,
+            groupIds: formData.group_ids,
+            ...(file
+              ? { attachmentName: file.name, attachmentBody: String(file.body) }
+              : {}),
+          }),
+        );
       },
       invalidatesTags: ["Earthquake"],
     }),
     deleteCommentOnEarthquake: build.mutation<
-      unknown,
+      void,
       { earthquakeID: number | string; commentID: number | string }
     >({
-      query: ({ earthquakeID, commentID }) => ({
-        url: `api/earthquake/${earthquakeID}/comments/${commentID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ earthquakeID, commentID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteComment(earthquakeID, Number(commentID), {
+            resourceType: "earthquake",
+          }),
+        ),
       invalidatesTags: ["Earthquake"],
     }),
   }),

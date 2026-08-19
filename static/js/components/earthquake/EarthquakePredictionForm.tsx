@@ -115,16 +115,18 @@ const EarthquakePredictionForm = ({
     );
   }
 
-  const handleSubmit = async ({ formData }: { formData: any }) => {
+  // the prediction endpoint reads no request body, so the form only gates the
+  // submit
+  const handleSubmit = async () => {
     if (!earthquake.event_id) {
       return;
     }
     setIsSubmitting(true);
     try {
+      // the handler reads no body, so formData is not sent
       await submitPrediction({
         id: earthquake.event_id,
         mmadetector_id: selectedMMADetectorId,
-        params: formData,
       }).unwrap();
     } catch {
       // error notification handled by the base query
