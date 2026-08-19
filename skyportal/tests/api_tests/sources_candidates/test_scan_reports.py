@@ -12,7 +12,12 @@ from skyportal.models import (
     SuperObj,
 )
 from skyportal.tests import api
-from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
+from skyportal.tests.fixtures import (
+    CommentFactory,
+    GroupFactory,
+    ObjFactory,
+    PhotometryFactory,
+)
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -66,6 +71,17 @@ def test_scan_report_item_includes_followup_and_assignment(
             saved_at=now,
         )
     )
+    # Also currently saved to a second group outside the report's own group_ids,
+    # to confirm "groups_saved_to" isn't limited to the report's scope.
+    other_group = GroupFactory()
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=other_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
     DBSession.commit()
 
     # A follow-up request (SEDM is an imaging spectrograph -> "spectroscopy").
@@ -106,8 +122,9 @@ def test_scan_report_item_includes_followup_and_assignment(
     )
 
     # Detections are read from PhotStat (not raw photometry): a fainter first
-    # detection and a brighter peak, both ZTF filters. ObjFactory already creates a
-    # PhotStat (obj_id is unique), so update it rather than inserting a second one.
+    # detection, a brighter peak, and a later last detection, all ZTF filters.
+    # ObjFactory already creates a PhotStat (obj_id is unique), so update it
+    # rather than inserting a second one.
     photstat = DBSession().scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj.id))
     if photstat is None:
         photstat = PhotStat(obj_id=obj.id)
@@ -117,6 +134,9 @@ def test_scan_report_item_includes_followup_and_assignment(
     photstat.first_detected_filter = "ztfg"
     photstat.peak_mag_per_filter = {"ztfg": 18.9, "ztfr": 16.4}
     photstat.peak_mjd_per_filter = {"ztfg": 60000.0, "ztfr": 60010.0}
+    photstat.last_detected_mjd = 60020.0
+    photstat.last_detected_mag = 17.2
+    photstat.last_detected_filter = "ztfi"
     DBSession.commit()
 
     window = {
@@ -173,7 +193,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert assignment["status"] is not None
     assert assignment["requester"] == user.username
 
-    # First/peak detection per survey (mag, mjd, filter, days-ago), from PhotStat.
+    # First/peak/last detection per survey (mag, mjd, filter, days-ago), from PhotStat.
     detections = item["data"]["detections_by_survey"]
     assert detections is not None
     survey_detections = detections["ZTF"]
@@ -181,8 +201,17 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert survey_detections["first"]["filter"] == "ztfg"
     assert survey_detections["peak"]["mag"] == 16.4
     assert survey_detections["peak"]["filter"] == "ztfr"
+    assert survey_detections["last"]["mag"] == 17.2
+    assert survey_detections["last"]["filter"] == "ztfi"
     assert survey_detections["first"]["days_ago"] > 0
     assert survey_detections["peak"]["days_ago"] > 0
+    assert survey_detections["last"]["days_ago"] > 0
+
+    # Every group the obj is currently an active Source of, including
+    # `other_group` which isn't part of this report's own group_ids/window.
+    assert sorted(item["data"]["groups_saved_to"]) == sorted(
+        [public_group.name, other_group.name]
+    )
 
 
 def test_scan_report_item_includes_associated_objs(
@@ -197,6 +226,8 @@ def test_scan_report_item_includes_associated_objs(
     obj = ObjFactory(groups=[public_group])
     # Another survey's detection of the same physical object (e.g. LSST), with
     # its own alias, linked via a SuperObj -- distinct from `obj`'s own alias.
+    # Note the alias/id don't need to start with "lsst": survey is inferred from
+    # the photometry filter/band (see `_survey_of`), not the obj's name.
     assoc_obj = ObjFactory(groups=[public_group], alias=["LSST_123"])
     DBSession.add(SuperObj(objs=[obj, assoc_obj]))
     DBSession.add(
@@ -210,6 +241,23 @@ def test_scan_report_item_includes_associated_objs(
             saved_at=now,
         )
     )
+    DBSession.commit()
+
+    # The associated obj's own detections (LSST filter), so they should surface
+    # under a distinct "LSST" key in the report item's detections_by_survey,
+    # alongside `obj`'s own (ZTF) survey.
+    assoc_photstat = DBSession().scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == assoc_obj.id)
+    )
+    if assoc_photstat is None:
+        assoc_photstat = PhotStat(obj_id=assoc_obj.id)
+        DBSession.add(assoc_photstat)
+    assoc_photstat.first_detected_mjd = 60005.0
+    assoc_photstat.first_detected_mag = 19.5
+    assoc_photstat.first_detected_filter = "lsstg"
+    assoc_photstat.last_detected_mjd = 60025.0
+    assoc_photstat.last_detected_mag = 18.1
+    assoc_photstat.last_detected_filter = "lssti"
     DBSession.commit()
 
     window = {
@@ -246,6 +294,16 @@ def test_scan_report_item_includes_associated_objs(
     assert associated_objs is not None
     assoc = next(a for a in associated_objs if a["obj_id"] == assoc_obj.id)
     assert assoc["aliases"] == ["LSST_123"]
+
+    # The associated obj's own (LSST) detections are merged into
+    # detections_by_survey under their own survey key, alongside `obj`'s (ZTF).
+    detections = item["data"]["detections_by_survey"]
+    assert detections is not None
+    assert "LSST" in detections
+    assert detections["LSST"]["first"]["mag"] == 19.5
+    assert detections["LSST"]["first"]["filter"] == "lsstg"
+    assert detections["LSST"]["last"]["mag"] == 18.1
+    assert detections["LSST"]["last"]["filter"] == "lssti"
 
 
 def test_scan_report_item_includes_previous_mag(
