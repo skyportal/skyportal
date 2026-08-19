@@ -28,12 +28,15 @@ export interface Profile extends User {
 export interface Group {
   id: number;
   name: string;
-  nickname?: string | null;
-  single_user_group?: boolean;
-  private?: boolean;
-  active?: boolean;
-  saved_at?: string;
-  saved_by?: User | null;
+  // Optional fields are `| null | undefined`: the API nulls them out rather
+  // than omitting them, and the source-scoped fields below are absent entirely
+  // when a group comes from /api/groups.
+  nickname?: string | null | undefined;
+  single_user_group?: boolean | undefined;
+  private?: boolean | null | undefined;
+  active?: boolean | null | undefined;
+  saved_at?: string | null | undefined;
+  saved_by?: User | null | undefined;
 }
 
 export interface GroupAdmissionRequest {

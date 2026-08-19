@@ -1,8 +1,8 @@
 /**
  * Groups (the list of groups visible to the current user).
  *
- * RTK Query conversion of the old `FETCH_GROUPS` duck. The endpoint is injected
- * into the central `skyportalApi`. The backend returns
+ * RTK Query conversion of the old `FETCH_GROUPS` duck, calling the typed
+ * `skyportal-js` client. The backend returns
  * `{ user_groups, user_accessible_groups, all_groups }`; the query keeps the old
  * slice shape (`{ user, userAccessible, all }`) consumers expect. The various
  * group/group-user create/update/delete actions are mutations that invalidate
@@ -11,15 +11,11 @@
  * The websocket `skyportal/FETCH_GROUPS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
-import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+import type { Group, GroupPost } from "skyportal-js/Groups";
 
-interface Group {
-  id: number;
-  name: string;
-  [key: string]: unknown;
-}
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface GroupsResult {
   user: Group[];
@@ -27,31 +23,29 @@ interface GroupsResult {
   all: Group[] | null;
 }
 
-interface GroupsResponse {
-  user_groups: Group[];
-  user_accessible_groups: Group[];
-  all_groups: Group[] | null;
-}
-
 export const groupsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getGroups: build.query<GroupsResult, void>({
-      query: () => "api/groups?includeSingleUserGroups=true",
-      transformResponse: (data: GroupsResponse) => ({
-        user: data?.user_groups ?? [],
-        userAccessible: data?.user_accessible_groups ?? [],
-        all: data?.all_groups ?? null,
-      }),
+      queryFn: (_arg, api) =>
+        clientQuery(api, async (client) => {
+          const data = await client.fetchGroups({
+            includeSingleUserGroups: true,
+          });
+          return {
+            user: data.user_groups,
+            userAccessible: data.user_accessible_groups,
+            all: data.all_groups ?? null,
+          };
+        }),
       providesTags: ["Group"],
     }),
-    addNewGroup: build.mutation<unknown, Record<string, unknown>>({
-      query: (form_data) => ({
-        url: "api/groups",
-        method: "POST",
-        body: form_data,
-      }),
+    addNewGroup: build.mutation<{ id: number }, GroupPost>({
+      queryFn: (form_data, api) =>
+        clientQuery(api, (client) => client.postGroup(form_data)),
       invalidatesTags: ["Group"],
     }),
+    // raw: the client's updateGroup types nickname/description as strings, but
+    // this form clears them with an explicit null.
     updateGroup: build.mutation<
       unknown,
       { group_id: number | string; form_data: Record<string, unknown> }
@@ -63,15 +57,13 @@ export const groupsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Group"],
     }),
-    deleteGroup: build.mutation<unknown, number | string>({
-      query: (group_id) => ({
-        url: `api/groups/${group_id}`,
-        method: "DELETE",
-      }),
+    deleteGroup: build.mutation<void, number | string>({
+      queryFn: (group_id, api) =>
+        clientQuery(api, (client) => client.deleteGroup(Number(group_id))),
       invalidatesTags: ["Group"],
     }),
     addGroupUser: build.mutation<
-      RouteData<"POST /api/groups/{group_id}/users">,
+      { group_id: number; user_id: number },
       {
         userID: number | string;
         admin: boolean;
@@ -80,44 +72,58 @@ export const groupsApi = skyportalApi.injectEndpoints({
         canSharePhotometry: boolean;
       }
     >({
-      query: ({ userID, admin, group_id, canSave, canSharePhotometry }) => ({
-        url: `api/groups/${group_id}/users`,
-        method: "POST",
-        body: { userID, admin, group_id, canSave, canSharePhotometry },
-      }),
+      queryFn: (
+        { userID, admin, group_id, canSave, canSharePhotometry },
+        api,
+      ) =>
+        clientQuery(api, (client) =>
+          client.postGroupUser(Number(group_id), Number(userID), {
+            admin,
+            canSave,
+            canSharePhotometry,
+          }),
+        ),
       invalidatesTags: ["Group"],
     }),
     addAllUsersFromGroups: build.mutation<
-      RouteData<"POST /api/groups/{group_id}/usersFromGroups">,
+      void,
       { toGroupID: number | string; fromGroupIDs: (number | string)[] }
     >({
-      query: ({ toGroupID, fromGroupIDs }) => ({
-        url: `api/groups/${toGroupID}/usersFromGroups`,
-        method: "POST",
-        body: { fromGroupIDs },
-      }),
+      queryFn: ({ toGroupID, fromGroupIDs }, api) =>
+        clientQuery(api, (client) =>
+          client.postGroupUsersFromGroups(
+            Number(toGroupID),
+            fromGroupIDs.map(Number),
+          ),
+        ),
       invalidatesTags: ["Group"],
     }),
     updateGroupUser: build.mutation<
-      RouteData<"PATCH /api/groups/{group_id}/users">,
-      { groupID: number | string; params: Record<string, unknown> }
+      void,
+      {
+        groupID: number | string;
+        params: {
+          userID: number | string;
+          admin?: boolean;
+          canSave?: boolean;
+          canSharePhotometry?: boolean;
+        };
+      }
     >({
-      query: ({ groupID, params }) => ({
-        url: `api/groups/${groupID}/users`,
-        method: "PATCH",
-        body: params,
-      }),
+      queryFn: ({ groupID, params: { userID, ...flags } }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGroupUser(Number(groupID), Number(userID), flags),
+        ),
       invalidatesTags: ["Group"],
     }),
     deleteGroupUser: build.mutation<
-      unknown,
+      void,
       { userID: number | string; group_id: number | string }
     >({
-      query: ({ userID, group_id }) => ({
-        url: `api/groups/${group_id}/users/${userID}`,
-        method: "DELETE",
-        body: { userID, group_id },
-      }),
+      queryFn: ({ userID, group_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGroupUser(Number(group_id), Number(userID)),
+        ),
       invalidatesTags: ["Group"],
     }),
   }),

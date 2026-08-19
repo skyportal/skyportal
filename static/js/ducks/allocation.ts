@@ -1,10 +1,10 @@
 /**
  * A single allocation (with its follow-up requests).
  *
- * RTK Query conversion of the old `FETCH_ALLOCATION` duck. The endpoint is
- * injected into the central `skyportalApi`. `getAllocation` is keyed by the
- * allocation id plus the pagination/sort params; the backend returns
- * `{ allocation, totalMatches }`, which is preserved as the query result shape.
+ * RTK Query conversion of the old `FETCH_ALLOCATION` duck, calling the typed
+ * `skyportal-js` client. `getAllocation` is keyed by the allocation id plus the
+ * pagination/sort params; the backend returns `{ allocation, totalMatches }`,
+ * which is preserved as the query result shape.
  *
  * Mutations (`submitAllocation`, `modifyAllocation`, `deleteAllocation`,
  * `editFollowupRequestComment`) invalidate the `Allocation` tag so any active
@@ -13,17 +13,26 @@
  * The websocket `REFRESH_ALLOCATION` / `REFRESH_ALLOCATION_REQUEST_COMMENT`
  * messages are bridged to cache invalidation via `invalidateOnMessage`.
  */
+import type {
+  AllocationPost,
+  AllocationUpdate,
+  FetchAllocationOptions,
+} from "skyportal-js/Allocations";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetAllocationArg {
   id: number | string;
-  params?: Record<string, any> | undefined;
+  params?: FetchAllocationOptions | undefined;
 }
 
 export const allocationApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // raw: the client's fetchAllocation drops the envelope's `totalMatches`
+    // sibling, which this page needs to paginate the follow-up requests.
     getAllocation: build.query<
       RouteData<"GET /api/allocation/{allocation_id}">,
       GetAllocationArg
@@ -34,41 +43,36 @@ export const allocationApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["Allocation"],
     }),
-    submitAllocation: build.mutation<unknown, Record<string, any>>({
-      query: (payload) => ({
-        url: "api/allocation",
-        method: "POST",
-        body: payload,
-      }),
+    submitAllocation: build.mutation<{ id: number }, AllocationPost>({
+      queryFn: (payload, api) =>
+        clientQuery(api, (client) => client.postAllocation(payload)),
       invalidatesTags: ["Allocation"],
     }),
     modifyAllocation: build.mutation<
-      unknown,
-      { id: number | string; payload: Record<string, any> }
+      void,
+      { id: number | string; payload: AllocationUpdate }
     >({
-      query: ({ id, payload }) => ({
-        url: `api/allocation/${id}`,
-        method: "PUT",
-        body: payload,
-      }),
+      queryFn: ({ id, payload }, api) =>
+        clientQuery(api, (client) =>
+          client.updateAllocation(Number(id), payload),
+        ),
       invalidatesTags: ["Allocation"],
     }),
-    deleteAllocation: build.mutation<unknown, number | string>({
-      query: (allocationID) => ({
-        url: `api/allocation/${allocationID}`,
-        method: "DELETE",
-      }),
+    deleteAllocation: build.mutation<void, number | string>({
+      queryFn: (allocationID, api) =>
+        clientQuery(api, (client) =>
+          client.deleteAllocation(Number(allocationID)),
+        ),
       invalidatesTags: ["Allocation"],
     }),
     editFollowupRequestComment: build.mutation<
-      RouteData<"PUT /api/followup_request/{followup_request_id}/comment">,
-      { id: number | string; params: Record<string, any> }
+      void,
+      { id: number | string; params: { comment: string | null } }
     >({
-      query: ({ id, params }) => ({
-        url: `api/followup_request/${id}/comment`,
-        method: "PUT",
-        body: params,
-      }),
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.postFollowupRequestComment(Number(id), params.comment),
+        ),
       invalidatesTags: ["Allocation"],
     }),
   }),

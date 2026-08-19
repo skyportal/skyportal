@@ -166,7 +166,7 @@ const UserInvitations = () => {
     try {
       await updateInvitation({
         invitationID: invitation.id,
-        payload: { groupIDs },
+        payload: { groupIds: groupIDs },
       }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
     } catch {
@@ -184,7 +184,7 @@ const UserInvitations = () => {
     try {
       await updateInvitation({
         invitationID: invitation.id,
-        payload: { streamIDs },
+        payload: { streamIds: streamIDs },
       }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
     } catch {
@@ -201,7 +201,7 @@ const UserInvitations = () => {
     try {
       await updateInvitation({
         invitationID: clickedInvitation.id,
-        payload: { groupIDs: [...groupIDs] },
+        payload: { groupIds: [...groupIDs] },
       }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
       reset({ invitationGroups: [] });
@@ -221,7 +221,7 @@ const UserInvitations = () => {
     try {
       await updateInvitation({
         invitationID: clickedInvitation.id,
-        payload: { streamIDs: [...streamIDs] },
+        payload: { streamIds: [...streamIDs] },
       }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
       reset({ invitationStreams: [] });

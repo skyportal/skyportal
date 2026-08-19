@@ -366,7 +366,7 @@ const ObservationPlanRequestForm = ({
     if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
       const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
       sortedAllocationListApiObsplan.sort(
-        (a, b) => a["instrument_id"] - b["instrument_id"],
+        (a, b) => (a["instrument_id"] ?? 0) - (b["instrument_id"] ?? 0),
       );
       setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.["id"]);
       setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.["group_id"]]);
