@@ -4,80 +4,87 @@
  * RTK Query conversion of the old `FETCH_STREAMS` duck. The list query provides
  * the "Streams" tag; all mutations (add/delete stream, add/remove a stream from
  * a group, add/remove a user on a stream) invalidate it so the list refetches.
+ * Endpoints call the typed `skyportal-js` client.
  *
  * The old websocket handler refetched streams on a FETCH_STREAMS message; here
  * we invalidate the "Streams" tag so the active query refetches.
  */
+import type {
+  Stream,
+  StreamPostResponse,
+  StreamUserPostResponse,
+} from "skyportal-js/Streams";
+import type { GroupStreamPostResponse } from "skyportal-js/Groups";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+
+interface AddNewStreamArg {
+  name: string;
+  altdata?: Record<string, unknown>;
+  auto_join?: boolean;
+}
 
 export const streamsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getStreams: build.query<RouteData<"GET /api/streams">, void>({
-      query: () => "api/streams",
+    getStreams: build.query<Stream[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchStreams()),
       providesTags: ["Streams"],
     }),
-    addNewStream: build.mutation<
-      RouteData<"POST /api/streams">,
-      Record<string, unknown>
-    >({
-      query: (form_data) => ({
-        url: "api/streams",
-        method: "POST",
-        body: form_data,
-      }),
+    addNewStream: build.mutation<StreamPostResponse, AddNewStreamArg>({
+      queryFn: ({ name, altdata, auto_join }, api) =>
+        clientQuery(api, (client) =>
+          client.postStream(name, { altdata, autoJoin: auto_join }),
+        ),
       invalidatesTags: ["Streams"],
     }),
-    deleteStream: build.mutation<unknown, number | string>({
-      query: (stream_id) => ({
-        url: `api/streams/${stream_id}`,
-        method: "DELETE",
-      }),
+    deleteStream: build.mutation<void, number | string>({
+      queryFn: (stream_id, api) =>
+        clientQuery(api, (client) => client.deleteStream(Number(stream_id))),
       invalidatesTags: ["Streams"],
     }),
     addGroupStream: build.mutation<
-      RouteData<"POST /api/groups/{group_id}/streams">,
+      GroupStreamPostResponse,
       { group_id: number | string; stream_id: number | string }
     >({
-      query: ({ group_id, stream_id }) => ({
-        url: `api/groups/${group_id}/streams`,
-        method: "POST",
-        body: { stream_id },
-      }),
+      queryFn: ({ group_id, stream_id }, api) =>
+        clientQuery(api, (client) =>
+          client.postGroupStream(Number(group_id), Number(stream_id)),
+        ),
       invalidatesTags: ["Streams"],
     }),
     deleteGroupStream: build.mutation<
-      unknown,
+      void,
       { group_id: number | string; stream_id: number | string }
     >({
-      query: ({ group_id, stream_id }) => ({
-        url: `api/groups/${group_id}/streams/${stream_id}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ group_id, stream_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGroupStream(Number(group_id), Number(stream_id)),
+        ),
       invalidatesTags: ["Streams"],
     }),
     addStreamUser: build.mutation<
-      RouteData<"POST /api/streams/{stream_id}/users">,
+      StreamUserPostResponse,
       { user_id: number | string; stream_id: number | string }
     >({
-      query: ({ user_id, stream_id }) => ({
-        url: `api/streams/${stream_id}/users`,
-        method: "POST",
-        body: { user_id },
-      }),
+      queryFn: ({ user_id, stream_id }, api) =>
+        clientQuery(api, (client) =>
+          client.postStreamUser(Number(stream_id), Number(user_id)),
+        ),
       // Profile too: a user self-joining an auto-join stream changes their own
       // stream membership, so their profile must refetch.
       invalidatesTags: ["Streams", "Profile"],
     }),
     deleteStreamUser: build.mutation<
-      unknown,
+      void,
       { user_id: number | string; stream_id: number | string }
     >({
-      query: ({ user_id, stream_id }) => ({
-        url: `api/streams/${stream_id}/users/${user_id}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ user_id, stream_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteStreamUser(Number(stream_id), Number(user_id)),
+        ),
       invalidatesTags: ["Streams"],
     }),
   }),

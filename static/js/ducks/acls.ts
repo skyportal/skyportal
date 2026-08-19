@@ -2,8 +2,10 @@
  * ACLs (access control lists).
  *
  * RTK Query conversion of the old `FETCH_ACLS` duck. No websocket, no hydration.
+ * Endpoints call the typed `skyportal-js` client.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
 export type Acls = string[];
 
@@ -20,21 +22,18 @@ interface DeleteUserAclArg {
 export const aclsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getAcls: build.query<Acls, void>({
-      query: () => "api/acls",
+      queryFn: (_arg, api) => clientQuery(api, (client) => client.fetchAcls()),
       providesTags: ["Acls"],
     }),
-    addUserAcls: build.mutation<unknown, AddUserAclsArg>({
-      query: ({ userID, aclIds }) => ({
-        url: `api/user/${userID}/acls`,
-        method: "POST",
-        body: { aclIds },
-      }),
+    addUserAcls: build.mutation<void, AddUserAclsArg>({
+      queryFn: ({ userID, aclIds }, api) =>
+        clientQuery(api, (client) =>
+          client.postUserAcl(Number(userID), aclIds),
+        ),
     }),
-    deleteUserAcl: build.mutation<unknown, DeleteUserAclArg>({
-      query: ({ userID, acl }) => ({
-        url: `api/user/${userID}/acls/${acl}`,
-        method: "DELETE",
-      }),
+    deleteUserAcl: build.mutation<void, DeleteUserAclArg>({
+      queryFn: ({ userID, acl }, api) =>
+        clientQuery(api, (client) => client.deleteUserAcl(Number(userID), acl)),
     }),
   }),
 });

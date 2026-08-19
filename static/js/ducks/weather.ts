@@ -7,6 +7,7 @@
  * invalidate the "Weather" tag so the active query (whatever telescope) refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type Weather = Record<string, any>;
@@ -14,10 +15,12 @@ export type Weather = Record<string, any>;
 export const weatherApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getWeather: build.query<Weather, number | string | null | void>({
-      query: (telescope_id) =>
-        telescope_id
-          ? `api/weather?telescope_id=${telescope_id}`
-          : "api/weather",
+      queryFn: (telescope_id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchWeather(
+            telescope_id ? { telescopeId: Number(telescope_id) } : {},
+          ),
+        ),
       providesTags: ["Weather"],
     }),
   }),

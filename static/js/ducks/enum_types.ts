@@ -8,6 +8,7 @@
  * query refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type EnumTypes = Record<string, any>;
@@ -15,7 +16,8 @@ export type EnumTypes = Record<string, any>;
 export const enumTypesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getEnumTypes: build.query<EnumTypes, void>({
-      query: () => "api/enum_types",
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchEnumTypes()),
       providesTags: ["EnumTypes"],
     }),
   }),

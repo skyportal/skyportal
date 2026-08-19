@@ -9,6 +9,7 @@
  * message; here we invalidate the "NewsFeed" tag so the active query refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type NewsFeedItem = Record<string, any>;
@@ -18,10 +19,12 @@ export const newsFeedApi = skyportalApi.injectEndpoints({
     // Optional `teamID` scopes the feed to a single team's groups.
     getNewsFeed: build.query<NewsFeedItem[], { teamID?: number | null } | void>(
       {
-        query: (arg) =>
-          arg && arg.teamID != null
-            ? `api/newsfeed?teamID=${arg.teamID}`
-            : "api/newsfeed",
+        queryFn: (arg, api) =>
+          clientQuery(api, (client) =>
+            client.fetchNewsFeed(
+              arg && arg.teamID != null ? { teamId: arg.teamID } : {},
+            ),
+          ),
         providesTags: ["NewsFeed"],
       },
     ),
