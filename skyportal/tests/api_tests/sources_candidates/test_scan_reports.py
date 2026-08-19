@@ -6,18 +6,14 @@ import sqlalchemy as sa
 from skyportal.models import (
     Candidate,
     DBSession,
+    GroupUser,
     PhotStat,
     ScanReport,
     Source,
     SuperObj,
 )
 from skyportal.tests import api
-from skyportal.tests.fixtures import (
-    CommentFactory,
-    GroupFactory,
-    ObjFactory,
-    PhotometryFactory,
-)
+from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -45,6 +41,7 @@ def cleanup_reports():
 def test_scan_report_item_includes_followup_and_assignment(
     public_filter,
     public_group,
+    public_group2,
     user,
     upload_data_token,
     public_group_sedm_allocation,
@@ -72,12 +69,13 @@ def test_scan_report_item_includes_followup_and_assignment(
         )
     )
     # Also currently saved to a second group outside the report's own group_ids,
-    # to confirm "groups_saved_to" isn't limited to the report's scope.
-    other_group = GroupFactory()
+    # to confirm "groups_saved_to" isn't limited to the report's scope. `user`
+    # must belong to it too, or Source.select(mode="read") filters it out.
+    DBSession.add(GroupUser(user_id=user.id, group_id=public_group2.id))
     DBSession.add(
         Source(
             obj_id=obj.id,
-            group_id=other_group.id,
+            group_id=public_group2.id,
             saved_by_id=user.id,
             saved_at=now,
         )
@@ -208,9 +206,9 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert survey_detections["last"]["days_ago"] > 0
 
     # Every group the obj is currently an active Source of, including
-    # `other_group` which isn't part of this report's own group_ids/window.
+    # `public_group2` which isn't part of this report's own group_ids/window.
     assert sorted(item["data"]["groups_saved_to"]) == sorted(
-        [public_group.name, other_group.name]
+        [public_group.name, public_group2.name]
     )
 
 
