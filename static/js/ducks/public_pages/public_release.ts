@@ -8,53 +8,43 @@
  * The websocket `REFRESH_PUBLIC_RELEASES` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
-import { skyportalApi } from "../../api/skyportalApi";
-import { invalidateOnMessage } from "../../api/wsInvalidation";
-import type { RouteData } from "../../types/routeSchemaMap";
+import type {
+  PublicRelease,
+  PublicReleasePost,
+  PublicReleaseUpdate,
+} from "skyportal-js/PublicPages";
 
-export interface PublicRelease {
-  id: number;
-  name: string;
-  link_name: string;
-  description?: string | null;
-  group_ids: number[];
-  options?: unknown;
-  [key: string]: unknown;
-}
+import { skyportalApi } from "../../api/skyportalApi";
+import { clientQuery } from "../../api/skyportalClient";
+import { invalidateOnMessage } from "../../api/wsInvalidation";
+
+export type { PublicRelease };
 
 export const publicReleaseApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getPublicReleases: build.query<
-      RouteData<"GET /api/public_pages/release">,
-      void
-    >({
-      query: () => "api/public_pages/release",
+    getPublicReleases: build.query<PublicRelease[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchPublicReleases()),
       providesTags: ["PublicRelease"],
     }),
-    submitPublicRelease: build.mutation<unknown, PublicRelease>({
-      query: (payload) => ({
-        url: "api/public_pages/release",
-        method: "POST",
-        body: payload,
-      }),
+    submitPublicRelease: build.mutation<{ id: number }, PublicReleasePost>({
+      queryFn: (payload, api) =>
+        clientQuery(api, (client) => client.postPublicRelease(payload)),
       invalidatesTags: ["PublicRelease"],
     }),
     updatePublicRelease: build.mutation<
-      unknown,
-      { releaseId: number; payload: PublicRelease }
+      void,
+      { releaseId: number; payload: PublicReleaseUpdate }
     >({
-      query: ({ releaseId, payload }) => ({
-        url: `api/public_pages/release/${releaseId}`,
-        method: "PATCH",
-        body: payload,
-      }),
+      queryFn: ({ releaseId, payload }, api) =>
+        clientQuery(api, (client) =>
+          client.updatePublicRelease(releaseId, payload),
+        ),
       invalidatesTags: ["PublicRelease"],
     }),
-    deletePublicRelease: build.mutation<unknown, number>({
-      query: (releaseId) => ({
-        url: `api/public_pages/release/${releaseId}`,
-        method: "DELETE",
-      }),
+    deletePublicRelease: build.mutation<void, number>({
+      queryFn: (releaseId, api) =>
+        clientQuery(api, (client) => client.deletePublicRelease(releaseId)),
       invalidatesTags: ["PublicRelease"],
     }),
   }),

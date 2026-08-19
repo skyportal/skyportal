@@ -12,39 +12,48 @@
  * `REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type { FetchObservationPlanSimSurveyOptions } from "skyportal-js/ObservationPlans";
+import type { SurveyEfficiencyForObservationPlan } from "skyportal-js/SurveyEfficiency";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const surveyEfficiencyObservationPlansApi = skyportalApi.injectEndpoints(
   {
     endpoints: (build) => ({
       getSurveyEfficiencyObservationPlans: build.query<
-        RouteData<"GET /api/survey_efficiency/observation_plan">,
+        SurveyEfficiencyForObservationPlan[],
         void
       >({
-        query: () => "api/survey_efficiency/observation_plan",
+        queryFn: (_arg, api) =>
+          clientQuery(api, (client) =>
+            client.fetchSurveyEfficienciesForObservationPlan(),
+          ),
         providesTags: ["SurveyEfficiencyObservationPlan"],
       }),
+      // A GET that starts the analysis, so it stays a mutation here.
       submitSurveyEfficiencyObservationPlan: build.mutation<
         unknown,
-        { id: number | string; data?: Record<string, any> | undefined }
+        {
+          id: number | string;
+          data?: FetchObservationPlanSimSurveyOptions | undefined;
+        }
       >({
-        query: ({ id, data = {} }) => ({
-          url: `api/observation_plan/${id}/simsurvey`,
-          method: "GET",
-          params: data,
-        }),
+        queryFn: ({ id, data = {} }, api) =>
+          clientQuery(api, (client) =>
+            client.fetchObservationPlanSimSurvey(Number(id), data),
+          ),
         invalidatesTags: ["SurveyEfficiencyObservationPlan"],
       }),
       deleteSurveyEfficiencyObservationPlan: build.mutation<
-        unknown,
+        void,
         number | string
       >({
-        query: (id) => ({
-          url: `api/observation_plan/${id}/simsurvey`,
-          method: "DELETE",
-        }),
+        queryFn: (id, api) =>
+          clientQuery(api, (client) =>
+            client.deleteObservationPlanSimSurvey(Number(id)),
+          ),
         invalidatesTags: ["SurveyEfficiencyObservationPlan"],
       }),
     }),

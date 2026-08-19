@@ -12,41 +12,56 @@
  * `REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type { FetchObservationSimSurveyOptions } from "skyportal-js/Observations";
+import type { SurveyEfficiencyForObservations } from "skyportal-js/SurveyEfficiency";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const surveyEfficiencyObservationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getSurveyEfficiencyObservations: build.query<
-      RouteData<"GET /api/survey_efficiency/observations">,
-      Record<string, any> | void
+      SurveyEfficiencyForObservations[],
+      void
     >({
-      query: (params) => ({
-        url: "api/survey_efficiency/observations",
-        params: params ?? {},
-      }),
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSurveyEfficienciesForObservations(),
+        ),
       providesTags: ["SurveyEfficiencyObservation"],
     }),
+    // A GET that starts the analysis, so it stays a mutation here.
     submitSurveyEfficiencyObservations: build.mutation<
       unknown,
-      { id: number | string; data?: Record<string, any> | undefined }
+      {
+        id: number | string;
+        data: {
+          startDate: string;
+          endDate: string;
+          localizationDateobs: string;
+        } & FetchObservationSimSurveyOptions;
+      }
     >({
-      query: ({ id, data = {} }) => ({
-        url: `api/observation/simsurvey/${id}`,
-        method: "GET",
-        params: data,
-      }),
+      queryFn: ({ id, data }, api) => {
+        const { startDate, endDate, localizationDateobs, ...options } = data;
+        return clientQuery(api, (client) =>
+          client.fetchObservationSimSurvey(
+            Number(id),
+            startDate,
+            endDate,
+            localizationDateobs,
+            options,
+          ),
+        );
+      },
       invalidatesTags: ["SurveyEfficiencyObservation"],
     }),
-    deleteSurveyEfficiencyObservations: build.mutation<
-      unknown,
-      number | string
-    >({
-      query: (id) => ({
-        url: `api/observation/simsurvey/${id}`,
-        method: "DELETE",
-      }),
+    deleteSurveyEfficiencyObservations: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationSimSurvey(Number(id)),
+        ),
       invalidatesTags: ["SurveyEfficiencyObservation"],
     }),
   }),
