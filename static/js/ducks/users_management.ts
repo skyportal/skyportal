@@ -1,15 +1,13 @@
 /**
  * Users management (the admin "Manage Users" table).
  *
- * RTK Query conversion of the old `FETCH_USERS_MANAGEMENT` duck, calling the
- * typed `skyportal-js` client. The query accepts the filter/pagination/sort
- * parameters as its argument (the old duck stashed these in a `fetchParams`
- * slice; consumers now own that state and pass it in). The backend's
- * `GET /api/user` returns `{ users, totalMatches }`.
+ * The table is small enough to be paginated, sorted and
+ * filtered client-side by the DataGrid, so this query fetches every user in one
+ * go (no `numPerPage`). `includeExpired` stays server-side: it widens which
+ * users are returned, it is not a display filter.
  *
  * The websocket `FETCH_USERS_MANAGEMENT` message is bridged to cache
- * invalidation via `invalidateOnMessage`, so the active query refetches with
- * whatever params it currently holds.
+ * invalidation via `invalidateOnMessage`, so the active query refetches.
  */
 import type { FetchUsersOptions, UsersPage } from "skyportal-js/Users";
 
@@ -24,13 +22,7 @@ export const usersManagementApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getUsersManagement: build.query<UsersPage, UsersManagementParams | void>({
       queryFn: (params, api) =>
-        clientQuery(api, (client) =>
-          client.fetchUsers({
-            pageNumber: 1,
-            numPerPage: 25,
-            ...(params ?? {}),
-          }),
-        ),
+        clientQuery(api, (client) => client.fetchUsers(params ?? {})),
       providesTags: ["UserManagement"],
     }),
   }),
