@@ -131,8 +131,8 @@ export const filterOutEmptyValues = (
   // Filter out empty fields from an object (form data)
   Object.keys(params).forEach((key) => {
     // Empty array ([]) counts as true, so specifically test for it
-    // Also, the number 0 may be a valid input but evaluate to false,
-    // so just let numbers through
+    // Also, the number 0 may be a valid input but evaluate to false, so let
+    // finite numbers through (this tested `key`, never a number, until #6416)
     if (
       (!(
         Array.isArray(params[key]) &&
@@ -140,7 +140,7 @@ export const filterOutEmptyValues = (
         removeEmptyArrays
       ) &&
         (params[key] || (params[key] === false && removeFalse === false))) ||
-      typeof key === "number"
+      Number.isFinite(params[key])
     ) {
       filteredParams[key] = params[key];
     }

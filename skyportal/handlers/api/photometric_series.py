@@ -8,6 +8,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.sql.expression import case
 
@@ -710,6 +711,331 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     return ps.id
 
 
+class PhotometricSeriesGetQuery(BaseModel):
+    """Query parameters for retrieving photometric series."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dataFormat: str | None = Field(
+        default=None,
+        description=(
+            "Format of the data to return. If `none`, the data will not be returned. "
+            "If `hdf5`, the data will be returned as a bytestream in HDF5 format. "
+            "(to see how to unpack this data format, look at `photometric_series.md`) "
+            "If `json`, the data will be returned as a JSON object, where each key "
+            "is a list of values for that column. "
+            "Defaults to `json` when retrieving a single series, and to `none` when "
+            "querying multiple series. To specifically request the data when querying "
+            "multiple series, use `dataFormat=json` or `dataFormat=hdf5`. Keep in mind "
+            "this could be a large amount of data if the query arguments do not "
+            "filter down the number of returned series."
+        ),
+    )
+    ra: float | None = Field(
+        default=None,
+        description="RA for spatial filtering (in decimal degrees)",
+    )
+    dec: float | None = Field(
+        default=None,
+        description="Declination for spatial filtering (in decimal degrees)",
+    )
+    radius: float | None = Field(
+        default=None,
+        description="Radius for spatial filtering if ra & dec are provided (in decimal degrees)",
+    )
+    objectID: str | None = Field(
+        default=None,
+        description="Portion of ID to filter on",
+    )
+    rejectedObjectID: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of object IDs not to be returned, "
+            "useful in cases where you are looking for new objects passing a query."
+        ),
+    )
+    seriesName: str | None = Field(
+        default=None,
+        description=(
+            "Get series that match this name. The match must be exact. "
+            "This is useful when getting photometry for multiple objects "
+            "taken at the same time (e.g., for calibrating against each other). "
+            "The series name can be, e.g., a TESS sector, or a date/field name "
+            "identifier. Generally a series name is shared only by data taken "
+            "over that same time period."
+        ),
+    )
+    seriesObjID: str | None = Field(
+        default=None,
+        description=(
+            "Get only photometry for the objects named by this object id. "
+            "This is the internal naming used inside each photometric series, "
+            "i.e., the index used for each source in the images that were "
+            "used to create the photometric series. Not the same as the SkyPortal "
+            "object ID. E.g., this could be a TESS TIC ID, or some internal "
+            "numbering used in the specific field that was observed."
+        ),
+    )
+    filter: str | None = Field(
+        default=None,
+        description='Retrieve only series matching this filter, e.g., "ztfg".',
+    )
+    channel: str | None = Field(
+        default=None,
+        description="The channel name/id to filter on.",
+    )
+    origin: str | None = Field(
+        default=None,
+        description=(
+            "The origin can be anything that gives an idea of the provenance "
+            "of the photometric series. This can be, e.g., the name of the "
+            "pipeline that produced the photometry from the images, or the "
+            "level of calibration, or any other pre-defined string that "
+            "identifies where the data came from that isn't covered by the "
+            "other fields (like channel or filter or instrument)."
+        ),
+    )
+    filename: str | None = Field(
+        default=None,
+        description=(
+            "Portion of filename to filter on. If the filename is a relative "
+            "path, will append the data directory from the config file to the "
+            "beginning of the filename. "
+            "(by default that is 'persistentdata/phot_series')."
+        ),
+    )
+    startBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series that started before this time."
+        ),
+    )
+    startAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series that started after this time."
+        ),
+    )
+    midBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series where the middle of the series was observed before this time."
+        ),
+    )
+    midAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series where the middle of the series was observed after this time."
+        ),
+    )
+    endBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series that ended before this time."
+        ),
+    )
+    endAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, return "
+            "only series that ended after this time."
+        ),
+    )
+    detected: bool | None = Field(
+        default=None,
+        description=(
+            "If true, get only series with one or more detections. "
+            "If false, get only series with no detections. "
+            "If left out, do not filter at all on detection status."
+        ),
+    )
+    expTime: float | None = Field(
+        default=None,
+        description="Get only series with this exact exposure time (seconds).",
+    )
+    minExpTime: float | None = Field(
+        default=None,
+        description=(
+            "Get only series with an exposure time above/equal to this. "
+            "If the series was not uploaded with one specific number, "
+            "the exposure time for the series is the median of the "
+            "exposure times of the individual images."
+        ),
+    )
+    maxExpTime: float | None = Field(
+        default=None,
+        description=(
+            "Get only series with an exposure time under/equal to this. "
+            "If the series was not uploaded with one specific number, "
+            "the exposure time for the series is the median of the "
+            "exposure times of the individual images."
+        ),
+    )
+    minFrameRate: float | None = Field(
+        default=None,
+        description=(
+            "Get only series with a frame rate higher/equal to than this. "
+            "Frame rates are the inverse of the median time between "
+            "exposures, in units of 1/s (Hz)."
+        ),
+    )
+    maxFrameRate: float | None = Field(
+        default=None,
+        description=(
+            "Get only series with a frame rate lower/equal to than this. "
+            "Frame rates are the inverse of the median time between "
+            "exposures, in units of 1/s (Hz)."
+        ),
+    )
+    minNumExposures: int | None = Field(
+        default=None,
+        description="Get only series with this many exposures, or more.",
+    )
+    maxNumExposures: int | None = Field(
+        default=None,
+        description="Get only series with this many exposures, or less.",
+    )
+    instrumentID: int | None = Field(
+        default=None,
+        description="get only series taken with this instrument.",
+    )
+    followupRequestID: int | None = Field(
+        default=None,
+        description="get only series taken with this followup request.",
+    )
+    assignmentID: int | None = Field(
+        default=None,
+        description="get only series taken with this assignment.",
+    )
+    ownerID: int | None = Field(
+        default=None,
+        description="get only series uploaded by this user.",
+    )
+    magBrighterThan: float | None = Field(
+        default=None,
+        description="get only series with mean_mag brighter or equal to this value.",
+    )
+    magFainterThan: float | None = Field(
+        default=None,
+        description="get only series with mean_mag fainter or equal to this value.",
+    )
+    limitingMagBrighterThan: float | None = Field(
+        default=None,
+        description="Retrieve only series with limiting mags brighter or equal to this value.",
+    )
+    limitingMagFainterThan: float | None = Field(
+        default=None,
+        description="Retrieve only series with limiting mags fainter or equal to this value.",
+    )
+    limitingMagIsNaN: bool = Field(
+        default=False,
+        description="Retrieve only series that do not have limiting mag.",
+    )
+    magrefBrighterThan: float | None = Field(
+        default=None,
+        description=(
+            "Get only series that have a magref, "
+            "and that the magref is brighter or equal to this value."
+        ),
+    )
+    magrefFainterThan: float | None = Field(
+        default=None,
+        description=(
+            "Get only series that have a magref, "
+            "and that the magref is fainter or equal to this value."
+        ),
+    )
+    maxRMS: float | None = Field(
+        default=None,
+        description="get only series with rms_mag less than this.",
+    )
+    minRMS: float | None = Field(
+        default=None,
+        description="get only series with rms_mag more than this.",
+    )
+    useRobustMagAndRMS: bool = Field(
+        default=False,
+        description=(
+            "If true, will use the robust_mag and robust_rms values "
+            "instead of mean_mag and rms_mag when filtering on mean "
+            "magnitude or RMS. Does not affect the magref query."
+        ),
+    )
+    maxMedianSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the median S/N is less than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    minMedianSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the median S/N is more than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    maxBestSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the maximum S/N is less than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    minBestSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the maximum S/N is more than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    maxWorstSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the lowest S/N is less than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    minWorstSNR: float | None = Field(
+        default=None,
+        description=(
+            "Get only series where the lowest S/N is more than this. "
+            "The S/N is calculated using the robust RMS."
+        ),
+    )
+    hash: str | None = Field(
+        default=None,
+        description=(
+            "Get only a series that matches this file hash. "
+            "This is useful if you have an HDF5 file downloaded "
+            "from the SkyPortal backend, and want to associate it "
+            "with a PhotometrySeries object. "
+            "We use an MD5 hash of the file contents."
+        ),
+    )
+    sortBy: str = Field(
+        default="obj_id",
+        description='The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]',
+    )
+    sortOrder: str = Field(
+        default="asc",
+        description='The sort order - either "asc" or "desc". Defaults to "asc"',
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_SERIES_PER_PAGE,
+        description="Number of sources to return per paginated request. Defaults to 100. Max 500.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+
+
 class PhotometricSeriesHandler(BaseHandler):
     @permissions(["Upload data"])
     @format_doc(
@@ -870,7 +1196,12 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    async def get(self, photometric_series_id: int | None = None):
+    async def get(
+        self,
+        photometric_series_id: int | None = None,
+        *,
+        query: PhotometricSeriesGetQuery = None,
+    ):
         """
         ---
         single:
@@ -878,20 +1209,6 @@ class PhotometricSeriesHandler(BaseHandler):
           description: Retrieve a photometric series
           tags:
             - photometric series
-          parameters:
-            - in: query
-              name: dataFormat
-              required: false
-              default: 'json'
-              schema:
-                type: string
-                enum: [json, hdf5, none]
-              description: |
-                Format of the data to return. If `none`, the data will not be returned.
-                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
-                (to see how to unpack this data format, look at `photometric_series.md`)
-                If `json`, the data will be returned as a JSON object, where each key
-                is a list of values for that column.
           responses:
             200:
               content:
@@ -902,421 +1219,6 @@ class PhotometricSeriesHandler(BaseHandler):
           description: Retrieve all photometric series, based on various cuts.
           tags:
             - photometric series
-          parameters:
-            - in: query
-              name: dataFormat
-              required: false
-              default: 'none'
-              schema:
-                type: string
-                enum: [json, hdf5, none]
-              description: |
-                Format of the data to return. If `none`, the data will not be returned.
-                If `hdf5`, the data will be returned as a bytestream in HDF5 format.
-                (to see how to unpack this data format, look at `photometric_series.md`)
-                If `json`, the data will be returned as a JSON object, where each key
-                is a list of values for that column.
-                Note that when querying multiple series, the actual data is not returned
-                by default. To specifically request the data, use `dataFormat=json`
-                or `dataFormat=hdf5`. Keep in mind this could be a large amount of data
-                if the query arguments do not filter down the number of returned series.
-            - in: query
-              name: ra
-              nullable: true
-              schema:
-                type: number
-              description: RA for spatial filtering (in decimal degrees)
-            - in: query
-              name: dec
-              nullable: true
-              schema:
-                type: number
-              description: Declination for spatial filtering (in decimal degrees)
-            - in: query
-              name: radius
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Radius for spatial filtering if ra & dec
-                are provided (in decimal degrees)
-            - in: query
-              name: objectID
-              nullable: true
-              schema:
-                type: string
-              description: Portion of ID to filter on
-            - in: query
-              name: rejectedObjectIDs
-              nullable: true
-              schema:
-                type: str
-              description: |
-                Comma-separated string of object IDs not to be returned,
-                useful in cases where you are looking for new objects passing a query.
-            - in: query
-              name: seriesName
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Get series that match this name.
-                The match must be exact.
-                This is useful when getting photometry
-                for multiple objects taken at the same time
-                (e.g., for calibrating against each other).
-                The series name can be, e.g., a TESS sector,
-                or a date/field name identifier.
-                Generally a series name is shared only
-                by data taken over that same time period.
-            - in: query
-              name: seriesObjID
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Get only photometry for the objects named by this object id.
-                This is the internal naming used inside each photometric series,
-                i.e., the index used for each source in the images that were
-                used to create the photometric series. Not the same as the SkyPortal
-                object ID. E.g., this could be a TESS TIC ID, or some internal numbering
-                used in the specific field that was observed.
-            - in: query
-              name: filter
-              nullable: true
-              schema:
-                type: string
-              description: Retrieve only series matching this filter, e.g., "ztfg".
-            - in: query
-              name: channel
-              nullable: true
-              schema:
-                type: string
-              description: The channel name/id to filter on.
-            - in: query
-              name: origin
-              nullable: true
-              schema:
-                type: string
-              description: |
-                The origin can be anything that gives an idea of the
-                provenance of the photometric series.
-                This can be, e.g., the name of the pipeline that
-                produced the photometry from the images,
-                or the level of calibration,
-                or any other pre-defined string that identifies
-                where the data came from that isn't covered by
-                the other fields (like channel or filter or instrument).
-            - in: query
-              name: filename
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Portion of filename to filter on.
-                If the filename is a relative path, will
-                append the data directory from the config file
-                to the beginning of the filename.
-                (by default that is 'persistentdata/phot_series').
-            - in: query
-              name: startBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series that started before this time.
-            - in: query
-              name: startAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series that started after this time.
-            - in: query
-              name: midTimeBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series where the middle of the series was observed before this time.
-            - in: query
-              name: midTimeAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series where the middle of the series was observed after this time.
-            - in: query
-              name: endBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series that ended before this time.
-            - in: query
-              name: endAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                only series that ended after this time.
-            - in: query
-              name: detected
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                If true, get only series with one or more detections.
-                If false, get only series with no detections.
-                If left out, do not filter at all on detection status.
-            - in: query
-              name: expTime
-              nullable: true
-              schema:
-                type: number
-              description: Get only series with this exact exposure time (seconds).
-            - in: query
-              name: minExpTime
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with an exposure time above/equal to this.
-                If the series was not uploaded with one specific number,
-                the exposure time for the series is the median of the
-                exposure times of the individual images.
-            - in: query
-              name: maxExpTime
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with an exposure time under/equal to this.
-                If the series was not uploaded with one specific number,
-                the exposure time for the series is the median of the
-                exposure times of the individual images.
-            - in: query
-              name: minFrameRate
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with a frame rate higher/equal to than this.
-                Frame rates are the inverse of the median time between
-                exposures, in units of 1/s (Hz).
-            - in: query
-              name: maxFrameRate
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with a frame rate lower/equal to than this.
-                Frame rates are the inverse of the median time between
-                exposures, in units of 1/s (Hz).
-            - in: query
-              name: minNumExposures
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with this many exposures, or more.
-            - in: query
-              name: maxNumExposures
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series with this many exposures, or less.
-            - in: query
-              name: instrumentID
-              nullable: true
-              schema:
-                type: number
-              description: get only series taken with this instrument.
-            - in: query
-              name: followupRequestID
-              nullable: true
-              schema:
-                type: number
-              description: get only series taken with this followup request.
-            - in: query
-              name: assignmentID
-              nullable: true
-              schema:
-                type: number
-              description: get only series taken with this assignment.
-            - in: query
-              name: ownerID
-              nullable: true
-              schema:
-                type: number
-              description: get only series uploaded by this user.
-            - in: query
-              name: magBrighterThan
-              nullable: true
-              schema:
-                type: number
-              description: get only series with mean_mag brighter or equal to this value.
-            - in: query
-              name: magFainterThan
-              nullable: true
-              schema:
-                type: number
-              description: get only series with mean_mag fainter or equal to this value.
-            - in: query
-              name: limitingMagBrighterThan
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Retrieve only series with limiting mags brighter or equal to this value.
-            - in: query
-              name: limitingMagFainterThan
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Retrieve only series with limiting mags fainter or equal to this value.
-            - in: query
-              name: limitingMagIsNone
-              nullable: true
-              schema:
-                  type: boolean
-              description: |
-                  Retrieve only series that do not have limiting mag.
-            - in: query
-              name: magrefBrighterThan
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series that have a magref,
-                and that the magref is brighter or equal to this value.
-            - in: query
-              name: magrefFainterThan
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series that have a magref,
-                and that the magref is fainter or equal to this value.
-            - in: query
-              name: maxRMS
-              nullable: true
-              schema:
-                type: number
-              description: get only series with rms_mag less than this.
-            - in: query
-              name: minRMS
-              nullable: true
-              schema:
-                type: number
-              description: get only series with rms_mag more than this.
-            - in: query
-              name: useRobustMagAndRMS
-              nullable: true
-              default: false
-              schema:
-                type: boolean
-              description: |
-                If true, will use the robust_mag and robust_rms values
-                instead of mean_mag and rms_mag when filtering on mean
-                magnitude or RMS. Does not affect the magref query.
-            - in: query
-              name: maxMedianSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the median S/N is less than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: minMedianSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the median S/N is more than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: maxBestSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the maximum S/N is less than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: minBestSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the maximum S/N is more than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: maxWorstSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the lowest S/N is less than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: minWorstSNR
-              nullable: true
-              schema:
-                type: number
-              description: |
-                Get only series where the lowest S/N is more than this.
-                The S/N is calculated using the robust RMS.
-            - in: query
-              name: hash
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Get only a series that matches this file hash.
-                This is useful if you have an HDF5 file downloaded
-                from the SkyPortal backend, and want to associate it
-                with a PhotometrySeries object.
-                We use an MD5 hash of the file contents.
-            - in: query
-              name: sortBy
-              nullable: true
-              default: obj_id
-              schema:
-                type: string
-              description: |
-                The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
-            - in: query
-              name: sortOrder
-              nullable: true
-              default: asc
-              schema:
-                type: string
-              description: |
-                The sort order - either "asc" or "desc". Defaults to "asc"
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of sources to return per paginated request.
-                Defaults to 100. Max 500.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -1340,6 +1242,8 @@ class PhotometricSeriesHandler(BaseHandler):
                               numPerPage:
                                 type: integer
         """
+        query = self.parse_query(PhotometricSeriesGetQuery)
+
         if photometric_series_id is not None:
             with self.Session() as session:
                 ps = session.scalars(
@@ -1349,7 +1253,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 ).first()
                 if ps is None:
                     return self.error("Invalid photometric series ID.")
-                data_format = self.get_query_argument("dataFormat", "json")
+                data_format = "json" if query.dataFormat is None else query.dataFormat
 
                 try:
                     output_dict = ps.to_dict(data_format=data_format)
@@ -1361,105 +1265,53 @@ class PhotometricSeriesHandler(BaseHandler):
                 return self.success(data=output_dict)
 
         # get all photometric series
-        data_format = self.get_query_argument("dataFormat", "none")
+        data_format = "none" if query.dataFormat is None else query.dataFormat
 
         # verify the format is valid before going through the whole query
         if data_format.lower() not in ["none", "json", "hdf5"]:
             return self.error(
                 f'Invalid dataFormat: "{data_format}". Must be one of "none", "json", "hdf5".'
             )
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
-        object_id = self.get_query_argument("objectID", None)
-        rejected_id = self.get_query_argument("rejectedObjectID", None)
-        series_name = self.get_query_argument("seriesName", None)
-        series_obj_id = self.get_query_argument("seriesObjID", None)
-        filter = self.get_query_argument("filter", None)
-        channel = self.get_query_argument("channel", None)
-        origin = self.get_query_argument("origin", None)
-        filename = self.get_query_argument("filename", None)
-        start_before = self.get_query_argument("startBefore", None)
-        start_after = self.get_query_argument("startAfter", None)
-        middle_before = self.get_query_argument("midBefore", None)
-        middle_after = self.get_query_argument("midAfter", None)
-        end_before = self.get_query_argument("endBefore", None)
-        end_after = self.get_query_argument("endAfter", None)
-        detected = self.get_query_argument("detected", None)
-        exp_time_exact = self.get_query_argument("expTime", None)
-        min_exp_time = self.get_query_argument("minExpTime", None)
-        max_exp_time = self.get_query_argument("maxExpTime", None)
-        min_frame_rate = self.get_query_argument("minFrameRate", None)
-        max_frame_rate = self.get_query_argument("maxFrameRate", None)
-        min_num_exp = self.get_query_argument("minNumExposures", None)
-        max_num_exp = self.get_query_argument("maxNumExposures", None)
-        instrument_id = self.get_query_argument("instrumentID", None)
-        followup_id = self.get_query_argument("followupRequestID", None)
-        assignment_id = self.get_query_argument("assignmentID", None)
-        owner_id = self.get_query_argument("ownerID", None)
-        mag_brighter = self.get_query_argument("magBrighterThan", None)
-        mag_fainter = self.get_query_argument("magFainterThan", None)
-        lim_mag_brighter = self.get_query_argument("limitingMagBrighterThan", None)
-        lim_mag_fainter = self.get_query_argument("limitingMagFainterThan", None)
-        lim_mag_none = self.get_query_argument("limitingMagIsNaN", False)
-        magref_brighter = self.get_query_argument("magrefBrighterThan", None)
-        magref_fainter = self.get_query_argument("magrefFainterThan", None)
-        max_rms = self.get_query_argument("maxRMS", None)
-        min_rms = self.get_query_argument("minRMS", None)
-        use_robust = self.get_query_argument("useRobustMagAndRMS", False)
-        min_median_snr = self.get_query_argument("minMedianSNR", None)
-        max_median_snr = self.get_query_argument("maxMedianSNR", None)
-        min_best_snr = self.get_query_argument("minBestSNR", None)
-        max_best_snr = self.get_query_argument("maxBestSNR", None)
-        min_worst_snr = self.get_query_argument("minWorstSNR", None)
-        max_worst_snr = self.get_query_argument("maxWorstSNR", None)
-        hash = self.get_query_argument("hash", None)
-        sort_by = self.get_query_argument("sortBy", "obj_id")
-        sort_order = self.get_query_argument("sortOrder", "asc")
-        page_number = self.get_query_argument("pageNumber", 1)
-        num_per_page = min(
-            int(self.get_query_argument("numPerPage", DEFAULT_SERIES_PER_PAGE)),
-            MAX_SERIES_PER_PAGE,
-        )
 
         stmt = PhotometricSeries.select(self.current_user)
 
-        if ra is not None and dec is not None and radius is not None:
-            try:
-                ra = float(ra)
-                dec = float(dec)
-                radius = float(radius)
-            except ValueError:
-                return self.error(
-                    "Invalid values for ra, dec or radius - could not convert to float"
-                )
+        if query.ra is not None and query.dec is not None and query.radius is not None:
+            ra = query.ra
+            dec = query.dec
             if ra > 360 or ra < 0 or dec > 90 or dec < -90:
                 return self.error(f"Invalid values for ra ({ra}) or dec ({dec})")
 
             other = ca.Point(ra=ra, dec=dec)
-            stmt = stmt.where(PhotometricSeries.within(other, radius))
+            stmt = stmt.where(PhotometricSeries.within(other, query.radius))
 
-        if object_id:
-            stmt = stmt.where(PhotometricSeries.obj_id.contains(str(object_id).strip()))
-        if rejected_id:
-            rejected_id = rejected_id.split(",")
+        if query.objectID:
+            stmt = stmt.where(
+                PhotometricSeries.obj_id.contains(str(query.objectID).strip())
+            )
+        if query.rejectedObjectID:
+            rejected_id = query.rejectedObjectID.split(",")
             rejected_id = [x.strip() for x in rejected_id]
             stmt = stmt.where(PhotometricSeries.obj_id.notin_(rejected_id))
 
-        if series_name:
-            stmt = stmt.where(PhotometricSeries.series_name == series_name.strip())
-        if series_obj_id:
-            stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
-        if filter:
+        if query.seriesName:
+            stmt = stmt.where(PhotometricSeries.series_name == query.seriesName.strip())
+        if query.seriesObjID:
+            stmt = stmt.where(
+                PhotometricSeries.series_obj_id == query.seriesObjID.strip()
+            )
+        if query.filter:
             # psycopg3 strict-binds the string against the enum column; cast
             # explicitly so the comparison binds as the enum type.
-            stmt = stmt.where(sa.cast(PhotometricSeries.filter, sa.String) == filter)
-        if channel:
-            stmt = stmt.where(PhotometricSeries.channel == channel)
-        if origin:
-            stmt = stmt.where(PhotometricSeries.origin == origin)
+            stmt = stmt.where(
+                sa.cast(PhotometricSeries.filter, sa.String) == query.filter
+            )
+        if query.channel:
+            stmt = stmt.where(PhotometricSeries.channel == query.channel)
+        if query.origin:
+            stmt = stmt.where(PhotometricSeries.origin == query.origin)
 
-        if filename:
+        if query.filename:
+            filename = query.filename
             persistent_folder = cfg.get(
                 "photometric_series_folder", "persistentdata/phot_series"
             )
@@ -1476,337 +1328,160 @@ class PhotometricSeriesHandler(BaseHandler):
 
             stmt = stmt.where(PhotometricSeries.filename == filename)
 
-        if start_after is not None:
+        if query.startAfter is not None:
             try:
-                start_after_mjd = Time(arrow.get(start_after).datetime).mjd
+                start_after_mjd = Time(arrow.get(query.startAfter).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {start_after}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.startAfter}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_first > start_after_mjd)
-        if start_before is not None:
+        if query.startBefore is not None:
             try:
-                start_before_mjd = Time(arrow.get(start_before).datetime).mjd
+                start_before_mjd = Time(arrow.get(query.startBefore).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {start_before}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.startBefore}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_first < start_before_mjd)
-        if middle_after is not None:
+        if query.midAfter is not None:
             try:
-                middle_after_mjd = Time(arrow.get(middle_after).datetime).mjd
+                middle_after_mjd = Time(arrow.get(query.midAfter).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {middle_after}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.midAfter}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_mid > middle_after_mjd)
-        if middle_before is not None:
+        if query.midBefore is not None:
             try:
-                middle_before_mjd = Time(arrow.get(middle_before).datetime).mjd
+                middle_before_mjd = Time(arrow.get(query.midBefore).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {middle_before}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.midBefore}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_mid < middle_before_mjd)
-        if end_after is not None:
+        if query.endAfter is not None:
             try:
-                end_after_mjd = Time(arrow.get(end_after).datetime).mjd
+                end_after_mjd = Time(arrow.get(query.endAfter).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {end_after}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.endAfter}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_last > end_after_mjd)
-        if end_before is not None:
+        if query.endBefore is not None:
             try:
-                end_before_mjd = Time(arrow.get(end_before).datetime).mjd
+                end_before_mjd = Time(arrow.get(query.endBefore).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {end_before}: {traceback.format_exc()}"
+                    f"Cannot parse time {query.endBefore}: {traceback.format_exc()}"
                 )
             stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
 
-        if detected is not None:
-            if isinstance(detected, str) and detected.lower() in ["true", "t", "1"]:
-                detected = True
-            elif isinstance(detected, str) and detected.lower() in ["false", "f", "0"]:
-                detected = False
+        if query.detected is not None:
+            stmt = stmt.where(PhotometricSeries.is_detected.is_(query.detected))
 
-            try:
-                detected = bool(detected)
-            except ValueError:
-                return self.error(
-                    f"Cannot parse detected value {detected}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.is_detected.is_(detected))
+        if query.expTime is not None:
+            stmt = stmt.where(PhotometricSeries.exp_time == query.expTime)
 
-        if exp_time_exact is not None:
-            try:
-                exp_time_exact = float(exp_time_exact)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for expTimeExact {exp_time_exact}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.exp_time == exp_time_exact)
+        if query.minExpTime is not None:
+            stmt = stmt.where(PhotometricSeries.exp_time >= query.minExpTime)
 
-        if min_exp_time is not None:
-            try:
-                min_exp_time = float(min_exp_time)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minExpTime {min_exp_time}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.exp_time >= min_exp_time)
+        if query.maxExpTime is not None:
+            stmt = stmt.where(PhotometricSeries.exp_time <= query.maxExpTime)
 
-        if max_exp_time is not None:
-            try:
-                max_exp_time = float(max_exp_time)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxExpTime {max_exp_time}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.exp_time <= max_exp_time)
+        if query.minFrameRate is not None:
+            stmt = stmt.where(PhotometricSeries.frame_rate >= query.minFrameRate)
 
-        if min_frame_rate is not None:
-            try:
-                min_frame_rate = float(min_frame_rate)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minFrameRate {min_frame_rate}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.frame_rate >= min_frame_rate)
+        if query.maxFrameRate is not None:
+            stmt = stmt.where(PhotometricSeries.frame_rate <= query.maxFrameRate)
 
-        if max_frame_rate is not None:
-            try:
-                max_frame_rate = float(max_frame_rate)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxFrameRate {max_frame_rate}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.frame_rate <= max_frame_rate)
+        if query.minNumExposures is not None:
+            stmt = stmt.where(PhotometricSeries.num_exp >= query.minNumExposures)
 
-        if min_num_exp is not None:
-            try:
-                min_num_exp = int(min_num_exp)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minNumExposures {min_num_exp}. "
-                    "Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.num_exp >= min_num_exp)
+        if query.maxNumExposures is not None:
+            stmt = stmt.where(PhotometricSeries.num_exp <= query.maxNumExposures)
 
-        if max_num_exp is not None:
-            try:
-                max_num_exp = int(max_num_exp)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxNumExposures {max_num_exp}. "
-                    "Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.num_exp <= max_num_exp)
+        if query.instrumentID is not None:
+            stmt = stmt.where(PhotometricSeries.instrument_id == query.instrumentID)
 
-        if instrument_id is not None:
-            try:
-                instrument_id = int(instrument_id)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for instrumentId {instrument_id}. "
-                    "Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.instrument_id == instrument_id)
+        if query.followupRequestID is not None:
+            stmt = stmt.where(
+                PhotometricSeries.followup_request_id == query.followupRequestID
+            )
 
-        if followup_id is not None:
-            try:
-                followup_id = int(followup_id)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for followupId {followup_id}. "
-                    "Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.followup_request_id == followup_id)
+        if query.assignmentID is not None:
+            stmt = stmt.where(PhotometricSeries.assignment_id == query.assignmentID)
 
-        if assignment_id is not None:
-            try:
-                assignment_id = int(assignment_id)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for assignmentId {assignment_id}. "
-                    "Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.assignment_id == assignment_id)
+        if query.ownerID is not None:
+            stmt = stmt.where(PhotometricSeries.owner_id == query.ownerID)
 
-        if owner_id is not None:
-            try:
-                owner_id = int(owner_id)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for ownerId {owner_id}. Could not convert to int. "
-                )
-            stmt = stmt.where(PhotometricSeries.owner_id == owner_id)
-
-        if mag_fainter is not None:
-            try:
-                mag_fainter = float(mag_fainter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for magFainterThan {mag_fainter}. "
-                    "Could not convert to float. "
-                )
-            if use_robust:
-                stmt = stmt.where(PhotometricSeries.robust_mag >= mag_fainter)
+        if query.magFainterThan is not None:
+            if query.useRobustMagAndRMS:
+                stmt = stmt.where(PhotometricSeries.robust_mag >= query.magFainterThan)
             else:
-                stmt = stmt.where(PhotometricSeries.mean_mag >= mag_fainter)
+                stmt = stmt.where(PhotometricSeries.mean_mag >= query.magFainterThan)
 
-        if mag_brighter is not None:
-            try:
-                mag_brighter = float(mag_brighter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for magBrighterThan {mag_brighter}. "
-                    "Could not convert to float. "
-                )
-            if use_robust:
-                stmt = stmt.where(PhotometricSeries.robust_mag <= mag_brighter)
+        if query.magBrighterThan is not None:
+            if query.useRobustMagAndRMS:
+                stmt = stmt.where(PhotometricSeries.robust_mag <= query.magBrighterThan)
             else:
-                stmt = stmt.where(PhotometricSeries.mean_mag <= mag_brighter)
+                stmt = stmt.where(PhotometricSeries.mean_mag <= query.magBrighterThan)
 
-        if lim_mag_fainter is not None:
-            try:
-                lim_mag_fainter = float(lim_mag_fainter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for limMagFainterThan {lim_mag_fainter}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.limiting_mag >= lim_mag_fainter)
+        if query.limitingMagFainterThan is not None:
+            stmt = stmt.where(
+                PhotometricSeries.limiting_mag >= query.limitingMagFainterThan
+            )
 
-        if lim_mag_brighter is not None:
-            try:
-                lim_mag_brighter = float(lim_mag_brighter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for limMagBrighterThan {lim_mag_brighter}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.limiting_mag <= lim_mag_brighter)
+        if query.limitingMagBrighterThan is not None:
+            stmt = stmt.where(
+                PhotometricSeries.limiting_mag <= query.limitingMagBrighterThan
+            )
 
-        if lim_mag_none:
+        if query.limitingMagIsNaN:
             stmt = stmt.where(PhotometricSeries.limiting_mag.is_(None))
 
-        if magref_fainter is not None:
-            try:
-                magref_fainter = float(magref_fainter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for magrefFainterThan {magref_fainter}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.magref >= magref_fainter)
+        if query.magrefFainterThan is not None:
+            stmt = stmt.where(PhotometricSeries.magref >= query.magrefFainterThan)
 
-        if magref_brighter is not None:
-            try:
-                magref_brighter = float(magref_brighter)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for magrefBrighterThan {magref_brighter}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.magref <= magref_brighter)
+        if query.magrefBrighterThan is not None:
+            stmt = stmt.where(PhotometricSeries.magref <= query.magrefBrighterThan)
 
-        if max_rms is not None:
-            try:
-                max_rms = float(max_rms)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxRMS {max_rms}. Could not convert to float. "
-                )
-            if use_robust:
-                stmt = stmt.where(PhotometricSeries.robust_rms <= max_rms)
+        if query.maxRMS is not None:
+            if query.useRobustMagAndRMS:
+                stmt = stmt.where(PhotometricSeries.robust_rms <= query.maxRMS)
             else:
-                stmt = stmt.where(PhotometricSeries.rms_mag <= max_rms)
+                stmt = stmt.where(PhotometricSeries.rms_mag <= query.maxRMS)
 
-        if min_rms is not None:
-            try:
-                min_rms = float(min_rms)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minRMS {min_rms}. Could not convert to float. "
-                )
-            if use_robust:
-                stmt = stmt.where(PhotometricSeries.robust_rms >= min_rms)
+        if query.minRMS is not None:
+            if query.useRobustMagAndRMS:
+                stmt = stmt.where(PhotometricSeries.robust_rms >= query.minRMS)
             else:
-                stmt = stmt.where(PhotometricSeries.rms_mag >= min_rms)
+                stmt = stmt.where(PhotometricSeries.rms_mag >= query.minRMS)
 
-        if min_median_snr is not None:
-            try:
-                min_median_snr = float(min_median_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minMedianSNR {min_median_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.median_snr >= min_median_snr)
+        if query.minMedianSNR is not None:
+            stmt = stmt.where(PhotometricSeries.median_snr >= query.minMedianSNR)
 
-        if max_median_snr is not None:
-            try:
-                max_median_snr = float(max_median_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxMedianSNR {max_median_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.median_snr <= max_median_snr)
+        if query.maxMedianSNR is not None:
+            stmt = stmt.where(PhotometricSeries.median_snr <= query.maxMedianSNR)
 
-        if min_best_snr is not None:
-            try:
-                min_best_snr = float(min_best_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minBestSNR {min_best_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.best_snr >= min_best_snr)
+        if query.minBestSNR is not None:
+            stmt = stmt.where(PhotometricSeries.best_snr >= query.minBestSNR)
 
-        if max_best_snr is not None:
-            try:
-                max_best_snr = float(max_best_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxBestSNR {max_best_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.best_snr <= max_best_snr)
+        if query.maxBestSNR is not None:
+            stmt = stmt.where(PhotometricSeries.best_snr <= query.maxBestSNR)
 
-        if min_worst_snr is not None:
-            try:
-                min_worst_snr = float(min_worst_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for minWorstSNR {min_worst_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.worst_snr >= min_worst_snr)
+        if query.minWorstSNR is not None:
+            stmt = stmt.where(PhotometricSeries.worst_snr >= query.minWorstSNR)
 
-        if max_worst_snr is not None:
-            try:
-                max_worst_snr = float(max_worst_snr)
-            except ValueError:
-                return self.error(
-                    f"Invalid value for maxWorstSNR {max_worst_snr}. "
-                    "Could not convert to float. "
-                )
-            stmt = stmt.where(PhotometricSeries.worst_snr <= max_worst_snr)
+        if query.maxWorstSNR is not None:
+            stmt = stmt.where(PhotometricSeries.worst_snr <= query.maxWorstSNR)
 
-        if hash is not None:
-            stmt = stmt.where(PhotometricSeries.hash == hash)
+        if query.hash is not None:
+            stmt = stmt.where(PhotometricSeries.hash == query.hash)
 
         try:
             # add any additional enums to this list:
-            if sort_by in ["filter"]:
+            if query.sortBy in ["filter"]:
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
@@ -1814,43 +1489,30 @@ class PhotometricSeriesHandler(BaseHandler):
                 # — psycopg3 won't implicitly compare bandpasses to varchar.
                 whens = {
                     name: name
-                    for name in getattr(PhotometricSeries, sort_by).type.enums
+                    for name in getattr(PhotometricSeries, query.sortBy).type.enums
                 }
                 order_by_column = case(
                     whens,
-                    value=sa.cast(getattr(PhotometricSeries, sort_by), sa.String),
+                    value=sa.cast(getattr(PhotometricSeries, query.sortBy), sa.String),
                 )
             else:
-                order_by_column = getattr(PhotometricSeries, sort_by)
+                order_by_column = getattr(PhotometricSeries, query.sortBy)
         except AttributeError:
             return self.error(
-                f"Invalid value for sortBy {sort_by}. Could not find column. "
+                f"Invalid value for sortBy {query.sortBy}. Could not find column. "
             )
 
-        if sort_order not in ["asc", "desc"]:
+        if query.sortOrder not in ["asc", "desc"]:
             return self.error(
-                f'Invalid value "{sort_order}" for sortOrder. Must be "asc" or "desc". '
+                f'Invalid value "{query.sortOrder}" for sortOrder. Must be "asc" or "desc". '
             )
-        if sort_order == "desc":
+        if query.sortOrder == "desc":
             order_by_column = order_by_column.desc()
 
         stmt = stmt.order_by(order_by_column)
 
-        try:
-            page_number = max(int(page_number), 1)
-        except ValueError:
-            return self.error(f'Invalid value "{page_number}" for pageNumber. ')
-
-        try:
-            num_per_page = int(num_per_page)
-        except ValueError:
-            return self.error(f'Invalid value "{num_per_page}" for numPerPage. ')
-
-        if num_per_page > MAX_SERIES_PER_PAGE:
-            return self.error(
-                f'Invalid value "{num_per_page}" for numPerPage. '
-                f"Maximum value is {MAX_SERIES_PER_PAGE}. "
-            )
+        page_number = max(query.pageNumber, 1)
+        num_per_page = min(query.numPerPage, MAX_SERIES_PER_PAGE)
 
         with self.Session() as session:
             count_stmt = sa.select(func.count()).select_from(stmt)

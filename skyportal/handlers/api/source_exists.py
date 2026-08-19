@@ -1,4 +1,5 @@
 import conesearch_alchemy as ca
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 
@@ -9,9 +10,28 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class SourceExistsGetQuery(BaseModel):
+    """Query parameters for checking whether a source already exists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ra: float | None = Field(
+        default=None,
+        description="RA for spatial filtering (in decimal degrees)",
+    )
+    dec: float | None = Field(
+        default=None,
+        description="Declination for spatial filtering (in decimal degrees)",
+    )
+    radius: float | None = Field(
+        default=None,
+        description="Radius for spatial filtering if ra & dec are provided (in decimal degrees)",
+    )
+
+
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: str = None, *, query: SourceExistsGetQuery = None):
         """
         ---
         single:
@@ -40,25 +60,6 @@ class SourceExistsHandler(BaseHandler):
           description: Check if a source exists by RA, Dec, and radius
           tags:
             - sources
-          parameters:
-          - in: query
-            name: ra
-            nullable: true
-            schema:
-              type: number
-            description: RA for spatial filtering (in decimal degrees)
-          - in: query
-            name: dec
-            nullable: true
-            schema:
-              type: number
-            description: Declination for spatial filtering (in decimal degrees)
-          - in: query
-            name: radius
-            nullable: true
-            schema:
-              type: number
-            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
           responses:
             200:
               content:
@@ -76,13 +77,8 @@ class SourceExistsHandler(BaseHandler):
                               message:
                                 type: string
         """
-
-        # ra/dec/radius are explicitly converted to float below, so opting
-        # into type=float here keeps the query-arg surface uniform but
-        # isn't strictly required for the comparison.
-        ra = self.get_query_argument("ra", None, type=float)
-        dec = self.get_query_argument("dec", None, type=float)
-        radius = self.get_query_argument("radius", None, type=float)
+        query = self.parse_query(SourceExistsGetQuery)
+        ra, dec, radius = query.ra, query.dec, query.radius
 
         if not (all([ra, dec, radius]) or obj_id):
             return self.error(

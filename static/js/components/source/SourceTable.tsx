@@ -682,8 +682,7 @@ const SourceTable = ({
   const { data: sourcesingcn = EMPTY_ARRAY } = useGetSourcesInGcnQuery(
     {
       dateobs: gcnEvent?.dateobs as string,
-      localizationName: sourceInGcnFilter?.localizationName,
-      sourcesIdList: sources?.map((s: any) => s.id),
+      sourcesIDList: sources?.map((s: any) => s.id),
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
@@ -1684,6 +1683,13 @@ const SourceTable = ({
     if (formData.requireDetections === false) {
       data.requireDetections = false;
     }
+
+    // Form-only selection ids: the sources endpoint takes the resolved names
+    // (localizationDateobs/localizationName/spatialCatalog*) and rejects these.
+    delete data.gcneventid;
+    delete data.localizationid;
+    delete data.spatialcatalogid;
+    delete data.spatialcatalogentryid;
 
     setTableFilterList(
       Object.entries(data).map(([key, value]: [string, any]) => {

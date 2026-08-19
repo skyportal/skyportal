@@ -9,6 +9,7 @@ from astropy.time import Time, TimeDelta
 from obspy.geodetics.base import gps2dist_azimuth
 from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_attribute
 
@@ -180,6 +181,43 @@ class EarthquakeStatusHandler(BaseHandler):
             return self.success(data=statuses)
 
 
+class EarthquakeGetQuery(BaseModel):
+    """Query parameters for retrieving Earthquake events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "date >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "date <= endDate"
+        ),
+    )
+    statusKeep: str | None = Field(
+        default=None,
+        description="Earthquake Status to match against",
+    )
+    statusRemove: str | None = Field(
+        default=None,
+        description="Earthquake Status to filter out",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description="Number of earthquakes. Defaults to 100.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for iterating through all earthquakes. Defaults to 1",
+    )
+
+
 class EarthquakeHandler(BaseHandler):
     @auth_or_token
     async def post(self):
@@ -238,7 +276,9 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id: str | None = None):
+    async def get(
+        self, event_id: str | None = None, *, query: EarthquakeGetQuery = None
+    ):
         """
         ---
         single:
@@ -260,51 +300,6 @@ class EarthquakeHandler(BaseHandler):
           description: Retrieve multiple Earthquake events
           tags:
             - earthquakes
-          parameters:
-            - in: query
-              name: startDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                date >= startDate
-            - in: query
-              name: endDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                date <= endDate
-            - in: query
-              name: statusKeep
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Earthquake Status to match against
-            - in: query
-              name: statusRemove
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Earthquake Status to filter out
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of earthquakes. Defaults to 100.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for iterating through all earthquakes. Defaults to 1
-
           responses:
             200:
               content:
@@ -329,15 +324,7 @@ class EarthquakeHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        n_per_page = self.get_query_argument("numPerPage", 100, type=int)
-        if page_number is None or n_per_page is None:
-            return self.error("pageNumber or numPerPage parameter is invalid")
-
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        status_keep = self.get_query_argument("statusKeep", None)
-        status_remove = self.get_query_argument("statusRemove", None)
+        query = self.parse_query(EarthquakeGetQuery)
 
         if event_id is not None:
             async with self.AsyncSession() as session:
@@ -406,54 +393,53 @@ class EarthquakeHandler(BaseHandler):
                 return self.success(data=data)
 
         async with self.AsyncSession() as session:
-            query = EarthquakeEvent.select(
+            stmt = EarthquakeEvent.select(
                 session.user_or_token,
                 options=[
                     selectinload(EarthquakeEvent.notices),
                 ],
             )
 
-            if start_date:
-                start_date = arrow.get(start_date.strip()).naive
+            if query.startDate:
+                start_date = arrow.get(query.startDate.strip()).naive
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
                     .where(EarthquakeNotice.date >= start_date)
                     .subquery()
                 )
-                query = query.join(
+                stmt = stmt.join(
                     notice_subquery,
                     EarthquakeEvent.event_id == notice_subquery.c.event_id,
                 )
-            if end_date:
-                end_date = arrow.get(end_date.strip()).naive
+            if query.endDate:
+                end_date = arrow.get(query.endDate.strip()).naive
 
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
                     .where(EarthquakeNotice.date <= end_date)
                     .subquery()
                 )
-                query = query.join(
+                stmt = stmt.join(
                     notice_subquery,
                     EarthquakeEvent.event_id == notice_subquery.c.event_id,
                 )
 
-            if status_keep:
-                query = query.where(EarthquakeEvent.status.contains(status_keep))
-            if status_remove:
-                query = query.where(~EarthquakeEvent.status.contains(status_remove))
+            if query.statusKeep:
+                stmt = stmt.where(EarthquakeEvent.status.contains(query.statusKeep))
+            if query.statusRemove:
+                stmt = stmt.where(~EarthquakeEvent.status.contains(query.statusRemove))
 
             total_matches = await session.scalar(
-                sa.select(sa.func.count()).select_from(query.subquery())
+                sa.select(sa.func.count()).select_from(stmt.subquery())
             )
 
-            if n_per_page is not None:
-                query = (
-                    query.distinct()
-                    .limit(n_per_page)
-                    .offset((page_number - 1) * n_per_page)
-                )
+            stmt = (
+                stmt.distinct()
+                .limit(query.numPerPage)
+                .offset((query.pageNumber - 1) * query.numPerPage)
+            )
 
-            result = await session.scalars(query)
+            result = await session.scalars(stmt)
             events = []
             for event in result.unique().all():
                 events.append({**event.to_dict(), "notices": list(set(event.notices))})

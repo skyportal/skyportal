@@ -242,8 +242,7 @@ const GcnEventSourcesPage = ({
     try {
       const sourcesInGcn = await fetchSourcesInGcn({
         dateobs,
-        localizationName,
-        sourcesIdList: sourceAll.map((source) => source.id),
+        sourcesIDList: sourceAll.map((source) => source.id),
       }).unwrap();
       sourceAll.forEach((source) => {
         const match = sourcesInGcn.find(
@@ -743,11 +742,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     }
 
     const fetchSources = async () => {
+      // Only send params the sources endpoint accepts; formData also holds
+      // galaxy/observation query fields the server rejects.
+      const {
+        queryList: _queryList,
+        catalog_name: _catalogName,
+        maxDistance: _maxDistance,
+        ...sourceFilterParams
+      } = formData;
       setGcnSourcesArgs({
         dateobs: gcnEvent?.dateobs,
-        filterParams: formData,
+        filterParams: sourceFilterParams,
       });
-      setSourceFilteringState(formData);
+      setSourceFilteringState(sourceFilterParams);
     };
 
     const fetchObservations = async () => {
@@ -781,10 +788,18 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     };
 
     const fetchGalaxies = async () => {
-      formData.numPerPage = 100;
+      // Only send params the galaxy_catalog endpoint accepts; formData also
+      // holds source/observation query fields the server rejects.
       await fetchGcnEventGalaxies({
         dateobs: gcnEvent?.dateobs,
-        filterParams: formData,
+        filterParams: {
+          catalog_name: formData.catalog_name,
+          localizationName: formData.localizationName,
+          localizationCumprob: formData.localizationCumprob,
+          maxDistance: formData.maxDistance,
+          numPerPage: 100,
+          pageNumber: formData.pageNumber,
+        },
       });
     };
 

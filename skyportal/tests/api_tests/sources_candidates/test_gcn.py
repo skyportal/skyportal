@@ -764,7 +764,7 @@ def test_confirm_reject_source_in_gcn(
     assert data["status"] == "success"
 
     params = {
-        "sourcesIdList": obj_id,
+        "sourcesIDList": obj_id,
     }
     status, data = api(
         "GET",
@@ -795,7 +795,7 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200, data
 
     params = {
-        "sourcesIdList": obj_id,
+        "sourcesIDList": obj_id,
     }
     status, data = api(
         "GET",
@@ -834,7 +834,7 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200, data
 
     params = {
-        "sourcesIdList": obj_id,
+        "sourcesIDList": obj_id,
     }
     status, data = api(
         "GET",
@@ -870,7 +870,7 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200, data
 
     params = {
-        "sourcesIdList": obj_id,
+        "sourcesIDList": obj_id,
     }
     status, data = api(
         "GET",

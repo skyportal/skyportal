@@ -14,6 +14,18 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class UserObjListGetQuery(BaseModel):
+    """Query parameters for retrieving sources from a user's lists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    listName: str | None = Field(
+        default=None,
+        description="Name of the list to retrieve objects from. "
+        "If not given will return all objects saved by the user to all lists.",
+    )
+
+
 class ListingPostBody(BaseModel):
     """Request body for adding a listing."""
 
@@ -92,21 +104,13 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    async def get(self, user_id: int | None = None):
+    async def get(
+        self, user_id: int | None = None, *, query: UserObjListGetQuery = None
+    ):
         """
         ---
         summary: Get user object listings
         description: Retrieve sources from a user's lists
-        parameters:
-          - in: query
-            name: listName
-            required: false
-            schema:
-              type: string
-            description: |
-              name of the list to retrieve objects from.
-              If not given will return all objects
-              saved by the user to all lists.
         tags:
           - listings
         responses:
@@ -120,6 +124,8 @@ class UserObjListHandler(BaseHandler):
                 schema: Error
         """
 
+        query = self.parse_query(UserObjListGetQuery)
+
         if user_id is None:
             user_id = self.associated_user_object.id
         else:
@@ -128,13 +134,11 @@ class UserObjListHandler(BaseHandler):
             except (TypeError, ValueError):
                 return self.error(f"Invalid user_id: {user_id}")
 
-        list_name = self.get_query_argument("listName", None)
-
         async with self.AsyncSession() as session:
             stmt = Listing.select(self.current_user).where(Listing.user_id == user_id)
 
-            if list_name is not None:
-                stmt = stmt.where(Listing.list_name == list_name)
+            if query.listName is not None:
+                stmt = stmt.where(Listing.list_name == query.listName)
 
             result = await session.scalars(stmt)
             return self.success(data=result.all())

@@ -10,6 +10,7 @@ import time
 import traceback
 import uuid
 from datetime import timedelta
+from typing import Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -34,6 +35,7 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from scipy.stats import norm
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -1095,10 +1097,100 @@ def post_default_followup_requests(obj_id, default_followup_request_ids, user_id
     )
 
 
+class FollowupRequestGetQuery(BaseModel):
+    """Query parameters for retrieving followup requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "created_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "created_at <= endDate"
+        ),
+    )
+    observationStartDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "payload.start_date >= observationStartDate"
+        ),
+    )
+    observationEndDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "payload.end_date <= observationEndDate"
+        ),
+    )
+    sourceID: str | None = Field(
+        default=None,
+        description="Portion of ID to filter on",
+    )
+    instrumentID: int | None = Field(
+        default=None,
+        description="Instrument ID to filter on",
+    )
+    allocationID: int | None = Field(
+        default=None,
+        description="Allocation ID to filter on",
+    )
+    requesters: list[int] = Field(
+        default_factory=list,
+        description="Comma-separated list of user IDs to filter requests by requester",
+    )
+    priorityThreshold: float | None = Field(
+        default=None,
+        description=(
+            "Threshold on request priority to include. If provided, filter by "
+            "payload.priority >= priorityThreshold"
+        ),
+    )
+    status: str | None = Field(
+        default=None,
+        description="String to match status of request against",
+    )
+    includeObjThumbnails: bool = Field(
+        default=True,
+        description="Boolean indicating whether to include associated thumbnails. Defaults to True.",
+    )
+    sortBy: Literal["created_at", "modified", "status", "obj"] = Field(
+        default="created_at",
+        description="Field to sort by. Defaults to created_at.",
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description="Sort order. Defaults to asc.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=(
+            "Number of followup requests to return per paginated request. "
+            f"Defaults to 100. Max {MAX_FOLLOWUP_REQUESTS}."
+        ),
+    )
+
+
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    async def get(self, followup_request_id: int | None = None):
+    async def get(
+        self,
+        followup_request_id: int | None = None,
+        *,
+        query: FollowupRequestGetQuery = None,
+    ):
         """
         ---
         single:
@@ -1120,93 +1212,6 @@ class FollowupRequestHandler(BaseHandler):
           description: Retrieve all followup requests
           tags:
             - followup requests
-          parameters:
-          - in: query
-            name: sourceID
-            nullable: true
-            schema:
-              type: string
-            description: Portion of ID to filter on
-          - in: query
-            name: instrumentID
-            nullable: true
-            schema:
-              type: integer
-            description: Instrument ID to filter on. Ignored if allocationID is provided.
-          - in: query
-            name: allocationID
-            nullable: true
-            schema:
-                type: integer
-            description: Allocation ID to filter on
-          - in: query
-            name: startDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              created_at >= startDate
-          - in: query
-            name: endDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              created_at <= endDate
-          - in: query
-            name: observationStartDate
-            nullable: true
-            schema:
-                type: string
-            description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                payload.start_date >= observationStartDate
-          - in: query
-            name: observationEndDate
-            nullable: true
-            schema:
-                type: string
-            description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                payload.end_date <= observationEndDate
-          - in: query
-            name: status
-            nullable: true
-            schema:
-              type: string
-            description: |
-              String to match status of request against
-          - in: query
-            name: priorityThreshold
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Threshold on request priority to include. If provided, filter by
-              payload.priority >= priorityThreshold
-          - in: query
-            name: requesters
-            nullable: true
-            schema:
-                type: string
-            description: |
-                Comma seperated list of user IDs to filter on (e.g. 1,2,3). If provided, filter by
-                requester_id in requesters
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -1234,53 +1239,28 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(FollowupRequestGetQuery)
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        observation_start_date = self.get_query_argument("observationStartDate", None)
-        observation_end_date = self.get_query_argument("observationEndDate", None)
-        sourceID = self.get_query_argument("sourceID", None)
-        instrumentID = self.get_query_argument("instrumentID", None)
-        allocationID = self.get_query_argument("allocationID", None)
-        requesters = self.get_query_argument("requesters", [])
-        priority_threshold = self.get_query_argument("priorityThreshold", None)
-        status = self.get_query_argument("status", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
-        include_obj_thumbnails = self.get_query_argument("includeObjThumbnails", True)
-        sortBy = self.get_query_argument("sortBy", "created_at")
-        sortOrder = self.get_query_argument("sortOrder", "asc")
-
-        if sortBy not in ["created_at", "modified", "status", "obj"]:
-            return self.error("Invalid sortBy value.")
-        if sortOrder not in ["asc", "desc"]:
-            return self.error("Invalid sortOrder value.")
+        start_date = query.startDate
+        end_date = query.endDate
+        observation_start_date = query.observationStartDate
+        observation_end_date = query.observationEndDate
+        sourceID = query.sourceID
+        instrumentID = query.instrumentID
+        allocationID = query.allocationID
+        requesters = query.requesters
+        priority_threshold = query.priorityThreshold
+        status = query.status
+        include_obj_thumbnails = query.includeObjThumbnails
+        sortBy = query.sortBy
+        sortOrder = query.sortOrder
 
         try:
             page_number, n_per_page = get_page_and_n_per_page(
-                page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+                query.pageNumber, query.numPerPage, MAX_FOLLOWUP_REQUESTS
             )
         except ValueError as e:
             return self.error(str(e))
-
-        if requesters is not None:
-            requesters = get_list_typed(
-                requesters,
-                int,
-                "requesters must be a comma seperated string list or list of integers",
-            )
-
-        if allocationID is not None:
-            try:
-                allocationID = int(allocationID)
-            except ValueError:
-                return self.error("Allocation ID must be an integer.")
-
-        if instrumentID is not None:
-            try:
-                instrumentID = int(instrumentID)
-            except ValueError:
-                return self.error("Instrument ID must be an integer.")
 
         async with self.AsyncSession() as session:
             if allocationID is not None:
@@ -1390,13 +1370,13 @@ class FollowupRequestHandler(BaseHandler):
                     FollowupRequest.requester_id.in_(requesters)
                 )
 
-            if priority_threshold:
+            if priority_threshold is not None:
                 comp_function = getattr(operator, "ge")
                 name = "priority"
                 followup_requests = followup_requests.where(
                     comp_function(
                         FollowupRequest.payload[name],
-                        cast(float(priority_threshold), JSONB),
+                        cast(priority_threshold, JSONB),
                     )
                 )
 
@@ -2276,111 +2256,91 @@ def observation_schedule(
         }
 
 
+class FollowupRequestSchedulerGetQuery(BaseModel):
+    """Query parameters for retrieving a followup requests schedule."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sourceID: str | None = Field(
+        default=None,
+        description="Portion of ID to filter on",
+    )
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "created_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "created_at <= endDate"
+        ),
+    )
+    status: str | None = Field(
+        default=None,
+        description="String to match status of request against",
+    )
+    priorityThreshold: float | None = Field(
+        default=None,
+        description=(
+            "Threshold on request priority to include. If provided, filter by "
+            "payload.priority >= priorityThreshold"
+        ),
+    )
+    timeResolution: float = Field(
+        default=20,
+        description="Time resolution for scheduler creation in seconds. Defaults to 20.",
+    )
+    observationStartDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, start time "
+            "of observation window, otherwise now."
+        ),
+    )
+    observationEndDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, end time "
+            "of observation window, otherwise 12 hours from now."
+        ),
+    )
+    includeStandards: bool = Field(
+        default=False,
+        description="Include standards in schedule. Defaults to False.",
+    )
+    standardsOnly: bool = Field(
+        default=False,
+        description="Only request standards in schedule. Defaults to False.",
+    )
+    standardType: str = Field(
+        default="ESO",
+        description="Origin of the standard stars, defined in config.yaml. Defaults to ESO.",
+    )
+    magnitudeRange: str | None = Field(
+        default=None,
+        description='lowest and highest magnitude to return, e.g. "(12,9)"',
+    )
+    output_format: str = Field(
+        default="csv",
+        description="Output format for schedule. Can be png, pdf, or csv",
+    )
+
+
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id: int):
+    async def get(
+        self, instrument_id: int, *, query: FollowupRequestSchedulerGetQuery = None
+    ):
         """
         ---
         summary: Retrieve followup requests schedule
         description: Retrieve followup requests schedule
         tags:
             - followup requests
-        parameters:
-        - in: query
-          name: sourceID
-          nullable: true
-          schema:
-            type: string
-          description: Portion of ID to filter on
-        - in: query
-          name: startDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-            created_at >= startDate
-        - in: query
-          name: endDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-            created_at <= endDate
-        - in: query
-          name: status
-          nullable: true
-          schema:
-            type: string
-          description: |
-            String to match status of request against
-        - in: query
-          name: priorityThreshold
-          nullable: true
-          schema:
-            type: number
-          description: |
-            Threshold on request priority to include. If provided, filter by
-            payload.priority >= priorityThreshold
-        - in: query
-          name: timeResolution
-          nullable: true
-          schema:
-            type: number
-          description: |
-            Time resolution for scheduler creation in seconds. Defaults to 20.
-        - in: query
-          name: observationStartDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, start time
-            of observation window, otherwise now.
-        - in: query
-          name: observationEndDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
-            of observation window, otherwise 12 hours from now.
-        - in: query
-          name: includeStandards
-          nullable: true
-          schema:
-            type: boolean
-          description: |
-            Include standards in schedule. Defaults to False.
-        - in: query
-          name: standardsOnly
-          nullable: true
-          schema:
-            type: boolean
-          description: |
-            Only request standards in schedule. Defaults to False.
-        - in: query
-          name: standardType
-          schema:
-            type: string
-          description: |
-            Origin of the standard stars, defined in config.yaml.
-            Defaults to ESO.
-        - in: query
-          name: magnitudeRange
-          nullable: True
-          schema:
-            type: list
-          description: |
-            lowest and highest magnitude to return, e.g. "(12,9)"
-        - in: query
-          name: output_format
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Output format for schedule. Can be png, pdf, or csv
         responses:
           200:
             description: A PDF/PNG schedule file
@@ -2398,6 +2358,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(FollowupRequestSchedulerGetQuery)
 
         try:
             instrument_id = int(instrument_id)
@@ -2419,25 +2380,25 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Missing instrument with id {instrument_id}")
 
-            start_date = self.get_query_argument("startDate", None)
-            end_date = self.get_query_argument("endDate", None)
-            sourceID = self.get_query_argument("sourceID", None)
-            status = self.get_query_argument("status", None)
-            priority_threshold = self.get_query_argument("priorityThreshold", None)
-            output_format = self.get_query_argument("output_format", "csv")
-            observation_start_date = self.get_query_argument(
-                "observationStartDate", None
-            )
-            observation_end_date = self.get_query_argument("observationEndDate", None)
-            standard_type = self.get_query_argument("standardType", "ESO")
-            include_standards = self.get_query_argument("includeStandards", False)
-            standards_only = self.get_query_argument("standardsOnly", False)
-            magnitude_range_str = self.get_query_argument("magnitudeRange", None)
-            time_resolution = self.get_query_argument("timeResolution", 20)
-            if magnitude_range_str is None:
+            start_date = query.startDate
+            end_date = query.endDate
+            sourceID = query.sourceID
+            status = query.status
+            priority_threshold = query.priorityThreshold
+            output_format = query.output_format
+            observation_start_date = query.observationStartDate
+            observation_end_date = query.observationEndDate
+            standard_type = query.standardType
+            include_standards = query.includeStandards
+            standards_only = query.standardsOnly
+            time_resolution = query.timeResolution
+            if query.magnitudeRange is None:
                 magnitude_range = (np.inf, -np.inf)
             else:
-                magnitude_range = ast.literal_eval(magnitude_range_str)
+                try:
+                    magnitude_range = ast.literal_eval(query.magnitudeRange)
+                except (ValueError, SyntaxError):
+                    return self.error("Invalid argument for `magnitude_range`")
                 if not (
                     isinstance(magnitude_range, list | tuple)
                     and len(magnitude_range) == 2
@@ -2493,13 +2454,13 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                         FollowupRequest.status.icontains(status.strip())
                     )
 
-                if priority_threshold:
+                if priority_threshold is not None:
                     comp_function = getattr(operator, "ge")
                     name = "priority"
                     followup_requests = followup_requests.where(
                         comp_function(
                             FollowupRequest.payload[name],
-                            cast(float(priority_threshold), JSONB),
+                            cast(priority_threshold, JSONB),
                         )
                     )
 

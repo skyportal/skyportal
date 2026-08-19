@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from regions import Regions
 from sqlalchemy.orm import (
     joinedload,
@@ -878,6 +878,94 @@ async def get_observations(
     return data
 
 
+class ObservationGetQuery(BaseModel):
+    """Query parameters for retrieving observations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    telescopeName: str | None = Field(
+        default=None, description="Filter by telescope name"
+    )
+    instrumentName: str | None = Field(
+        default=None, description="Filter by instrument name"
+    )
+    startDate: str | None = Field(default=None, description="Filter by start date")
+    endDate: str | None = Field(default=None, description="Filter by end date")
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each "
+            "localization is associated with a specific GCNEvent by the date the "
+            "event happened, and this date is used as a unique identifier. It can "
+            "be therefore found as Localization.dateobs, queried from the "
+            "/api/localization endpoint or dateobs in the GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. Can be found in "
+            "Localization.localization_name queried from /api/localization "
+            "endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    numberObservations: int = Field(
+        default=1,
+        description=(
+            "Minimum number of observations of a field required to include. Defaults to 1."
+        ),
+    )
+    returnStatistics: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include integrated probability and area. "
+            "Defaults to false."
+        ),
+    )
+    statsMethod: str = Field(
+        default="python",
+        description=(
+            "Method to use for computing integrated probability and area. Defaults "
+            "to 'python'. To use the database/postgres based method, use 'db'."
+        ),
+    )
+    statsLogging: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to log the stats computation time. Defaults to false."
+        ),
+    )
+    includeGeoJSON: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated GeoJSON. Defaults to false."
+        ),
+    )
+    observationStatus: str = Field(
+        default="executed",
+        description="Whether to include queued or executed observations. Defaults to executed.",
+    )
+    pageNumber: int = Field(
+        default=1, description="Page number for paginated query results. Defaults to 1."
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=(
+            f"Number of observations to return per paginated request. Defaults to "
+            f"100. Can be no larger than {MAX_OBSERVATIONS}."
+        ),
+    )
+    sortBy: str | None = Field(default=None, description="The field to sort by.")
+    sortOrder: str = Field(
+        default="asc",
+        description="The sort order - either 'asc' or 'desc'. Defaults to 'asc'.",
+    )
+
+
 class ObservationHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -1004,137 +1092,13 @@ class ObservationHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
-    async def get(self):
+    async def get(self, *, query: ObservationGetQuery = None):
         """
         ---
           summary: Get all observations
           description: Retrieve all observations
           tags:
             - observations
-          parameters:
-            - in: query
-              name: telescopeName
-              schema:
-                type: string
-              description: Filter by telescope name
-            - in: query
-              name: instrumentName
-              schema:
-                type: string
-              description: Filter by instrument name
-            - in: query
-              name: startDate
-              required: true
-              schema:
-                type: string
-              description: Filter by start date
-            - in: query
-              name: endDate
-              required: true
-              schema:
-                type: string
-              description: Filter by end date
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-            - in: query
-              name: returnStatistics
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include integrated probability and area. Defaults to false.
-            - in: query
-              name: statsMethod
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Method to use for computing integrated probability and area. Defaults to 'python'.
-                To use the database/postgres based method, use 'db'.
-            - in: query
-              name: statsLogging
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to log the stats computation time. Defaults to false.
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: observationStatus
-              nullable: true
-              schema:
-                type: str
-              description: |
-                 Whether to include queued or executed observations.
-                 Defaults to executed.
-            - in: query
-              name: numberObservations
-              schema:
-                type: number
-              description: |
-                Minimum number of observations of a field required to include.
-                Defaults to 1.
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of followup requests to return per paginated request.
-                Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
-            - in: query
-              name: sortBy
-              nullable: true
-              schema:
-                type: string
-              description: |
-                The field to sort by.
-            - in: query
-              name: sortOrder
-              nullable: true
-              schema:
-                type: string
-              description: |
-                The sort order - either "asc" or "desc". Defaults to "asc"
           responses:
             200:
               content:
@@ -1159,62 +1123,31 @@ class ObservationHandler(BaseHandler):
                   schema: Error
         """
 
-        telescope_name = self.get_query_argument("telescopeName", None)
-        instrument_name = self.get_query_argument("instrumentName", None)
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        min_observations_per_field = self.get_query_argument("numberObservations", 1)
-        return_statistics = self.get_query_argument("returnStatistics", False)
-        stats_method = self.get_query_argument("statsMethod", "python")
-        stats_logging = self.get_query_argument("statsLogging", False)
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        observation_status = self.get_query_argument("observationStatus", "executed")
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        query = self.parse_query(ObservationGetQuery)
 
-        sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", "asc")
-
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except (ValueError, TypeError) as e:
-            return self.error(f"Invalid numPerPage value: {str(e)}")
-
-        if n_per_page > MAX_OBSERVATIONS:
+        if query.numPerPage > MAX_OBSERVATIONS:
             return self.error(
                 f"numPerPage should be no larger than {MAX_OBSERVATIONS}."
             )
 
-        if start_date is None:
+        if query.startDate is None:
             return self.error(message="Missing start_date")
 
-        if end_date is None:
+        if query.endDate is None:
             return self.error(message="Missing end_date")
 
-        if min_observations_per_field is not None:
-            try:
-                min_observations_per_field = int(min_observations_per_field)
-            except ValueError:
-                return self.error(message="numberObservations must be an integer")
-            if min_observations_per_field < 1:
-                return self.error(
-                    message="numberObservations must be greater than 0 if specified"
-                )
+        if query.numberObservations < 1:
+            return self.error(
+                message="numberObservations must be greater than 0 if specified"
+            )
 
         try:
-            start_date = arrow.get(start_date.strip()).datetime
+            start_date = arrow.get(query.startDate.strip()).datetime
         except arrow.ParserError as e:
             return self.error(f"Invalid input for parameter start_date : {str(e)}")
 
         try:
-            end_date = arrow.get(end_date.strip()).datetime
+            end_date = arrow.get(query.endDate.strip()).datetime
         except arrow.ParserError as e:
             return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
@@ -1223,21 +1156,21 @@ class ObservationHandler(BaseHandler):
                 session,
                 start_date,
                 end_date,
-                telescope_name=telescope_name,
-                instrument_name=instrument_name,
-                localization_dateobs=localization_dateobs,
-                localization_name=localization_name,
-                localization_cumprob=localization_cumprob,
-                min_observations_per_field=min_observations_per_field,
-                return_statistics=return_statistics,
-                stats_method=stats_method,
-                stats_logging=stats_logging,
-                includeGeoJSON=includeGeoJSON,
-                observation_status=observation_status,
-                n_per_page=n_per_page,
-                page_number=page_number,
-                sort_by=sort_by,
-                sort_order=sort_order,
+                telescope_name=query.telescopeName,
+                instrument_name=query.instrumentName,
+                localization_dateobs=query.localizationDateobs,
+                localization_name=query.localizationName,
+                localization_cumprob=query.localizationCumprob,
+                min_observations_per_field=query.numberObservations,
+                return_statistics=query.returnStatistics,
+                stats_method=query.statsMethod,
+                stats_logging=query.statsLogging,
+                includeGeoJSON=query.includeGeoJSON,
+                observation_status=query.observationStatus,
+                n_per_page=query.numPerPage,
+                page_number=query.pageNumber,
+                sort_by=query.sortBy,
+                sort_order=query.sortOrder,
             )
 
             return self.success(data=data)
@@ -1411,6 +1344,25 @@ class ObservationASCIIFileHandler(BaseHandler):
             return self.success()
 
 
+class ObservationExternalAPIGetQuery(BaseModel):
+    """Query parameters for retrieving queued observations from an external API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description="Filter by start date",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Filter by end date",
+    )
+    queuesOnly: bool = Field(
+        default=False,
+        description="Return queue only (do not commit observations)",
+    )
+
+
 class ObservationExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -1491,32 +1443,18 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def get(self, allocation_id: AllocationId):
+    async def get(
+        self,
+        allocation_id: AllocationId,
+        *,
+        query: ObservationExternalAPIGetQuery = None,
+    ):
         """
         ---
         summary: Retrieve queued observations from external API
         description: Retrieve queued observations from external API
         tags:
           - observations
-        parameters:
-          - in: query
-            name: startDate
-            required: false
-            schema:
-              type: string
-            description: Filter by start date
-          - in: query
-            name: endDate
-            required: false
-            schema:
-              type: string
-            description: Filter by end date
-          - in: query
-            name: queuesOnly
-            required: false
-            schema:
-              type: bool
-            description: Return queue only (do not commit observations)
         responses:
           200:
             content:
@@ -1528,9 +1466,11 @@ class ObservationExternalAPIHandler(BaseHandler):
                 schema: Error
         """
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        queues_only = self.get_query_argument("queuesOnly", False)
+        query = self.parse_query(ObservationExternalAPIGetQuery)
+
+        start_date = query.startDate
+        end_date = query.endDate
+        queues_only = query.queuesOnly
 
         if not queues_only:
             if start_date is None:
@@ -1656,62 +1596,36 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
 
+class ObservationTreasureMapPostQuery(BaseModel):
+    """Query parameters for submitting observations to TreasureMap.
+
+    Everything else this endpoint reads comes from the JSON body.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    numberObservations: int = Field(
+        default=1,
+        description=(
+            "Minimum number of observations of a field required to include. Defaults to 1."
+        ),
+    )
+
+
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    async def post(self, instrument_id: InstrumentId):
+    async def post(
+        self,
+        instrument_id: InstrumentId,
+        *,
+        query: ObservationTreasureMapPostQuery = None,
+    ):
         """
         ---
         summary: Submit observations to TreasureMap
         description: Submit the executed observations to treasuremap.space
         tags:
           - observation plan requests
-        parameters:
-          - in: query
-            name: startDate
-            required: true
-            schema:
-              type: string
-            description: Filter by start date
-          - in: query
-            name: endDate
-            required: true
-            schema:
-              type: string
-            description: Filter by end date
-          - in: query
-            name: localizationDateobs
-            schema:
-              type: string
-            description: |
-              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-              Each localization is associated with a specific GCNEvent by
-              the date the event happened, and this date is used as a unique
-              identifier. It can be therefore found as Localization.dateobs,
-              queried from the /api/localization endpoint or dateobs in the
-              GcnEvent page table.
-          - in: query
-            name: localizationName
-            schema:
-              type: string
-            description: |
-              Name of localization / skymap to use.
-              Can be found in Localization.localization_name queried from
-              /api/localization endpoint or skymap name in GcnEvent page
-              table.
-          - in: query
-            name: localizationCumprob
-            schema:
-              type: number
-            description: |
-              Cumulative probability up to which to include fields.
-              Defaults to 0.95.
-          - in: query
-            name: numberObservations
-            schema:
-              type: number
-            description: |
-              Minimum number of observations of a field required to include.
-              Defaults to 1.
         responses:
           200:
             content:
@@ -1723,13 +1637,15 @@ class ObservationTreasureMapHandler(BaseHandler):
                 schema: Error
         """
 
+        query = self.parse_query(ObservationTreasureMapPostQuery)
+
         data = self.get_json()
         start_date = data.get("startDate")
         end_date = data.get("endDate")
         localization_dateobs = data.get("localizationDateobs", None)
         localization_name = data.get("localizationName", None)
         localization_cumprob = data.get("localizationCumprob", 0.95)
-        min_observations_per_field = self.get_query_argument("numberObservations", 1)
+        min_observations_per_field = query.numberObservations
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -1737,15 +1653,10 @@ class ObservationTreasureMapHandler(BaseHandler):
         if end_date is None:
             return self.error(message="Missing end_date")
 
-        if min_observations_per_field is not None:
-            try:
-                min_observations_per_field = int(min_observations_per_field)
-            except ValueError:
-                return self.error(message="numberObservations must be an integer")
-            if min_observations_per_field < 1:
-                return self.error(
-                    message="numberObservations must be greater than 0 if specified"
-                )
+        if min_observations_per_field < 1:
+            return self.error(
+                message="numberObservations must be greater than 0 if specified"
+            )
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
@@ -2172,119 +2083,91 @@ def retrieve_observations_and_simsurvey(
     )
 
 
+class ObservationSimSurveyGetQuery(BaseModel):
+    """Query parameters for performing a simsurvey efficiency calculation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str = Field(description="Filter by start date")
+    endDate: str = Field(description="Filter by end date")
+    localizationDateobs: str = Field(
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Each localization is associated with a specific GCNEvent by "
+            "the date the event happened, and this date is used as a unique "
+            "identifier. It can be therefore found as Localization.dateobs, "
+            "queried from the /api/localization endpoint or dateobs in the "
+            "GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. "
+            "Can be found in Localization.localization_name queried from "
+            "/api/localization endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    numberInjections: int = Field(
+        default=1000,
+        description="Number of simulations to evaluate efficiency with. Defaults to 1000.",
+    )
+    numberDetections: int = Field(
+        default=1,
+        description="Number of detections required for detection. Defaults to 1.",
+    )
+    detectionThreshold: float = Field(
+        default=5,
+        description="Threshold (in sigmas) required for detection. Defaults to 5.",
+    )
+    minimumPhase: float = Field(
+        default=0,
+        description="Minimum phase (in days) post event time to consider detections. Defaults to 0.",
+    )
+    maximumPhase: float = Field(
+        default=3,
+        description="Maximum phase (in days) post event time to consider detections. Defaults to 3.",
+    )
+    modelName: str = Field(
+        default="kilonova",
+        description=(
+            "Model to simulate efficiency for. Must be one of kilonova, "
+            "afterglow, or linear. Defaults to kilonova."
+        ),
+    )
+    optionalInjectionParameters: str = Field(
+        default="{}",
+        description=(
+            "JSON-encoded object of optional parameters to specify the "
+            "injection type, along with a list of possible values (to be "
+            "used in a dropdown UI)"
+        ),
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "List of group IDs corresponding to which groups should be "
+            "able to view the analyses. Defaults to all of requesting user's "
+            "groups."
+        ),
+    )
+
+
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id: InstrumentId):
+    async def get(
+        self, instrument_id: InstrumentId, *, query: ObservationSimSurveyGetQuery = None
+    ):
         """
         ---
         summary: Perform SimSurvey efficiency calculation
         description: Perform simsurvey efficiency calculation
         tags:
           - observations
-        parameters:
-          - in: query
-            name: startDate
-            required: true
-            schema:
-              type: string
-            description: Filter by start date
-          - in: query
-            name: endDate
-            required: true
-            schema:
-              type: string
-            description: Filter by end date
-          - in: query
-            name: localizationDateobs
-            required: true
-            schema:
-              type: string
-            description: |
-              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-              Each localization is associated with a specific GCNEvent by
-              the date the event happened, and this date is used as a unique
-              identifier. It can be therefore found as Localization.dateobs,
-              queried from the /api/localization endpoint or dateobs in the
-              GcnEvent page table.
-          - in: query
-            name: localizationName
-            schema:
-              type: string
-            description: |
-              Name of localization / skymap to use.
-              Can be found in Localization.localization_name queried from
-              /api/localization endpoint or skymap name in GcnEvent page
-              table.
-          - in: query
-            name: localizationCumprob
-            schema:
-              type: number
-            description: |
-              Cumulative probability up to which to include fields.
-              Defaults to 0.95.
-          - in: query
-            name: numberInjections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of simulations to evaluate efficiency with. Defaults to 1000.
-          - in: query
-            name: numberDetections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of detections required for detection. Defaults to 1.
-          - in: query
-            name: detectionThreshold
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Threshold (in sigmas) required for detection. Defaults to 5.
-          - in: query
-            name: minimumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Minimum phase (in days) post event time to consider detections. Defaults to 0.
-          - in: query
-            name: maximumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum phase (in days) post event time to consider detections. Defaults to 3.
-          - in: query
-            name: model_name
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
-          - in: query
-            name: optionalInjectionParameters
-            type: object
-            additionalProperties:
-              type: array
-              items:
-                type: string
-                description: |
-                  Optional parameters to specify the injection type, along
-                  with a list of possible values (to be used in a dropdown UI)
-          - in: query
-            name: group_ids
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-              description: |
-                List of group IDs corresponding to which groups should be
-                able to view the analyses. Defaults to all of requesting user's
-                groups.
         responses:
           200:
             content:
@@ -2292,21 +2175,21 @@ class ObservationSimSurveyHandler(BaseHandler):
                 schema: Success
         """
 
-        start_date = self.get_query_argument("startDate")
-        end_date = self.get_query_argument("endDate")
-        localization_dateobs = self.get_query_argument("localizationDateobs")
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        query = self.parse_query(ObservationSimSurveyGetQuery)
 
-        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
-        number_of_detections = int(self.get_query_argument("numberDetections", 1))
-        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
-        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
-        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        model_name = self.get_query_argument("modelName", "kilonova")
-        optional_injection_parameters = json.loads(
-            self.get_query_argument("optionalInjectionParameters", "{}")
-        )
+        start_date = query.startDate
+        end_date = query.endDate
+        localization_dateobs = query.localizationDateobs
+        localization_name = query.localizationName
+        localization_cumprob = query.localizationCumprob
+
+        number_of_injections = query.numberInjections
+        number_of_detections = query.numberDetections
+        detection_threshold = query.detectionThreshold
+        minimum_phase = query.minimumPhase
+        maximum_phase = query.maximumPhase
+        model_name = query.modelName
+        optional_injection_parameters = json.loads(query.optionalInjectionParameters)
 
         if model_name not in ["kilonova", "afterglow", "linear"]:
             return self.error(
@@ -2317,7 +2200,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             model_name, optional_injection_parameters
         )
 
-        group_ids = self.get_query_argument("group_ids", None)
+        group_ids = query.group_ids
 
         try:
             instrument_id_int = int(instrument_id)
@@ -2336,15 +2219,6 @@ class ObservationSimSurveyHandler(BaseHandler):
                 groups = groups_result.all()
             except AccessError:
                 return self.error("Could not find any accessible groups.", status=403)
-
-            if start_date is None:
-                return self.error(message="Missing start_date")
-
-            if end_date is None:
-                return self.error(message="Missing end_date")
-
-            if localization_dateobs is None:
-                return self.error(message="Missing required localizationDateobs")
 
             start_date = arrow.get(start_date.strip()).datetime
             end_date = arrow.get(end_date.strip()).datetime

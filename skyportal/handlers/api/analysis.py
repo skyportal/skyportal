@@ -13,7 +13,7 @@ import requests
 import sqlalchemy as sa
 import yaml
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from requests_oauthlib import OAuth1
 from sqlalchemy import func, select
@@ -1427,6 +1427,46 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
 
+class AnalysisGetQuery(BaseModel):
+    """Query parameters for retrieving analyses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objID: str | None = Field(
+        default=None,
+        description="Return any analysis on an object with ID objID",
+    )
+    analysisServiceID: int | None = Field(
+        default=None,
+        description=(
+            "ID of the analysis service used to create the analysis, used only "
+            "if no analysis_id is given"
+        ),
+    )
+    includeAnalysisData: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include the data associated with the "
+            "analysis in the response. Could be a large amount of data. Only "
+            "works for single analysis requests. Defaults to false."
+        ),
+    )
+    summaryOnly: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to return only analyses that use analysis "
+            "services with `is_summary` set to true. Defaults to false."
+        ),
+    )
+    includeFilename: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include the filename of the data "
+            "associated with the analysis in the response. Defaults to false."
+        ),
+    )
+
+
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
     async def post(
@@ -1627,6 +1667,8 @@ class AnalysisHandler(BaseHandler):
         analysis_id: Annotated[
             int | None, Field(description="ID of the analysis to return.")
         ] = None,
+        *,
+        query: AnalysisGetQuery = None,
     ):
         """
         ---
@@ -1635,48 +1677,6 @@ class AnalysisHandler(BaseHandler):
           description: Retrieve an Analysis by id
           tags:
             - analysis
-          parameters:
-            - in: query
-              name: objID
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any analysis on an object with ID objID
-            - in: query
-              name: analysisServiceID
-              required: false
-              schema:
-                type: integer
-              description: |
-                ID of the analysis service used to create the analysis, used only if no analysis_id is given
-            - in: query
-              name: includeAnalysisData
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include the data associated
-                with the analysis in the response. Could be a large
-                amount of data. Only works for single analysis requests.
-                Defaults to false.
-            - in: query
-              name: summaryOnly
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to return only analyses that
-                use analysis services with `is_summary` set to true.
-                Defaults to false.
-            - in: query
-              name: includeFilename
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include the filename of the
-                data associated with the analysis in the response. Defaults to false.
           responses:
             200:
               content:
@@ -1701,11 +1701,7 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        include_analysis_data = self.get_query_argument(
-            "includeAnalysisData", False
-        ) in ["True", "t", "true", "1", True, 1]
-        include_filename = self.get_query_argument("includeFilename", False)
-        summary_only = self.get_query_argument("summaryOnly", False)
+        query = self.parse_query(AnalysisGetQuery)
 
         # This GET serves two routes that pass path captures positionally:
         #   /api/(obj)/<obj_id>/analysis(/<analysis_id>)  -> (obj_id_path, analysis_id)
@@ -1720,10 +1716,7 @@ class AnalysisHandler(BaseHandler):
         ):
             analysis_id = int(obj_id_path)
             obj_id_path = None
-        obj_id = obj_id_path or self.get_query_argument("objID", None)
-        analysis_service_id = self.get_query_argument(
-            "analysisServiceID", None, type=int
-        )
+        obj_id = obj_id_path or query.objID
         async with self.AsyncSession() as session:
             if obj_id is not None:
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -1763,10 +1756,10 @@ class AnalysisHandler(BaseHandler):
                     )
                     analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
-                    if include_filename:
+                    if query.includeFilename:
                         analysis_dict["filename"] = analysis._full_name
                     analysis_dict["groups"] = analysis.groups
-                    if include_analysis_data:
+                    if query.includeAnalysisData:
                         analysis_dict["data"] = analysis.data
 
                     return self.success(data=analysis_dict)
@@ -1778,9 +1771,9 @@ class AnalysisHandler(BaseHandler):
                     # eager load (a big secondary query) for the global list.
                     stmt = stmt.options(selectinload(ObjAnalysis.groups))
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
-                if analysis_service_id:
+                if query.analysisServiceID:
                     stmt = stmt.where(
-                        ObjAnalysis.analysis_service_id == analysis_service_id
+                        ObjAnalysis.analysis_service_id == query.analysisServiceID
                     )
                 result = await session.scalars(stmt)
                 analyses = result.unique().all()
@@ -1802,7 +1795,7 @@ class AnalysisHandler(BaseHandler):
                         analysis_dict["groups"] = [
                             {"id": g.id, "name": g.name} for g in a.groups
                         ]
-                        if include_filename:
+                        if query.includeFilename:
                             analysis_dict["filename"] = a._full_name
                         analysis_dict["model_lightcurve"] = None
                         analysis_dict["model_lightcurves"] = None
@@ -1857,7 +1850,7 @@ class AnalysisHandler(BaseHandler):
                         ]
 
                     if (
-                        summary_only
+                        query.summaryOnly
                         and not service_info["analysis_serivce_display_as_summary"]
                     ):
                         # the analysis service is not a summary service, so skip returning this analysis
@@ -1943,6 +1936,17 @@ class AnalysisHandler(BaseHandler):
                 )
 
 
+class AnalysisProductsGetQuery(BaseModel):
+    """Query parameters for retrieving an analysis product."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    download: bool = Field(
+        default=False,
+        description="Download the results as a file",
+    )
+
+
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1961,6 +1965,8 @@ class AnalysisProductsHandler(BaseHandler):
                 description='if product_type == "plot", which plot number should be returned? Default to zero (first plot).'
             ),
         ] = 0,
+        *,
+        query: AnalysisProductsGetQuery = None,
     ):
         """
         ---
@@ -1968,23 +1974,6 @@ class AnalysisProductsHandler(BaseHandler):
         description: Retrieve primary data associated with an Analysis.
         tags:
         - analysis
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  download:
-                    type: bool
-                    description: |
-                        Download the results as a file
-                  plot_kwargs:
-                    type: object
-                    additionalProperties:
-                      type: object
-                    description: |
-                        Extra parameters to pass to the plotting functions
-                        if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
             description: Requested analysis file
@@ -1997,6 +1986,7 @@ class AnalysisProductsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(AnalysisProductsGetQuery)
 
         async with self.AsyncSession() as session:
             if analysis_resource_type.lower() == "obj":
@@ -2022,8 +2012,7 @@ class AnalysisProductsHandler(BaseHandler):
                         result = analysis.serialize_results_data()
 
                         if result:
-                            download = self.get_query_argument("download", False)
-                            if download:
+                            if query.download:
                                 filename = f"analysis_{analysis.obj_id}.json"
                                 buf = io.BytesIO()
                                 buf.write(json.dumps(result).encode("utf-8"))

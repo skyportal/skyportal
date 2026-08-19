@@ -142,7 +142,6 @@ export const sourcesApi = skyportalApi.injectEndpoints({
           params["endDate"] ??= dayjs(dateobs)
             .add(7, "day")
             .format("YYYY-MM-DD HH:mm:ss");
-          params["includeLocalizationStatus"] ??= true;
         }
         params["includeSourcesInGcn"] = true;
         params["includeGeoJSON"] = true;

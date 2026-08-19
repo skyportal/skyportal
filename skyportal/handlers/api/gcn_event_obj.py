@@ -2,7 +2,7 @@ from typing import Annotated
 
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -78,6 +78,43 @@ class Validator(Schema):
                 raise ValidationError("Missing required fields")
 
 
+class SourcesConfirmedInGCNGetQuery(BaseModel):
+    """Query parameters for retrieving sources confirmed/rejected in a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sourcesIDList: str = Field(
+        default="",
+        description="A comma-separated list of source_id's to retrieve. "
+        "If not provided, all sources confirmed or rejected in GCN will be returned.",
+    )
+
+
+def _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
+    """Update the obj.gcn_crossmatch list based on confirmation state.
+    Returns True if a change was made (caller should commit).
+    """
+    crossmatches = source_in_gcn.obj.gcn_crossmatch
+    dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
+    if confirmed is True:
+        if crossmatches is None:
+            crossmatches = [dateobs]
+        elif dateobs not in crossmatches:
+            crossmatches.append(dateobs)
+        else:
+            return False
+        source_in_gcn.obj.gcn_crossmatch = crossmatches
+        return True
+    if crossmatches is not None and dateobs_str in crossmatches:
+        crossmatches.remove(dateobs_str)
+        if len(crossmatches) == 0:
+            source_in_gcn.obj.gcn_crossmatch = None
+        else:
+            source_in_gcn.obj.gcn_crossmatch = crossmatches
+        return True
+    return False
+
+
 class GcnEventObjHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -86,6 +123,8 @@ class GcnEventObjHandler(BaseHandler):
         source_id: Annotated[
             str, Field(description="The source_id of the source to retrieve")
         ] = None,
+        *,
+        query: SourcesConfirmedInGCNGetQuery = None,
     ):
         """
         ---
@@ -119,15 +158,6 @@ class GcnEventObjHandler(BaseHandler):
             - sources
           summary: Retrieve sources confirmed/rejected in a GCN
           description: Retrieve sources that have been confirmed/rejected in a GCN
-          parameters:
-            - in: query
-              name: sourcesIDList
-              nullable: true
-              schema:
-                type: string
-              description: |
-                  A comma-separated list of source_id's to retrieve.
-                  If not provided, all sources confirmed or rejected in GCN will be returned.
           responses:
             200:
               content:
@@ -147,7 +177,9 @@ class GcnEventObjHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        sources_id_list = self.get_query_argument("sourcesIDList", "")
+        query = self.parse_query(SourcesConfirmedInGCNGetQuery)
+
+        sources_id_list = query.sourcesIDList
         if source_id is not None:
             sources_id_list = source_id
         validator_instance = Validator()

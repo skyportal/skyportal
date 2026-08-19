@@ -1320,10 +1320,11 @@ def test_token_user_get_range_spectrum(
     assert data["data"][0]["fluxes"][0] == 434.2
     assert data["data"][0]["obj_id"] == public_source.id
 
-    # 2020-01-15T00:00:00+00:00
+    # a trailing UTC offset is not accepted by the isot parser; "&plus;00:00"
+    # used to slip through as a separate (ignored) query parameter
     status, data = api(
         "GET",
-        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00",
+        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00",
         token=upload_data_token,
     )
     assert status == 200

@@ -18,8 +18,8 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Output format for analysis. Can be png or pdf */
-                    output_format?: string;
+                    /** @description Output format for analysis. Can be png or pdf. */
+                    output_format?: "pdf" | "png";
                 };
                 header?: never;
                 path: {
@@ -69,14 +69,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Number of observation plans to return per paginated request. Defaults to 10. Can be no larger than 1000. */
+                    /** @description Number of observation plans to return per paginated request. Defaults to 50. */
                     numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
-                    /** @description Field to sort by. Can be one of: created_at, modified, status, gcnevent_id. Defaults to created_at. */
-                    sortBy?: string;
-                    /** @description Sort order. Can be one of: asc, desc. Defaults to asc. */
-                    sortOrder?: string;
+                    /** @description The field to sort by. Defaults to created_at. */
+                    sortBy?: "created_at" | "modified" | "status" | "gcnevent_id";
+                    /** @description The sort order, either asc or desc. Defaults to asc. */
+                    sortOrder?: "asc" | "desc";
                 };
                 header?: never;
                 path: {
@@ -126,10 +126,20 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Number of followup requests to return per paginated request. Defaults to 10. Can be no larger than 1000. */
+                    /** @description Number of followup requests to return per paginated request, when retrieving a single allocation. Defaults to 50. Can be no larger than 1000. */
                     numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description The field to sort followup requests by. Defaults to created_at. */
+                    sortBy?: "created_at" | "modified" | "status" | "obj";
+                    /** @description The sort order, either asc or desc. Defaults to asc. */
+                    sortOrder?: "asc" | "desc";
+                    /** @description Instrument ID to retrieve allocations for. */
+                    instrument_id?: number | null;
+                    /** @description Restrict to allocations on instruments with this API class defined. Must be either api_classname or api_classname_obsplan. */
+                    apiType?: string | null;
+                    /** @description Restrict to allocations whose instrument API implements this method (e.g. submit, queued, send_skymap). Requires apiType. */
+                    apiImplements?: string | null;
                 };
                 header?: never;
                 path: {
@@ -244,15 +254,20 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Instrument ID to retrieve allocations for */
-                    instrument_id?: number;
-                    /** @description Restrict to allocations whose instrument has the given API type set */
-                    apiType?: "api_classname" | "api_classname_obsplan";
-                    /**
-                     * @description Restrict to allocations whose instrument API implements the given
-                     *     method. Requires apiType to be specified.
-                     */
-                    apiImplements?: "update" | "delete" | "get" | "submit" | "send" | "remove" | "retrieve" | "queued" | "remove_queue" | "prepare_payload" | "send_skymap" | "queued_skymap" | "remove_skymap" | "retrieve_log" | "update_status";
+                    /** @description Number of followup requests to return per paginated request, when retrieving a single allocation. Defaults to 50. Can be no larger than 1000. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description The field to sort followup requests by. Defaults to created_at. */
+                    sortBy?: "created_at" | "modified" | "status" | "obj";
+                    /** @description The sort order, either asc or desc. Defaults to asc. */
+                    sortOrder?: "asc" | "desc";
+                    /** @description Instrument ID to retrieve allocations for. */
+                    instrument_id?: number | null;
+                    /** @description Restrict to allocations on instruments with this API class defined. Must be either api_classname or api_classname_obsplan. */
+                    apiType?: string | null;
+                    /** @description Restrict to allocations whose instrument API implements this method (e.g. submit, queued, send_skymap). Requires apiType. */
+                    apiImplements?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -950,26 +965,14 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Return any analysis on an object with ID objID */
-                    objID?: string;
+                    objID?: string | null;
                     /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
-                    analysisServiceID?: number;
-                    /**
-                     * @description Boolean indicating whether to include the data associated
-                     *     with the analysis in the response. Could be a large
-                     *     amount of data. Only works for single analysis requests.
-                     *     Defaults to false.
-                     */
+                    analysisServiceID?: number | null;
+                    /** @description Boolean indicating whether to include the data associated with the analysis in the response. Could be a large amount of data. Only works for single analysis requests. Defaults to false. */
                     includeAnalysisData?: boolean;
-                    /**
-                     * @description Boolean indicating whether to return only analyses that
-                     *     use analysis services with `is_summary` set to true.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to return only analyses that use analysis services with `is_summary` set to true. Defaults to false. */
                     summaryOnly?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include the filename of the
-                     *     data associated with the analysis in the response. Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include the filename of the data associated with the analysis in the response. Defaults to false. */
                     includeFilename?: boolean;
                 };
                 header?: never;
@@ -1023,7 +1026,18 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Return any analysis on an object with ID objID */
+                    objID?: string | null;
+                    /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
+                    analysisServiceID?: number | null;
+                    /** @description Boolean indicating whether to include the data associated with the analysis in the response. Could be a large amount of data. Only works for single analysis requests. Defaults to false. */
+                    includeAnalysisData?: boolean;
+                    /** @description Boolean indicating whether to return only analyses that use analysis services with `is_summary` set to true. Defaults to false. */
+                    summaryOnly?: boolean;
+                    /** @description Boolean indicating whether to include the filename of the data associated with the analysis in the response. Defaults to false. */
+                    includeFilename?: boolean;
+                };
                 header?: never;
                 path: {
                     /** @description What underlying data the analysis is on: must be "obj" (more to be added in the future) */
@@ -1189,26 +1203,14 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Return any analysis on an object with ID objID */
-                    objID?: string;
+                    objID?: string | null;
                     /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
-                    analysisServiceID?: number;
-                    /**
-                     * @description Boolean indicating whether to include the data associated
-                     *     with the analysis in the response. Could be a large
-                     *     amount of data. Only works for single analysis requests.
-                     *     Defaults to false.
-                     */
+                    analysisServiceID?: number | null;
+                    /** @description Boolean indicating whether to include the data associated with the analysis in the response. Could be a large amount of data. Only works for single analysis requests. Defaults to false. */
                     includeAnalysisData?: boolean;
-                    /**
-                     * @description Boolean indicating whether to return only analyses that
-                     *     use analysis services with `is_summary` set to true.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to return only analyses that use analysis services with `is_summary` set to true. Defaults to false. */
                     summaryOnly?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include the filename of the
-                     *     data associated with the analysis in the response. Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include the filename of the data associated with the analysis in the response. Defaults to false. */
                     includeFilename?: boolean;
                 };
                 header?: never;
@@ -1260,7 +1262,18 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Return any analysis on an object with ID objID */
+                    objID?: string | null;
+                    /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
+                    analysisServiceID?: number | null;
+                    /** @description Boolean indicating whether to include the data associated with the analysis in the response. Could be a large amount of data. Only works for single analysis requests. Defaults to false. */
+                    includeAnalysisData?: boolean;
+                    /** @description Boolean indicating whether to return only analyses that use analysis services with `is_summary` set to true. Defaults to false. */
+                    summaryOnly?: boolean;
+                    /** @description Boolean indicating whether to include the filename of the data associated with the analysis in the response. Defaults to false. */
+                    includeFilename?: boolean;
+                };
                 header?: never;
                 path: {
                     /** @description What underlying data the analysis is on: must be "obj" (more to be added in the future) */
@@ -1421,7 +1434,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Download the results as a file */
+                    download?: boolean;
+                };
                 header?: never;
                 path: {
                     /** @description What underlying data the analysis is on: must be "obj" (more to be added in the future) */
@@ -1434,21 +1450,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** @description Download the results as a file */
-                        download?: Record<string, never>;
-                        /**
-                         * @description Extra parameters to pass to the plotting functions
-                         *     if new plots are to be generated (e.g. with corner plots)
-                         */
-                        plot_kwargs?: {
-                            [key: string]: Record<string, never>;
-                        };
-                    };
-                };
-            };
+            requestBody?: never;
             responses: {
                 /** @description Requested analysis file */
                 200: {
@@ -1776,7 +1778,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Survey whose filter modules to return. */
+                    survey?: string | null;
+                    /** @description Element type to return. Defaults to the alert schema. */
+                    elements?: "schema" | "variables" | "listVariables" | "switchCases" | "blocks";
+                };
                 header?: never;
                 path: {
                     broker_id: number;
@@ -1900,14 +1907,18 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of filters to return per paginated request. Defaults to 25. Capped at 100. */
                     numPerPage?: number;
                     /** @description Case-insensitive substring of the filter name. */
-                    name?: string;
-                    groupID?: number;
-                    streamID?: number;
+                    name?: string | null;
+                    /** @description Filter by group ID. */
+                    groupID?: number | null;
+                    /** @description Filter by stream ID. */
+                    streamID?: number | null;
                     /** @description A broker id, or "none" for filters attached to no broker. */
-                    brokerID?: string;
+                    brokerID?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -2219,7 +2230,9 @@ export interface paths {
                     ra: number;
                     /** @description Declination in degrees (-90 <= dec <= 90). */
                     dec: number;
+                    /** @description Search radius, in `radius_units`. */
                     radius: number;
+                    /** @description Units of `radius`. Defaults to arcsec. */
                     radius_units?: "deg" | "arcmin" | "arcsec";
                 };
                 header?: never;
@@ -2339,10 +2352,22 @@ export interface paths {
         get: {
             parameters: {
                 query: {
+                    /** @description Survey whose configured broker serves the photometry. */
                     survey: string;
+                    /** @description Photometry format. */
                     format?: string;
+                    /** @description Magnitude system. */
                     magsys?: string;
+                    /** @description Bypass any cached broker payload and re-fetch. */
                     refresh?: boolean;
+                    /** @description Ignored. */
+                    includeOwnerInfo?: boolean;
+                    /** @description Ignored. */
+                    includeStreamInfo?: boolean;
+                    /** @description Ignored. */
+                    includeValidationInfo?: boolean;
+                    /** @description Ignored. */
+                    includeExtinction?: boolean;
                 };
                 header?: never;
                 path: {
@@ -2981,12 +3006,92 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Number of candidates to return per paginated request. Defaults to 25. Capped at 500. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
+                    /** @description Automatically save candidates passing query. */
+                    autosave?: boolean;
+                    /** @description Group ID(s) to save candidates to. */
+                    autosaveGroupIds?: number[] | null;
+                    /** @description String indicating the saved status to filter candidate results for. Must be one of the enumerated values. */
+                    savedStatus?: "all" | "savedToAllSelected" | "savedToAnySelected" | "savedToAnyAccessible" | "notSavedToAnyAccessible" | "notSavedToAnySelected" | "notSavedToAllSelected";
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at <= endDate */
+                    endDate?: string | null;
+                    /** @description Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's groups if filterIDs is not provided. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's groups' filters if groupIDs is not provided. */
+                    filterIDs?: string | null;
+                    /** @description The origin of the Annotation to sort by */
+                    sortByAnnotationOrigin?: string | null;
+                    /** @description The key of the Annotation data value to sort by */
+                    sortByAnnotationKey?: string | null;
+                    /** @description The sort order for annotations - either "asc" or "desc". Defaults to "asc". */
+                    sortByAnnotationOrder?: string | null;
+                    /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
+                    annotationFilterList?: string | null;
+                    /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
+                    includePhotometry?: boolean;
+                    /** @description Boolean indicating whether to include associated spectra. Defaults to false. */
+                    includeSpectra?: boolean;
                     /** @description Boolean indicating whether to include associated comments. Defaults to false. */
                     includeComments?: boolean;
                     /** @description Boolean indicating whether to include associated follow-up requests. Defaults to false. */
                     includeFollowupRequests?: boolean;
+                    /** @description Boolean indicating whether to include associated objects (objects grouped under the same super-object). Defaults to true. */
+                    includeAssociatedObjs?: boolean;
                     /** @description Boolean indicating whether to include associated alerts. Defaults to false. */
                     includeAlerts?: boolean;
+                    /** @description Comma-separated string of classification(s) to filter for candidates matching that/those classification(s). */
+                    classifications?: string[] | null;
+                    /** @description Comma-separated string of classification(s) to filter OUT candidates matching with any of those classification(s). */
+                    classificationsReject?: string[] | null;
+                    /** @description If provided, return only candidates with a redshift of at least this value */
+                    minRedshift?: number | null;
+                    /** @description If provided, return only candidates with a redshift of at most this value */
+                    maxRedshift?: number | null;
+                    /** @description Get only candidates saved to the querying user's list, e.g., "favorites". */
+                    listName?: string | null;
+                    /** @description Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates". */
+                    listNameReject?: string | null;
+                    /** @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching that/those photometry annotation(s), i.e. "drb: 0.5: lt" */
+                    photometryAnnotationsFilter?: string[] | null;
+                    /** @description Comma separated string of origins. Only photometry annotations from these origins are used when filtering with the photometryAnnotationsFilter. */
+                    photometryAnnotationsFilterOrigin?: string[] | null;
+                    /** @description Only return sources that have photometry annotations before this UTC datetime. */
+                    photometryAnnotationsFilterBefore?: string | null;
+                    /** @description Only return sources that have photometry annotations after this UTC datetime. */
+                    photometryAnnotationsFilterAfter?: string | null;
+                    /** @description Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1. */
+                    photometryAnnotationsFilterMinCount?: number;
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include sources */
+                    localizationCumprob?: number;
+                    /** @description Only return sources that were first detected after this UTC datetime. */
+                    firstDetectionAfter?: string | null;
+                    /** @description Only return sources that were last detected before this UTC datetime. */
+                    lastDetectionBefore?: string | null;
+                    /** @description Only return sources that have been detected at least this many times. */
+                    numberDetections?: number | null;
+                    /** @description Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True. */
+                    requireDetections?: boolean;
+                    /** @description If true, ignore forced photometry when applying firstDetectionAfter, lastDetectionBefore, and numberDetections. Defaults to False. */
+                    excludeForcedPhotometry?: boolean;
+                    /** @description Intended for frontend use only: if true (and objID is provided), return only candidate obj IDs matching the partial name in objID. */
+                    nameOnly?: boolean;
+                    /** @description Intended for frontend use only: partial object ID used by the nameOnly autocomplete query. */
+                    objID?: string | null;
+                    /** @description Intended for frontend use only: ID of a cached candidates query, used when paginating. */
+                    queryID?: string | null;
+                    /** @description No longer supported; an error is returned if provided. */
+                    annotationExcludeOrigin?: string | null;
+                    /** @description No longer supported; an error is returned if provided. */
+                    annotationExcludeOutdatedDate?: string | null;
                 };
                 header?: never;
                 path: {
@@ -3094,122 +3199,92 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Number of candidates to return per paginated request. Defaults to 25.
-                     *     Capped at 500.
-                     */
+                    /** @description Number of candidates to return per paginated request. Defaults to 25. Capped at 500. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
                     /** @description Automatically save candidates passing query. */
                     autosave?: boolean;
                     /** @description Group ID(s) to save candidates to. */
-                    autosaveGroupIds?: boolean;
+                    autosaveGroupIds?: number[] | null;
                     /** @description String indicating the saved status to filter candidate results for. Must be one of the enumerated values. */
                     savedStatus?: "all" | "savedToAllSelected" | "savedToAnySelected" | "savedToAnyAccessible" | "notSavedToAnyAccessible" | "notSavedToAnySelected" | "notSavedToAllSelected";
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     Candidate.passed_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     Candidate.passed_at <= endDate
-                     */
-                    endDate?: string;
-                    /**
-                     * @description Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's
-                     *     groups if filterIDs is not provided.
-                     */
-                    groupIDs?: number[];
-                    /**
-                     * @description Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
-                     *     groups' filters if groupIDs is not provided.
-                     */
-                    filterIDs?: number[];
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at <= endDate */
+                    endDate?: string | null;
+                    /** @description Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's groups if filterIDs is not provided. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's groups' filters if groupIDs is not provided. */
+                    filterIDs?: string | null;
                     /** @description The origin of the Annotation to sort by */
-                    sortByAnnotationOrigin?: string;
+                    sortByAnnotationOrigin?: string | null;
                     /** @description The key of the Annotation data value to sort by */
-                    sortByAnnotationKey?: string;
-                    /**
-                     * @description The sort order for annotations - either "asc" or "desc".
-                     *     Defaults to "asc".
-                     */
-                    sortByAnnotationOrder?: string;
-                    /**
-                     * @description Comma-separated string of JSON objects representing annotation filters.
-                     *     Filter objects are expected to have keys { origin, key, value } for
-                     *     non-numeric value types, or { origin, key, min, max } for numeric values.
-                     */
-                    annotationFilterList?: string[];
-                    /**
-                     * @description Boolean indicating whether to include associated photometry. Defaults to
-                     *     false.
-                     */
+                    sortByAnnotationKey?: string | null;
+                    /** @description The sort order for annotations - either "asc" or "desc". Defaults to "asc". */
+                    sortByAnnotationOrder?: string | null;
+                    /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
+                    annotationFilterList?: string | null;
+                    /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
                     includePhotometry?: boolean;
                     /** @description Boolean indicating whether to include associated spectra. Defaults to false. */
                     includeSpectra?: boolean;
                     /** @description Boolean indicating whether to include associated comments. Defaults to false. */
                     includeComments?: boolean;
-                    /**
-                     * @description Comma-separated string of classification(s) to filter for candidates matching
-                     *     that/those classification(s).
-                     */
-                    classifications?: string[];
-                    /**
-                     * @description Comma-separated string of classification(s) to filter OUT candidates matching
-                     *     with any of those classification(s).
-                     */
-                    classificationsReject?: string[];
+                    /** @description Boolean indicating whether to include associated follow-up requests. Defaults to false. */
+                    includeFollowupRequests?: boolean;
+                    /** @description Boolean indicating whether to include associated objects (objects grouped under the same super-object). Defaults to true. */
+                    includeAssociatedObjs?: boolean;
+                    /** @description Boolean indicating whether to include associated alerts. Defaults to false. */
+                    includeAlerts?: boolean;
+                    /** @description Comma-separated string of classification(s) to filter for candidates matching that/those classification(s). */
+                    classifications?: string[] | null;
+                    /** @description Comma-separated string of classification(s) to filter OUT candidates matching with any of those classification(s). */
+                    classificationsReject?: string[] | null;
                     /** @description If provided, return only candidates with a redshift of at least this value */
-                    minRedshift?: number;
+                    minRedshift?: number | null;
                     /** @description If provided, return only candidates with a redshift of at most this value */
-                    maxRedshift?: number;
+                    maxRedshift?: number | null;
                     /** @description Get only candidates saved to the querying user's list, e.g., "favorites". */
-                    listName?: string;
+                    listName?: string | null;
                     /** @description Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates". */
-                    listNameReject?: string;
-                    /**
-                     * @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
-                     *     that/those photometry annotation(s), i.e. "drb: 0.5: lt"
-                     */
-                    photometryAnnotationsFilter?: string[];
+                    listNameReject?: string | null;
+                    /** @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching that/those photometry annotation(s), i.e. "drb: 0.5: lt" */
+                    photometryAnnotationsFilter?: string[] | null;
                     /** @description Comma separated string of origins. Only photometry annotations from these origins are used when filtering with the photometryAnnotationsFilter. */
-                    photometryAnnotationsFilterOrigin?: string;
+                    photometryAnnotationsFilterOrigin?: string[] | null;
                     /** @description Only return sources that have photometry annotations before this UTC datetime. */
-                    photometryAnnotationsFilterBefore?: string;
+                    photometryAnnotationsFilterBefore?: string | null;
                     /** @description Only return sources that have photometry annotations after this UTC datetime. */
-                    photometryAnnotationsFilterAfter?: string;
+                    photometryAnnotationsFilterAfter?: string | null;
                     /** @description Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1. */
-                    photometryAnnotationsFilterMinCount?: string;
-                    /**
-                     * @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
+                    photometryAnnotationsFilterMinCount?: number;
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
                     /** @description Cumulative probability up to which to include sources */
                     localizationCumprob?: number;
                     /** @description Only return sources that were first detected after this UTC datetime. */
-                    firstDetectionAfter?: string;
+                    firstDetectionAfter?: string | null;
                     /** @description Only return sources that were last detected before this UTC datetime. */
-                    lastDetectionBefore?: string;
+                    lastDetectionBefore?: string | null;
                     /** @description Only return sources that have been detected at least this many times. */
-                    numberDetections?: number;
+                    numberDetections?: number | null;
                     /** @description Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True. */
                     requireDetections?: boolean;
                     /** @description If true, ignore forced photometry when applying firstDetectionAfter, lastDetectionBefore, and numberDetections. Defaults to False. */
                     excludeForcedPhotometry?: boolean;
+                    /** @description Intended for frontend use only: if true (and objID is provided), return only candidate obj IDs matching the partial name in objID. */
+                    nameOnly?: boolean;
+                    /** @description Intended for frontend use only: partial object ID used by the nameOnly autocomplete query. */
+                    objID?: string | null;
+                    /** @description Intended for frontend use only: ID of a cached candidates query, used when paginating. */
+                    queryID?: string | null;
+                    /** @description No longer supported; an error is returned if provided. */
+                    annotationExcludeOrigin?: string | null;
+                    /** @description No longer supported; an error is returned if provided. */
+                    annotationExcludeOutdatedDate?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -3648,16 +3723,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
-                     *     created_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
-                     *     created_at <= endDate
-                     */
-                    endDate?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -3708,8 +3777,16 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
                     /** @description Return associated taxonomy. */
                     includeTaxonomy?: boolean;
+                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
                 };
                 header?: never;
                 path: {
@@ -3832,16 +3909,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at <= endDate
-                     */
-                    endDate?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
                     /** @description Return associated taxonomy. */
                     includeTaxonomy?: boolean;
                     /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
@@ -4978,47 +5049,29 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Portion of ID to filter on */
-                    sourceID?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at <= endDate
-                     */
-                    endDate?: string;
+                    sourceID?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
                     /** @description String to match status of request against */
-                    status?: string;
-                    /**
-                     * @description Threshold on request priority to include. If provided, filter by
-                     *     payload.priority >= priorityThreshold
-                     */
-                    priorityThreshold?: number;
+                    status?: string | null;
+                    /** @description Threshold on request priority to include. If provided, filter by payload.priority >= priorityThreshold */
+                    priorityThreshold?: number | null;
                     /** @description Time resolution for scheduler creation in seconds. Defaults to 20. */
                     timeResolution?: number;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, start time
-                     *     of observation window, otherwise now.
-                     */
-                    observationStartDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
-                     *     of observation window, otherwise 12 hours from now.
-                     */
-                    observationEndDate?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, start time of observation window, otherwise now. */
+                    observationStartDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, end time of observation window, otherwise 12 hours from now. */
+                    observationEndDate?: string | null;
                     /** @description Include standards in schedule. Defaults to False. */
                     includeStandards?: boolean;
                     /** @description Only request standards in schedule. Defaults to False. */
                     standardsOnly?: boolean;
-                    /**
-                     * @description Origin of the standard stars, defined in config.yaml.
-                     *     Defaults to ESO.
-                     */
+                    /** @description Origin of the standard stars, defined in config.yaml. Defaults to ESO. */
                     standardType?: string;
                     /** @description lowest and highest magnitude to return, e.g. "(12,9)" */
-                    magnitudeRange?: Record<string, never>;
+                    magnitudeRange?: string | null;
                     /** @description Output format for schedule. Can be png, pdf, or csv */
                     output_format?: string;
                 };
@@ -5120,7 +5173,38 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by payload.start_date >= observationStartDate */
+                    observationStartDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by payload.end_date <= observationEndDate */
+                    observationEndDate?: string | null;
+                    /** @description Portion of ID to filter on */
+                    sourceID?: string | null;
+                    /** @description Instrument ID to filter on */
+                    instrumentID?: number | null;
+                    /** @description Allocation ID to filter on */
+                    allocationID?: number | null;
+                    /** @description Comma-separated list of user IDs to filter requests by requester */
+                    requesters?: number[];
+                    /** @description Threshold on request priority to include. If provided, filter by payload.priority >= priorityThreshold */
+                    priorityThreshold?: number | null;
+                    /** @description String to match status of request against */
+                    status?: string | null;
+                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to True. */
+                    includeObjThumbnails?: boolean;
+                    /** @description Field to sort by. Defaults to created_at. */
+                    sortBy?: "created_at" | "modified" | "status" | "obj";
+                    /** @description Sort order. Defaults to asc. */
+                    sortOrder?: "asc" | "desc";
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description Number of followup requests to return per paginated request. Defaults to 100. Max 1000. */
+                    numPerPage?: number;
+                };
                 header?: never;
                 path: {
                     followup_request_id: number;
@@ -5169,48 +5253,36 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by payload.start_date >= observationStartDate */
+                    observationStartDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by payload.end_date <= observationEndDate */
+                    observationEndDate?: string | null;
                     /** @description Portion of ID to filter on */
-                    sourceID?: string;
-                    /** @description Instrument ID to filter on. Ignored if allocationID is provided. */
-                    instrumentID?: number;
+                    sourceID?: string | null;
+                    /** @description Instrument ID to filter on */
+                    instrumentID?: number | null;
                     /** @description Allocation ID to filter on */
-                    allocationID?: number;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at <= endDate
-                     */
-                    endDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     payload.start_date >= observationStartDate
-                     */
-                    observationStartDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     payload.end_date <= observationEndDate
-                     */
-                    observationEndDate?: string;
+                    allocationID?: number | null;
+                    /** @description Comma-separated list of user IDs to filter requests by requester */
+                    requesters?: number[];
+                    /** @description Threshold on request priority to include. If provided, filter by payload.priority >= priorityThreshold */
+                    priorityThreshold?: number | null;
                     /** @description String to match status of request against */
-                    status?: string;
-                    /**
-                     * @description Threshold on request priority to include. If provided, filter by
-                     *     payload.priority >= priorityThreshold
-                     */
-                    priorityThreshold?: number;
-                    /**
-                     * @description Comma seperated list of user IDs to filter on (e.g. 1,2,3). If provided, filter by
-                     *     requester_id in requesters
-                     */
-                    requesters?: string;
-                    /** @description Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than 1000. */
-                    numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    status?: string | null;
+                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to True. */
+                    includeObjThumbnails?: boolean;
+                    /** @description Field to sort by. Defaults to created_at. */
+                    sortBy?: "created_at" | "modified" | "status" | "obj";
+                    /** @description Sort order. Defaults to asc. */
+                    sortOrder?: "asc" | "desc";
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of followup requests to return per paginated request. Defaults to 100. Max 1000. */
+                    numPerPage?: number;
                 };
                 header?: never;
                 path?: never;
@@ -5373,7 +5445,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Whether to refresh the source page once the request is retrieved. Defaults to true. */
+                    refreshSource?: boolean;
+                    /** @description Whether to refresh the follow-up request lists once the request is retrieved. Defaults to false. */
+                    refreshRequests?: boolean;
+                };
                 header?: never;
                 path: {
                     request_id: number;
@@ -5575,72 +5652,47 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter by catalog name (exact match) */
-                    catalog_name?: string;
+                    catalog_name?: string | null;
                     /** @description RA for spatial filtering (in decimal degrees) */
-                    ra?: number;
+                    ra?: string | null;
                     /** @description Declination for spatial filtering (in decimal degrees) */
-                    dec?: number;
+                    dec?: string | null;
                     /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
-                    radius?: number;
+                    radius?: string | null;
                     /** @description Portion of name to filter on */
-                    galaxyName?: string;
+                    galaxyName?: string | null;
                     /** @description If provided, return only galaxies with a distance of at least this value */
-                    minDistance?: number;
+                    minDistance?: number | null;
                     /** @description If provided, return only galaxies with a distance of at most this value */
-                    maxDistance?: number;
+                    maxDistance?: number | null;
                     /** @description If provided, return only galaxies with a redshift of at least this value */
-                    minRedshift?: number;
+                    minRedshift?: number | null;
                     /** @description If provided, return only galaxies with a redshift of at most this value */
-                    maxRedshift?: number;
-                    /**
-                     * @description If provided, return only galaxies with a stellar mass of at least
-                     *     this value
-                     */
-                    minMstar?: number;
-                    /**
-                     * @description If provided, return only galaxies with a stellar mass of at most
-                     *     this value
-                     */
-                    maxMstar?: number;
+                    maxRedshift?: number | null;
+                    /** @description If provided, return only galaxies with a stellar mass of at least this value */
+                    minMstar?: number | null;
+                    /** @description If provided, return only galaxies with a stellar mass of at most this value */
+                    maxMstar?: number | null;
                     /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). */
-                    localizationDateobs?: string;
+                    localizationDateobs?: string | null;
                     /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table. */
-                    localizationName?: string;
+                    localizationName?: string | null;
                     /** @description Cumulative probability up to which to include galaxies */
                     localizationCumprob?: number;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
                     includeGeoJSON?: boolean;
-                    /**
-                     * @description Number of galaxies to return per paginated request.
-                     *     Defaults to 100. Can be no larger than 10000.
-                     */
+                    /** @description Number of galaxies to return per paginated request. Defaults to 1000. Can be no larger than 10000. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
-                    /**
-                     * @description Boolean indicating whether to just return catalog names. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to just return catalog names. Defaults to false. */
                     catalogNamesOnly?: boolean;
-                    /**
-                     * @description Boolean indicating whether to return probability density.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to return probability density. Defaults to false. */
                     returnProbability?: boolean;
-                    /**
-                     * @description Column to sort by. Can be one of the following:
-                     *     distmpc, redshift, name, mstar, prob, mstar_prob_weighted, sfr_fuv, magb, magk.
-                     *     Defaults to no sorting unless a localization and catalog are provided, then defaults to mstar_prob_weighted.
-                     */
-                    sortBy?: string;
-                    /**
-                     * @description Sort order. Can be one of the following: asc, desc.
-                     *     Defaults to None unless a localization and catalog are provided, then defaults to desc.
-                     */
-                    sortOrder?: string;
+                    /** @description Column to sort by. Can be one of the following: distmpc, redshift, name, mstar, prob, mstar_prob_weighted, sfr_fuv, magb, magk. Defaults to no sorting unless a localization and catalog are provided, then defaults to mstar_prob_weighted. */
+                    sortBy?: string | null;
+                    /** @description Sort order. Can be one of the following: asc, desc. Defaults to None unless a localization and catalog are provided, then defaults to desc. */
+                    sortOrder?: string | null;
                 };
                 header?: never;
                 path: {
@@ -5946,7 +5998,16 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Filter comments by partial text match. */
+                    text?: string | null;
+                    /** @description Page number for pagination. */
+                    pageNumber?: number;
+                    /** @description Number of comments per page. */
+                    numPerPage?: number;
+                    /** @description Only return comments on this channel. Defaults to the comments with no channel set. */
+                    channel?: string | null;
+                };
                 header?: never;
                 path: {
                     /** @description What underlying data the comment is on: "sources" or "spectra" or "gcn_event" or "earthquake" or "shift". */
@@ -6076,11 +6137,13 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter comments by partial text match. */
-                    text?: string;
+                    text?: string | null;
                     /** @description Page number for pagination. */
                     pageNumber?: number;
                     /** @description Number of comments per page. */
                     numPerPage?: number;
+                    /** @description Only return comments on this channel. Defaults to the comments with no channel set. */
+                    channel?: string | null;
                 };
                 header?: never;
                 path: {
@@ -6326,7 +6389,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description If true, download the attachment; else return file data as text. True by default. */
                     download?: boolean;
+                    /** @description If true, return an attachment preview. False by default. */
                     preview?: boolean;
                 };
                 header?: never;
@@ -6381,7 +6446,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description If true, download the attachment; else return file data as text. True by default. */
                     download?: boolean;
+                    /** @description If true, return an attachment preview. False by default. */
                     preview?: boolean;
                 };
                 header?: never;
@@ -6904,7 +6971,20 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by date >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by date <= endDate */
+                    endDate?: string | null;
+                    /** @description Earthquake Status to match against */
+                    statusKeep?: string | null;
+                    /** @description Earthquake Status to filter out */
+                    statusRemove?: string | null;
+                    /** @description Number of earthquakes. Defaults to 100. */
+                    numPerPage?: number;
+                    /** @description Page number for iterating through all earthquakes. Defaults to 1 */
+                    pageNumber?: number;
+                };
                 header?: never;
                 path: {
                     event_id: string;
@@ -6987,20 +7067,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     date >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     date <= endDate
-                     */
-                    endDate?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by date >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by date <= endDate */
+                    endDate?: string | null;
                     /** @description Earthquake Status to match against */
-                    statusKeep?: string;
+                    statusKeep?: string | null;
                     /** @description Earthquake Status to filter out */
-                    statusRemove?: string;
+                    statusRemove?: string | null;
                     /** @description Number of earthquakes. Defaults to 100. */
                     numPerPage?: number;
                     /** @description Page number for iterating through all earthquakes. Defaults to 1 */
@@ -7634,9 +7708,9 @@ export interface paths {
          */
         get: {
             parameters: {
-                query: {
+                query?: {
                     /** @description Localization map name */
-                    localization_name: string;
+                    localization_name?: string | null;
                     /** @description Cumulative integrated probability threshold */
                     integrated_probability?: number;
                 };
@@ -8007,11 +8081,36 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true, do not include the notice content in the response.
-                     *     Defaults to false.
-                     */
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs <= endDate */
+                    endDate?: string | null;
+                    /** @description Partial dateobs string (or alias substring) to filter events whose dateobs starts with the given value or whose aliases contain it. */
+                    partialdateobs?: string | null;
+                    /** @description Comma-separated string of `GcnTag`s. Returns events that match any of them. */
+                    gcnTagKeep?: string[] | null;
+                    /** @description Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags. */
+                    gcnTagRemove?: string[] | null;
+                    /** @description Comma-separated string of `LocalizationTag`s. Returns events that match any of them. */
+                    localizationTagKeep?: string[] | null;
+                    /** @description Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags. */
+                    localizationTagRemove?: string[] | null;
+                    /** @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt" */
+                    gcnPropertiesFilter?: string[] | null;
+                    /** @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching that/those property(ies), i.e. "area_90" or "area_90: 500: lt" */
+                    localizationPropertiesFilter?: string[] | null;
+                    /** @description Number of GCN events to return per paginated request. Defaults to 10. Can be no larger than 1000. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description Field to sort by. Currently only "dateobs" is supported. */
+                    sortBy?: string | null;
+                    /** @description Sort order, "asc" or "desc". Defaults to "asc". */
+                    sortOrder?: string;
+                    /** @description If true, do not include the notice content in the response. Defaults to false. */
                     excludeNoticeContent?: boolean;
+                    /** @description Comma-separated string of group IDs. If provided, only return events shared with those groups. */
+                    groupIds?: string | null;
                 };
                 header?: never;
                 path: {
@@ -8103,56 +8202,36 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     dateobs >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     dateobs <= endDate
-                     */
-                    endDate?: string;
-                    /**
-                     * @description Partial dateobs string (or alias substring) to filter events whose
-                     *     dateobs starts with the given value or whose aliases contain it.
-                     */
-                    partialdateobs?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs <= endDate */
+                    endDate?: string | null;
+                    /** @description Partial dateobs string (or alias substring) to filter events whose dateobs starts with the given value or whose aliases contain it. */
+                    partialdateobs?: string | null;
                     /** @description Comma-separated string of `GcnTag`s. Returns events that match any of them. */
-                    gcnTagKeep?: string;
+                    gcnTagKeep?: string[] | null;
                     /** @description Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags. */
-                    gcnTagRemove?: string;
-                    /**
-                     * @description Comma-separated group ids; return only events shared with at
-                     *     least one of them. Narrows within what the user can already
-                     *     read, it does not widen access.
-                     */
-                    groupIds?: string;
+                    gcnTagRemove?: string[] | null;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that match any of them. */
-                    localizationTagKeep?: string;
+                    localizationTagKeep?: string[] | null;
                     /** @description Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags. */
-                    localizationTagRemove?: string;
-                    /**
-                     * @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
-                     *     that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
-                     */
-                    gcnPropertiesFilter?: string[];
-                    /**
-                     * @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching
-                     *     that/those property(ies), i.e. "area_90" or "area_90: 500: lt"
-                     */
-                    localizationPropertiesFilter?: string[];
-                    /**
-                     * @description Number of GCN events to return per paginated request.
-                     *     Defaults to 10. Can be no larger than 1000.
-                     */
+                    localizationTagRemove?: string[] | null;
+                    /** @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt" */
+                    gcnPropertiesFilter?: string[] | null;
+                    /** @description Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching that/those property(ies), i.e. "area_90" or "area_90: 500: lt" */
+                    localizationPropertiesFilter?: string[] | null;
+                    /** @description Number of GCN events to return per paginated request. Defaults to 10. Can be no larger than 1000. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Field to sort by. Currently only "dateobs" is supported. */
-                    sortBy?: string;
+                    sortBy?: string | null;
                     /** @description Sort order, "asc" or "desc". Defaults to "asc". */
                     sortOrder?: string;
+                    /** @description If true, do not include the notice content in the response. Defaults to false. */
+                    excludeNoticeContent?: boolean;
+                    /** @description Comma-separated string of group IDs. If provided, only return events shared with those groups. */
+                    groupIds?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -8238,7 +8317,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description A comma-separated list of source_id's to retrieve. If not provided, all sources confirmed or rejected in GCN will be returned. */
+                    sourcesIDList?: string;
+                };
                 header?: never;
                 path: {
                     /** @description The dateobs of the event, as an arrow parseable string */
@@ -8438,10 +8520,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description A comma-separated list of source_id's to retrieve.
-                     *     If not provided, all sources confirmed or rejected in GCN will be returned.
-                     */
+                    /** @description A comma-separated list of source_id's to retrieve. If not provided, all sources confirmed or rejected in GCN will be returned. */
                     sourcesIDList?: string;
                 };
                 header?: never;
@@ -8548,9 +8627,9 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Maximum airmass to consider. Defaults to 2.5. */
-                    maximumAirmass?: number;
+                    maxAirmass?: number;
                     /** @description Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees). */
-                    twilight?: string;
+                    twilight?: "astronomical" | "nautical" | "civil";
                 };
                 header?: never;
                 path: {
@@ -8637,9 +8716,9 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Maximum airmass to consider. Defaults to 2.5. */
-                    maximumAirmass?: number;
+                    maxAirmass?: number;
                     /** @description Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees). */
-                    twilight?: string;
+                    twilight?: "astronomical" | "nautical" | "civil";
                 };
                 header?: never;
                 path: {
@@ -8719,10 +8798,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: {
-                    /** @description Number of sources to check for updates. Defaults to 100. Max 500. */
-                    numPerPage?: number;
-                    /** @description Page number for iterating through all sources. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of objects to update per paginated request. Defaults to 100. Capped at 500. */
+                    numPerPage?: number;
                 };
                 header?: never;
                 path?: never;
@@ -8811,10 +8890,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: {
-                    /** @description Number of comments to check for updates. Defaults to 100. Max 500. */
-                    numPerPage?: number;
-                    /** @description Page number for iterating through all comments. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of comments to migrate per paginated request. Defaults to 100. Capped at 500. */
+                    numPerPage?: number;
                 };
                 header?: never;
                 path?: never;
@@ -9016,44 +9095,18 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created after this time
-                     *     will be checked for missing/existing PhotStats.
-                     */
-                    createdAtStartTime?: string;
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created before this time
-                     *     will be checked for missing/existing PhotStats.
-                     */
-                    createdAtEndTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been updated (either full update or
-                     *     an update at insert time) after this time
-                     *     will be recalculated.
-                     */
-                    quickUpdateStartTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been updated (either full update or
-                     *     an update at insert time) before this time
-                     *     will be recalculated.
-                     */
-                    quickUpdateEndTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been fully updated after this time
-                     *     will be counted.
-                     */
-                    fullUpdateStartTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been fully updated before this time
-                     *     will be counted.
-                     */
-                    fullUpdateEndTime?: string;
+                    /** @description arrow parseable string, only objects that have been created after this time will be checked for missing/existing PhotStats. */
+                    createdAtStartTime?: string | null;
+                    /** @description arrow parseable string, only objects that have been created before this time will be checked for missing/existing PhotStats. */
+                    createdAtEndTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been updated (either full update or an update at insert time) after this time will be recalculated. */
+                    quickUpdateStartTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been updated (either full update or an update at insert time) before this time will be recalculated. */
+                    quickUpdateEndTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been fully updated after this time will be counted. */
+                    fullUpdateStartTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been fully updated before this time will be counted. */
+                    fullUpdateEndTime?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -9097,18 +9150,10 @@ export interface paths {
                     numPerPage?: number;
                     /** @description Page number for iterating through all sources. Defaults to 1 */
                     pageNumber?: number;
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created after this time
-                     *     will be checked for missing PhotStats.
-                     */
-                    createdAtStartTime?: string;
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created before this time
-                     *     will be checked for missing PhotStats.
-                     */
-                    createdAtEndTime?: string;
+                    /** @description arrow parseable string, only objects that have been created after this time will be checked for missing PhotStats. */
+                    createdAtStartTime?: string | null;
+                    /** @description arrow parseable string, only objects that have been created before this time will be checked for missing PhotStats. */
+                    createdAtEndTime?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -9154,44 +9199,18 @@ export interface paths {
                     numPerPage?: number;
                     /** @description Page number for iterating through all sources. Defaults to 1 */
                     pageNumber?: number;
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created after this time
-                     *     will be checked for missing/existing PhotStats.
-                     */
-                    createdAtStartTime?: string;
-                    /**
-                     * @description arrow parseable string, only objects
-                     *     that have been created before this time
-                     *     will be checked for missing/existing PhotStats.
-                     */
-                    createdAtEndTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been updated (either full update or
-                     *     an update at insert time) after this time
-                     *     will be recalculated.
-                     */
-                    quickUpdateStartTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been updated (either full update or
-                     *     an update at insert time) before this time
-                     *     will be recalculated.
-                     */
-                    quickUpdateEndTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been fully updated after this time
-                     *     will be recalculated.
-                     */
-                    fullUpdateStartTime?: string;
-                    /**
-                     * @description arrow parseable string, any object's PhotStat
-                     *     that has been fully updated before this time
-                     *     will be recalculated.
-                     */
-                    fullUpdateEndTime?: string;
+                    /** @description arrow parseable string, only objects that have been created after this time will be checked for missing/existing PhotStats. */
+                    createdAtStartTime?: string | null;
+                    /** @description arrow parseable string, only objects that have been created before this time will be checked for missing/existing PhotStats. */
+                    createdAtEndTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been updated (either full update or an update at insert time) after this time will be recalculated. */
+                    quickUpdateStartTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been updated (either full update or an update at insert time) before this time will be recalculated. */
+                    quickUpdateEndTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been fully updated after this time will be recalculated. */
+                    fullUpdateStartTime?: string | null;
+                    /** @description arrow parseable string, any object's PhotStat that has been fully updated before this time will be recalculated. */
+                    fullUpdateEndTime?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -9245,32 +9264,20 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description PhotStat field for the x axis (see the returned `fields`). */
-                    xField?: string;
+                    xField?: string | null;
                     /** @description PhotStat field for the y axis. */
-                    yField?: string;
+                    yField?: string | null;
                     /** @description Optional PhotStat field for a third (z) axis. */
-                    zField?: string;
-                    /**
-                     * @description Comma-separated classification names to down-select sources
-                     *     (matches any). Omit to include all accessible sources.
-                     */
-                    classifications?: string;
+                    zField?: string | null;
+                    /** @description Comma-separated classification names to down-select sources (matches any). Omit to include all accessible sources. */
+                    classifications?: string | null;
                     /** @description Only count classifications at or above this probability. */
-                    classificationProbThreshold?: number;
-                    /**
-                     * @description Restrict to sources saved to this group (an alternative to
-                     *     classification-based selection).
-                     */
-                    group_id?: number;
-                    /**
-                     * @description Comma-separated object IDs to restrict to (an alternative to
-                     *     classification-based selection).
-                     */
-                    obj_ids?: string;
-                    /**
-                     * @description Maximum number of points to return (default 20000, capped at
-                     *     100000). If more match, the response is truncated.
-                     */
+                    classificationProbThreshold?: number | null;
+                    /** @description Restrict to sources saved to this group (an alternative to classification-based selection). */
+                    group_id?: number | null;
+                    /** @description Comma-separated object IDs to restrict to (an alternative to classification-based selection). */
+                    obj_ids?: string | null;
+                    /** @description Maximum number of points to return (default 20000, capped at 100000). If more match, the response is truncated. */
                     maxMatches?: number;
                 };
                 header?: never;
@@ -9462,10 +9469,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Boolean indicating whether to include flatted skymap. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include flatted skymap. Defaults to false. */
                     include2DMap?: boolean;
                 };
                 header?: never;
@@ -9551,7 +9555,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description ID of the first localization. */
+                    id1?: number | null;
+                    /** @description ID of the second localization. */
+                    id2?: number | null;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -9921,8 +9930,12 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Fetch by name (exact match) */
+                    name?: string | null;
                     /** @description Boolean indicating whether to include group users. Defaults to true. */
                     includeGroupUsers?: boolean;
+                    /** @description Bool indicating whether to include single user groups. Defaults to false. */
+                    includeSingleUserGroups?: boolean;
                 };
                 header?: never;
                 path: {
@@ -10040,11 +10053,10 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Fetch by name (exact match) */
-                    name?: string;
-                    /**
-                     * @description Bool indicating whether to include single user groups.
-                     *     Defaults to false.
-                     */
+                    name?: string | null;
+                    /** @description Boolean indicating whether to include group users. Defaults to true. */
+                    includeGroupUsers?: boolean;
+                    /** @description Bool indicating whether to include single user groups. Defaults to false. */
                     includeSingleUserGroups?: boolean;
                 };
                 header?: never;
@@ -10145,7 +10157,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Filter by name */
+                    name?: string | null;
+                };
                 header?: never;
                 path: {
                     mmadetector_id: number;
@@ -10265,7 +10280,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter by name */
-                    name?: string;
+                    name?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -10351,7 +10366,16 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description If provided, filter only spectra observed with one of these mmadetector IDs. */
+                    detectorIDs?: number[] | null;
+                    /** @description If provided, filter only spectra saved to one of these group IDs. */
+                    groupIDs?: number[] | null;
+                };
                 header?: never;
                 path: {
                     spectrum_id: number;
@@ -10470,20 +10494,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed before this time.
-                     */
-                    observedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed after this time.
-                     */
-                    observedAfter?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
                     /** @description If provided, filter only spectra observed with one of these mmadetector IDs. */
-                    detectorIDs?: string;
+                    detectorIDs?: number[] | null;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[] | null;
                 };
                 header?: never;
                 path?: never;
@@ -10552,7 +10570,16 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only time intervals observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only time intervals observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description If provided, filter only time intervals observed with one of these mmadetector IDs. */
+                    detectorIDs?: number[] | null;
+                    /** @description If provided, filter only time intervals saved to one of these group IDs. */
+                    groupIDs?: number[] | null;
+                };
                 header?: never;
                 path: {
                     time_interval_id: number;
@@ -10668,20 +10695,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only time_interval observed before this time.
-                     */
-                    observedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only time_interval observed after this time.
-                     */
-                    observedAfter?: string;
-                    /** @description If provided, filter only time_intervals observed with one of these mmadetector IDs. */
-                    detectorIDs?: string;
-                    /** @description If provided, filter only time_interval saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only time intervals observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only time intervals observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description If provided, filter only time intervals observed with one of these mmadetector IDs. */
+                    detectorIDs?: number[] | null;
+                    /** @description If provided, filter only time intervals saved to one of these group IDs. */
+                    groupIDs?: number[] | null;
                 };
                 header?: never;
                 path?: never;
@@ -10751,12 +10772,8 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description name of the list to retrieve objects from.
-                     *     If not given will return all objects
-                     *     saved by the user to all lists.
-                     */
-                    listName?: string;
+                    /** @description Name of the list to retrieve objects from. If not given will return all objects saved by the user to all lists. */
+                    listName?: string | null;
                 };
                 header?: never;
                 path: {
@@ -10931,7 +10948,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description ID of group for which admission requests are desired */
+                    groupID?: number | null;
+                };
                 header?: never;
                 path: {
                     admission_request_id: number;
@@ -11033,7 +11053,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description ID of group for which admission requests are desired */
-                    groupID?: number;
+                    groupID?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -11206,15 +11226,9 @@ export interface paths {
         get: {
             parameters: {
                 query: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01).
-                     *     Defaults to now.
-                     */
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). */
                     startDate: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01).
-                     *     Defaults to 72 hours ago.
-                     */
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). */
                     endDate: string;
                 };
                 header?: never;
@@ -11319,54 +11333,24 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
                     includeGeoJSON?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to false. */
                     includeGeoJSONSummary?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated DS9 region. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated DS9 region. Defaults to false. */
                     includeRegion?: boolean;
-                    /**
-                     * @description Boolean indicating whether to ignore field caching. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to ignore field caching. Defaults to false. */
                     ignoreCache?: boolean;
-                    /**
-                     * @description Include fields within a given localization.
-                     *     Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
+                    /** @description Include fields within a given localization. Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include fields. Defaults to 0.95. */
                     localizationCumprob?: number;
-                    /**
-                     * @description Time to use for airmass calculation in
-                     *     ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Defaults to localizationDateobs if not supplied.
-                     */
-                    airmassTime?: string;
+                    /** @description Time to use for airmass calculation in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Defaults to localizationDateobs if not supplied. */
+                    airmassTime?: string | null;
+                    /** @description Filter by name (exact match) */
+                    name?: string | null;
                 };
                 header?: never;
                 path: {
@@ -11494,13 +11478,24 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Filter by name (exact match) */
-                    name?: string;
-                    /**
-                     * @description Boolean indicating whether to include associated DS9 region. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
+                    includeGeoJSON?: boolean;
+                    /** @description Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to false. */
+                    includeGeoJSONSummary?: boolean;
+                    /** @description Boolean indicating whether to include associated DS9 region. Defaults to false. */
                     includeRegion?: boolean;
+                    /** @description Boolean indicating whether to ignore field caching. Defaults to false. */
+                    ignoreCache?: boolean;
+                    /** @description Include fields within a given localization. Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include fields. Defaults to 0.95. */
+                    localizationCumprob?: number;
+                    /** @description Time to use for airmass calculation in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Defaults to localizationDateobs if not supplied. */
+                    airmassTime?: string | null;
+                    /** @description Filter by name (exact match) */
+                    name?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -11642,23 +11637,20 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Bool indicating whether to include used invitations.
-                     *     Defaults to false.
-                     */
+                    /** @description Bool indicating whether to include used invitations. Defaults to false. */
                     includeUsed?: boolean;
-                    /** @description Number of candidates to return per paginated request. Defaults to 25 */
+                    /** @description Number of invitations to return per paginated request. Defaults to 25. */
                     numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Get invitations whose email contains this string. */
-                    email?: string;
+                    email?: string | null;
                     /** @description Get invitations part of the group with name given by this parameter. */
-                    group?: string;
+                    group?: string | null;
                     /** @description Get invitations with access to the stream with name given by this parameter. */
-                    stream?: string;
+                    stream?: string | null;
                     /** @description Get invitations invited by users whose username contains this string. */
-                    invitedBy?: string;
+                    invitedBy?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -11796,11 +11788,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Number of newsfeed items to return.
-                     *     Defaults to 50. Max is 1000.
-                     */
-                    numItems?: number;
+                    /** @description Number of newsfeed items to return. Defaults to 50. Max is 1000. */
+                    numItems?: number | null;
+                    /** @description Scope the feed to the groups of this team, intersected with the user's accessible groups. */
+                    teamID?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -11853,70 +11844,40 @@ export interface paths {
          */
         get: {
             parameters: {
-                query: {
+                query?: {
                     /** @description Filter by telescope name */
-                    telescopeName?: string;
+                    telescopeName?: string | null;
                     /** @description Filter by instrument name */
-                    instrumentName?: string;
+                    instrumentName?: string | null;
                     /** @description Filter by start date */
-                    startDate: string;
+                    startDate?: string | null;
                     /** @description Filter by end date */
-                    endDate: string;
-                    /**
-                     * @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
+                    endDate?: string | null;
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include fields. Defaults to 0.95. */
                     localizationCumprob?: number;
+                    /** @description Minimum number of observations of a field required to include. Defaults to 1. */
+                    numberObservations?: number;
                     /** @description Boolean indicating whether to include integrated probability and area. Defaults to false. */
                     returnStatistics?: boolean;
-                    /**
-                     * @description Method to use for computing integrated probability and area. Defaults to 'python'.
-                     *     To use the database/postgres based method, use 'db'.
-                     */
+                    /** @description Method to use for computing integrated probability and area. Defaults to 'python'. To use the database/postgres based method, use 'db'. */
                     statsMethod?: string;
                     /** @description Boolean indicating whether to log the stats computation time. Defaults to false. */
                     statsLogging?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
                     includeGeoJSON?: boolean;
-                    /**
-                     * @description Whether to include queued or executed observations.
-                     *     Defaults to executed.
-                     */
-                    observationStatus?: Record<string, never>;
-                    /**
-                     * @description Minimum number of observations of a field required to include.
-                     *     Defaults to 1.
-                     */
-                    numberObservations?: number;
-                    /**
-                     * @description Number of followup requests to return per paginated request.
-                     *     Defaults to 100. Can be no larger than 10000.
-                     */
-                    numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Whether to include queued or executed observations. Defaults to executed. */
+                    observationStatus?: string;
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of observations to return per paginated request. Defaults to 100. Can be no larger than 10000. */
+                    numPerPage?: number;
                     /** @description The field to sort by. */
-                    sortBy?: string;
-                    /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
+                    sortBy?: string | null;
+                    /** @description The sort order - either 'asc' or 'desc'. Defaults to 'asc'. */
                     sortOrder?: string;
                 };
                 header?: never;
@@ -12106,26 +12067,11 @@ export interface paths {
                     startDate: string;
                     /** @description Filter by end date */
                     endDate: string;
-                    /**
-                     * @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
                     localizationDateobs: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include fields. Defaults to 0.95. */
                     localizationCumprob?: number;
                     /** @description Number of simulations to evaluate efficiency with. Defaults to 1000. */
                     numberInjections?: number;
@@ -12138,9 +12084,11 @@ export interface paths {
                     /** @description Maximum phase (in days) post event time to consider detections. Defaults to 3. */
                     maximumPhase?: number;
                     /** @description Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova. */
-                    model_name?: string;
+                    modelName?: string;
+                    /** @description JSON-encoded object of optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI) */
                     optionalInjectionParameters?: string;
-                    group_ids?: number[];
+                    /** @description List of group IDs corresponding to which groups should be able to view the analyses. Defaults to all of requesting user's groups. */
+                    group_ids?: number[] | null;
                 };
                 header?: never;
                 path: {
@@ -12264,36 +12212,8 @@ export interface paths {
          */
         post: {
             parameters: {
-                query: {
-                    /** @description Filter by start date */
-                    startDate: string;
-                    /** @description Filter by end date */
-                    endDate: string;
-                    /**
-                     * @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
-                    localizationCumprob?: number;
-                    /**
-                     * @description Minimum number of observations of a field required to include.
-                     *     Defaults to 1.
-                     */
+                query?: {
+                    /** @description Minimum number of observations of a field required to include. Defaults to 1. */
                     numberObservations?: number;
                 };
                 header?: never;
@@ -12379,11 +12299,11 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter by start date */
-                    startDate?: string;
+                    startDate?: string | null;
                     /** @description Filter by end date */
-                    endDate?: string;
+                    endDate?: string | null;
                     /** @description Return queue only (do not commit observations) */
-                    queuesOnly?: Record<string, never>;
+                    queuesOnly?: boolean;
                 };
                 header?: never;
                 path: {
@@ -12819,7 +12739,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description The name of the Observation Plan */
-                    name?: string;
+                    name?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -12867,28 +12787,24 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Boolean indicating whether to include associated planned observations. Defaults to false. */
+                    includePlannedObservations?: boolean;
+                    /** @description Boolean indicating whether to format the response in a way that is compatible with Rubin */
+                    rubinFormat?: boolean;
                     /** @description GcnEvent dateobs to filter on */
-                    dateobs?: string;
+                    dateobs?: string | null;
                     /** @description Instrument ID to filter on */
-                    instrumentID?: number;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     created_at <= endDate
-                     */
-                    endDate?: string;
+                    instrumentID?: number | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
                     /** @description String to match status of request against */
-                    status?: string;
+                    status?: string | null;
                     /** @description Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than 1000. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
-                    /** @description Boolean indicating whether to include associated planned observations. Defaults to false. */
-                    includePlannedObservations?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -12976,6 +12892,20 @@ export interface paths {
                     includePlannedObservations?: boolean;
                     /** @description Boolean indicating whether to format the response in a way that is compatible with Rubin */
                     rubinFormat?: boolean;
+                    /** @description GcnEvent dateobs to filter on */
+                    dateobs?: string | null;
+                    /** @description Instrument ID to filter on */
+                    instrumentID?: number | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
+                    endDate?: string | null;
+                    /** @description String to match status of request against */
+                    status?: string | null;
+                    /** @description Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than 1000. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
                 };
                 header?: never;
                 path: {
@@ -13318,9 +13248,11 @@ export interface paths {
                     /** @description Maximum phase (in days) post event time to consider detections. Defaults to 3. */
                     maximumPhase?: number;
                     /** @description Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova. */
-                    model_name?: string;
+                    modelName?: string;
+                    /** @description JSON-encoded object of optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI) */
                     optionalInjectionParameters?: string;
-                    group_ids?: number[];
+                    /** @description List of group IDs corresponding to which groups should be able to view the analyses. Defaults to all of requesting user's groups. */
+                    group_ids?: number[] | null;
                 };
                 header?: never;
                 path: {
@@ -13802,14 +13734,10 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter associations by object ID */
-                    obj_id?: string;
+                    obj_id?: string | null;
                     /** @description Filter associations by tag option ID */
-                    objtagoption_id?: number;
-                    /**
-                     * @description If true and obj_id is given, also return tags on the Objs linked
-                     *     to it through a SuperObj (meta-object), as one provenance-tagged
-                     *     union (each entry keeps its obj_id). Defaults to false.
-                     */
+                    objtagoption_id?: number | null;
+                    /** @description If true and obj_id is given, also return tags on the Objs linked to it through a SuperObj (meta-object), as one provenance-tagged union (each entry keeps its obj_id). Defaults to false. */
                     includeSuperObjs?: boolean;
                 };
                 header?: never;
@@ -13951,10 +13879,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. */
-                    format?: "mag" | "flux";
+                    /** @description Return the photometry in flux or magnitude space? Must be one of 'mag', 'flux', or 'both'. If a value for this query parameter is not provided, the result will be returned in magnitude space. */
+                    format?: string;
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
+                    magsys?: string;
                 };
                 header?: never;
                 path: {
@@ -14027,7 +13955,10 @@ export interface paths {
          */
         patch: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description If true, triggers a refresh of the object's photometry on the web page, only for the users that have the object's source page open. */
+                    refresh?: boolean;
+                };
                 header?: never;
                 path: {
                     photometry_id: number;
@@ -14076,7 +14007,14 @@ export interface paths {
          */
         put: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description If true, triggers a refresh of the object's photometry on the web page, only for the users that have the object's source page open. */
+                    refresh?: boolean;
+                    /** @description If true, will not use the flux/fluxerr of existing rows when looking for duplicates but only mjd, instrument_id, filter, and origin. Reserved to super admin users only, to avoid misuse and permanent data loss. */
+                    duplicate_ignore_flux?: boolean;
+                    /** @description If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of existing rows (duplicates) with the new values. Applies only to rows with an origin already specified. If existing duplicates have no origin, the update will be skipped. */
+                    overwrite_flux?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -14114,7 +14052,10 @@ export interface paths {
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description If true, triggers a refresh of the object's photometry on the web page, only for the users that have the object's source page open. */
+                    refresh?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -14301,10 +14242,116 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br> */
+        /**
+         * Retrieve a photometric series
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Retrieve a photometric series
+         */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Format of the data to return. If `none`, the data will not be returned. If `hdf5`, the data will be returned as a bytestream in HDF5 format. (to see how to unpack this data format, look at `photometric_series.md`) If `json`, the data will be returned as a JSON object, where each key is a list of values for that column. Defaults to `json` when retrieving a single series, and to `none` when querying multiple series. To specifically request the data when querying multiple series, use `dataFormat=json` or `dataFormat=hdf5`. Keep in mind this could be a large amount of data if the query arguments do not filter down the number of returned series. */
+                    dataFormat?: string | null;
+                    /** @description RA for spatial filtering (in decimal degrees) */
+                    ra?: number | null;
+                    /** @description Declination for spatial filtering (in decimal degrees) */
+                    dec?: number | null;
+                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
+                    radius?: number | null;
+                    /** @description Portion of ID to filter on */
+                    objectID?: string | null;
+                    /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new objects passing a query. */
+                    rejectedObjectID?: string | null;
+                    /** @description Get series that match this name. The match must be exact. This is useful when getting photometry for multiple objects taken at the same time (e.g., for calibrating against each other). The series name can be, e.g., a TESS sector, or a date/field name identifier. Generally a series name is shared only by data taken over that same time period. */
+                    seriesName?: string | null;
+                    /** @description Get only photometry for the objects named by this object id. This is the internal naming used inside each photometric series, i.e., the index used for each source in the images that were used to create the photometric series. Not the same as the SkyPortal object ID. E.g., this could be a TESS TIC ID, or some internal numbering used in the specific field that was observed. */
+                    seriesObjID?: string | null;
+                    /** @description Retrieve only series matching this filter, e.g., "ztfg". */
+                    filter?: string | null;
+                    /** @description The channel name/id to filter on. */
+                    channel?: string | null;
+                    /** @description The origin can be anything that gives an idea of the provenance of the photometric series. This can be, e.g., the name of the pipeline that produced the photometry from the images, or the level of calibration, or any other pre-defined string that identifies where the data came from that isn't covered by the other fields (like channel or filter or instrument). */
+                    origin?: string | null;
+                    /** @description Portion of filename to filter on. If the filename is a relative path, will append the data directory from the config file to the beginning of the filename. (by default that is 'persistentdata/phot_series'). */
+                    filename?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that started before this time. */
+                    startBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that started after this time. */
+                    startAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series where the middle of the series was observed before this time. */
+                    midBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series where the middle of the series was observed after this time. */
+                    midAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that ended before this time. */
+                    endBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that ended after this time. */
+                    endAfter?: string | null;
+                    /** @description If true, get only series with one or more detections. If false, get only series with no detections. If left out, do not filter at all on detection status. */
+                    detected?: boolean | null;
+                    /** @description Get only series with this exact exposure time (seconds). */
+                    expTime?: number | null;
+                    /** @description Get only series with an exposure time above/equal to this. If the series was not uploaded with one specific number, the exposure time for the series is the median of the exposure times of the individual images. */
+                    minExpTime?: number | null;
+                    /** @description Get only series with an exposure time under/equal to this. If the series was not uploaded with one specific number, the exposure time for the series is the median of the exposure times of the individual images. */
+                    maxExpTime?: number | null;
+                    /** @description Get only series with a frame rate higher/equal to than this. Frame rates are the inverse of the median time between exposures, in units of 1/s (Hz). */
+                    minFrameRate?: number | null;
+                    /** @description Get only series with a frame rate lower/equal to than this. Frame rates are the inverse of the median time between exposures, in units of 1/s (Hz). */
+                    maxFrameRate?: number | null;
+                    /** @description Get only series with this many exposures, or more. */
+                    minNumExposures?: number | null;
+                    /** @description Get only series with this many exposures, or less. */
+                    maxNumExposures?: number | null;
+                    /** @description get only series taken with this instrument. */
+                    instrumentID?: number | null;
+                    /** @description get only series taken with this followup request. */
+                    followupRequestID?: number | null;
+                    /** @description get only series taken with this assignment. */
+                    assignmentID?: number | null;
+                    /** @description get only series uploaded by this user. */
+                    ownerID?: number | null;
+                    /** @description get only series with mean_mag brighter or equal to this value. */
+                    magBrighterThan?: number | null;
+                    /** @description get only series with mean_mag fainter or equal to this value. */
+                    magFainterThan?: number | null;
+                    /** @description Retrieve only series with limiting mags brighter or equal to this value. */
+                    limitingMagBrighterThan?: number | null;
+                    /** @description Retrieve only series with limiting mags fainter or equal to this value. */
+                    limitingMagFainterThan?: number | null;
+                    /** @description Retrieve only series that do not have limiting mag. */
+                    limitingMagIsNaN?: boolean;
+                    /** @description Get only series that have a magref, and that the magref is brighter or equal to this value. */
+                    magrefBrighterThan?: number | null;
+                    /** @description Get only series that have a magref, and that the magref is fainter or equal to this value. */
+                    magrefFainterThan?: number | null;
+                    /** @description get only series with rms_mag less than this. */
+                    maxRMS?: number | null;
+                    /** @description get only series with rms_mag more than this. */
+                    minRMS?: number | null;
+                    /** @description If true, will use the robust_mag and robust_rms values instead of mean_mag and rms_mag when filtering on mean magnitude or RMS. Does not affect the magref query. */
+                    useRobustMagAndRMS?: boolean;
+                    /** @description Get only series where the median S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxMedianSNR?: number | null;
+                    /** @description Get only series where the median S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minMedianSNR?: number | null;
+                    /** @description Get only series where the maximum S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxBestSNR?: number | null;
+                    /** @description Get only series where the maximum S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minBestSNR?: number | null;
+                    /** @description Get only series where the lowest S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxWorstSNR?: number | null;
+                    /** @description Get only series where the lowest S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minWorstSNR?: number | null;
+                    /** @description Get only a series that matches this file hash. This is useful if you have an HDF5 file downloaded from the SkyPortal backend, and want to associate it with a PhotometrySeries object. We use an MD5 hash of the file contents. */
+                    hash?: string | null;
+                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    sortBy?: string;
+                    /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
+                    sortOrder?: string;
+                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
+                };
                 header?: never;
                 path: {
                     photometric_series_id: number;
@@ -14312,7 +14359,16 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SinglePhotometricSeries"];
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;
@@ -14563,243 +14619,110 @@ export interface paths {
         };
         /**
          * Retrieve multiple photometric series
-         * @description Retrieve all photometric series, based on various cuts.
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Retrieve all photometric series, based on various cuts.
          */
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Format of the data to return. If `none`, the data will not be returned.
-                     *     If `hdf5`, the data will be returned as a bytestream in HDF5 format.
-                     *     (to see how to unpack this data format, look at `photometric_series.md`)
-                     *     If `json`, the data will be returned as a JSON object, where each key
-                     *     is a list of values for that column.
-                     *     Note that when querying multiple series, the actual data is not returned
-                     *     by default. To specifically request the data, use `dataFormat=json`
-                     *     or `dataFormat=hdf5`. Keep in mind this could be a large amount of data
-                     *     if the query arguments do not filter down the number of returned series.
-                     * @default none
-                     */
-                    dataFormat?: "json" | "hdf5" | "none";
+                    /** @description Format of the data to return. If `none`, the data will not be returned. If `hdf5`, the data will be returned as a bytestream in HDF5 format. (to see how to unpack this data format, look at `photometric_series.md`) If `json`, the data will be returned as a JSON object, where each key is a list of values for that column. Defaults to `json` when retrieving a single series, and to `none` when querying multiple series. To specifically request the data when querying multiple series, use `dataFormat=json` or `dataFormat=hdf5`. Keep in mind this could be a large amount of data if the query arguments do not filter down the number of returned series. */
+                    dataFormat?: string | null;
                     /** @description RA for spatial filtering (in decimal degrees) */
-                    ra?: number;
+                    ra?: number | null;
                     /** @description Declination for spatial filtering (in decimal degrees) */
-                    dec?: number;
-                    /**
-                     * @description Radius for spatial filtering if ra & dec
-                     *     are provided (in decimal degrees)
-                     */
-                    radius?: number;
+                    dec?: number | null;
+                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
+                    radius?: number | null;
                     /** @description Portion of ID to filter on */
-                    objectID?: string;
-                    /**
-                     * @description Comma-separated string of object IDs not to be returned,
-                     *     useful in cases where you are looking for new objects passing a query.
-                     */
-                    rejectedObjectIDs?: Record<string, never>;
-                    /**
-                     * @description Get series that match this name.
-                     *     The match must be exact.
-                     *     This is useful when getting photometry
-                     *     for multiple objects taken at the same time
-                     *     (e.g., for calibrating against each other).
-                     *     The series name can be, e.g., a TESS sector,
-                     *     or a date/field name identifier.
-                     *     Generally a series name is shared only
-                     *     by data taken over that same time period.
-                     */
-                    seriesName?: string;
-                    /**
-                     * @description Get only photometry for the objects named by this object id.
-                     *     This is the internal naming used inside each photometric series,
-                     *     i.e., the index used for each source in the images that were
-                     *     used to create the photometric series. Not the same as the SkyPortal
-                     *     object ID. E.g., this could be a TESS TIC ID, or some internal numbering
-                     *     used in the specific field that was observed.
-                     */
-                    seriesObjID?: string;
+                    objectID?: string | null;
+                    /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new objects passing a query. */
+                    rejectedObjectID?: string | null;
+                    /** @description Get series that match this name. The match must be exact. This is useful when getting photometry for multiple objects taken at the same time (e.g., for calibrating against each other). The series name can be, e.g., a TESS sector, or a date/field name identifier. Generally a series name is shared only by data taken over that same time period. */
+                    seriesName?: string | null;
+                    /** @description Get only photometry for the objects named by this object id. This is the internal naming used inside each photometric series, i.e., the index used for each source in the images that were used to create the photometric series. Not the same as the SkyPortal object ID. E.g., this could be a TESS TIC ID, or some internal numbering used in the specific field that was observed. */
+                    seriesObjID?: string | null;
                     /** @description Retrieve only series matching this filter, e.g., "ztfg". */
-                    filter?: string;
+                    filter?: string | null;
                     /** @description The channel name/id to filter on. */
-                    channel?: string;
-                    /**
-                     * @description The origin can be anything that gives an idea of the
-                     *     provenance of the photometric series.
-                     *     This can be, e.g., the name of the pipeline that
-                     *     produced the photometry from the images,
-                     *     or the level of calibration,
-                     *     or any other pre-defined string that identifies
-                     *     where the data came from that isn't covered by
-                     *     the other fields (like channel or filter or instrument).
-                     */
-                    origin?: string;
-                    /**
-                     * @description Portion of filename to filter on.
-                     *     If the filename is a relative path, will
-                     *     append the data directory from the config file
-                     *     to the beginning of the filename.
-                     *     (by default that is 'persistentdata/phot_series').
-                     */
-                    filename?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series that started before this time.
-                     */
-                    startBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series that started after this time.
-                     */
-                    startAfter?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series where the middle of the series was observed before this time.
-                     */
-                    midTimeBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series where the middle of the series was observed after this time.
-                     */
-                    midTimeAfter?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series that ended before this time.
-                     */
-                    endBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return
-                     *     only series that ended after this time.
-                     */
-                    endAfter?: string;
-                    /**
-                     * @description If true, get only series with one or more detections.
-                     *     If false, get only series with no detections.
-                     *     If left out, do not filter at all on detection status.
-                     */
-                    detected?: boolean;
+                    channel?: string | null;
+                    /** @description The origin can be anything that gives an idea of the provenance of the photometric series. This can be, e.g., the name of the pipeline that produced the photometry from the images, or the level of calibration, or any other pre-defined string that identifies where the data came from that isn't covered by the other fields (like channel or filter or instrument). */
+                    origin?: string | null;
+                    /** @description Portion of filename to filter on. If the filename is a relative path, will append the data directory from the config file to the beginning of the filename. (by default that is 'persistentdata/phot_series'). */
+                    filename?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that started before this time. */
+                    startBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that started after this time. */
+                    startAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series where the middle of the series was observed before this time. */
+                    midBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series where the middle of the series was observed after this time. */
+                    midAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that ended before this time. */
+                    endBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only series that ended after this time. */
+                    endAfter?: string | null;
+                    /** @description If true, get only series with one or more detections. If false, get only series with no detections. If left out, do not filter at all on detection status. */
+                    detected?: boolean | null;
                     /** @description Get only series with this exact exposure time (seconds). */
-                    expTime?: number;
-                    /**
-                     * @description Get only series with an exposure time above/equal to this.
-                     *     If the series was not uploaded with one specific number,
-                     *     the exposure time for the series is the median of the
-                     *     exposure times of the individual images.
-                     */
-                    minExpTime?: number;
-                    /**
-                     * @description Get only series with an exposure time under/equal to this.
-                     *     If the series was not uploaded with one specific number,
-                     *     the exposure time for the series is the median of the
-                     *     exposure times of the individual images.
-                     */
-                    maxExpTime?: number;
-                    /**
-                     * @description Get only series with a frame rate higher/equal to than this.
-                     *     Frame rates are the inverse of the median time between
-                     *     exposures, in units of 1/s (Hz).
-                     */
-                    minFrameRate?: number;
-                    /**
-                     * @description Get only series with a frame rate lower/equal to than this.
-                     *     Frame rates are the inverse of the median time between
-                     *     exposures, in units of 1/s (Hz).
-                     */
-                    maxFrameRate?: number;
+                    expTime?: number | null;
+                    /** @description Get only series with an exposure time above/equal to this. If the series was not uploaded with one specific number, the exposure time for the series is the median of the exposure times of the individual images. */
+                    minExpTime?: number | null;
+                    /** @description Get only series with an exposure time under/equal to this. If the series was not uploaded with one specific number, the exposure time for the series is the median of the exposure times of the individual images. */
+                    maxExpTime?: number | null;
+                    /** @description Get only series with a frame rate higher/equal to than this. Frame rates are the inverse of the median time between exposures, in units of 1/s (Hz). */
+                    minFrameRate?: number | null;
+                    /** @description Get only series with a frame rate lower/equal to than this. Frame rates are the inverse of the median time between exposures, in units of 1/s (Hz). */
+                    maxFrameRate?: number | null;
                     /** @description Get only series with this many exposures, or more. */
-                    minNumExposures?: number;
+                    minNumExposures?: number | null;
                     /** @description Get only series with this many exposures, or less. */
-                    maxNumExposures?: number;
+                    maxNumExposures?: number | null;
                     /** @description get only series taken with this instrument. */
-                    instrumentID?: number;
+                    instrumentID?: number | null;
                     /** @description get only series taken with this followup request. */
-                    followupRequestID?: number;
+                    followupRequestID?: number | null;
                     /** @description get only series taken with this assignment. */
-                    assignmentID?: number;
+                    assignmentID?: number | null;
                     /** @description get only series uploaded by this user. */
-                    ownerID?: number;
+                    ownerID?: number | null;
                     /** @description get only series with mean_mag brighter or equal to this value. */
-                    magBrighterThan?: number;
+                    magBrighterThan?: number | null;
                     /** @description get only series with mean_mag fainter or equal to this value. */
-                    magFainterThan?: number;
+                    magFainterThan?: number | null;
                     /** @description Retrieve only series with limiting mags brighter or equal to this value. */
-                    limitingMagBrighterThan?: number;
+                    limitingMagBrighterThan?: number | null;
                     /** @description Retrieve only series with limiting mags fainter or equal to this value. */
-                    limitingMagFainterThan?: number;
+                    limitingMagFainterThan?: number | null;
                     /** @description Retrieve only series that do not have limiting mag. */
-                    limitingMagIsNone?: boolean;
-                    /**
-                     * @description Get only series that have a magref,
-                     *     and that the magref is brighter or equal to this value.
-                     */
-                    magrefBrighterThan?: number;
-                    /**
-                     * @description Get only series that have a magref,
-                     *     and that the magref is fainter or equal to this value.
-                     */
-                    magrefFainterThan?: number;
+                    limitingMagIsNaN?: boolean;
+                    /** @description Get only series that have a magref, and that the magref is brighter or equal to this value. */
+                    magrefBrighterThan?: number | null;
+                    /** @description Get only series that have a magref, and that the magref is fainter or equal to this value. */
+                    magrefFainterThan?: number | null;
                     /** @description get only series with rms_mag less than this. */
-                    maxRMS?: number;
+                    maxRMS?: number | null;
                     /** @description get only series with rms_mag more than this. */
-                    minRMS?: number;
-                    /**
-                     * @description If true, will use the robust_mag and robust_rms values
-                     *     instead of mean_mag and rms_mag when filtering on mean
-                     *     magnitude or RMS. Does not affect the magref query.
-                     * @default false
-                     */
+                    minRMS?: number | null;
+                    /** @description If true, will use the robust_mag and robust_rms values instead of mean_mag and rms_mag when filtering on mean magnitude or RMS. Does not affect the magref query. */
                     useRobustMagAndRMS?: boolean;
-                    /**
-                     * @description Get only series where the median S/N is less than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    maxMedianSNR?: number;
-                    /**
-                     * @description Get only series where the median S/N is more than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    minMedianSNR?: number;
-                    /**
-                     * @description Get only series where the maximum S/N is less than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    maxBestSNR?: number;
-                    /**
-                     * @description Get only series where the maximum S/N is more than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    minBestSNR?: number;
-                    /**
-                     * @description Get only series where the lowest S/N is less than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    maxWorstSNR?: number;
-                    /**
-                     * @description Get only series where the lowest S/N is more than this.
-                     *     The S/N is calculated using the robust RMS.
-                     */
-                    minWorstSNR?: number;
-                    /**
-                     * @description Get only a series that matches this file hash.
-                     *     This is useful if you have an HDF5 file downloaded
-                     *     from the SkyPortal backend, and want to associate it
-                     *     with a PhotometrySeries object.
-                     *     We use an MD5 hash of the file contents.
-                     */
-                    hash?: string;
-                    /**
-                     * @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
-                     * @default obj_id
-                     */
+                    /** @description Get only series where the median S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxMedianSNR?: number | null;
+                    /** @description Get only series where the median S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minMedianSNR?: number | null;
+                    /** @description Get only series where the maximum S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxBestSNR?: number | null;
+                    /** @description Get only series where the maximum S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minBestSNR?: number | null;
+                    /** @description Get only series where the lowest S/N is less than this. The S/N is calculated using the robust RMS. */
+                    maxWorstSNR?: number | null;
+                    /** @description Get only series where the lowest S/N is more than this. The S/N is calculated using the robust RMS. */
+                    minWorstSNR?: number | null;
+                    /** @description Get only a series that matches this file hash. This is useful if you have an HDF5 file downloaded from the SkyPortal backend, and want to associate it with a PhotometrySeries object. We use an MD5 hash of the file contents. */
+                    hash?: string | null;
+                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
                     sortBy?: string;
-                    /**
-                     * @description The sort order - either "asc" or "desc". Defaults to "asc"
-                     * @default asc
-                     */
+                    /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
                     sortOrder?: string;
-                    /**
-                     * @description Number of sources to return per paginated request.
-                     *     Defaults to 100. Max 500.
-                     */
+                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
@@ -15158,11 +15081,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     shift.start_date >= startDate
-                     */
-                    startDate?: string;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by shift.start_date >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by shift.start_date <= endDate */
+                    endDate?: string | null;
                 };
                 header?: never;
                 path: {
@@ -15203,7 +15125,14 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Filter shifts by group ID */
+                    group_id?: number | null;
+                    /** @description Arrow-parseable date string. Return shifts that start after or at this datetime */
+                    start_date_limit?: string | null;
+                    /** @description Arrow-parseable date string. Return shifts that end after or at this datetime */
+                    end_date_limit?: string | null;
+                };
                 header?: never;
                 path: {
                     /** @description ID of the shift to retrieve */
@@ -15324,11 +15253,11 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter shifts by group ID */
-                    group_id?: number;
-                    /** @description Return shifts that start after or at this datetime */
-                    start_date_limit?: string;
-                    /** @description Return shifts that end after or at this datetime */
-                    end_date_limit?: string;
+                    group_id?: number | null;
+                    /** @description Arrow-parseable date string. Return shifts that start after or at this datetime */
+                    start_date_limit?: string | null;
+                    /** @description Arrow-parseable date string. Return shifts that end after or at this datetime */
+                    end_date_limit?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -15619,7 +15548,7 @@ export interface paths {
                     /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. */
                     format?: "mag" | "flux";
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
+                    magsys?: string;
                 };
                 header?: never;
                 path?: never;
@@ -16043,12 +15972,12 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. "plot" returns a slim per-point payload (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) intended for lightcurve plotting; all per-point auxiliary joins (groups, annotations, instrument, owner, streams, validations) and the ref/tot/extinction blocks are skipped, regardless of the corresponding ``include*`` flags. */
-                    format?: "mag" | "flux" | "plot";
+                    /** @description Return the photometry in flux or magnitude space? Must be one of 'mag', 'flux', 'both', or 'plot'. If a value for this query parameter is not provided, the result will be returned in magnitude space. "plot" returns a slim per-point payload (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) intended for lightcurve plotting; all per-point auxiliary joins (groups, annotations, instrument, owner, streams, validations) and the ref/tot/extinction blocks are skipped, regardless of the corresponding ``include*`` flags. */
+                    format?: string;
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
+                    magsys?: string;
                     /** @description Whether to return individual photometry points, photometric series, or both (Default). */
-                    individualOrSeries?: "individual" | "series" | "both";
+                    individualOrSeries?: string;
                     /** @description Boolean indicating whether to phase fold the light curve. Defaults to false. */
                     phaseFoldData?: boolean;
                     /** @description Boolean indicating whether to deduplicate photometry. Defaults to false. */
@@ -16059,6 +15988,12 @@ export interface paths {
                     includeStreamInfo?: boolean;
                     /** @description Boolean indicating whether to include photometry validation information. Defaults to false. */
                     includeValidationInfo?: boolean;
+                    /** @description Boolean indicating whether to include photometry annotations. Defaults to false. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Boolean indicating whether to include Galactic extinction values and extinction-corrected magnitudes/fluxes. Defaults to false. */
+                    includeExtinction?: boolean;
+                    /** @description Boolean indicating whether to also include photometry of any super-objects containing this object. Defaults to false. */
+                    includeSuperObjsPhotometry?: boolean;
                 };
                 header?: never;
                 path: {
@@ -16143,23 +16078,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description what normalization is needed for the spectra (e.g., "median").
-                     *     If omitted, returns the original spectrum.
-                     *     Options for normalization are:
-                     *     - median: normalize the flux to have median==1
-                     */
-                    normalization?: string;
-                    /**
-                     * @description The column to order the spectra by. Defaults to observed_at.
-                     *     Options are: observed_at, created_at
-                     */
-                    sortBy?: string;
-                    /**
-                     * @description The order to sort the spectra by. Defaults to asc.
-                     *     Options are: asc, desc
-                     */
-                    sortOrder?: string;
+                    /** @description what normalization is needed for the spectra (e.g., "median"). If omitted, returns the original spectrum. Options for normalization are: median: normalize the flux to have median==1 */
+                    normalization?: "median";
+                    /** @description The column to order the spectra by. Defaults to observed_at. Options are: observed_at, created_at */
+                    sortBy?: "observed_at" | "created_at";
+                    /** @description The order to sort the spectra by. Defaults to asc. Options are: asc, desc */
+                    sortOrder?: "asc" | "desc";
+                    /** @description If true, include the raw uploaded spectrum file (original_file_string) in each spectrum. Defaults to false; when omitted, that field is neither loaded nor returned. */
+                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path: {
@@ -16304,16 +16230,15 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Which facility to generate the starlist for */
-                    facility?: "Keck" | "Shane" | "P200" | "P200-NGPS";
-                    /**
-                     * @description Requested number of offset stars (set to zero to get starlist
-                     *     of just the source itself)
-                     */
+                    facility?: string;
+                    /** @description Requested number of offset stars (set to zero to get starlist of just the source itself) */
                     num_offset_stars?: number;
-                    /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10) */
-                    obstime?: string;
+                    /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
+                    obstime?: string | null;
                     /** @description Use ZTFref catalog for offset star positions, otherwise Gaia DR3 */
                     use_ztfref?: boolean;
+                    /** @description ID of an observing run the source is assigned to. Only used by the P200-NGPS starlist, to retrieve the assignment's priority and comment. */
+                    observing_run_id?: number | null;
                 };
                 header?: never;
                 path: {
@@ -16422,29 +16347,24 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Image size in arcmin (square) */
+                    /** @description Image size in arcmin (square). Must be between 2 and 15. */
                     imsize?: number;
-                    facility?: "Keck" | "Shane" | "P200" | "P200-NGPS";
-                    /** @description Source of the image used in the finding chart. Defaults to ps1 */
-                    image_source?: "desi" | "dss" | "ztfref" | "ps1";
+                    /** @description Which facility to generate the starlist for */
+                    facility?: string;
+                    /** @description Source of the image used in the finding chart (desi, dss, ztfref or ps1). Defaults to ps1 */
+                    image_source?: string;
                     /** @description Use ZTFref catalog for offset star positions, otherwise DR3 */
                     use_ztfref?: boolean;
-                    /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10) */
-                    obstime?: string;
-                    /** @description output type */
-                    type?: "png" | "pdf";
-                    /** @description output desired number of offset stars [0,5] (default: 3) */
+                    /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
+                    obstime?: string | null;
+                    /** @description output type, either png or pdf */
+                    type?: string;
+                    /** @description desired number of offset stars [0,4] (default: 3) */
                     num_offset_stars?: number;
-                    /**
-                     * @description Brightest (smallest) offset-star magnitude to allow. Defaults to the
-                     *     facility value when omitted.
-                     */
-                    mag_min?: number;
-                    /**
-                     * @description Faintest (largest) offset-star magnitude to allow. Defaults to the
-                     *     facility value when omitted.
-                     */
-                    mag_limit?: number;
+                    /** @description Brightest (smallest) offset-star magnitude to allow. Defaults to the facility value when omitted. */
+                    mag_min?: number | null;
+                    /** @description Faintest (largest) offset-star magnitude to allow. Defaults to the facility value when omitted. */
+                    mag_limit?: number | null;
                     /** @description Return a JSON including the finding chart and star_list */
                     as_json?: boolean;
                     /** @description Use caching when generating finding charts (default: true) */
@@ -16553,11 +16473,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true and the obj is linked to other objs via a SuperObj
-                     *     (meta-object), return the union of classifications across all
-                     *     linked objs. Each entry carries its obj_id for provenance.
-                     */
+                    /** @description If true and the obj is linked to other objs via a SuperObj (meta-object), return the union of classifications across all linked objs. Each entry carries its obj_id for provenance. */
                     includeSuperObjs?: boolean;
                 };
                 header?: never;
@@ -16894,68 +16810,22 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Partial match to the origin,
-                     *     associated with a catalog cross match,
-                     *     from which the color-mag data should be retrieved.
-                     *     Default is GAIA. Ignores case and underscores.
-                     */
-                    catalog?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the magnitude of the color-magnitude data.
-                     *     Will look for parallax data in addition to this magnitude
-                     *     in order to calculate the absolute magnitude of the object.
-                     *     Default is "Mag_G". Ignores case and underscores.
-                     */
-                    apparentMagKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the parallax of the source.
-                     *     Will look for magnitude data in addition to this parallax
-                     *     in order to calculate the absolute magnitude of the object.
-                     *     Default is "Plx". Ignores case and underscores.
-                     */
-                    parallaxKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the source absorption term.
-                     *     Will add this term to the absolute magnitude calculated
-                     *     from apparent magnitude and parallax.
-                     *     Default is "A_G". Ignores case and underscores.
-                     */
-                    absorptionKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the absolute magnitude of the color-magnitude data.
-                     *     If given, will override the "apparentMagKey", "parallaxKey"
-                     *     and "absorptionKey", and takes the magnitude directly from
-                     *     this key in the cross match dictionary.
-                     *     Default is None. Ignores case and underscores.
-                     */
-                    absoluteMagKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the source magnitude in the shorter wavelength.
-                     *     Will add this term to the red magnitude to get the color.
-                     *     Default is "Mag_Bp". Ignores case and underscores.
-                     */
-                    blueMagKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the source magnitude in the longer wavelength.
-                     *     Will add this term to the blue magnitude to get the color.
-                     *     Default is "Mag_Rp". Ignores case and underscores.
-                     */
-                    redMagKey?: string;
-                    /**
-                     * @description The key inside the cross-match which is associated
-                     *     with the color term of the color-magnitude data.
-                     *     If given, will override the "blueMagKey", and "redMagKey",
-                     *     taking the color directly from the associated dictionary value.
-                     *     Default is None. Ignores case and underscores.
-                     */
-                    colorKey?: string;
+                    /** @description Partial match to the origin, associated with a catalog cross match, from which the color-mag data should be retrieved. Default is GAIA. Ignores case and underscores. */
+                    catalog?: string | null;
+                    /** @description The key inside the cross-match which is associated with the magnitude of the color-magnitude data. Will look for parallax data in addition to this magnitude in order to calculate the absolute magnitude of the object. Default is "Mag_G". Ignores case and underscores. */
+                    apparentMagKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the parallax of the source. Will look for magnitude data in addition to this parallax in order to calculate the absolute magnitude of the object. Default is "Plx". Ignores case and underscores. */
+                    parallaxKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the source absorption term. Will add this term to the absolute magnitude calculated from apparent magnitude and parallax. Default is "A_G". Ignores case and underscores. */
+                    absorptionKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the absolute magnitude of the color-magnitude data. If given, will override the "apparentMagKey", "parallaxKey" and "absorptionKey", and takes the magnitude directly from this key in the cross match dictionary. Default is None. Ignores case and underscores. */
+                    absoluteMagKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the source magnitude in the shorter wavelength. Will add this term to the red magnitude to get the color. Default is "Mag_Bp". Ignores case and underscores. */
+                    blueMagKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the source magnitude in the longer wavelength. Will add this term to the blue magnitude to get the color. Default is "Mag_Rp". Ignores case and underscores. */
+                    redMagKey?: string | null;
+                    /** @description The key inside the cross-match which is associated with the color term of the color-magnitude data. If given, will override the "blueMagKey", and "redMagKey", taking the color directly from the associated dictionary value. Default is None. Ignores case and underscores. */
+                    colorKey?: string | null;
                 };
                 header?: never;
                 path: {
@@ -17167,7 +17037,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Search radius, in arcsec, around the object. Defaults to 2.0. */
+                    radius?: number;
+                };
                 header?: never;
                 path: {
                     obj_id: string;
@@ -17215,7 +17088,18 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Only use photometry from these instrument IDs. */
+                    instrument_ids?: number[] | null;
+                    /** @description Only use photometry from these stream IDs. */
+                    stream_ids?: number[] | null;
+                    /** @description If true, only use photometry that belongs to at least one stream. Ignored when `stream_ids` is given. */
+                    stream_only?: boolean;
+                    /** @description Only use photometry with a signal-to-noise ratio above this threshold. Defaults to 3.0. */
+                    snr_threshold?: number;
+                    /** @description Weighting method used to combine the photometry positions. Defaults to snr2. */
+                    method?: "snr2" | "invvar";
+                };
                 header?: never;
                 path: {
                     obj_id: string;
@@ -17272,9 +17156,9 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Maximum airmass to consider. Defaults to 2.5. */
-                    maximumAirmass?: number;
+                    maxAirmass?: number;
                     /** @description Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees). */
-                    twilight?: string;
+                    twilight?: "astronomical" | "nautical" | "civil";
                 };
                 header?: never;
                 path: {
@@ -18022,27 +17906,55 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
+                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
+                    numPerPage?: number;
                     /** @description TNS name for the source */
-                    TNSname?: string;
-                    /**
-                     * @description Boolean indicating whether to include associated photometry. Defaults to
-                     *     false.
-                     */
+                    TNSname?: string | null;
+                    /** @description RA for spatial filtering (in decimal degrees) */
+                    ra?: string | null;
+                    /** @description Declination for spatial filtering (in decimal degrees) */
+                    dec?: string | null;
+                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
+                    radius?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by PhotStat.first_detected_mjd >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by PhotStat.last_detected_mjd <= endDate */
+                    endDate?: string | null;
+                    /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
+                    listName?: string | null;
+                    /** @description Portion of ID or TNS name to filter on */
+                    sourceID?: string | null;
+                    /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
+                    rejectedSourceIDs?: string[] | null;
+                    /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
                     includePhotometry?: boolean;
-                    /**
-                     * @description Boolean indicating whether to deduplicate photometry. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to deduplicate photometry. Defaults to false. */
                     deduplicatePhotometry?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include comment metadata in response.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include the color-magnitude data from Gaia. This will only include data for objects that have an annotation with the appropriate format: an annotation that contains a dictionary with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx (underscores and case are ignored when matching all the above keys). The result is saved in a field named 'color_magnitude'. If no data is available, returns an empty array. Defaults to false (do not search for nor include this info). */
+                    includeColorMagnitude?: boolean;
+                    /** @description Boolean indicating whether to include requested saves. Defaults to false. */
+                    includeRequested?: boolean;
+                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to false. */
+                    includeThumbnails?: boolean;
+                    /** @description Boolean indicating whether to only include requested/pending saves. Defaults to false. */
+                    pendingOnly?: boolean;
+                    /** @description Only return sources that were saved after this UTC datetime. */
+                    savedAfter?: string | null;
+                    /** @description Only return sources that were saved before this UTC datetime. */
+                    savedBefore?: string | null;
+                    /** @description Only return sources that were saved by the requesting user. */
+                    savedByCurrentUser?: boolean;
+                    /** @description Boolean indicating whether to only return the source save information in the response (defaults to false). If true, the response will contain a list of dicts with the source save fields (group_id, saved_by_id, saved_at, requested, unsaved_at, obj_id, active, unsaved_by_id, created_at, modified) under `response['data']['sources']`. */
+                    saveSummary?: boolean;
+                    /** @description The field to sort by. Allowed options are ["id", "alias", "origin", "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"], "altdata.<field>" to sort on an altdata field, or "annotation.<origin>.<key>" to sort on an annotation value. */
+                    sortBy?: string | null;
+                    /** @description The sort order - either "asc" or "desc". Defaults to "desc" */
+                    sortOrder?: string;
+                    /** @description Boolean indicating whether to include comment metadata in response. Defaults to false. */
                     includeComments?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated analyses. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include associated analyses. Defaults to false. */
                     includeAnalyses?: boolean;
                     /** @description Boolean indicating whether to return if a source has any photometry points. Defaults to false. */
                     includePhotometryExists?: boolean;
@@ -18052,8 +17964,122 @@ export interface paths {
                     includeCommentExists?: boolean;
                     /** @description Boolean indicating whether to return if a source has a period set. Defaults to false. */
                     includePeriodExists?: boolean;
-                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to false. */
-                    includeThumbnails?: boolean;
+                    /** @description Boolean indicating whether to return list of users who have labelled this source. Defaults to false. */
+                    includeLabellers?: boolean;
+                    /** @description Boolean indicating whether to return source host galaxies. Defaults to false. */
+                    includeHosts?: boolean;
+                    /** @description Boolean indicating whether to return the GCN events this source is spatially and temporally coincident with. Defaults to false. */
+                    includeGCNCrossmatches?: boolean;
+                    /** @description Boolean indicating whether to return the notes attached to this source's GCN crossmatches. Defaults to false. */
+                    includeGCNNotes?: boolean;
+                    /** @description Boolean indicating whether to ignore forced photometry when applying the detection-based filters. Defaults to false. */
+                    excludeForcedPhotometry?: boolean;
+                    /** @description Require startDate, endDate, and numberDetections to be set when querying sources in a localization. Defaults to True. */
+                    requireDetections?: boolean;
+                    /** @description Boolean indicating whether to remove nested output. Defaults to false. */
+                    removeNested?: boolean;
+                    /** @description Boolean indicating whether to include photometry detection statistics for each source (last detection and peak detection). Defaults to false. */
+                    includeDetectionStats?: boolean;
+                    /** @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN" */
+                    classifications?: string | null;
+                    /** @description Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR). Defaults to false. */
+                    classifications_simul?: boolean;
+                    /** @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN" */
+                    nonclassifications?: string | null;
+                    /** @description Boolean indicating whether to return only sources with classifications. Defaults to false. */
+                    classified?: boolean;
+                    /** @description Boolean indicating whether to reject any sources with classifications. Defaults to false. */
+                    unclassified?: boolean;
+                    /** @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching that/those annotation(s), i.e. "redshift: 0.5: lt" */
+                    annotationsFilter?: string | null;
+                    /** @description Comma separated string of origins. Only annotations from these origins are used when filtering with the annotationsFilter. */
+                    annotationsFilterOrigin?: string | null;
+                    /** @description Only return sources that have annotations after this UTC datetime. */
+                    annotationsFilterAfter?: string | null;
+                    /** @description Only return sources that have annotations before this UTC datetime. */
+                    annotationsFilterBefore?: string | null;
+                    /** @description Comma-separated string of comment text to filter for sources matching. */
+                    commentsFilter?: string | null;
+                    /** @description ID of a comment author. Only comments from this author are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: number | null;
+                    /** @description Only return sources that have comments after this UTC datetime. */
+                    commentsFilterAfter?: string | null;
+                    /** @description Only return sources that have comments before this UTC datetime. */
+                    commentsFilterBefore?: string | null;
+                    /** @description If provided, return only sources with a redshift of at least this value */
+                    minRedshift?: number | null;
+                    /** @description If provided, return only sources with a redshift of at most this value */
+                    maxRedshift?: number | null;
+                    /** @description If provided, return only sources with a peak photometry magnitude of at least this value */
+                    minPeakMagnitude?: number | null;
+                    /** @description If provided, return only sources with a peak photometry magnitude of at most this value */
+                    maxPeakMagnitude?: number | null;
+                    /** @description If provided, return only sources whose latest photometry magnitude is at least this value */
+                    minLatestMagnitude?: number | null;
+                    /** @description If provided, return only sources whose latest photometry magnitude is at most this value */
+                    maxLatestMagnitude?: number | null;
+                    /** @description If true, return only those matches with at least one associated spectrum */
+                    hasSpectrum?: boolean;
+                    /** @description If true, return only those matches with no associated spectrum */
+                    hasNoSpectrum?: boolean;
+                    /** @description Only return sources with a spectrum saved after this UTC datetime */
+                    hasSpectrumAfter?: string | null;
+                    /** @description Only return sources with a spectrum saved before this UTC datetime */
+                    hasSpectrumBefore?: string | null;
+                    /** @description If true, return only those matches with at least one associated followup request */
+                    hasFollowupRequest?: boolean;
+                    /** @description If provided, string to match status of followup_request against */
+                    followupRequestStatus?: string | null;
+                    /** @description Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00). If provided, filter by created_at or modified > createdOrModifiedAfter */
+                    createdOrModifiedAfter?: string | null;
+                    /** @description If provided, return only sources who have at least numberDetections detections. */
+                    numberDetections?: number | null;
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
+                    /** @description Cumulative probability up to which to include sources */
+                    localizationCumprob?: number;
+                    /** @description Remove sources rejected in localization. Defaults to false. */
+                    localizationRejectSources?: boolean;
+                    /** @description Boolean indicating whether to include the sources already confirmed in the GCN event given by localizationDateobs. Defaults to false. */
+                    includeSourcesInGcn?: boolean;
+                    /** @description Name of spatial catalog to use. spatialCatalogEntryName must also be defined for use. */
+                    spatialCatalogName?: string | null;
+                    /** @description Name of spatial catalog entry to use. spatialCatalogName must also be defined for use. */
+                    spatialCatalogEntryName?: string | null;
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
+                    includeGeoJSON?: boolean;
+                    /** @description Boolean indicating whether to include the candidates associated with the source. Defaults to false. */
+                    includeCandidates?: boolean;
+                    /** @description Boolean indicating whether to include the source's tags. Defaults to true. */
+                    includeTags?: boolean;
+                    /** @description Boolean indicating whether to include associated objects (objects grouped under the same super-object). Defaults to true. */
+                    includeAssociatedObjs?: boolean;
+                    /** @description Boolean indicating whether to aggregate the data products (comments, annotations, classifications) of every object grouped under the same super-object. Defaults to false. */
+                    includeSuperObjs?: boolean;
+                    /** @description Boolean indicating whether to use cached results. Defaults to false. */
+                    useCache?: boolean;
+                    /** @description String to identify query. If provided, will be used to recover previous cached results and speed up query. Defaults to None. */
+                    queryID?: string | null;
+                    /** @description If provided, filter only sources saved to one of these group IDs. */
+                    group_ids?: number[] | null;
+                    /** @description Simbad class to filter on */
+                    simbadClass?: string | null;
+                    /** @description additional name for the same object */
+                    alias?: string | null;
+                    /** @description who posted/discovered this source */
+                    origin?: string | null;
+                    /** @description If true, return only those matches with TNS names */
+                    hasTNSname?: boolean;
+                    /** @description If true, return only those matches without TNS names */
+                    hasNoTNSname?: boolean;
+                    /** @description If true, return only those objects which have been labelled */
+                    hasBeenLabelled?: boolean;
+                    /** @description If true, return only those objects which have not been labelled */
+                    hasNotBeenLabelled?: boolean;
+                    /** @description If true and one of hasBeenLabelled or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users. */
+                    currentUserLabeller?: boolean;
                 };
                 header?: never;
                 path: {
@@ -18200,246 +18226,180 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description RA for spatial filtering (in decimal degrees) */
-                    ra?: number;
-                    /** @description Declination for spatial filtering (in decimal degrees) */
-                    dec?: number;
-                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
-                    radius?: number;
-                    /** @description Portion of ID or TNS name to filter on */
-                    sourceID?: string;
-                    /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
-                    rejectedSourceIDs?: Record<string, never>;
-                    /** @description Simbad class to filter on */
-                    simbadClass?: string;
-                    /** @description additional name for the same object */
-                    alias?: unknown[];
-                    /** @description who posted/discovered this source */
-                    origin?: string;
-                    /** @description If true, return only those matches with TNS names */
-                    hasTNSname?: boolean;
-                    /** @description If true, return only those objects which have been labelled */
-                    hasBeenLabelled?: boolean;
-                    /** @description If true, return only those objects which have not been labelled */
-                    hasNotBeenLabelled?: boolean;
-                    /** @description If true and one of hasBeenLabeller or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users. */
-                    currentUserLabeller?: boolean;
-                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
-                    numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     PhotStat.first_detected_mjd >= startDate
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                     *     PhotStat.last_detected_mjd <= endDate
-                     */
-                    endDate?: string;
-                    /** @description Require startDate, endDate, and numberDetections to be set when querying sources in a localization. Defaults to True. */
-                    requireDetections?: boolean;
+                    /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
+                    numPerPage?: number;
+                    /** @description TNS name for the source */
+                    TNSname?: string | null;
+                    /** @description RA for spatial filtering (in decimal degrees) */
+                    ra?: string | null;
+                    /** @description Declination for spatial filtering (in decimal degrees) */
+                    dec?: string | null;
+                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
+                    radius?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by PhotStat.first_detected_mjd >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by PhotStat.last_detected_mjd <= endDate */
+                    endDate?: string | null;
                     /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
-                    listName?: string;
-                    /** @description If provided, filter only sources saved to one of these group IDs. */
-                    group_ids?: Record<string, never>;
-                    /**
-                     * @description Boolean indicating whether to include the color-magnitude data from Gaia.
-                     *     This will only include data for objects that have an annotation
-                     *     with the appropriate format: an annotation that contains a dictionary
-                     *     with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
-                     *     (underscores and case are ignored when matching all the above keys).
-                     *     The result is saved in a field named 'color_magnitude'.
-                     *     If no data is available, returns an empty array.
-                     *     Defaults to false (do not search for nor include this info).
-                     */
+                    listName?: string | null;
+                    /** @description Portion of ID or TNS name to filter on */
+                    sourceID?: string | null;
+                    /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
+                    rejectedSourceIDs?: string[] | null;
+                    /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
+                    includePhotometry?: boolean;
+                    /** @description Boolean indicating whether to deduplicate photometry. Defaults to false. */
+                    deduplicatePhotometry?: boolean;
+                    /** @description Boolean indicating whether to include the color-magnitude data from Gaia. This will only include data for objects that have an annotation with the appropriate format: an annotation that contains a dictionary with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx (underscores and case are ignored when matching all the above keys). The result is saved in a field named 'color_magnitude'. If no data is available, returns an empty array. Defaults to false (do not search for nor include this info). */
                     includeColorMagnitude?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include requested saves. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include requested saves. Defaults to false. */
                     includeRequested?: boolean;
-                    /**
-                     * @description Boolean indicating whether to only include requested/pending saves.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to false. */
+                    includeThumbnails?: boolean;
+                    /** @description Boolean indicating whether to only include requested/pending saves. Defaults to false. */
                     pendingOnly?: boolean;
-                    /** @description Only return sources that were saved before this UTC datetime. */
-                    savedBefore?: string;
                     /** @description Only return sources that were saved after this UTC datetime. */
-                    savedAfter?: string;
+                    savedAfter?: string | null;
+                    /** @description Only return sources that were saved before this UTC datetime. */
+                    savedBefore?: string | null;
                     /** @description Only return sources that were saved by the requesting user. */
                     savedByCurrentUser?: boolean;
-                    /** @description Only return sources with a spectrum saved after this UTC datetime */
-                    hasSpectrumAfter?: string;
-                    /**
-                     * @description Only return sources with a spectrum saved before this UTC
-                     *     datetime
-                     */
-                    hasSpectrumBefore?: string;
-                    /**
-                     * @description Boolean indicating whether to only return the source save
-                     *     information in the response (defaults to false). If true,
-                     *     the response will contain a list of dicts with the following
-                     *     schema under `response['data']['sources']`:
-                     *     ```
-                     *         {
-                     *           "group_id": 2,
-                     *           "created_at": "2020-11-13T22:11:25.910271",
-                     *           "saved_by_id": 1,
-                     *           "saved_at": "2020-11-13T22:11:25.910271",
-                     *           "requested": false,
-                     *           "unsaved_at": null,
-                     *           "modified": "2020-11-13T22:11:25.910271",
-                     *           "obj_id": "16fil",
-                     *           "active": true,
-                     *           "unsaved_by_id": null
-                     *         }
-                     *     ```
-                     */
+                    /** @description Boolean indicating whether to only return the source save information in the response (defaults to false). If true, the response will contain a list of dicts with the source save fields (group_id, saved_by_id, saved_at, requested, unsaved_at, obj_id, active, unsaved_by_id, created_at, modified) under `response['data']['sources']`. */
                     saveSummary?: boolean;
-                    /**
-                     * @description The field to sort by. Allowed options are ["id", "alias", "origin",
-                     *     "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
-                     *     "altdata.<field>" to sort on an altdata field, or
-                     *     "annotation.<origin>.<key>" to sort on an annotation value.
-                     */
-                    sortBy?: string;
-                    /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
+                    /** @description The field to sort by. Allowed options are ["id", "alias", "origin", "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"], "altdata.<field>" to sort on an altdata field, or "annotation.<origin>.<key>" to sort on an annotation value. */
+                    sortBy?: string | null;
+                    /** @description The sort order - either "asc" or "desc". Defaults to "desc" */
                     sortOrder?: string;
-                    /**
-                     * @description Boolean indicating whether to include comment metadata in response.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include comment metadata in response. Defaults to false. */
                     includeComments?: boolean;
+                    /** @description Boolean indicating whether to include associated analyses. Defaults to false. */
+                    includeAnalyses?: boolean;
                     /** @description Boolean indicating whether to return if a source has any photometry points. Defaults to false. */
                     includePhotometryExists?: boolean;
                     /** @description Boolean indicating whether to return if a source has a spectra. Defaults to false. */
                     includeSpectrumExists?: boolean;
+                    /** @description Boolean indicating whether to return if a source has a comment. Defaults to false. */
+                    includeCommentExists?: boolean;
+                    /** @description Boolean indicating whether to return if a source has a period set. Defaults to false. */
+                    includePeriodExists?: boolean;
                     /** @description Boolean indicating whether to return list of users who have labelled this source. Defaults to false. */
                     includeLabellers?: boolean;
                     /** @description Boolean indicating whether to return source host galaxies. Defaults to false. */
                     includeHosts?: boolean;
-                    /** @description Boolean indicating whether to return if a source has a comment. Defaults to false. */
-                    includeCommentExists?: boolean;
+                    /** @description Boolean indicating whether to return the GCN events this source is spatially and temporally coincident with. Defaults to false. */
+                    includeGCNCrossmatches?: boolean;
+                    /** @description Boolean indicating whether to return the notes attached to this source's GCN crossmatches. Defaults to false. */
+                    includeGCNNotes?: boolean;
+                    /** @description Boolean indicating whether to ignore forced photometry when applying the detection-based filters. Defaults to false. */
+                    excludeForcedPhotometry?: boolean;
+                    /** @description Require startDate, endDate, and numberDetections to be set when querying sources in a localization. Defaults to True. */
+                    requireDetections?: boolean;
                     /** @description Boolean indicating whether to remove nested output. Defaults to false. */
                     removeNested?: boolean;
-                    /** @description Boolean indicating whether to include associated thumbnails. Defaults to false. */
-                    includeThumbnails?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include photometry detection statistics for each source
-                     *     (last detection and peak detection). Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to include photometry detection statistics for each source (last detection and peak detection). Defaults to false. */
                     includeDetectionStats?: boolean;
-                    /**
-                     * @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
-                     *     that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
-                     */
-                    classifications?: string[];
-                    /**
-                     * @description Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR).
-                     *     Defaults to false.
-                     */
+                    /** @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN" */
+                    classifications?: string | null;
+                    /** @description Boolean indicating whether object must satisfy all classifications if query (i.e. an AND rather than an OR). Defaults to false. */
                     classifications_simul?: boolean;
-                    /**
-                     * @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
-                     *     that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
-                     */
-                    nonclassifications?: string[];
-                    /**
-                     * @description Boolean indicating whether to return only sources with classifications.
-                     *     Defaults to false.
-                     */
+                    /** @description Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN" */
+                    nonclassifications?: string | null;
+                    /** @description Boolean indicating whether to return only sources with classifications. Defaults to false. */
                     classified?: boolean;
-                    /**
-                     * @description Boolean indicating whether to reject any sources with classifications.
-                     *     Defaults to false.
-                     */
+                    /** @description Boolean indicating whether to reject any sources with classifications. Defaults to false. */
                     unclassified?: boolean;
-                    /**
-                     * @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
-                     *     that/those annotation(s), i.e. "redshift: 0.5: lt"
-                     */
-                    annotationsFilter?: string[];
+                    /** @description Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching that/those annotation(s), i.e. "redshift: 0.5: lt" */
+                    annotationsFilter?: string | null;
                     /** @description Comma separated string of origins. Only annotations from these origins are used when filtering with the annotationsFilter. */
-                    annotationsFilterOrigin?: string;
-                    /** @description Only return sources that have annotations before this UTC datetime. */
-                    annotationsFilterBefore?: string;
+                    annotationsFilterOrigin?: string | null;
                     /** @description Only return sources that have annotations after this UTC datetime. */
-                    annotationsFilterAfter?: string;
+                    annotationsFilterAfter?: string | null;
+                    /** @description Only return sources that have annotations before this UTC datetime. */
+                    annotationsFilterBefore?: string | null;
                     /** @description Comma-separated string of comment text to filter for sources matching. */
-                    commentsFilter?: string[];
-                    /** @description Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter. */
-                    commentsFilterAuthor?: string;
-                    /** @description Only return sources that have comments before this UTC datetime. */
-                    commentsFilterBefore?: string;
+                    commentsFilter?: string | null;
+                    /** @description ID of a comment author. Only comments from this author are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: number | null;
                     /** @description Only return sources that have comments after this UTC datetime. */
-                    commentsFilterAfter?: string;
+                    commentsFilterAfter?: string | null;
+                    /** @description Only return sources that have comments before this UTC datetime. */
+                    commentsFilterBefore?: string | null;
                     /** @description If provided, return only sources with a redshift of at least this value */
-                    minRedshift?: number;
+                    minRedshift?: number | null;
                     /** @description If provided, return only sources with a redshift of at most this value */
-                    maxRedshift?: number;
+                    maxRedshift?: number | null;
                     /** @description If provided, return only sources with a peak photometry magnitude of at least this value */
-                    minPeakMagnitude?: number;
+                    minPeakMagnitude?: number | null;
                     /** @description If provided, return only sources with a peak photometry magnitude of at most this value */
-                    maxPeakMagnitude?: number;
+                    maxPeakMagnitude?: number | null;
                     /** @description If provided, return only sources whose latest photometry magnitude is at least this value */
-                    minLatestMagnitude?: number;
+                    minLatestMagnitude?: number | null;
                     /** @description If provided, return only sources whose latest photometry magnitude is at most this value */
-                    maxLatestMagnitude?: number;
-                    /** @description If provided, return only sources who have at least numberDetections detections. */
-                    numberDetections?: number;
+                    maxLatestMagnitude?: number | null;
                     /** @description If true, return only those matches with at least one associated spectrum */
                     hasSpectrum?: boolean;
+                    /** @description If true, return only those matches with no associated spectrum */
+                    hasNoSpectrum?: boolean;
+                    /** @description Only return sources with a spectrum saved after this UTC datetime */
+                    hasSpectrumAfter?: string | null;
+                    /** @description Only return sources with a spectrum saved before this UTC datetime */
+                    hasSpectrumBefore?: string | null;
                     /** @description If true, return only those matches with at least one associated followup request */
                     hasFollowupRequest?: boolean;
                     /** @description If provided, string to match status of followup_request against */
-                    followupRequestStatus?: string;
-                    /**
-                     * @description Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
-                     *     If provided, filter by created_at or modified > createdOrModifiedAfter
-                     */
-                    createdOrModifiedAfter?: string;
-                    /**
-                     * @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
+                    followupRequestStatus?: string | null;
+                    /** @description Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00). If provided, filter by created_at or modified > createdOrModifiedAfter */
+                    createdOrModifiedAfter?: string | null;
+                    /** @description If provided, return only sources who have at least numberDetections detections. */
+                    numberDetections?: number | null;
+                    /** @description Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each localization is associated with a specific GCNEvent by the date the event happened, and this date is used as a unique identifier. It can be therefore found as Localization.dateobs, queried from the /api/localization endpoint or dateobs in the GcnEvent page table. */
+                    localizationDateobs?: string | null;
+                    /** @description Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endpoint or skymap name in GcnEvent page table. */
+                    localizationName?: string | null;
                     /** @description Cumulative probability up to which to include sources */
                     localizationCumprob?: number;
                     /** @description Remove sources rejected in localization. Defaults to false. */
-                    localizationRejectSources?: Record<string, never>;
+                    localizationRejectSources?: boolean;
+                    /** @description Boolean indicating whether to include the sources already confirmed in the GCN event given by localizationDateobs. Defaults to false. */
+                    includeSourcesInGcn?: boolean;
                     /** @description Name of spatial catalog to use. spatialCatalogEntryName must also be defined for use. */
-                    spatialCatalogName?: string;
+                    spatialCatalogName?: string | null;
                     /** @description Name of spatial catalog entry to use. spatialCatalogName must also be defined for use. */
-                    spatialCatalogEntryName?: string;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
+                    spatialCatalogEntryName?: string | null;
+                    /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
                     includeGeoJSON?: boolean;
-                    /**
-                     * @description Boolean indicating whether to use cached results. Defaults to
-                     *     false.
-                     */
+                    /** @description Boolean indicating whether to include the candidates associated with the source. Defaults to false. */
+                    includeCandidates?: boolean;
+                    /** @description Boolean indicating whether to include the source's tags. Defaults to true. */
+                    includeTags?: boolean;
+                    /** @description Boolean indicating whether to include associated objects (objects grouped under the same super-object). Defaults to true. */
+                    includeAssociatedObjs?: boolean;
+                    /** @description Boolean indicating whether to aggregate the data products (comments, annotations, classifications) of every object grouped under the same super-object. Defaults to false. */
+                    includeSuperObjs?: boolean;
+                    /** @description Boolean indicating whether to use cached results. Defaults to false. */
                     useCache?: boolean;
-                    /**
-                     * @description String to identify query. If provided, will be used to recover previous cached results
-                     *     and speed up query. Defaults to None.
-                     */
-                    queryID?: string;
+                    /** @description String to identify query. If provided, will be used to recover previous cached results and speed up query. Defaults to None. */
+                    queryID?: string | null;
+                    /** @description If provided, filter only sources saved to one of these group IDs. */
+                    group_ids?: number[] | null;
+                    /** @description Simbad class to filter on */
+                    simbadClass?: string | null;
+                    /** @description additional name for the same object */
+                    alias?: string | null;
+                    /** @description who posted/discovered this source */
+                    origin?: string | null;
+                    /** @description If true, return only those matches with TNS names */
+                    hasTNSname?: boolean;
+                    /** @description If true, return only those matches without TNS names */
+                    hasNoTNSname?: boolean;
+                    /** @description If true, return only those objects which have been labelled */
+                    hasBeenLabelled?: boolean;
+                    /** @description If true, return only those objects which have not been labelled */
+                    hasNotBeenLabelled?: boolean;
+                    /** @description If true and one of hasBeenLabelled or hasNotBeenLabelled is true, return only those objects which have been labelled/not labelled by the current user. Otherwise, return results for all users. */
+                    currentUserLabeller?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -18532,7 +18492,14 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description RA for spatial filtering (in decimal degrees) */
+                    ra?: number | null;
+                    /** @description Declination for spatial filtering (in decimal degrees) */
+                    dec?: number | null;
+                    /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
+                    radius?: number | null;
+                };
                 header?: never;
                 path: {
                     obj_id: string;
@@ -18579,11 +18546,11 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description RA for spatial filtering (in decimal degrees) */
-                    ra?: number;
+                    ra?: number | null;
                     /** @description Declination for spatial filtering (in decimal degrees) */
-                    dec?: number;
+                    dec?: number | null;
                     /** @description Radius for spatial filtering if ra & dec are provided (in decimal degrees) */
-                    radius?: number;
+                    radius?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -18824,7 +18791,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Name of the catalog being looked up, reported back in the not-found error message. */
+                    catalog_name?: string | null;
+                };
                 header?: never;
                 path: {
                     catalog_id: number;
@@ -18906,7 +18876,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Name of the catalog being looked up, reported back in the not-found error message. */
+                    catalog_name?: string | null;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -19059,13 +19032,42 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in the response. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     * @default false
-                     */
+                    /** @description If true, include the raw uploaded spectrum file (original_file_string) in each spectrum. Defaults to false; when omitted, that field is neither loaded nor returned. Ignored when minimalPayload is true (which never includes it). */
                     includeOriginalFile?: boolean;
+                    /** @description If true, return only the minimal metadata about each spectrum, instead of returning the potentially large payload that includes wavelength/flux and also comments and annotations. The metadata that is always included is: id, obj_id, owner_id, origin, type, label, observed_at, created_at, modified, instrument_id, instrument_name, original_file_name, followup_request_id, assignment_id, and altdata. */
+                    minimalPayload?: boolean;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified before this time. */
+                    modifiedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified after this time. */
+                    modifiedAfter?: string | null;
+                    /** @description Return any spectra on an object with ID that has a (partial) match to this argument (i.e., the given argument is "in" the object's ID). */
+                    objID?: string | null;
+                    /** @description Comma-separated list of integer instrument IDs. If provided, filter only spectra observed with one of these instrument IDs. */
+                    instrumentIDs?: string | null;
+                    /** @description Comma-separated list of integer group IDs. If provided, filter only spectra saved to one of these group IDs. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated list of integer followup request IDs. If provided, filter only spectra associate with these followup request IDs. */
+                    followupRequestIDs?: string | null;
+                    /** @description Comma-separated list of integer assignment IDs. If provided, filter only spectra associate with these assignment request IDs. */
+                    assignmentIDs?: string | null;
+                    /** @description Return any spectra that have an origin with a (partial) match to any of the values in this comma separated list. */
+                    origin?: string | null;
+                    /** @description Return any spectra that have a label with a (partial) match to any of the values in this comma separated list. */
+                    label?: string | null;
+                    /** @description Return spectra of the given type or types (match multiple values using a comma separated list). Types of spectra are defined in the config, e.g., source, host or host_center. */
+                    type?: string | null;
+                    /** @description Comma-separated string of comment text to filter for spectra matching. */
+                    commentsFilter?: string | null;
+                    /** @description Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments before this time. */
+                    commentsFilterBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments after this time. */
+                    commentsFilterAfter?: string | null;
                 };
                 header?: never;
                 path: {
@@ -19187,101 +19189,42 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true, return only the minimal metadata
-                     *     about each spectrum, instead of returning
-                     *     the potentially large payload that includes
-                     *     wavelength/flux and also comments and annotations.
-                     *     The metadata that is always included is:
-                     *     id, obj_id, owner_id, origin, type, label,
-                     *     observed_at, created_at, modified,
-                     *     instrument_id, instrument_name, original_file_name,
-                     *     followup_request_id, assignment_id, and altdata.
-                     * @default false
-                     */
-                    minimalPayload?: boolean;
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in each spectrum. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     *     Ignored when minimalPayload is true (which never includes it).
-                     * @default false
-                     */
+                    /** @description If true, include the raw uploaded spectrum file (original_file_string) in each spectrum. Defaults to false; when omitted, that field is neither loaded nor returned. Ignored when minimalPayload is true (which never includes it). */
                     includeOriginalFile?: boolean;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed before this time.
-                     */
-                    observedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed after this time.
-                     */
-                    observedAfter?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra modified before this time.
-                     */
-                    modifiedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra modified after this time.
-                     */
-                    modifiedAfter?: string;
-                    /**
-                     * @description Return any spectra on an object with ID that has a (partial) match
-                     *     to this argument (i.e., the given argument is "in" the object's ID).
-                     */
-                    objID?: string;
-                    /** @description If provided, filter only spectra observed with one of these instrument IDs. */
-                    instrumentIDs?: string;
-                    /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: number[];
-                    /**
-                     * @description If provided, filter only spectra associate with these
-                     *     followup request IDs.
-                     */
-                    followupRequestIDs?: number[];
-                    /**
-                     * @description If provided, filter only spectra associate with these
-                     *     assignment request IDs.
-                     */
-                    assignmentIDs?: number[];
-                    /**
-                     * @description Return any spectra that have an origin with a (partial) match
-                     *     to any of the values in this comma separated list.
-                     */
-                    origin?: string;
-                    /**
-                     * @description Return any spectra that have an origin with a (partial) match
-                     *     to any of the values in this comma separated list.
-                     */
-                    label?: string;
-                    /**
-                     * @description Return spectra of the given type or types
-                     *     (match multiple values using a comma separated list).
-                     *     Types of spectra are defined in the config,
-                     *     e.g., source, host or host_center.
-                     */
-                    type?: string;
+                    /** @description If true, return only the minimal metadata about each spectrum, instead of returning the potentially large payload that includes wavelength/flux and also comments and annotations. The metadata that is always included is: id, obj_id, owner_id, origin, type, label, observed_at, created_at, modified, instrument_id, instrument_name, original_file_name, followup_request_id, assignment_id, and altdata. */
+                    minimalPayload?: boolean;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified before this time. */
+                    modifiedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified after this time. */
+                    modifiedAfter?: string | null;
+                    /** @description Return any spectra on an object with ID that has a (partial) match to this argument (i.e., the given argument is "in" the object's ID). */
+                    objID?: string | null;
+                    /** @description Comma-separated list of integer instrument IDs. If provided, filter only spectra observed with one of these instrument IDs. */
+                    instrumentIDs?: string | null;
+                    /** @description Comma-separated list of integer group IDs. If provided, filter only spectra saved to one of these group IDs. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated list of integer followup request IDs. If provided, filter only spectra associate with these followup request IDs. */
+                    followupRequestIDs?: string | null;
+                    /** @description Comma-separated list of integer assignment IDs. If provided, filter only spectra associate with these assignment request IDs. */
+                    assignmentIDs?: string | null;
+                    /** @description Return any spectra that have an origin with a (partial) match to any of the values in this comma separated list. */
+                    origin?: string | null;
+                    /** @description Return any spectra that have a label with a (partial) match to any of the values in this comma separated list. */
+                    label?: string | null;
+                    /** @description Return spectra of the given type or types (match multiple values using a comma separated list). Types of spectra are defined in the config, e.g., source, host or host_center. */
+                    type?: string | null;
                     /** @description Comma-separated string of comment text to filter for spectra matching. */
-                    commentsFilter?: string[];
-                    /**
-                     * @description Comma separated string of authors.
-                     *     Only comments from these authors are used
-                     *     when filtering with the commentsFilter.
-                     */
-                    commentsFilterAuthor?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     only return sources that have comments before this time.
-                     */
-                    commentsFilterBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     only return sources that have comments after this time.
-                     */
-                    commentsFilterAfter?: string;
+                    commentsFilter?: string | null;
+                    /** @description Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments before this time. */
+                    commentsFilterBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments after this time. */
+                    commentsFilterAfter?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -19528,21 +19471,12 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Instrument id numbers of spectrum.  If None, retrieve
-                     *     for all instruments.
-                     */
-                    instrument_ids?: Record<string, never>;
-                    /**
-                     * @description Minimum UTC date of range in ISOT format.  If None,
-                     *     open ended range.
-                     */
-                    min_date?: Record<string, never>;
-                    /**
-                     * @description Maximum UTC date of range in ISOT format. If None,
-                     *     open ended range.
-                     */
-                    max_date?: Record<string, never>;
+                    /** @description Instrument id numbers of spectrum. If None, retrieve for all instruments. */
+                    instrument_ids?: number[];
+                    /** @description Minimum UTC date of range in ISOT format. If None, open ended range. */
+                    min_date?: string | null;
+                    /** @description Maximum UTC date of range in ISOT format. If None, open ended range. */
+                    max_date?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -19596,13 +19530,42 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in the response. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     * @default false
-                     */
+                    /** @description If true, include the raw uploaded spectrum file (original_file_string) in each spectrum. Defaults to false; when omitted, that field is neither loaded nor returned. Ignored when minimalPayload is true (which never includes it). */
                     includeOriginalFile?: boolean;
+                    /** @description If true, return only the minimal metadata about each spectrum, instead of returning the potentially large payload that includes wavelength/flux and also comments and annotations. The metadata that is always included is: id, obj_id, owner_id, origin, type, label, observed_at, created_at, modified, instrument_id, instrument_name, original_file_name, followup_request_id, assignment_id, and altdata. */
+                    minimalPayload?: boolean;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified before this time. */
+                    modifiedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified after this time. */
+                    modifiedAfter?: string | null;
+                    /** @description Return any spectra on an object with ID that has a (partial) match to this argument (i.e., the given argument is "in" the object's ID). */
+                    objID?: string | null;
+                    /** @description Comma-separated list of integer instrument IDs. If provided, filter only spectra observed with one of these instrument IDs. */
+                    instrumentIDs?: string | null;
+                    /** @description Comma-separated list of integer group IDs. If provided, filter only spectra saved to one of these group IDs. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated list of integer followup request IDs. If provided, filter only spectra associate with these followup request IDs. */
+                    followupRequestIDs?: string | null;
+                    /** @description Comma-separated list of integer assignment IDs. If provided, filter only spectra associate with these assignment request IDs. */
+                    assignmentIDs?: string | null;
+                    /** @description Return any spectra that have an origin with a (partial) match to any of the values in this comma separated list. */
+                    origin?: string | null;
+                    /** @description Return any spectra that have a label with a (partial) match to any of the values in this comma separated list. */
+                    label?: string | null;
+                    /** @description Return spectra of the given type or types (match multiple values using a comma separated list). Types of spectra are defined in the config, e.g., source, host or host_center. */
+                    type?: string | null;
+                    /** @description Comma-separated string of comment text to filter for spectra matching. */
+                    commentsFilter?: string | null;
+                    /** @description Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments before this time. */
+                    commentsFilterBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments after this time. */
+                    commentsFilterAfter?: string | null;
                 };
                 header?: never;
                 path: {
@@ -19724,101 +19687,42 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description If true, return only the minimal metadata
-                     *     about each spectrum, instead of returning
-                     *     the potentially large payload that includes
-                     *     wavelength/flux and also comments and annotations.
-                     *     The metadata that is always included is:
-                     *     id, obj_id, owner_id, origin, type, label,
-                     *     observed_at, created_at, modified,
-                     *     instrument_id, instrument_name, original_file_name,
-                     *     followup_request_id, assignment_id, and altdata.
-                     * @default false
-                     */
-                    minimalPayload?: boolean;
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in each spectrum. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     *     Ignored when minimalPayload is true (which never includes it).
-                     * @default false
-                     */
+                    /** @description If true, include the raw uploaded spectrum file (original_file_string) in each spectrum. Defaults to false; when omitted, that field is neither loaded nor returned. Ignored when minimalPayload is true (which never includes it). */
                     includeOriginalFile?: boolean;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed before this time.
-                     */
-                    observedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra observed after this time.
-                     */
-                    observedAfter?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra modified before this time.
-                     */
-                    modifiedBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     return only spectra modified after this time.
-                     */
-                    modifiedAfter?: string;
-                    /**
-                     * @description Return any spectra on an object with ID that has a (partial) match
-                     *     to this argument (i.e., the given argument is "in" the object's ID).
-                     */
-                    objID?: string;
-                    /** @description If provided, filter only spectra observed with one of these instrument IDs. */
-                    instrumentIDs?: string;
-                    /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: number[];
-                    /**
-                     * @description If provided, filter only spectra associate with these
-                     *     followup request IDs.
-                     */
-                    followupRequestIDs?: number[];
-                    /**
-                     * @description If provided, filter only spectra associate with these
-                     *     assignment request IDs.
-                     */
-                    assignmentIDs?: number[];
-                    /**
-                     * @description Return any spectra that have an origin with a (partial) match
-                     *     to any of the values in this comma separated list.
-                     */
-                    origin?: string;
-                    /**
-                     * @description Return any spectra that have an origin with a (partial) match
-                     *     to any of the values in this comma separated list.
-                     */
-                    label?: string;
-                    /**
-                     * @description Return spectra of the given type or types
-                     *     (match multiple values using a comma separated list).
-                     *     Types of spectra are defined in the config,
-                     *     e.g., source, host or host_center.
-                     */
-                    type?: string;
+                    /** @description If true, return only the minimal metadata about each spectrum, instead of returning the potentially large payload that includes wavelength/flux and also comments and annotations. The metadata that is always included is: id, obj_id, owner_id, origin, type, label, observed_at, created_at, modified, instrument_id, instrument_name, original_file_name, followup_request_id, assignment_id, and altdata. */
+                    minimalPayload?: boolean;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed before this time. */
+                    observedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra observed after this time. */
+                    observedAfter?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified before this time. */
+                    modifiedBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, return only spectra modified after this time. */
+                    modifiedAfter?: string | null;
+                    /** @description Return any spectra on an object with ID that has a (partial) match to this argument (i.e., the given argument is "in" the object's ID). */
+                    objID?: string | null;
+                    /** @description Comma-separated list of integer instrument IDs. If provided, filter only spectra observed with one of these instrument IDs. */
+                    instrumentIDs?: string | null;
+                    /** @description Comma-separated list of integer group IDs. If provided, filter only spectra saved to one of these group IDs. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated list of integer followup request IDs. If provided, filter only spectra associate with these followup request IDs. */
+                    followupRequestIDs?: string | null;
+                    /** @description Comma-separated list of integer assignment IDs. If provided, filter only spectra associate with these assignment request IDs. */
+                    assignmentIDs?: string | null;
+                    /** @description Return any spectra that have an origin with a (partial) match to any of the values in this comma separated list. */
+                    origin?: string | null;
+                    /** @description Return any spectra that have a label with a (partial) match to any of the values in this comma separated list. */
+                    label?: string | null;
+                    /** @description Return spectra of the given type or types (match multiple values using a comma separated list). Types of spectra are defined in the config, e.g., source, host or host_center. */
+                    type?: string | null;
                     /** @description Comma-separated string of comment text to filter for spectra matching. */
-                    commentsFilter?: string[];
-                    /**
-                     * @description Comma separated string of authors.
-                     *     Only comments from these authors are used
-                     *     when filtering with the commentsFilter.
-                     */
-                    commentsFilterAuthor?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     only return sources that have comments before this time.
-                     */
-                    commentsFilterBefore?: string;
-                    /**
-                     * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                     *     only return sources that have comments after this time.
-                     */
-                    commentsFilterAfter?: string;
+                    commentsFilter?: string | null;
+                    /** @description Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter. */
+                    commentsFilterAuthor?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments before this time. */
+                    commentsFilterBefore?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, only return sources that have comments after this time. */
+                    commentsFilterAfter?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -20014,21 +19918,12 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Instrument id numbers of spectrum.  If None, retrieve
-                     *     for all instruments.
-                     */
-                    instrument_ids?: Record<string, never>;
-                    /**
-                     * @description Minimum UTC date of range in ISOT format.  If None,
-                     *     open ended range.
-                     */
-                    min_date?: Record<string, never>;
-                    /**
-                     * @description Maximum UTC date of range in ISOT format. If None,
-                     *     open ended range.
-                     */
-                    max_date?: Record<string, never>;
+                    /** @description Instrument id numbers of spectrum. If None, retrieve for all instruments. */
+                    instrument_ids?: number[];
+                    /** @description Minimum UTC date of range in ISOT format. If None, open ended range. */
+                    min_date?: string | null;
+                    /** @description Maximum UTC date of range in ISOT format. If None, open ended range. */
+                    max_date?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -20572,7 +20467,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description GcnEvent ID to retrieve observation efficiency analyses for */
+                    gcnevent_id?: number | null;
+                };
                 header?: never;
                 path: {
                     survey_efficiency_analysis_id: number;
@@ -20621,8 +20519,8 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description GcnEvent  ID to retrieve observation efficiency analyses for */
-                    gcnevent_id?: number;
+                    /** @description GcnEvent ID to retrieve observation efficiency analyses for */
+                    gcnevent_id?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -20669,7 +20567,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description EventObservationPlan ID to retrieve observation plan efficiency analyses for */
+                    observation_plan_id?: number | null;
+                };
                 header?: never;
                 path: {
                     survey_efficiency_analysis_id: number;
@@ -20719,7 +20620,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description EventObservationPlan ID to retrieve observation plan efficiency analyses for */
-                    observation_plan_id?: number;
+                    observation_plan_id?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -21298,7 +21199,18 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Filter by name (exact match) */
+                    name?: string | null;
+                    /** @description Filter by latitude >= latitudeMin */
+                    latitudeMin?: number | null;
+                    /** @description Filter by latitude <= latitudeMax */
+                    latitudeMax?: number | null;
+                    /** @description Filter by longitude >= longitudeMin */
+                    longitudeMin?: number | null;
+                    /** @description Filter by longitude <= longitudeMax */
+                    longitudeMax?: number | null;
+                };
                 header?: never;
                 path: {
                     telescope_id: number;
@@ -21416,15 +21328,15 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter by name (exact match) */
-                    name?: string;
+                    name?: string | null;
                     /** @description Filter by latitude >= latitudeMin */
-                    latitudeMin?: number;
+                    latitudeMin?: number | null;
                     /** @description Filter by latitude <= latitudeMax */
-                    latitudeMax?: number;
+                    latitudeMax?: number | null;
                     /** @description Filter by longitude >= longitudeMin */
-                    longitudeMin?: number;
+                    longitudeMin?: number | null;
                     /** @description Filter by longitude <= longitudeMax */
-                    longitudeMax?: number;
+                    longitudeMax?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -21661,28 +21573,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description types of thumbnails to check
-                     *     The default is ['new', 'ref', 'sub'] which
-                     *     are all the thumbnail types stored locally.
-                     * @default [
-                     *       "new",
-                     *       "ref",
-                     *       "sub"
-                     *     ]
-                     */
+                    /** @description types of thumbnails to check. The default is ['new', 'ref', 'sub'] which are all the thumbnail types stored locally. */
                     types?: string[];
-                    /**
-                     * @description number of subdirectories that are desired for
-                     *     thumbnails. For example if requiredDepth is 2,
-                     *       then thumbnails will be stored in a folder like
-                     *       /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                     *       where "ab" and "cd" are the first characters of the
-                     *       hash of the source name.
-                     *       If requiredDepth is 0, then thumbnails are expected
-                     *       to be all in one folder under /skyportal/static/thumbnails.
-                     * @default 2
-                     */
+                    /** @description number of subdirectories that are desired for thumbnails. For example if requiredDepth is 2, then thumbnails will be stored in a folder like /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png where 'ab' and 'cd' are the first characters of the hash of the source name. If requiredDepth is 0, then thumbnails are expected to be all in one folder under /skyportal/static/thumbnails. */
                     requiredDepth?: number;
                 };
                 header?: never;
@@ -21744,33 +21637,14 @@ export interface paths {
         patch: {
             parameters: {
                 query?: {
-                    /**
-                     * @description types of thumbnails to check
-                     *     The default is ['new', 'ref', 'sub'] which
-                     *     are all the thumbnail types stored locally.
-                     * @default [
-                     *       "new",
-                     *       "ref",
-                     *       "sub"
-                     *     ]
-                     */
+                    /** @description types of thumbnails to check. The default is ['new', 'ref', 'sub'] which are all the thumbnail types stored locally. */
                     types?: string[];
-                    /**
-                     * @description number of subdirectories that are desired for
-                     *     thumbnails. For example if requiredDepth is 2,
-                     *       then thumbnails will be stored in a folder like
-                     *       /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                     *       where "ab" and "cd" are the first characters of the
-                     *       hash of the source name.
-                     *       If requiredDepth is 0, then thumbnails are expected
-                     *       to be all in one folder under /skyportal/static/thumbnails.
-                     * @default 2
-                     */
+                    /** @description number of subdirectories that are desired for thumbnails. For example if requiredDepth is 2, then thumbnails will be stored in a folder like /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png where 'ab' and 'cd' are the first characters of the hash of the source name. If requiredDepth is 0, then thumbnails are expected to be all in one folder under /skyportal/static/thumbnails. */
                     requiredDepth?: number;
-                    /** @description Number of sources to check for updates. Defaults to 100. Max 500. */
-                    numPerPage?: number;
-                    /** @description Page number for iterating through all sources. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
+                    /** @description Number of thumbnails to update per paginated request. Defaults to 100. Capped at 1000. */
+                    numPerPage?: number;
                 };
                 header?: never;
                 path?: never;
@@ -21810,8 +21684,18 @@ export interface paths {
         get: {
             parameters: {
                 query: {
-                    /** @description The ID of the external sharing service to which the submission belongs */
+                    /** @description The ID of the external sharing service to which the submissions belong */
                     sharing_service_id: number;
+                    /** @description The page number to retrieve, starting at 1 */
+                    pageNumber?: number;
+                    /** @description The number of results per page, defaults to 100 */
+                    numPerPage?: number;
+                    /** @description Whether to include the payload in the response */
+                    include_payload?: boolean;
+                    /** @description Whether to include the response in the response */
+                    include_response?: boolean;
+                    /** @description The object ID of the submission */
+                    objectID?: string | null;
                 };
                 header?: never;
                 path: {
@@ -21861,7 +21745,9 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: {
+                query: {
+                    /** @description The ID of the external sharing service to which the submissions belong */
+                    sharing_service_id: number;
                     /** @description The page number to retrieve, starting at 1 */
                     pageNumber?: number;
                     /** @description The number of results per page, defaults to 100 */
@@ -21871,7 +21757,7 @@ export interface paths {
                     /** @description Whether to include the response in the response */
                     include_response?: boolean;
                     /** @description The object ID of the submission */
-                    objectID?: string;
+                    objectID?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -22472,33 +22358,26 @@ export interface paths {
         get: {
             parameters: {
                 query: {
-                    /**
-                     * @description What is the type of the search? From gaia or by position? If `pos`
-                     *     then `ra` and `dec` should be given. If otherwise, the catalog
-                     *     is queried for id `catalog_id` and the position information is
-                     *     pulled from there.
-                     */
-                    location_type: "gaia_dr3" | "gaia_dr2" | "pos";
+                    /** @description What is the type of the search? From gaia or by position? One of gaia_dr3, gaia_dr2, or pos. If `pos` then `ra` and `dec` should be given. If otherwise, the catalog is queried for id `catalog_id` and the position information is pulled from there. */
+                    location_type: string;
+                    /** @description ID of the object in the Gaia catalog (if `location_type` is not `pos`). */
                     catalog_id?: string;
-                    ra?: number;
-                    dec?: number;
+                    /** @description RA of the source of interest at the time of observation of interest (ie. the user is responsible for proper motion calulations). Required if `location_type` is `pos`. */
+                    ra?: number | null;
+                    /** @description DEC of the source of interest at the time of observation of interest (ie. the user is responsible for proper motion calulations). Required if `location_type` is `pos`. */
+                    dec?: number | null;
                     /** @description Image size in arcmin (square). Defaults to 4.0 */
                     imsize?: number;
-                    facility?: "Keck" | "Shane" | "P200" | "P200-NGPS";
+                    /** @description What type of starlist should be used? One of Keck, Shane, P200, or P200-NGPS. Defaults to Keck */
+                    facility?: string;
                     /** @description Source of the image used in the finding chart. Defaults to ps1 */
-                    image_source?: "ps1" | "desi" | "dss" | "ztfref";
-                    /**
-                     * @description Use ZTFref catalog for offset star positions, otherwise DR3.
-                     *     Defaults to True.
-                     */
+                    image_source?: string;
+                    /** @description Use ZTFref catalog for offset star positions, otherwise DR3. Defaults to True. */
                     use_ztfref?: boolean;
-                    /**
-                     * @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10).
-                     *     Defaults to now.
-                     */
-                    obstime?: string;
-                    /** @description Output datafile type. Defaults to pdf. */
-                    type?: "png" | "pdf";
+                    /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
+                    obstime?: string | null;
+                    /** @description Output datafile type. One of png or pdf. Defaults to pdf. */
+                    type?: string;
                     /** @description Number of offset stars to determine and show [0,4] (default: 3) */
                     num_offset_stars?: number;
                 };
@@ -22719,7 +22598,34 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Number of users to return per paginated request. Defaults to all users. */
+                    numPerPage?: number | null;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description Get users whose first name contains this string. */
+                    firstName?: string | null;
+                    /** @description Get users whose last name contains this string. */
+                    lastName?: string | null;
+                    /** @description Get users whose username contains this string. */
+                    username?: string | null;
+                    /** @description Get users whose email contains this string. */
+                    email?: string | null;
+                    /** @description Get users with the role. */
+                    role?: string | null;
+                    /** @description Get users with this ACL. */
+                    acl?: string | null;
+                    /** @description Get users part of the group with name given by this parameter. */
+                    group?: string | null;
+                    /** @description Get users with access to the stream with name given by this parameter. */
+                    stream?: string | null;
+                    /** @description Include users with expired accounts in the results. */
+                    includeExpired?: boolean;
+                    /** @description Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date). */
+                    sortBy?: "username" | "createdAt";
+                    /** @description Sort order - 'asc' for ascending (default) or 'desc' for descending. */
+                    sortOrder?: "asc" | "desc";
+                };
                 header?: never;
                 path: {
                     user_id: number;
@@ -22835,26 +22741,26 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Number of candidates to return per paginated request. Defaults to all users */
-                    numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Number of users to return per paginated request. Defaults to all users. */
+                    numPerPage?: number | null;
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Get users whose first name contains this string. */
-                    firstName?: string;
+                    firstName?: string | null;
                     /** @description Get users whose last name contains this string. */
-                    lastName?: string;
+                    lastName?: string | null;
                     /** @description Get users whose username contains this string. */
-                    username?: string;
+                    username?: string | null;
                     /** @description Get users whose email contains this string. */
-                    email?: string;
+                    email?: string | null;
                     /** @description Get users with the role. */
-                    role?: string;
+                    role?: string | null;
                     /** @description Get users with this ACL. */
-                    acl?: string;
+                    acl?: string | null;
                     /** @description Get users part of the group with name given by this parameter. */
-                    group?: string;
+                    group?: string | null;
                     /** @description Get users with access to the stream with name given by this parameter. */
-                    stream?: string;
+                    stream?: string | null;
                     /** @description Include users with expired accounts in the results. */
                     includeExpired?: boolean;
                     /** @description Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date). */
@@ -22967,7 +22873,8 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    telescope_id?: number;
+                    /** @description ID of the telescope to report weather for. If not given, the telescope saved in the user's preferences is used. */
+                    telescope_id?: number | null;
                 };
                 header?: never;
                 path?: never;
@@ -23422,6 +23329,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Display the public page for a source
+         * @description Display the public page for a given source and version
+         */
         get: {
             parameters: {
                 query?: never;
@@ -23435,7 +23346,24 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;
@@ -23548,6 +23476,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Get a public release
+         * @description Display the page with all sources and descriptions for a given public release
+         */
         get: {
             parameters: {
                 query?: never;
@@ -23559,7 +23491,24 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;

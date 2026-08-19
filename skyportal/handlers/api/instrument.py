@@ -12,6 +12,7 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
 from sqlalchemy.orm import (
     scoped_session,
@@ -55,6 +56,65 @@ cache = Cache(
 )
 
 Session = scoped_session(sessionmaker())
+
+
+class InstrumentGetQuery(BaseModel):
+    """Query parameters for retrieving one or all instruments."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    includeGeoJSON: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated GeoJSON. Defaults to false.",
+    )
+    includeGeoJSONSummary: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to false.",
+    )
+    includeRegion: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated DS9 region. Defaults to false.",
+    )
+    ignoreCache: bool = Field(
+        default=False,
+        description="Boolean indicating whether to ignore field caching. Defaults to false.",
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Include fields within a given localization. "
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Each localization is associated with a specific GCNEvent by "
+            "the date the event happened, and this date is used as a unique "
+            "identifier. It can be therefore found as Localization.dateobs, "
+            "queried from the /api/localization endpoint or dateobs in the "
+            "GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. "
+            "Can be found in Localization.localization_name queried from "
+            "/api/localization endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    airmassTime: str | None = Field(
+        default=None,
+        description=(
+            "Time to use for airmass calculation in "
+            "ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Defaults to localizationDateobs if not supplied."
+        ),
+    )
+    name: str | None = Field(
+        default=None,
+        description="Filter by name (exact match)",
+    )
 
 
 class InstrumentHandler(BaseHandler):
@@ -360,7 +420,9 @@ class InstrumentHandler(BaseHandler):
             return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    async def get(self, instrument_id: int | None = None):
+    async def get(
+        self, instrument_id: int | None = None, *, query: InstrumentGetQuery = None
+    ):
         """
         ---
         single:
@@ -368,75 +430,6 @@ class InstrumentHandler(BaseHandler):
           description: Retrieve an instrument
           tags:
             - instruments
-          parameters:
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: includeGeoJSONSummary
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                false.
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
-            - in: query
-              name: ignoreCache
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to ignore field caching. Defaults to
-                false.
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Include fields within a given localization.
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-            - in: query
-              name: airmassTime
-              schema:
-                type: string
-              description: |
-                Time to use for airmass calculation in
-                ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Defaults to localizationDateobs if not supplied.
           responses:
             200:
               content:
@@ -451,20 +444,6 @@ class InstrumentHandler(BaseHandler):
           description: Retrieve all instruments
           tags:
             - instruments
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
           responses:
             200:
               content:
@@ -475,16 +454,10 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
-        includeRegion = self.get_query_argument("includeRegion", False)
-        ignore_cache = self.get_query_argument("ignoreCache", False)
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument(
-            "localizationCumprob", 0.95, type=float
-        )
-        airmass_time = self.get_query_argument("airmassTime", None)
+        query = self.parse_query(InstrumentGetQuery)
+
+        localization_dateobs = query.localizationDateobs
+        airmass_time = query.airmassTime
 
         # Parse localization_dateobs into a naive datetime so psycopg3 can bind
         # the Localization.dateobs (DateTime) comparison correctly.
@@ -512,26 +485,26 @@ class InstrumentHandler(BaseHandler):
                     f"Invalid date format for airmass_time: '{airmass_time}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                 )
         options = []
-        if includeGeoJSON:
+        if query.includeGeoJSON:
             options = [
                 selectinload(Instrument.telescope),
                 selectinload(Instrument.fields).undefer(InstrumentField.contour),
             ]
-        elif includeGeoJSONSummary:
+        elif query.includeGeoJSONSummary:
             options = [
                 selectinload(Instrument.telescope),
                 selectinload(Instrument.fields).undefer(
                     InstrumentField.contour_summary
                 ),
             ]
-        if includeRegion:
+        if query.includeRegion:
             options.append(undefer(Instrument.region))
         # Instrument.status is a deferred column accessed in the single-GET
         # response; undefer so async access doesn't trip MissingGreenlet.
         # Same for Instrument.region (used inline by region_summary property).
         if instrument_id is not None:
             options.append(undefer(Instrument.status))
-            if not includeRegion:
+            if not query.includeRegion:
                 options.append(undefer(Instrument.region))
 
         async with self.AsyncSession() as session:
@@ -557,13 +530,15 @@ class InstrumentHandler(BaseHandler):
 
                 # optional: slice by GcnEvent localization
                 if localization_dateobs is not None:
-                    if localization_name is not None:
+                    if query.localizationName is not None:
                         localization = await session.scalar(
                             Localization.select(
                                 self.current_user,
                             )
                             .where(Localization.dateobs == localization_dateobs)
-                            .where(Localization.localization_name == localization_name)
+                            .where(
+                                Localization.localization_name == query.localizationName
+                            )
                         )
                         if localization is None:
                             return self.error("Localization not found", status=404)
@@ -621,11 +596,11 @@ class InstrumentHandler(BaseHandler):
                             sa.func.min(localizationtile_subquery.columns.probdensity)
                         ).filter(
                             localizationtile_subquery.columns.cum_prob
-                            <= localization_cumprob
+                            <= query.localizationCumprob
                         )
                     ).scalar_subquery()
 
-                    query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(localization_cumprob)}"
+                    query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(query.localizationCumprob)}"
 
                     # MATERIALIZED so Postgres drives the overlap from the small set
                     # of localization tiles (SPGiST index on healpix) instead of
@@ -648,14 +623,14 @@ class InstrumentHandler(BaseHandler):
                         ),
                     )
 
-                    if includeGeoJSON or includeGeoJSONSummary:
-                        if includeGeoJSON:
+                    if query.includeGeoJSON or query.includeGeoJSONSummary:
+                        if query.includeGeoJSON:
                             undefer_column = InstrumentField.contour
-                        elif includeGeoJSONSummary:
+                        elif query.includeGeoJSONSummary:
                             undefer_column = InstrumentField.contour_summary
 
                         cache_filename = cache[query_id]
-                        if cache_filename is not None and not ignore_cache:
+                        if cache_filename is not None and not query.ignoreCache:
                             field_ids = np.load(cache_filename).tolist()
                             tiles_result = await session.scalars(
                                 sa.select(InstrumentField)
@@ -679,7 +654,7 @@ class InstrumentHandler(BaseHandler):
                                 )
                     else:
                         cache_filename = cache[query_id]
-                        if cache_filename is not None and not ignore_cache:
+                        if cache_filename is not None and not query.ignoreCache:
                             field_ids = np.load(cache_filename).tolist()
                             tiles_result = await session.scalars(
                                 sa.select(InstrumentField).where(
@@ -721,15 +696,14 @@ class InstrumentHandler(BaseHandler):
 
                 return self.success(data=data)
 
-            inst_name = self.get_query_argument("name", None)
             # Always undefer region so the inline `region_summary` property
             # can read it without a per-instrument lazy load.
             stmt = Instrument.select(self.current_user).options(
                 selectinload(Instrument.telescope),
                 undefer(Instrument.region),
             )
-            if inst_name is not None:
-                stmt = stmt.filter(Instrument.name == inst_name)
+            if query.name is not None:
+                stmt = stmt.filter(Instrument.name == query.name)
             instruments_result = await session.scalars(stmt)
             instruments = instruments_result.unique().all()
 
