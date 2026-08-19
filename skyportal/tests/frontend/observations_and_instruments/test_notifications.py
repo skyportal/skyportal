@@ -19,6 +19,12 @@ def filter_for_value(page, value, last=False):
     page.locator(input_xpath).first.fill(value)
 
 
+def _profile_patch(page):
+    return page.expect_response(
+        lambda r: "api/internal/profile" in r.url and r.request.method == "PATCH"
+    )
+
+
 def _enable_switch(page, name, attempts=3):
     """Click a notification preference switch and wait until it's checked.
 
@@ -420,9 +426,11 @@ def test_notification_setting_select(page, user):
     page.locator('//*[@name="notification_settings_button_mention"]').first.click()
 
     def _enable_setting(name):
-        page.locator(
-            f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]'
-        ).first.click()
+        # wait for each save: the switch flips optimistically, before the PATCH lands
+        with _profile_patch(page):
+            page.locator(
+                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]'
+            ).first.click()
         expect(
             page.locator(
                 f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
@@ -432,7 +440,8 @@ def test_notification_setting_select(page, user):
     _enable_setting("email")
     _enable_setting("slack")
     # sms toggle reveals further sms options
-    page.locator('//*[@name="sms"]').first.click()
+    with _profile_patch(page):
+        page.locator('//*[@name="sms"]').first.click()
     expect(
         page.locator(
             '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
@@ -455,15 +464,14 @@ def test_notification_setting_select(page, user):
     ).first
     slider.focus()
     for _ in range(5):
-        slider.press("ArrowLeft")
+        with _profile_patch(page):
+            slider.press("ArrowLeft")
 
     expect(
         page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
     ).to_be_visible()
 
-    with page.expect_response(
-        lambda r: "api/internal/profile" in r.url and r.request.method == "PATCH"
-    ):
+    with _profile_patch(page):
         page.locator(
             '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
         ).first.click()

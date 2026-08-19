@@ -131,6 +131,7 @@ export const TAG_TYPES = [
   "Profile",
   "Source",
   "SourcePosition",
+  "SourceInterest",
   "Stream",
   "Telescopes",
   "Weather",

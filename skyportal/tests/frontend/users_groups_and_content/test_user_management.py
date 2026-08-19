@@ -8,18 +8,16 @@ def filter_for_user(page, username):
     page.locator("//*[@data-testid='users-quick-filter']//input").first.fill(username)
 
 
+# Controls are display:none until hover, and hovering reflows the auto-height row,
+# so a real click cannot land: dispatch the event instead.
 def delete_chip(page, chip_selector):
-    chip = page.locator(chip_selector).first
-    chip.hover()
-    chip.locator("css=.MuiChip-deleteIcon").first.click()
+    page.locator(
+        f"{chip_selector}//*[contains(@class, 'MuiChip-deleteIcon')]"
+    ).first.dispatch_event("click")
 
 
 def click_add_button(page, testid):
-    cell = page.locator(
-        f"//*[contains(@class, 'MuiDataGrid-cell')][.//*[@data-testid='{testid}']]"
-    ).first
-    cell.hover()
-    cell.locator(f"css=[data-testid='{testid}']").first.click()
+    page.locator(f"//*[@data-testid='{testid}']").first.dispatch_event("click")
 
 
 def test_delete_user_role(page, super_admin_user, user):
@@ -116,8 +114,6 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    # Playwright clicks SVG icons and auto-retries on the virtualized DataGrid,
-    # so a normal click replaces the old dispatchEvent workaround.
     delete_chip(
         page, f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
     )

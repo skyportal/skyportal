@@ -35,6 +35,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import {
@@ -178,6 +179,8 @@ const UserInvitations = () => {
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
+  // Invite links must name a backend; offer the first configured one.
+  const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_NUM_PER_PAGE);
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
@@ -362,7 +365,7 @@ const UserInvitations = () => {
   const handleCopyInvitationLink = (invitation: any) => {
     const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
     navigator.clipboard.writeText(
-      `${appBaseUrl}/login/google-oauth2/?invite_token=${invitation.token}`,
+      `${appBaseUrl}/login/${authBackends[0]?.name}/?invite_token=${invitation.token}`,
     );
     dispatch(
       showNotification(

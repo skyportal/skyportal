@@ -46,13 +46,6 @@ class PhotometryValidationHandler(BaseHandler):
         description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
-            description: Photometry ID
         requestBody:
           content:
             application/json:
@@ -176,12 +169,6 @@ class PhotometryValidationHandler(BaseHandler):
         description: Update the validated or rejected status of a source in a GCN
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -283,12 +270,6 @@ class PhotometryValidationHandler(BaseHandler):
           Its status can be considered as 'undefined'.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometric_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

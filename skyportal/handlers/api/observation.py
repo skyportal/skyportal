@@ -4,6 +4,7 @@ import json
 import time
 import urllib
 from io import StringIO
+from typing import Annotated
 
 import arrow
 import astropy.units as u
@@ -15,6 +16,7 @@ import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from regions import Regions
 from sqlalchemy.orm import (
     joinedload,
@@ -63,6 +65,11 @@ from .observation_plan import (
     observation_simsurvey,
     observation_simsurvey_plot,
 )
+
+AllocationId = Annotated[
+    int, Field(description="ID for the allocation to delete queue")
+]
+InstrumentId = Annotated[int, Field(description="ID for the instrument to submit")]
 
 env, cfg = load_env()
 
@@ -1243,12 +1250,6 @@ class ObservationHandler(BaseHandler):
         description: Delete an observation
         tags:
           - observations
-        parameters:
-          - in: path
-            name: observation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1490,7 +1491,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def get(self, allocation_id: int):
+    async def get(self, allocation_id: AllocationId):
         """
         ---
         summary: Retrieve queued observations from external API
@@ -1498,13 +1499,6 @@ class ObservationExternalAPIHandler(BaseHandler):
         tags:
           - observations
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to retrieve
           - in: query
             name: startDate
             required: false
@@ -1595,7 +1589,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def delete(self, allocation_id: int):
+    async def delete(self, allocation_id: AllocationId):
         """
         ---
         summary: Delete queued observations from external API
@@ -1603,13 +1597,6 @@ class ObservationExternalAPIHandler(BaseHandler):
         tags:
           - observations
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to delete queue
           - in: query
             name: queueName
             required: true
@@ -1671,7 +1658,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    async def post(self, instrument_id: int):
+    async def post(self, instrument_id: InstrumentId):
         """
         ---
         summary: Submit observations to TreasureMap
@@ -1679,13 +1666,6 @@ class ObservationTreasureMapHandler(BaseHandler):
         tags:
           - observation plan requests
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the instrument to submit
           - in: query
             name: startDate
             required: true
@@ -1919,7 +1899,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, instrument_id: int):
+    async def delete(self, instrument_id: InstrumentId):
         """
         ---
         summary: Remove observations from TreasureMap
@@ -1927,13 +1907,6 @@ class ObservationTreasureMapHandler(BaseHandler):
         tags:
           - observation plan requests
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the instrument to submit
           - in: query
             name: localizationDateobs
             schema:
@@ -2201,7 +2174,7 @@ def retrieve_observations_and_simsurvey(
 
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id: int):
+    async def get(self, instrument_id: InstrumentId):
         """
         ---
         summary: Perform SimSurvey efficiency calculation
@@ -2209,13 +2182,6 @@ class ObservationSimSurveyHandler(BaseHandler):
         tags:
           - observations
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the instrument to submit
           - in: query
             name: startDate
             required: true
@@ -2499,12 +2465,6 @@ class ObservationSimSurveyHandler(BaseHandler):
         description: Delete a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2552,12 +2512,6 @@ class ObservationSimSurveyPlotHandler(BaseHandler):
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

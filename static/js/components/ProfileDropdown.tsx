@@ -159,7 +159,7 @@ const ProfileDropdown = () => {
               justifyContent: "center",
             }}
           >
-            <a href="/login/google-oauth2" className={classes.nodecor}>
+            <a href="/" className={classes.nodecor}>
               <Button>Log in</Button>
             </a>
           </Box>

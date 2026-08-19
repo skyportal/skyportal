@@ -240,12 +240,6 @@ class SpatialCatalogHandler(BaseHandler):
           description: Retrieve a SpatialCatalog
           tags:
             - spatial catalogs
-          parameters:
-            - in: path
-              name: catalog_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -329,12 +323,6 @@ class SpatialCatalogHandler(BaseHandler):
         description: Delete a spatial catalog
         tags:
           - spatial catalogs
-        parameters:
-          - in: path
-            name: catalog_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

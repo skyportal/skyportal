@@ -28,7 +28,7 @@ import EarthquakePredictionForm from "./EarthquakePredictionForm";
 import EarthquakePredictionLists from "./EarthquakePredictionLists";
 import EarthquakeMeasurementLists from "./EarthquakeMeasurementLists";
 
-import CommentList from "../comment/CommentList";
+import CommentThread from "../comment/CommentThread";
 import Reminders from "../Reminders";
 
 import withRouter from "../withRouter";
@@ -191,8 +191,8 @@ const EarthquakePage = ({ route }: EarthquakePageProps) => {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Suspense fallback={<div>Loading comments...</div>}>
-                    <CommentList
-                      associatedResourceType="earthquake"
+                    <CommentThread
+                      resourceType="earthquake"
                       earthquakeID={earthquake.id.toString()}
                       earthquakeEventID={earthquake.event_id}
                       maxHeightList="350px"

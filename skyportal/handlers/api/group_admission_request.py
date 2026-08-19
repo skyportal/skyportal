@@ -47,12 +47,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
           tags:
             - groups
             - users
-          parameters:
-            - in: path
-              name: admission_request_id
-              required: false
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -264,12 +258,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: admission_request_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -322,12 +310,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: admission_request_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
