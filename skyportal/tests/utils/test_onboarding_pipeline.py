@@ -25,16 +25,10 @@ class FakeStorageUser:
         self.social_auths = {}
 
     def get_social_auth(self, provider, uid):
-        # Matched on the association's own fields, like the query it stands in
-        # for: a re-keyed association is found under its new uid.
-        return next(
-            (
-                social
-                for social in self.social_auths.values()
-                if (social.provider, social.uid) == (provider, uid)
-            ),
-            None,
-        )
+        # Keyed as stored, so a re-keyed association is not found under its new
+        # uid — the app runs its session without autoflush, and a query there
+        # likewise does not see one.
+        return self.social_auths.get((provider, uid))
 
     def get_username(self, user):
         return user.username
@@ -398,9 +392,10 @@ def test_resolve_user_joins_on_provider_and_subject(user):
         "orcid", subject, user
     )
 
-    assert (
-        resolve_user(strategy, backend, subject, details_for("ignored")).id == user.id
-    )
+    resolved, social = resolve_user(strategy, backend, subject, details_for("ignored"))
+
+    assert resolved.id == user.id
+    assert social is strategy.storage.user.social_auths[("orcid", subject)]
 
 
 def test_resolve_user_ignores_another_providers_association(user):
@@ -411,10 +406,10 @@ def test_resolve_user_ignores_another_providers_association(user):
     )
 
     # Same subject string, different provider: not the same identity.
-    resolved = resolve_user(
+    resolved, social = resolve_user(
         strategy, FakeBackend(name="github"), subject, details_for("ignored")
     )
-    assert resolved is None
+    assert (resolved, social) == (None, None)
 
 
 def test_resolve_user_rekeys_a_legacy_email_association(user):
@@ -426,11 +421,13 @@ def test_resolve_user_rekeys_a_legacy_email_association(user):
     )
     subject = f"sub-{uuid.uuid4().hex[:8]}"
 
-    resolved = resolve_user(strategy, FakeBackend(), subject, details)
+    resolved, social = resolve_user(strategy, FakeBackend(), subject, details)
 
     assert resolved.id == user.id
     assert association.uid == subject  # re-keyed in place, not duplicated
     assert user.oauth_uid == subject
+    # Handed back rather than looked up again: the re-key is not yet flushed.
+    assert social is association
 
 
 def test_create_user_hands_back_the_association_it_matched(invitations_disabled, user):
@@ -457,7 +454,7 @@ def test_resolve_user_will_not_link_an_unverified_email(user):
     details = details_for("someone", email=user.contact_email)
 
     # A provider that neither asserts email_verified nor is trusted
-    resolved = resolve_user(
+    resolved, _ = resolve_user(
         FakeStrategy(),
         FakeBackend(name="untrusted-provider"),
         f"sub-{uuid.uuid4().hex[:8]}",
@@ -472,7 +469,7 @@ def test_resolve_user_links_a_provider_verified_email(user):
     DBSession().commit()
     details = details_for("someone", email=user.contact_email)
 
-    resolved = resolve_user(
+    resolved, _ = resolve_user(
         FakeStrategy(),
         FakeBackend(name="orcid"),
         f"sub-{uuid.uuid4().hex[:8]}",

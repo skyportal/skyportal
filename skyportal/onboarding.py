@@ -37,7 +37,8 @@ def _email_is_verified(backend, details, response):
 
 
 def resolve_user(strategy, backend, uid, details, response=None):
-    """Find the account this sign-in belongs to, or None to create one.
+    """Find the account this sign-in belongs to, and the association it came
+    through; (None, None) when there is no account to sign in to.
 
     Joins on (provider, subject) — never on the email alone, which is not
     unique across providers and can be reassigned. Falls back to linking a
@@ -49,7 +50,7 @@ def resolve_user(strategy, backend, uid, details, response=None):
 
     social = storage.user.get_social_auth(provider, uid)
     if social is not None:
-        return social.user
+        return social.user, social
 
     # Associations predating subject-keyed uids hold the email instead; re-key
     # them in place, so existing users are not handed brand-new accounts.
@@ -58,7 +59,7 @@ def resolve_user(strategy, backend, uid, details, response=None):
         if legacy is not None:
             legacy.uid = uid
             legacy.user.oauth_uid = uid
-            return legacy.user
+            return legacy.user, legacy
 
     if provider == default_auth_backend():
         # Users with no association carry only User.oauth_uid, which could only
@@ -70,23 +71,23 @@ def resolve_user(strategy, backend, uid, details, response=None):
         )
         if legacy_user is not None:
             legacy_user.oauth_uid = uid
-            return legacy_user
+            return legacy_user, None
 
     if email and _email_is_verified(backend, details, response):
-        return session.scalar(sa.select(User).where(User.contact_email == email))
+        return session.scalar(sa.select(User).where(User.contact_email == email)), None
 
-    return None
+    return None, None
 
 
-def matched_user(strategy, backend, uid, user):
+def matched_user(user, social):
     """Pipeline result for a sign-in that landed on an existing account.
 
-    Hands back the association as well: `social_user` ran before the account was
-    matched (or its association re-keyed), so without this `associate_user`
-    creates a second one and collides on (provider, uid).
+    The association goes back with it: `social_user` ran before the account was
+    matched, and re-keying one is not visible to a fresh lookup until the
+    session flushes, so `associate_user` would otherwise create a second
+    association and collide on (provider, uid).
     """
     result = {"is_new": False, "user": user}
-    social = strategy.storage.user.get_social_auth(backend.name, uid)
     if social is not None:
         result["social"] = social
     return result
@@ -97,7 +98,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     session = DBSession()
 
     try:
-        existing_user = resolve_user(
+        existing_user, existing_social = resolve_user(
             strategy, backend, uid, details, kwargs.get("response")
         )
 
@@ -107,7 +108,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Missing invite token. A valid invite token is required."
                 )
             elif existing_user is not None:
-                return matched_user(strategy, backend, uid, existing_user)
+                return matched_user(existing_user, existing_social)
 
             try:
                 n_days = int(cfg["invitations.days_until_expiry"])
@@ -155,7 +156,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             return {"is_new": True, "user": user}
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
-                return matched_user(strategy, backend, uid, existing_user)
+                return matched_user(existing_user, existing_social)
 
             if user is not None:  # Matching user already exists
                 return {"is_new": False, "user": user}
@@ -200,7 +201,7 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     storage = strategy.storage
     session = DBSession()
 
-    existing_user = resolve_user(
+    existing_user, _ = resolve_user(
         strategy, backend, uid, details, kwargs.get("response")
     )
 
