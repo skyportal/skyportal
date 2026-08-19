@@ -6,7 +6,13 @@
  * vector similarity search, so it is modelled as a mutation invoked imperatively
  * by consumers via `.unwrap()`. There is no websocket refresh for this duck.
  */
+import type {
+  SummaryQueryPost,
+  SummaryQueryResults,
+} from "skyportal-js/SummaryQuery";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
 export interface SummaryQueryResultItem {
   id: string;
@@ -22,12 +28,9 @@ export interface SummaryQueryResult {
 
 export const summaryApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    fetchSummaryQuery: build.mutation<SummaryQueryResult, Record<string, any>>({
-      query: (formData) => ({
-        url: "api/summary_query",
-        method: "POST",
-        body: formData,
-      }),
+    fetchSummaryQuery: build.mutation<SummaryQueryResults, SummaryQueryPost>({
+      queryFn: (formData, api) =>
+        clientQuery(api, (client) => client.postSummaryQuery(formData)),
     }),
   }),
 });
