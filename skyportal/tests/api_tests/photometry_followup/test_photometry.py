@@ -1640,7 +1640,7 @@ def test_token_user_retrieving_source_photometry_and_convert(
 def test_source_photometry_format_plot_is_slim(view_only_token, public_source):
     """``format=plot`` must return only the lightcurve-plotter fields and
     match the magnitudes that ``format=mag`` produces."""
-    # skyportal-py gap: typed models cannot expose raw JSON keys (format=plot key-set check)
+    # raw api: raw-JSON key-set assertion (format=plot) the typed model would mask
     status, plot_resp = api(
         "GET",
         f"sources/{public_source.id}/photometry?format=plot&magsys=ab",
