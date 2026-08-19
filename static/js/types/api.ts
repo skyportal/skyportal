@@ -16818,7 +16818,6 @@ export interface paths {
                 header?: never;
                 path: {
                     obj_id: string;
-                    interest_id: number;
                 };
                 cookie?: never;
             };
