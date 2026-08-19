@@ -29,6 +29,14 @@ class Thumbnail(Base):
         # plain obj_id lookups, so ix_thumbnails_obj_id can be dropped once this is
         # verified live.
         sa.Index("ix_thumbnails_obj_id_type", "obj_id", "type"),
+        # One new/ref/sub cutout per obj per survey: reprocessing an obj (new
+        # candid, re-poll, GCN rebuild) must update its existing thumbnail, not
+        # pile up duplicates the source page then renders side by side. NULL
+        # survey (archival types) is exempt: Postgres treats each NULL as
+        # distinct, so this is a no-op for sdss/ps1/etc.
+        sa.UniqueConstraint(
+            "obj_id", "type", "survey", name="thumbnails_obj_id_type_survey_key"
+        ),
     )
 
     # TODO delete file after deleting row

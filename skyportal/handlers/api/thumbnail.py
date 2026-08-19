@@ -14,6 +14,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
 from ...models import Broker, Obj, Thumbnail, User
+from ...utils.thumbnail import image_is_grayscale
 from ..base import BaseHandler
 
 log = make_log("api/thumbnail")
@@ -113,18 +114,37 @@ async def post_thumbnail(data, user_id, session):
             "Invalid thumbnail size. Only thumbnails "
             "between (16, 16) and (500, 500) allowed."
         )
+    survey = data.get("survey")
+    public_url = f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
     try:
-        t = Thumbnail(
-            obj_id=data["obj_id"],
-            type=data["ttype"],
-            survey=data.get("survey"),
-            file_uri=file_uri,
-            public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
+        # Reprocessing an obj (new candid, re-poll, GCN rebuild) re-renders the
+        # same obj/type/survey cutout; update the existing row instead of
+        # inserting a duplicate the source page would then render side by side.
+        existing_stmt = sa.select(Thumbnail).where(
+            Thumbnail.obj_id == data["obj_id"], Thumbnail.type == data["ttype"]
         )
+        existing_stmt = existing_stmt.where(
+            Thumbnail.survey.is_(None) if survey is None else Thumbnail.survey == survey
+        )
+        t = await session.scalar(existing_stmt)
+
         with open(file_uri, "wb") as f:
             f.write(file_bytes)
 
-        session.add(t)
+        if t is None:
+            t = Thumbnail(
+                obj_id=data["obj_id"],
+                type=data["ttype"],
+                survey=survey,
+                file_uri=file_uri,
+                public_url=public_url,
+            )
+            session.add(t)
+        else:
+            t.file_uri = file_uri
+            t.public_url = public_url
+            # before_insert-only event listener doesn't fire on this update path.
+            t.is_grayscale = image_is_grayscale(file_uri)
         await session.commit()
 
     except (LookupError, StatementError) as e:
