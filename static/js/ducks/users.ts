@@ -2,46 +2,37 @@
  * Users.
  *
  * RTK Query conversion of the old `FETCH_USER` / `FETCH_USERS` / `PATCH_USER`
- * duck. Endpoints are injected into the central `skyportalApi`. `getUsers`
- * preserves the old slice shape (`{ users, totalMatches }`); `getUser` fetches a
- * single user. `patchUser` is a mutation that invalidates the `User` tag.
+ * duck, calling the typed `skyportal-js` client. `getUsers` preserves the old
+ * slice shape (`{ users, totalMatches }`); `getUser` fetches a single user.
+ * `patchUser` is a mutation that invalidates the `User` tag.
  *
  * The websocket `FETCH_USERS` message is bridged to cache invalidation via
  * `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import type { FetchUsersOptions, User, UsersPage } from "skyportal-js/Users";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
-export interface User {
-  id: number;
-  username: string;
-  [key: string]: unknown;
-}
-
-export interface UsersResult {
-  users: User[];
-  totalMatches: number;
-}
+export type { User };
+export type UsersResult = UsersPage;
 
 export const usersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getUsers: build.query<UsersResult, Record<string, any> | void>({
-      query: (filterParams) => {
-        const params = buildQueryString(
-          (filterParams as Record<string, string>) ?? {},
-        );
-        return `api/user${params ? `?${params}` : ""}`;
-      },
+    getUsers: build.query<UsersPage, FetchUsersOptions | void>({
+      queryFn: (filterParams, api) =>
+        clientQuery(api, (client) => client.fetchUsers(filterParams ?? {})),
       providesTags: ["User"],
     }),
-    getUser: build.query<RouteData<"GET /api/user/{user_id}">, number | string>(
-      {
-        query: (id) => `api/user/${id}`,
-        providesTags: ["User"],
-      },
-    ),
+    getUser: build.query<User, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchUser(Number(id))),
+      providesTags: ["User"],
+    }),
+    // raw: the client's updateUser only models `expirationDate`, but the
+    // handler assigns any non-protected column (this patches names, username
+    // and contact_email too).
     patchUser: build.mutation<
       unknown,
       { id: number | string; data: Record<string, any> }

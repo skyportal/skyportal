@@ -134,7 +134,7 @@ const TeamSwitcher = () => {
         {team.logo_url ? (
           <Avatar
             src={team.logo_url}
-            alt={team.name}
+            alt={team.name ?? undefined}
             sx={{ width: 20, height: 20, mr: 1 }}
           />
         ) : (
@@ -157,7 +157,7 @@ const TeamSwitcher = () => {
             {activeTeam?.logo_url ? (
               <Avatar
                 src={activeTeam.logo_url}
-                alt={activeTeam.name}
+                alt={activeTeam.name ?? undefined}
                 sx={{ width: 24, height: 24 }}
               />
             ) : (

@@ -1,61 +1,36 @@
 /**
  * Users management (the admin "Manage Users" table).
  *
- * RTK Query conversion of the old `FETCH_USERS_MANAGEMENT` duck. The query
- * accepts the filter/pagination/sort parameters as its argument (the old duck
- * stashed these in a `fetchParams` slice; consumers now own that state and pass
- * it in). The backend's `GET /api/user` returns `{ users, totalMatches }`.
+ * RTK Query conversion of the old `FETCH_USERS_MANAGEMENT` duck, calling the
+ * typed `skyportal-js` client. The query accepts the filter/pagination/sort
+ * parameters as its argument (the old duck stashed these in a `fetchParams`
+ * slice; consumers now own that state and pass it in). The backend's
+ * `GET /api/user` returns `{ users, totalMatches }`.
  *
  * The websocket `FETCH_USERS_MANAGEMENT` message is bridged to cache
  * invalidation via `invalidateOnMessage`, so the active query refetches with
  * whatever params it currently holds.
  */
-import { buildQueryString as toQueryString } from "../API";
+import type { FetchUsersOptions, UsersPage } from "skyportal-js/Users";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-export interface UsersManagementParams {
-  pageNumber?: number | undefined;
-  numPerPage?: number | undefined;
-  sortBy?: string | undefined;
-  sortOrder?: string | undefined;
-  includeExpired?: boolean | undefined;
-  firstName?: string | undefined;
-  lastName?: string | undefined;
-  username?: string | undefined;
-  affiliations?: string | undefined;
-  email?: string | undefined;
-  role?: string | undefined;
-  acl?: string | undefined;
-  group?: string | undefined;
-  stream?: string | undefined;
-  [key: string]: string | number | boolean | undefined;
-}
-
-export interface UsersManagementResult {
-  users: any[];
-  totalMatches: number;
-}
-
-const buildQueryString = (params: UsersManagementParams): string => {
-  const qs = toQueryString(params);
-  return qs ? `?${qs}` : "";
-};
+export type UsersManagementParams = FetchUsersOptions;
+export type UsersManagementResult = UsersPage;
 
 export const usersManagementApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getUsersManagement: build.query<
-      UsersManagementResult,
-      UsersManagementParams | void
-    >({
-      query: (params) => {
-        const filterParams: UsersManagementParams = {
-          pageNumber: 1,
-          numPerPage: 25,
-          ...(params ?? {}),
-        };
-        return `api/user${buildQueryString(filterParams)}`;
-      },
+    getUsersManagement: build.query<UsersPage, UsersManagementParams | void>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) =>
+          client.fetchUsers({
+            pageNumber: 1,
+            numPerPage: 25,
+            ...(params ?? {}),
+          }),
+        ),
       providesTags: ["UserManagement"],
     }),
   }),
