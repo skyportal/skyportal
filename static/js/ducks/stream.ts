@@ -1,22 +1,22 @@
 /**
  * A single stream (by id).
  *
- * RTK Query conversion of the old `FETCH_STREAM` duck. The old websocket handler
- * only refetched when the currently-loaded stream matched the pushed
- * `stream_id`; here we invalidate the "Stream" tag, which only refetches the
- * active stream query.
+ * RTK Query conversion of the old `FETCH_STREAM` duck, calling the typed
+ * `skyportal-js` client. The old websocket handler only refetched when the
+ * currently-loaded stream matched the pushed `stream_id`; here we invalidate the
+ * "Stream" tag, which only refetches the active stream query.
  */
+import type { Stream } from "skyportal-js/Streams";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const streamApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getStream: build.query<
-      RouteData<"GET /api/streams/{stream_id}">,
-      number | string
-    >({
-      query: (id) => `api/streams/${id}`,
+    getStream: build.query<Stream, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchStream(Number(id))),
       providesTags: ["Stream"],
     }),
   }),

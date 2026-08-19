@@ -1,33 +1,23 @@
 /**
  * GCN event properties (list of available property names for filtering).
  *
- * RTK Query conversion of the old `FETCH_GCN_PROPERTIES` duck. The endpoint is
- * injected into the central `skyportalApi`. The websocket refresh message
+ * RTK Query conversion of the old `FETCH_GCN_PROPERTIES` duck, calling the typed
+ * `skyportal-js` client. The websocket refresh message
  * (`skyportal/FETCH_GCN_PROPERTIES`) is bridged to cache invalidation via
  * `invalidateOnMessage`; the old handler ignored the payload and always
  * refreshed, so we unconditionally invalidate the `GcnProperties` tag.
  */
-import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
-
-export interface FetchGcnPropertiesArgs {
-  [key: string]: unknown;
-}
 
 export const gcnPropertiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnProperties: build.query<
-      RouteData<"GET /api/gcn_event/properties">,
-      FetchGcnPropertiesArgs | void
-    >({
-      query: (filterParams) => {
-        const params = buildQueryString(
-          (filterParams as Record<string, string>) ?? {},
-        );
-        return `api/gcn_event/properties${params ? `?${params}` : ""}`;
-      },
+    // The handler takes no query parameters; the old duck passed filter params
+    // that the server ignored.
+    getGcnProperties: build.query<string[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchGcnEventProperties()),
       providesTags: ["GcnProperties"],
     }),
   }),
