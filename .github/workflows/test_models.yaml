@@ -112,9 +112,12 @@ jobs:
           EOF
 
       - name: Install system dependencies
+        timeout-minutes: 10
+        env:
+          APT_OPTS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30
         run: |
-          sudo apt update -y
-          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt $APT_OPTS update -y
+          sudo apt $APT_OPTS install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH

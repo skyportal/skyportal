@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 
+from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
 from baselayer.log import make_log
@@ -77,7 +78,7 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
             user = User(username=username, first_name=first_name, last_name=last_name)
             if auth:
                 TornadoStorage.user.create_social_auth(
-                    user, user.username, "google-oauth2"
+                    user, user.username, default_auth_backend()
                 )
 
         for rolename in roles:

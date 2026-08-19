@@ -97,6 +97,34 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
 
 
+def test_token_user_post_candidate_numeric_id(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column: without coercion Postgres rejects the varchar = bigint
+    # comparison and the post 500s.
+    obj_id = 170591539488620622
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == str(obj_id)
+
+
 def test_candidate_name_only_search(
     upload_data_token,
     view_only_token,
