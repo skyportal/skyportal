@@ -12,71 +12,60 @@
  * The websocket `FETCH_TAG_OPTIONS` message is bridged to cache invalidation of
  * `ObjTagOption` via `invalidateOnMessage`.
  */
+import type { ObjTagOption, ObjTagPostResponse } from "skyportal-js/Tags";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const objectTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTagOptions: build.query<RouteData<"GET /api/objtagoption">, void>({
-      query: () => "api/objtagoption",
-      transformResponse: (data: RouteData<"GET /api/objtagoption">) =>
-        data ?? [],
+    getTagOptions: build.query<ObjTagOption[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchObjTagOptions()),
       providesTags: ["ObjTagOption"],
     }),
     createTagOption: build.mutation<
-      RouteData<"POST /api/objtagoption">,
-      Record<string, unknown>
+      ObjTagOption,
+      { name: string; color?: string }
     >({
-      query: (data) => ({
-        url: "api/objtagoption",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ name, color }, api) =>
+        clientQuery(api, (client) => client.postObjTagOption(name, { color })),
       invalidatesTags: ["ObjTagOption"],
     }),
     updateTagOption: build.mutation<
-      unknown,
-      { id: number | string } & Record<string, unknown>
+      void,
+      { id: number | string; name: string; color?: string }
     >({
-      query: ({ id, ...body }) => ({
-        url: `api/objtagoption/${id}`,
-        method: "PATCH",
-        body,
-      }),
+      queryFn: ({ id, name, color }, api) =>
+        clientQuery(api, (client) =>
+          client.updateObjTagOption(Number(id), name, { color }),
+        ),
       invalidatesTags: ["ObjTagOption"],
     }),
-    deleteTagOption: build.mutation<
-      unknown,
-      { id: number | string } & Record<string, unknown>
-    >({
-      query: (data) => ({
-        url: `api/objtagoption/${data.id}`,
-        method: "DELETE",
-        body: data,
-      }),
+    deleteTagOption: build.mutation<void, { id: number | string }>({
+      queryFn: ({ id }, api) =>
+        clientQuery(api, (client) => client.deleteObjTagOption(Number(id))),
       invalidatesTags: ["ObjTagOption", "ObjTag", "SourceTag"],
     }),
     addObjectTag: build.mutation<
-      RouteData<"POST /api/objtag">,
-      Record<string, unknown>
+      ObjTagPostResponse,
+      { obj_id: string; objtagoption_id: number; group_ids?: number[] }
     >({
-      query: (data) => ({
-        url: "api/objtag",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ obj_id, objtagoption_id, group_ids }, api) =>
+        clientQuery(api, (client) =>
+          client.postObjTag(obj_id, objtagoption_id, { groupIds: group_ids }),
+        ),
       invalidatesTags: ["ObjTag", "SourceTag"],
     }),
     deleteObjectTag: build.mutation<
-      unknown,
-      { id: number | string } & Record<string, unknown>
+      void,
+      { id: number | string; group_ids?: number[] }
     >({
-      query: (data) => ({
-        url: `api/objtag/${data.id}`,
-        method: "DELETE",
-        body: data,
-      }),
+      queryFn: ({ id, group_ids }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObjTag(Number(id), { groupIds: group_ids }),
+        ),
       invalidatesTags: ["ObjTag", "SourceTag"],
     }),
   }),

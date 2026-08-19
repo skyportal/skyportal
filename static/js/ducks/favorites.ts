@@ -11,41 +11,34 @@
  * via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-interface FavoriteListing {
-  obj_id: string;
-  [key: string]: unknown;
-}
 
 export const favoritesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getFavorites: build.query<string[], void>({
-      query: () => "api/listing?listName=favorites",
-      transformResponse: (data: FavoriteListing[]) =>
-        data?.map((fav) => fav.obj_id) ?? [],
+      queryFn: (_arg, api) =>
+        clientQuery(api, async (client) =>
+          (await client.fetchListings({ listName: "favorites" }))
+            .map((fav) => fav.obj_id)
+            // obj_id is NOT NULL server-side; the null check goes away once
+            // skyportal-js models it as required (skyportal-js#6).
+            .filter((objId): objId is string => objId != null),
+        ),
       providesTags: ["Favorite"],
     }),
-    addToFavorites: build.mutation<unknown, string>({
-      query: (source_id) => ({
-        url: "api/listing",
-        method: "POST",
-        body: {
-          list_name: "favorites",
-          obj_id: source_id,
-        },
-      }),
+    addToFavorites: build.mutation<{ id: number }, string>({
+      queryFn: (source_id, api) =>
+        clientQuery(api, (client) =>
+          client.postListing({ obj_id: source_id, list_name: "favorites" }),
+        ),
       invalidatesTags: ["Favorite"],
     }),
-    removeFromFavorites: build.mutation<unknown, string>({
-      query: (source_id) => ({
-        url: "api/listing",
-        method: "DELETE",
-        body: {
-          list_name: "favorites",
-          obj_id: source_id,
-        },
-      }),
+    removeFromFavorites: build.mutation<void, string>({
+      queryFn: (source_id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteListingByName(source_id, "favorites"),
+        ),
       invalidatesTags: ["Favorite"],
     }),
   }),

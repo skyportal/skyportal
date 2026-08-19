@@ -8,8 +8,10 @@
  * mutations invalidate it (to refresh the filter list/single) and consumers
  * still invalidate the owning *group* via `groupApi.util.invalidateTags`.
  */
+import type { Filter } from "skyportal-js/Filters";
+
 import { skyportalApi } from "../api/skyportalApi";
-import type { RouteData } from "../types/routeSchemaMap";
+import { clientQuery } from "../api/skyportalClient";
 
 export interface AddGroupFilterArg {
   name: string;
@@ -28,40 +30,39 @@ export interface UpdateFilterNameArg {
 
 export const filterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getFilters: build.query<RouteData<"GET /api/filters">, void>({
-      query: () => "api/filters",
+    getFilters: build.query<Filter[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchFilters()),
       providesTags: ["Filters"],
     }),
-    getFilter: build.query<
-      RouteData<"GET /api/filters/{filter_id}">,
-      number | string
-    >({
-      query: (id) => `api/filters/${id}`,
+    getFilter: build.query<Filter, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchFilter(Number(id))),
       providesTags: ["Filters"],
     }),
-    addGroupFilter: build.mutation<unknown, AddGroupFilterArg>({
-      query: ({ name, group_id, stream_id }) => ({
-        url: "api/filters",
-        method: "POST",
-        body: { name, group_id, stream_id },
-      }),
+    addGroupFilter: build.mutation<{ id: number }, AddGroupFilterArg>({
+      queryFn: ({ name, group_id, stream_id }, api) =>
+        clientQuery(api, (client) =>
+          client.postFilter({
+            name,
+            group_id: Number(group_id),
+            stream_id: Number(stream_id),
+          }),
+        ),
       // Also refresh any filter query (list/single); consumers still invalidate
       // the owning group separately.
       invalidatesTags: ["Filters"],
     }),
-    deleteGroupFilter: build.mutation<unknown, DeleteGroupFilterArg>({
-      query: ({ filter_id }) => ({
-        url: `api/filters/${filter_id}`,
-        method: "DELETE",
-      }),
+    deleteGroupFilter: build.mutation<void, DeleteGroupFilterArg>({
+      queryFn: ({ filter_id }, api) =>
+        clientQuery(api, (client) => client.deleteFilter(Number(filter_id))),
       invalidatesTags: ["Filters"],
     }),
-    updateFilterName: build.mutation<unknown, UpdateFilterNameArg>({
-      query: ({ filter_id, name }) => ({
-        url: `api/filters/${filter_id}`,
-        method: "PATCH",
-        body: { name },
-      }),
+    updateFilterName: build.mutation<void, UpdateFilterNameArg>({
+      queryFn: ({ filter_id, name }, api) =>
+        clientQuery(api, (client) =>
+          client.updateFilter(Number(filter_id), { name }),
+        ),
       invalidatesTags: ["Filters"],
     }),
   }),

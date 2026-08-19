@@ -30,6 +30,7 @@ import {
   useSubmitReminderMutation,
   useDeleteReminderMutation,
 } from "../ducks/reminders";
+import type { ReminderResourceType } from "../ducks/reminders";
 
 dayjs.extend(utc);
 
@@ -64,7 +65,7 @@ const DialogTitle = withStyles(
 
 interface NewReminderProps {
   resourceId: string;
-  resourceType: string;
+  resourceType: ReminderResourceType;
   handleClose: (...a: any[]) => void;
   resourceStartDate?: Date;
 }
@@ -246,7 +247,7 @@ const NewReminder = ({
 
 interface RemindersProps {
   resourceId?: string;
-  resourceType?: string;
+  resourceType?: ReminderResourceType;
   resourceStartDate?: Date;
 }
 
