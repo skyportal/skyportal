@@ -27,6 +27,7 @@ import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewBrokerFilterForm from "./NewBrokerFilterForm";
 import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
 import Spinner from "../Spinner";
+import { decToDeg, raToDeg } from "./coneCoords";
 
 const PAGE_SIZE = 12;
 
@@ -197,8 +198,8 @@ const Broker = () => {
       brokerId,
       params: {
         objectId: oid || undefined,
-        ra: uRa || undefined,
-        dec: uDec || undefined,
+        ra: uRa ? raToDeg(uRa) : undefined,
+        dec: uDec ? decToDeg(uDec) : undefined,
         radius: uRadius || undefined,
         radius_units: uRadius ? "arcsec" : undefined,
         survey: uSurvey,
@@ -222,8 +223,8 @@ const Broker = () => {
       brokerId,
       params: {
         objectId: objectId || undefined,
-        ra: coneDisabled ? undefined : ra || undefined,
-        dec: coneDisabled ? undefined : dec || undefined,
+        ra: coneDisabled || !ra ? undefined : raToDeg(ra),
+        dec: coneDisabled || !dec ? undefined : decToDeg(dec),
         radius: coneDisabled ? undefined : radius || undefined,
         radius_units: !coneDisabled && radius ? "arcsec" : undefined,
         survey: searchSurvey,
@@ -337,6 +338,7 @@ const Broker = () => {
                   <TextField
                     size="small"
                     label="RA (deg)"
+                    placeholder="deg or HH:MM:SS"
                     value={ra}
                     disabled={coneDisabled}
                     onChange={(e) => setRa(e.target.value)}
@@ -348,6 +350,7 @@ const Broker = () => {
                   <TextField
                     size="small"
                     label="Dec (deg)"
+                    placeholder="deg or ±DD:MM:SS"
                     value={dec}
                     disabled={coneDisabled}
                     onChange={(e) => setDec(e.target.value)}
