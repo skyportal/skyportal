@@ -1,71 +1,62 @@
 /**
  * Skymap triggers (the observation-plan "skymap trigger" API).
  *
- * RTK Query conversion of the old `REQUEST_API_SKYMAP_TRIGGERS` duck. The
- * endpoints are injected into the central `skyportalApi`. The GET fetches the
- * trigger payload for an allocation; post/delete are mutations that invalidate
- * the `Localizations`/`Observations` tags so dependent listings refetch.
+ * RTK Query conversion of the old `REQUEST_API_SKYMAP_TRIGGERS` duck, calling
+ * the typed `skyportal-js` client. The GET fetches the queued trigger names for
+ * an allocation; post/delete are mutations that invalidate the
+ * `Localizations`/`Observations` tags so dependent listings refetch.
  */
-import { buildQueryString as buildQuery } from "../API";
-import { skyportalApi } from "../api/skyportalApi";
-import type { RouteData } from "../types/routeSchemaMap";
+import type { SkymapTriggerQueue } from "skyportal-js/SkymapTriggers";
 
-export interface SkymapTriggers {
-  trigger_names?: string[] | undefined;
-  [key: string]: unknown;
-}
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+
+export type SkymapTriggers = SkymapTriggerQueue;
 
 export interface RequestSkymapTriggersArg {
   id: number | string;
-  params?: Record<string, unknown> | undefined;
 }
 
 export interface PostSkymapTriggerArg {
   allocation_id: number | string;
-  localization_id: number | string | null;
-  [key: string]: unknown;
+  localization_id: number | string;
+  integrated_probability?: number;
 }
 
 export interface DeleteSkymapTriggerArg {
   id: number | string;
-  params?: Record<string, unknown> | undefined;
+  params: { trigger_name: string };
 }
-
-const buildQueryString = (params: Record<string, unknown>): string => {
-  const filtered: Record<string, string> = {};
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== false) {
-      filtered[key] = String(value);
-    }
-  });
-  const queryString = buildQuery(filtered);
-  return queryString ? `?${queryString}` : "";
-};
 
 export const skymapTriggersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getApiSkymapTriggers: build.query<
-      RouteData<"GET /api/skymap_trigger/{allocation_id}">,
+      SkymapTriggerQueue,
       RequestSkymapTriggersArg
     >({
-      query: ({ id, params = { triggersOnly: true } }) =>
-        `api/skymap_trigger/${id}${buildQueryString(params)}`,
+      queryFn: ({ id }, api) =>
+        clientQuery(api, (client) => client.fetchSkymapTriggers(Number(id))),
       providesTags: ["Localizations", "Observations"],
     }),
-    postApiSkymapTrigger: build.mutation<unknown, PostSkymapTriggerArg>({
-      query: (data) => ({
-        url: "api/skymap_trigger",
-        method: "POST",
-        body: data,
-      }),
+    postApiSkymapTrigger: build.mutation<void, PostSkymapTriggerArg>({
+      queryFn: (
+        { allocation_id, localization_id, integrated_probability },
+        api,
+      ) =>
+        clientQuery(api, (client) =>
+          client.postSkymapTrigger(
+            Number(allocation_id),
+            Number(localization_id),
+            { integratedProbability: integrated_probability },
+          ),
+        ),
       invalidatesTags: ["Localizations", "Observations"],
     }),
-    deleteApiSkymapTrigger: build.mutation<unknown, DeleteSkymapTriggerArg>({
-      query: ({ id, params = {} }) => ({
-        url: `api/skymap_trigger/${id}`,
-        method: "DELETE",
-        body: params,
-      }),
+    deleteApiSkymapTrigger: build.mutation<void, DeleteSkymapTriggerArg>({
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSkymapTrigger(Number(id), params.trigger_name),
+        ),
       invalidatesTags: ["Localizations", "Observations"],
     }),
   }),

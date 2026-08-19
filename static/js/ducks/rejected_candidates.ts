@@ -10,35 +10,34 @@
  * `RejectedCandidates` tag so any active query refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-interface ListingEntry {
-  obj_id: string;
-  [key: string]: unknown;
-}
 
 export const rejectedCandidatesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getRejectedCandidates: build.query<string[], void>({
-      query: () => "api/listing?listName=rejected_candidates",
-      transformResponse: (data: ListingEntry[]) =>
-        (data ?? []).map((rej) => rej.obj_id),
+      queryFn: (_arg, api) =>
+        clientQuery(api, async (client) =>
+          (await client.fetchListings({ listName: "rejected_candidates" }))
+            .map((rej) => rej.obj_id)
+            // obj_id is NOT NULL server-side; the null check goes away once
+            // skyportal-js models it as required (skyportal-js#6).
+            .filter((objId): objId is string => objId != null),
+        ),
       providesTags: ["RejectedCandidates"],
     }),
-    addToRejected: build.mutation<unknown, string>({
-      query: (obj_id) => ({
-        url: "api/listing",
-        method: "POST",
-        body: { list_name: "rejected_candidates", obj_id },
-      }),
+    addToRejected: build.mutation<{ id: number }, string>({
+      queryFn: (obj_id, api) =>
+        clientQuery(api, (client) =>
+          client.postListing({ obj_id, list_name: "rejected_candidates" }),
+        ),
       invalidatesTags: ["RejectedCandidates"],
     }),
-    removeFromRejected: build.mutation<unknown, string>({
-      query: (obj_id) => ({
-        url: "api/listing",
-        method: "DELETE",
-        body: { list_name: "rejected_candidates", obj_id },
-      }),
+    removeFromRejected: build.mutation<void, string>({
+      queryFn: (obj_id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteListingByName(obj_id, "rejected_candidates"),
+        ),
       invalidatesTags: ["RejectedCandidates"],
     }),
   }),

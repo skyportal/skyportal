@@ -8,23 +8,25 @@
  * The websocket `REFRESH_CATALOG_QUERIES` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type { CatalogQueryPost } from "skyportal-js/CatalogQueries";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type CatalogQuery = Record<string, any>;
 
 export const catalogQueryApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // raw, and unused: CatalogQueryHandler implements only post(), so this GET
+    // is answered with 405.
     getCatalogQueries: build.query<CatalogQuery[], void>({
       query: () => "api/catalog_queries",
       providesTags: ["CatalogQuery"],
     }),
-    submitCatalogQuery: build.mutation<unknown, any>({
-      query: (data) => ({
-        url: "api/catalog_queries",
-        method: "POST",
-        body: data,
-      }),
+    submitCatalogQuery: build.mutation<void, CatalogQueryPost>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.postCatalogQuery(data)),
       invalidatesTags: ["CatalogQuery"],
     }),
   }),

@@ -5,32 +5,40 @@
  * Websocket-driven invalidation refetches the plan list; mutations submit/delete
  * a default observation plan.
  */
+import type {
+  DefaultObservationPlanPost,
+  DefaultObservationPlanRequest,
+} from "skyportal-js/ObservationPlans";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultObservationPlansApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getDefaultObservationPlans: build.query<
-      RouteData<"GET /api/default_observation_plan">,
+      DefaultObservationPlanRequest[],
       void
     >({
-      query: () => "api/default_observation_plan",
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchDefaultObservationPlans()),
       providesTags: ["DefaultObservationPlan"],
     }),
-    submitDefaultObservationPlan: build.mutation<unknown, any>({
-      query: (default_plan) => ({
-        url: "api/default_observation_plan",
-        method: "POST",
-        body: default_plan,
-      }),
+    submitDefaultObservationPlan: build.mutation<
+      { id: number },
+      DefaultObservationPlanPost
+    >({
+      queryFn: (default_plan, api) =>
+        clientQuery(api, (client) =>
+          client.postDefaultObservationPlan(default_plan),
+        ),
       invalidatesTags: ["DefaultObservationPlan"],
     }),
-    deleteDefaultObservationPlan: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/default_observation_plan/${id}`,
-        method: "DELETE",
-      }),
+    deleteDefaultObservationPlan: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteDefaultObservationPlan(Number(id)),
+        ),
       invalidatesTags: ["DefaultObservationPlan"],
     }),
   }),

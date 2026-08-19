@@ -6,35 +6,31 @@
  * and returns the generated plan rows. There is no associated query/reducer or
  * websocket message, so nothing is provided/invalidated.
  */
-import { skyportalApi } from "../api/skyportalApi";
+import type {
+  MovingObjectFollowupPost,
+  MovingObjectObservation,
+} from "skyportal-js/MovingObjects";
 
-export interface MovingObjectObsPlanRow {
-  id: number | string;
-  start_time: string;
-  field_id: number | string;
-  band: string;
-  airmass: number;
-  moon_distance: number;
-  sun_altitude: number;
-  [key: string]: unknown;
-}
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+
+export type { MovingObjectObservation as MovingObjectObsPlanRow } from "skyportal-js/MovingObjects";
 
 interface PostMovingObjectObsPlanArg {
   name: string;
-  data: Record<string, unknown>;
+  data: MovingObjectFollowupPost;
 }
 
 export const movingObjectApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     postMovingObjectObsPlan: build.mutation<
-      MovingObjectObsPlanRow[],
+      MovingObjectObservation[],
       PostMovingObjectObsPlanArg
     >({
-      query: ({ name, data }) => ({
-        url: `api/moving_object/${name}/followup`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ name, data }, api) =>
+        clientQuery(api, (client) =>
+          client.postMovingObjectFollowup(name, data),
+        ),
     }),
   }),
 });
