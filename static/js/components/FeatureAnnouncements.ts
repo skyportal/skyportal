@@ -72,11 +72,23 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     steps: [
       {
         target: '[data-testid="interested-button"]',
-        title: "Say what you are interested in",
+        title: "New interested button",
         content:
           "Register your interest in a source, with a note and a link to your " +
           "work. The button shows who else is interested, and opens a " +
           "conversation with them.",
+      },
+      {
+        target: '[data-testid="discuss-interests-button"]',
+        before: async () => {
+          document
+            .querySelector<HTMLElement>('[data-testid="interested-button"]')
+            ?.click();
+        },
+        title: "Interested conversation",
+        content:
+          "Registering an interest opens a conversation dedicated to it in " +
+          "the comments. Open it from here to plan the work together.",
       },
     ],
   },
