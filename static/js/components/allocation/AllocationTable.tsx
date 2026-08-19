@@ -1,7 +1,5 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
-import { makeStyles } from "tss-react/mui";
 import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -22,6 +20,7 @@ import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
+import { useIsReadOnly } from "../../ducks/profile";
 
 export const isSomeActiveRangeOrNoRange = (
   ranges: any,
@@ -36,39 +35,12 @@ export const rangeIsActive = (range: any, date: Date = new Date()) =>
   range.start_date <= date.toISOString() &&
   range.end_date >= date.toISOString();
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map fall through to the field itself.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  id: "id",
-  instrument_name: "instrument_name",
-  telescope_name: "telescope_name",
-  PI: "PI",
-  Group: "Group",
-};
-
-const useStyles = makeStyles()(() => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  allocationManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
-
 interface AllocationTableProps {
   title?: string;
   groups?: any[];
   allocations: any[];
   telescopes?: any[];
   instruments: any[];
-  sortingCallback?: ((...a: any[]) => void) | null;
-  paginateCallback?: ((...a: any[]) => void) | null;
-  totalMatches?: number;
-  numPerPage?: number;
   managePermission?: boolean;
   telescopeInfo?: boolean;
   fixedHeader?: boolean;
@@ -80,22 +52,14 @@ const AllocationTable = ({
   allocations,
   telescopes,
   instruments,
-  sortingCallback = null,
-  paginateCallback = null,
-  totalMatches = 0,
-  numPerPage = 10,
   managePermission = false,
   telescopeInfo = true,
   fixedHeader = false,
 }: AllocationTableProps) => {
-  const { classes } = useStyles();
   const theme = useTheme();
 
   const dispatch = useAppDispatch();
-
-  const [rowsPerPage] = useState(numPerPage);
-  const [sortModel, setSortModel] = useState<any[]>([]);
-
+  const isReadOnly = useIsReadOnly();
   const [newAllocationDialog, setNewAllocationDialog] = useState(false);
   const [allocationToEdit, setAllocationToEdit] = useState<any>(null);
   const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
@@ -119,49 +83,49 @@ const AllocationTable = ({
     const allocation = params.row;
     const instrument = getInstrument(allocation);
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {instrument ? instrument.name : ""}
+      <Link to={`/instrument/${allocation.instrument_id}`}>
+        {instrument?.name || ""}
       </Link>
     );
   };
 
-  const renderTelescopeName = (params: any) => {
+  const renderTelescopeNickname = (params: any) => {
     const allocation = params.row;
     const instrument = getInstrument(allocation);
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {telescope ? telescope.nickname : ""}
+      <Link to={`/telescope/${telescope?.id}`}>
+        {telescope?.nickname || ""}
       </Link>
     );
   };
 
-  const getGroupName = (allocation: any) => {
-    const group = groups?.filter((g) => g.id === allocation.group_id)[0];
-    return group ? group.name : "";
+  const getGroupName = (params: any) => {
+    const allocation = params.row;
+    const group = groups?.find((g) => g.id === allocation.group_id);
+    if (!group?.name) return null;
+    return <Chip label={group?.name} />;
   };
 
-  const getShareGroups = (allocation: any) => {
-    const share_groups: any[] = [];
-    if (allocation.default_share_group_ids?.length > 0) {
-      allocation.default_share_group_ids.forEach((share_group_id: any) => {
-        share_groups.push(
-          groups?.filter((g) => g.id === share_group_id)[0].name,
-        );
-      });
-    }
-    return share_groups.length > 0 ? share_groups.join("\n") : "";
+  const getShareGroups = (params: any) => {
+    const allocation = params.row;
+    if (!allocation?.default_share_group_ids?.length) return null;
+    return allocation.default_share_group_ids.map((share_group_id: any) => (
+      <Chip
+        key={share_group_id}
+        label={groups?.find((g) => g.id === share_group_id)?.name || ""}
+      />
+    ));
   };
 
-  const getAllocationUsers = (allocation: any) => {
-    const allocation_users: any[] = [];
-    if (allocation.allocation_users?.length > 0) {
-      allocation.allocation_users.forEach((user: any) => {
-        allocation_users.push(userLabel(user, true, true, true));
-      });
-    }
-    return allocation_users.length > 0 ? allocation_users.join("\n") : "";
+  const getAllocationUsers = (params: any) => {
+    const allocation = params.row;
+    if (!allocation?.allocation_users?.length) return null;
+    return allocation.allocation_users.map((user: any) => (
+      <Chip key={user.id} label={userLabel(user, true, true, true)} />
+    ));
   };
 
   const renderValidityRanges = (params: any) => {
@@ -180,31 +144,24 @@ const AllocationTable = ({
     return (
       <Tooltip
         title={
-          <>
-            {validity_ranges.length ? (
-              validity_ranges.map((range: any) => (
-                <Typography
-                  key={`${range.start_date}`}
-                  variant="body1"
-                  sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
-                >
-                  {new Date(range.start_date).toLocaleString(
-                    "en-US",
-                    formatOptions,
-                  )}{" "}
-                  -{" "}
-                  {new Date(range.end_date).toLocaleString(
-                    "en-US",
-                    formatOptions,
-                  )}
-                </Typography>
-              ))
-            ) : (
-              <Typography variant="body2" sx={{ textAlign: "center" }}>
-                No validity ranges defined for this allocation.
-              </Typography>
-            )}
-          </>
+          validity_ranges?.map((range: any) => (
+            <Typography
+              key={`${range.start_date}`}
+              variant="body1"
+              sx={{ color: rangeIsActive(range) ? "lightgreen" : "white" }}
+            >
+              {new Date(range.start_date).toLocaleString(
+                "en-US",
+                formatOptions,
+              )}{" "}
+              -{" "}
+              {new Date(range.end_date).toLocaleString("en-US", formatOptions)}
+            </Typography>
+          )) || (
+            <Typography variant="body2" sx={{ textAlign: "center" }}>
+              No validity ranges defined for this allocation.
+            </Typography>
+          )
         }
       >
         {isSomeActiveRangeOrNoRange(validity_ranges) ? (
@@ -224,38 +181,20 @@ const AllocationTable = ({
 
   const renderManage = (params: any) => {
     if (!managePermission) return null;
-
     const allocation = params.row;
     return (
-      <div className={classes.allocationManage}>
-        <IconButton
-          id={`edit_button_${allocation.id}`}
-          onClick={() => setAllocationToEdit(allocation.id)}
-        >
+      <Box style={{ display: "flex" }}>
+        <IconButton onClick={() => setAllocationToEdit(allocation.id)}>
           <EditIcon />
         </IconButton>
         <IconButton
-          id={`delete_button_${allocation.id}`}
+          color="error"
           onClick={() => setAllocationToDelete(allocation.id)}
         >
           <DeleteIcon />
         </IconButton>
-      </div>
+      </Box>
     );
-  };
-
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!paginateCallback || !sortingCallback) return;
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
   };
 
   const columns: any[] = [
@@ -265,6 +204,9 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 80,
       valueGetter: (_value: any, row: any) => row.id ?? "",
+      renderCell: (params: any) => (
+        <Link to={`/allocation/${params.row.id}`}>{params.row.id}</Link>
+      ),
     },
     {
       field: "instrument_name",
@@ -277,7 +219,7 @@ const AllocationTable = ({
     },
     telescopeInfo && {
       field: "telescope_name",
-      headerName: "Telescope Name",
+      headerName: "Telescope Nickname",
       flex: 1,
       minWidth: 150,
       filterable: false,
@@ -288,7 +230,7 @@ const AllocationTable = ({
         )[0];
         return telescope ? telescope.nickname : "";
       },
-      renderCell: renderTelescopeName,
+      renderCell: renderTelescopeNickname,
     },
     {
       field: "PI",
@@ -304,7 +246,9 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (_value: any, row: any) => getGroupName(row),
+      valueGetter: (_value: any, row: any) =>
+        groups?.find((g) => g.id === row.group_id)?.name || "",
+      renderCell: getGroupName,
     },
     {
       field: "default_share_group",
@@ -312,7 +256,11 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 160,
       filterable: false,
-      valueGetter: (_value: any, row: any) => getShareGroups(row),
+      valueGetter: (_value: any, row: any) =>
+        (row.default_share_group_ids || [])
+          .map((id: any) => groups?.find((g) => g.id === id)?.name || "")
+          .join(", "),
+      renderCell: getShareGroups,
     },
     {
       field: "admins",
@@ -320,7 +268,11 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (_value: any, row: any) => getAllocationUsers(row),
+      valueGetter: (_value: any, row: any) =>
+        (row.allocation_users || [])
+          .map((user: any) => userLabel(user, true, true, true))
+          .join(", "),
+      renderCell: getAllocationUsers,
     },
     {
       field: "types",
@@ -343,7 +295,7 @@ const AllocationTable = ({
     managePermission && {
       field: "manage",
       headerName: " ",
-      width: 110,
+      width: 120,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
@@ -351,49 +303,35 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar>
-      <IconButton
-        name="new_allocation"
-        size="small"
-        onClick={() => setNewAllocationDialog(true)}
-      >
-        <AddIcon />
-      </IconButton>
+    <DataGridToolbar title={title}>
+      {!isReadOnly && (
+        <IconButton
+          name="new_allocation"
+          size="small"
+          onClick={() => setNewAllocationDialog(true)}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 
-  // mui-datatables ran with pagination:false (show-all). DataGrid mirrors that
-  // by hiding the footer and rendering every row; sorting stays server-side so
-  // the page's sortingCallback continues to drive the fetch.
-  const serverSide = paginateCallback !== null && sortingCallback !== null;
-
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          {title}
-        </Typography>
-        <Box
-          sx={{
-            height: fixedHeader ? "calc(100vh - 201px)" : "auto",
-            width: "100%",
-          }}
-        >
-          <StyledDataGrid
-            autoHeight={!fixedHeader}
-            rows={allocations || []}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            rowCount={totalMatches}
-            sortingMode={serverSide ? "server" : "client"}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            hideFooter
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </Paper>
+    <Box
+      sx={{
+        height: fixedHeader ? "calc(100vh - 201px)" : "auto",
+        width: "100%",
+      }}
+    >
+      <StyledDataGrid
+        autoHeight={!fixedHeader}
+        rows={allocations || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        hideFooter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog
         open={newAllocationDialog}
         onClose={() => setNewAllocationDialog(false)}
@@ -423,7 +361,7 @@ const AllocationTable = ({
         closeDialog={() => setAllocationToDelete(null)}
         resourceName="allocation"
       />
-    </div>
+    </Box>
   );
 };
 

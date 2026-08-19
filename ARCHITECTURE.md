@@ -55,6 +55,10 @@ It also has permissions on the database models. In SkyPortal, RLS policies are d
 
 SkyPortal uses a microservice architecture managed with supervisord, which allows for running multiple instances of the application in parallel to ensure availability and reduce downtime. Moreover, we can add microservices to run background operations continuously. This is used to run the application, as well as the database migration manager, the webpack/rspack builder, websocket server, cron jobs, external logging, and nginx. It is also used when adding computationally expensive or long-running features such as the ingestion of GCN events with low latency, processing of observation plans, sending notifications and reminders, and programming recurrent API calls. These services and others can be found in the directory `services/` in both SkyPortal and baselayer.
 
+## Broker plugins
+
+SkyPortal connects to external alert brokers (BOOM, Kowalski, Fink, Lasair, ...) through a pluggable provider interface in `skyportal/broker_apis/`, modeled on the follow-up facility APIs. A provider is a registered `BrokerAPI` subclass; a configured connection is a `Broker` database record holding the provider name and encrypted credentials. See the [broker plugins guide](./doc/broker_plugins.md).
+
 ## Testing
 
 SkyPortal has a test suite, which appear in the directory `skyportal/tests`. They are generally broken down into front-end and back-end, however, there is also a `flaky` directory for tests that do not always pass, such as those with external interactions. The [developer guide](./doc/dev.md) contains more information on test infrastructure.

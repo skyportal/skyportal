@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 import re
@@ -5,7 +6,9 @@ import time
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
+from baselayer.app.models import async_plain_session_factory
 from skyportal.models import DBSession, Obj, Thumbnail
 from skyportal.tests import api, assert_api
 
@@ -32,9 +35,12 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     # Don't wait for the thumbnail_queue background service — it fetches the
     # most-recent unprocessed obj and a busy test suite keeps pushing newer
     # objs to the front of the line. Call the same method synchronously.
-    session = DBSession()
-    obj = session.query(Obj).filter(Obj.id == obj_id).first()
-    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+    async def _backfill_thumbnails():
+        async with async_plain_session_factory() as session:
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+
+    asyncio.run(_backfill_thumbnails())
 
     status, data = api(
         "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
@@ -105,18 +111,99 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     )
     assert status == 200
 
-    # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
-    # most-recent-missing query must surface it.
-    session = DBSession()
-    obj, err = fetch_obj(session)
-    assert err is None
-    assert obj is not None and obj.id == obj_id
+    async def _fetch_backfill_fetch():
+        async with async_plain_session_factory() as session:
+            # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
+            # most-recent-missing query must surface it.
+            obj, err = await fetch_obj(session)
+            assert err is None
+            assert obj is not None and obj.id == obj_id
 
-    # After backfill the same query must no longer return it.
-    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
-    obj, err = fetch_obj(session)
-    assert err is None
-    assert obj is None or obj.id != obj_id
+            # After backfill the same query must no longer return it.
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+            obj, err = await fetch_obj(session)
+            assert err is None
+            assert obj is None or obj.id != obj_id
+
+    asyncio.run(_fetch_backfill_fetch())
+
+
+def test_thumbnail_queue_classifies_remote_grayscale(
+    upload_data_token, public_group, monkeypatch
+):
+    """Remote thumbnails are inserted unclassified (is_grayscale NULL) so the
+    request path never blocks on a cutout fetch; the queue's
+    classify_pending_grayscale fills them in. The fetch is stubbed to stay
+    offline and deterministic.
+    """
+    from services.thumbnail_queue import thumbnail_queue as tq
+
+    obj_id = str(uuid.uuid4())
+    status, _ = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    async def _values():
+        async with async_plain_session_factory() as session:
+            return (
+                (
+                    await session.execute(
+                        sa.select(Thumbnail.is_grayscale).where(
+                            Thumbnail.obj_id == obj_id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+    async def _run():
+        # Remote (public_url) thumbnails are inserted unclassified so the
+        # request path never blocks on a cutout fetch. Verify that on an
+        # *uncommitted* row: a live thumbnail_queue service only sees committed
+        # rows, so it can't have classified it first (which races a check of
+        # the committed table).
+        async with async_plain_session_factory() as session:
+            probe = Thumbnail(
+                obj_id=obj_id,
+                public_url="https://example.invalid/thumb.png",
+                type="ps1",
+            )
+            session.add(probe)
+            await session.flush()
+            assert probe.is_grayscale is None
+            await session.rollback()
+
+        async with async_plain_session_factory() as session:
+            obj = await session.get(Obj, obj_id)
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+
+        # Drain the (globally-batched) queue until this obj's thumbnails are
+        # classified. The stub keeps the test's own drain offline; a live
+        # thumbnail_queue service may also classify some (to False on a failed
+        # fetch), and whichever classifier reaches a NULL row first wins — so
+        # assert only that the queue fills every thumbnail in (non-NULL).
+        monkeypatch.setattr(tq, "_classify_remote_thumbnail", lambda url: True)
+        values = []
+        for _ in range(50):
+            await tq.classify_pending_grayscale(
+                session_factory=async_plain_session_factory
+            )
+            values = await _values()
+            if values and all(v is not None for v in values):
+                break
+        assert values and all(v is not None for v in values)
+
+    asyncio.run(_run())
 
 
 def test_cannot_post_thumbnail_invalid_ttype(
@@ -508,3 +595,62 @@ def test_token_user_delete_thumbnail_cascade_source(
         len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
         == orig_source_thumbnail_count
     )
+
+
+def test_survey_thumbnail_skymapper_and_on_demand(
+    upload_data_token, super_admin_token, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # Default survey-thumbnail generation is SDSS/PS1/LS only; SkyMapper and the
+    # pointed instruments (HST/Chandra/JWST) are on-demand.
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
+    )
+    types = {t["type"] for t in data["data"]["thumbnails"]}
+    assert {"sdss", "ls", "ps1"} <= types
+    assert not ({"sm", "hst", "chandra", "jwst"} & types)
+
+    # Unknown thumbnail types are rejected.
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id, "types": ["bogus"]},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "must be a subset" in data["message"]
+
+    # SkyMapper is available on-demand (placeholder here since the cutout service
+    # is disabled in test config, but the thumbnail is created).
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id, "types": ["sm"]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api(
+        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
+    )
+    assert "sm" in {t["type"] for t in data["data"]["thumbnails"]}

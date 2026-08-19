@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import numpy as np
+from pydantic import Field
 
 from baselayer.app.access import auth_or_token
 
@@ -91,7 +94,12 @@ def get_color_mag(annotations, **kwargs):
 
 class ObjColorMagHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id: str):
+    async def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve photometry for")
+        ],
+    ):
         """
         ---
         summary: Get color and absolute magnitude of a source
@@ -101,12 +109,6 @@ class ObjColorMagHandler(BaseHandler):
         tags:
           - objs
         parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve photometry for
           - in: query
             name: catalog
             required: false
@@ -201,20 +203,16 @@ class ObjColorMagHandler(BaseHandler):
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              origin:
-                                type: string
-                              color:
-                                type: number
-                              abs_mag:
-                                type: number
-
+                    - type: array
+                      items:
+                        type: object
+                        properties:
+                          origin:
+                            type: string
+                          color:
+                            type: number
+                          abs_mag:
+                            type: number
           400:
             content:
               application/json:
@@ -229,22 +227,19 @@ class ObjColorMagHandler(BaseHandler):
         red_mag_key = self.get_query_argument("redMagKey", None)  # "Mag_Rp"
         color_key = self.get_query_argument("colorKey", None)  # None
 
-        with self.Session() as session:
-            obj = session.scalar(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(self.associated_user_object).where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error("Invalid object id.")
 
-            annotations = (
-                session.scalars(
-                    Annotation.select(self.associated_user_object).where(
-                        Annotation.obj_id == obj_id
-                    )
+            ann_result = await session.scalars(
+                Annotation.select(self.associated_user_object).where(
+                    Annotation.obj_id == obj_id
                 )
-                .unique()
-                .all()
             )
+            annotations = ann_result.unique().all()
 
             output = get_color_mag(
                 annotations,

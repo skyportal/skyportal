@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -63,6 +63,7 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
 
   const dispatch = useAppDispatch();
   const { data: userProfile } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
   const [addGcnEventUser] = useAddGcnEventUserMutation();
   const [deleteGcnEventUser] = useDeleteGcnEventUserMutation();
 
@@ -104,30 +105,36 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
           <Tooltip
             key={userLabel(event_user, true)}
             title={
-              <>
-                <Button
-                  size="small"
-                  type="button"
-                  name={`deleteGcnEventAdvocateButton${event_user.username}`}
-                  onClick={() => deleteUser(event_user.user_id)}
-                  className={styles.gcnEventDelete}
-                >
-                  <DeleteIcon />
-                </Button>
-              </>
+              isReadOnly ? (
+                ""
+              ) : (
+                <>
+                  <Button
+                    size="small"
+                    type="button"
+                    name={`deleteGcnEventAdvocateButton${event_user.username}`}
+                    onClick={() => deleteUser(event_user.user_id)}
+                    className={styles.gcnEventDelete}
+                  >
+                    <DeleteIcon />
+                  </Button>
+                </>
+              )
             }
           >
             <Chip size="small" label={userLabel(event_user, true)} />
           </Tooltip>
         ))}
       </div>
-      <div>
-        <AddIcon
-          fontSize="small"
-          className={styles.addIcon}
-          onClick={addUser}
-        />
-      </div>
+      {!isReadOnly && (
+        <div>
+          <AddIcon
+            fontSize="small"
+            className={styles.addIcon}
+            onClick={addUser}
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -101,18 +101,14 @@ const QueuedObservationList = ({
   handleFilterSubmit,
   downloadCallback,
 }: ObservationListProps) => {
-  if (!observations?.observations) {
-    return <p>No observations available...</p>;
-  }
-
   return (
     <QueuedObservationsTable
-      observations={observations.observations}
+      observations={observations?.observations ?? []}
       pageNumber={fetchParams.pageNumber}
       numPerPage={fetchParams.numPerPage}
       handleTableChange={handleTableChange}
       handleFilterSubmit={handleFilterSubmit}
-      totalMatches={observations.totalMatches}
+      totalMatches={observations?.totalMatches ?? 0}
       downloadCallback={downloadCallback}
     />
   );
@@ -426,7 +422,12 @@ const ObservationPage = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="h6" display="inline">
+                <Typography
+                  variant="h6"
+                  sx={{
+                    display: "inline",
+                  }}
+                >
                   Downloading {downloadProgressTotal} observations
                 </Typography>
                 <div

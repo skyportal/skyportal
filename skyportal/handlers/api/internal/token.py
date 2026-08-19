@@ -1,4 +1,5 @@
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
@@ -7,67 +8,91 @@ from ....models import ACL, Token, User
 from ...base import BaseHandler
 
 
+class TokenPostBody(BaseModel):
+    """Request body for creating a new API token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Name of the token")
+    acls: list[str] = Field(description="List of ACL IDs to grant the token")
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to create the token for; defaults to the requesting user",
+    )
+
+
+class TokenPostResponse(BaseModel):
+    """ID of the newly created token."""
+
+    token_id: str = Field(description="Token ID")
+
+
+class TokenPutBody(BaseModel):
+    """Request body for updating a token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="New name of the token")
+    acls: list[str] | None = Field(
+        default=None, description="New list of ACL IDs for the token"
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user whose permissions the new ACLs are checked against; defaults to the requesting user",
+    )
+
+
 class TokenHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self, *, body: TokenPostBody = None) -> TokenPostResponse:
         """
         ---
         description: Generate new token (limit 1 per user)
-        requestBody:
-          content:
-            application/json:
-              schema: Token
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            token_id:
-                              type: string
-                              description: Token ID
         """
-        data = self.get_json()
+        body = self.parse_body(TokenPostBody)
 
-        with self.Session() as session:
-            if "user_id" in data:
-                user_id = data["user_id"]
-                user = session.scalars(
-                    User.select(session.user_or_token).where(User.id == user_id)
-                ).first()
+        async with self.AsyncSession() as session:
+            if body.user_id is not None:
+                user_id = body.user_id
+                user = await session.scalar(
+                    User.select(session.user_or_token)
+                    .options(
+                        selectinload(User.acls),
+                        selectinload(User.roles),
+                    )
+                    .where(User.id == user_id)
+                )
             else:
                 user = self.associated_user_object
                 user_id = user.id
 
-            token_acls = set(data["acls"])
+            token_acls = set(body.acls)
             if not all(acl_id in user.permissions for acl_id in token_acls):
                 return self.error(
                     "User has attempted to grant token ACLs they do not have "
                     "access to. Please try again."
                 )
-            existing_tokens = session.scalars(
+            existing_result = await session.scalars(
                 Token.select(session.user_or_token).where(
                     Token.created_by_id == user_id
                 )
-            ).all()
+            )
+            existing_tokens = existing_result.all()
             if len(existing_tokens) > 0 and not self.associated_user_object.is_admin:
                 return self.error(
                     "You have reached the maximum number of tokens "
                     "allowed for your account type."
                 )
-            token_name = data["name"]
-            if session.scalars(
+            token_name = body.name
+            existing_name = await session.scalar(
                 Token.select(session.user_or_token).where(Token.name == token_name)
-            ).first():
+            )
+            if existing_name:
                 return self.error("Duplicate token name.")
+            # create_token operates on its own sync DBSession; safe to call
+            # from async here. The async session above never sees the new
+            # token's row until we read it back below.
             token_id = create_token(ACLs=token_acls, user_id=user_id, name=token_name)
-            session.commit()
             self.push(
                 action="baselayer/SHOW_NOTIFICATION",
                 payload={"note": f'Token "{token_name}" created.', "type": "info"},
@@ -77,19 +102,13 @@ class TokenHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, token_id: str | None = None):
+    async def get(self, token_id: str | None = None):
         """
         ---
         single:
           description: Retrieve a token
           tags:
             - tokens
-          parameters:
-            - in: path
-              name: token_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -122,38 +141,28 @@ class TokenHandler(BaseHandler):
 
         user_id = self.get_query_argument("userID", None, type=int)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if token_id is not None:
-                t = session.scalars(
+                t = await session.scalar(
                     Token.select(session.user_or_token).where(Token.id == token_id)
-                ).first()
+                )
                 if t is None:
                     return self.error(f"Could not load token with ID {token_id}")
                 return self.success(data=t)
 
             stmt = Token.select(session.user_or_token)
             if user_id is not None:
-                stmt = stmt.where(Token.created_by == user_id)
-            data = session.scalars(stmt).all()
-            return self.success(data=data)
+                stmt = stmt.where(Token.created_by_id == user_id)
+            result = await session.scalars(stmt)
+            return self.success(data=result.all())
 
     @auth_or_token
-    def put(self, token_id: str):
+    async def put(self, token_id: str, *, body: TokenPutBody = None):
         """
         ---
         description: Update token
         tags:
           - tokens
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: Token
         responses:
           200:
             content:
@@ -164,14 +173,15 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(TokenPutBody)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                token = session.scalars(
+                token = await session.scalar(
                     Token.select(session.user_or_token, mode="update").where(
                         Token.id == token_id
                     )
-                ).first()
+                )
                 if token is None:
                     return self.error(
                         "Either the specified token does not exist, "
@@ -179,30 +189,25 @@ class TokenHandler(BaseHandler):
                         "permissions to update it."
                     )
 
-                data = self.get_json()
-                data["id"] = token_id
-
-                if "user_id" in data:
-                    user_id = data["user_id"]
-                    user = session.scalars(
-                        User.select(session.user_or_token).where(User.id == user_id)
-                    ).first()
+                if body.user_id is not None:
+                    user_id = body.user_id
+                    user = await session.scalar(
+                        User.select(session.user_or_token)
+                        .options(
+                            selectinload(User.acls),
+                            selectinload(User.roles),
+                        )
+                        .where(User.id == user_id)
+                    )
                 else:
                     user = self.associated_user_object
                     user_id = user.id
 
-                schema = Token.__schema__()
-                try:
-                    schema.load(data, partial=True)
-                except ValidationError as e:
-                    return self.error(
-                        f"Invalid/missing parameters: {e.normalized_messages()}"
-                    )
-                if "name" in data:
-                    token.name = data["name"]
+                if body.name is not None:
+                    token.name = body.name
 
-                if "acls" in data:
-                    token_acls = set(data["acls"])
+                if body.acls is not None:
+                    token_acls = set(body.acls)
                     if not all(acl_id in user.permissions for acl_id in token_acls):
                         return self.error(
                             "User has attempted to grant token ACLs they do not have "
@@ -210,33 +215,28 @@ class TokenHandler(BaseHandler):
                         )
 
                     new_acl_ids = list(set(token_acls))
-                    if not all(
-                        session.scalars(
-                            ACL.select(session.user_or_token).where(ACL.id == acl_id)
-                        ).first()
-                        is not None
-                        for acl_id in new_acl_ids
-                    ):
+                    valid_ids_result = await session.scalars(
+                        ACL.select(session.user_or_token, columns=[ACL.id]).where(
+                            ACL.id.in_(new_acl_ids)
+                        )
+                    )
+                    valid_ids = set(valid_ids_result.all())
+                    if set(new_acl_ids) != valid_ids:
                         return self.error(
                             "Improperly formatted parameter aclIds; must be an array of strings corresponding to valid ACLs."
                         )
                     if len(new_acl_ids) == 0:
                         return self.error(f"No new ACLs to add to token {token_id}")
 
-                    new_acls = (
-                        session.scalars(
-                            ACL.select(session.user_or_token).where(
-                                ACL.id.in_(new_acl_ids)
-                            )
-                        )
-                        .unique()
-                        .all()
+                    new_acls_result = await session.scalars(
+                        ACL.select(session.user_or_token).where(ACL.id.in_(new_acl_ids))
                     )
+                    new_acls = new_acls_result.unique().all()
 
                     token.acls = new_acls
                     session.add(token)
 
-                session.commit()
+                await session.commit()
                 self.push(
                     action="skyportal/FETCH_USER_PROFILE",
                 )
@@ -246,16 +246,10 @@ class TokenHandler(BaseHandler):
                 return self.error(f"Could not update token: {e}")
 
     @auth_or_token
-    def delete(self, token_id: str):
+    async def delete(self, token_id: str):
         """
         ---
         description: Delete a token
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -267,24 +261,24 @@ class TokenHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            token = session.scalars(
+        async with self.AsyncSession() as session:
+            token = await session.scalar(
                 Token.select(session.user_or_token, mode="delete").where(
                     Token.id == token_id
                 )
-            ).first()
+            )
             if token is None:
                 return self.error(
                     "Either the specified token does not exist, "
                     "or the user does not have the necessary "
                     "permissions to delete it."
                 )
-
-            session.delete(token)
-            session.commit()
+            token_name = token.name
+            await session.delete(token)
+            await session.commit()
 
             self.push(
                 action="baselayer/SHOW_NOTIFICATION",
-                payload={"note": f'Token "{token.name}" deleted.', "type": "info"},
+                payload={"note": f'Token "{token_name}" deleted.', "type": "info"},
             )
             return self.success(action="skyportal/FETCH_USER_PROFILE")

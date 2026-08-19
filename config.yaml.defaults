@@ -8,6 +8,42 @@ app:
     <a href="https://github.com/skyportal/skyportal">
       https://github.com/skyportal/skyportal
     </a>
+  # Artwork for the login page buttons. The buttons themselves come from
+  # `server.auth.backends`, so a provider needs no entry here; add one, matched
+  # on `url`, to replace that provider's text button with an image.
+  login_buttons:
+    - url: /login/google-oauth2
+      image: /static/images/btn_google_signin_dark_normal_web.png
+      alt_text: Click this image to log in
+
+  # Copy for the About page; `title` above supplies the platform name.
+  about:
+    description: >-
+      SkyPortal is an open source codebase that serves as a dynamic
+      collaborative platform for time-domain astronomy. It is being jointly
+      developed at Caltech, UC Berkeley, the University of Minnesota, and
+      Université Paris-Saclay.
+    homepage_url: https://skyportal.io
+    docs_url: https://skyportal.io/docs/
+    api_docs_url: https://skyportal.io/docs/api.html
+    repository_url: https://github.com/skyportal/skyportal
+    funding: >-
+      SkyPortal development is funded by the Moore Foundation, Heising Simons
+      Foundation, National Science Foundation, NASA and the Packard Foundation.
+    # Paragraphs added after the description (zero or more). In `text`, a
+    # {Name} placeholder becomes a link to the matching entry in `links`.
+    extra_paragraphs: []
+    # Repositories whose pull requests are linked above the changelog.
+    changelog_repositories:
+      - name: https://github.com/skyportal/skyportal/pulls
+        url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
+
+  # Anonymous read-only access. When true, visitors who are not signed in are
+  # served as `anonymous_user` (a "View only" account) so pages render without a
+  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # The account is auto-provisioned (in the public group) when this is enabled.
+  anonymous_access: false
+  anonymous_user: anonymous
 
   secret_key: abc01234  # This secret key can be any random string of
                         # characters.
@@ -17,6 +53,11 @@ app:
                         #
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
+
+  # Threads each Tornado instance may use for blocking work. Too few lets a slow
+  # upstream stall unrelated requests; too many can exhaust the database
+  # connection pool. Unset uses Python's default.
+  thread_pool_size:
 
   observation_plan:
     default_filters: ['ztfg', 'ztfr', 'ztfi']
@@ -76,6 +117,7 @@ app:
   # Set to an empty string to skip the HTTP call and use the
   # "currently_unavailable.png" placeholder (useful in tests).
   ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+  skymapper_cutout_url: https://api.skymapper.nci.org.au/public/siap/dr4/query
 
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
@@ -137,84 +179,114 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+      anonymous_ok: true
+    - path: "/sources"
+      component: source/SourceList
+      anonymous_ok: true
     - path: "/source/:id"
       component: source/Source
+      anonymous_ok: true
+    - path: "/source/:id/finder"
+      component: FindingChart
+      anonymous_ok: true
+    - path: "/source/:id/periodogram"
+      component: Periodogram
+      anonymous_ok: true
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: source/SourceAnalysisPage
+      anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
-    - path: "/profile"
-      component: user/Profile
+    - path: "/teams"
+      component: team/Teams
+    - path: "/group_sources/:id"
+      component: group/GroupSources
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/candidates/scan_reports"
       component: candidate/scan_reports/ReportsList
-    - path: "/sources"
-      component: source/SourceList
+    - path: "/profile"
+      component: user/Profile
+    - path: "/brokers"
+      component: broker/BrokerList
+    - path: "/brokers/:brokerId"
+      component: broker/Broker
+    - path: "/brokers/:brokerId/filter/:fid"
+      component: broker/BrokerFilterPage
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
-    - path: "/about"
-      component: About
-    - path: "/run/:id"
-      component: observing_run/RunSummary
-    - path: "/source/:obj_id/analysis/:analysis_id"
-      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: source/ShareDataForm
     - path: "/filter/:fid"
       component: filter/Filter
+    - path: "/about"
+      component: About
+      anonymous_ok: true
     - path: "/runs"
       component: observing_run/ObservingRunPage
+    - path: "/run/:id"
+      component: observing_run/RunSummary
     - path: "/allocations"
-      component: allocation/AllocationPage
+      component: allocation/AllocationList
     - path: "/allocation/:id"
-      component: allocation/AllocationSummary
+      component: allocation/Allocation
+    - path: "/instruments"
+      component: instrument/InstrumentList
+      anonymous_ok: true
     - path: "/instrument/:id"
-      component: instrument/InstrumentSummary
+      component: instrument/Instrument
+      anonymous_ok: true
+    - path: "/telescopes"
+      component: telescope/TelescopeList
+      anonymous_ok: true
     - path: "/telescope/:id"
-      component: telescope/TelescopeSummary
+      component: telescope/Telescope
+      anonymous_ok: true
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
       component: galaxy/GalaxyPage
+      anonymous_ok: true
     - path: "/spatial_catalogs"
       component: spatial_catalog/SpatialCatalogPage
+      anonymous_ok: true
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
-    - path: "/group_sources/:id"
-      component: group/GroupSources
     - path: "/user_management"
       component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
-    - path: "/source/:id/finder"
-      component: FindingChart
-    - path: "/source/:id/periodogram"
-      component: Periodogram
+      anonymous_ok: true
     - path: "/db_stats"
       component: DBStats
+    - path: "/source_statistics"
+      component: SourceStatistics
     - path: "/gcn_events"
       component: gcn/GcnEvents
+      anonymous_ok: true
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
-    - path: "/telescopes"
-      component: telescope/TelescopePage
-    - path: "/instruments"
-      component: instrument/InstrumentPage
+      anonymous_ok: true
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
       component: earthquake/EarthquakesPage
+      anonymous_ok: true
     - path: "/earthquakes/:event_id"
       component: earthquake/EarthquakePage
+      anonymous_ok: true
     - path: "/services"
       component: analysis/AnalysisServicePage
+    - path: "/analysis_requests"
+      component: analysis/AnalysisRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -226,7 +298,7 @@ app:
     - path: "/tag_management"
       component: TagManagement
     - path: "/taxonomies"
-      component: taxonomy/TaxonomyPage
+      component: taxonomy/TaxonomyList
     - path: "/sharing_services"
       component: sharing_service/SharingServicesPage
     - path: "/sharing_service/:id/submissions"
@@ -241,14 +313,20 @@ app:
         - name: Dashboard
           icon: Home
           url: /
+          anonymous_ok: true
 
         - name: Sources
           icon: Storage
           url: /sources
+          anonymous_ok: true
 
         - name: Candidates
           icon: Search
           url: /candidates
+
+        - name: Brokers
+          icon: Hub
+          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -258,6 +336,10 @@ app:
           icon: GroupWork
           url: /groups
 
+        - name: Teams
+          icon: Diversity3
+          url: /teams
+
         - name: Observing Runs
           icon: LocalCafe
           url: /runs
@@ -265,22 +347,28 @@ app:
         - name: GCN Events
           icon: SettingsInputAntenna
           url: /gcn_events
+          anonymous_ok: true
 
         - name: Followup Requests
           icon: WorkOutlined
           url: /followup_requests
 
+        - name: Analysis Requests
+          icon: Analytics
+          url: /analysis_requests
+
         - name: Shifts
           icon: SubwayRounded
           url: /shifts
 
-        - name: Summary Search
-          icon: Troubleshoot
-          url: /summary_search
+        - name: Source Statistics
+          icon: ScatterPlot
+          url: /source_statistics
 
         - name: About
           icon: Info
           url: /about
+          anonymous_ok: true
 
     - name: Other
       icon: MoreHoriz
@@ -288,10 +376,12 @@ app:
         - name: Telescopes
           icon: MyLocation
           url: /telescopes
+          anonymous_ok: true
 
         - name: Instruments
           icon: Wifi
           url: /instruments
+          anonymous_ok: true
 
         - name: MMADetectors
           icon: Abc
@@ -316,14 +406,17 @@ app:
         - name: Earthquakes
           icon: PieChart
           url: /earthquakes
+          anonymous_ok: true
 
         - name: Galaxies
           icon: TornadoOutlined
           url: /galaxies
+          anonymous_ok: true
 
         - name: Spatial Catalogs
           icon: PhotoSizeSelectLargeOutlined
           url: /spatial_catalogs
+          anonymous_ok: true
 
         - name: Analysis Services
           icon: SentimentSatisfied
@@ -332,6 +425,10 @@ app:
         - name: Recurring API
           icon: Restore
           url: /recurring_apis
+
+        - name: Summary Search
+          icon: Troubleshoot
+          url: /summary_search
 
         - name: Taxonomies
           icon: WallpaperOutlined
@@ -423,6 +520,19 @@ app:
     # the column 1 (zero-indexed) and row 2. Note that each row is by default
     # 150px in height. The row height can be altered in the homepage_grid
     # section above (as well as other grid characteristics).
+    GettingStarted:
+      # Onboarding checklist + guided tour. Shown to every user until they
+      # dismiss it (persisted per-user); reopenable any time. Set show: false to
+      # disable it for a deployment.
+      resizeable: true
+      minW: 2
+      layouts:
+        xlg: [0, 0, 4, 3]
+        lg: [0, 0, 4, 3]
+        md: [0, 0, 4, 3]
+        sm: [0, 0, 6, 3]
+        xs: [0, 0, 4, 3]
+
     WeatherWidget:
       resizeable: true
       minW: 2
@@ -518,6 +628,51 @@ database:
   user: skyportal
   password:
 
+  # Superuser for `make db_init`; empty defaults to "postgres".
+  admin_user:
+
+  # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
+  # and Postgres, so many processes share a small bounded backend pool instead of
+  # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
+  # pooler you run (the bundled `pgbouncer` service, or an external one).
+  pooler:
+    enabled: false
+    host: localhost
+    port: 6432
+    pool_mode: transaction
+    # Real Postgres backend connections the pooler keeps per user/db.
+    default_pool_size: 25
+    max_client_conn: 1000
+    # Seconds before the pooler force-closes a connection left idle in a
+    # transaction; guards the pool against leaked transactions (0 = disabled).
+    idle_transaction_timeout: 0
+
+# Valkey connection. Valkey speaks the redis protocol, so a standard redis
+# client talks to it directly; these keys are the redis client's host/port/db.
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+
+cache:
+  # When false (default), `get_cache()` returns a no-op cache and nothing uses
+  # Valkey — behavior is unchanged until caching is explicitly enabled.
+  enabled: false
+  ttl:
+    # Default time-to-live (seconds) for cached entries when a caller does not
+    # specify one.
+    default: 300
+
+# Optional: route the source page's photometry fetch through a custom endpoint
+# (e.g. a broker passthrough that merges saved DB photometry with on-demand
+# broker photometry). "{id}" is substituted with the object id; the endpoint
+# must return the same response shape as /api/sources/{id}/photometry (a bare
+# list of serialized points). Null (default) uses the standard endpoint.
+# To display broker-augmented photometry, point this at the survey-addressed
+# broker passthrough, e.g.:
+#   photometry_display_endpoint: "/api/brokers/photometry/{id}?survey=ZTF"
+photometry_display_endpoint:
+
 server:
   # From https://console.developers.google.com/
   #
@@ -577,6 +732,32 @@ server:
 services:
   dask: False
 
+# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# `Broker` database records (name + provider class + encrypted credentials), not
+# here; see doc/broker_plugins.md. Providers are registered in
+# skyportal/broker_apis/.
+brokers:
+  # Run the in-core ingestion service (services/broker_ingest): for each active
+  # broker whose provider implements run_ingestion, consume its stream and ingest
+  # alerts via the shared save transform. Off by default; interactive access
+  # (the /brokers/{id} page) works regardless of this setting.
+  ingest_enabled: False
+
+  # Number of broker_ingest OS processes. Process 0 runs every broker; extra
+  # processes run only providers whose ingestion is safe to replicate (Kafka
+  # consumer groups, which Kafka rebalances) so REST pollers aren't duplicated.
+  ingest_processes: 1
+
+# BOOM-specific settings. The filter builder's user-created modules (variables,
+# list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
+# skyportal's database. Point this at that store, or set the equivalent
+# `filter_modules_mongodb_uri`/`filter_modules_database` keys on the broker
+# record's altdata; left unset, the builder shows no saved modules.
+boom:
+  filter_modules:
+    mongodb_uri: null
+    database: null
+
 misc:
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30
@@ -590,6 +771,18 @@ misc:
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
+  # When a data product (photometry, spectra, ...) is uploaded without specifying
+  # any groups, share it with the sitewide public group (public_group_name) in
+  # addition to the uploader's single-user group (which is always included). When
+  # false (default) an unspecified upload is shared only with the uploader. Groups
+  # given explicitly on the upload are always honored as-is.
+  share_data_with_public_group_by_default: false
+  # External survey thumbnails fetched (outbound HTTP) when a source is saved.
+  # Set to [] to disable, e.g. on instances without external network egress.
+  external_thumbnail_types:
+    - sdss
+    - ps1
+    - ls
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
@@ -632,6 +825,15 @@ weather:
   # for each telescope
   openweather_api_key:
 
+across:
+  # NASA ACROSS joint-visibility integration. Uses the public, unauthenticated
+  # ACROSS API to compute per-instrument visibility for a source; joint windows
+  # are intersected locally. See https://across.sciencecloud.nasa.gov
+  api_url: https://api.across.sciencecloud.nasa.gov/v1
+  # hi_res=true routinely exceeds the ACROSS gateway timeout; keep it off.
+  hi_res: False
+  request_timeout: 20.0
+
 external_logging:
   papertrail:
     # get an account at https://papertrailapp.com
@@ -652,6 +854,16 @@ external_logging:
     # of sampled transactions.
     # We recommend adjusting this value in production.
     profiles_sample_rate: 1.0
+
+observability:
+  # Enable OpenTelemetry instrumentation of the Tornado app and expose request
+  # metrics in Prometheus format at /api/internal/metrics. The endpoint requires
+  # a System admin token (scrape with `Authorization: token <id>`). Each app
+  # worker serves its own metrics on its internal port (ports.app_internal +
+  # worker number); point Prometheus at those ports directly rather than the
+  # load-balanced public endpoint. Disabled by default.
+  enabled: False
+  service_name: skyportal
 
 cron:
   # - interval: 60
@@ -754,6 +966,68 @@ additional_bandpasses:
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
+  # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands.
+  - name: 'radio-0.34GHz'
+    filterset: 'radio'
+    wavelength: [8.641e+09, 8.685e+09, 8.95e+09, 8.994e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA P-band tophat centered at 0.34 GHz"
+  - name: 'radio-1.4GHz'
+    filterset: 'radio'
+    wavelength: [2.099e+09, 2.109e+09, 2.173e+09, 2.184e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA L-band tophat centered at 1.4 GHz"
+  - name: 'radio-3GHz'
+    filterset: 'radio'
+    wavelength: [9.793e+08, 9.843e+08, 1.014e+09, 1.019e+09]
+    transmission: [0, 1, 1, 0]
+    description: "VLA S-band tophat centered at 3 GHz"
+  - name: 'radio-6GHz'
+    filterset: 'radio'
+    wavelength: [4.897e+08, 4.922e+08, 5.071e+08, 5.096e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA C-band tophat centered at 6 GHz"
+  - name: 'radio-10GHz'
+    filterset: 'radio'
+    wavelength: [2.938e+08, 2.953e+08, 3.043e+08, 3.058e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA X-band tophat centered at 10 GHz"
+  - name: 'radio-15GHz'
+    filterset: 'radio'
+    wavelength: [1.959e+08, 1.969e+08, 2.029e+08, 2.039e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ku-band tophat centered at 15 GHz"
+  - name: 'radio-22GHz'
+    filterset: 'radio'
+    wavelength: [1.335e+08, 1.342e+08, 1.383e+08, 1.39e+08]
+    transmission: [0, 1, 1, 0]
+    description: "VLA K-band tophat centered at 22 GHz"
+  - name: 'radio-33GHz'
+    filterset: 'radio'
+    wavelength: [8.903e+07, 8.948e+07, 9.221e+07, 9.266e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Ka-band tophat centered at 33 GHz"
+  - name: 'radio-45GHz'
+    filterset: 'radio'
+    wavelength: [6.529e+07, 6.562e+07, 6.762e+07, 6.795e+07]
+    transmission: [0, 1, 1, 0]
+    description: "VLA Q-band tophat centered at 45 GHz"
+  # SMA submillimeter bands.
+  - name: 'sma-230GHz'
+    filterset: 'sma'
+    wavelength: [1.277e+07, 1.284e+07, 1.323e+07, 1.33e+07]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 1.3mm tophat centered at 230 GHz"
+  - name: 'sma-345GHz'
+    filterset: 'sma'
+    wavelength: [8.516e+06, 8.559e+06, 8.82e+06, 8.863e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.87mm tophat centered at 345 GHz"
+  - name: 'sma-400GHz'
+    filterset: 'sma'
+    wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
+    transmission: [0, 1, 1, 0]
+    description: "SMA 0.75mm tophat centered at 400 GHz"
 
 user:
   default_role: 'Full user'
@@ -778,6 +1052,20 @@ hosts:
   tns_retrieval_queue: 127.0.0.1
   slack: 127.0.0.1
 
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+scout:
+  topic:  # e.g. lco.scout-neo-too-test
+  kafka_server: kafka.scimma.org
+  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_password:
+  group_ids: []  # groups the NEO candidates are saved to
+  bot_user_id:  # user recorded as saving the sources and authoring the annotations
+  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  # The bridge can publish under a `relaxed_test` filter mode that waives all but
+  # the identity filters. Off by default so test traffic can't look like a trigger.
+  allow_relaxed_test: False
+
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
@@ -800,16 +1088,13 @@ gcn:
       - gcn.classic.voevent.FERMI_GBM_SUBTHRESH
       - gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK
       - gcn.classic.voevent.SWIFT_XRT_POSITION
-      - gcn.classic.voevent.LVC_PRELIMINARY
-      - gcn.classic.voevent.LVC_INITIAL
-      - gcn.classic.voevent.LVC_UPDATE
-      - gcn.classic.voevent.LVC_RETRACTION
       # - gcn.classic.voevent.AMON_ICECUBE_COINC
       # - gcn.classic.voevent.AMON_ICECUBE_HESE
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE
       # - gcn.classic.voevent.MAXI_UNKNOWN
     json:
+      - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
       # - gcn.notices.icecube.lvk_nu_track_search
@@ -820,6 +1105,91 @@ gcn:
     acknowledgements:
       - The SkyPortal project acknowledges the generous support of The Gordon and Betty Moore Foundation.
   source_radius_threshold: 8.0 # max skymap cone radius to create a source, in arcmin
+
+gcn_crossmatch:
+  # Crossmatch broker alerts against active GCN localizations: for each event
+  # still inside its window, query the alerts near its localization, keep the
+  # ones genuinely inside the credible region, and raise them as candidates.
+  #
+  # What gets crossmatched is configured per SkyPortal Filter, not here: a
+  # filter names the broker, the stream (hence survey and programids) and the
+  # group that sees the candidates. Opt one in with
+  #
+  #   altdata:
+  #     gcn_crossmatch:
+  #       enabled: true
+  #       # optional, same shape as DefaultGcnTag: restrict to matching events
+  #       filters: {gcn_tags: ["Einstein Probe"]}
+  #       # optional: any setting below, overridden for this filter alone
+  #       delta_t_after: 7.0
+  #
+  # The values here are the defaults every such filter inherits.
+  #
+  # Annotations inherit the event's groups, so a restricted event's matches stay
+  # as restricted as the event itself.
+  enabled: False
+  # Seconds between passes over the due (event, filter) pairs.
+  poll_interval: 300
+  # Events older than this many days are no longer crossmatched.
+  max_event_age: 31.0
+  # Minimum gap before an event is re-queried through the same filter. Events
+  # are re-queried for as long as they are active because alerts keep arriving
+  # after the trigger. Hourly is far faster than a survey revisits a field, and
+  # keeps a month of active events well inside a broker's rate limit.
+  recheck_interval_minutes: 60.0
+  # Query window around the event time, in days.
+  delta_t_before: 1.0
+  delta_t_after: 31.0
+  # Localizations bounding to a cone larger than this (degrees) are skipped:
+  # the broker query would be impractically wide. Large GW skymaps land here.
+  max_radius_deg: 5.0
+  # Credible level of the stored contour used to bound non-cone localizations.
+  credible_level: 90
+  # Cumulative probability defining "inside" for the containment check.
+  cumprob: 0.95
+  # Cap on alerts returned per event per filter per pass.
+  max_alerts: 500
+  # After a broker answers 429, skip it entirely for this many minutes. Quotas
+  # are per account and shared with the rest of the app, so retrying sooner
+  # burns allowance that interactive users need. Lasair's window is an hour.
+  rate_limit_backoff_minutes: 60.0
+  # Also search the window *before* the event, once per event/broker. Alerts
+  # there cannot be caused by the event, so they rule a candidate out: a
+  # position already flaring last month is a variable, not a counterpart.
+  # Recorded with archival: true on the annotation.
+  archival: True
+  archival_days: 31.0
+
+einstein_probe:
+  # Ingestion of unverified X-ray transient candidates from the Einstein Probe
+  # data center (https://ep.bao.ac.cn). This is a proprietary, invitation-only
+  # feed and is DISTINCT from the public gcn.notices.einstein_probe.wxt.alert
+  # topic configured under gcn.notice_types.json above: the data center
+  # publishes candidates earlier and with more detail, keyed by name+version,
+  # and its dateobs is the observation start rather than the trigger time.
+  # The two streams therefore produce separate GcnEvents for the same physical
+  # transient; the EP name is recorded in aliases so they can be cross-linked.
+  #
+  # Access to the data center is by invitation. Contact Tomas Ahumada
+  # (tahumada@astro.umd.edu) or Lin Yan (lyan@caltech.edu).
+  enabled: False
+  base_url: https://ep.bao.ac.cn/ep
+  email:
+  password:
+  # Seconds between polls of the unverified-candidate list.
+  poll_interval: 300
+  # Events are restricted to these groups. Because GcnEvent.read is
+  # group-scoped, leaving this empty would fall back to the sitewide public
+  # group and publish the proprietary feed to every user -- so the service
+  # refuses to start unless at least one group is named here.
+  group_names:
+    - Einstein Probe
+  # Scale factor applied to the EP position error to size the cone
+  # localization: radius = pos_err * radius_multiplier, in degrees.
+  radius_multiplier: 1.0
+  # Candidates older than this many days are ignored on startup, so that a
+  # fresh deployment does not backfill the entire archive.
+  max_event_age: 31.0
 
 health_monitor:
   seconds_between_checks: 30.5

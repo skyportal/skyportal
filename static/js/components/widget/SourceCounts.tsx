@@ -11,6 +11,7 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetSourceCountsQuery } from "../../ducks/sourceCounts";
+import { useActiveTeam } from "../../ducks/teams";
 
 const useStyles = makeStyles()(() => ({
   counter: {
@@ -39,7 +40,10 @@ interface SourceCountsProps {
 
 const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
   const { classes: styles } = useStyles();
-  const { data: sourceCounts } = useGetSourceCountsQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: sourceCounts } = useGetSourceCountsQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const userPrefs = (profile?.preferences as any)?.sourceCounts;

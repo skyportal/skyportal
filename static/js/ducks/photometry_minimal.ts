@@ -26,6 +26,14 @@ export interface MinimalPhotometryDatum {
   origin: string | null;
 }
 
+export interface OverlayPhotometryDatum {
+  filter: string;
+  mjd: number;
+  mag: number | null;
+  mag_corr: number | null;
+  extinction: number | null;
+}
+
 interface RawPhotometryDatum {
   id: number;
   obj_id: string;
@@ -69,7 +77,40 @@ export const photometryMinimalApi = skyportalApi.injectEndpoints({
         })),
       providesTags: ["Photometry"],
     }),
+    // Photometry for the Source Statistics overlays. When `includeExtinction`
+    // is set, the backend adds `mag_corr` (Galactic-extinction-corrected mag,
+    // computed per-filter via the G23 law) and `extinction` (A_band).
+    getSourcePhotometryOverlay: build.query<
+      OverlayPhotometryDatum[],
+      { id: number | string; includeExtinction: boolean }
+    >({
+      query: ({ id, includeExtinction }) => ({
+        url: `api/sources/${id}/photometry`,
+        // format "mag" (not "plot") so the backend attaches `mag_corr`/
+        // `extinction` when requested.
+        params: {
+          format: "mag",
+          magsys: "ab",
+          individualOrSeries: "both",
+          includeSuperObjsPhotometry: true,
+          ...(includeExtinction ? { includeExtinction: true } : {}),
+        },
+      }),
+      transformResponse: (data: RawPhotometryDatum[]) =>
+        (data ?? []).map((datum) => ({
+          filter: datum.filter,
+          mjd: datum.mjd,
+          mag: datum.mag,
+          mag_corr: (datum["mag_corr"] as number | null | undefined) ?? null,
+          extinction:
+            (datum["extinction"] as number | null | undefined) ?? null,
+        })),
+      providesTags: ["Photometry"],
+    }),
   }),
 });
 
-export const { useGetSourcePhotometryMinimalQuery } = photometryMinimalApi;
+export const {
+  useGetSourcePhotometryMinimalQuery,
+  useGetSourcePhotometryOverlayQuery,
+} = photometryMinimalApi;

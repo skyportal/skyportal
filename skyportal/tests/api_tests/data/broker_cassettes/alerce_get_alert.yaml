@@ -1,0 +1,87 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api.alerce.online/ztf/v1/objects/ZTF18abcgqmz
+  response:
+    body:
+      string: '{"oid": "ZTF18abcgqmz", "ndethist": "2", "ncovhist": 25, "mjdstarthist":
+        58288.37787039997, "mjdendhist": 58347.19135419978, "corrected": true, "stellar":
+        true, "ndet": 2, "g_r_max": null, "g_r_max_corr": null, "g_r_mean": null,
+        "g_r_mean_corr": null, "firstmjd": 58288.37787039997, "lastmjd": 58347.19135419978,
+        "deltajd": 58.81348379980773, "meanra": 279.90476624999997, "meandec": -4.8708879,
+        "sigmara": 0.00018632263685456824, "sigmadec": 0.00018130217869657698, "step_id_corr":
+        "corr_bulk_0.0.1"}'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '501'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 16:04:30 GMT
+      Server:
+      - nginx/1.31.2
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api.alerce.online/ztf/v1/objects/ZTF18abcgqmz/detections
+  response:
+    body:
+      string: '[{"tid": "ztf", "mjd": 58288.37787039997, "candid": "534377870115010099",
+        "fid": 1, "pid": 534377870115, "diffmaglim": 20.430187, "isdiffpos": -1, "nid":
+        534, "distnr": 0.81930375, "magpsf": 18.770634, "magpsf_corr": 15.501175,
+        "magap": 19.1789, "sigmapsf": 0.19861613, "sigmapsf_corr": 100.0, "sigmapsf_corr_ext":
+        0.009777568, "sigmagap": 0.1505, "ra": 279.904898, "dec": -4.8707597, "rb":
+        0.53333336, "drb": 0.0, "magapbig": 18.8549, "sigmagapbig": 0.1366, "rfid":
+        435120101, "has_stamp": true, "corrected": true, "dubious": false, "step_id_corr":
+        "bulk_1.0.0", "phase": 0.0, "parent_candid": 0}, {"tid": "ztf", "mjd": 58347.19135419978,
+        "candid": "593191350115010084", "fid": 1, "pid": 593191350115, "diffmaglim":
+        20.164656, "isdiffpos": -1, "nid": 593, "distnr": 0.7052499, "magpsf": 18.30812,
+        "magpsf_corr": 15.52994, "magap": 18.2873, "sigmapsf": 0.111118086, "sigmapsf_corr":
+        100.0, "sigmapsf_corr_ext": 0.008600273, "sigmagap": 0.0794, "ra": 279.9046345,
+        "dec": -4.8710161, "rb": 0.59, "rbversion": "t8_f5_c3", "drb": 0.0, "magapbig":
+        18.0128, "sigmagapbig": 0.0764, "rfid": 435120101, "has_stamp": true, "corrected":
+        true, "dubious": false, "step_id_corr": "bulk_1.0.0", "phase": 0.0, "parent_candid":
+        0}]'
+    headers:
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1214'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 16:04:30 GMT
+      Server:
+      - nginx/1.31.2
+    status:
+      code: 200
+      message: OK
+version: 1

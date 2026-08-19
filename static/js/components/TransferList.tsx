@@ -109,8 +109,10 @@ const TransferList = ({
               numberOfChecked(items) !== 0
             }
             disabled={items.length === 0}
-            inputProps={{
-              "aria-label": "all items selected",
+            slotProps={{
+              input: {
+                "aria-label": "all items selected",
+              },
             }}
           />
         }
@@ -144,8 +146,10 @@ const TransferList = ({
                   checked={checked.findIndex((i) => i.id === item.id) !== -1}
                   tabIndex={-1}
                   disableRipple
-                  inputProps={{
-                    "aria-labelledby": labelId,
+                  slotProps={{
+                    input: {
+                      "aria-labelledby": labelId,
+                    },
                   }}
                 />
               </ListItemIcon>
@@ -162,12 +166,20 @@ const TransferList = ({
       container
       size={12}
       spacing={1}
-      justifyContent="center"
-      alignItems="baseline"
+      sx={{
+        justifyContent: "center",
+        alignItems: "baseline",
+      }}
     >
       <Grid size={5}>{customList(leftLabel || "Choices", left)}</Grid>
       <Grid size={2}>
-        <Grid container direction="column" alignItems="center">
+        <Grid
+          container
+          sx={{
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Button
             sx={{ my: 0.5 }}
             variant="outlined"

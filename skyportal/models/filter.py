@@ -1,4 +1,4 @@
-__all__ = ["Filter"]
+__all__ = ["Filter", "set_autosave"]
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -50,6 +50,26 @@ class Filter(Base):
         back_populates="filters",
         doc="The Filter's Group.",
     )
+    broker_id = sa.Column(
+        sa.ForeignKey("brokers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the Broker this Filter runs on, if any.",
+    )
+    broker = relationship(
+        "Broker",
+        foreign_keys=[broker_id],
+        back_populates="filters",
+        doc="The Broker this Filter runs on.",
+    )
+    autosave = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="If set, objects passing this filter during broker ingestion are "
+        "auto-saved as Sources to the Filter's Group (in addition to being "
+        "registered as Candidates).",
+    )
     candidates = relationship(
         "Candidate",
         back_populates="filter",
@@ -58,3 +78,16 @@ class Filter(Base):
         order_by="Candidate.passed_at",
         doc="Candidates that have passed the filter.",
     )
+
+
+def set_autosave(filter_, value):
+    """Set a Filter's autosave, keeping the broker UI's mirror in step.
+
+    Ingestion honours the `autosave` column; the broker filter UI reads
+    `altdata['autoSave']`. Writing one without the other lets a filter claim in
+    the UI that it auto-saves while ingestion ignores it.
+    """
+    value = bool(value)
+    filter_.autosave = value
+    if isinstance(filter_.altdata, dict) and "autoSave" in filter_.altdata:
+        filter_.altdata = {**filter_.altdata, "autoSave": value}

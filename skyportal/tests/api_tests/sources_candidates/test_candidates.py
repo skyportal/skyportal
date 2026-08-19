@@ -85,6 +85,9 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    redshift_history = data["data"]["redshift_history"]
+    assert redshift_history is not None
+    assert redshift_history[-1]["value"] == 3
 
     status, data = api(
         "DELETE",
@@ -92,6 +95,77 @@ def test_token_user_post_delete_new_candidate(
         token=upload_data_token,
     )
     assert status == 200
+
+
+def test_token_user_post_candidate_numeric_id(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column: without coercion Postgres rejects the varchar = bigint
+    # comparison and the post 500s.
+    obj_id = 170591539488620622
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == str(obj_id)
+
+
+def test_candidate_name_only_search(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # nameOnly autocomplete (toolbar quick-search): a prefix of the obj_id
+    # returns the candidate's obj_id.
+    status, data = api(
+        "GET",
+        f"candidates?objID={obj_id[:8]}&nameOnly=true&numPerPage=25",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert obj_id in [c["id"] for c in data["data"]["candidates"]]
+
+    # a non-matching prefix does not return it
+    status, data = api(
+        "GET",
+        "candidates?objID=zzz-no-such-candidate&nameOnly=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert obj_id not in [c["id"] for c in data["data"]["candidates"]]
 
 
 def test_cannot_add_candidate_without_filter_id(upload_data_token):
@@ -176,7 +250,7 @@ def test_token_user_post_two_candidates_same_obj_filter(
     assert status == 200
 
 
-def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
+def test_token_user_repost_same_obj_filter_passed_at_is_idempotent(
     upload_data_token, view_only_token, public_filter
 ):
     obj_id = str(uuid.uuid4())
@@ -197,12 +271,15 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         token=upload_data_token,
     )
     assert status == 200
+    first_ids = data["data"]["ids"]
 
     status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
+    # Re-posting the same obj/filter/passed_at reuses the existing row instead of
+    # 400-ing on the unique index; it returns the same candidate id.
     status, data = api(
         "POST",
         "candidates",
@@ -218,9 +295,49 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "Failed to post candidate" in data["message"]
+    assert status == 200
+    assert data["data"]["ids"] == first_ids
+
+
+def test_repost_candidate_reuses_duplicate_and_adds_new_filter(
+    upload_data_token_two_groups, public_filter, public_filter2
+):
+    obj_id = str(uuid.uuid4())
+    passed_at = str(utcnow_naive())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    first_ids = data["data"]["ids"]
+    assert len(first_ids) == 1
+
+    # public_filter is a duplicate (reused), public_filter2 is genuinely new: a
+    # duplicate on one filter must not drop the new candidate for the other.
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id, public_filter2.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    ids = data["data"]["ids"]
+    assert len(ids) == 2
+    assert first_ids[0] in ids
 
 
 def test_candidate_list_sorting_basic(
@@ -231,7 +348,6 @@ def test_candidate_list_sorting_basic(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -243,7 +359,6 @@ def test_candidate_list_sorting_basic(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"numeric_field": 2},
         },
@@ -276,7 +391,6 @@ def test_candidate_list_sorting_different_origins(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -288,7 +402,6 @@ def test_candidate_list_sorting_different_origins(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin2,
             "data": {"numeric_field": 2},
         },
@@ -327,7 +440,6 @@ def test_candidate_list_sorting_hidden_group(
         "POST",
         f"sources/{public_candidate_two_groups.id}/annotations",
         data={
-            "obj_id": public_candidate_two_groups.id,
             "origin": f"{public_group2.id}",
             "data": {"numeric_field": 1},
             "group_ids": [public_group2.id],
@@ -341,7 +453,6 @@ def test_candidate_list_sorting_hidden_group(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": f"{public_group2.id}",
             "data": {"numeric_field": 2},
         },
@@ -375,7 +486,6 @@ def test_candidate_list_sorting_null_value(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -387,7 +497,6 @@ def test_candidate_list_sorting_null_value(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"some_other_field": 2},
         },
@@ -421,7 +530,6 @@ def test_candidate_list_filtering_numeric(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -433,7 +541,6 @@ def test_candidate_list_filtering_numeric(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"numeric_field": 2},
         },
@@ -464,7 +571,6 @@ def test_candidate_list_filtering_boolean(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"bool_field": True},
         },
@@ -476,7 +582,6 @@ def test_candidate_list_filtering_boolean(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"bool_field": False},
         },
@@ -507,7 +612,6 @@ def test_candidate_list_filtering_string(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"string_field": "a"},
         },
@@ -519,7 +623,6 @@ def test_candidate_list_filtering_string(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"string_field": "b"},
         },
@@ -717,7 +820,7 @@ def test_exclude_by_outdated_annotations(
     status, data = api(
         "POST",
         f"sources/{public_candidate.id}/annotations",
-        data={"obj_id": public_candidate.id, "origin": origin, "data": {"value1": 1}},
+        data={"origin": origin, "data": {"value1": 1}},
         token=annotation_token,
     )
     assert status == 200
@@ -1721,3 +1824,80 @@ def test_candidate_filter_list(view_only_token, public_candidate):
     assert isinstance(data["data"]["totalMatches"], int)
     assert "passing_alert_id" in data["data"]["candidates"][0]
     assert "obj_id" in data["data"]["candidates"][0]
+
+
+def test_bulk_delete_old_unsaved_candidates(
+    super_admin_token, upload_data_token, view_only_token, public_filter, public_group
+):
+    old = str(utcnow_naive() - datetime.timedelta(days=400))  # > 6 months
+    recent = str(utcnow_naive())
+
+    old_unsaved = str(uuid.uuid4())  # old + never saved -> should be deleted
+    old_saved = str(uuid.uuid4())  # old but actively saved -> should be kept
+    recent_unsaved = str(uuid.uuid4())  # unsaved but recent -> should be kept
+
+    for obj_id, passed_at in [
+        (old_unsaved, old),
+        (old_saved, old),
+        (recent_unsaved, recent),
+    ]:
+        status, data = api(
+            "POST",
+            "candidates",
+            data={
+                "id": obj_id,
+                "ra": 10.0,
+                "dec": 10.0,
+                "filter_ids": [public_filter.id],
+                "passed_at": passed_at,
+            },
+            token=upload_data_token,
+        )
+        assert status == 200, data
+
+    # save old_saved as an active source so it is protected
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": old_saved, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # non-admins cannot call the purge
+    status, data = api("POST", "candidates/bulk_delete", data={}, token=view_only_token)
+    assert status == 401
+
+    # dry run deletes nothing but reports the old, unsaved candidate
+    status, data = api(
+        "POST",
+        "candidates/bulk_delete",
+        data={"maxAgeMonths": 6, "dryRun": True},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["deleted"] == 0
+    assert data["data"]["remaining"] >= 1
+    # dry run did not actually delete
+    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
+    assert status == 200
+
+    # real purge
+    status, data = api(
+        "POST",
+        "candidates/bulk_delete",
+        data={"maxAgeMonths": 6},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["deleted"] >= 1
+
+    # old + unsaved was deleted
+    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
+    assert status == 404
+    # old + saved was kept (has an active source)
+    status, _ = api("HEAD", f"candidates/{old_saved}", token=view_only_token)
+    assert status == 200
+    # recent + unsaved was kept (too new)
+    status, _ = api("HEAD", f"candidates/{recent_unsaved}", token=view_only_token)
+    assert status == 200

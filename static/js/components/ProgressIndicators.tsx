@@ -44,13 +44,17 @@ const CircularProgressWithLabel = ({
         <Typography
           variant="caption"
           component="div"
-          color="text.secondary"
+          sx={{
+            color: "text.secondary",
+          }}
         >{`${Math.round((current * 100) / total)}%`}</Typography>
       ) : (
         <Typography
           variant="caption"
           component="div"
-          color="text.secondary"
+          sx={{
+            color: "text.secondary",
+          }}
         >{`${current}/${total}`}</Typography>
       )}
     </Box>
@@ -71,7 +75,13 @@ const TableProgressText = ({
   }
   return (
     <div>
-      <Typography variant="caption" component="div" color="text.secondary">
+      <Typography
+        variant="caption"
+        component="div"
+        sx={{
+          color: "text.secondary",
+        }}
+      >
         {`${nbItems} ${status}`}
       </Typography>
     </div>

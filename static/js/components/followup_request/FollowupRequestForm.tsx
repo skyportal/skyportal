@@ -7,8 +7,9 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { makeStyles } from "tss-react/mui";
-import Form from "@rjsf/mui";
+import Form, { Templates as MuiTemplates } from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import { getUiOptions } from "@rjsf/utils";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -16,7 +17,7 @@ import DialogContent from "@mui/material/DialogContent";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -31,6 +32,7 @@ import {
   isSomeActiveRangeOrNoRange,
   rangeIsActive,
 } from "../allocation/AllocationTable";
+import { localeSafeFields } from "./LocaleSafeNumberField";
 
 const useStyles = makeStyles()(() => ({
   marginTop: {
@@ -48,6 +50,66 @@ const useStyles = makeStyles()(() => ({
     marginBottom: "1rem",
   },
 }));
+
+// Show a field's schema `description` as an info-icon tooltip next to its
+// label, instead of rjsf's default plain-text caption below the input.
+const MuiBaseInputTemplate = MuiTemplates.BaseInputTemplate as any;
+const FollowupBaseInputTemplate = (props: any) => {
+  const { schema, label, hideLabel } = props;
+  if (hideLabel || !schema?.description) {
+    return <MuiBaseInputTemplate {...props} />;
+  }
+  return (
+    <MuiBaseInputTemplate
+      {...props}
+      label={
+        <Box
+          component="span"
+          sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
+        >
+          {label}
+          <Tooltip title={schema.description}>
+            <HelpOutlineIcon sx={{ fontSize: "1rem", color: "gray" }} />
+          </Tooltip>
+        </Box>
+      }
+    />
+  );
+};
+
+// Fields rendered by FollowupBaseInputTemplate already show their
+// description as a tooltip next to the label — suppress rjsf's default
+// plain-text caption there so it isn't shown twice. Other widgets (e.g.
+// TAROT's read-only warning on its checkboxes field) have no tooltip
+// alternative, so they keep the caption.
+const MuiFieldTemplate = MuiTemplates.FieldTemplate as any;
+const FollowupFieldTemplate = (props: any) => {
+  const { schema, uiSchema } = props;
+  const widget = getUiOptions(uiSchema).widget;
+  const usesTooltip =
+    !schema?.enum &&
+    ["string", "number", "integer"].includes(schema?.type) &&
+    widget !== "textarea" &&
+    widget !== "checkbox";
+  if (usesTooltip) {
+    return (
+      <MuiFieldTemplate
+        {...props}
+        rawDescription={undefined}
+        description={undefined}
+      />
+    );
+  }
+  return <MuiFieldTemplate {...props} />;
+};
+
+// Stable reference: a new object literal here would make rjsf rebuild its
+// registry on every keystroke, resetting fields' local state (e.g. NumberField's
+// in-progress-decimal cache), which erased values like "2.5" while typing.
+const followupTemplates = {
+  BaseInputTemplate: FollowupBaseInputTemplate,
+  FieldTemplate: FollowupFieldTemplate,
+};
 
 interface FollowupRequestFormProps {
   obj_id: string;
@@ -425,7 +487,6 @@ const FollowupRequestForm = ({
           groupIDs={selectedGroupIds}
         />
         <Tooltip
-          componentsProps={{ tooltip: { sx: { maxWidth: 340 } } }}
           title={
             allocationLookUp[selectedAllocationId]?.validity_ranges?.length
               ? allocationLookUp[selectedAllocationId]?.validity_ranges?.map(
@@ -449,6 +510,7 @@ const FollowupRequestForm = ({
                 )
               : "No validity ranges defined for this allocation."
           }
+          slotProps={{ tooltip: { sx: { maxWidth: 340 } } }}
         >
           <Chip
             label="Validity Ranges"
@@ -467,10 +529,15 @@ const FollowupRequestForm = ({
         {allocationLookUp[selectedAllocationId] !== undefined &&
         allocationLookUp[selectedAllocationId]?.instrument_id in
           instrumentFormParams ? (
+          // Key on the allocation so the form remounts with the new instrument's
+          // defaults instead of leaking stale formData (e.g. exposure_time) across it.
           <Form
+            key={`${selectedAllocationId}-${requestType}`}
             schema={schema as any}
             validator={validator}
             uiSchema={uiSchema}
+            templates={followupTemplates}
+            fields={localeSafeFields}
             customValidate={validate}
             onSubmit={handleSubmit as any}
             disabled={isSubmitting}

@@ -126,15 +126,13 @@ const EarthquakesFilterForm = ({
           <TextField
             size="small"
             label="First Detected After"
-            name="startDate"
-            inputRef={register}
+            {...register("startDate")}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
             size="small"
             label="Last Detected Before"
-            name="endDate"
-            inputRef={register}
+            {...register("endDate")}
             placeholder="2012-08-30T00:00:00"
           />
         </div>

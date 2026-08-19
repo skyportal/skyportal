@@ -80,18 +80,18 @@ const CustomProbabilityWidget = ({
     label="Probability"
     type="number"
     helperText="[0-1]"
-    InputLabelProps={{
-      shrink: true,
-    }}
-    inputProps={{
-      min: "0",
-      max: "1",
-      step: "0.0001",
+    slotProps={{
+      inputLabel: {
+        shrink: true,
+      },
+      htmlInput: {
+        min: "0",
+        max: "1",
+        step: "0.0001",
+      },
     }}
     value={value || ""}
-    onChange={(event) => {
-      onChange(event.target.value);
-    }}
+    onChange={(event) => onChange(event.target.value)}
   />
 );
 
@@ -116,10 +116,12 @@ const CustomGroupsWidget = ({
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
+    slotProps: {
+      paper: {
+        style: {
+          maxHeight: ITEM_HEIGHT * 4.5,
+          width: 250,
+        },
       },
     },
   };

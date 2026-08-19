@@ -56,13 +56,13 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 def validate_fluxerr(fluxerr):
     try:
         if isinstance(fluxerr, float | int | str):
-            non_negative = float(fluxerr) >= 0
+            positive = float(fluxerr) > 0
         else:
-            non_negative = all(float(el) >= 0 for el in fluxerr)
+            positive = all(float(el) > 0 for el in fluxerr)
     except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
-    if not non_negative:
-        raise ValidationError("Invalid value: fluxerr must be non-negative")
+    if not positive:
+        raise ValidationError("Invalid value: fluxerr must be positive (non-zero)")
 
 
 class ApispecEnumField(fields.Enum):
@@ -412,7 +412,7 @@ class PhotBaseFlexible:
     group_ids = fields.Raw(
         metadata={
             "description": "List of group IDs to which photometry points will be visible. "
-            "If 'all', will be shared with site-wide public group (visible to all users "
+            "If 'all', will be shared with sitewide public group (visible to all users "
             "who can view associated source)."
         },
         required=False,
@@ -565,7 +565,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
     required_keys = [
         "magsys",
-        "limiting_mag",
         "mjd",
         "filter",
         "obj_id",
@@ -618,9 +617,10 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             "in the magnitude system `magsys`. "
             "Can be given as a scalar or a 1D list. "
             "If a scalar, will be broadcast to all values "
-            "given as lists. Null values not allowed."
+            "given as lists. Required for non-detections (when mag is null)."
         },
-        required=True,
+        required=False,
+        load_default=None,
     )
 
     limiting_mag_nsigma = fields.Raw(
@@ -887,12 +887,14 @@ class PhotometryFlux(_Schema, PhotBase):
         from skyportal.models import PHOT_SYS, PHOT_ZP, Instrument, Obj, Photometry
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO : implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO : implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
@@ -966,6 +968,8 @@ class PhotometryFlux(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
@@ -1063,12 +1067,14 @@ class PhotometryMag(_Schema, PhotBase):
             )
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO: implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO: implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
@@ -1160,6 +1166,8 @@ class PhotometryMag(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 

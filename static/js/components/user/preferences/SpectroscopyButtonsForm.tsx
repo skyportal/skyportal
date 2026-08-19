@@ -7,7 +7,6 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 
 import Button from "../../Button";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -84,10 +83,6 @@ const SpectroscopyButtonsForm = () => {
 
   return (
     <div>
-      <UserPreferencesHeader
-        title="Spectroscopy Extra Wavelengths"
-        popupText="Select a group of wavelengths, give them a common name and color, and a button will appear on spectroscopy plots for showing those spectral lines on the plot."
-      />
       <div className={classes.root}>
         {spectroscopyButtons && (
           <div className={classes.chips}>

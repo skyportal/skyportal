@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -32,6 +32,8 @@ import ScanningPageCandidateAnnotations, {
   getAnnotationValueString,
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "../source/EditSourceGroups";
+import UpdateSourceMPC from "../source/UpdateSourceMPC";
+import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
@@ -80,13 +82,6 @@ const useStyles = makeStyles()((theme) => ({
       gridTemplateAreas: `"info" "thumbnails" "photometry" "annotations"`,
       gridTemplateColumns: "100%",
     },
-  },
-  thumbnailsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
-    columnGap: 0,
-    rowGap: "0.5rem",
-    gridAutoFlow: "row",
   },
   backToTop: {
     position: "absolute",
@@ -215,8 +210,12 @@ const CustomSortToolbar = ({
     let data: any = {
       pageNumber: 1,
       numPerPage,
-      groupIDs: filterGroups?.map((g: any) => g.id).join(),
     };
+    // Scanning by specific filters and by groups are mutually exclusive on the
+    // backend (groupIDs wins), so only seed groupIDs when not filtering by filter.
+    if (!filterFormData?.["filterIDs"]) {
+      data.groupIDs = filterGroups?.map((g: any) => g.id).join();
+    }
     if (filterFormData !== null) {
       data = {
         ...data,
@@ -284,7 +283,6 @@ const CandidateThumbnails = ({
   dec,
   thumbnails = null,
 }: CandidateThumbnailsProps) => {
-  const { classes } = useStyles();
   const [generateSurveyThumbnailMutation] =
     useGenerateSurveyThumbnailMutation();
 
@@ -313,7 +311,8 @@ const CandidateThumbnails = ({
         </div>
       ) : (
         <div>
-          <div className={classes.thumbnailsGrid}>
+          <div>
+            {/* 3 columns over 2 rows (6 at a time); cycle through any extras. */}
             <ThumbnailList
               ra={ra}
               dec={dec}
@@ -324,6 +323,7 @@ const CandidateThumbnails = ({
               titleSize="0.7rem"
               displayTypes={displayTypes}
               useGrid={false}
+              columns={3}
               noMargin
             />
           </div>
@@ -367,6 +367,7 @@ const CandidateInfo = ({
     (g) => !g["single_user_group"],
   );
   const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const isReadOnly = useIsReadOnly();
 
   const candidateHasAnnotationWithSelectedKey = (obj: any) => {
     const annotation = obj.annotations.find(
@@ -424,6 +425,7 @@ const CandidateInfo = ({
               </Button>
             </a>
           </span>
+          <ObjectTags source={candidateObj} />
           {candidateObj.is_source ? (
             <div>
               <div>
@@ -467,44 +469,48 @@ const CandidateInfo = ({
             </div>
           )}
           {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}{" "}
-          {Boolean(
-            !candidateObj.is_source ||
-            (candidateObj.is_source &&
-              filterGroups?.filter(
-                (g) =>
-                  !candidateObj.saved_groups
-                    ?.map((x: any) => x.id)
-                    ?.includes(g.id),
-              ).length),
-          ) && (
-            <div className={classes.saveCandidateButton}>
-              <SaveCandidateButton
-                candidate={candidateObj}
-                userGroups={
-                  // Filter out groups the candidate is already saved to
-                  candidateObj.is_source
-                    ? userAccessibleGroups?.filter(
-                        (g) =>
-                          !candidateObj.saved_groups
-                            ?.map((x: any) => x.id)
-                            ?.includes(g.id),
-                      )
-                    : userAccessibleGroups
-                }
-                filterGroups={
-                  // Filter out groups the candidate is already saved to
-                  candidateObj.is_source
-                    ? filterGroups?.filter(
-                        (g) =>
-                          !candidateObj.saved_groups
-                            ?.map((x: any) => x.id)
-                            ?.includes(g.id),
-                      )
-                    : filterGroups
-                }
-              />
-            </div>
-          )}
+          {!isReadOnly &&
+            Boolean(
+              !candidateObj.is_source ||
+              (candidateObj.is_source &&
+                filterGroups?.filter(
+                  (g) =>
+                    !candidateObj.saved_groups
+                      ?.map((x: any) => x.id)
+                      ?.includes(g.id),
+                ).length),
+            ) && (
+              <div
+                className={classes.saveCandidateButton}
+                data-testid="tour-candidate-save"
+              >
+                <SaveCandidateButton
+                  candidate={candidateObj}
+                  userGroups={
+                    // Filter out groups the candidate is already saved to
+                    candidateObj.is_source
+                      ? userAccessibleGroups?.filter(
+                          (g) =>
+                            !candidateObj.saved_groups
+                              ?.map((x: any) => x.id)
+                              ?.includes(g.id),
+                        )
+                      : userAccessibleGroups
+                  }
+                  filterGroups={
+                    // Filter out groups the candidate is already saved to
+                    candidateObj.is_source
+                      ? filterGroups?.filter(
+                          (g) =>
+                            !candidateObj.saved_groups
+                              ?.map((x: any) => x.id)
+                              ?.includes(g.id),
+                        )
+                      : filterGroups
+                  }
+                />
+              </div>
+            )}
           {/* if we have associated_objs, show their IDs here (clickable, send to source page in another tab when clicked) */}
           {candidateObj.associated_objs &&
             candidateObj.associated_objs.length > 0 && (
@@ -562,6 +568,25 @@ const CandidateInfo = ({
             </div>
           </div>
           <div className={classes.infoItem}>
+            <b>MPC: </b>
+            {candidateObj.is_roid && (
+              <Chip
+                size="small"
+                label={candidateObj.alias?.[0] ?? candidateObj.mpc_name}
+                className={classes.chip}
+              />
+            )}
+            {!isReadOnly && (
+              <UpdateSourceMPC
+                source={{
+                  id: candidateObj.id,
+                  mpc_name: candidateObj.mpc_name,
+                  first_detected: candidateObj.last_detected_at,
+                }}
+              />
+            )}
+          </div>
+          <div className={classes.infoItem}>
             <CandidatePlugins {...({ candidate: candidateObj } as any)} />
           </div>
           {candidateObj.photstats && (
@@ -572,7 +597,10 @@ const CandidateInfo = ({
               />
             </div>
           )}
-          <div className={classes.infoItemPadded}>
+          <div
+            className={classes.infoItemPadded}
+            data-testid="tour-candidate-classifications"
+          >
             <b>Classification(s): </b>
             <AddClassificationsScanningPage obj_id={candidateObj.id} />
             <div className={classes.classificationsList}>
@@ -733,7 +761,11 @@ const Candidate = ({
               paddingTop: "0.5rem",
             }}
           >
-            <Typography fontWeight="bold">
+            <Typography
+              sx={{
+                fontWeight: "bold",
+              }}
+            >
               {`${index}/${totalMatches}`}
             </Typography>
           </div>
@@ -828,9 +860,14 @@ const CandidateList = () => {
     }
   };
 
+  // ViewportList only knows a candidate's position within the current page, so
+  // add the page offset to get its position in the full result set.
+  const globalIndex = (pageIndex: number) =>
+    (pageNumber - 1) * numPerPage + pageIndex + 1;
+
   return (
-    <div style={{ position: "relative" }}>
-      <div>
+    <div style={{ position: "relative" }} data-testid="tour-candidates-page">
+      <div data-testid="tour-candidates-filter">
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}
@@ -880,7 +917,7 @@ const CandidateList = () => {
                       <Candidate
                         candidate={candidates[index]}
                         filterGroups={filterGroups}
-                        index={index + 1}
+                        index={globalIndex(index)}
                         totalMatches={totalMatches}
                       />
                     </div>

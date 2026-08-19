@@ -1,9 +1,13 @@
 import sqlalchemy as sa
 
+from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
+from baselayer.log import make_log
 from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
 from skyportal.models import ACL, DBSession, Group, Role, Token, User
+
+log = make_log("model_util")
 
 all_acl_ids = [
     "Become user",
@@ -13,6 +17,7 @@ all_acl_ids = [
     "Manage sources",
     "Manage photometry",
     "Manage groups",
+    "Manage teams",
     "Manage sharing services",
     "Manage shifts",
     "Manage instruments",
@@ -28,8 +33,6 @@ all_acl_ids = [
     "System admin",
     "Post taxonomy",
     "Delete taxonomy",
-    "Delete instrument",
-    "Delete telescope",
     "Delete bulk photometry",
     "Classify",
 ] + [c.get_acl_id() for c in LISTENER_CLASSES]
@@ -42,6 +45,7 @@ role_acls = {
         "Comment",
         "Manage shifts",
         "Manage sources",
+        "Manage teams",
         "Manage Analysis Services",
         "Manage Recurring APIs",
         "Manage GCNs",
@@ -74,7 +78,7 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
             user = User(username=username, first_name=first_name, last_name=last_name)
             if auth:
                 TornadoStorage.user.create_social_auth(
-                    user, user.username, "google-oauth2"
+                    user, user.username, default_auth_backend()
                 )
 
         for rolename in roles:
@@ -101,12 +105,36 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
                 user.groups.append(public_group)
         session.commit()
 
-    return DBSession().query(User).filter(User.username == username).first()
+    return DBSession().scalars(sa.select(User).where(User.username == username)).first()
+
+
+def visible_enum_types(session):
+    """Names of the enum types this connection can reach unqualified.
+
+    `pg_type_is_visible` applies the same search_path resolution `ALTER TYPE`
+    does, so a name missing here is one that would raise UndefinedObject.
+    """
+    return set(
+        session.scalars(
+            sa.text(
+                "SELECT typname FROM pg_type "
+                "WHERE typtype = 'e' AND pg_type_is_visible(oid)"
+            )
+        )
+    )
 
 
 def refresh_enums():
     with DBSession() as session:
+        # A type only exists once the schema has been created; skip the rest
+        # rather than failing the app's startup on a half-built database.
+        existing = visible_enum_types(session)
+        missing = [t.name for t in sqla_enum_types if t.name not in existing]
+        if missing:
+            log(f"skipping enum refresh for missing types: {', '.join(missing)}")
         for type in sqla_enum_types:
+            if type.name not in existing:
+                continue
             for key in type.enums:
                 session.execute(
                     sa.text(f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'")
@@ -131,7 +159,11 @@ def provision_token():
     token_name = "Initial admin token"
 
     token = (
-        DBSession().query(Token).filter_by(created_by=admin, name=token_name).first()
+        DBSession()
+        .scalars(
+            sa.select(Token).where(Token.created_by == admin, Token.name == token_name)
+        )
+        .first()
     )
 
     if token is None:
@@ -145,7 +177,11 @@ def provision_public_group():
     """If public group name is set in the config file, create it."""
     env, cfg = load_env()
     public_group_name = cfg["misc.public_group_name"]
-    pg = DBSession().query(Group).filter(Group.name == public_group_name).first()
+    pg = (
+        DBSession()
+        .scalars(sa.select(Group).where(Group.name == public_group_name))
+        .first()
+    )
 
     if pg is None:
         DBSession().add(Group(name=public_group_name))
@@ -167,6 +203,20 @@ def setup_permissions():
         role.acls = [DBSession().get(ACL, a) for a in acl_ids]
         DBSession().add(role)
     DBSession().commit()
+
+    provision_anonymous_user()
+
+
+def provision_anonymous_user():
+    """Create the anonymous read-only user when ``app.anonymous_access`` is set.
+
+    The account uses the "View only" role (no write ACLs) and is added to the
+    public group, so unauthenticated visitors get read-only access to public
+    data (see ``BaseHandler.get_current_user``). No-op when the flag is off."""
+    if not cfg.get("app.anonymous_access", False):
+        return
+    username = cfg.get("app.anonymous_user") or "anonymous"
+    add_user(username, roles=["View only"])
 
 
 def create_token(ACLs, user_id, name):

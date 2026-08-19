@@ -1,9 +1,11 @@
 import re
+from typing import Annotated
 
 import arrow
 import requests
 import sqlalchemy as sa
 from astropy.time import Time
+from pydantic import Field
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
@@ -70,7 +72,7 @@ def get_tach_event_id(dateobs, tags, aliases=None):
         "Origin": "https://heasarc.gsfc.nasa.gov",
     }
 
-    response = requests.request("POST", url, json=payload, headers=headers)
+    response = requests.request("POST", url, json=payload, headers=headers, timeout=30)
     data = response.json()
     if response.status_code != 200:
         return None
@@ -131,7 +133,9 @@ def get_aliases(circular_ids, day):
                 }}
             }}"""
         }
-        response = requests.request("POST", url, json=payload, headers=headers)
+        response = requests.request(
+            "POST", url, json=payload, headers=headers, timeout=30
+        )
         if response.status_code == 200:
             data = response.json()
             if len(data["data"]["circularBodyById"]["edges"]) > 0:
@@ -188,7 +192,7 @@ def get_tach_event_aliases(id, gcn_event):
         "Origin": "https://heasarc.gsfc.nasa.gov",
     }
 
-    response = requests.request("POST", url, json=payload, headers=headers)
+    response = requests.request("POST", url, json=payload, headers=headers, timeout=30)
 
     circulars = gcn_event.circulars
 
@@ -268,20 +272,19 @@ def post_aliases(dateobs, tach_id, user_id):
 
 class GcnTachHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    def post(self, dateobs: str):
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+    ):
         """
         ---
         summary: Retrieve GCN Event aliases from TACH
         description: Scrape aliases of a GCN Event from GCNs notice/circulars
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-            description: The dateobs of the event, as an arrow parseable string
         responses:
           200:
             content:
@@ -307,21 +310,27 @@ class GcnTachHandler(BaseHandler):
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
-            with self.Session() as session:
-                stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs_parsed
+            async with self.AsyncSession() as session:
+                from sqlalchemy.orm import selectinload
+
+                from ...models import GcnEvent as GcnEventModel  # noqa
+
+                stmt = (
+                    GcnEvent.select(session.user_or_token)
+                    .where(GcnEvent.dateobs == dateobs_parsed)
+                    .options(selectinload(GcnEvent._tags))
                 )
-                gcn_event = session.scalars(stmt).first()
+                gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
                     return self.error(f"No GCN event found for {dateobs}")
 
-                tach_id = (
-                    gcn_event.tach_id
-                    if gcn_event.tach_id is not None
-                    else get_tach_event_id(
-                        dateobs, tags=gcn_event.tags, aliases=gcn_event.aliases
+                tach_id = gcn_event.tach_id
+                if tach_id is None:
+                    tags, aliases = gcn_event.tags, gcn_event.aliases
+                    tach_id = await IOLoop.current().run_in_executor(
+                        None,
+                        lambda: get_tach_event_id(dateobs, tags=tags, aliases=aliases),
                     )
-                )
                 if tach_id is None:
                     return self.error(
                         f"Event {dateobs} not found on TACH, cannot retrieve aliases"
@@ -341,18 +350,22 @@ class GcnTachHandler(BaseHandler):
             return self.error(f"Error scraping aliases: {e}")
 
     @auth_or_token
-    def get(self, dateobs: str):
+    async def get(self, dateobs: str):
         # gets the circulars and aliases of a GCN event
         try:
             dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
-            with self.Session() as session:
-                stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs_parsed
+            async with self.AsyncSession() as session:
+                # circulars is a deferred column; eager-load it (and aliases)
+                # so accessing them below doesn't lazy-load under async.
+                stmt = (
+                    GcnEvent.select(session.user_or_token)
+                    .where(GcnEvent.dateobs == dateobs_parsed)
+                    .options(sa.orm.undefer(GcnEvent.circulars))
                 )
-                gcn_event = session.scalars(stmt).first()
+                gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
                     return self.error(f"No GCN event found for {dateobs}")
 

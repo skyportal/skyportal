@@ -15,8 +15,9 @@ import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
 import ManageRecurringShifts from "./ManageRecurringShifts";
 import { useGetShiftsQuery, useGetShiftQuery } from "../../ducks/shifts";
+import { useIsReadOnly } from "../../ducks/profile";
 
-const CommentList = React.lazy(() => import("../comment/CommentList"));
+const CommentThread = React.lazy(() => import("../comment/CommentThread"));
 
 const useStyles = makeStyles()((theme) => ({
   paperContent: {
@@ -47,6 +48,7 @@ interface ShiftPageProps {
 
 const ShiftPage = ({ route = null }: ShiftPageProps) => {
   const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
   const [endDateLimit, setEndDateLimit] = useState(() =>
     getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
   );
@@ -94,37 +96,46 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
           )}
         </Paper>
       </Grid>
-
       <Grid size={{ md: 4, sm: 12 }}>
         <Paper>
-          <Box display="flex" width="100%">
-            <Button
-              secondary
-              name="add_shift_button"
-              onClick={() => setShow("new shift")}
-              sx={{
-                color: "text.secondary",
-                flex: "0 0 50px",
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderBottomLeftRadius: 0,
-                transition: "background-color 0.3s ease",
-                "&:hover": {
-                  boxShadow: isNewShift
-                    ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
-                    : "none",
-                  backgroundColor: isNewShift ? "#f0f2f5" : "#e0e0e0",
-                },
-                ...(isNewShift && {
-                  boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
-                  zIndex: 3,
-                  backgroundColor: "#f0f2f5",
-                  borderBottom: "none",
-                }),
-              }}
-            >
-              <AddIcon />
-            </Button>
+          <Box
+            sx={{
+              display: "flex",
+              width: "100%",
+            }}
+          >
+            {!isReadOnly && (
+              <Button
+                secondary
+                name="add_shift_button"
+                data-testid="tour-shifts-new"
+                onClick={() => setShow("new shift")}
+                sx={{
+                  color: "text.secondary",
+                  flex: "0 0 50px",
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  transition: "background-color 0.3s ease",
+                  "&:hover": {
+                    boxShadow: isNewShift
+                      ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
+                      : "none",
+                    backgroundColor: isNewShift
+                      ? "background.paper"
+                      : "action.disabledBackground",
+                  },
+                  ...(isNewShift && {
+                    boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
+                    zIndex: 3,
+                    backgroundColor: "background.paper",
+                    borderBottom: "none",
+                  }),
+                }}
+              >
+                <AddIcon />
+              </Button>
+            )}
             <Button
               secondary
               name="manage_shift_button"
@@ -142,10 +153,12 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                 "&:hover": {
                   boxShadow:
                     "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
-                  backgroundColor: isManageShift ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isManageShift
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isManageShift && {
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -169,12 +182,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                   boxShadow: isRecurring
                     ? "-4px 0 4px -3px rgba(0, 0, 0, 0.2)"
                     : "none",
-                  backgroundColor: isRecurring ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isRecurring
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isRecurring && {
                   boxShadow: "-4px 0 4px -3px rgba(0, 0, 0, 0.2)",
                   zIndex: 3,
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -183,7 +198,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             </Button>
           </Box>
           <div className={classes.paperContent}>
-            {show === "new shift" && (
+            {show === "new shift" && !isReadOnly && (
               <NewShift
                 preSelectedRange={preSelectedRange}
                 setPreSelectedRange={setPreSelectedRange}
@@ -197,7 +212,12 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                 {shiftList && currentShift?.id ? (
                   <ShiftManagement shiftToManage={currentShift} />
                 ) : (
-                  <Typography variant="body1" color="text.secondary">
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     Please select a shift to manage from the calendar.
                   </Typography>
                 )}
@@ -210,9 +230,10 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             <Paper>
               <div className={classes.comments}>
                 <Suspense fallback={<CircularProgress />}>
-                  <CommentList
-                    associatedResourceType="shift"
+                  <CommentThread
+                    resourceType="shift"
                     shiftID={currentShift?.id}
+                    maxHeightList="350px"
                   />
                 </Suspense>
               </div>
@@ -221,6 +242,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
               <Reminders
                 resourceId={currentShift.id.toString()}
                 resourceType="shift"
+                resourceStartDate={new Date(currentShift.start_date)}
               />
             </Paper>
           </>

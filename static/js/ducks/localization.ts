@@ -13,6 +13,7 @@
  * invalidate the `Localization` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetLocalizationArg {
@@ -56,3 +57,19 @@ export const {
   useDeleteLocalizationMutation,
   usePostLocalizationFromNoticeMutation,
 } = localizationApi;
+
+// The contour is generated in a background task after ingestion, so a
+// localization is first fetched without one and REFRESH_GCN_EVENT signals it is
+// committed. That message is also pushed for unrelated changes (a comment, an
+// alias update), so only refetch the ones still waiting for their contour.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const waitingForContour = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName === "getLocalization" &&
+      (payload?.gcnEvent_dateobs == null ||
+        entry?.originalArgs?.dateobs === payload.gcnEvent_dateobs) &&
+      !entry?.data?.contour,
+  );
+  return waitingForContour ? ["Localization"] : null;
+});

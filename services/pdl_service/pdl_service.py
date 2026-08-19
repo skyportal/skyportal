@@ -1,15 +1,14 @@
+import asyncio
 import os
 
 from watchdog.events import LoggingEventHandler
 from watchdog.observers import Observer
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.earthquake import post_earthquake_from_xml
-from skyportal.models import (
-    DBSession,
-)
 
 env, cfg = load_env()
 
@@ -26,20 +25,28 @@ def service():
 
             os.makedirs(path, exist_ok=True)
 
-            with DBSession() as session:
+            class Event(LoggingEventHandler):
+                def on_modified(self, event):
+                    if "quakeml.xml" in event.src_path:
+                        with open(event.src_path) as fid:
+                            payload = fid.read()
 
-                class Event(LoggingEventHandler):
-                    def on_modified(self, event):
-                        if "quakeml.xml" in event.src_path:
-                            with open(event.src_path) as fid:
-                                payload = fid.read()
-                            post_earthquake_from_xml(payload, user_id, session)
+                        async def _ingest():
+                            # The watchdog callback is sync (runs on the
+                            # observer thread); drive the async ingest on a
+                            # fresh event loop with its own async session.
+                            async with models.async_plain_session_factory() as session:
+                                await post_earthquake_from_xml(
+                                    payload, user_id, session
+                                )
 
-                event_handler = Event()
-                observer = Observer()
-                observer.schedule(event_handler, path, recursive=True)
-                observer.start()  # for starting the observer thread
-                observer.join()
+                        asyncio.run(_ingest())
+
+            event_handler = Event()
+            observer = Observer()
+            observer.schedule(event_handler, path, recursive=True)
+            observer.start()  # for starting the observer thread
+            observer.join()
 
         except Exception as e:
             log(f"Failed to consume earthquake: {e}")

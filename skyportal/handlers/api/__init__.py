@@ -19,7 +19,23 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
-from .candidate.candidate import CandidateHandler
+from .broker import (
+    BrokerAlertsHandler,
+    BrokerConeSearchHandler,
+    BrokerCutoutsHandler,
+    BrokerFilterAttachHandler,
+    BrokerFilterCatalogHandler,
+    BrokerFilterModulesHandler,
+    BrokerFiltersHandler,
+    BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
+    BrokerHandler,
+    BrokerPhotometryHandler,
+    BrokerSaveHandler,
+    BrokerSurveyPhotometryHandler,
+)
+from .broker_apis import BrokerAPIsHandler
+from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
 from .candidate.candidate_filter import CandidateFilterHandler
 from .candidate.scan_report import ScanReportHandler
 from .candidate.scan_report_item import ScanReportItemHandler
@@ -35,7 +51,7 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .color_mag import ObjColorMagHandler
-from .comment import CommentAttachmentHandler, CommentHandler
+from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
 from .db_stats import StatsHandler
@@ -61,7 +77,8 @@ from .followup_request import (
 from .galaxy import (
     GalaxyASCIIFileHandler,
     GalaxyCatalogHandler,
-    GalaxyGladeHandler,
+    GalaxyNEDHandler,
+    GalaxyRegaladeHandler,
     ObjHostHandler,
 )
 from .gcn import (
@@ -87,6 +104,11 @@ from .gcn import (
     LocalizationTagsHandler,
     ObjGcnEventHandler,
 )
+from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
+from .gcn_event_obj import (
+    GcnEventObjHandler,
+    GCNsAssociatedWithSourceHandler,
+)
 from .gcn_gracedb import GcnGraceDBHandler
 from .gcn_tach import GcnTachHandler
 from .group import (
@@ -106,6 +128,7 @@ from .instrument_log import (
 )
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .metrics import MetricsHandler
 from .mmadetector import (
     MMADetectorHandler,
     MMADetectorSpectrumHandler,
@@ -143,7 +166,11 @@ from .observation_plan import (
     ObservationPlanWorldmapPlotHandler,
 )
 from .observingrun import ObservingRunBulkEditHandler, ObservingRunHandler
-from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
+from .phot_stat import (
+    PhotStatAggregateHandler,
+    PhotStatHandler,
+    PhotStatUpdateHandler,
+)
 from .photometric_series import PhotometricSeriesHandler
 from .photometry import (
     BulkDeletePhotometryHandler,
@@ -177,6 +204,7 @@ from .sharing_service.sharing_service_submission import (
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
+    FinderChartFacilitiesHandler,
     SourceCopyPhotometryHandler,
     SourceFinderHandler,
     SourceHandler,
@@ -188,12 +216,9 @@ from .source import (
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
 from .source_labels import SourceLabelsHandler
-from .sources_confirmed_in_gcn import (
-    GCNsAssociatedWithSourceHandler,
-    SourcesConfirmedInGCNHandler,
-)
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
+    BulkSpectraHandler,
     ObjSpectraHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
@@ -203,6 +228,7 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .summary_query import SummaryQueryHandler
+from .super_obj import SuperObjHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,
@@ -211,6 +237,7 @@ from .survey_efficiency import (
 from .sysinfo import SysInfoHandler
 from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
+from .team import TeamHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler

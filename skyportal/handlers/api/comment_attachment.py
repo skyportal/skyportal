@@ -14,7 +14,7 @@ MAX_COMMENTS_PER_PAGE = 500
 
 class CommentAttachmentUpdateHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get counts of comments w/ and w/o attachment_bytes
@@ -43,15 +43,15 @@ class CommentAttachmentUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Comment).where(Comment.attachment_bytes.is_(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_missing = session.execute(count_stmt).scalar()
+            total_missing = await session.scalar(count_stmt)
 
             # get the number of Comments with Attachments
             stmt = sa.select(Comment).where(Comment.attachment_bytes.isnot(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_with = session.execute(count_stmt).scalar()
+            total_with = await session.scalar(count_stmt)
 
         results = {
             "totalWithoutAttachmentBytes": total_missing,
@@ -60,7 +60,7 @@ class CommentAttachmentUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create attachments for comments with attachment_bytes
@@ -105,36 +105,35 @@ class CommentAttachmentUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", DEFAULT_COMMENTS_PER_PAGE)),
-                MAX_COMMENTS_PER_PAGE,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument(
+            "numPerPage", DEFAULT_COMMENTS_PER_PAGE, type=int
+        )
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, MAX_COMMENTS_PER_PAGE)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 stmt = sa.select(Comment).where(Comment.attachment_bytes.isnot(None))
                 # select only comments that have attachment_bytes
                 count_stmt = sa.select(func.count()).select_from(stmt)
-                total_matches = session.execute(count_stmt).scalar()
+                total_matches = await session.scalar(count_stmt)
                 stmt = stmt.offset((page_number - 1) * num_per_page)
                 stmt = stmt.limit(num_per_page)
-                comments = session.execute(stmt).scalars().unique().all()
+                result = await session.scalars(stmt)
+                comments = result.unique().all()
 
                 for i, comment in enumerate(comments):
                     attachment_name = comment.attachment_name
                     data_to_disk = comment.attachment_bytes
                     comment.save_data(attachment_name, data_to_disk)
                     comment.attachment_bytes = None
-                session.commit()
+                await session.commit()
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(
                     f"Error updating comments with attachment_bytes: {str(e)}"
                 )

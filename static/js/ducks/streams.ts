@@ -66,7 +66,9 @@ export const streamsApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: { user_id },
       }),
-      invalidatesTags: ["Streams"],
+      // Profile too: a user self-joining an auto-join stream changes their own
+      // stream membership, so their profile must refetch.
+      invalidatesTags: ["Streams", "Profile"],
     }),
     deleteStreamUser: build.mutation<
       unknown,

@@ -35,6 +35,34 @@ export const telescopesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Telescope"],
     }),
+    updateTelescope: build.mutation<
+      unknown,
+      { id: number | string; data: Record<string, any> }
+    >({
+      // The edit form seeds its state from the full telescope object; only
+      // send the fields the endpoint accepts.
+      query: ({ id, data }) => ({
+        url: `api/telescope/${id}`,
+        method: "PUT",
+        body: Object.fromEntries(
+          [
+            "name",
+            "nickname",
+            "lat",
+            "lon",
+            "elevation",
+            "diameter",
+            "skycam_link",
+            "weather_link",
+            "robotic",
+            "fixed_location",
+          ]
+            .filter((key) => key in data)
+            .map((key) => [key, data[key]]),
+        ),
+      }),
+      invalidatesTags: ["Telescope"],
+    }),
     deleteTelescope: build.mutation<unknown, number | string>({
       query: (id) => ({
         url: `api/telescope/${id}`,
@@ -53,5 +81,6 @@ export const {
   useGetTelescopesQuery,
   useGetTelescopeQuery,
   useSubmitTelescopeMutation,
+  useUpdateTelescopeMutation,
   useDeleteTelescopeMutation,
 } = telescopesApi;

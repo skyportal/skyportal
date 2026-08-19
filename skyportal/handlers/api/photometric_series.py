@@ -28,6 +28,7 @@ from ...models.photometric_series import (
     verify_metadata,
 )
 from ...models.stream import Stream
+from ...utils.data_access import default_share_public_group_name
 from ...utils.hdf5_files import load_dataframe_from_bytestream
 from ..base import BaseHandler, format_doc
 
@@ -284,6 +285,16 @@ def get_group_ids(data, user, session):
         if group is None:
             raise ValidationError(f"Invalid group ID: {group_id}")
 
+    if not group_ids:
+        # no groups specified: share with the configured default groups
+        public_group_name = default_share_public_group_name()
+        if public_group_name is not None:
+            public_group = session.scalars(
+                sa.select(Group).where(Group.name == public_group_name)
+            ).first()
+            if public_group is not None:
+                group_ids = [public_group.id]
+
     # always add the single user group
     group_ids.append(user.single_user_group.id)
     group_ids = list(set(group_ids))
@@ -387,7 +398,7 @@ def check_objects_exist(metadata, user, session):
         raise ValueError("Must supply an instrument_id")
 
     instrument = session.scalars(
-        Instrument.select(user).where(Instrument.id == int(instrument_id))
+        Instrument.select(user).where(Instrument.id == instrument_id)
     ).first()
     if instrument is None:
         raise ValueError(f"Invalid instrument_id: {instrument_id}")
@@ -706,7 +717,7 @@ class PhotometricSeriesHandler(BaseHandler):
             body_schema_docstring.strip("\n"), " " * 10
         ).lstrip()
     )
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload a photometric series.
@@ -725,7 +736,11 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          $ref: '#/components/schemas/PhotometricSeries'
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New photometric series ID
         """
         json_data = self.get_json()
         data = json_data.pop("data", None)
@@ -777,7 +792,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    def patch(self, photometric_series_id: int):
+    async def patch(self, photometric_series_id: int):
         """
         ---
         summary: Update a photometric series.
@@ -793,12 +808,6 @@ class PhotometricSeriesHandler(BaseHandler):
           in the request body parameters.
         tags:
           - photometric series
-        parameters:
-          - in: path
-            name: photometric_series_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           {body_schema_docstring}
         responses:
@@ -811,7 +820,11 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          $ref: '#/components/schemas/PhotometricSeries'
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New photometric series ID
         """
         with self.Session() as session:
             ps = session.scalars(
@@ -857,7 +870,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id: int | None = None):
+    async def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -866,11 +879,6 @@ class PhotometricSeriesHandler(BaseHandler):
           tags:
             - photometric series
           parameters:
-            - in: path
-              name: photometric_series_id
-              required: true
-              schema:
-                type: integer
             - in: query
               name: dataFormat
               required: false
@@ -888,13 +896,7 @@ class PhotometricSeriesHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            $ref: '#/components/schemas/PhotometricSeries'
+                  schema: SinglePhotometricSeries
         multiple:
           summary: Retrieve multiple photometric series
           description: Retrieve all photometric series, based on various cuts.
@@ -948,7 +950,7 @@ class PhotometricSeriesHandler(BaseHandler):
               name: rejectedObjectIDs
               nullable: true
               schema:
-                type: string
+                type: str
               description: |
                 Comma-separated string of object IDs not to be returned,
                 useful in cases where you are looking for new objects passing a query.
@@ -1328,7 +1330,9 @@ class PhotometricSeriesHandler(BaseHandler):
                             type: object
                             properties:
                               series:
-                                $ref: '#/components/schemas/ArrayOfPhotometricSeriess'
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/PhotometricSeries'
                               totalMatches:
                                 type: integer
                               pageNumber:
@@ -1869,19 +1873,13 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id: int):
+    async def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series
         description: Delete a photometric series
         tags:
           - photometric series
-        parameters:
-          - in: path
-            name: photometric_series_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1893,12 +1891,12 @@ class PhotometricSeriesHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            ps = session.scalars(
+        async with self.AsyncSession() as session:
+            ps = await session.scalar(
                 PhotometricSeries.select(session.user_or_token, mode="delete").where(
                     PhotometricSeries.id == photometric_series_id
                 )
-            ).first()
+            )
 
             if ps is None:
                 return self.error(
@@ -1907,8 +1905,8 @@ class PhotometricSeriesHandler(BaseHandler):
 
             obj_id = ps.obj_id
 
-            session.delete(ps)
-            session.commit()
+            await session.delete(ps)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",

@@ -1,3 +1,4 @@
+import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
@@ -14,6 +15,9 @@ import Button from "../Button";
 
 import {
   BASE_LAYOUT,
+  legibleLineColors,
+  plotAxisTheme,
+  plotCanvasTheme,
   C,
   colorScaleRainbow,
   LINES,
@@ -95,6 +99,10 @@ const SpectraPlot = ({
   mode = "desktop",
   plotStyle = { height: "55vh" },
 }: SpectraPlotProps) => {
+  const muiTheme = useTheme();
+  // Memoize to keep plotLayout referentially stable; a fresh object each render
+  // rebuilt the layout and reset the user's zoom on redshift-slider changes.
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
   const plotRef = useRef<any>(null);
   const [data, setData] = useState<any>(null);
@@ -129,8 +137,12 @@ const SpectraPlot = ({
 
   // Memoize the combined lines array to avoid recreating on every render
   const allLines = useMemo(
-    () => LINES.concat(userCustomLines),
-    [userCustomLines],
+    () =>
+      legibleLineColors(
+        LINES.concat(userCustomLines),
+        muiTheme.palette.mode === "dark",
+      ),
+    [userCustomLines, muiTheme.palette.mode],
   );
 
   const [types, setTypes] = useState<any[]>([]);
@@ -316,7 +328,7 @@ const SpectraPlot = ({
             color: colorScaleRainbow(index, spectraFiltered.length - 1),
           },
           hoverlabel: {
-            bgcolor: "white",
+            bgcolor: muiTheme.palette.background.paper,
             font: { size: 14 },
             align: "left",
           },
@@ -611,6 +623,7 @@ const SpectraPlot = ({
     const denom = 1 + redshift_value;
 
     return {
+      ...plotCanvasTheme(muiTheme),
       uirevision: layoutReset, // Use the number directly instead of string template
       xaxis: {
         title: { text: "Wavelength (Å)" },
@@ -619,12 +632,14 @@ const SpectraPlot = ({
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       yaxis: {
         title: { text: "Flux" },
         side: "left",
         range: [...specStats[spectrumType].flux.range],
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       xaxis2: {
         title: { text: "Rest Wavelength (Å)" },
@@ -637,6 +652,7 @@ const SpectraPlot = ({
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       legend: {
         orientation: mode === "desktop" ? "v" : "h",
@@ -671,7 +687,16 @@ const SpectraPlot = ({
         },
       ],
     };
-  }, [types, tabIndex, specStats, mode, plotData?.length, layoutReset]);
+  }, [
+    types,
+    tabIndex,
+    specStats,
+    mode,
+    plotData?.length,
+    layoutReset,
+    muiTheme,
+    axisTheme,
+  ]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // Use Plotly.relayout to update only the secondary axis when redshift changes
@@ -939,11 +964,11 @@ const SpectraPlot = ({
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
-      {types?.length > 0 && (
+      {types?.length > 1 && (
         <Tabs
           value={tabIndex}
           onChange={handleChangeTab}
-          aria-label="gcn_tabs"
+          aria-label="spectrum_type_tabs"
           variant="scrollable"
           {...({ xs: 12 } as any)}
           sx={{
@@ -1035,14 +1060,18 @@ const SpectraPlot = ({
             />
             <TextField
               value={vExpInput}
-              onChange={(e) => setVExpInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) => setVExpInput(parseFloat(e.target.value) || 0)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 30000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 30000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1062,14 +1091,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={redshiftInput}
-              onChange={(e) => setRedshiftInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setRedshiftInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 0.0001,
-                min: 0,
-                max: 3.0,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 0.0001,
+                  min: 0,
+                  max: 3.0,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1089,14 +1124,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={smoothingInput}
-              onChange={(e) => setSmoothingInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this state
+              // and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setSmoothingInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 100,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 100,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1116,14 +1157,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={customWavelengthInput}
-              onChange={(e) => setCustomWavelengthInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setCustomWavelengthInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 50000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 50000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />

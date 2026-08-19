@@ -115,8 +115,18 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
     });
   }
 
+  // ACROSS visibility calculator: default to a 7-day window starting now
+  const acrossBegin = dayjs.utc().format("YYYY-MM-DDTHH:mm:ss");
+  const acrossEnd = dayjs.utc().add(7, "day").format("YYYY-MM-DDTHH:mm:ss");
+
   return (
     <div className={styles.SurveyLinkList}>
+      <SurveyLink
+        name="ACROSS"
+        url={`https://app.across.sciencecloud.nasa.gov/visibility-calculator?ra=${ra}&dec=${dec}&date_range_begin=${encodeURIComponent(
+          acrossBegin,
+        )}&date_range_end=${encodeURIComponent(acrossEnd)}`}
+      />
       <SurveyLink
         name="ADS"
         url={`https://ui.adsabs.harvard.edu/search/q=object%22${ra}%20${
@@ -220,7 +230,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       )}
       <SurveyLink
         name="NED"
-        url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-objsearch?lon=${ra}d&lat=${dec}d&radius=1.0&search_type=Near+Position+Search`}
+        url={`https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&in_csys=Equatorial&in_equinox=J2000&ra=${ra}d&dec=${dec}d&radius=1.0&Z_CONSTRAINT=Unconstrained`}
       />
       <SurveyLink
         name="PTF"

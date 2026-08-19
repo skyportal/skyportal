@@ -9,6 +9,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -19,6 +20,7 @@ import {
   useDeleteGroupUserMutation,
   useUpdateGroupUserMutation,
 } from "../../ducks/groups";
+import { Box } from "@mui/material";
 
 interface ManageUserButtonsProps {
   loadedId: number;
@@ -58,6 +60,9 @@ const ManageUserButtons = ({
     setConfirmDeleteOpen(false);
   };
 
+  if (!isAdmin(currentUser) && user.username !== currentUser.username)
+    return null;
+
   let numAdmins = 0;
   group?.users?.forEach((groupUser) => {
     if (groupUser?.admin) {
@@ -70,6 +75,13 @@ const ManageUserButtons = ({
       (groupUser) => groupUser["id"] === usr.id,
     )[0];
     return Boolean(matchingGroupUser?.["can_save"]);
+  };
+
+  const canSharePhotometry = (usr: any) => {
+    const matchingGroupUser = group?.users?.filter(
+      (groupUser) => groupUser["id"] === usr.id,
+    )[0];
+    return Boolean(matchingGroupUser?.["can_share_photometry"]);
   };
 
   const toggleUserAdmin = async (usr: any) => {
@@ -112,8 +124,28 @@ const ManageUserButtons = ({
     }
   };
 
+  const toggleUserCanShare = async (usr: any) => {
+    try {
+      await updateGroupUser({
+        groupID: loadedId,
+        params: {
+          userID: usr.id,
+          canSharePhotometry: !canSharePhotometry(usr),
+        },
+      }).unwrap();
+      dispatch(
+        showNotification(
+          "User's share access status for this group successfully updated.",
+        ),
+      );
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
+    } catch {
+      // error notification handled by the API layer
+    }
+  };
+
   const handleDelete = () => {
-    navigate("/groups");
+    if (user.username === currentUser.username) navigate("/groups");
     deleteGroupUser({
       userID: user.id,
       group_id: group.id,
@@ -121,99 +153,103 @@ const ManageUserButtons = ({
   };
 
   return (
-    <div>
+    <Box sx={{ display: "flex", justifyContent: "space-around" }}>
       {isAdmin(currentUser) && (
-        <div>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Button
             size="small"
-            onClick={() => {
-              toggleUserAdmin(user);
-            }}
+            onClick={() => toggleUserAdmin(user)}
             disabled={isAdmin(user) && numAdmins === 1}
+            sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
           >
-            <span style={{ whiteSpace: "nowrap" }}>
-              {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
-            </span>
+            {`${isAdmin(user) ? "Revoke" : "Grant"} admin status`}
           </Button>
-          &nbsp;|&nbsp;
           <Tooltip title="Manage whether user can save sources to this group.">
             <Button
               size="small"
-              onClick={() => {
-                toggleUserCanSave(user);
-              }}
+              onClick={() => toggleUserCanSave(user)}
+              sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
             >
-              <span style={{ whiteSpace: "nowrap" }}>
-                {canSave(user) ? "Revoke save access" : "Grant save access"}
-              </span>
+              {`${canSave(user) ? "Revoke" : "Grant"} save access`}
             </Button>
           </Tooltip>
-          &nbsp;|&nbsp;
-        </div>
+          <Tooltip title="Manage whether user can share photometry points to other groups.">
+            <Button
+              size="small"
+              onClick={() => toggleUserCanShare(user)}
+              sx={{ color: canSharePhotometry(user) ? "#d32f2f" : "#2e7d32" }}
+            >
+              {`${canSharePhotometry(user) ? "Revoke" : "Grant"} share photometry`}
+            </Button>
+          </Tooltip>
+        </Box>
       )}
-      {(isAdmin(currentUser) || user.username === currentUser.username) && (
-        <div>
-          <IconButton
-            edge="end"
-            aria-label="delete"
-            data-testid={`delete-${user.username}`}
-            onClick={() => setConfirmDeleteOpen(true)}
-            disabled={isAdmin(user) && numAdmins === 1}
-            size="large"
-          >
-            <DeleteIcon />
-          </IconButton>
-          <Dialog
-            fullWidth
-            open={confirmDeleteOpen}
-            onClose={handleConfirmDeleteDialogClose}
-          >
-            {user.username === currentUser.username ? (
-              <>
-                <DialogTitle>Remove yourself?</DialogTitle>
-                <DialogContent dividers>
-                  <DialogContentText>
-                    Are you sure you want to delete yourself from this group?
-                    <br />
-                    Warning! This will delete you from the group and all of its
-                    filters.
-                  </DialogContentText>
-                </DialogContent>
-              </>
-            ) : (
-              <>
-                <DialogTitle>Remove user?</DialogTitle>
-                <DialogContent dividers>
-                  <DialogContentText>
-                    Are you sure you want to delete this user from this group?
-                    <br />
-                    Warning! This will delete the user from this group and all
-                    of its filters.
-                  </DialogContentText>
-                </DialogContent>
-              </>
-            )}
+      <IconButton
+        data-testid={`delete-${user.username}`}
+        onClick={() => setConfirmDeleteOpen(true)}
+        disabled={isAdmin(user) && numAdmins === 1}
+        color="error"
+      >
+        <DeleteIcon />
+      </IconButton>
+      <Dialog
+        fullWidth
+        open={confirmDeleteOpen}
+        onClose={handleConfirmDeleteDialogClose}
+      >
+        {user.username === currentUser.username ? (
+          <>
+            <DialogTitle>Remove yourself?</DialogTitle>
+            <DialogContent dividers>
+              <DialogContentText>
+                Are you sure you want to delete yourself from this group?
+                <br />
+                <Typography variant="caption" color="warning.dark">
+                  (This will delete you from the group and all of its filters.)
+                </Typography>
+              </DialogContentText>
+            </DialogContent>
+          </>
+        ) : (
+          <>
+            <DialogTitle>Remove user?</DialogTitle>
+            <DialogContent dividers>
+              <DialogContentText>
+                Are you sure you want to delete this user from this group?
+                <br />
+                <Typography variant="caption" color="warning.dark">
+                  (This will delete the user from this group and all of its
+                  filters.)
+                </Typography>
+              </DialogContentText>
+            </DialogContent>
+          </>
+        )}
 
-            <DialogActions>
-              <Button
-                secondary
-                autoFocus
-                onClick={() => setConfirmDeleteOpen(false)}
-              >
-                Dismiss
-              </Button>
-              <Button
-                primary
-                onClick={handleDelete}
-                data-testid={`confirm-delete-${user.username}`}
-              >
-                Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </div>
-      )}
-    </div>
+        <DialogActions>
+          <Button
+            secondary
+            autoFocus
+            onClick={() => setConfirmDeleteOpen(false)}
+          >
+            Dismiss
+          </Button>
+          <Button
+            primary
+            onClick={handleDelete}
+            data-testid={`confirm-delete-${user.username}`}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import StyledDataGrid from "../StyledDataGrid";
 
@@ -9,10 +9,10 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
-import embed from "vega-embed";
+import embedVega from "../plot/vegaEmbed";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
@@ -40,6 +40,7 @@ import Paper from "../Paper";
 import Spinner from "../Spinner";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useIsReadOnly } from "../../ducks/profile";
 
 dayjs.extend(utc);
 
@@ -67,7 +68,8 @@ const SpectrumPreview = React.memo(({ data }: SpectrumPreviewProps) => {
   return (
     <Box
       ref={(node: any) => {
-        if (node) embed(node, spectrumPreviewSpec(data), { actions: false });
+        if (node)
+          embedVega(node, spectrumPreviewSpec(data), { actions: false });
       }}
       sx={{ width: "100%" }}
     />
@@ -81,6 +83,7 @@ interface UploadSpectrumFormProps {
 }
 
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
+  const isReadOnly = useIsReadOnly();
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.all ?? null;
   const [parsed, setParsed] = useState<any>(null);
@@ -91,7 +94,35 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopes = [] } = useGetTelescopesQuery();
   const { data: source } = useGetSourceQuery(route.id);
-  const sourceAny = source as any;
+  const config = useGetConfigQuery().data as any;
+  // Default share: the source's groups, plus the sitewide public group when the
+  // instance defaults uploads to public.
+  const defaultShareGroupIds = useMemo(() => {
+    const ids = new Set<number>(
+      ((source as any)?.groups ?? []).map((g: any) => g.id),
+    );
+    if (config?.shareDataWithPublicGroupByDefault && groups) {
+      const publicGroup = groups.find(
+        (g: any) => g.name === config.publicGroupName,
+      );
+      if (publicGroup) {
+        ids.add(publicGroup.id);
+      }
+    }
+    return [...ids];
+  }, [source, config, groups]);
+  // `all` includes every single-user group, so drop them and surface only the
+  // user's own as "Only me (private)". Selecting it makes group_ids non-empty,
+  // which opts the upload out of the sitewide default-share (share only with me).
+  const ownGroup = (useGetGroupsQuery().data?.user ?? []).find(
+    (g: any) => g.single_user_group,
+  );
+  const sharableGroups = (groups ?? []).filter(
+    (g: any) => !g.single_user_group,
+  );
+  const groupOptions = ownGroup
+    ? [{ ...ownGroup, name: "Only me (private)" }, ...sharableGroups]
+    : sharableGroups;
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
   const [header, setHeader] = useState<any[]>([]);
@@ -154,9 +185,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
 
       setPersistentFormData({
         file,
-        group_ids:
-          getIntList("group_ids") ??
-          sourceAny?.["groups"]?.map((g: any) => g.id),
+        group_ids: getIntList("group_ids") ?? defaultShareGroupIds,
         mjd: parseFloat(searchParams.get("mjd") as any) || undefined,
         wave_column: parseInt(searchParams.get("wave_column") as any, 10) || 0,
         flux_column: parseInt(searchParams.get("flux_column") as any, 10) || 1,
@@ -171,7 +200,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         reduced_by: getIntList("reduced_by"),
       });
     })();
-  }, [source, route.id, searchParams]);
+  }, [source, route.id, searchParams, defaultShareGroupIds]);
 
   useEffect(() => {
     if (!parsed) return;
@@ -204,6 +233,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     setHeader(newHeader);
     setData(newData);
   }, [parsed]);
+
+  if (isReadOnly) {
+    return null;
+  }
 
   if (
     !groups ||
@@ -255,7 +288,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         title: "Share with...",
         items: {
           type: "integer",
-          enum: groups.map((group: any) => group.id),
+          enum: groupOptions.map((group: any) => group.id),
         },
         uniqueItems: true,
       },
@@ -492,7 +525,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
 
   const uiSchema: any = {
     group_ids: {
-      "ui:enumNames": groups.map((group: any) => group.name),
+      "ui:enumNames": groupOptions.map((group: any) => group.name),
     },
     instrument_id: {
       "ui:enumNames": instruments.map(
@@ -630,7 +663,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       setParsed(null);
       setPersistentFormData({
         file: undefined,
-        group_ids: sourceAny?.["groups"]?.map((group: any) => group.id),
+        group_ids: defaultShareGroupIds,
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,
@@ -690,7 +723,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
             <Typography
               variant="body1"
               color="textSecondary"
-              fontStyle="italic"
+              sx={{
+                fontStyle: "italic",
+              }}
             >
               <b>
                 Form prefilled from URL parameters (the ascii file was

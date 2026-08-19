@@ -43,7 +43,7 @@ def test_delete_spectrum(page, public_source):
     delete_button_xpath = f"//*[@data-testid='delete-spectrum-button-{spectrum.id}']"
     # Playwright auto-scrolls the target into view before clicking.
     page.locator(delete_button_xpath).first.click()
-    page.locator("//*[@data-testid='yes-delete']").first.click()
+    page.locator("//*[@data-testid='confirmDeletetionButton']").first.click()
 
     expect(
         page.locator(

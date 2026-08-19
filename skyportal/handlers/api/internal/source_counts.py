@@ -6,6 +6,10 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token
 
 from ....models import Source
+from ....utils.data_access import (
+    accessible_group_ids_async,
+    team_scoped_group_ids,
+)
 from ...base import BaseHandler
 
 default_prefs = {"sinceDaysAgo": 7}
@@ -13,20 +17,37 @@ default_prefs = {"sinceDaysAgo": 7}
 
 class SourceCountHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         user_prefs = getattr(self.current_user, "preferences", None) or {}
         source_count_prefs = user_prefs.get("sourceCounts", {})
         source_count_prefs = {**default_prefs, **source_count_prefs}
 
         since_days_ago = int(source_count_prefs["sinceDaysAgo"])
 
+        # Pass datetime directly rather than isoformat() — psycopg3 binds
+        # Python strings as VARCHAR, which Postgres refuses to compare to
+        # the timestamp column.
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
+            accessible = set(
+                await accessible_group_ids_async(session.user_or_token, session)
+            )
+            try:
+                team_group_ids = await team_scoped_group_ids(
+                    session,
+                    self.current_user,
+                    self.get_query_argument("teamID", None),
+                    accessible,
+                )
+            except ValueError as e:
+                return self.error(str(e))
             stmt = Source.select(session.user_or_token).where(
                 Source.created_at >= cutoff_day
             )
+            if team_group_ids is not None:
+                stmt = stmt.where(Source.group_id.in_(team_group_ids))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            result = session.execute(count_stmt).scalar()
+            result = await session.scalar(count_stmt)
             data = {"count": result, "sinceDaysAgo": since_days_ago}
             return self.success(data=data)

@@ -1,0 +1,36 @@
+name: Formatting and linting
+
+# Runs on every PR, including those for which no test suite is selected
+# (see ci_scope.yaml).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # The ESLint hook runs from the local install (language: system).
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Formatting and linting checks
+        run: |
+          uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}

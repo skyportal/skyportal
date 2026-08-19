@@ -45,11 +45,15 @@ EQ_OP = getattr(operator, "eq")
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
 
     instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
+        DBSession()
+        .scalars(
+            Instrument.select(user_or_token).where(
+                Instrument.listener_classname.isnot(None)
+            )
+        )
         .all()
     )
 
@@ -65,11 +69,10 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
     ]
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Allocation)
         .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
+        .where(Instrument.id.in_(accessible_instrument_ids))
     )
 
 
@@ -433,8 +436,14 @@ def add_followup(mapper, connection, target):
             print(f"Unknown target class name: {target_class_name}")
             return
 
-        default_followup_requests = session.scalars(requests_query).all()
-        if len(default_followup_requests) == 0:
+        # Pass IDs (not session-bound ORM objects) across the run_async thread
+        # boundary; the background task re-queries them in its own session.
+        # Otherwise their lazy-loaded relationships (e.g. Filter) end up
+        # attached to two sessions ("already attached to session ...").
+        default_followup_request_ids = [
+            d.id for d in session.scalars(requests_query).all()
+        ]
+        if len(default_followup_request_ids) == 0:
             return
 
         from skyportal.handlers.api.followup_request import (
@@ -445,6 +454,6 @@ def add_followup(mapper, connection, target):
         run_async(
             post_default_followup_requests,
             target_data["obj_id"],
-            default_followup_requests,
+            default_followup_request_ids,
             user_id,
         )

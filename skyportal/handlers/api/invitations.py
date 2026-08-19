@@ -4,7 +4,9 @@ import uuid
 import arrow
 import python_http_client.exceptions
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -25,133 +27,133 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 
+class InvitationPostBody(BaseModel):
+    """Request body for inviting a new user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    userEmail: str = Field(description="Email address to send the invitation to.")
+    groupIDs: list[int] = Field(
+        description="List of IDs of groups invited user will be added to. If "
+        "`streamIDs` is not provided, invited user will be given accesss to "
+        "all streams associated with the groups specified by this field."
+    )
+    role: str = Field(
+        default="Full user",
+        description="The role the new user will have in the system. "
+        'If provided, must be one of either "Full user" or "View only". '
+        'Defaults to "Full user".',
+    )
+    streamIDs: list[int] | None = Field(
+        default=None,
+        description="List of IDs of streams invited user will be given access "
+        "to. If not provided, user will be granted access to all streams "
+        "associated with the groups specified by `groupIDs`.",
+    )
+    groupAdmin: list[bool] | None = Field(
+        default=None,
+        description="List of booleans indicating whether user should be "
+        "granted admin status for respective specified group(s). Defaults to "
+        "all false.",
+    )
+    canSave: list[bool] | None = Field(
+        default=None,
+        description="List of booleans indicating whether user should be able "
+        "to save sources to respective specified group(s). Defaults to all "
+        "true.",
+    )
+    canSharePhotometry: list[bool] | None = Field(
+        default=None,
+        description="List of booleans indicating whether user should be able "
+        "to share photometry points to respective specified group(s). Defaults to all "
+        "false.",
+    )
+    userExpirationDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). Set a "
+        "user's expiration date, after which the user's account will be "
+        "deactivated and will be unable to access the application.",
+    )
+
+
+class InvitationPostResponse(BaseModel):
+    """Data payload returned when creating an invitation."""
+
+    id: int = Field(description="New invitation ID")
+
+
+class InvitationPatchBody(BaseModel):
+    """Request body for updating a pending invitation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIDs: list[int] | None = Field(
+        default=None, description="List of IDs of groups the user is invited to."
+    )
+    streamIDs: list[int] | None = Field(
+        default=None,
+        description="List of IDs of streams invited user will be given access to.",
+    )
+    role: str | None = Field(
+        default=None, description="The role the new user will have in the system."
+    )
+    userExpirationDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). Set a "
+        "user's expiration date, after which the user's account will be "
+        "deactivated and will be unable to access the application.",
+    )
+
+
 class InvitationHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self):
+    async def post(self, *, body: InvitationPostBody = None) -> InvitationPostResponse:
         """
         ---
         summary: Invite a new user
         description: Invite a new user
         tags:
           - invitations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userEmail:
-                    type: string
-                  role:
-                    type: string
-                    description: |
-                      The role the new user will have in the system.
-                      If provided, must be one of either "Full user" or "View only".
-                      Defaults to "Full user".
-                  streamIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of streams invited user will be given access to. If
-                      not provided, user will be granted access to all streams associated
-                      with the groups specified by `groupIDs`.
-                  groupIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups invited user will be added to. If `streamIDs`
-                      is not provided, invited user will be given accesss to all streams
-                      associated with the groups specified by this field.
-                  groupAdmin:
-                    type: array
-                    items:
-                      type: boolean
-                    description: |
-                      List of booleans indicating whether user should be granted admin
-                      status for respective specified group(s). Defaults to all false.
-                  canSave:
-                    type: array
-                    items:
-                      type: boolean
-                    description: |
-                      List of booleans indicating whether user should be able to save
-                      sources to respective specified group(s). Defaults to all true.
-                  userExpirationDate:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                      date, after which the user's account will be deactivated and will be unable
-                      to access the application.
-                required:
-                  - userEmail
-                  - groupIDs
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              description: New invitation ID
         """
         if not cfg["invitations.enabled"]:
             return self.error("Invitations are not enabled in current deployment.")
-        data = self.get_json()
+        body = self.parse_body(InvitationPostBody)
 
-        with self.Session() as session:
-            role_id = data.get("role", "Full user")
+        async with self.AsyncSession() as session:
+            role_id = body.role
             if role_id not in ["Full user", "View only"]:
                 return self.error(
                     f"Unsupported value provided for parameter `role`: {role_id}. "
                     "Must be one of either 'Full user' or 'View only'."
                 )
-            role = session.scalars(
+            role = await session.scalar(
                 Role.select(self.current_user).where(Role.id == role_id)
-            ).first()
+            )
 
-            if data.get("userEmail") in [None, "", "None", "null"]:
+            if body.userEmail in ["", "None", "null"]:
                 return self.error("Missing required parameter `userEmail`")
-            user_email = data["userEmail"].strip()
+            user_email = body.userEmail.strip()
 
-            if data.get("groupIDs") is None:
-                return self.error("Missing required parameter `groupIDs`")
-            try:
-                group_ids = [int(gid) for gid in data["groupIDs"]]
-            except ValueError:
-                return self.error(
-                    "Invalid value provided for `groupIDs`; unable to parse "
-                    "all list items to integers."
-                )
-            groups = session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            group_ids = body.groupIDs
+            groups_result = await session.scalars(
+                Group.select(self.current_user)
+                .options(selectinload(Group.streams))
+                .where(Group.id.in_(group_ids))
+            )
+            groups = groups_result.all()
             if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
                     "The following groupIDs elements are invalid: "
                     f"{set(group_ids).difference({g.id for g in groups})}"
                 )
 
-            if data.get("streamIDs") not in [None, "", "null", "None"]:
-                try:
-                    stream_ids = [int(sid) for sid in data["streamIDs"]]
-                except ValueError:
-                    return self.error(
-                        "Invalid value provided for `streamIDs`; unable to parse "
-                        "all list items to integers."
-                    )
+            if body.streamIDs is not None:
+                stream_ids = body.streamIDs
 
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
-                ).all()
+                )
+                streams = streams_result.all()
 
                 if set(stream_ids).difference({s.id for s in streams}):
                     return self.error(
@@ -169,48 +171,67 @@ class InvitationHandler(BaseHandler):
                         "stream IDs list. Please try again."
                     )
             else:
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(self.current_user)
                     .join(GroupStream)
                     .where(GroupStream.group_id.in_(group_ids))
-                ).all()
-            admin_for_groups = data.get("groupAdmin", [False] * len(groups))
-            if not all(isinstance(admin, bool) for admin in admin_for_groups):
-                return self.error(
-                    "Invalid value provided for `groupAdmin` parameter: "
-                    "all elements must be booleans"
                 )
-            can_save = data.get("canSave", [True] * len(groups))
-            if not all(isinstance(can_save_el, bool) for can_save_el in can_save):
-                return self.error(
-                    "Invalid value provided for `canSave` parameter: "
-                    "all elements must be booleans"
-                )
-            user_expiration_date = data.get("userExpirationDate")
+                streams = streams_result.all()
+            admin_for_groups = (
+                body.groupAdmin
+                if body.groupAdmin is not None
+                else [False] * len(groups)
+            )
+            can_save = (
+                body.canSave if body.canSave is not None else [True] * len(groups)
+            )
+            can_share_photometry = (
+                body.canSharePhotometry
+                if body.canSharePhotometry is not None
+                else [False] * len(groups)
+            )
+            user_expiration_date = body.userExpirationDate
             if user_expiration_date is not None:
                 try:
                     user_expiration_date = arrow.get(user_expiration_date).datetime
                 except arrow.parser.ParserError:
                     return self.error("Unable to parse `userExpirationDate` parameter.")
 
-            if len(admin_for_groups) != len(groups):
-                return self.error("groupAdmin and groupIDs must be the same length")
+            # These are zipped with the groups at onboarding, so a short list
+            # would silently drop group memberships.
+            for name, values in [
+                ("groupAdmin", admin_for_groups),
+                ("canSave", can_save),
+                ("canSharePhotometry", can_share_photometry),
+            ]:
+                if len(values) != len(groups):
+                    return self.error(f"{name} and groupIDs must be the same length")
 
             invite_token = str(uuid.uuid4())
+            # Re-fetch the inviting user via the current async session so
+            # invited_by points at a session-attached User (the request's
+            # `associated_user_object` was loaded by the auth lookup and is
+            # detached here).
+            inviting_user = await session.scalar(
+                User.select(session.user_or_token).where(
+                    User.id == self.associated_user_object.id
+                )
+            )
             invitation = Invitation(
                 token=invite_token,
                 groups=groups,
                 admin_for_groups=admin_for_groups,
                 can_save_to_groups=can_save,
+                can_share_photometry_for_groups=can_share_photometry,
                 streams=streams,
                 user_email=user_email,
                 role=role,
-                invited_by=self.associated_user_object,
+                invited_by=inviting_user,
                 user_expiration_date=user_expiration_date,
             )
             session.add(invitation)
             try:
-                session.commit()
+                await session.commit()
             except python_http_client.exceptions.UnauthorizedError:
                 return self.error(
                     "Twilio Sendgrid authorization error. Please ensure "
@@ -225,7 +246,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve invitations
@@ -301,19 +322,17 @@ class InvitationHandler(BaseHandler):
         group = self.get_query_argument("group", None)
         stream = self.get_query_argument("stream", None)
         invited_by = self.get_query_argument("invitedBy", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 25)
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        n_per_page = self.get_query_argument("numPerPage", 25, type=int)
+        if page_number is None or n_per_page is None:
+            return self.error("Invalid page number or numPerPage value.")
 
-        with self.Session() as session:
-            query = Invitation.select(session.user_or_token)
+        async with self.AsyncSession() as session:
+            query = Invitation.select(session.user_or_token).options(
+                selectinload(Invitation.streams),
+                selectinload(Invitation.groups),
+                selectinload(Invitation.invited_by),
+            )
             if not include_used:
                 query = query.where(Invitation.used.is_(False))
             if email_address is not None:
@@ -336,9 +355,10 @@ class InvitationHandler(BaseHandler):
                 )
 
             count_stmt = sa.select(func.count()).select_from(query)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = await session.scalar(count_stmt)
             query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-            invitations = session.scalars(query).unique().all()
+            inv_result = await session.scalars(query)
+            invitations = inv_result.unique().all()
             info = {}
             return_data = [invitation.to_dict() for invitation in invitations]
             for idx, invite_dict in enumerate(return_data):
@@ -351,58 +371,38 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    def patch(self, invitation_id: int):
+    async def patch(self, invitation_id: int, *, body: InvitationPatchBody = None):
         """
         ---
         summary: Update a pending invitation
         description: Update a pending invitation
         tags:
           - invitations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groupIDs:
-                    type: array
-                    items:
-                      type: integer
-                  streamIDs:
-                    type: array
-                    items:
-                      type: integer
-                  role:
-                    type: string
-                  userExpirationDate:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                      date, after which the user's account will be deactivated and will be unable
-                      to access the application.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-
-        with self.Session() as session:
-            invitation = session.scalars(
-                Invitation.select(session.user_or_token, mode="update").where(
-                    Invitation.id == invitation_id
+        body = self.parse_body(InvitationPatchBody)
+        async with self.AsyncSession() as session:
+            invitation = await session.scalar(
+                Invitation.select(session.user_or_token, mode="update")
+                .options(
+                    selectinload(Invitation.groups),
+                    selectinload(Invitation.streams),
                 )
-            ).first()
+                .where(Invitation.id == invitation_id)
+            )
             if invitation is None:
                 return self.error(
                     "Insufficient permissions: Only the invitor may update an invitation."
                 )
 
-            group_ids = data.get("groupIDs")
-            stream_ids = data.get("streamIDs")
-            role_id = data.get("role")
-            user_expiration_date = data.get("userExpirationDate")
+            group_ids = body.groupIDs
+            stream_ids = body.streamIDs
+            role_id = body.role
+            user_expiration_date = body.userExpirationDate
             if (
                 group_ids is None
                 and stream_ids is None
@@ -413,37 +413,30 @@ class InvitationHandler(BaseHandler):
                     "At least one of `groupIDs`, `streamIDs`, `role`, or `userExpirationDate` is required."
                 )
             if group_ids is not None:
-                group_ids = [int(gid) for gid in group_ids]
-
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user)
+                    .options(selectinload(Group.streams))
+                    .where(Group.id.in_(group_ids))
                 )
+                groups = groups_result.unique().all()
                 if set(group_ids).difference({g.id for g in groups}):
                     return self.error(
                         "The following groupIDs elements are invalid: "
                         f"{set(group_ids).difference({g.id for g in groups})}"
                     )
             else:
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token)
+                    .options(selectinload(Group.streams))
                     .join(GroupInvitation)
                     .where(GroupInvitation.invitation_id == invitation.id)
-                ).all()
-            if stream_ids is not None:
-                stream_ids = [int(sid) for sid in stream_ids]
-                streams = (
-                    session.scalars(
-                        Stream.select(self.current_user).where(
-                            Stream.id.in_(stream_ids)
-                        )
-                    )
-                    .unique()
-                    .all()
                 )
+                groups = groups_result.all()
+            if stream_ids is not None:
+                streams_result = await session.scalars(
+                    Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
+                )
+                streams = streams_result.unique().all()
 
                 if set(stream_ids).difference({s.id for s in streams}):
                     return self.error(
@@ -451,11 +444,12 @@ class InvitationHandler(BaseHandler):
                         f"{set(stream_ids).difference({s.id for s in streams})}"
                     )
             else:
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(session.user_or_token)
                     .join(StreamInvitation)
                     .where(StreamInvitation.invitation_id == invitation.id)
-                ).all()
+                )
+                streams = streams_result.all()
 
             if user_expiration_date is not None:
                 try:
@@ -481,23 +475,17 @@ class InvitationHandler(BaseHandler):
             if user_expiration_date is not None:
                 invitation.user_expiration_date = user_expiration_date
 
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, invitation_id: int):
+    async def delete(self, invitation_id: int):
         """
         ---
         summary: Delete an invitation
         description: Delete an invitation
         tags:
           - invitations
-        parameters:
-          - in: path
-            name: invitation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -505,16 +493,16 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            invitation = session.scalars(
+        async with self.AsyncSession() as session:
+            invitation = await session.scalar(
                 Invitation.select(session.user_or_token, mode="delete").where(
                     Invitation.id == invitation_id
                 )
-            ).first()
+            )
             if invitation is None:
                 return self.error(
                     "Insufficient permissions: Only the invitor may delete an invitation. "
                 )
-            session.delete(invitation)
-            session.commit()
+            await session.delete(invitation)
+            await session.commit()
             return self.success()

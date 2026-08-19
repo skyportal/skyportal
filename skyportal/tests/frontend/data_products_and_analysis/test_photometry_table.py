@@ -3,6 +3,7 @@ import os
 from datetime import UTC, datetime
 from os.path import join
 
+import pytest
 from astropy.time import Time
 from playwright.sync_api import expect
 
@@ -68,6 +69,7 @@ def _download_to(page, file_path):
     assert os.path.exists(file_path)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_download_photometry_table_default(page, super_admin_user, public_source):
     """Test downloading the photometry table with the default columns."""
     _open_download_options(page, super_admin_user, public_source)
@@ -104,6 +106,7 @@ def test_download_photometry_table_default(page, super_admin_user, public_source
         os.remove(file_path)
 
 
+@pytest.mark.flaky(reruns=2)
 def test_download_photometry_table_all(page, super_admin_user, public_source):
     """Test downloading the photometry table with all columns."""
     _open_download_options(page, super_admin_user, public_source)

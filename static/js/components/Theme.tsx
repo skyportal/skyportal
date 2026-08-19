@@ -1,4 +1,5 @@
 import { useGetProfileQuery } from "../ducks/profile";
+import { useActiveTeam } from "../ducks/teams";
 import React from "react";
 
 import {
@@ -14,9 +15,83 @@ interface ThemeProps {
   children: React.ReactNode;
 }
 
+const THEME_KEY = "skyportal:theme";
+const SCHEME_KEY = "skyportal:darkScheme";
+
+interface DarkScheme {
+  label: string;
+  default: string;
+  paper: string;
+  error: string;
+  text: string;
+  textSecondary: string;
+  divider: string;
+  scrollTrack: string;
+  scrollThumb: string;
+}
+
+export const DARK_SCHEMES = {
+  slate: {
+    label: "Blue",
+    default: "#0e1726",
+    paper: "#16233a",
+    error: "#ff6b74",
+    text: "#e6edf5",
+    textSecondary: "#9fb3c8",
+    divider: "rgba(168, 218, 220, 0.16)",
+    scrollTrack: "#16233a",
+    scrollThumb: "#1e3050",
+  },
+  graphite: {
+    label: "Dark",
+    default: "#303030",
+    paper: "#424242",
+    error: "#ff6b74",
+    text: "#fafafa",
+    textSecondary: "rgba(255, 255, 255, 0.7)",
+    divider: "rgba(255, 255, 255, 0.16)",
+    scrollTrack: "#303030",
+    scrollThumb: "#4e4e4e",
+  },
+} satisfies Record<string, DarkScheme>;
+
+export type DarkSchemeName = keyof typeof DARK_SCHEMES;
+
+export const LIGHT_BACKGROUND = "#f0f2f5";
+
+export const DEFAULT_DARK_SCHEME: DarkSchemeName = "slate";
+
+const schemeFor = (name?: string | null): DarkScheme =>
+  name && name in DARK_SCHEMES
+    ? DARK_SCHEMES[name as DarkSchemeName]
+    : DARK_SCHEMES[DEFAULT_DARK_SCHEME];
+
 const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
-  const theme = (useGetProfileQuery().data?.preferences as any)?.theme;
+  const preferences = useGetProfileQuery().data?.preferences as any;
+  const profileTheme = preferences?.theme;
+  const profileScheme = preferences?.darkScheme;
+  const [stored] = React.useState(() => ({
+    theme: window.localStorage.getItem(THEME_KEY),
+    scheme: window.localStorage.getItem(SCHEME_KEY),
+  }));
+  const theme = profileTheme ?? stored.theme ?? undefined;
   const dark = theme === "dark";
+  const scheme = schemeFor(profileScheme ?? stored.scheme);
+
+  React.useEffect(() => {
+    if (!profileTheme) return;
+    window.localStorage.setItem(THEME_KEY, profileTheme);
+    if (profileScheme) window.localStorage.setItem(SCHEME_KEY, profileScheme);
+    document.documentElement.style.backgroundColor =
+      profileTheme === "dark" ? schemeFor(profileScheme).default : "";
+  }, [profileTheme, profileScheme]);
+
+  // When a team is active, its colors drive the whole MUI palette so every
+  // primary/secondary-colored element themes at once. No active team → the
+  // original SkyPortal palette.
+  const { activeTeam } = useActiveTeam();
+  const primaryColor = activeTeam?.primary_color || "#457b9d";
+  const secondaryColor = activeTeam?.secondary_color || "#b1dae9";
 
   const greyTheme = createTheme({
     palette: {
@@ -30,14 +105,14 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
     palette: {
       mode: theme || "light",
       primary: {
-        main: "#457b9d",
-        light: "#457b9d",
+        main: primaryColor,
+        light: primaryColor,
         dark: "#1d3557",
         contrastText: "#fff",
       },
       secondary: {
-        main: "#b1dae9",
-        light: "#b1dae9",
+        main: secondaryColor,
+        light: secondaryColor,
         dark: "#76aace",
         contrastText: "#fff",
       },
@@ -48,24 +123,21 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
         main: "#fca311",
       },
       error: {
-        main: "#e63946",
+        main: dark ? scheme.error : "#e63946",
       },
       background: dark
-        ? { default: "#303030", paper: "#808080" }
-        : { default: "#f0f2f5", paper: "#f0f2f5" },
+        ? { default: scheme.default, paper: scheme.paper }
+        : { default: LIGHT_BACKGROUND, paper: LIGHT_BACKGROUND },
+      ...(dark && {
+        text: { primary: scheme.text, secondary: scheme.textSecondary },
+        divider: scheme.divider,
+      }),
     },
     plotFontSizes: {
       titleFontSize: 15,
       labelFontSize: 15,
     },
     components: {
-      MuiTypography: {
-        styleOverrides: {
-          body1: {
-            color: dark ? grey[50] : null,
-          },
-        },
-      },
       MuiButton: {
         defaultProps: {
           disableElevation: true,
@@ -80,14 +152,6 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
             },
           },
         ],
-        styleOverrides: {
-          textPrimary: {
-            color: dark ? "#b1dae9" : null,
-          },
-          outlinedPrimary: {
-            color: dark ? "#b1dae9" : null,
-          },
-        },
       },
       MuiCssBaseline: {
         styleOverrides: {
@@ -100,7 +164,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               /* Works on Firefox */
               scrollbarWidth: "thin",
               scrollbarColor: dark
-                ? `${grey[700]} ${grey[800]}`
+                ? `${scheme.scrollThumb} ${scheme.scrollTrack}`
                 : `${grey[400]} ${grey[100]}`,
               overflowY: "auto",
 
@@ -110,14 +174,14 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               },
 
               "& *::-webkit-scrollbar-track": {
-                background: dark ? grey[800] : grey[100],
+                background: dark ? scheme.scrollTrack : grey[100],
               },
 
               "& *::-webkit-scrollbar-thumb": {
-                backgroundColor: dark ? grey[700] : grey[400],
+                backgroundColor: dark ? scheme.scrollThumb : grey[400],
                 borderRadius: "20px",
                 border: dark
-                  ? `3px solid ${grey[800]}`
+                  ? `3px solid ${scheme.scrollTrack}`
                   : `3px solid ${grey[100]}`,
               },
             },

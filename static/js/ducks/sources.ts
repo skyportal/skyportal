@@ -15,9 +15,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { filterOutEmptyValues } from "../API";
+import { buildQueryString, filterOutEmptyValues } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -33,6 +33,11 @@ export interface SourcesResult {
   totalMatches: number;
   pageNumber: number;
   numPerPage: number;
+  /**
+   * Handle for the backend's cached obj_id list, assigned on the first page.
+   * Echo it back on later pages to skip re-running the full ordering query.
+   */
+  queryID?: string | null;
   [key: string]: any;
 }
 
@@ -49,12 +54,51 @@ const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   return params;
 };
 
+/**
+ * Opt into the backend's server-side query cache (`useCache` + `queryID`).
+ *
+ * `/api/sources` has no LIMIT on its ordering query: it aggregates
+ * MAX(saved_at) over *every* matching source to build the full ordered obj_id
+ * list, because `totalMatches` is the length of that list. On a Fritz-sized
+ * database that is a ~2-3s full scan, and without a queryID it is repeated on
+ * every single page request.
+ *
+ * Passing `useCache=true` makes the backend persist that list and hand back a
+ * `queryID`; echoing the id on later pages serves them from the cached list
+ * instead (measured ~3.3s -> ~1.0s per page). This is the same mechanism the
+ * scanning page already uses via `getCandidates`.
+ *
+ * The handler validates the pairing strictly, so mirror its contract exactly:
+ *   - page 1 must NOT carry a queryID (the backend assigns one)
+ *   - page > 1 must carry one, or the request is rejected
+ * Anything that would violate it falls back to an uncached query rather than
+ * erroring.
+ */
+const withQueryCache = (params: FilterParams): FilterParams => {
+  const p = { ...params };
+  const pageNumber = Number(p["pageNumber"] ?? 1);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 1) {
+    delete p["queryID"];
+    p["useCache"] = true;
+  } else if (p["queryID"]) {
+    p["useCache"] = true;
+  } else {
+    // Page > 1 with no queryID (e.g. a deep-linked page, or a cache entry the
+    // backend has since expired): ask for the full query instead of tripping
+    // the handler's validation.
+    delete p["useCache"];
+  }
+  return p;
+};
+
 /** Build a `/api/sources?...` URL from a filterParams object. */
 const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
-  const filtered = filterOutEmptyValues(params, true, removeFalse);
-  const queryString = new URLSearchParams(
-    filtered as Record<string, string>,
-  ).toString();
+  const filtered = filterOutEmptyValues(
+    withQueryCache(params),
+    true,
+    removeFalse,
+  );
+  const queryString = buildQueryString(filtered);
   return `/api/sources?${queryString}`;
 };
 
@@ -118,6 +162,11 @@ export const sourcesApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["Sources"],
     }),
+    // Distinct top-level altdata keys, for offering altdata columns on the table.
+    getAltdataInfo: build.query<{ keys: Record<string, string>[] }, void>({
+      query: () => "api/internal/altdata_info",
+      providesTags: ["AltdataInfo"],
+    }),
   }),
 });
 
@@ -128,9 +177,43 @@ invalidateOnMessage(REFRESH_FAVORITE_SOURCES, () =>
   window.location.pathname === "/favorites" ? ["Sources"] : null,
 );
 
-invalidateOnMessage(FETCH_GCNEVENT_SOURCES, () => ["Sources"]);
+// Only refetch when the affected event's sources are actually loaded. Map the
+// pushed gcnEvent id -> dateobs (the query key) via the cached event, then check
+// for a loaded gcn-event-sources query. Pre-RTK this was gated on the currently-
+// viewed event; unconditional invalidation refetched the heavy list every time.
+invalidateOnMessage(FETCH_GCNEVENT_SOURCES, (payload, getState) => {
+  const dateobs =
+    payload?.gcnEvent?.dateobs ??
+    (payload?.gcnEvent?.id != null
+      ? findCachedQueryArg(
+          getState,
+          "getGcnEvent",
+          (data) => data?.id === payload.gcnEvent.id,
+        )
+      : null);
+  if (dateobs == null) return null;
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedEvent = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName === "fetchGcnEventSources" &&
+      entry?.originalArgs?.dateobs === dateobs,
+  );
+  return onLoadedEvent ? ["Sources"] : null;
+});
 
-invalidateOnMessage(REFRESH_SOURCE, () => ["Sources"]);
+// Only refetch when the updated source is actually on a currently-loaded page.
+// Pre-RTK this handler was gated on the source being in the list (and merged a
+// single source); refetching the whole heavy list on every REFRESH_SOURCE
+// app-wide — these arrive at alert rates — made the sources page crawl/crash.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedPage = Object.values(queries).some((entry: any) =>
+    (entry?.data?.sources as any[] | undefined)?.some(
+      (s) => s.internal_key === payload?.obj_key,
+    ),
+  );
+  return onLoadedPage ? ["Sources"] : null;
+});
 
 export const {
   useFetchSourcesQuery,
@@ -142,4 +225,5 @@ export const {
   useFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
+  useGetAltdataInfoQuery,
 } = sourcesApi;

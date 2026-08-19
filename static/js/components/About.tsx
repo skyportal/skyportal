@@ -4,7 +4,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 
-import AboutPlugins from "./AboutPlugins";
+import AboutPlugins from "./templates/AboutPlugins";
 import { useGetConfigQuery } from "../ducks/config";
 
 const useStyles = makeStyles()(() => ({
@@ -41,6 +41,18 @@ const useStyles = makeStyles()(() => ({
   header: {
     display: "inline-block",
   },
+  cosmoTable: {
+    borderCollapse: "collapse",
+    margin: "0.5rem 0",
+    "& td": {
+      border: "1px solid",
+      borderColor: "rgba(128,128,128,0.4)",
+      padding: "2px 12px",
+    },
+    "& td:first-of-type": {
+      fontWeight: 600,
+    },
+  },
 }));
 
 const About = () => {
@@ -48,7 +60,7 @@ const About = () => {
   // cosmology/cosmoref are served by `/api/config` and live in the `config`
   // slice; this previously read them from `sysInfo` (where they never existed),
   // so the block below never rendered. Sourced correctly now.
-  const cosmology = (useGetConfigQuery().data as any)?.cosmology;
+  const cosmologyParams = (useGetConfigQuery().data as any)?.cosmologyParams;
   const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
 
   const developers = [
@@ -57,32 +69,48 @@ const About = () => {
       src: "/static/images/developers/antier.jpeg",
     },
     {
+      name: "Pete Bachant",
+      src: "/static/images/developers/bachant.jpg",
+    },
+    {
       name: "Joshua Bloom",
       src: "/static/images/developers/bloom.jpeg",
+    },
+    {
+      name: "Leo Conforti",
+      src: "/static/images/developers/conforti.jpg",
     },
     {
       name: "Michael Coughlin",
       src: "/static/images/developers/coughlin.jpg",
     },
     {
-      name: "Matthew Graham",
-      src: "/static/images/developers/graham.jpg",
+      name: "Thomas Culino",
+      src: "/static/images/developers/culino.jpg",
     },
     {
-      name: "Theophile Jegou du Laz",
-      src: "/static/images/developers/laz.jpeg",
+      name: "Camille Douzet",
+      src: "/static/images/developers/douzet.jpg",
+    },
+    {
+      name: "Matthew Graham",
+      src: "/static/images/developers/graham.jpg",
     },
     {
       name: "Mansi Kasliwal",
       src: "/static/images/developers/kasliwal.jpg",
     },
     {
-      name: "Don Neill",
-      src: "/static/images/developers/neill.jpg",
+      name: "Antoine Le Calloch",
+      src: "/static/images/developers/lecalloch.jpg",
     },
     {
-      name: "Guy Nir",
-      src: "/static/images/developers/nir.jpg",
+      name: "Sneha Maharjan",
+      src: "/static/images/developers/maharjan.jpg",
+    },
+    {
+      name: "Sushant Sharma Chaudhary",
+      src: "/static/images/developers/sharmachaudhary.jpg",
     },
     {
       name: "Leo Singer",
@@ -100,10 +128,6 @@ const About = () => {
       src: "/static/images/developers/crellinquick.jpg",
     },
     {
-      name: "Thomas Culino",
-      src: "/static/images/developers/culino.jpg",
-    },
-    {
       name: "Dmitry Duev",
       src: "/static/images/developers/duev.jpg",
     },
@@ -112,8 +136,20 @@ const About = () => {
       src: "/static/images/developers/goldstein.jpg",
     },
     {
+      name: "Theophile Jegou du Laz",
+      src: "/static/images/developers/laz.jpeg",
+    },
+    {
       name: "Jada Lilleboe",
       src: "/static/images/developers/lilleboe.jpg",
+    },
+    {
+      name: "Don Neill",
+      src: "/static/images/developers/neill.jpg",
+    },
+    {
+      name: "Guy Nir",
+      src: "/static/images/developers/nir.jpg",
     },
     {
       name: "Kyung Min Shin",
@@ -167,9 +203,20 @@ const About = () => {
         <a href="https://github.com/astropy/astropy/blob/master/astropy/cosmology/parameters.py">
           this link for parameters definitions): <br />
         </a>
-        {cosmology && (
+        {cosmologyParams && (
           <>
-            <blockquote>{cosmology}</blockquote>
+            <table className={classes.cosmoTable}>
+              <tbody>
+                {cosmologyParams.map(
+                  (param: { name: string; value: string }) => (
+                    <tr key={param.name}>
+                      <td>{param.name}</td>
+                      <td>{param.value}</td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
             <b>Reference</b>: {cosmoref}
             <br />
             If you&apos;d like to change the cosmology, please do so in the{" "}

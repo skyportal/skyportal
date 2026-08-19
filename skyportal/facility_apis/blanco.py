@@ -1,7 +1,9 @@
 import json
 from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -143,7 +145,7 @@ class BLANCOAPI(FollowUpAPI):
     """An interface to BLANCO operations."""
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from BLANCO queue.
 
         Parameters
@@ -156,14 +158,26 @@ class BLANCOAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction, FollowupRequest
 
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
+
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             altdata = request.allocation.altdata
 
@@ -176,18 +190,22 @@ class BLANCOAPI(FollowUpAPI):
             if "id" in content:
                 uid = content["id"]
 
-                r = requests.post(
-                    f"{requestpath}{uid}/cancel/",
-                    headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-                )
+                url = f"{requestpath}{uid}/cancel/"
+                headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-                r.raise_for_status()
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, headers=headers) as r:
+                        content = await r.text()
+                        status = r.status
+
+                if status >= 400:
+                    raise ValueError(f"Error cancelling request: {status}: {content}")
 
                 request.status = "deleted"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request("POST", url, headers),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -195,10 +213,10 @@ class BLANCOAPI(FollowUpAPI):
                 session.add(transaction)
 
             else:
-                session.query(FollowupRequest).filter(
-                    FollowupRequest.id == request.id
-                ).delete()
-                session.commit()
+                await session.execute(
+                    sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+                )
+                await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -235,7 +253,7 @@ class NEWFIRMAPI(BLANCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to BLANCO's NEWFIRM.
 
         Parameters
@@ -246,7 +264,19 @@ class NEWFIRMAPI(BLANCOAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains _build_payload and this method walk
+        # (allocation, obj) eager-loaded, since async sessions raise on
+        # implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -254,27 +284,31 @@ class NEWFIRMAPI(BLANCOAPI):
 
         blancoreq = BLANCO_NEWFIRM_Request(request)
         requestgroup = blancoreq.requestgroup
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 201:
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()

@@ -1,11 +1,14 @@
 from copy import deepcopy
+from typing import Any
 
 import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from pydantic import BaseModel, ConfigDict, Field
 from slugify import slugify
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -16,14 +19,48 @@ from ....models import (
     SharingServiceCoauthor,
     SharingServiceGroup,
     SharingServiceGroupAutoPublisher,
+    Token,
     User,
 )
 from ...base import BaseHandler
 
 
+class ProfilePatchBody(BaseModel):
+    """Request body for updating a user's profile and preferences."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str | None = Field(default=None, description="User's preferred user name")
+    first_name: str | None = Field(
+        default=None, description="User's preferred first name"
+    )
+    last_name: str | None = Field(
+        default=None, description="User's preferred last name"
+    )
+    affiliations: list[str] | None = Field(
+        default=None, description="User's list of affiliations"
+    )
+    contact_email: str | None = Field(
+        default=None, description="User's preferred email address"
+    )
+    contact_phone: str | None = Field(
+        default=None, description="User's preferred (international) phone number"
+    )
+    bio: str | None = Field(
+        default=None, description="User's biography, or a short description of the user"
+    )
+    is_bot: bool | None = Field(
+        default=None,
+        description="Whether or not the user account should be flagged as a bot account",
+    )
+    preferences: dict[str, Any] | None = Field(
+        default=None, description="JSON describing updates to user preferences dict"
+    )
+
+
 class ProfileHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Retrieve user profile
@@ -81,12 +118,18 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        with self.Session() as session:
-            user = session.scalars(
-                User.select(session.user_or_token).where(
-                    User.username == self.associated_user_object.username
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
+                User.select(session.user_or_token)
+                .options(
+                    selectinload(User.acls),
+                    selectinload(User.roles),
+                    selectinload(User.tokens).selectinload(Token.acls),
+                    selectinload(User.group_admission_requests),
+                    selectinload(User.streams),
                 )
-            ).first()
+                .where(User.username == self.associated_user_object.username)
+            )
             user_roles = sorted(role.id for role in user.roles)
             user_acls = sorted(acl.id for acl in user.acls)
             user_permissions = sorted(user.permissions)
@@ -107,54 +150,18 @@ class ProfileHandler(BaseHandler):
             user_info["gravatar_url"] = user.gravatar_url or None
             user_info["preferences"] = user.preferences or {}
             user_info["groupAdmissionRequests"] = user.group_admission_requests
+            user_info["streams"] = user.streams
+            # flag the read-only anonymous account so the frontend can hide account UI
+            user_info["is_anonymous"] = bool(
+                self.cfg["app.anonymous_access"]
+            ) and user.username == (self.cfg["app.anonymous_user"] or "anonymous")
             return self.success(data=user_info)
 
     @auth_or_token
-    def patch(self, user_id: int | None = None):
+    async def patch(self, user_id: int | None = None, *, body: ProfilePatchBody = None):
         """
         ---
         description: Update user preferences
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  username:
-                    type: string
-                    description: |
-                      User's preferred user name
-                  first_name:
-                    type: string
-                    description: |
-                      User's preferred first name
-                  last_name:
-                    type: string
-                    description: |
-                      User's preferred last name
-                  affiliations:
-                    type: array
-                    description: |
-                      User's list of affiliations
-                  contact_email:
-                    type: string
-                    description: |
-                      User's preferred email address
-                  contact_phone:
-                    type: string
-                    description: |
-                      User's preferred (international) phone number
-                  bio:
-                    type: string
-                    description: |
-                      User's biography, or a short description of the user
-                  is_bot:
-                    type: boolean
-                    description: |
-                      Whether or not the user account should be flagged as a bot account
-                  preferences:
-                    type: object
-                    description: JSON describing updates to user preferences dict
         responses:
           200:
             content:
@@ -165,12 +172,12 @@ class ProfileHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ProfilePatchBody)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if user_id is None:
                 user_id = self.associated_user_object.id
-            user = session.scalar(
+            user = await session.scalar(
                 User.select(session.user_or_token, mode="update").where(
                     User.id == user_id
                 )
@@ -178,15 +185,12 @@ class ProfileHandler(BaseHandler):
             if user is None:
                 return self.error(f"Cannot find User with ID: {user_id}")
 
-            if (
-                data.get("username") is not None
-                and data.get("username") != user.username
-            ):
-                username = data.pop("username").strip()
+            if body.username is not None and body.username != user.username:
+                username = body.username.strip()
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
-                single_user_group_id = session.scalar(
+                single_user_group_id = await session.scalar(
                     sa.select(Group.id)
                     .join(GroupUser, GroupUser.group_id == Group.id)
                     .where(
@@ -195,29 +199,23 @@ class ProfileHandler(BaseHandler):
                     )
                 )
                 if single_user_group_id is not None:
-                    session.execute(
+                    await session.execute(
                         sa.update(Group)
                         .where(Group.id == single_user_group_id)
                         .values(name=slugify(username))
                     )
 
-            if data.get("first_name") is not None:
-                user.first_name = data.pop("first_name")
+            if body.first_name is not None:
+                user.first_name = body.first_name
 
-            if data.get("last_name") is not None:
-                user.last_name = data.pop("last_name")
+            if body.last_name is not None:
+                user.last_name = body.last_name
 
-            if data.get("affiliations") is not None:
-                if isinstance(data.get("affiliations"), list):
-                    user.affiliations = data.pop("affiliations")
-                else:
-                    return self.error(
-                        "Invalid affiliations. Should be a list of strings."
-                    )
+            if body.affiliations is not None:
+                user.affiliations = body.affiliations
 
-            if data.get("bio") is not None and isinstance(data.get("bio"), str):
-                bio = data.pop("bio")
-                bio = str(bio).strip()
+            if body.bio is not None:
+                bio = body.bio.strip()
 
                 # the bio is not empty, verify that it is valid
                 if len(bio) > 0:
@@ -235,11 +233,8 @@ class ProfileHandler(BaseHandler):
 
                 user.bio = bio
 
-            if data.get("is_bot") not in [None, ""]:
-                if str(data.get("is_bot")).lower() in ["true", "t", "1"]:
-                    user.is_bot = True
-                else:
-                    user.is_bot = False
+            if body.is_bot is not None:
+                user.is_bot = body.is_bot
 
             if user.is_bot:
                 # check that the bio is set and is between 10 and 1000 characters if the user is a bot
@@ -249,7 +244,7 @@ class ProfileHandler(BaseHandler):
                     )
 
                 # check that the user isn't in any groups that have auto-publish enabled but do not allow bots to be auto-publishers
-                groups_no_auto_sharing_allow_bots = session.scalars(
+                groups_result = await session.scalars(
                     SharingServiceGroup.select(session.user_or_token).where(
                         SharingServiceGroup.group_id.in_(user.accessible_group_ids),
                         sa.or_(
@@ -258,9 +253,9 @@ class ProfileHandler(BaseHandler):
                         ),
                         SharingServiceGroup.auto_sharing_allow_bots.is_(False),
                     )
-                ).all()
-                for group in groups_no_auto_sharing_allow_bots:
-                    auto_publisher = session.scalars(
+                )
+                for group in groups_result.all():
+                    auto_publisher = await session.scalar(
                         sa.select(SharingServiceGroupAutoPublisher).where(
                             SharingServiceGroupAutoPublisher.sharing_service_group_id
                             == group.id,
@@ -271,25 +266,25 @@ class ProfileHandler(BaseHandler):
                                 )
                             ),
                         )
-                    ).first()
+                    )
                     if auto_publisher:
                         return self.error(
                             "User is an auto-publisher of a group that does not allow bots to be auto-publishers. Please remove the auto-publisher status first, or allow bot auto-publishing."
                         )
                 # check that the user isn't a coauthor of any bot, in which case they can't be a bot
-                bot_coauthors = session.scalars(
+                bot_coauthors = await session.scalar(
                     SharingServiceCoauthor.select(session.user_or_token).where(
                         SharingServiceCoauthor.user_id == user.id
                     )
-                ).first()
+                )
                 if bot_coauthors:
                     return self.error(
                         "User is a coauthor of a sharing service and cannot be flagged as a bot."
                     )
 
-            if data.get("contact_phone") is not None:
-                phone = data.pop("contact_phone")
-                if phone not in [None, ""]:
+            if body.contact_phone is not None:
+                phone = body.contact_phone
+                if phone != "":
                     try:
                         if not phonenumbers.is_possible_number(
                             phonenumbers.parse(phone, "US")
@@ -301,9 +296,9 @@ class ProfileHandler(BaseHandler):
                 else:
                     user.contact_phone = None
 
-            if data.get("contact_email") is not None:
-                email = data.pop("contact_email")
-                if email not in [None, ""]:
+            if body.contact_email is not None:
+                email = body.contact_email
+                if email != "":
                     try:
                         emailinfo = validate_email(email, check_deliverability=False)
                     except EmailNotValidError as e:
@@ -314,12 +309,18 @@ class ProfileHandler(BaseHandler):
                 else:
                     user.contact_email = None
 
-            preferences = data.get("preferences", {})
+            preferences = body.preferences or {}
             # Do not save blank fields (empty strings)
             for k, v in preferences.items():
                 if isinstance(v, dict):
                     preferences[k] = {key: val for key, val in v.items() if val != ""}
-            user_prefs = deepcopy(user.preferences)
+            user_prefs = deepcopy(
+                await session.scalar(
+                    sa.select(User.preferences)
+                    .where(User.id == user_id)
+                    .with_for_update()
+                )
+            )
             if not user_prefs:
                 user_prefs = preferences
             else:
@@ -346,7 +347,7 @@ class ProfileHandler(BaseHandler):
             user.preferences = user_prefs
 
             try:
-                session.commit()
+                await session.commit()
             except IntegrityError as e:
                 if "duplicate key value violates unique constraint" in str(e):
                     return self.error(

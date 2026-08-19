@@ -17,7 +17,7 @@ openweather_api_key = cfg.get("weather.openweather_api_key")
 
 class WeatherHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get weather info at telescope site
@@ -76,7 +76,7 @@ class WeatherHandler(BaseHandler):
                 schema: Error
         """
         telescope_id = self.get_query_argument("telescope_id", None, type=int)
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # use the query telescope ID otherwise fall back to preferences id
             if telescope_id is None:
                 user_prefs = (
@@ -93,16 +93,16 @@ class WeatherHandler(BaseHandler):
                         )
 
             if telescope_id is not None:
-                telescope = session.scalar(
+                telescope = await session.scalar(
                     Telescope.select(self.current_user).where(
                         Telescope.id == telescope_id
                     )
                 )
             else:
                 # no ID requested and no preference: use the first accessible telescope
-                telescope = session.scalars(
+                telescope = await session.scalar(
                     Telescope.select(self.current_user).order_by(Telescope.id)
-                ).first()
+                )
 
             if telescope is None:
                 if telescope_id is not None:
@@ -114,9 +114,9 @@ class WeatherHandler(BaseHandler):
                     # respond gracefully so the widget can show "no weather information" instead of an error
                     return self.success(data={"weather": None})
 
-            weather = session.scalars(
+            weather = await session.scalar(
                 sa.select(Weather).where(Weather.telescope_id == telescope.id)
-            ).first()
+            )
             if weather is None:
                 weather = Weather(telescope=telescope)
                 session.add(weather)
@@ -144,11 +144,11 @@ class WeatherHandler(BaseHandler):
                         data = response.json()
                         weather.weather_info = data
                         weather.retrieved_at = utcnow_naive()
-                        session.commit()
+                        await session.commit()
                     else:
                         message = response.text
 
-                session.commit()
+                await session.commit()
 
             return self.success(
                 data={

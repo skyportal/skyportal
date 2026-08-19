@@ -12,6 +12,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { usePostGcnAliasMutation } from "../../ducks/gcnEvent";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -34,6 +35,7 @@ interface AddGcnAliasProps {
 const AddGcnAlias = ({ gcnEvent }: AddGcnAliasProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [postGcnAlias] = usePostGcnAliasMutation();
   const [alias, setAlias] = useState<string | null>(null);
 
@@ -63,6 +65,8 @@ const AddGcnAlias = ({ gcnEvent }: AddGcnAliasProps) => {
     }
     setIsSubmitting(false);
   };
+
+  if (isReadOnly) return null;
 
   return (
     <>

@@ -6,6 +6,10 @@ from sqlalchemy import desc, func
 from baselayer.app.access import auth_or_token
 
 from ....models import Candidate, Source, User
+from ....utils.data_access import (
+    accessible_group_ids_async,
+    team_scoped_group_ids,
+)
 from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
@@ -14,7 +18,9 @@ default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}
 
 class SourceSaverHandler(BaseHandler):
     @classmethod
-    def get_top_source_savers(cls, current_user, session, user_options):
+    async def get_top_source_savers(
+        cls, current_user, session, user_options, team_group_ids=None
+    ):
         user_prefs = getattr(current_user, "preferences", None) or {}
         top_savers_prefs = user_prefs.get("topSavers", {})
         top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}
@@ -37,18 +43,20 @@ class SourceSaverHandler(BaseHandler):
                 )
             )
 
+        if team_group_ids is not None:
+            stmt = stmt.where(Source.group_id.in_(team_group_ids))
+
         stmt = (
             stmt.group_by(Source.saved_by_id)
             .order_by(desc("saves"))
             .limit(max_num_savers)
         )
 
-        results = session.execute(stmt).all()
-
-        return results
+        result = await session.execute(stmt)
+        return result.all()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Retrieve users saving candidates
@@ -92,16 +100,28 @@ class SourceSaverHandler(BaseHandler):
         if candidates_only is not None:
             user_options["candidatesOnly"] = candidates_only
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                query_results = SourceSaverHandler.get_top_source_savers(
-                    self.current_user, session, user_options
+                accessible = set(
+                    await accessible_group_ids_async(session.user_or_token, session)
+                )
+                team_group_ids = await team_scoped_group_ids(
+                    session,
+                    self.current_user,
+                    self.get_query_argument("teamID", None),
+                    accessible,
+                )
+                query_results = await SourceSaverHandler.get_top_source_savers(
+                    self.current_user,
+                    session,
+                    user_options,
+                    team_group_ids=team_group_ids,
                 )
                 savers = []
                 for rank, (saved, user_id) in enumerate(query_results):
-                    s = session.scalars(
+                    s = await session.scalar(
                         User.select(session.user_or_token).where(User.id == user_id)
-                    ).first()
+                    )
                     savers.append(
                         {
                             "rank": rank + 1,

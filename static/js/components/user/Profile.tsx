@@ -1,37 +1,28 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useGetGroupsQuery } from "../../ducks/groups";
+import JoinableStreamsList from "./JoinableStreamsList";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
 import UpdateProfileForm from "./UpdateProfileForm";
+import UserPreferences from "./preferences/UserPreferences";
 import UserProfileInfo from "./UserProfileInfo";
 
 const Profile = () => {
   const { data: profile } = useGetProfileQuery();
-  const { data: groupsData } = useGetGroupsQuery();
-  const groups = groupsData?.user ?? [];
+  if (profile?.is_anonymous) {
+    return (
+      <>
+        Please <a href="/">log in</a> to view your profile.
+      </>
+    );
+  }
   return (
-    <div>
-      <div>
-        <UserProfileInfo />
-      </div>
-      &nbsp;
-      <br />
-      <div>
-        <UpdateProfileForm />
-      </div>
-      &nbsp;
-      <br />
-      <div>
-        <NewTokenForm
-          availableAcls={profile?.permissions}
-          {...({ groups } as any)}
-        />
-      </div>
-      &nbsp;
-      <br />
-      <div>
-        <TokenList tokens={(profile as any)?.tokens} />
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <UserProfileInfo />
+      <UpdateProfileForm />
+      <UserPreferences />
+      <JoinableStreamsList />
+      <NewTokenForm availableAcls={profile?.permissions} />
+      <TokenList tokens={(profile as any)?.tokens} />
     </div>
   );
 };

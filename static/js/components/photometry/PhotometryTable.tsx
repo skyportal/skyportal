@@ -30,6 +30,7 @@ import {
 } from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
@@ -66,9 +67,17 @@ const isFloat = (x: any) =>
 // floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
 // are stringified. Used as a DataGrid valueFormatter so sorting still operates
 // on the underlying numeric/object value.
+const COLUMN_PRECISION: Record<string, number> = {
+  mjd: 3,
+  mag: 4,
+  magerr: 4,
+  limiting_mag: 2,
+};
+
 const formatCell = (key: string) => (value: any) => {
   if (isFloat(value)) {
-    return value.toFixed(key.includes("jd") ? 8 : 6);
+    const precision = COLUMN_PRECISION[key] ?? 6;
+    return value.toFixed(precision);
   }
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
@@ -95,6 +104,18 @@ const PhotometryTable = ({
 }: PhotometryTableProps) => {
   const { usePhotometryValidation } = (useGetConfigQuery().data as any) ?? {};
 
+  const { id: currentUserId, permissions = [] } =
+    (useGetProfileQuery().data as any) ?? {};
+  // Update/delete of a photometry point requires being its owner, holding the
+  // "Manage photometry" ACL, or being a System admin (see
+  // manage_photometry_access_logic in skyportal/models/photometry.py). Read
+  // access is broader, so only show the edit/delete controls when the user can
+  // actually modify the point.
+  const canManagePhotometry = (phot: any) =>
+    permissions.includes("System admin") ||
+    permissions.includes("Manage photometry") ||
+    (phot?.owner?.id != null && phot.owner.id === currentUserId);
+
   const { classes } = useStyles();
   const [deletePhotometry] = useDeletePhotometryMutation();
 
@@ -103,7 +124,8 @@ const PhotometryTable = ({
   const [showExtinction, setShowExtinction] = useState(false);
 
   const queryParams = useMemo<any>(() => {
-    const params: any = {};
+    // Include linked SuperObj photometry (e.g. LSST) in the table + download.
+    const params: any = { includeSuperObjsPhotometry: true };
     if (showExtinction) {
       params.includeExtinction = true;
     }
@@ -265,15 +287,14 @@ const PhotometryTable = ({
         sortable: false,
         renderCell: (params: any) => {
           const phot = params.row;
-          let statusIcon = null;
-          if (phot?.validations.length === 0) {
+          const validation = phot?.validations?.[0];
+          let statusIcon = <QuestionMarkIcon color="primary" />;
+          if (!validation) {
             statusIcon = <PriorityHigh color="primary" />;
-          } else if (phot?.validations[0]?.validated === true) {
+          } else if (validation.validated === true) {
             statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
-          } else if (phot?.validations[0]?.validated === false) {
+          } else if (validation.validated === false) {
             statusIcon = <ClearIcon color="secondary" />;
-          } else {
-            statusIcon = <QuestionMarkIcon color="primary" />;
           }
           return (
             <div
@@ -298,7 +319,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
+          row?.validations?.[0]?.explanation || "",
       });
 
       cols.push({
@@ -307,7 +328,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
+          row?.validations?.[0]?.notes || "",
       });
     }
 
@@ -320,6 +341,9 @@ const PhotometryTable = ({
       filterable: false,
       renderCell: (params: any) => {
         const phot = params.row;
+        if (!canManagePhotometry(phot)) {
+          return null;
+        }
         return (
           <div className={classes.manage}>
             <div>
@@ -356,13 +380,15 @@ const PhotometryTable = ({
     magsys,
     deleteDialogOpen,
     classes.manage,
+    currentUserId,
+    permissions,
   ]);
 
   const CustomToolbar = useMemo(
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport={false}>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -428,7 +454,7 @@ const PhotometryTable = ({
             initialState={{
               pagination: { paginationModel: { pageSize: 100 } },
             }}
-            pageSizeOptions={[50, 100, 250, 500]}
+            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />
@@ -446,6 +472,7 @@ const PhotometryTable = ({
           objId={obj_id}
           usePhotometryValidation={usePhotometryValidation}
           onDownload={handleDownloadClose}
+          t0={t0}
         />
       </div>
     );
@@ -456,7 +483,9 @@ const PhotometryTable = ({
       fullScreen
       open={open}
       onClose={onClose}
-      TransitionComponent={Transition}
+      slots={{
+        transition: Transition,
+      }}
     >
       <DialogContent>{bodyContent}</DialogContent>
     </Dialog>

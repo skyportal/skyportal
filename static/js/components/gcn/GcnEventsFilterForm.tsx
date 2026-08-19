@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
@@ -10,6 +11,7 @@ import GcnTagsSelect from "./GcnTagsSelect";
 import GcnPropertiesSelect from "./GcnPropertiesSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
+import SelectWithChips from "../SelectWithChips";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -47,6 +49,11 @@ const GcnEventsFilterForm = ({
   >([]);
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState<any[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+
+  const groups = useSelector(
+    (state: any) => state.groups?.userAccessible ?? [],
+  ) as { id: number; name: string }[];
 
   const { handleSubmit, register: _register, control, reset } = useForm();
 
@@ -58,6 +65,7 @@ const GcnEventsFilterForm = ({
     setSelectedLocalizationTags([]);
     setRejectedLocalizationTags([]);
     setSelectedLocalizationProperties([]);
+    setSelectedGroups([]);
   };
 
   const handleFilterPreSubmit = (formData: any) => {
@@ -70,6 +78,10 @@ const GcnEventsFilterForm = ({
       localizationTagKeep: selectedLocalizationTags,
       localizationTagRemove: rejectedLocalizationTags,
       localizationPropertiesFilter: selectedLocalizationProperties,
+      // the API takes ids; the chips show names, which are what a user knows
+      groupIds: groups
+        .filter((g) => selectedGroups.includes(g.name))
+        .map((g) => g.id),
     });
   };
 
@@ -82,7 +94,12 @@ const GcnEventsFilterForm = ({
         flexDirection: "column",
       }}
     >
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
         <Controller
           name="startDate"
           control={control}
@@ -109,7 +126,20 @@ const GcnEventsFilterForm = ({
         />
       </Box>
       <Divider />
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
+        <SelectWithChips
+          label="Groups"
+          id="gcn-events-groups-select"
+          initValue={selectedGroups}
+          onChange={(e: any) => setSelectedGroups(e.target.value)}
+          options={groups.map((g) => g.name)}
+          searchable
+        />
         <GcnTagsSelect
           title="GCN Tags to Keep"
           selectedGcnTags={selectedGcnTags}
@@ -128,7 +158,12 @@ const GcnEventsFilterForm = ({
         comparators={comparators}
       />
       <Divider />
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
         <LocalizationTagsSelect
           title="Localization Tags to Keep"
           selectedLocalizationTags={selectedLocalizationTags}

@@ -1,0 +1,39 @@
+# Smoke-test harness for the observability kit. Runs the REAL prometheus.yml,
+# Grafana provisioning, and dashboard against a stub that replays app-shaped
+# metrics. Prometheus shares the stub's network namespace -- the same trick the
+# real overlay uses to reach the workers' 127.0.0.1 ports.
+services:
+  stub:
+    image: python:3.12-slim
+    command: ["python", "/app/stub_server.py"]
+    environment:
+      EXPECTED_TOKEN: TESTTOKEN
+    volumes:
+      - ./stub_server.py:/app/stub_server.py:ro
+    ports:
+      - "9090:9090" # exposes Prometheus, which shares this namespace
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    network_mode: "service:stub"
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./token:/etc/prometheus/skyportal_token:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    depends_on:
+      - stub
+
+  grafana:
+    image: grafana/grafana:11.5.0
+    ports:
+      - "3000:3000"
+    environment:
+      PROMETHEUS_URL: http://stub:9090
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

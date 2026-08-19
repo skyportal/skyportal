@@ -76,7 +76,11 @@ const DBStats = () => {
                       <DialogTitle>Process Output</DialogTitle>
                       <DialogContent>
                         <Typography>
-                          <Box fontFamily="Monospace">
+                          <Box
+                            sx={{
+                              fontFamily: "Monospace",
+                            }}
+                          >
                             {clickedCronjobOutput &&
                               clickedCronjobOutput
                                 .split("\n")

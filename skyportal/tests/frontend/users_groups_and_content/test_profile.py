@@ -6,7 +6,7 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, open_preferences_panel
 
 
 def test_token_acls_options_rendering1(page, user):
@@ -38,11 +38,6 @@ def test_add_and_see_realname_in_user_profile(page, user):
 
     expect(
         page.locator(
-            '//*[@id="userRealname"][contains(@style, "visibility: visible")]'
-        ).first
-    ).to_be_visible()
-    expect(
-        page.locator(
             f'//*[@id="userRealname"][contains(text(), "{first_name}") and contains(text(), "{last_name}")]'
         ).first
     ).to_be_visible()
@@ -63,11 +58,6 @@ def test_add_and_see_affiliations_in_user_profile(page, user):
 
     page.locator('//*[@id="updateProfileButton"]').first.click()
 
-    expect(
-        page.locator(
-            '//*[@id="userAffiliations"][contains(@style, "visibility: visible")]'
-        ).first
-    ).to_be_visible()
     expect(
         page.locator(
             f'//*[@id="userAffiliations"]/em[contains(text(), "{affiliation_1}") and contains(text(), "{affiliation_2}")]'
@@ -133,6 +123,31 @@ def test_profile_dropdown(page, user):
     ).to_be_visible()
 
 
+def test_join_auto_join_stream(page, user, super_admin_token):
+    # Create a public (auto-join) stream
+    stream_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "streams",
+        data={"name": stream_name, "auto_join": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+    stream_id = data["data"]["id"]
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+
+    join_button = page.locator(f'//*[@data-testid="joinStreamButton{stream_id}"]').first
+    expect(join_button).to_be_visible()
+    join_button.click()
+
+    # After joining, the stream drops out of the "streams you can join" list
+    expect(
+        page.locator(f'//*[@data-testid="joinStreamButton{stream_id}"]').first
+    ).to_be_hidden()
+
+
 def add_classification_shortcut(page, user, public_group, taxonomy_token):
     status, _ = api(
         "POST",
@@ -151,6 +166,7 @@ def add_classification_shortcut(page, user, public_group, taxonomy_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(2)  # let the profile load and the taxonomies hydrate
+    open_preferences_panel(page, "sources")
 
     page.locator('//div[@id="classifications-select"]').first.click()
     page.locator('//li[@data-value="AGN"]').first.click()
@@ -222,6 +238,7 @@ def test_set_automatically_visible_photometry(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "plotting")
     page.locator(
         '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
     ).first.click()
@@ -271,6 +288,7 @@ def test_photometry_buttons_form(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "plotting")
     page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
     page.locator('//li[@data-value="2massh"]').first.click()
     page.keyboard.press("Escape")

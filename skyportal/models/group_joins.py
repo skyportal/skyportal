@@ -27,6 +27,7 @@ __all__ = [
     "GroupDefaultAnalysis",
     "GroupPublicRelease",
     "GroupScanReport",
+    "GroupGcnEvent",
 ]
 
 import sqlalchemy as sa
@@ -34,7 +35,6 @@ import sqlalchemy as sa
 from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
-    DBSession,
     User,
     join_model,
     restricted,
@@ -51,6 +51,7 @@ from .comment import (
     CommentOnSpectrum,
 )
 from .filter import Filter
+from .gcn import GcnEvent
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
 from .invitation import Invitation
 from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
@@ -143,7 +144,9 @@ GroupClassification.delete = GroupClassification.update = (
     accessible_by_group_admins & GroupClassification.read
 )
 
-GroupPhotometry = join_model("group_photometry", Group, Photometry)
+GroupPhotometry = join_model(
+    "group_photometry", Group, Photometry, index_created_at=False, composite_pk=True
+)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read
@@ -281,8 +284,7 @@ GroupStream.delete = (
     # Can only delete a stream from the group if none of the group's filters
     # are operating on the stream.
     lambda cls, user_or_token: (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .outerjoin(Stream)
         .outerjoin(
             Filter,
@@ -306,8 +308,7 @@ GroupStream.create = (
         # access to the stream.
         # Also, cannot add stream access to single user groups.
         lambda cls, user_or_token: (
-            DBSession()
-            .query(cls)
+            sa.select(cls)
             .join(Group, cls.group)
             .outerjoin(User, Group.users)
             .outerjoin(
@@ -317,7 +318,7 @@ GroupStream.create = (
                     User.id == StreamUser.user_id,
                 ),
             )
-            .filter(Group.single_user_group.is_(False))
+            .where(Group.single_user_group.is_(False))
             .group_by(cls.id)
             .having(
                 sa.or_(
@@ -337,3 +338,9 @@ GroupPublicRelease.update = GroupPublicRelease.delete = (
 
 GroupScanReport = join_model("group_scan_reports", Group, ScanReport)
 GroupScanReport.__doc__ = "Join table mapping Groups to Scan Reports."
+
+GroupGcnEvent = join_model("group_gcnevents", Group, GcnEvent)
+GroupGcnEvent.__doc__ = "Join table mapping Groups to GcnEvents."
+GroupGcnEvent.delete = GroupGcnEvent.update = (
+    accessible_by_group_admins & GroupGcnEvent.read
+)

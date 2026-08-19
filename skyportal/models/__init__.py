@@ -6,6 +6,7 @@ from .allocation import *
 from .analysis import *
 from .annotation import *
 from .assignment import *
+from .broker import *
 from .candidate import *
 from .classification import *
 from .comment import *
@@ -16,6 +17,7 @@ from .filter import *
 from .followup_request import *
 from .galaxy import *
 from .gcn import *
+from .gcn_event_obj import *
 from .group import *
 from .group_joins import *
 from .instrument import *
@@ -44,7 +46,6 @@ from .source import *
 from .source_label import *
 from .source_notification import *
 from .source_view import *
-from .sources_confirmed_in_gcn import *
 from .spatial_catalog import *
 from .spectrum import *
 from .stream import *
@@ -52,6 +53,7 @@ from .super_obj import *
 from .survey_efficiency import *
 from .tag import *
 from .taxonomy import *
+from .team import *
 from .telescope import *
 from .thumbnail import *
 from .user_notification import *

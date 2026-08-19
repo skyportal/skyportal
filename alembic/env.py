@@ -67,7 +67,8 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connectable = init_db(**cfg["database"])
+    # Migrations run directly against Postgres, bypassing any pooler.
+    connectable = init_db(**{**cfg["database"], "pooler": None})
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from pydantic import Field
+from sqlalchemy.orm import joinedload, undefer
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -7,9 +10,9 @@ from baselayer.log import make_log
 
 from ....models import Obj, SharingService, SharingServiceSubmission
 from ....utils.data_access import (
-    is_existing_submission_request,
-    process_instrument_ids,
-    process_stream_ids,
+    is_existing_submission_request_async,
+    process_instrument_ids_async,
+    process_stream_ids_async,
     validate_photometry_options,
 )
 from ....utils.parse import get_page_and_n_per_page, str_to_bool
@@ -28,7 +31,7 @@ is_configured = (
 
 class SharingServiceSubmissionHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create an SharingServiceSubmission to publish an Obj to TNS or Hermes using a sharing service
@@ -128,21 +131,23 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.error("This instance is not configured to use Hermes")
         if publishers == "" or not isinstance(publishers, str):
             return self.error("publishers is required and must be a non-empty string")
-        with self.Session() as session:
-            process_instrument_ids(session, session.user_or_token, instrument_ids)
-            process_stream_ids(session, session.user_or_token, stream_ids)
+        async with self.AsyncSession() as session:
+            await process_instrument_ids_async(
+                session, session.user_or_token, instrument_ids
+            )
+            await process_stream_ids_async(session, session.user_or_token, stream_ids)
 
-            obj = session.scalars(
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"No object available with ID {obj_id}")
 
-            sharing_service = session.scalars(
+            sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token).where(
                     SharingService.id == sharing_service_id
                 )
-            ).first()
+            )
 
             if publish_to_tns:
                 tns_altdata = sharing_service.tns_altdata
@@ -167,16 +172,20 @@ class SharingServiceSubmissionHandler(BaseHandler):
             )
 
             if publish_to_tns:
-                existing_submission_request = is_existing_submission_request(
-                    session, obj, sharing_service_id, "TNS"
+                existing_submission_request = (
+                    await is_existing_submission_request_async(
+                        session, obj, sharing_service_id, "TNS"
+                    )
                 )
                 if existing_submission_request is not None:
                     return self.error(
                         f"Submission request for TNS for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.tns_status}"
                     )
             if publish_to_hermes:
-                existing_submission_request = is_existing_submission_request(
-                    session, obj, sharing_service_id, "Hermes"
+                existing_submission_request = (
+                    await is_existing_submission_request_async(
+                        session, obj, sharing_service_id, "Hermes"
+                    )
                 )
                 if existing_submission_request is not None:
                     return self.error(
@@ -202,7 +211,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 hermes_status="pending" if publish_to_hermes else None,
             )
             session.add(sharing_service_submission)
-            session.commit()
+            await session.commit()
             log(
                 f"Added submission for obj_id {obj.id} (manual submission) with sharing service id {sharing_service.id} for user_id {self.associated_user_object.id}"
             )
@@ -214,7 +223,12 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, sharing_service_submission_id: int | None = None):
+    async def get(
+        self,
+        sharing_service_submission_id: Annotated[
+            int | None, Field(description="The ID of the sharing service submission")
+        ] = None,
+    ):
         """
         ---
         single:
@@ -223,12 +237,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             tags:
                 - sharing service submission
             parameters:
-                - in: path
-                  name: sharing_service_submission_id
-                  required: true
-                  schema:
-                    type: integer
-                  description: The ID of the sharing service submission
                 - in: query
                   name: sharing_service_id
                   required: true
@@ -250,12 +258,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             tags:
                 - external sharing service
             parameters:
-                - in: path
-                  name: sharing_service_id
-                  required: true
-                  schema:
-                    type: integer
-                  description: The ID of the SharingService to which the submissions belong
                 - in: query
                   name: pageNumber
                   required: false
@@ -328,15 +330,26 @@ class SharingServiceSubmissionHandler(BaseHandler):
         )
         page_number = self.get_query_argument("pageNumber", 1)
         page_size = self.get_query_argument("numPerPage", 100)
-        page_number, page_size = get_page_and_n_per_page(page_number, page_size)
+        try:
+            page_number, page_size = get_page_and_n_per_page(page_number, page_size)
+        except ValueError as e:
+            return self.error(str(e))
         obj_id = self.get_query_argument("objectID", None)
         if obj_id is not None:
             obj_id = obj_id.strip()
             if not obj_id:
                 obj_id = None
 
-        with self.Session() as session:
-            sharing_service = session.scalar(
+        if sharing_service_submission_id is not None:
+            try:
+                sharing_service_submission_id = int(sharing_service_submission_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid sharing_service_submission_id: {sharing_service_submission_id}"
+                )
+
+        async with self.AsyncSession() as session:
+            sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token).where(
                     SharingService.id == sharing_service_id
                 )
@@ -345,14 +358,10 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 return self.error(f"Sharing service {sharing_service_id} not found")
 
             if sharing_service_submission_id is not None:
-                try:
-                    sharing_service_submission_id = int(sharing_service_submission_id)
-                except (TypeError, ValueError):
-                    return self.error(
-                        f"Invalid sharing_service_submission_id: {sharing_service_submission_id}"
-                    )
-                submission = session.scalar(
-                    SharingServiceSubmission.select(session.user_or_token).where(
+                submission = await session.scalar(
+                    SharingServiceSubmission.select(session.user_or_token)
+                    .options(joinedload(SharingServiceSubmission.obj))
+                    .where(
                         SharingServiceSubmission.sharing_service_id
                         == sharing_service_id,
                         SharingServiceSubmission.id == sharing_service_submission_id,
@@ -362,11 +371,11 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     return self.error(
                         f"Submission {sharing_service_submission_id} not found for bot {sharing_service_id}"
                     )
-                submission = {
+                submission_data = {
                     "tns_name": submission.obj.tns_name,
                     **submission.to_dict(),
                 }
-                return self.success(data=submission)
+                return self.success(data=submission_data)
             else:
                 stmt = SharingServiceSubmission.select(session.user_or_token).where(
                     SharingServiceSubmission.sharing_service_id == sharing_service_id
@@ -375,30 +384,23 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     stmt = stmt.where(SharingServiceSubmission.obj_id == obj_id)
 
                 # run a count query to get the total number of results
-                total_matches = session.execute(
+                count_result = await session.execute(
                     sa.select(sa.func.count()).select_from(stmt)
-                ).scalar()
+                )
+                total_matches = count_result.scalar()
 
                 stmt = stmt.order_by(SharingServiceSubmission.created_at.desc())
-
-                # Eager-load each submission's obj (we only read tns_name
-                # below) to avoid an N+1 query per submission.
-                stmt = stmt.options(
-                    joinedload(SharingServiceSubmission.obj).load_only(Obj.tns_name)
-                )
+                stmt = stmt.options(joinedload(SharingServiceSubmission.obj))
 
                 if include_payload:
-                    stmt = stmt.options(
-                        sa.orm.undefer(SharingServiceSubmission.tns_payload)
-                    )
+                    stmt = stmt.options(undefer(SharingServiceSubmission.tns_payload))
                 if include_response:
-                    stmt = stmt.options(
-                        sa.orm.undefer(SharingServiceSubmission.response)
-                    )
+                    stmt = stmt.options(undefer(SharingServiceSubmission.response))
 
-                submissions = session.scalars(
+                result = await session.scalars(
                     stmt.limit(page_size).offset((page_number - 1) * page_size)
-                ).all()
+                )
+                submissions = result.unique().all()
 
                 return self.success(
                     data={

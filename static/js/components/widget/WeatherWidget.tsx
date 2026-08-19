@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
@@ -171,6 +171,10 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     skip: !weatherPrefs?.telescopeID,
   });
 
+  // One refetch per staleness, else this effect loops when the server
+  // can't freshen the data.
+  const staleRefetched = useRef(false);
+
   useEffect(() => {
     if (!telescopeList?.length || !weather) return;
 
@@ -184,8 +188,11 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
       ? isStale(weather?.["weather_retrieved_at"])
       : isStale(weather?.["weather_fetch_at"]);
 
-    if (isWeatherStale) {
+    if (isWeatherStale && !staleRefetched.current) {
+      staleRefetched.current = true;
       refetchWeather();
+    } else if (!isWeatherStale) {
+      staleRefetched.current = false;
     }
   }, [weather, telescopeList, refetchWeather]);
 
@@ -201,7 +208,12 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
       <div className={classes["widgetPaperDiv"]}>
         <div>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             {weather?.["telescope_name"]}
           </Typography>
           <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />

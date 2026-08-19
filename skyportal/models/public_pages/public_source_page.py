@@ -34,7 +34,7 @@ def published_source_access_logic(cls, user_or_token):
     if not user_or_token.is_system_admin:
         query = query.join(Source, cls.source_id == Source.obj_id)
         query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
-        query = query.filter(GroupUser.user_id == user_id, Source.active.is_(True))
+        query = query.where(GroupUser.user_id == user_id, Source.active.is_(True))
     return query
 
 

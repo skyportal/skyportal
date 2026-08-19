@@ -13,6 +13,7 @@ import { GcnEvent } from "../../types";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { usePostGcnTagMutation } from "../../ducks/gcnTags";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -32,6 +33,7 @@ interface AddGcnTagProps {
 const AddGcnTag = ({ gcnEvent }: AddGcnTagProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [postGcnTag] = usePostGcnTagMutation();
   const [tag, setTag] = useState<string | null>(null);
 
@@ -61,6 +63,8 @@ const AddGcnTag = ({ gcnEvent }: AddGcnTagProps) => {
     }
     setIsSubmitting(false);
   };
+
+  if (isReadOnly) return null;
 
   return (
     <>

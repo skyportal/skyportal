@@ -3,7 +3,9 @@ import traceback
 from copy import deepcopy
 from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -18,30 +20,42 @@ env, cfg = load_env()
 log = make_log("facility_apis/sedm")
 
 
-def _sedm_post(content):
+async def _sedm_post(content):
     """POST a payload to the SEDM endpoint.
 
-    When `app.sedm_endpoint` is empty (test environments without a live
+    Returns the captured (status, body, request_dict, response_dict) for the
+    call. When `app.sedm_endpoint` is empty (test environments without a live
     SEDM service to talk to), short-circuit with a stub `200 accepted`
     response so callers see the same success path without hitting the
     network — the live endpoint occasionally hangs CI workers.
     """
     endpoint = cfg["app.sedm_endpoint"]
     if not endpoint:
-        resp = requests.Response()
-        resp.status_code = 200
-        resp._content = b"accepted"
-        resp.url = "mock://sedm"
-        resp.elapsed = timedelta(seconds=0)
-        resp.request = requests.Request(
-            "POST", "mock://sedm", files={"jsonfile": ("jsonfile", content)}
-        ).prepare()
-        return resp
-    return requests.post(
-        endpoint,
-        files={"jsonfile": ("jsonfile", content)},
-        timeout=30,
-    )
+        url = "mock://sedm"
+        request_dict = http.serialize_aiohttp_request("POST", url, None, content)
+        response_dict = {
+            "headers": {},
+            "content": "accepted",
+            "cookies": {},
+            "elapsed": None,
+            "status_code": 200,
+            "ok": True,
+        }
+        return 200, "accepted", request_dict, response_dict
+
+    data = aiohttp.FormData()
+    data.add_field("jsonfile", content, filename="jsonfile")
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            endpoint, data=data, timeout=aiohttp.ClientTimeout(total=30)
+        ) as r:
+            body = await r.text()
+            status = r.status
+            request_dict = http.serialize_aiohttp_request(
+                "POST", endpoint, None, content
+            )
+            response_dict = await http.serialize_aiohttp_response(r, body)
+    return status, body, request_dict, response_dict
 
 
 class SEDMListener(Listener):
@@ -56,7 +70,7 @@ class SEDMListener(Listener):
     }
 
     @staticmethod
-    def process_message(handler_instance, session):
+    async def process_message(handler_instance, session):
         """Receive a POSTed message from SEDM.
 
         Parameters
@@ -71,24 +85,24 @@ class SEDMListener(Listener):
 
         data = handler_instance.get_json()
 
-        request = session.scalars(
+        request = await session.scalar(
             FollowupRequest.select(session.user_or_token, mode="update").where(
                 FollowupRequest.id == int(data["followup_request_id"])
             )
-        ).first()
+        )
 
         request.status = data["new_status"]
 
         transaction_record = FacilityTransaction(
             request=http.serialize_tornado_request(handler_instance),
             followup_request=request,
-            initiator=handler_instance.associated_user_object,
+            initiator_id=handler_instance.associated_user_object.id,
         )
 
         session.add(transaction_record)
 
 
-def convert_request_to_sedm(request, method_value="new"):
+async def convert_request_to_sedm(request, session, method_value="new"):
     """Convert a FollowupRequest into a dictionary that can be directly
     submitted via HTTP to the SEDM queue.
 
@@ -96,12 +110,13 @@ def convert_request_to_sedm(request, method_value="new"):
     ----------
     request: skyportal.models.FollowupRequest
         The request to send to SEDM.
-
+    session: sqlalchemy.AsyncSession
+        Database session for this transaction
     method_value: 'new', 'edit', 'delete'
         The desired SEDM queue action.
     """
 
-    from ..models import DBSession, Invitation, UserInvitation
+    from ..models import Invitation, UserInvitation
 
     photometry = sorted(request.obj.photometry, key=lambda p: p.mjd, reverse=True)
     photometry_payload = {}
@@ -147,15 +162,13 @@ def convert_request_to_sedm(request, method_value="new"):
     # default to user invitation email if preferred contact email has not been set
     email = request.requester.contact_email
     if email is None:
-        invitation = (
-            DBSession()
-            .query(Invitation)
+        invitation = await session.scalar(
+            sa.select(Invitation)
             .join(UserInvitation)
-            .filter(
+            .where(
                 UserInvitation.user_id == request.requester_id,
                 Invitation.used.is_(True),
             )
-            .first()
         )
 
         if invitation is not None:
@@ -225,7 +238,7 @@ class SEDMAPI(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDM)."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SEDM.
 
         Parameters
@@ -236,20 +249,35 @@ class SEDMAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest, Obj
 
-        payload = convert_request_to_sedm(request, method_value="new")
+        # Reload with the lazy chains this method (and convert_request_to_sedm)
+        # walk eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photometry),
+                selectinload(FollowupRequest.requester),
+            )
+        )
+
+        payload = await convert_request_to_sedm(request, session, method_value="new")
         content = json.dumps(payload)
-        r = _sedm_post(content)
+        status, body, request_dict, response_dict = await _sedm_post(content)
 
-        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+        if status == 200 and "accepted" in body.lower():
             request.status = "submitted"
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {body}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=request_dict,
+            response=response_dict,
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -277,7 +305,7 @@ class SEDMAPI(FollowUpAPI):
             if notification_type == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
-                request_notify_by_slack(
+                await request_notify_by_slack(
                     request,
                     session,
                     is_update=False,
@@ -285,7 +313,7 @@ class SEDMAPI(FollowUpAPI):
             elif notification_type == "email":
                 from ..utils.notifications import request_notify_by_email
 
-                request_notify_by_email(
+                await request_notify_by_email(
                     request,
                     session,
                     is_update=False,
@@ -295,7 +323,7 @@ class SEDMAPI(FollowUpAPI):
             log(f"Error sending notification: {e}")
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from SEDM queue.
 
         Parameters
@@ -306,25 +334,40 @@ class SEDMAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest, Obj
+
+        # Reload with the lazy chains this method (and convert_request_to_sedm)
+        # walk eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photometry),
+                selectinload(FollowupRequest.requester),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        payload = convert_request_to_sedm(request, method_value="delete")
+        payload = await convert_request_to_sedm(request, session, method_value="delete")
         content = json.dumps(payload)
-        r = _sedm_post(content)
+        status, body, request_dict, response_dict = await _sedm_post(content)
 
-        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+        if status == 200 and "accepted" in body.lower():
             request.status = "deleted"
-        elif "Rejected Deletion, ACTIVE" in r.content.decode().lower():
+        elif "Rejected Deletion, ACTIVE" in body.lower():
             raise Exception("Cannot delete an active request. Data is being taken.")
         else:
-            raise Exception(f"{r.content}")
+            raise Exception(f"{body}")
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=request_dict,
+            response=response_dict,
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -345,7 +388,7 @@ class SEDMAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def update(request, session, **kwargs):
+    async def update(request, session, **kwargs):
         """Update a request in the SEDM queue.
 
         Parameters
@@ -356,22 +399,37 @@ class SEDMAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest, Obj
 
-        payload = convert_request_to_sedm(request, method_value="edit")
+        # Reload with the lazy chains this method (and convert_request_to_sedm)
+        # walk eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photometry),
+                selectinload(FollowupRequest.requester),
+            )
+        )
+
+        payload = await convert_request_to_sedm(request, session, method_value="edit")
         content = json.dumps(payload)
-        r = _sedm_post(content)
+        status, body, request_dict, response_dict = await _sedm_post(content)
 
-        if r.status_code == 200 and "accepted" in r.content.decode().lower():
+        if status == 200 and "accepted" in body.lower():
             request.status = "submitted"
-        elif "Rejected Edit Deletion, ACTIVE" in r.content.decode().lower():
+        elif "Rejected Edit Deletion, ACTIVE" in body.lower():
             raise Exception("Cannot edit an active request. Data is being taken.")
         else:
-            raise Exception(f"{r.content}")
+            raise Exception(f"{body}")
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=request_dict,
+            response=response_dict,
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -398,7 +456,7 @@ class SEDMAPI(FollowUpAPI):
             if notification_type == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
-                request_notify_by_slack(
+                await request_notify_by_slack(
                     request,
                     session,
                     is_update=True,
@@ -406,7 +464,7 @@ class SEDMAPI(FollowUpAPI):
             elif notification_type == "email":
                 from ..utils.notifications import request_notify_by_email
 
-                request_notify_by_email(
+                await request_notify_by_email(
                     request,
                     session,
                     is_update=True,

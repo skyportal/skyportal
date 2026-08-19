@@ -21,6 +21,7 @@ import { DataGridToolbar } from "../StyledDataGrid";
 
 import { useAppDispatch } from "../../types/hooks";
 import { usePatchGcnEventReportMutation } from "../../ducks/gcnEvent";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const GridActionsCellItemAny = GridActionsCellItem as any;
 
@@ -58,7 +59,11 @@ function EditSourceToolbar(props: EditSourceToolbarProps) {
   };
 
   return (
-    <DataGridToolbar showColumns={false} showQuickFilter={false}>
+    <DataGridToolbar
+      showColumns={false}
+      showQuickFilter={false}
+      showExport={false}
+    >
       <Button color="primary" startIcon={<AddIcon />} onClick={handleClick}>
         Add Source Manually (by name)
       </Button>
@@ -72,6 +77,7 @@ interface GcnReportEditProps {
 
 export default function GcnReportEdit({ report }: GcnReportEditProps) {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [patchGcnEventReport] = usePatchGcnEventReportMutation();
 
   const [sourceRows, setSourceRows] = React.useState<any[]>([]);
@@ -519,6 +525,8 @@ export default function GcnReportEdit({ report }: GcnReportEditProps) {
     );
   }
 
+  if (isReadOnly) return null;
+
   return (
     <div>
       <div
@@ -548,7 +556,7 @@ export default function GcnReportEdit({ report }: GcnReportEditProps) {
           <CheckBox
             checked={report?.published || false}
             onChange={handlePublishedChange}
-            inputProps={{ "aria-label": "controlled" }}
+            slotProps={{ input: { "aria-label": "controlled" } }}
           />
         </div>
       </div>

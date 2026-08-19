@@ -5,27 +5,32 @@ from skyportal.tests import api
 
 
 def filter_for_user(page, username):
-    # Helper function to filter for a specific user on the page
-    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
-    page.locator("//input[@id='root_username']").first.fill(username)
+    page.locator("//*[@data-testid='users-quick-filter']//input").first.fill(username)
+
+
+# Controls are display:none until hover, and hovering reflows the auto-height row,
+# so a real click cannot land: dispatch the event instead.
+def delete_chip(page, chip_selector):
     page.locator(
-        "//div[contains(@class, 'MuiDialog-root')]//button[text()='Submit']"
-    ).first.click()
+        f"{chip_selector}//*[contains(@class, 'MuiChip-deleteIcon')]"
+    ).first.dispatch_event("click")
+
+
+def click_add_button(page, testid):
+    page.locator(f"//*[@data-testid='{testid}']").first.dispatch_event("click")
 
 
 def test_delete_user_role(page, super_admin_user, user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    page.locator(
-        f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    ).first.click()
+    delete_chip(page, f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']")
     expect(
         page.locator("//div[text()='User role successfully removed.']").first
     ).to_be_visible()
     expect(
         page.locator(
-            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
+            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']"
         ).first
     ).to_be_hidden()
 
@@ -35,9 +40,7 @@ def test_add_and_delete_user_affiliations(page, super_admin_user, user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    page.locator(
-        f'//*[@data-testid="addUserAffiliationsButton{user.id}"]'
-    ).first.click()
+    click_add_button(page, f"addUserAffiliationsButton{user.id}")
     page.locator('//*[@data-testid="addUserAffiliationsSelect"]').first.click()
 
     entry = page.locator(
@@ -52,9 +55,10 @@ def test_add_and_delete_user_affiliations(page, super_admin_user, user):
             """//*[text()="Successfully updated user's affiliations."]"""
         ).first
     ).to_be_visible()
-    page.locator(
-        f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    ).first.click()
+    delete_chip(
+        page,
+        f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']",
+    )
     expect(
         page.locator(
             """//div[text()="Successfully deleted user's affiliation."]"""
@@ -62,7 +66,7 @@ def test_add_and_delete_user_affiliations(page, super_admin_user, user):
     ).to_be_visible()
     expect(
         page.locator(
-            f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+            f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']"
         ).first
     ).to_be_hidden()
 
@@ -72,23 +76,19 @@ def test_grant_and_delete_user_acl(page, super_admin_user, user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    page.locator(f'//*[@data-testid="addUserACLsButton{user.id}"]').first.click()
+    click_add_button(page, f"addUserACLsButton{user.id}")
     page.locator('//*[@data-testid="addUserACLsSelect"]').first.click()
     page.locator(f'//li[text()="{acl}"]').first.click()
     page.locator('//*[text()="Submit"]').first.click()
     expect(
         page.locator('//*[text()="User successfully granted specified ACL(s)."]').first
     ).to_be_visible()
-    page.locator(
-        f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    ).first.click()
+    delete_chip(page, f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']")
     expect(
         page.locator("//div[text()='User ACL successfully removed.']").first
     ).to_be_visible()
     expect(
-        page.locator(
-            f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-        ).first
+        page.locator(f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']").first
     ).to_be_hidden()
 
 
@@ -96,7 +96,7 @@ def test_add_user_role(page, super_admin_user, user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    page.locator(f'//*[@data-testid="addUserRolesButton{user.id}"]').first.click()
+    click_add_button(page, f"addUserRolesButton{user.id}")
     page.locator('//*[@data-testid="addUserRolesSelect"]').first.click()
     page.locator('//li[text()="Group admin"]').first.click()
     page.locator('//*[text()="Submit"]').first.click()
@@ -105,7 +105,7 @@ def test_add_user_role(page, super_admin_user, user):
     ).to_be_visible()
     expect(
         page.locator(
-            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Group admin']//*[contains(@class, 'MuiChip-deleteIcon')]"
+            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Group admin']"
         ).first
     ).to_be_visible()
 
@@ -114,11 +114,9 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    # Playwright clicks SVG icons and auto-retries on the virtualized DataGrid,
-    # so a normal click replaces the old dispatchEvent workaround.
-    page.locator(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    ).first.click()
+    delete_chip(
+        page, f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
+    )
     expect(
         page.locator(
             "//div[text()='User successfully removed from specified group.']"
@@ -131,9 +129,9 @@ def test_delete_stream_user(page, super_admin_user, user, stream_with_users):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
-    page.locator(
-        f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    ).first.click()
+    delete_chip(
+        page, f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']"
+    )
     expect(
         page.locator("//div[text()='Stream access successfully revoked.']").first
     ).to_be_visible()
@@ -148,7 +146,7 @@ def test_add_user_to_group(page, user, super_admin_user, public_group, public_gr
             f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
         ).first
     ).to_be_visible()
-    page.locator(f'//*[@data-testid="addUserGroupsButton{user.id}"]').first.click()
+    click_add_button(page, f"addUserGroupsButton{user.id}")
     page.locator('//*[@data-testid="addUserToGroupsSelect"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
     page.locator('//button[@data-testid="submitAddFromGroupsButton"]').first.click()
@@ -175,7 +173,7 @@ def test_add_user_to_stream(
             f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
         ).first
     ).to_be_visible()
-    page.locator(f'//*[@data-testid="addUserStreamsButton{user.id}"]').first.click()
+    click_add_button(page, f"addUserStreamsButton{user.id}")
     page.locator('//*[@data-testid="addUserToStreamsSelect"]').first.click()
     page.locator(f'//li[text()="{public_stream2.name}"]').first.click()
     page.locator('//*[text()="Submit"]').first.click()
@@ -219,8 +217,11 @@ def test_user_expiration(page, user, super_admin_user, super_admin_token):
 
     # Set expiration date to 3000
     page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
-    date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
-    date_input.click()
+    # x-date-pickers v9 sectioned field: target the section group inside the
+    # open expiration dialog (the value <input> is now aria-hidden).
+    date_input = page.get_by_role("dialog").get_by_role("group").first
+    # Click the leftmost (MM) section so the digits fill MM/DD/YYYY in order.
+    date_input.click(position={"x": 8, "y": 10})
     date_input.press_sequentially("01013000")
     page.locator(f"//*[@data-testid='submitExpirationDateButton']").first.click()
     expect(

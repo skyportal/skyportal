@@ -216,9 +216,11 @@ const SummarySearch = () => {
       container
       spacing={1}
       columns={12}
-      direction="column"
-      alignItems="center"
-      justifyContent="center"
+      sx={{
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
       <Grid size={12} className={classes.gridItem} style={{ paddingTop: 0 }}>
         <Paper elevation={1} className={classes.paper}>
@@ -308,7 +310,13 @@ const SummarySearch = () => {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Box component="span" fontWeight={fw} color={col}>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontWeight: fw,
+                          color: col,
+                        }}
+                      >
                         {source.score}
                       </Box>
                     </TableCell>

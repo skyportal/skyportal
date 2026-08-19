@@ -19,6 +19,7 @@ import {
 } from "../../ducks/instruments";
 import { useGetDefaultFollowupRequestsQuery } from "../../ducks/default_followup_requests";
 import FollowupRequestListsBase from "./FollowupRequestLists";
+import FollowupHealth from "./FollowupHealth";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 import ProgressIndicator from "../ProgressIndicators";
@@ -101,11 +102,11 @@ const FollowupRequestPage = () => {
   };
 
   if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
+    !instrumentList.length ||
+    !telescopeList.length ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>Loading information...</p>;
+    return "Loading information...";
   }
 
   const sortedInstrumentList = [...instrumentList];
@@ -180,21 +181,24 @@ const FollowupRequestPage = () => {
       return allFollowupRequests;
     };
 
-    const allFollowupRequests = await fetchAllRequests(fetchParams);
-
-    return allFollowupRequests;
+    return await fetchAllRequests(fetchParams);
   };
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
-          <Tab label="Follow-up Requests" />
-          <Tab label="Default Follow-up Requests" />
-        </Tabs>
-      </Grid>
+    <div>
+      <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+        <Tab label="Follow-up Requests" />
+        <Tab label="Default Follow-up Requests" />
+      </Tabs>
       {tabIndex === 0 && (
-        <Grid container size={12} style={{ paddingTop: 0 }}>
+        <Grid
+          container
+          size={12}
+          sx={{ paddingTop: 0, borderTop: 1, borderColor: "divider" }}
+        >
+          <Grid size={12}>
+            <FollowupHealth />
+          </Grid>
           <Grid size={{ sm: 12, md: 8 }}>
             <Paper>
               <Typography variant="h6">List of Followup Requests</Typography>
@@ -241,7 +245,12 @@ const FollowupRequestPage = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="h6" display="inline">
+                <Typography
+                  variant="h6"
+                  sx={{
+                    display: "inline",
+                  }}
+                >
                   Downloading {downloadProgressTotal} follow-up requests
                 </Typography>
                 <div
@@ -266,16 +275,12 @@ const FollowupRequestPage = () => {
         </Grid>
       )}
       {tabIndex === 1 && (
-        <Grid size={12} style={{ paddingTop: 0 }}>
-          <Paper elevation={1}>
-            <DefaultFollowupRequestList
-              default_followup_requests={defaultFollowupRequestList || []}
-              deletePermission={permission}
-            />
-          </Paper>
-        </Grid>
+        <DefaultFollowupRequestList
+          default_followup_requests={defaultFollowupRequestList || []}
+          deletePermission={permission}
+        />
       )}
-    </Grid>
+    </div>
   );
 };
 

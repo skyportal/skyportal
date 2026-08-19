@@ -16,7 +16,7 @@ from ..base import BaseHandler
 
 class EnumTypesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get enum types in the DB

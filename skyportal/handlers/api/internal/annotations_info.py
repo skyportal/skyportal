@@ -25,7 +25,7 @@ log = make_log("api/annotations_info")
 
 class AnnotationsInfoHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Collects valid annotation origin/key pairs to filter on for scanning
@@ -61,10 +61,10 @@ class AnnotationsInfoHandler(BaseHandler):
                 annotations = func.jsonb_each(Annotation.data).table_valued(
                     "key", "value"
                 )
-                with self.Session() as session:
+                async with self.AsyncSession() as session:
                     # Objs are read-public, so no need to check that annotations belong to an unreadable obj
                     # Instead, just check for annotation group membership
-                    results = session.execute(
+                    result = await session.execute(
                         Annotation.select(
                             session.user_or_token, columns=[Annotation.origin]
                         )
@@ -74,7 +74,8 @@ class AnnotationsInfoHandler(BaseHandler):
                         )
                         .outerjoin(annotations, literal(True))
                         .distinct()
-                    ).all()
+                    )
+                    results = result.all()
 
                     # Restructure query results so that records are grouped by origin in a
                     # nice, nested dictionary

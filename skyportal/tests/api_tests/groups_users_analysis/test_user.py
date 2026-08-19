@@ -182,3 +182,49 @@ def test_user_list_filtering(view_only_token, user, view_only_user):
     result_user_ids = [user["id"] for user in data["data"]["users"]]
     assert view_only_user.id in result_user_ids
     assert user.id not in result_user_ids
+
+
+def test_patch_user_expiration_date(super_admin_token, user):
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"expirationDate": "2030-01-02"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["expiration_date"].startswith("2030-01-02")
+    # The parsed date is the only thing that lands: the camelCase key must not
+    # also be assigned verbatim (to_dict serializes the instance __dict__).
+    assert "expirationDate" not in data["data"]
+
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"expirationDate": None},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    status, data = api("GET", f"user/{user.id}", token=super_admin_token)
+    assert data["data"]["expiration_date"] is None
+
+
+def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
+    """Every unrecognized key is assigned straight onto the User, so the
+    identity columns have to be refused explicitly."""
+    original_uid = user.oauth_uid
+
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"id": 999999999, "oauth_uid": "hijacked@example.com"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["id"] == user.id
+    assert data["data"]["oauth_uid"] == original_uid

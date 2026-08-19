@@ -1,3 +1,4 @@
+import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useMemo, useState } from "react";
 
@@ -8,6 +9,9 @@ import { makeStyles } from "tss-react/mui";
 import Slider from "@mui/material/Slider";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -45,12 +49,40 @@ import {
 
 import {
   BASE_LAYOUT,
+  plotAxisTheme,
+  plotCanvasTheme,
   PHOT_ZP,
   smoothing_func,
   mjdnow,
   rgba,
 } from "../../utils";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetAnalysesQuery } from "../../ducks/source";
+import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
+import CornerPlot from "./CornerPlot";
+
+// Dash styles cycled across overlaid model fits, with a glyph hint for the
+// toggle buttons so the button matches its line on the plot.
+// Stable empty default for the modelFits prop: a literal `= []` in the
+// destructure is a new array each render, which would invalidate the
+// effectiveModelFits memo every render → setState-in-effect → render loop.
+const EMPTY_MODEL_FITS: ModelFit[] = [];
+const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+
+// True when an analysis ran on extinction-corrected (dereddened) photometry, so
+// its model overlay is dereddened-native. analysis_parameters may store the flag
+// as a bool or a string.
+const analysisIsDereddened = (a: any): boolean => {
+  const v = a?.analysis_parameters?.correct_extinction;
+  return v === true || v === 1 || v === "true" || v === "True" || v === "1";
+};
+const DASH_GLYPH: Record<string, string> = {
+  solid: "──",
+  dash: "– –",
+  dot: "···",
+  dashdot: "–·",
+};
 
 // convert any unit to days
 const periodUnitDividers: Record<string, number> = {
@@ -61,6 +93,14 @@ const periodUnitDividers: Record<string, number> = {
 
 const Plot = createPlotlyComponent(Plotly);
 
+// Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
+// factors rescale the flux axis to the selected display unit.
+const FLUX_UNIT_FACTORS: Record<string, number> = {
+  µJy: 1,
+  mJy: 1e-3,
+  Jy: 1e-6,
+};
+
 const useStyles = makeStyles()((theme) => ({
   gridContainer: {
     display: "grid",
@@ -70,6 +110,13 @@ const useStyles = makeStyles()((theme) => ({
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "repeat(2, 1fr)",
+      columnGap: "1rem",
+    },
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
   },
   gridItem: {
     display: "flex",
@@ -78,6 +125,13 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "left",
     gap: 0,
     width: "100%",
+    minWidth: 0,
+  },
+  gridItemWide: {
+    gridColumn: "span 2",
+    [theme.breakpoints.down("sm")]: {
+      gridColumn: "1 / -1",
+    },
   },
   sliderContainer: {
     display: "flex",
@@ -109,10 +163,10 @@ const useStyles = makeStyles()((theme) => ({
     [theme.breakpoints.down("md")]: {
       gridTemplateColumns: "1fr 1fr 1fr",
       display: "grid",
-      "& > :first-child": {
+      "& > .MuiSlider-root": {
         gridColumn: "span 2",
       },
-      "& > :last-child": {
+      "& > .MuiIconButton-root": {
         gridColumn: "span 3",
       },
       paddingBottom: "0.5rem",
@@ -170,7 +224,6 @@ const PeriodAnnotationDialog = ({
         items: {
           type: "string",
           enum: groups?.map((group: any) => group.id.toString()),
-          enumNames: groups?.map((group: any) => group.name),
         },
         uniqueItems: true,
       },
@@ -193,13 +246,12 @@ const PeriodAnnotationDialog = ({
 
   const submitPeriodAnnotation = async ({ formData }: { formData: any }) => {
     const periodData = {
-      obj_id,
       origin: formData.origin,
       data: {
         period:
           formData.period / (periodUnitDividers[formData.periodUnitValue] ?? 1),
       },
-      groups: formData.groupIDs,
+      group_ids: formData.groupIDs,
     };
     addAnnotation({ sourceID: obj_id, formData: periodData })
       .unwrap()
@@ -229,6 +281,11 @@ const PeriodAnnotationDialog = ({
         <DialogContent>
           <Form
             schema={schema}
+            uiSchema={{
+              groupIDs: {
+                "ui:enumNames": groups?.map((group: any) => group.name),
+              },
+            }}
             validator={validator}
             customValidate={validate}
             onSubmit={submitPeriodAnnotation as any}
@@ -252,6 +309,9 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
+  // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
+  modelFits?: ModelFit[];
 }
 
 const PhotometryPlot = ({
@@ -267,22 +327,234 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
+  const muiTheme = useTheme();
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
   const { data: config } = useGetConfigQuery() as { data: any };
   const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
 
+  // Analysis-service model fits to overlay (self-fetched unless passed in).
+  const { data: objAnalyses } = useGetAnalysesQuery({
+    analysis_resource_type: "obj",
+    params: { objID: obj_id },
+  });
+  const effectiveModelFits = useMemo<ModelFit[]>(() => {
+    const base: ModelFit[] = modelFits?.length
+      ? modelFits
+      : ((objAnalyses as any[]) || [])
+          .filter(
+            (a) =>
+              a.obj_id === obj_id &&
+              (a.model_lightcurve || a.model_lightcurves),
+          )
+          .flatMap((a): ModelFit[] => {
+            // Grouped fit: one analysis holds several models
+            // ({model: {filter: pts}}) -> one toggle entry per model.
+            if (
+              a.model_lightcurves &&
+              typeof a.model_lightcurves === "object"
+            ) {
+              return Object.entries(a.model_lightcurves).map(
+                ([model, mlc]) => ({
+                  id: `${a.id}:${model}`,
+                  label: model,
+                  baseLabel: model, // groups runs of the same model
+                  model_lightcurve: mlc as any,
+                  analysisId: a.id, // for the on-demand corner fetch
+                  model, // key into data.posteriors
+                  createdAt: a.created_at,
+                  nDet: a.n_detections,
+                  dereddened: analysisIsDereddened(a),
+                }),
+              );
+            }
+            // Single-model analysis: label by the model (real fits carry
+            // analysis_parameters.source; uploads set model_name).
+            return [
+              {
+                id: a.id,
+                label:
+                  a.analysis_parameters?.source ||
+                  a.model_name ||
+                  a.analysis_service_name,
+                baseLabel:
+                  a.analysis_parameters?.source ||
+                  a.model_name ||
+                  a.analysis_service_name,
+                model_lightcurve: a.model_lightcurve,
+                analysisId: a.id,
+                // no `model` key -> single fit uses data.posterior_samples
+                createdAt: a.created_at,
+                nDet: a.n_detections,
+                dereddened: analysisIsDereddened(a),
+              },
+            ];
+          });
+    // When a source has several runs of the same model, the bare model name
+    // collides — append the run date (and detection count) so each run is its
+    // own distinguishable, independently-toggleable entry.
+    const labelCounts = base.reduce<Record<string, number>>((acc, f) => {
+      acc[f.label || ""] = (acc[f.label || ""] || 0) + 1;
+      return acc;
+    }, {});
+    const disambiguated = base.map((f) => {
+      if ((labelCounts[f.label || ""] || 0) <= 1) return f;
+      const date = f.createdAt ? String(f.createdAt).slice(0, 10) : null;
+      const parts = [date, f.nDet ? `${f.nDet} det` : null].filter(Boolean);
+      if (!parts.length) return f;
+      return {
+        ...f,
+        label: `${f.label} · ${parts.join(", ")}`,
+      };
+    });
+    // A second pass guarantees uniqueness if same-day runs share a detection
+    // count (fall back to the analysis id).
+    const seen: Record<string, number> = {};
+    const unique = disambiguated.map((f) => {
+      const key = f.label || "";
+      seen[key] = (seen[key] || 0) + 1;
+      return seen[key] > 1 ? { ...f, label: `${f.label} #${f.analysisId}` } : f;
+    });
+    // Assign a stable id + dash per model so several can be toggled/shown at
+    // once and still be told apart when they share a filter color.
+    return unique.map((f, i) => ({
+      ...f,
+      id: f.id ?? i,
+      dash: f.dash || MODEL_DASHES[i % MODEL_DASHES.length]!,
+    }));
+  }, [objAnalyses, modelFits, obj_id]);
+
+  // Collapse runs of the same model into one row. Each group keeps every run
+  // (latest first); the user toggles the model on/off and picks which run shows.
+  const modelGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      { key: string; model: string; runs: ModelFit[] }
+    >();
+    effectiveModelFits.forEach((f) => {
+      const key = String(f.model ?? f.baseLabel ?? f.label);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          model: String(f.baseLabel ?? f.label),
+          runs: [],
+        });
+      }
+      groups.get(key)!.runs.push(f);
+    });
+    groups.forEach((g) =>
+      g.runs.sort((a, b) =>
+        String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
+      ),
+    );
+    return Array.from(groups.values());
+  }, [effectiveModelFits]);
+
+  // Per-model toggle (spectroscopy-style buttons). Default: all OFF — the user
+  // opts a model in rather than overlaying every fit on load.
+  const [shownModels, setShownModels] = useState<Set<string>>(new Set());
+  // Which run is displayed per model group (group key -> fit id). Absent => latest.
+  const [selectedRun, setSelectedRun] = useState<
+    Record<string, number | string>
+  >({});
+  const [runMenu, setRunMenu] = useState<{
+    anchor: HTMLElement;
+    key: string;
+  } | null>(null);
+
+  const selectedFitFor = (g: { key: string; runs: ModelFit[] }) =>
+    g.runs.find((r) => r.id === selectedRun[g.key]) || g.runs[0]!;
+
+  // Short, human label for one run in the picker: date + time (so same-day
+  // runs are distinguishable) plus the detection count when available.
+  const runShort = (r: ModelFit) => {
+    const iso = r.createdAt ? String(r.createdAt) : null;
+    const dt = iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : null;
+    const parts = [dt, r.nDet ? `${r.nDet} det` : null].filter(Boolean);
+    return parts.length ? parts.join(", ") : `#${r.analysisId}`;
+  };
+
+  // Index of the currently-shown run within a group; cycle steps prev/next
+  // (wrapping) so many runs can be flipped through without a long menu.
+  const runIndex = (g: { key: string; runs: ModelFit[] }) =>
+    Math.max(
+      0,
+      g.runs.findIndex((r) => r.id === selectedFitFor(g).id),
+    );
+  const cycleRun = (g: { key: string; runs: ModelFit[] }, dir: number) => {
+    const i = runIndex(g);
+    const next = g.runs[(i + dir + g.runs.length) % g.runs.length]!;
+    setSelectedRun((prev) => ({ ...prev, [g.key]: next.id! }));
+    setShownModels((prev) => new Set(prev).add(g.key));
+    // If this row's corner is open, follow the cycle.
+    if (corner && corner.key === g.key) openCorner(next, g.key);
+  };
+
+  const shownModelFits = useMemo<ModelFit[]>(
+    () =>
+      modelGroups
+        .filter((g) => shownModels.has(g.key))
+        .map((g) => selectedFitFor(g))
+        .filter(Boolean) as ModelFit[],
+    [modelGroups, shownModels, selectedRun],
+  );
+
+  // On-demand corner plot: posterior samples are heavy, so they're not in the
+  // analyses list — fetch the one analysis's full data when the user opens it.
+  const [corner, setCorner] = useState<any>(null);
+  // `groupKey` ties an open corner to its model row, so cycling/selecting a
+  // different run for that row re-fetches and updates the dialog live.
+  const openCorner = async (f: any, groupKey?: string) => {
+    setCorner({
+      title: f.label,
+      key: groupKey,
+      loading: true,
+      posterior: null,
+    });
+    try {
+      const resp = await fetch(
+        `/api/obj/${obj_id}/analysis/${f.analysisId}?includeAnalysisData=true`,
+        { credentials: "same-origin" },
+      );
+      const j = await resp.json();
+      const adata = j?.data?.data || {};
+      const posterior = f.model
+        ? (adata.posteriors || {})[f.model]
+        : adata.posterior_samples;
+      setCorner({
+        title: f.label,
+        key: groupKey,
+        loading: false,
+        posterior: posterior || null,
+      });
+    } catch (e) {
+      setCorner({
+        title: f.label,
+        key: groupKey,
+        loading: false,
+        posterior: null,
+      });
+    }
+  };
+
   // Params for the main object's photometry query. Duplicate sources are fetched
   // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
   const mainPhotParams = useMemo<any>(() => {
     const params: any = { magsys };
-    if (showExtinctionCorrection) {
+    // Fetch per-point extinction when the toggle is on, or when a dereddened
+    // model fit exists (so its overlay can be re-reddened to the observed data).
+    if (
+      showExtinctionCorrection ||
+      effectiveModelFits.some((f) => f.dereddened)
+    ) {
       params.includeExtinction = true;
     }
     return params;
-  }, [magsys, showExtinctionCorrection]);
+  }, [magsys, showExtinctionCorrection, effectiveModelFits]);
 
   const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
     { id: obj_id, params: mainPhotParams },
@@ -327,6 +599,19 @@ const PhotometryPlot = ({
     [obj_id, mainPhotometry, duplicatesPhotometryById],
   );
 
+  // Per-filter Galactic A_lambda (mag), present on the points when the
+  // photometry query includes extinction. Used to shift model overlays into
+  // whatever extinction frame the plot is currently showing.
+  const extinctionByFilter = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {};
+    (mainPhotometry || []).forEach((p: any) => {
+      if (p?.filter != null && typeof p.extinction === "number") {
+        out[p.filter] = p.extinction;
+      }
+    });
+    return out;
+  }, [mainPhotometry]);
+
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
 
@@ -350,6 +635,8 @@ const PhotometryPlot = ({
   const [t0Max, setT0Max] = useState(mjdnow());
   const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
+  const [displayFluxAxisInLog, setDisplayFluxAxisInLog] = useState(false);
+  const [fluxUnit, setFluxUnit] = useState<string>("µJy");
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
   const [showOnlyValidated, setShowOnlyValidated] = useState(false);
@@ -391,6 +678,7 @@ const PhotometryPlot = ({
     };
 
     const now = mjdnow();
+    const fluxUnitFactor = FLUX_UNIT_FACTORS[fluxUnit] ?? 1;
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
@@ -413,6 +701,14 @@ const PhotometryPlot = ({
         newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
         newPoint.fluxerr = 0;
         newPoint.snr = null;
+      }
+      // Rescale to the selected flux unit (snr is a ratio, so it is unaffected).
+      if (fluxUnitFactor !== 1) {
+        newPoint.flux *= fluxUnitFactor;
+        newPoint.fluxerr *= fluxUnitFactor;
+        if (newPoint.flux_corr !== undefined && newPoint.flux_corr !== null) {
+          newPoint.flux_corr *= fluxUnitFactor;
+        }
       }
       newPoint.streams = (newPoint.streams || [])
         .map((stream: any) => stream?.name || stream)
@@ -473,10 +769,11 @@ const PhotometryPlot = ({
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? newPoint.flux_corr
           : newPoint.flux;
-      const fluxLabel =
+      const fluxLabel = `${
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? "Flux (corrected)"
-          : "Flux";
+          : "Flux"
+      } (${fluxUnit})`;
 
       newPoint.text += `
         <br>Limiting Mag: ${
@@ -706,7 +1003,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -750,7 +1047,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -935,7 +1232,7 @@ const PhotometryPlot = ({
             },
             visible: existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -970,7 +1267,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1032,6 +1329,7 @@ const PhotometryPlot = ({
           exponentformat: "power",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       } else {
         newLayouts.xaxis = {
@@ -1043,6 +1341,7 @@ const PhotometryPlot = ({
           tickformat: ".6~f",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
@@ -1056,6 +1355,7 @@ const PhotometryPlot = ({
               zeroline: false,
               tickformat: ".6~f",
               ...BASE_LAYOUT,
+              ...axisTheme,
             }
           : {
               title: {
@@ -1068,6 +1368,7 @@ const PhotometryPlot = ({
               zeroline: false,
               tickformat: ",.0f",
               ...BASE_LAYOUT,
+              ...axisTheme,
             };
       }
     } else if (plotType === "period") {
@@ -1079,6 +1380,7 @@ const PhotometryPlot = ({
         range: [0, phase],
         tickformat: ".2f",
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
     }
 
@@ -1093,6 +1395,7 @@ const PhotometryPlot = ({
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
       if (dm && photStats_value) {
         newLayouts.yaxis2 = {
@@ -1108,19 +1411,38 @@ const PhotometryPlot = ({
           showgrid: false,
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       }
     } else if (plotType === "flux") {
-      const fluxLabel = showExtinctionCorrectionValue
-        ? "Flux (Extinction-Corrected)"
-        : "Flux";
-      newLayouts.yaxis = {
-        title: {
-          text: fluxLabel,
-        },
-        range: [...photStats_value.flux.range],
-        ...BASE_LAYOUT,
-      };
+      const fluxLabel = `${
+        showExtinctionCorrectionValue ? "Flux (Extinction-Corrected)" : "Flux"
+      } (${fluxUnit})`;
+      if (displayFluxAxisInLog) {
+        const [fluxMin, fluxMax] = photStats_value.flux.range;
+        // A log axis can't show non-positive flux, so clamp the lower bound.
+        const lo = fluxMin > 0 ? fluxMin : fluxMax / 1e4;
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [Math.log10(lo), Math.log10(fluxMax)],
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      } else {
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [...photStats_value.flux.range],
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      }
     }
     return newLayouts;
   };
@@ -1214,6 +1536,20 @@ const PhotometryPlot = ({
         filter2color,
       );
 
+      // Overlay analysis-service model fits (e.g. NMMA) on the photometry. The
+      // x transform matches the detections trace (MJD, or sec-since-t0 in log).
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
+        ),
+      );
+
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
@@ -1260,7 +1596,10 @@ const PhotometryPlot = ({
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
     showOnlyValidated,
+    shownModelFits,
   ]);
 
   // The main object's photometry (including extinction toggle and magsys) is
@@ -1282,6 +1621,17 @@ const PhotometryPlot = ({
         plotData,
         filter2color,
       );
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
+        ),
+      );
       setPlotData(traces);
       const newLayouts = createLayouts(
         tabToPlotType(tabIndex),
@@ -1291,7 +1641,7 @@ const PhotometryPlot = ({
       );
       setLayouts(newLayouts);
     }
-  }, [tabIndex, phase]);
+  }, [tabIndex, phase, shownModelFits]);
 
   useEffect(() => {
     if (initialized && filter2color && layoutReset) {
@@ -1463,7 +1813,7 @@ const PhotometryPlot = ({
             visible: true,
             showlegend: false,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1495,7 +1845,7 @@ const PhotometryPlot = ({
               visible: true,
               showlegend: false,
               hoverlabel: {
-                bgcolor: "white",
+                bgcolor: muiTheme.palette.background.paper,
                 font: { size: 14 },
                 align: "left",
               },
@@ -1541,6 +1891,7 @@ const PhotometryPlot = ({
           data={(plotData || []).concat(eventMarkers || [])}
           layout={{
             ...layouts,
+            ...plotCanvasTheme(muiTheme),
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -1570,7 +1921,7 @@ const PhotometryPlot = ({
                 x1: 1,
                 y1: 1,
                 line: {
-                  color: "black",
+                  color: muiTheme.palette.text.secondary,
                   width: 1,
                 },
               },
@@ -1653,6 +2004,135 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      {effectiveModelFits.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.4rem",
+            alignItems: "center",
+            padding: "0.3rem 0.5rem",
+          }}
+        >
+          <Typography variant="caption" style={{ marginRight: 4 }}>
+            Model fits:
+          </Typography>
+          {modelGroups.map((g) => {
+            const shown = shownModels.has(g.key);
+            const selected = selectedFitFor(g);
+            const multi = g.runs.length > 1;
+            return (
+              <span
+                key={g.key}
+                style={{ display: "inline-flex", alignItems: "center", gap: 1 }}
+              >
+                <Chip
+                  size="small"
+                  clickable
+                  variant={shown ? "filled" : "outlined"}
+                  color={shown ? "primary" : "default"}
+                  label={`${DASH_GLYPH[selected?.dash || "solid"]}  ${g.model}${
+                    multi ? ` · ${runShort(selected)}` : ""
+                  }`}
+                  onClick={() =>
+                    setShownModels((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(g.key)) next.delete(g.key);
+                      else next.add(g.key);
+                      return next;
+                    })
+                  }
+                />
+                {multi && (
+                  <>
+                    <Tooltip title="Previous run">
+                      <IconButton
+                        size="small"
+                        style={{ padding: 0 }}
+                        onClick={() => cycleRun(g, -1)}
+                      >
+                        <ChevronLeftIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={`Choose run (${g.runs.length})`}>
+                      <Typography
+                        variant="caption"
+                        onClick={(e) =>
+                          setRunMenu({ anchor: e.currentTarget, key: g.key })
+                        }
+                        style={{
+                          cursor: "pointer",
+                          userSelect: "none",
+                          minWidth: 30,
+                          textAlign: "center",
+                        }}
+                      >
+                        {runIndex(g) + 1}/{g.runs.length}
+                      </Typography>
+                    </Tooltip>
+                    <Tooltip title="Next run">
+                      <IconButton
+                        size="small"
+                        style={{ padding: 0 }}
+                        onClick={() => cycleRun(g, 1)}
+                      >
+                        <ChevronRightIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
+                <Tooltip title="Posterior corner plot">
+                  <IconButton
+                    size="small"
+                    style={{ padding: 2 }}
+                    onClick={() => openCorner(selected as any, g.key)}
+                  >
+                    <ScatterPlotIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <Menu
+        open={!!runMenu}
+        anchorEl={runMenu?.anchor}
+        onClose={() => setRunMenu(null)}
+      >
+        {runMenu &&
+          modelGroups
+            .find((g) => g.key === runMenu.key)
+            ?.runs.map((r) => (
+              <MenuItem
+                key={r.id}
+                selected={r.id === selectedRun[runMenu.key]}
+                onClick={() => {
+                  setSelectedRun((prev) => ({ ...prev, [runMenu.key]: r.id! }));
+                  setShownModels((prev) => new Set(prev).add(runMenu.key));
+                  if (corner && corner.key === runMenu.key)
+                    openCorner(r, runMenu.key);
+                  setRunMenu(null);
+                }}
+              >
+                {runShort(r)}
+              </MenuItem>
+            ))}
+      </Menu>
+      <Dialog open={!!corner} onClose={() => setCorner(null)} maxWidth="md">
+        <DialogTitle>Posterior — {corner?.title}</DialogTitle>
+        <DialogContent>
+          {corner?.loading ? (
+            <CircularProgress />
+          ) : corner?.posterior ? (
+            <CornerPlot posterior={corner.posterior} />
+          ) : (
+            <Typography variant="body2">
+              No posterior samples stored for this fit.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ columnGap: 0 }}>
           <div
@@ -1673,7 +2153,7 @@ const PhotometryPlot = ({
                   checked={showNonDetections && !showExtinctionCorrection}
                   onChange={() => setShowNonDetections(!showNonDetections)}
                   disabled={showExtinctionCorrection}
-                  inputProps={{ "aria-label": "controlled" }}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
                   size="small"
                 />
               </div>
@@ -1689,7 +2169,7 @@ const PhotometryPlot = ({
               <Switch
                 checked={showForcedPhotometry}
                 onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
-                inputProps={{ "aria-label": "controlled" }}
+                slotProps={{ input: { "aria-label": "controlled" } }}
                 size="small"
               />
             </div>
@@ -1712,7 +2192,7 @@ const PhotometryPlot = ({
                       setDisplayXAxisInlog(!displayXAxisSinceT0);
                       setDisplayXAxisSinceT0(!displayXAxisSinceT0);
                     }}
-                    inputProps={{ "aria-label": "controlled" }}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
@@ -1730,10 +2210,46 @@ const PhotometryPlot = ({
                 <Switch
                   checked={displayXAxisInlog}
                   onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
-                  inputProps={{ "aria-label": "controlled" }}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
                   size="small"
                 />
               </div>
+            </div>
+          )}
+          {tabToPlotType(tabIndex) === "flux" && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography noWrap>Flux in log</Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={displayFluxAxisInLog}
+                  onChange={() =>
+                    setDisplayFluxAxisInLog(!displayFluxAxisInLog)
+                  }
+                  slotProps={{ input: { "aria-label": "controlled" } }}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+          {tabToPlotType(tabIndex) === "flux" && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography noWrap>Flux unit</Typography>
+              <Select
+                value={fluxUnit}
+                onChange={(e) => setFluxUnit(e.target.value)}
+                size="small"
+                data-testid="fluxUnitSelect"
+              >
+                {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit}
+                  </MenuItem>
+                ))}
+              </Select>
             </div>
           )}
           {config?.usePhotometryValidation && (
@@ -1748,7 +2264,7 @@ const PhotometryPlot = ({
                   <Switch
                     checked={showOnlyValidated}
                     onChange={() => setShowOnlyValidated(!showOnlyValidated)}
-                    inputProps={{ "aria-label": "controlled" }}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
@@ -1795,8 +2311,10 @@ const PhotometryPlot = ({
                 margin="dense"
                 type="text"
                 size="small"
-                inputProps={{
-                  style: { textAlign: "center", padding: "4.5px" },
+                slotProps={{
+                  htmlInput: {
+                    style: { textAlign: "center", padding: "4.5px" },
+                  },
                 }}
                 style={{ width: "3rem", margin: 0 }}
               />
@@ -1814,7 +2332,7 @@ const PhotometryPlot = ({
         {duplicateOptions?.length > 0 && (
           <div
             className={classes.gridItem}
-            style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
+            style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}
           >
             <Typography id="input-slider">Possible Duplicates</Typography>
             <div className={classes.switchContainer}>
@@ -1883,7 +2401,7 @@ const PhotometryPlot = ({
           </div>
         )}
         {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+          <div className={classes.gridItem} style={{ gridColumn: "1 / -1" }}>
             <Typography id="input-slider">Period</Typography>
             <div className={classes.periodContainer}>
               <Slider
@@ -1901,11 +2419,13 @@ const PhotometryPlot = ({
                 onChange={(e) => setPeriod(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 0.1,
-                  min: 0.1,
-                  max: 365,
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 0.1,
+                    min: 0.1,
+                    max: 365,
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
@@ -1943,7 +2463,7 @@ const PhotometryPlot = ({
           </div>
         )}
         {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
+          <div className={`${classes.gridItem} ${classes.gridItemWide}`}>
             <Typography id="input-slider">Smoothing</Typography>
             <div className={classes.sliderContainer}>
               <Slider
@@ -1960,12 +2480,14 @@ const PhotometryPlot = ({
                 onChange={(e) => setSmoothing(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 1,
-                  min: 0,
-                  max: 100,
-                  type: "number",
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 1,
+                    min: 0,
+                    max: 100,
+                    type: "number",
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 size="small"
               />
@@ -1980,7 +2502,7 @@ const PhotometryPlot = ({
               <Switch
                 checked={phase === 2}
                 onChange={() => setPhase(phase === 2 ? 1 : 2)}
-                inputProps={{ "aria-label": "controlled" }}
+                slotProps={{ input: { "aria-label": "controlled" } }}
               />
               <Typography>2</Typography>
             </div>

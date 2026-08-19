@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -23,8 +24,13 @@ import {
   useDeleteAnalysisMutation,
 } from "../../ducks/source";
 
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
+import AnalysisCornerPlot from "./AnalysisCornerPlot";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -65,6 +71,7 @@ interface AnalysisListProps {
 const AnalysisList = ({ obj_id }: AnalysisListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
 
   const { data: analyses } = useGetAnalysesQuery({
     analysis_resource_type: "obj",
@@ -217,12 +224,11 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
         {analysis?.status === "completed" && (
           <Button
             primary
-            href={`/api/obj/analysis/${analysis.id}/corner`}
+            onClick={() => setCornerAnalysis(analysis)}
             size="small"
-            type="submit"
             data-testid={`analysis_cornerplots_${analysis.id}`}
           >
-            Download Corner Plot
+            View Corner Plot
           </Button>
         )}
       </div>
@@ -365,6 +371,19 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
           </AccordionDetails>
         </Accordion>
       </div>
+      <Dialog
+        open={Boolean(cornerAnalysis)}
+        onClose={() => setCornerAnalysis(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Posterior Corner Plot</DialogTitle>
+        <DialogContent>
+          {cornerAnalysis && (
+            <AnalysisCornerPlot objId={obj_id} analysisId={cornerAnalysis.id} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

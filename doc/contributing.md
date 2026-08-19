@@ -60,6 +60,14 @@ been added and pass.  The continuous integration system indicates this
 with a green checkmark, hence you may see developers talking about "PR
 599 being green" ✅.
 
+A pull request only runs the suites its changes can affect: a
+frontend-only PR skips the API, external and model tests, a backend PR
+runs everything, and the docs are only built when `skyportal/handlers`
+or `doc/` change. Anything unrecognized (a CI change, say) runs the
+full set, as does every push to `main`. Add the `run-all-tests` label
+and re-run the workflow to force a full run; see
+`.github/workflows/ci_scope.yaml`.
+
 ### Reviews
 
 All code that goes into SkyPortal is reviewed by two team members

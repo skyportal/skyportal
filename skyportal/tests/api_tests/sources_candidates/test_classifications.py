@@ -14,7 +14,6 @@ def test_add_bad_classification(
         data={
             "name": "test taxonomy" + str(uuid.uuid4()),
             "hierarchy": taxonomy,
-            "origin": "SCoPe",
             "group_ids": [public_group.id],
             "provenance": f"tdtax_{__version__}",
             "version": __version__,
@@ -189,6 +188,89 @@ def test_cannot_add_classification_without_permission(
     )
     assert status == 401
     assert data["status"] == "error"
+
+
+def test_update_classification_probability_records_edit(
+    taxonomy_token, classification_token, public_source, public_group
+):
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+    classification_id = data["data"]["classification_id"]
+
+    # Zeroing the probability updates the existing classification in place
+    # rather than posting a new one
+    status, data = api(
+        "PUT",
+        f"classification/{classification_id}",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0,
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/classifications", token=classification_token
+    )
+    assert status == 200
+    assert len(data["data"]) == 1
+    assert data["data"][0]["id"] == classification_id
+    assert data["data"][0]["probability"] == 0
+
+    edits = data["data"][0]["edits"]
+    assert len(edits) == 1
+    assert edits[0]["old_probability"] == 1.0
+    assert edits[0]["new_probability"] == 0
+
+    # An update that doesn't change the probability adds no edit
+    status, data = api(
+        "PUT",
+        f"classification/{classification_id}",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "probability": 0,
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/classifications", token=classification_token
+    )
+    assert status == 200
+    assert len(data["data"][0]["edits"]) == 1
 
 
 def test_delete_classification(

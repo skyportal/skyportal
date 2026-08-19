@@ -1,18 +1,24 @@
 import os
 import time
 import uuid
+from datetime import timedelta
 
 import numpy as np
 import pytest
 import requests
+import sqlalchemy as sa
 from astropy.table import Table
+from astropy.time import Time
 
-from skyportal.tests import api
+from skyportal.handlers.api.gcn import add_default_gcn_tags
+from skyportal.models import DBSession, DefaultGcnTag, User
+from skyportal.tests import api, retry_until
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
 )
 from skyportal.utils.gcn import from_url
+from skyportal.utils.naive_datetime import utcnow_naive
 
 tach_isonline = False
 try:
@@ -299,6 +305,74 @@ def test_gcn_from_json(super_admin_token):
     )
 
 
+def test_gcn_from_igwn_json(super_admin_token):
+    # LVK IGWN gwalert JSON (replaces the retired GCN Classic LVC VOEvents). The
+    # skymap is embedded in the alert as base64 and ingested directly.
+    datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_preliminary.json"
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+
+    dateobs = "2026-06-05T11:57:26"
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    if status == 404:
+        status, data = api(
+            "POST", "gcn_event", data={"json": payload}, token=super_admin_token
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == dateobs
+    for tag in ("GW", "BNS", "Significant"):
+        assert tag in data["tags"]
+    assert "LVC#MS260605l" in data["aliases"]
+
+    skymap = "MS260605l-PRELIMINARY.multiorder.fits"
+    params = {"include2DMap": True}
+    n_retries = 0
+    while True:
+        try:
+            status, data = api(
+                "GET",
+                f"localization/{dateobs}/name/{skymap}",
+                token=super_admin_token,
+                params=params,
+            )
+            data = data["data"]
+            assert data.get("localization_name") == skymap
+            assert np.isclose(np.sum(data.get("flat_2d", [])), 1)
+            break
+        except AssertionError as e:
+            if n_retries == 10:
+                raise e
+            n_retries += 1
+            time.sleep(2)
+
+    # a retraction of the same superevent adds the "retracted" tag
+    datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_retraction.json"
+    with open(datafile, "rb") as fid:
+        retraction = fid.read()
+    status, data = api(
+        "POST", "gcn_event", data={"json": retraction}, token=super_admin_token
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while True:
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        assert status == 200
+        if "retracted" in data["data"]["tags"] or n_retries == 5:
+            break
+        n_retries += 1
+        time.sleep(2)
+    assert "retracted" in data["data"]["tags"]
+
+    api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
+    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
 def test_gcn_from_polygon(super_admin_token):
     localization_name = str(uuid.uuid4())
     dateobs = "2022-09-03T14:44:12"
@@ -440,29 +514,17 @@ def test_gcn_summary_sources(
     assert status == 200
     summary_id = data["data"]["id"]
 
-    nretries = 0
-    summaries_loaded = False
-    while nretries < 40:
+    def summary_ready():
         status, data = api(
             "GET",
             f"gcn_event/{dateobs}/summary/{summary_id}",
             token=view_only_token,
         )
-        if status == 404:
-            nretries = nretries + 1
-            time.sleep(5)
-        if status == 200:
-            data = data["data"]
-            if data["text"] == "pending":
-                nretries = nretries + 1
-                time.sleep(5)
-            else:
-                summaries_loaded = True
-                break
+        assert status == 200
+        assert data["data"]["text"] != "pending"
+        return data["data"]["text"]
 
-    assert nretries < 40
-    assert summaries_loaded
-    text = data["text"]
+    text = retry_until(summary_ready, timeout=200)
     lines = list(filter(None, text.split("\n")))
 
     def _find(*substrings):
@@ -534,25 +596,19 @@ def test_gcn_summary_galaxies(
 
     params = {"catalog_name": catalog_name}
 
-    nretries = 0
-    galaxies_loaded = False
-    while nretries < 40:
+    def galaxies_loaded():
         status, data = api(
             "GET", "galaxy_catalog", token=view_only_token, params=params
         )
         assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
+        galaxies = data["data"]["galaxies"]
+        assert len(galaxies) == 92
+        assert any(
             d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
-        ):
-            galaxies_loaded = True
-            break
-        nretries = nretries + 1
-        time.sleep(2)
+            for d in galaxies
+        )
 
-    assert nretries < 40
-    assert galaxies_loaded
+    retry_until(galaxies_loaded, timeout=80)
 
     # get the gcn event summary
     data = {
@@ -578,30 +634,18 @@ def test_gcn_summary_galaxies(
     assert status == 200
     summary_id = data["data"]["id"]
 
-    nretries = 0
-    summaries_loaded = False
-    while nretries < 40:
+    def summary_ready():
         status, data = api(
             "GET",
             f"gcn_event/{dateobs}/summary/{summary_id}",
             token=view_only_token,
             params=params,
         )
-        if status == 404:
-            nretries = nretries + 1
-            time.sleep(5)
-        if status == 200:
-            data = data["data"]
-            if data["text"] == "pending":
-                nretries = nretries + 1
-                time.sleep(5)
-            else:
-                summaries_loaded = True
-                break
+        assert status == 200
+        assert data["data"]["text"] != "pending"
+        return data["data"]["text"]
 
-    assert nretries < 40
-    assert summaries_loaded
-    lines = list(filter(None, data["text"].split("\n")))
+    lines = list(filter(None, retry_until(summary_ready, timeout=200).split("\n")))
 
     def _find(*substrings):
         # index of the first line containing all of `substrings`; asserts presence
@@ -736,27 +780,19 @@ def test_confirm_reject_source_in_gcn(
         "source_id": obj_id,
         "localization_name": "LALInference.v1.fits.gz",
         "localization_cumprob": 0.95,
-        "confirmed": True,
+        "status": "confirmed",
         "start_date": "2019-08-13 08:18:05",
         "end_date": "2019-08-19 08:18:05",
     }
 
-    # verify that you can't confirm a source without the Manage GCNs permission
+    # vetting needs no GCN-specific ACL, just the ability to write data
     status, data = api(
         "POST",
         f"sources_in_gcn/{dateobs}",
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "POST",
-        f"sources_in_gcn/{dateobs}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -772,7 +808,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is True
+    assert data[0]["status"] == "confirmed"
 
     # find gcns associated to source
     status, data = api(
@@ -786,7 +822,7 @@ def test_confirm_reject_source_in_gcn(
 
     # reject source
     params = {
-        "confirmed": False,
+        "status": "rejected",
     }
 
     status, data = api(
@@ -795,15 +831,7 @@ def test_confirm_reject_source_in_gcn(
         data=params,
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "PATCH",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        data=params,
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -819,7 +847,7 @@ def test_confirm_reject_source_in_gcn(
     assert len(data) == 1
     assert data[0]["obj_id"] == obj_id
     assert data[0]["dateobs"] == dateobs
-    assert data[0]["confirmed"] is False
+    assert data[0]["status"] == "rejected"
 
     # verify that no gcns are associated to source
 
@@ -839,14 +867,7 @@ def test_confirm_reject_source_in_gcn(
         f"sources_in_gcn/{dateobs}/{obj_id}",
         token=upload_data_token,
     )
-    assert status == 401
-
-    status, data = api(
-        "DELETE",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    assert status == 200, data
 
     params = {
         "sourcesIdList": obj_id,
@@ -1020,3 +1041,102 @@ def test_gcn_allocation_triggers(
     assert data["status"] == "success"
     assert data["data"]["gcn_triggers"][0]["allocation_id"] == allocation_id
     assert data["data"]["gcn_triggers"][0]["triggered"] is False
+
+
+def test_gcn_autogenerated_source_has_t0(super_admin_token):
+    """A source auto-created from a tight localization carries the event time as t0."""
+    dateobs = (utcnow_naive() - timedelta(days=3)).replace(microsecond=0)
+    payload = {
+        "dateobs": dateobs.isoformat(),
+        # error well under SOURCE_RADIUS_THRESHOLD, so post_gcn_source fires
+        "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.04},
+        # no group_ids -> sitewide public group, which post_gcn_source requires
+    }
+    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
+    assert status == 200, data
+
+    obj_id = f"GCN-{dateobs.strftime('%y%m%d_%H%M%S')}"
+    for _ in range(30):
+        status, data = api("GET", f"sources/{obj_id}", token=super_admin_token)
+        if status == 200:
+            break
+        time.sleep(1)
+    assert status == 200, f"source {obj_id} was never created: {data}"
+    assert data["data"]["t0"] == pytest.approx(Time(dateobs.isoformat()).mjd)
+
+
+def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
+    """A DefaultGcnTag scoped by notice_types matches an event with that notice.
+
+    The filter key was read as "notice_type" while the presence check used
+    "notice_types", so every notice-type-scoped default raised KeyError and was
+    silently skipped by the surrounding except. The positive case below is what
+    distinguishes the bug: before the fix no such tag was ever returned.
+
+    Calls add_default_gcn_tags directly -- the handler only runs the default-tag
+    pass when it ingests a new skymap, so re-posting an existing event does not
+    exercise it.
+    """
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+    dateobs = "2018-01-16 00:36:53"
+
+    status, data = api(
+        "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
+    )
+    assert status in (200, 400), data  # 400 if an earlier test already posted it
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200, data
+    notice_types = [n["notice_type"] for n in data["data"]["gcn_notices"]]
+    assert notice_types, "event has no notices to match on"
+
+    matching, nonmatching = str(uuid.uuid4()), str(uuid.uuid4())
+    user_id = user.id
+    with DBSession() as session:
+        session.add_all(
+            [
+                DefaultGcnTag(
+                    requester_id=user.id,
+                    default_tag_name=matching,
+                    filters={"notice_types": [notice_types[0]]},
+                ),
+                DefaultGcnTag(
+                    requester_id=user.id,
+                    default_tag_name=nonmatching,
+                    filters={"notice_types": ["NOT_A_REAL_NOTICE_TYPE"]},
+                ),
+            ]
+        )
+        session.commit()
+
+    try:
+        with DBSession() as session:
+            # re-fetch: the fixture instance is detached, and the
+            # access-controlled select lazy-loads user.acls
+            u = session.get(User, user_id)
+            session.user_or_token = u
+            produced = {
+                tag.text
+                for tag in add_default_gcn_tags(
+                    u, session, dateobs=Time(dateobs).datetime
+                )
+            }
+        assert matching in produced, (
+            f"notice-type-scoped default was not applied; produced={produced}"
+        )
+        assert nonmatching not in produced, "a non-matching notice type was applied"
+    finally:
+        with DBSession() as session:
+            for name in (matching, nonmatching):
+                row = session.scalar(
+                    sa.select(DefaultGcnTag).where(
+                        DefaultGcnTag.default_tag_name == name
+                    )
+                )
+                if row is not None:
+                    session.delete(row)
+            session.commit()

@@ -245,7 +245,7 @@ HEADER = """/**
  * generator's `_resolve_wrapped_data_member` rule. Endpoints whose data shape is
  * still inline/unknown are omitted (they'll surface as the next gap to tighten).
  */
-import type { components } from "./api";
+import type { components, paths } from "./api";
 
 export type SchemaName = keyof components["schemas"];
 
@@ -272,23 +272,69 @@ type PaginationBonusFields = {
 
 /**
  * Resolve a route key to the typed shape of its response `data` field.
- * - Pagination-wrapper routes (`wrapper` set) → `{ [W]: Schema[] } & PaginationBonusFields`.
+ * - Wrapper routes (`wrapper` set) → `{ [W]: Schema[] | Schema } & PaginationBonusFields`,
+ *   where the map's `list` flag picks array-vs-scalar for the wrapped value.
  * - Otherwise the map's `list` flag picks scalar-vs-array automatically.
  *
  * Caveat: PaginationBonusFields makes `totalMatches`/`pageNumber`/`numPerPage`/`page`
  * optional. Routes that historically declared these as required will need `?.`
  * access (or non-null assertions where the value is known to be present).
- *
- * @example
- *   const data: RouteData<"GET /api/allocation"> = ...; // Allocation[]
- *   const evts: RouteData<"GET /api/earthquake"> = ...; // { events: EarthquakeEvent[] } & PaginationBonusFields
  */
-export type RouteData<P extends RouteKey> =
+type MappedRouteData<P extends RouteKey> =
   RouteEntry<P> extends { wrapper: infer W extends string; schema: infer S extends SchemaName }
-    ? { [K in W]: components["schemas"][S][] } & PaginationBonusFields
+    ? { [K in W]: RouteEntry<P>["list"] extends true
+        ? components["schemas"][S][]
+        : components["schemas"][S] } & PaginationBonusFields
     : RouteEntry<P>["list"] extends true
       ? components["schemas"][RouteEntry<P>["schema"]][]
       : components["schemas"][RouteEntry<P>["schema"]];
+
+/**
+ * Generated fallback for endpoints not in the curated map (inline / augmented
+ * response shapes). Derives the response `data` type straight from the
+ * openapi-typescript output in `api.ts`, so it stays in sync on regen — no
+ * hand-written types. An endpoint typing as `never`/`unknown` here means its 200
+ * response isn't fully documented in the spec (a real gap to fix in the backend
+ * docstring, not to paper over on the client).
+ */
+type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
+
+type RouteKeysOf<P extends keyof paths & string> = {
+  [M in Extract<keyof paths[P], HttpMethod> & string]: `${Uppercase<M>} ${P}`;
+}[Extract<keyof paths[P], HttpMethod> & string];
+
+/** Union of every documented `"<METHOD> <path>"` key. */
+type DocumentedRouteKey = {
+  [P in keyof paths & string]: RouteKeysOf<P>;
+}[keyof paths & string];
+
+type ResponseBody<S extends string> =
+  S extends `${infer M} ${infer P}`
+    ? P extends keyof paths
+      ? Lowercase<M> extends keyof paths[P]
+        ? paths[P][Lowercase<M>] extends {
+            responses: { 200: { content: { "application/json": infer B } } };
+          }
+          ? B
+          : never
+        : never
+      : never
+    : never;
+
+type ApiRouteData<S extends string> =
+  ResponseBody<S> extends { data?: infer D } ? D : ResponseBody<S>;
+
+/**
+ * Resolve a route key to the typed shape of its response `data` field.
+ * - Curated map (named-schema responses) → clean `Schema` / `Schema[]` / wrapper.
+ * - Everything else documented → generated type derived from `api.ts`.
+ *
+ * @example
+ *   const data: RouteData<"GET /api/allocation"> = ...; // Allocation[]
+ *   const created: RouteData<"POST /api/analysis_service"> = ...; // { id?: number }
+ */
+export type RouteData<P extends RouteKey | DocumentedRouteKey> =
+  P extends RouteKey ? MappedRouteData<P> : ApiRouteData<P>;
 """
 
 

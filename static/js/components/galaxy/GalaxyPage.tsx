@@ -186,7 +186,7 @@ const GalaxyList = () => {
         {catalogs?.map((catalog: any) => (
           <ListItem
             {...({ button: true } as any)}
-            key={catalog}
+            key={catalog.catalog_name}
             className={classes.galaxyListItem}
           >
             <ListItemText
@@ -195,11 +195,7 @@ const GalaxyList = () => {
               classes={textClasses}
             />
             {permission && (
-              <IconButton
-                id="delete_button"
-                onClick={() => openDialog(catalog.catalog_name)}
-                disabled={!permission}
-              >
+              <IconButton onClick={() => openDialog(catalog.catalog_name)}>
                 <DeleteIcon />
               </IconButton>
             )}
@@ -252,8 +248,8 @@ const GalaxyPage = () => {
     }));
   };
 
-  if (galaxies == null) {
-    return <p>No galaxies available...</p>;
+  if (!galaxies) {
+    return "No galaxies available...";
   }
 
   const handleTableChange = (action: string, tableState: any) => {

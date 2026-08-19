@@ -2,8 +2,10 @@ import re
 import urllib
 from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -123,7 +125,7 @@ class NICERAPI(FollowUpAPI):
     """An interface to NICER operations."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to NICER
 
         Parameters
@@ -134,7 +136,18 @@ class NICERAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the chains this method (and NICERRequest) walk eager-loaded,
+        # since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -149,43 +162,56 @@ class NICERAPI(FollowUpAPI):
             "credential_1": request.allocation.altdata["password"],
         }
 
-        r_cred = requests.post(LOGIN_URL, params=params)
-        for hist in r_cred.history:
-            if len(hist.cookies) > 0:
-                cookies = hist.cookies
-                break
-
-        cookie_string = "; ".join([str(x) + "=" + str(y) for x, y in cookies.items()])
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "en-US,en;q=0.9",
-            "Cookie": cookie_string,
         }
 
-        data_verify = {**data, "RPS_VERIFY.x": 49, "RPS_VERIFY.y": 15}
-        r = requests.post(url=NICER_URL, data=data_verify, headers=headers)
-        if "Attempted verification detected" in r.text:
-            error_message = re.sub(
-                CLEANR,
-                "",
-                r.text.split("Attempted verification detected")[1].split("</span>")[0],
-            ).replace("\n", " ")
-            request.status = f"rejected: {error_message}"
-        elif "Form verified successfully" in r.text:
-            data_submit = {
-                **data,
-                "RPS_VERIFIED": "",
-                "RPS_SUBMIT.x": 45,
-                "RPS_SUBMIT.y": 4,
-                "RPS_OPENED_3": "",
-            }
-            r = requests.post(url=NICER_URL, data=data_submit, headers=headers)
-            request.status = "submitted"
+        # Reuse one session so login cookies (set during redirects) are carried
+        # to the verify/submit calls via the shared cookie jar.
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(LOGIN_URL, params=params):
+                pass
+
+            data_verify = {**data, "RPS_VERIFY.x": 49, "RPS_VERIFY.y": 15}
+            async with http_session.post(
+                NICER_URL, data=data_verify, headers=headers
+            ) as r:
+                content = await r.text()
+
+            if "Attempted verification detected" in content:
+                error_message = re.sub(
+                    CLEANR,
+                    "",
+                    content.split("Attempted verification detected")[1].split(
+                        "</span>"
+                    )[0],
+                ).replace("\n", " ")
+                request.status = f"rejected: {error_message}"
+                submit_data = data_verify
+            elif "Form verified successfully" in content:
+                data_submit = {
+                    **data,
+                    "RPS_VERIFIED": "",
+                    "RPS_SUBMIT.x": 45,
+                    "RPS_SUBMIT.y": 4,
+                    "RPS_OPENED_3": "",
+                }
+                async with http_session.post(
+                    NICER_URL, data=data_submit, headers=headers
+                ) as r:
+                    content = await r.text()
+                request.status = "submitted"
+                submit_data = data_submit
+            else:
+                submit_data = data_verify
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", NICER_URL, headers, submit_data
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -207,17 +233,28 @@ class NICERAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         from ..models import FollowupRequest
+
+        # Reload with the chains this method walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             raise NotImplementedError(
                 "Can't delete requests already sent successfully to NICER."

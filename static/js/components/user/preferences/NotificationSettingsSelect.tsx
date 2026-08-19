@@ -163,7 +163,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans"
+      notificationResourceType === "observation_plans" ||
+      notificationResourceType === "reminders"
     ) {
       const prefs: any = {
         notifications: {
@@ -231,7 +232,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans"
+      notificationResourceType === "observation_plans" ||
+      notificationResourceType === "reminders"
     ) {
       if (type === "sms") {
         const reversed = [...valueSMS].reverse();
@@ -315,7 +317,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "facility_transactions" ||
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans"
+      notificationResourceType === "observation_plans" ||
+      notificationResourceType === "reminders"
     ) {
       const prefs = {
         notifications: {
@@ -460,10 +463,12 @@ const NotificationSettingsSelect = ({
                   {profile?.notifications?.[notificationResourceType]?.sms
                     ?.time_slot?.length > 0 && (
                     <Box
-                      sx={{ width: 300 }}
-                      display="flex"
-                      flexDirection="row"
-                      alignItems="center"
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        width: 300,
+                      }}
                     >
                       <Slider
                         getAriaLabel={() => "time_slot_slider"}
@@ -563,10 +568,12 @@ const NotificationSettingsSelect = ({
                   {profile?.notifications?.[notificationResourceType]?.phone
                     ?.time_slot?.length > 0 && (
                     <Box
-                      sx={{ width: 300 }}
-                      display="flex"
-                      flexDirection="row"
-                      alignItems="center"
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        width: 300,
+                      }}
                     >
                       <Slider
                         getAriaLabel={() => "time_slot_slider"}
@@ -665,10 +672,12 @@ const NotificationSettingsSelect = ({
                   {profile?.notifications?.[notificationResourceType]?.whatsapp
                     ?.time_slot?.length > 0 && (
                     <Box
-                      sx={{ width: 300 }}
-                      display="flex"
-                      flexDirection="row"
-                      alignItems="center"
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        width: 300,
+                      }}
                     >
                       <Slider
                         getAriaLabel={() => "time_slot_slider"}

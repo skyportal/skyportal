@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
-import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
 import Dialog from "@mui/material/Dialog";
@@ -13,11 +11,11 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
-import { makeStyles } from "tss-react/mui";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
+  useIsReadOnly,
 } from "../../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
@@ -47,22 +45,6 @@ const savedStatusSelectOptions = [
   },
 ];
 
-const useStyles = makeStyles()((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  actionButtons: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
-
 interface ScanningProfilesListProps {
   selectedScanningProfile?: any;
   setSelectedScanningProfile: (...a: any[]) => void;
@@ -78,7 +60,7 @@ const ScanningProfilesList = ({
   availableAnnotationsInfo = {},
   classifications = [],
 }: ScanningProfilesListProps) => {
-  const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
   const { data: userProfile } = useGetProfileQuery();
   const profiles = (userProfile?.preferences as any)?.scanningProfiles;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -95,17 +77,24 @@ const ScanningProfilesList = ({
     () =>
       function ScanningProfilesToolbar() {
         return (
-          <DataGridToolbar showColumns={false} showQuickFilter={false}>
-            <IconButton
-              name="new_scanning_profile"
-              onClick={() => setNewDialogOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
+          <DataGridToolbar
+            showExport={false}
+            showColumns={false}
+            showQuickFilter={false}
+            title="Scanning Profiles"
+          >
+            {!isReadOnly && (
+              <IconButton
+                name="new_scanning_profile"
+                onClick={() => setNewDialogOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
           </DataGridToolbar>
         );
       },
-    [],
+    [isReadOnly],
   );
 
   const handleLoadedChange = (checked: boolean, dataIndex: number) => {
@@ -122,20 +111,16 @@ const ScanningProfilesList = ({
   const renderLoaded = (params: any) => {
     const dataIndex = params.row.__rowid;
     const profile = profiles[dataIndex];
-    return profile ? (
-      <div>
-        <Checkbox
-          checked={selectedScanningProfile?.name === profile.name}
-          key={`loaded_${dataIndex}`}
-          data-testid={`loaded_${dataIndex}`}
-          onChange={(event) =>
-            handleLoadedChange(event.target.checked, dataIndex)
-          }
-          inputProps={{ "aria-label": "primary checkbox" }}
-        />
-      </div>
-    ) : (
-      <div />
+    if (!profile) return null;
+    return (
+      <Checkbox
+        checked={selectedScanningProfile?.name === profile.name}
+        data-testid={`loaded_${dataIndex}`}
+        onChange={(event) =>
+          handleLoadedChange(event.target.checked, dataIndex)
+        }
+        slotProps={{ input: { "aria-label": "primary checkbox" } }}
+      />
     );
   };
 
@@ -157,9 +142,9 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked: boolean, dataIndex: number) => {
-    const updatedProfiles = profiles.map((profile: any, i: number) => ({
+    const updatedProfiles = profiles.map((profile: any, index: number) => ({
       ...profile,
-      default: checked && i === dataIndex,
+      default: checked && index === dataIndex,
     }));
     updateUserPreferences({
       scanningProfiles: updatedProfiles,
@@ -169,19 +154,15 @@ const ScanningProfilesList = ({
   const renderDefault = (params: any) => {
     const dataIndex = params.row.__rowid;
     const profile = profiles[dataIndex];
-    return profile ? (
-      <div>
-        <Checkbox
-          checked={profile.default}
-          key={`default${dataIndex}`}
-          onChange={(event) =>
-            handleDefaultChange(event.target.checked, dataIndex)
-          }
-          inputProps={{ "aria-label": "primary checkbox" }}
-        />
-      </div>
-    ) : (
-      <div />
+    if (!profile) return null;
+    return (
+      <Checkbox
+        checked={profile.default}
+        onChange={(event) =>
+          handleDefaultChange(event.target.checked, dataIndex)
+        }
+        slotProps={{ input: { "aria-label": "primary checkbox" } }}
+      />
     );
   };
 
@@ -192,51 +173,38 @@ const ScanningProfilesList = ({
 
   const renderClassifications = (params: any) => {
     const profile = params.row;
-    return profile?.classifications ? (
+    if (!profile?.classifications) return null;
+    return (
       <div>
-        <p>
-          {" "}
-          {profile?.classificationsWith === false
-            ? "Without any of:"
-            : "With any of:"}{" "}
-        </p>
+        {profile?.classificationsWith === false
+          ? "Without any of: "
+          : "With any of: "}
         {profile.classifications.map((classification: string) => (
           <Chip
             size="small"
             key={classification}
             label={classification}
             color="primary"
-            className={classes.chip}
+            sx={{ mr: 0.5 }}
           />
         ))}
       </div>
-    ) : (
-      <div />
     );
   };
 
   const renderGroups = (params: any) => {
     const profile = params.row;
-    return profile?.groupIDs ? (
-      <div>
-        {profile.groupIDs.map((groupID: any) => {
-          const groupName = userAccessibleGroups?.find(
-            (group) => group.id === groupID,
-          )?.name;
-          return (
-            <Chip
-              size="small"
-              key={`group${groupID}`}
-              label={groupName}
-              color="primary"
-              className={classes.chip}
-            />
-          );
-        })}
-      </div>
-    ) : (
-      <div />
-    );
+    return profile?.groupIDs.map((groupID: any) => (
+      <Chip
+        size="small"
+        key={`group${groupID}`}
+        label={
+          userAccessibleGroups?.find((group) => group.id === groupID)?.name
+        }
+        color="primary"
+        sx={{ mr: 0.5 }}
+      />
+    ));
   };
 
   const renderSavedStatus = (params: any) => {
@@ -262,30 +230,22 @@ const ScanningProfilesList = ({
   };
 
   const renderRejectedStatus = (params: any) => {
-    const dataIndex = params.row.__rowid;
-    const profile = params.row;
-    return profile?.rejectedStatus === "show" ? (
-      <CheckIcon key={`${dataIndex}RejectedStatus`} color="primary" />
+    return params.row?.rejectedStatus === "show" ? (
+      <CheckIcon color="primary" />
     ) : (
-      <ClearIcon key={`${dataIndex}RejectedStatus`} color="secondary" />
+      <ClearIcon color="secondary" />
     );
   };
 
   const renderActions = (params: any) => {
     const dataIndex = params.row.__rowid;
+    if (isReadOnly) return null;
     return (
-      <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
+      <div>
+        <IconButton onClick={() => editProfile(profiles[dataIndex])}>
           <EditIcon />
         </IconButton>
-        <IconButton
-          id={`delete_button_${dataIndex}`}
-          onClick={() => deleteProfile(dataIndex)}
-        >
+        <IconButton color="error" onClick={() => deleteProfile(dataIndex)}>
           <DeleteIcon />
         </IconButton>
       </div>
@@ -386,20 +346,15 @@ const ScanningProfilesList = ({
 
   return (
     <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" sx={{ p: 1 }}>
-          Scanning Profiles
-        </Typography>
-        <StyledDataGrid
-          autoHeight
-          rows={rows}
-          columns={columns}
-          getRowId={(row: any) => row.__rowid}
-          disableColumnFilter
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Paper>
+      <StyledDataGrid
+        autoHeight
+        rows={rows}
+        columns={columns}
+        getRowId={(row: any) => row.__rowid}
+        disableColumnFilter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
         <DialogContent>
           <CandidatesPreferencesForm

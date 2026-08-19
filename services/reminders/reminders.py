@@ -6,6 +6,8 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import User, init_db
 from baselayer.log import make_log
+from skyportal.app_utils import get_app_base_url
+from skyportal.email_utils import send_email
 from skyportal.models import (
     DBSession,
     Reminder,
@@ -57,6 +59,7 @@ def send_reminders():
         ws_flow = Flow()
         for reminder in reminders:
             reminder_type = reminder.__class__
+            extra_email_html = ""
             if reminder_type == Reminder:
                 text_to_send = (
                     f"Reminder of source *{reminder.obj_id}*: {reminder.text}"
@@ -83,8 +86,52 @@ def send_reminders():
                 text_to_send = f"Reminder of shift *{shift.name}*: {reminder.text}"
                 url_endpoint = f"/shifts/{shift.id}"
                 notification_type = "reminder_on_shift"
+                extra_email_html = (
+                    "<ul>"
+                    f"<li>Start: {shift.start_date.strftime('%Y-%m-%d %H:%M')} UTC</li>"
+                    f"<li>End: {shift.end_date.strftime('%Y-%m-%d %H:%M')} UTC</li>"
+                    + (
+                        f"<li>Description: {shift.description}</li>"
+                        if shift.description
+                        else ""
+                    )
+                    + "</ul>"
+                )
             else:
                 raise ValueError(f"Unknown reminder type: {reminder_type}")
+
+            reminder_prefs = (
+                (reminder.user.preferences or {})
+                .get("notifications", {})
+                .get("reminders", {})
+            )
+            type_enabled = reminder_prefs.get(notification_type, False)
+            if (
+                reminder_prefs.get("active")
+                and type_enabled
+                and reminder_prefs.get("email", {}).get("active")
+                and reminder.user.contact_email
+            ):
+                try:
+                    app_url = get_app_base_url()
+                    plain_text = text_to_send.replace("*", "")
+                    send_email(
+                        recipients=[reminder.user.contact_email],
+                        subject=f"{cfg['app.title']} - {plain_text}",
+                        body=(
+                            "<!DOCTYPE html><html><head>"
+                            "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
+                            "</head><body>"
+                            f"<p>{plain_text}</p>"
+                            f"{extra_email_html}"
+                            f"<p><a href='{app_url}{url_endpoint}'>View in {cfg['app.title']}</a></p>"
+                            "</body></html>"
+                        ),
+                    )
+                except Exception as e:
+                    log(
+                        f"Failed to send reminder email to {reminder.user.contact_email}: {e}"
+                    )
 
             session.add(
                 UserNotification(

@@ -7,8 +7,10 @@ import astropy.units as u
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
+from astropy_healpix import nside_to_level, pixel_resolution_to_nside
 from conesearch_alchemy.math import cosd, sind
 from geojson import Feature, Point
+from mocpy import MOC
 from sqlalchemy.sql import and_, bindparam, text
 
 from baselayer.app.env import load_env
@@ -127,6 +129,35 @@ def within(ra1, dec1, ra2, dec2, radius):
     )
     bounding_box_terms, dot_product_terms = zip(*terms)
     return and_(*bounding_box_terms, sum(dot_product_terms) >= cos_radius)
+
+
+def cone_healpix_prefilter(ra, dec, radius):
+    """Index-friendly prefilter clause for a cone search.
+
+    Restricts the indexed, level-29 nested ``objs.healpix`` to the multi-order
+    coverage of the cone so the planner can range-scan the index instead of
+    computing trig over every row. This is a superset of the true cone, so
+    ``within()`` still applies the exact match. Objs with a NULL healpix fall
+    through to that exact test. Returns ``None`` if no coverage is produced.
+    """
+    # ~4 cells across the radius keeps the range count small at any radius.
+    depth = int(
+        np.clip(
+            nside_to_level(pixel_resolution_to_nside((radius / 4) * u.deg, round="up")),
+            1,
+            29,
+        )
+    )
+    ranges = MOC.from_cone(
+        lon=ra * u.deg, lat=dec * u.deg, radius=radius * u.deg, max_depth=depth
+    ).to_depth29_ranges
+    if len(ranges) == 0:
+        return None
+    terms = ["objs.healpix IS NULL"]
+    terms += [
+        f"objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)}" for lo, hi in ranges
+    ]
+    return "(" + " OR ".join(terms) + ")"
 
 
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
@@ -372,24 +403,30 @@ def create_annotation_query(
     return None, None
 
 
-def get_localization(localization_dateobs, localization_name, session):
+async def get_localization(localization_dateobs, localization_name, session, user):
     startTime = time.time()
     if isinstance(localization_dateobs, str):
         localization_dateobs = arrow.get(localization_dateobs).naive
     localization_dateobs_str = localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")
+    # NOTE: this must go through Localization.select so that the GcnEvent group
+    # restriction is honored. Selecting the tiles by raw localization_id below
+    # bypasses every access policy, so a localization the user cannot read would
+    # otherwise let them enumerate sources inside a restricted event's error
+    # region -- disclosing the position of the event itself.
     if localization_name is None:
-        localization_id = session.scalars(
-            sa.select(Localization.id)
+        result = await session.scalars(
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .order_by(Localization.created_at.desc())
-        ).first()
+        )
     else:
-        localization_id = session.scalars(
-            sa.select(Localization.id)
+        result = await session.scalars(
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .where(Localization.localization_name == localization_name)
             .order_by(Localization.modified.desc())
-        ).first()
+        )
+    localization_id = result.first()
     if localization_id is None:
         if localization_name is not None:
             raise ValueError(
@@ -408,13 +445,12 @@ def get_localization(localization_dateobs, localization_name, session):
     if localizationtilescls is None:
         localizationtilescls = LocalizationTile.partitions.get("def", LocalizationTile)
     else:
-        if not (
-            session.scalars(
-                sa.select(localizationtilescls.id).where(
-                    localizationtilescls.localization_id == localization_id
-                )
-            ).first()
-        ):
+        partition_check = await session.scalars(
+            sa.select(localizationtilescls.id).where(
+                localizationtilescls.localization_id == localization_id
+            )
+        )
+        if not partition_check.first():
             localizationtilescls = LocalizationTile.partitions.get(
                 "def", LocalizationTile
             )
@@ -471,6 +507,24 @@ def get_luminosity_distance(obj):
     return None
 
 
+# The objs join can never change the row set (obj_id is NOT NULL with an FK), so
+# drop it unless a filter or sort needs an objs column -- decided once the whole
+# statement, ORDER BY included, is assembled.
+OBJ_ID_TOKEN = "__OBJ_ID__"
+SOURCES_FROM_TOKEN = "__SOURCES_FROM__"
+
+
+def resolve_obj_join(statement):
+    """Substitute the FROM clause and id column, dropping the objs join if unused."""
+    if "objs." in statement:
+        return statement.replace(
+            SOURCES_FROM_TOKEN, "objs INNER JOIN sources ON objs.id = sources.obj_id"
+        ).replace(OBJ_ID_TOKEN, "objs.id")
+    return statement.replace(SOURCES_FROM_TOKEN, "sources").replace(
+        OBJ_ID_TOKEN, "sources.obj_id"
+    )
+
+
 async def get_sources(
     user_id,
     session,
@@ -510,6 +564,7 @@ async def get_sources(
     followup_request_status=None,
     saved_before=None,
     saved_after=None,
+    saved_by_current_user=False,
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
@@ -589,11 +644,22 @@ async def get_sources(
         elif sort_order.lower() not in SORT_ORDER:
             raise ValueError(f"Invalid sort_order: {sort_order}")
 
+        # Sort by an annotation value, encoded as "annotation.<origin>.<key>".
+        # The origin is the first token; the key is the remainder (may contain dots).
+        annotation_sort = False
+        sort_ann_origin = sort_ann_key = None
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
                 sort_by = "gcn_status"
             else:
                 sort_by = "saved_at"
+        elif sort_by.startswith("annotation."):
+            sort_by_parts = sort_by.split(".")
+            if len(sort_by_parts) < 3 or not all(sort_by_parts):
+                raise ValueError(f"Invalid sort_by: {sort_by}")
+            annotation_sort = True
+            sort_ann_origin = sort_by_parts[1]
+            sort_ann_key = ".".join(sort_by_parts[2:])
         elif sort_by.startswith("altdata."):
             sort_by_parts = sort_by.split(".")
             if not all(sort_by_parts):
@@ -607,12 +673,14 @@ async def get_sources(
             # we reverse the condition here, so we can use bool_and later on
             sort_order = "desc" if sort_order.lower() == "asc" else "asc"
 
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+        from ...utils.data_access import accessible_group_ids_async
+
+        user = await session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
             raise ValueError(f"Invalid user_id: {user_id}")
         is_admin = user.is_admin
         if user_accessible_group_ids is None:
-            user_accessible_group_ids = [g.id for g in user.accessible_groups]
+            user_accessible_group_ids = await accessible_group_ids_async(user, session)
 
         if group_ids is None:
             group_ids = []
@@ -625,16 +693,12 @@ async def get_sources(
 
         allocation_ids = []
         if not is_admin and len(group_ids) > 0:
-            allocation_ids = (
-                session.scalars(
-                    Allocation.select(user)
-                    .options(sa.orm.load_only(Allocation.id))
-                    .where(Allocation.group_id.in_(group_ids))
-                )
-                .unique()
-                .all()
+            allocation_result = await session.scalars(
+                Allocation.select(user)
+                .options(sa.orm.load_only(Allocation.id))
+                .where(Allocation.group_id.in_(group_ids))
             )
-            allocation_ids = [a.id for a in allocation_ids]
+            allocation_ids = [a.id for a in allocation_result.unique().all()]
 
         groups_query_str, groups_bindparams = array2sql(
             group_ids, type=sa.Integer, prefix="group"
@@ -951,6 +1015,11 @@ async def get_sources(
                     float(dec),
                     float(radius),
                 )
+                # Index-friendly healpix prefilter narrows candidates before the
+                # exact trig test below (which cannot use an index).
+                healpix_clause = cone_healpix_prefilter(ra, dec, radius)
+                if healpix_clause is not None:
+                    statements.append(healpix_clause)
                 statements.append(
                     f"""
                     {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
@@ -1019,6 +1088,15 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(f"Invalid saved_after: {saved_after} ({e})")
+        if saved_by_current_user:
+            query_params.append(
+                bindparam("saved_by_user_id", value=user_id, type_=sa.Integer)
+            )
+            statements.append(
+                """
+                sources.saved_by_id = :saved_by_user_id
+                """
+            )
 
         # CLASSIFICATIONS
         if classified:
@@ -1104,7 +1182,7 @@ async def get_sources(
                 stmt = f"""
                 SELECT id, name FROM taxonomies WHERE name IN {query_str}
                 """
-                taxonomies = session.execute(text(stmt).bindparams(*bindparams))
+                taxonomies = await session.execute(text(stmt).bindparams(*bindparams))
                 taxonomy_name_to_id = {}
                 for taxonomy in taxonomies:
                     if taxonomy[1] not in taxonomy_name_to_id:
@@ -1478,10 +1556,11 @@ async def get_sources(
             try:
                 localization_dateobs = arrow.get(localization_dateobs).naive
                 localization_cumprob = float(localization_cumprob)
-                localization_id, partition = get_localization(
+                localization_id, partition = await get_localization(
                     localization_dateobs,
                     localization_name,
                     session,
+                    user,
                 )
                 # this is twice as fast as if we ran each query (the localization tiles query,
                 # and its overall with the sources) separately.
@@ -1506,19 +1585,19 @@ async def get_sources(
                 if localization_reject_sources or sort_by == "gcn_status":
                     joins.append(
                         f"""
-                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                        LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                         """
                     )
                     if localization_reject_sources:
                         statements.append(
                             """
-                            sourcesconfirmedingcns.confirmed is not false
+                            gcneventobjs.status <> 'rejected'
                             """
                         )
                 if include_sources_in_gcn:
                     localization_queries.append(
                         f"""
-                        EXISTS (SELECT sourcesconfirmedingcns.obj_id FROM sourcesconfirmedingcns WHERE sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND sourcesconfirmedingcns.confirmed is not false)
+                        EXISTS (SELECT gcneventobjs.obj_id FROM gcneventobjs WHERE gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND gcneventobjs.status <> 'rejected')
                     """
                     )
             except Exception as e:
@@ -1542,7 +1621,7 @@ async def get_sources(
                     WHERE lower(catalog_name) = :spatial_catalog_name
                 )
                 """
-                entry_id = session.execute(
+                entry_id = await session.execute(
                     text(entry_stmt).bindparams(
                         bindparam(
                             "spatial_catalog_entry_name",
@@ -1641,8 +1720,7 @@ async def get_sources(
 
                         startTime = time.time()
 
-                        connection = session.connection()
-                        results = connection.execute(statement)
+                        results = await session.execute(statement)
                         all_source_ids.extend([r[0] for r in results])
 
                         endTime = time.time()
@@ -1684,8 +1762,7 @@ async def get_sources(
 
                     startTime = time.time()
 
-                    connection = session.connection()
-                    results = connection.execute(statement)
+                    results = await session.execute(statement)
                     all_source_ids = [r[0] for r in results]
 
                     endTime = time.time()
@@ -1726,9 +1803,10 @@ async def get_sources(
 
             startTime = time.time()
 
-            sources = session.scalars(
+            sources_result = await session.scalars(
                 Source.select(user).where(Source.id.in_(source_ids))
-            ).all()
+            )
+            sources = sources_result.all()
             # keep the order of the sources consistent with the order of the source_ids
             sources = sorted(sources, key=lambda s: source_ids.index(s.id))
 
@@ -1754,11 +1832,11 @@ async def get_sources(
                 if len(localization_queries) > 0:
                     for localization_query in localization_queries:
                         # ADD QUERY STATEMENTS
-                        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                        statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                            FROM {SOURCES_FROM_TOKEN}
                             {" ".join(joins)}
                             WHERE {" AND ".join(statements + [localization_query])}
-                            GROUP BY objs.id
+                            GROUP BY {OBJ_ID_TOKEN}
                         """
 
                         if ":accessible_group_ids" in statement:
@@ -1773,7 +1851,7 @@ async def get_sources(
                             query_params.extend(allocation_bindparams)
 
                         statement = (
-                            text(statement)
+                            text(resolve_obj_join(statement))
                             .bindparams(*query_params)
                             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                         )
@@ -1783,8 +1861,7 @@ async def get_sources(
 
                         startTime = time.time()
 
-                        connection = session.connection()
-                        results = connection.execute(statement)
+                        results = await session.execute(statement)
                         all_obj_ids.extend([r[0] for r in results])
 
                         endTime = time.time()
@@ -1804,7 +1881,7 @@ async def get_sources(
                     if sort_by == "gcn_status":
                         joins.append(
                             f"""
-                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                            LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                             """
                         )
                     elif sort_by == "favorites":
@@ -1820,11 +1897,11 @@ async def get_sources(
                         prefix="obj_id",
                     )
                     query_params.extend(bindparams)
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         where objs.id in {query_str}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -1838,13 +1915,43 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "gcn_status":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "gcn_status":
                         statement += f"""ORDER BY
                             CASE
-                                WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
-                                WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
+                                WHEN bool_and(gcneventobjs.obj_id IS NULL) = true THEN 4
+                                WHEN bool_or(gcneventobjs.status = 'confirmed') = true THEN 3
+                                WHEN bool_and(gcneventobjs.status IN ('pending', 'ambiguous')) = true THEN 2
+                                WHEN bool_or(gcneventobjs.status = 'rejected') = true THEN 1
                                 ELSE 0
                             END {sort_order.upper()}"""
                     elif sort_by == "favorites":
@@ -1853,7 +1960,8 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         for i, field in enumerate(fields[1:]):
                             # For nested json data, we cast the values we access to JSONB so we can access their keys
@@ -1868,12 +1976,11 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
-                    connection = session.connection()
-                    results = connection.execute(statement)
+                    results = await session.execute(statement)
                     all_obj_ids = [r[0] for r in results]
 
                     if verbose:
@@ -1890,11 +1997,11 @@ async def get_sources(
                         )
 
                     # ADD QUERY STATEMENTS
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         WHERE {" AND ".join(statements)}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -1908,13 +2015,44 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "favorites":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "favorites":
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         # For nested json data, we cast the values we access to JSONB so we can access their keys
                         for i, field in enumerate(fields[1:]):
@@ -1929,7 +2067,7 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
@@ -1939,8 +2077,7 @@ async def get_sources(
 
                     startTime = time.time()
 
-                    connection = session.connection()
-                    results = connection.execute(statement)
+                    results = await session.execute(statement)
                     all_obj_ids = [r[0] for r in results]
                     if len(all_obj_ids) != len(set(all_obj_ids)):
                         raise ValueError(
@@ -1974,7 +2111,10 @@ async def get_sources(
             obj_ids = all_obj_ids[start:end]
             if isinstance(obj_ids, np.ndarray):
                 obj_ids = obj_ids.tolist()
-            objs = session.query(Obj).filter(Obj.id.in_(obj_ids)).distinct().all()
+            objs_result = await session.scalars(
+                sa.select(Obj).where(Obj.id.in_(obj_ids)).distinct()
+            )
+            objs = objs_result.unique().all()
             # keep the original order
             objs = sorted(objs, key=lambda obj: obj_ids.index(obj.id))
             if include_hosts:
@@ -1982,6 +2122,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                         "host": None,
                         "host_offset": None,
@@ -1992,6 +2134,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                     }
                     for obj in objs
@@ -2004,11 +2148,10 @@ async def get_sources(
             # SOURCES
             startTime = time.time()
 
-            sources = (
-                session.scalars(Source.select(user).where(Source.obj_id.in_(obj_ids)))
-                .unique()
-                .all()
+            sources_result = await session.scalars(
+                Source.select(user).where(Source.obj_id.in_(obj_ids))
             )
+            sources = sources_result.unique().all()
             sources = sorted(
                 (s.to_dict() for s in sources), key=lambda s: s["created_at"]
             )
@@ -2031,21 +2174,19 @@ async def get_sources(
                     set(source_user_ids),
                 )
 
-                groups = (
-                    session.query(Group)
-                    .filter(Group.id.in_(source_group_ids))
-                    .distinct()
-                    .all()
+                groups_result = await session.scalars(
+                    sa.select(Group).where(Group.id.in_(source_group_ids)).distinct()
                 )
-                groups = {group.id: group.to_dict() for group in groups}
+                groups = {
+                    group.id: group.to_dict() for group in groups_result.unique().all()
+                }
 
-                users = (
-                    session.query(User)
-                    .filter(User.id.in_(source_user_ids))
-                    .distinct()
-                    .all()
+                users_result = await session.scalars(
+                    sa.select(User).where(User.id.in_(source_user_ids)).distinct()
                 )
-                users = {user.id: user.to_dict() for user in users}
+                users = {
+                    user.id: user.to_dict() for user in users_result.unique().all()
+                }
 
                 # for each obj, add a 'groups' key with the groups tho which it has been saved as a source
                 for source in sources:
@@ -2104,13 +2245,10 @@ async def get_sources(
 
             if include_thumbnails and not remove_nested:
                 startTime = time.time()
-                thumbnails = (
-                    session.scalars(
-                        Thumbnail.select(user).where(Thumbnail.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
+                thumbnails_result = await session.scalars(
+                    Thumbnail.select(user).where(Thumbnail.obj_id.in_(obj_ids))
                 )
+                thumbnails = thumbnails_result.unique().all()
                 thumbnails = sorted(
                     (t.to_dict() for t in thumbnails), key=lambda t: t["created_at"]
                 )
@@ -2130,13 +2268,10 @@ async def get_sources(
                 # PHOTSTATS
                 startTime = time.time()
 
-                photstats = (
-                    session.scalars(
-                        PhotStat.select(user).where(PhotStat.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
+                photstats_result = await session.scalars(
+                    PhotStat.select(user).where(PhotStat.obj_id.in_(obj_ids))
                 )
+                photstats = photstats_result.unique().all()
                 photstats = sorted(
                     (p.to_dict() for p in photstats), key=lambda p: p["created_at"]
                 )
@@ -2155,15 +2290,12 @@ async def get_sources(
                 # CLASSIFICATIONS
                 startTime = time.time()
 
-                classifications = (
-                    session.scalars(
-                        Classification.select(user).where(
-                            Classification.obj_id.in_(obj_ids)
-                        )
+                classifications_result = await session.scalars(
+                    Classification.select(user).where(
+                        Classification.obj_id.in_(obj_ids)
                     )
-                    .unique()
-                    .all()
                 )
+                classifications = classifications_result.unique().all()
                 classifications = [
                     {
                         **c.to_dict(),
@@ -2188,13 +2320,10 @@ async def get_sources(
                 # ANNOTATIONS
                 startTime = time.time()
 
-                annotations = (
-                    session.scalars(
-                        Annotation.select(user).where(Annotation.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
+                annotations_result = await session.scalars(
+                    Annotation.select(user).where(Annotation.obj_id.in_(obj_ids))
                 )
+                annotations = annotations_result.unique().all()
                 annotations = sorted(
                     (a.to_dict() for a in annotations), key=lambda a: a["created_at"]
                 )
@@ -2217,13 +2346,12 @@ async def get_sources(
                     {obj["host_id"] for obj in objs if obj["host_id"] is not None}
                 )
                 if len(host_ids) > 0:
-                    hosts = (
-                        session.query(Galaxy)
-                        .filter(Galaxy.id.in_(host_ids))
-                        .distinct()
-                        .all()
+                    hosts_result = await session.scalars(
+                        sa.select(Galaxy).where(Galaxy.id.in_(host_ids)).distinct()
                     )
-                    hosts = {host.id: host.to_dict() for host in hosts}
+                    hosts = {
+                        host.id: host.to_dict() for host in hosts_result.unique().all()
+                    }
 
                     objs_with_host = [
                         (i, obj["host_id"], (obj["ra"], obj["dec"]))
@@ -2272,10 +2400,10 @@ async def get_sources(
                     FROM spectra
                     WHERE obj_id IN {query_str}
                     """
-                    spectrum_exists = session.execute(
+                    spectrum_exists_result = await session.execute(
                         text(stmt).bindparams(*bindparams)
                     )
-                    spectrum_exists = [r[0] for r in spectrum_exists]
+                    spectrum_exists = [r[0] for r in spectrum_exists_result]
                     for obj in objs:
                         obj["spectrum_exists"] = obj["id"] in spectrum_exists
 
@@ -2305,8 +2433,10 @@ async def get_sources(
                     FROM comments
                     WHERE obj_id IN {query_str}
                     """
-                    comment_exists = session.execute(text(stmt).bindparams(*bindparams))
-                    comment_exists = [r[0] for r in comment_exists]
+                    comment_exists_result = await session.execute(
+                        text(stmt).bindparams(*bindparams)
+                    )
+                    comment_exists = [r[0] for r in comment_exists_result]
                     for obj in objs:
                         obj["comment_exists"] = obj["id"] in comment_exists
 
@@ -2327,8 +2457,10 @@ async def get_sources(
                 FROM photometry
                 WHERE obj_id IN {query_str}
                 """
-                photometry_exists = session.execute(text(stmt).bindparams(*bindparams))
-                photometry_exists = [r[0] for r in photometry_exists]
+                photometry_exists_result = await session.execute(
+                    text(stmt).bindparams(*bindparams)
+                )
+                photometry_exists = [r[0] for r in photometry_exists_result]
                 for obj in objs:
                     obj["photometry_exists"] = obj["id"] in photometry_exists
                 objs_missing_photometry = [
@@ -2343,11 +2475,11 @@ async def get_sources(
                         FROM photometric_series
                         WHERE obj_id IN {query_str}
                     """
-                    photometric_series_exists = session.execute(
+                    photometric_series_exists_result = await session.execute(
                         text(stmt).bindparams(*bindparams)
                     )
                     photometric_series_exists = [
-                        r[0] for r in photometric_series_exists
+                        r[0] for r in photometric_series_exists_result
                     ]
                     for obj in objs:
                         obj["photometry_exists"] = (
@@ -2382,13 +2514,12 @@ async def get_sources(
             if include_comments:
                 startTime = time.time()
 
-                comments = (
-                    session.scalars(
-                        Comment.select(user).where(Comment.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
+                comments_result = await session.scalars(
+                    Comment.select(user)
+                    .where(Comment.obj_id.in_(obj_ids))
+                    .where(Comment.channel.is_(None))
                 )
+                comments = comments_result.unique().all()
                 comments = [c.to_dict() for c in comments]
                 comments = sorted(comments, key=lambda c: c["created_at"])
                 if len(comments) > 0:
@@ -2413,13 +2544,10 @@ async def get_sources(
             if include_labellers:
                 startTime = time.time()
 
-                labellers = (
-                    session.scalars(
-                        SourceLabel.select(user).where(SourceLabel.obj_id.in_(obj_ids))
-                    )
-                    .unique()
-                    .all()
+                labellers_result = await session.scalars(
+                    SourceLabel.select(user).where(SourceLabel.obj_id.in_(obj_ids))
                 )
+                labellers = labellers_result.unique().all()
                 labellers = sorted(
                     (lab.to_dict() for lab in labellers),
                     key=lambda lab: lab["created_at"],
@@ -2458,7 +2586,7 @@ async def get_sources(
                 WHERE obj_tags.obj_id IN {query_str}
                 """
 
-                tags_result = session.execute(text(stmt).bindparams(*bindparams))
+                tags_result = await session.execute(text(stmt).bindparams(*bindparams))
                 tags_by_obj = {}
 
                 for row in tags_result:
@@ -2523,5 +2651,5 @@ async def get_sources(
         return data
     except Exception as e:
         log_verbose(str(e))
-        session.rollback()
+        await session.rollback()
         raise e

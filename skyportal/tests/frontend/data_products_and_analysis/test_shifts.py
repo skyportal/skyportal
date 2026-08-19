@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 
 import numpy as np
 import pytest
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import expect
 
 from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
@@ -83,7 +84,9 @@ def test_shift(
 
     # add a comment to the shift
     page.locator('//*[@id="root_comment"]').first.fill("This is a comment")
-    page.locator('//button[@type="submitComment"]').first.click()
+    page.locator(
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
+    ).first.click()
 
     expect(page.locator('//*[contains(text(), "This is a comment")]')).to_have_count(1)
 
@@ -305,16 +308,28 @@ def test_shift_summary(
     assert status == 200
 
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/shifts/{shift_id}")
 
-    expect(
-        page.locator(
-            '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
-        ).first
-    ).to_be_visible()
+    # Listing, expanding and the source fetch can each lag under CI load, so
+    # retry the whole sequence: a slow list render used to escape the loop.
+    source_link = page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    gcn_entry = page.locator(
+        '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
+    ).first
+    gcn_toggle = page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first
 
-    page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
-
-    expect(
-        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    ).to_be_visible()
+    last_error = None
+    for _ in range(5):
+        page.goto(f"/shifts/{shift_id}")
+        try:
+            expect(gcn_entry).to_be_visible(timeout=15000)
+            gcn_toggle.click()
+            expect(source_link).to_be_visible(timeout=15000)
+            break
+        except (AssertionError, PlaywrightError) as e:
+            # PlaywrightError: click landing before the row is interactable
+            last_error = e
+    else:
+        raise AssertionError(
+            f"shift {shift_id} never showed the GCN event and its source "
+            f"after 5 attempts; last error: {last_error}"
+        )

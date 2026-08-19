@@ -1,4 +1,7 @@
+import asyncio
 import uuid
+
+import sqlalchemy as sa
 
 from skyportal.tests import api
 
@@ -35,6 +38,54 @@ def test_token_user_post_robotic_followup_request(
 
     for key in request_data:
         assert data["data"][key] == request_data[key]
+
+
+def test_gemini_followup_blank_note_title(
+    public_group_gemini_allocation, public_source, upload_data_token
+):
+    # Regression guard: a blank note title must not crash the Gemini submit.
+    # An unset optional param became None and yarl rejected it in `params=`.
+    request_data = {
+        "allocation_id": public_group_gemini_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "template_ids": "21",
+            "start_date": "2026-05-08 04:00:00",
+            "end_date": "2026-05-08 05:00:00",
+            "l_exptime": 0,
+            "l_elmin": 1.0,
+            "l_elmax": 1.6,
+            "note_title": "",
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+
+def test_winter_followup_submit(
+    public_group_winter_allocation, public_source, upload_data_token
+):
+    # Regression guard: the submit_trigger flag (a bool) must not crash the
+    # WINTER submit (yarl rejects bool in aiohttp params=).
+    request_data = {
+        "allocation_id": public_group_winter_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "filter": "J",
+            "start_date": "2026-05-08 04:00:00",
+            "end_date": "2026-05-08 05:00:00",
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
 
 
 def test_token_user_delete_owned_followup_request(
@@ -323,6 +374,58 @@ def test_default_followup_request_stores_constraints(
     assert match["implements_update"] is False
 
 
+def test_default_followup_request_source_filter_regex_validation(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    def make(name):
+        return _default_followup_payload(
+            public_group,
+            public_group_sedm_allocation,
+            source_filter={"name": name, "group_id": public_group.id},
+        )
+
+    # A valid regex is accepted.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("^ZTF2[0-9].*"),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # A malformed regex is rejected at creation (would otherwise error in
+    # Postgres on every source save).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("([unterminated"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "valid regular expression" in data["message"]
+
+    # A catastrophic-backtracking pattern is rejected at creation (ReDoS guard).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("(a+)+$"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "catastrophic backtracking" in data["message"]
+
+    # An oversized pattern is rejected.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("a" * 1001),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "at most" in data["message"]
+
+
 def test_default_followup_request_without_constraints_is_null(
     public_group, public_group_sedm_allocation, super_admin_token
 ):
@@ -342,3 +445,67 @@ def test_default_followup_request_without_constraints_is_null(
     match = next(r for r in data["data"] if r["id"] == new_id)
     # no constraint keys supplied -> stored as null (always submit)
     assert match["constraints"] is None
+
+
+def test_auto_followup_request_flushes_before_submit(
+    public_group_generic_allocation, super_admin_user
+):
+    # The auto-followup path (refresh_source=False) must flush the new request
+    # before the facility submit() re-queries it by id; otherwise submit() gets
+    # None -> "'NoneType' object has no attribute 'obj'". Call it directly: the
+    # DefaultFollowupRequest firing path runs via run_async, whose executor
+    # thread lacks the async session factory under the test harness.
+    from baselayer.app import models as baselayer_models
+    from skyportal.handlers.api.followup_request import post_followup_request_async
+    from skyportal.models import DBSession, FollowupRequest, Obj, User
+    from skyportal.tests.fixtures import ObjFactory
+
+    alloc = public_group_generic_allocation
+    obj = ObjFactory(groups=[alloc.group])
+    DBSession().commit()
+    obj_id = obj.id
+    data = {
+        "obj_id": obj_id,
+        "allocation_id": alloc.id,
+        "requester_id": super_admin_user.id,
+        "last_modified_by_id": super_admin_user.id,
+        "target_group_ids": [alloc.group_id],
+        "payload": {
+            "priority": 5,
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
+            "observation_choices": alloc.instrument.to_dict()["filters"],
+            "exposure_time": 300,
+            "exposure_counts": 1,
+            "maximum_airmass": 2,
+            "minimum_lunar_distance": 30,
+        },
+    }
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            session.user_or_token = await session.get(User, super_admin_user.id)
+            await post_followup_request_async(data, None, session, refresh_source=False)
+            await session.commit()
+
+    asyncio.run(_run())
+
+    DBSession().expire_all()
+    followup_request = DBSession().scalar(
+        sa.select(FollowupRequest).where(
+            FollowupRequest.obj_id == obj_id,
+            FollowupRequest.allocation_id == alloc.id,
+        )
+    )
+    try:
+        assert followup_request is not None, "auto-followup request was not created"
+        # Without the flush fix, submit() re-queries a None id -> None.obj.
+        assert "NoneType" not in (followup_request.status or ""), (
+            followup_request.status
+        )
+        assert followup_request.status == "submitted", followup_request.status
+    finally:
+        if followup_request is not None:
+            DBSession().delete(followup_request)
+        DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
+        DBSession().commit()

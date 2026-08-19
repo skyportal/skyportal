@@ -5,43 +5,92 @@ import os
 from pathlib import Path
 
 import sqlalchemy as sa
-from marshmallow.exceptions import ValidationError
 from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 
-from ...models import Obj, Thumbnail, User
+from ...models import Broker, Obj, Thumbnail, User
 from ..base import BaseHandler
 
+log = make_log("api/thumbnail")
 
-def post_thumbnail(data, user_id, session):
-    """Post thumbnail to database.
+
+class ThumbnailPostBody(BaseModel):
+    """Request body for uploading a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str = Field(description="ID of object associated with thumbnails.")
+    data: str = Field(
+        description="base64-encoded PNG image file contents. Image size must "
+        "be between 16px and 500px on a side."
+    )
+    ttype: str = Field(
+        description="Thumbnail type. Must be one of 'new', 'ref', 'sub', "
+        "'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'"
+    )
+    survey: str | None = Field(
+        default=None,
+        description="Survey the cutout came from (e.g. ZTF, LSST). NULL for "
+        "all-sky archival thumbnails.",
+    )
+
+
+class ThumbnailPostResponse(BaseModel):
+    """Data payload returned when uploading a thumbnail."""
+
+    id: int = Field(description="New thumbnail ID")
+
+
+class ThumbnailPutBody(BaseModel):
+    """Request body for updating a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(default=None, description="ID of the thumbnail's obj.")
+    type: str | None = Field(
+        default=None, description="Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)"
+    )
+    file_uri: str | None = Field(
+        default=None,
+        description="Path of the Thumbnail on the machine running SkyPortal.",
+    )
+    public_url: str | None = Field(
+        default=None, description="Publically accessible URL of the thumbnail."
+    )
+    origin: str | None = Field(default=None, description="Origin of the Thumbnail.")
+    is_grayscale: bool | None = Field(
+        default=None, description="Whether the thumbnail is (mostly) grayscale."
+    )
+
+
+async def post_thumbnail(data, user_id, session):
+    """Post thumbnail to database (async).
     data: dict
         Thumbnail dictionary
     user_id : int
         SkyPortal ID of User posting the Thumbnail
-    session: sqlalchemy.Session
-        Database session for this transaction
+    session: sqlalchemy.ext.asyncio.AsyncSession
+        Async DB session for this transaction
     """
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
 
-    obj = session.scalars(Obj.select(user).where(Obj.id == data["obj_id"])).first()
+    obj = await session.scalar(Obj.select(user).where(Obj.id == data["obj_id"]))
 
     if obj is None:
         raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
 
     basedir = Path(os.path.dirname(__file__)) / ".." / ".."
-    hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
+    obj_hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
 
     # can someday make this a configurable parameter
     required_depth = 2
-    subfolders = []
-    for i in range(required_depth):
-        subfolders.append(hash[i * 2 : (i + 1) * 2])
-    subfolders = "/".join(subfolders)
+    subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
 
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
@@ -68,6 +117,7 @@ def post_thumbnail(data, user_id, session):
         t = Thumbnail(
             obj_id=data["obj_id"],
             type=data["ttype"],
+            survey=data.get("survey"),
             file_uri=file_uri,
             public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
         )
@@ -75,7 +125,7 @@ def post_thumbnail(data, user_id, session):
             f.write(file_bytes)
 
         session.add(t)
-        session.commit()
+        await session.commit()
 
     except (LookupError, StatementError) as e:
         if "enum" in str(e):
@@ -87,77 +137,33 @@ def post_thumbnail(data, user_id, session):
 
 class ThumbnailHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self, *, body: ThumbnailPostBody = None) -> ThumbnailPostResponse:
         """
         ---
         summary: Upload thumbnails
         description: Upload thumbnails
         tags:
           - thumbnails
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  obj_id:
-                    type: string
-                    description: ID of object associated with thumbnails.
-                  data:
-                    type: string
-                    format: byte
-                    description: base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
-                  ttype:
-                    type: string
-                    description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
-                required:
-                  - data
-                  - ttype
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New thumbnail ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        if "obj_id" not in data:
-            return self.error("Missing required parameter: obj_id")
+        body = self.parse_body(ThumbnailPostBody)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+                thumbnail_id = await post_thumbnail(
+                    body.model_dump(), self.associated_user_object.id, session
+                )
             except Exception as e:
                 return self.error(f"Thumbnail failed to post: {str(e)}")
-            return self.success(data={"id": obj_id})
+            return self.success(data={"id": thumbnail_id})
 
     @auth_or_token
-    def get(self, thumbnail_id: int):
+    async def get(self, thumbnail_id: int):
         """
         ---
         summary: Get a thumbnail
         description: Retrieve a thumbnail
         tags:
           - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -168,90 +174,24 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 Thumbnail.select(session.user_or_token).where(
                     Thumbnail.id == thumbnail_id
                 )
-            ).first()
+            )
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    def put(self, thumbnail_id: int):
+    async def put(self, thumbnail_id: int, *, body: ThumbnailPutBody = None):
         """
         ---
         summary: Update a thumbnail
         description: Update thumbnail
         tags:
           - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: ThumbnailNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Thumbnail'
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        with self.Session() as session:
-            t = session.scalars(
-                Thumbnail.select(session.user_or_token, mode="update").where(
-                    Thumbnail.id == thumbnail_id
-                )
-            ).first()
-            if t is None:
-                return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
-
-            data = self.get_json()
-            data["id"] = thumbnail_id
-
-            schema = Thumbnail.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
-
-            for k in data:
-                setattr(t, k, data[k])
-
-            session.commit()
-            return self.success()
-
-    @permissions(["Manage sources"])
-    def delete(self, thumbnail_id: int):
-        """
-        ---
-        summary: Delete a thumbnail
-        description: Delete a thumbnail
-        tags:
-          - thumbnails
-        parameters:
-          - in: path
-            name: thumbnail_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -262,25 +202,58 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        with self.Session() as session:
-            t = session.scalars(
-                Thumbnail.select(session.user_or_token, mode="delete").where(
+        body = self.parse_body(ThumbnailPutBody)
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
+                Thumbnail.select(session.user_or_token, mode="update").where(
                     Thumbnail.id == thumbnail_id
                 )
-            ).first()
+            )
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
-            session.delete(t)
-            session.commit()
+            for field in body.model_fields_set:
+                setattr(t, field, getattr(body, field))
+
+            await session.commit()
+            return self.success()
+
+    @permissions(["Manage sources"])
+    async def delete(self, thumbnail_id: int):
+        """
+        ---
+        summary: Delete a thumbnail
+        description: Delete a thumbnail
+        tags:
+          - thumbnails
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
+                Thumbnail.select(session.user_or_token, mode="delete").where(
+                    Thumbnail.id == thumbnail_id
+                )
+            )
+            if t is None:
+                return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
+
+            await session.delete(t)
+            await session.commit()
 
             return self.success()
 
 
 class ThumbnailPathHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Check thumbnail paths
@@ -338,28 +311,22 @@ class ThumbnailPathHandler(BaseHandler):
 
         """
         types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2)
-        try:
-            required_depth = int(required_depth)
-        except ValueError:
+        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
+        if required_depth is None:
             return self.error("requiredDepth must be an integer")
 
         if required_depth < 0 or required_depth > 32:
             return self.error("requiredDepth must be between 0 and 32")
 
-        # a string glob to match the required depth:
-        # e.g., if required_depth is 2, then a good match is:
-        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
-        # This will accept anything with AT LEAST the number of
-        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
-        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
-        with self.Session() as session:
-            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
-                session, types, good_like, bad_like
-            )
+        async with self.AsyncSession() as session:
+            (
+                total_matches,
+                good_matches,
+                bad_matches,
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -370,7 +337,7 @@ class ThumbnailPathHandler(BaseHandler):
         )
 
     @permissions(["System admin"])
-    def patch(self):
+    async def patch(self):
         """
         ---
         summary: Update thumbnail paths
@@ -444,37 +411,25 @@ class ThumbnailPathHandler(BaseHandler):
         from .alert import alert_available
 
         types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2)
-        try:
-            required_depth = int(required_depth)
-        except ValueError:
+        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
+        if required_depth is None:
             return self.error("requiredDepth must be an integer")
 
         if required_depth <= 0 or required_depth > 32:
             return self.error("requiredDepth must be at least 0 and no bigger than 31.")
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", 100)),
-                1000,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument("numPerPage", 100, type=int)
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, 1000)
 
-        # a string glob to match the required depth:
-        # e.g., if required_depth is 2, then a good match is:
-        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
-        # This will accept anything with AT LEAST the number of
-        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
-        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         num_moved = 0
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
             stmt = stmt.where(
                 sa.or_(
@@ -484,25 +439,23 @@ class ThumbnailPathHandler(BaseHandler):
             )
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            thumbnails = session.execute(stmt).scalars().unique().all()
+            result = await session.scalars(stmt)
+            thumbnails = result.unique().all()
             for t in thumbnails:
                 if t.file_uri is None:
                     continue
 
                 if alert_available:
-                    # check file exists and non-empty
-                    # if not, delete and repost thumbnail from alerts
-                    ok = check_thumbnail_file(
+                    ok = await check_thumbnail_file(
                         t, self.associated_user_object.id, session
                     )
                     if not ok:
                         # the delete is committed in check_thumbnail_file
                         continue
-                hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
-                subfolders = []
-                for i in range(required_depth):
-                    subfolders.append(hash[i * 2 : (i + 1) * 2])
-                subfolders = "/".join(subfolders)
+                obj_hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
+                subfolders = "/".join(
+                    obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth)
+                )
                 path = (
                     "thumbnails".join(t.file_uri.split("thumbnails")[:-1])
                     + "thumbnails"
@@ -523,29 +476,26 @@ class ThumbnailPathHandler(BaseHandler):
                         f"Could not move {old_file_uri} to {new_file_uri}: {e}"
                     )
 
-                # in case the old file is missing but also the new...
                 if not os.path.isfile(new_file_uri):
                     return self.error(f"File {new_file_uri} does not exist!")
 
-                # only if the move was successful
-                # (or the file already existed)
-                # do we change the thumbnail's file_uri
                 try:
                     t.file_uri = new_file_uri
                     t.public_url = new_public_url
                     session.add(t)
-                    session.commit()
+                    await session.commit()
                 except Exception as e:
-                    session.rollback()
-                    # make sure to move the files back as well
+                    await session.rollback()
                     os.rename(new_file_uri, old_file_uri)
                     return self.error(f"Could not update database row: {e}")
 
                 num_moved += 1
 
-            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
-                session, types, good_like, bad_like
-            )
+            (
+                total_matches,
+                good_matches,
+                bad_matches,
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -561,7 +511,7 @@ class ThumbnailPathHandler(BaseHandler):
     # of moving them to the correct folder
 
     @permissions(["System admin"])
-    def delete(self):
+    async def delete(self):
         """
         ---
         summary: Delete empty thumbnail folders
@@ -582,7 +532,7 @@ class ThumbnailPathHandler(BaseHandler):
             os.path.dirname(__file__), "../../../", "static", "thumbnails"
         )
         basepath = os.path.abspath(basepath)
-        for root, dirs, files in os.walk(basepath, topdown=False):
+        for root, dirs, _files in os.walk(basepath, topdown=False):
             for d in dirs:
                 try:
                     os.removedirs(os.path.join(root, d))
@@ -592,104 +542,118 @@ class ThumbnailPathHandler(BaseHandler):
         return self.success()
 
 
-def count_thumbnails_in_folders(session, types, good_like, bad_like):
-    """
-    Count the number of thumbnails in the correct and incorrect folders.
-
-    Parameters
-    ----------
-    session : `sqlalchemy.orm.session.Session`
-        The database session.
-    types : list of str
-        The types of thumbnails to count.
-        Usually this is ['new', 'ref', 'sub']
-        for all the thumbnail types stored locally.
-
-    Returns
-    -------
-    total_matches : int
-        The total number of thumbnails in the database
-        of the types specified.
-    good_matches : int
-        The number of thumbnails in the correct folder.
-    bad_matches : int
-        The number of thumbnails in the incorrect folder.
-
-    """
+async def count_thumbnails_in_folders(session, types, good_like, bad_like):
+    """Async version: Count the number of thumbnails in the correct and incorrect folders."""
     stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-    count_stmt = sa.select(func.count()).select_from(stmt)
-    total_matches = session.execute(count_stmt).scalar()
+    total_matches = await session.scalar(
+        sa.select(func.count()).select_from(stmt.subquery())
+    )
     good_stmt = stmt.where(
         Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
     )
-    good_matches = session.execute(
-        sa.select(func.count()).select_from(good_stmt)
-    ).scalar()
+    good_matches = await session.scalar(
+        sa.select(func.count()).select_from(good_stmt.subquery())
+    )
     bad_stmt = stmt.where(
         sa.or_(
             ~Thumbnail.file_uri.like(good_like),
             Thumbnail.file_uri.like(bad_like),
         )
     )
-    bad_matches = session.execute(
-        sa.select(func.count()).select_from(bad_stmt)
-    ).scalar()
+    bad_matches = await session.scalar(
+        sa.select(func.count()).select_from(bad_stmt.subquery())
+    )
 
     return total_matches, good_matches, bad_matches
 
 
-def check_thumbnail_file(thumbnail, user_id, session):
+async def recreate_thumbnails_from_broker(obj_id, user_id, session):
+    """Rebuild an object's thumbnails from a broker's cutouts.
+
+    Uses the broker flagged for alert search, else any active broker that can
+    serve both an alert and its cutouts. Returns whether anything was posted.
     """
-    Check if a thumbnail file exists on disk
-    and if not, delete the thumbnail and
-    post a new one from alerts.
-    Should NOT BE CALLED if alerts are not available.
+    from ...broker_apis._thumbnails import add_thumbnails
+    from .broker import alert_permissions_async
 
-    Parameters
-    ----------
-    thumbnail : `baselayer.app.models.Thumbnail`
-        The thumbnail to check.
-    user_id : int
-        The ID of the user to post the new thumbnail as.
-    session : `sqlalchemy.orm.session.Session`
-        The database session.
+    user = await session.get(User, user_id)
+    if user is None:
+        return False
+    # Providers fail closed on the stream scope: BOOM turns a missing
+    # `permissions` into an empty programid list, which matches no alert and
+    # returns nothing rather than raising, so the rebuild quietly does nothing.
+    permissions = await alert_permissions_async(user, session)
 
-    Returns
-    -------
-    bool:
-    True if the thumbnail file was ok.
-    False if the thumbnail was deleted and a new one was posted.
+    brokers = (
+        await session.scalars(
+            sa.select(Broker)
+            .where(Broker.active.is_(True))
+            .order_by(Broker.default_alert_search.desc(), Broker.id)
+        )
+    ).all()
+
+    for broker in brokers:
+        capabilities = broker.broker_class.implements()
+        if not (capabilities.get("get_alert") and capabilities.get("get_cutouts")):
+            continue
+        try:
+            data = broker.broker_class.get_alert(
+                broker, obj_id, session, permissions=permissions
+            )
+            candid = (data or {}).get("candid") or (
+                (data or {}).get("candidate") or {}
+            ).get("candid")
+            if candid is None:
+                continue
+            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
+            cutouts = broker.broker_class.get_cutouts(
+                broker, candid, session, survey=survey, permissions=permissions
+            )
+            if not cutouts:
+                continue
+            await add_thumbnails(obj_id, cutouts, survey, session, user_id=user_id)
+            return True
+        except Exception as e:
+            log(f"Could not rebuild thumbnails for {obj_id} from {broker.name}: {e}")
+
+    return False
 
 
+async def check_thumbnail_file(thumbnail, user_id, session):
+    """Check whether a thumbnail's file is present, and rebuild it if not.
+
+    Returns True when the file is usable; when it is missing the row is dropped
+    and the cutouts are re-fetched, so the caller should skip this thumbnail.
     """
     # need to import this here because alert.py might import this file
     from .alert import alert_available, post_alert
-
-    if not alert_available:
-        raise RuntimeError("Cannot recreate thumbnails without alerts!")
 
     if (
         not os.path.isfile(thumbnail.file_uri)
         or os.stat(thumbnail.file_uri).st_size == 0
     ):
-        # Thumbnail file is missing or empty, delete the thumbnail
+        obj_id = thumbnail.obj_id
         try:
             os.remove(thumbnail.file_uri)
         except Exception:
-            pass  # if the file isn't there, don't worry about it
+            pass
         finally:
-            session.delete(thumbnail)
-            session.commit()
+            await session.delete(thumbnail)
+            await session.commit()
 
-        # Post a new one from alerts
-        post_alert(
-            object_id=thumbnail.obj_id,
-            candid=None,
-            group_ids="all",
-            user_id=user_id,
-            session=session,
-            thumbnails_only=True,
-        )
+        if alert_available:
+            # post_alert is overridden by Fritz; if it's been made async there,
+            # it should be awaited; the base stub is a no-op.
+            post_alert(
+                object_id=obj_id,
+                candid=None,
+                group_ids="all",
+                user_id=user_id,
+                session=session,
+                thumbnails_only=True,
+            )
+        else:
+            await recreate_thumbnails_from_broker(obj_id, user_id, session)
 
         return False
 

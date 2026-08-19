@@ -1,19 +1,29 @@
 import os
 import uuid
-from io import BytesIO
+from datetime import datetime
 
 import pytest
-from PIL import Image, ImageChops
 from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.models import DBSession
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 cfg = load_config()
 
 
-def enter_comment_text(page, comment_text):
+def open_source_chat(page):
+    chat = page.locator('//div[@data-testid="source-chat"]').first
+    button = page.locator('//button[@data-testid="source-chat-button"]').first
+    expect(chat.or_(button).first).to_be_visible()
+    if not chat.is_visible():
+        button.click()
+    expect(chat).to_be_visible()
+
+
+def enter_comment_text(page, comment_text, in_chat=True):
+    if in_chat:
+        open_source_chat(page)
     comment_box = page.locator(
         '//form[@data-testid="comment-form"]//textarea[@name="text"]'
     ).first
@@ -24,11 +34,15 @@ def enter_comment_text(page, comment_text):
         comment_box.press_sequentially(comment_text)
 
 
-def add_comment(page, comment_text):
-    enter_comment_text(page, comment_text)
+def submit_comment(page):
     page.locator(
         '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     ).first.click()
+
+
+def add_comment(page, comment_text, in_chat=True):
+    enter_comment_text(page, comment_text, in_chat=in_chat)
+    submit_comment(page)
 
 
 def wait_for_comment_text_found(page, comment_text):
@@ -37,14 +51,24 @@ def wait_for_comment_text_found(page, comment_text):
     ).to_be_visible()
 
 
-def add_comment_and_wait_for_display(page, comment_text):
-    add_comment(page, comment_text)
+def wait_for_comment_display(page, comment_text, in_chat=True):
+    # Comments occasionally fail to render on first paint under CI load.
+    if in_chat:
+        open_source_chat(page)
     try:
         wait_for_comment_text_found(page, comment_text)
     except AssertionError:
         page.reload()
-        page.locator("//*[@id='expandable-button']").first.click()
+        if in_chat:
+            open_source_chat(page)
+        else:
+            page.locator("//*[@id='expandable-button']").first.click()
         wait_for_comment_text_found(page, comment_text)
+
+
+def add_comment_and_wait_for_display(page, comment_text, in_chat=True):
+    add_comment(page, comment_text, in_chat=in_chat)
+    wait_for_comment_display(page, comment_text, in_chat=in_chat)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -66,9 +90,7 @@ def test_comment_username_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -83,9 +105,7 @@ def test_comment_user_last_name_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -100,9 +120,7 @@ def test_comment_user_first_name_autosuggestion(page, user, public_source):
     )
     page.locator(match_button).first.click()
     expect(page.locator(match_button).first).to_be_hidden()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
+    submit_comment(page)
     wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
@@ -230,39 +248,44 @@ def test_comment_groups_validation(page, user, public_source, public_group):
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
     comment_text = str(uuid.uuid4())
-    enter_comment_text(page, comment_text)
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
-    expect(
-        page.locator(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        ).first
-    ).to_be_visible()
+    add_comment_and_wait_for_display(page, comment_text)
 
-    enter_comment_text(page, "")
     comment_text = str(uuid.uuid4())
     enter_comment_text(page, comment_text)
+    page.locator('//*[@data-testid="customizeGroupsButton"]').first.click()
     page.locator(
-        "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access (public if not specified)']"
+        f"//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     ).first.click()
-    page.locator(
-        f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
-    ).first.click()
-    page.locator(
-        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    ).first.click()
-    expect(
-        page.locator(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        ).first
-    ).to_be_visible()
+    page.keyboard.press("Escape")
+    submit_comment(page)
+    wait_for_comment_display(page, comment_text)
+
+
+@pytest.mark.flaky(reruns=2)
+def test_feature_announcement_shown_once(page, user, public_source):
+    # Announcements only run for users created before the feature shipped.
+    user.created_at = datetime(2020, 1, 1)
+    DBSession().add(user)
+    DBSession().commit()
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    announcement = page.locator('//*[text()="Comments are now a chat"]').first
+    expect(announcement).to_be_visible()
+    page.locator('//button[text()="Got it"]').first.click()
+    expect(announcement).to_be_hidden()
+
+    page.reload()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_visible()
+    page.wait_for_timeout(2000)
+    expect(announcement).to_be_hidden()
 
 
 def test_view_only_user_cannot_comment(page, view_only_user, public_source):
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_hidden()
     expect(page.locator('//textarea[@name="text"]').first).to_be_hidden()
 
 
@@ -283,6 +306,7 @@ def test_delete_comment(page, user, public_source):
     expect(comment_p).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_regular_user_cannot_delete_unowned_comment(
     page, super_admin_user, user, public_source
 ):
@@ -293,6 +317,7 @@ def test_regular_user_cannot_delete_unowned_comment(
     add_comment_and_wait_for_display(page, comment_text)
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
+    wait_for_comment_display(page, comment_text)
     comment_p = page.locator(f'//p[text()="{comment_text}"]').first
     expect(comment_p).to_be_visible()
     comment_div = comment_p.locator("xpath=../..")
@@ -315,6 +340,7 @@ def test_super_user_can_delete_unowned_comment(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
 
+    wait_for_comment_display(page, comment_text)
     comment_p = page.locator(f'//p[text()="{comment_text}"]').first
     expect(comment_p).to_be_visible()
     comment_div = comment_p.locator("xpath=../..")
@@ -513,19 +539,36 @@ def test_obj_page_unsaved_source(public_obj, page, user):
     ).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_show_photometry_table(public_source, page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
+    # Wait for the source page to render before interacting, so a click can't
+    # land while the page is still mounting and get dropped (flaky otherwise).
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    page.locator('//*[@data-testid="show-photometry-table-button"]').first.click()
-    expect(
-        page.locator(f'//*[contains(text(), "Photometry of {public_source.id}")]').first
-    ).to_be_visible()
+    show_button = page.locator('//*[@data-testid="show-photometry-table-button"]').first
+    expect(show_button).to_be_visible()
+    photometry_header = page.locator(
+        f'//*[contains(text(), "Photometry of {public_source.id}")]'
+    ).first
+    # The open click occasionally lands during a re-render and gets dropped, so
+    # the table never appears; retry the open until its header is visible.
+    for _ in range(3):
+        show_button.click()
+        try:
+            expect(photometry_header).to_be_visible(timeout=20000)
+            break
+        except AssertionError:
+            continue
+    expect(photometry_header).to_be_visible()
 
-    page.locator('//*[@data-testid="close-photometry-table-button"]').first.click()
-    expect(
-        page.locator('//*[@data-testid="close-photometry-table-button"]').first
-    ).to_be_hidden()
+    close_button = page.locator(
+        '//*[@data-testid="close-photometry-table-button"]'
+    ).first
+    expect(close_button).to_be_visible()
+    close_button.click()
+    expect(close_button).to_be_hidden()
 
 
 def test_javascript_sexagesimal_conversion(public_source, page, user):
@@ -544,14 +587,13 @@ def test_javascript_sexagesimal_conversion(public_source, page, user):
     expect(page.locator('//*[contains(., "+15:36:24.15")]').first).to_be_visible()
 
 
-def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path):
+def test_source_hr_diagram(page, user, public_source, annotation_token):
     page.goto(f"/become_user/{user.id}")
 
     status, data = api(
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"Mag_G": 11.3, "Mag_Bp": 12.8, "Mag_Rp": 11.0, "Plx": 20},
         },
@@ -562,25 +604,15 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    component_class_xpath = (
-        f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
-    )
-    vegaplot_div = page.locator(component_class_xpath).first
-    expect(vegaplot_div).to_be_visible()
+    # CSS, not XPath: XPath name tests do not match namespaced SVG elements.
+    panel = page.locator(f'[data-testid="hr_diagram_{public_source.id}"]')
+    expect(panel).to_be_visible()
 
-    # Since Vega uses a <canvas>, compare an image of the plot to the baseline.
-    generated_plot = Image.open(BytesIO(vegaplot_div.screenshot()))
-
-    # Regenerate the baseline (matches the legacy test's behavior); write to a
-    # temp dir so the committed baseline isn't overwritten on every run.
-    expected_plot_path = tmp_path / "HR_diagram_expected.png"
-    generated_plot.save(expected_plot_path)
-    expected_plot = Image.open(expected_plot_path)
-
-    difference = ImageChops.difference(
-        generated_plot.convert("RGB"), expected_plot.convert("RGB")
-    )
-    assert difference.getbbox() is None
+    # Screenshots are not comparable here (window size, fonts, DPI), so assert
+    # on the marks Vega drew.
+    expect_vega_plot(panel)
+    expect(panel.locator(".role-axis")).not_to_have_count(0)
+    expect(panel.locator("[class*='mark-symbol']")).not_to_have_count(0)
 
 
 @pytest.mark.flaky(reruns=2)

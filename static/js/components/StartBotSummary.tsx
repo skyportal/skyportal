@@ -48,7 +48,9 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item: any) => item.name === name),
   );
-  const allGroups = useGetGroupsQuery().data?.all ?? null;
+  // Groups the user can access (all groups for sysadmins, member groups
+  // otherwise) so users can't share a summary with a group they're not in.
+  const allGroups = useGetGroupsQuery().data?.userAccessible ?? null;
   const prefs: any = useGetProfileQuery().data?.preferences;
   const { data: config } = useGetConfigQuery() as { data: any };
 

@@ -2,6 +2,7 @@ import React from "react";
 import { connect } from "react-redux";
 
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -123,10 +124,12 @@ class ErrorBoundary extends React.Component<
             .
           </p>
 
-          <pre
-            style={{
-              border: "solid lightgray 1px",
-              background: "#eee",
+          <Box
+            component="pre"
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
               padding: "1rem",
               paddingRight: "2rem",
               borderRadius: "0.5rem",
@@ -147,7 +150,7 @@ class ErrorBoundary extends React.Component<
               </IconButton>
             </Tooltip>
             {this.errorReport(displayStack)}
-          </pre>
+          </Box>
           {stack && (
             <Button
               size="small"

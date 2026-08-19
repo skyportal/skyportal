@@ -1,5 +1,5 @@
 import React from "react";
-import embed from "vega-embed";
+import embedVega from "../plot/vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 
 const airmassSpec = (
@@ -9,6 +9,9 @@ const airmassSpec = (
 ): any => ({
   $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
   background: "transparent",
+  width: "container",
+  height: 300,
+  autosize: { type: "fit-x", contains: "padding" },
   data: {
     url,
     format: {
@@ -47,6 +50,13 @@ const airmassSpec = (
   layer: [
     {
       mark: { type: "line", clip: true, point: true },
+      params: [
+        {
+          name: "zoom",
+          select: { type: "interval", encodings: ["x"] },
+          bind: "scales",
+        },
+      ],
       encoding: {
         x: { field: "date" },
         y: { field: "hours_below" },
@@ -67,15 +77,19 @@ interface HoursBelowAirmassPlotProps {
   dataUrl: string;
 }
 
+// Jinja renders this file, so JSX double braces have to stay out of the markup.
+const plotStyle = { width: "100%", minWidth: 360 };
+
 const HoursBelowAirmassPlot = React.memo(
   (props: HoursBelowAirmassPlotProps) => {
     const { dataUrl } = props;
     const theme = useTheme() as any;
     return (
       <div
+        style={plotStyle}
         ref={(node) => {
           if (node) {
-            embed(
+            embedVega(
               node,
               airmassSpec(
                 dataUrl,

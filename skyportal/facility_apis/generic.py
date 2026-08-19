@@ -1,7 +1,9 @@
 import json
 from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -64,7 +66,7 @@ class GENERICAPI(FollowUpAPI):
     """SkyPortal interface for generic imaging follow-up"""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to an instrument.
 
         Parameters
@@ -75,7 +77,7 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import Allocation, FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
 
         if (
             getattr(request, "allocation", None) is None
@@ -86,12 +88,28 @@ class GENERICAPI(FollowUpAPI):
             getattr(request, "allocation", None) is None
             and getattr(request, "allocation_id", None) is not None
         ):
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == request.allocation_id
+            allocation = (
+                await session.scalars(
+                    Allocation.select(session.user_or_token).where(
+                        Allocation.id == request.allocation_id
+                    )
                 )
             ).first()
             request.allocation = allocation
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         validate_request(request, request.allocation.instrument.to_dict()["filters"])
 
@@ -113,21 +131,26 @@ class GENERICAPI(FollowUpAPI):
                     "allocation_id": request.allocation.id,
                     "payload": request.payload,
                 }
+                url = altdata["endpoint"]
+                headers = {"Authorization": f"token {altdata['api_token']}"}
 
-                r = requests.post(
-                    altdata["endpoint"],
-                    json=payload,
-                    headers={"Authorization": f"token {altdata['api_token']}"},
-                )
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(
+                        url, json=payload, headers=headers
+                    ) as r:
+                        content = await r.text()
+                        status = r.status
 
-                if r.status_code == 200:
+                if status == 200:
                     request.status = "submitted"
                 else:
-                    request.status = f"rejected: {r.content}"
+                    request.status = f"rejected: {content}"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request(
+                        "POST", url, headers, payload
+                    ),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -135,7 +158,7 @@ class GENERICAPI(FollowUpAPI):
             elif altdata.get("notification_type") == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
-                request_notify_by_slack(request, session)
+                await request_notify_by_slack(request, session)
 
                 request.status = "submitted"
 
@@ -149,7 +172,7 @@ class GENERICAPI(FollowUpAPI):
             elif altdata.get("notification_type") == "email":
                 from ..utils.notifications import request_notify_by_email
 
-                request_notify_by_email(request, session)
+                await request_notify_by_email(request, session)
 
                 request.status = "submitted"
 
@@ -190,7 +213,7 @@ class GENERICAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from the instrument queue.
 
         Parameters
@@ -201,7 +224,22 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -209,32 +247,31 @@ class GENERICAPI(FollowUpAPI):
         altdata = request.allocation.altdata
         has_valid_transaction = False
         if altdata:
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
             if (
-                getattr(req, "transactions", None) is not None
-                and getattr(req, "transactions", None) != []
-                and getattr(req.transactions[0], "response", None) is not None
+                getattr(request, "transactions", None) is not None
+                and getattr(request, "transactions", None) != []
+                and getattr(request.transactions[0], "response", None) is not None
             ):
-                content = req.transactions[0].response["content"]
+                content = request.transactions[0].response["content"]
                 content = json.loads(content)
 
                 uid = content["data"]["id"]
 
-                r = requests.delete(
-                    f"{altdata['endpoint']}/{uid}",
-                    headers={"Authorization": f"token {altdata['api_token']}"},
-                )
-                r.raise_for_status()
+                url = f"{altdata['endpoint']}/{uid}"
+                headers = {"Authorization": f"token {altdata['api_token']}"}
+
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.delete(url, headers=headers) as r:
+                        content = await r.text()
+                        status = r.status
+
+                if status >= 400:
+                    raise ValueError(f"Error deleting request: status {status}")
                 request.status = "deleted"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request("DELETE", url, headers),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -267,7 +304,7 @@ class GENERICAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def update(request, session, **kwargs):
+    async def update(request, session, **kwargs):
         """Update a request in the instrument queue.
 
         Parameters
@@ -278,7 +315,21 @@ class GENERICAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         validate_request(request, request.allocation.instrument.to_dict()["filters"])
 
@@ -290,21 +341,22 @@ class GENERICAPI(FollowUpAPI):
                 "allocation_id": request.allocation.id,
                 "payload": request.payload,
             }
+            url = altdata["endpoint"]
+            headers = {"Authorization": f"token {altdata['api_token']}"}
 
-            r = requests.post(
-                altdata["endpoint"],
-                json=payload,
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
 
-            if r.status_code == 200:
+            if status == 200:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.content}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )

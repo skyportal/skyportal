@@ -58,21 +58,45 @@ import * as hydrationActions from "./ducks/hydration";
 
 export default function hydrate() {
   return (dispatch) => {
-    // Dashboard data, refreshed on navigation. Everything else is fetched
-    // on-demand by each page's RTK Query hooks (no eager boot prefetch).
-    dispatch(newsFeedActions.newsFeedApi.endpoints.getNewsFeed.initiate());
+    // One-shot forced refetch of the dashboard widgets (navigation + Refresh
+    // button). forceRefetch is required: a bare initiate() is a no-op for an
+    // already-subscribed query, leaving the feed stale and Refresh inert.
+    const refetch = { subscribe: false, forceRefetch: true };
     dispatch(
-      topSourcesActions.topSourcesApi.endpoints.getTopSources.initiate(),
-    );
-    dispatch(topSaversActions.topSaversApi.endpoints.getTopSavers.initiate());
-    dispatch(
-      recentSourcesActions.recentSourcesApi.endpoints.getRecentSources.initiate(),
-    );
-    dispatch(
-      sourceCountsActions.sourceCountsApi.endpoints.getSourceCounts.initiate(),
+      newsFeedActions.newsFeedApi.endpoints.getNewsFeed.initiate(
+        undefined,
+        refetch,
+      ),
     );
     dispatch(
-      recentGcnEventsActions.recentGcnEventsApi.endpoints.getRecentGcnEvents.initiate(),
+      topSourcesActions.topSourcesApi.endpoints.getTopSources.initiate(
+        undefined,
+        refetch,
+      ),
+    );
+    dispatch(
+      topSaversActions.topSaversApi.endpoints.getTopSavers.initiate(
+        undefined,
+        refetch,
+      ),
+    );
+    dispatch(
+      recentSourcesActions.recentSourcesApi.endpoints.getRecentSources.initiate(
+        undefined,
+        refetch,
+      ),
+    );
+    dispatch(
+      sourceCountsActions.sourceCountsApi.endpoints.getSourceCounts.initiate(
+        undefined,
+        refetch,
+      ),
+    );
+    dispatch(
+      recentGcnEventsActions.recentGcnEventsApi.endpoints.getRecentGcnEvents.initiate(
+        undefined,
+        refetch,
+      ),
     );
   };
 }

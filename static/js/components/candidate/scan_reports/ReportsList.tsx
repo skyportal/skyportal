@@ -6,12 +6,14 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Pagination from "@mui/material/Pagination";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useGetScanReportsQuery } from "../../../ducks/candidate/scan_reports";
+import { useIsReadOnly } from "../../../ducks/profile";
 import ReportItems from "./ReportItems";
 import GenerateReportForm from "./GenerateReportForm";
 import DownloadReport from "./DownloadReport";
@@ -58,12 +60,18 @@ const Item = styled("div")({
   marginBottom: "0.8rem",
 });
 
+const NUM_PER_PAGE = 10;
+
 const ReportsList = () => {
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
+  const [page, setPage] = useState(1);
   const { data: scanReports, isFetching: loading } = useGetScanReportsQuery({
-    numPerPage: 10,
-    page: 1,
+    numPerPage: NUM_PER_PAGE,
+    page,
   });
+  const reports = scanReports?.reports ?? [];
+  const totalMatches = scanReports?.totalMatches ?? 0;
   const [idReportOpen, setIdReportOpen] = useState<any>(null);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] =
     useState(false);
@@ -89,22 +97,26 @@ const ReportsList = () => {
             <FieldTitle>Author</FieldTitle>
             <FieldTitle>Groups</FieldTitle>
             <FieldTitle sx={{ justifyContent: "right" }}>
-              <IconButton
-                name="new_report"
-                onClick={() => setGenerateReportDialogOpen(true)}
-              >
-                <Tooltip title="Generate a report of scanned candidates">
-                  <AddIcon />
-                </Tooltip>
-              </IconButton>
-              <GenerateReportForm
-                dialogOpen={generateReportDialogOpen}
-                setDialogOpen={setGenerateReportDialogOpen}
-              />
+              {!isReadOnly && (
+                <>
+                  <IconButton
+                    name="new_report"
+                    onClick={() => setGenerateReportDialogOpen(true)}
+                  >
+                    <Tooltip title="Generate a report of scanned candidates">
+                      <AddIcon />
+                    </Tooltip>
+                  </IconButton>
+                  <GenerateReportForm
+                    dialogOpen={generateReportDialogOpen}
+                    setDialogOpen={setGenerateReportDialogOpen}
+                  />
+                </>
+              )}
             </FieldTitle>
           </FieldsTitle>
-          {scanReports && scanReports.length > 0 ? (
-            scanReports.map((scanReport: any) => (
+          {reports.length > 0 ? (
+            reports.map((scanReport: any) => (
               <FieldsAndItems key={scanReport.id}>
                 <Fields>
                   <Field>{displayDate(scanReport.created_at)}</Field>
@@ -165,6 +177,21 @@ const ReportsList = () => {
             </Item>
           )}
         </List>
+        {totalMatches > NUM_PER_PAGE && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              marginTop: "1rem",
+            }}
+          >
+            <Pagination
+              count={Math.ceil(totalMatches / NUM_PER_PAGE)}
+              page={page}
+              onChange={(_event, value) => setPage(value)}
+            />
+          </Box>
+        )}
       </Paper>
     </Box>
   );

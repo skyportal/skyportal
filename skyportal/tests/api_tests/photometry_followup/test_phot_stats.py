@@ -1,9 +1,15 @@
+import asyncio
 import traceback
 import uuid
 
 import numpy as np
+import pytest
+import sqlalchemy as sa
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
+from skyportal.handlers.api.photometry import add_external_photometry
+from skyportal.models import User
 from skyportal.models.phot_stat import PhotStat
 from skyportal.models.photometry import PHOT_ZP, Photometry
 from skyportal.tests import api
@@ -961,3 +967,209 @@ def check_dict_has_no_nans(some_dict):
                 assert not np.isnan(v)
             if isinstance(v, dict):
                 check_dict_has_no_nans(v)
+
+
+def test_phot_stat_incremental_matches_full_recompute(
+    super_admin_token, super_admin_user, public_group, ztf_camera
+):
+    """Re-detections take the incremental PhotStat path (add only the points an
+    insert actually created, no full-lightcurve re-read). After an initial
+    detection and several re-detections, the maintained PhotStat must equal a
+    from-scratch full_update over all of the object's photometry — no drift."""
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": np.random.uniform(0, 360),
+            "dec": np.random.uniform(-90, 90),
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    rounds = [
+        # round 1: initial detection (object is new -> full_update)
+        [
+            (60000.0, "ztfr", 5e5, 1e4),
+            (60001.0, "ztfg", 6e5, 1e4),
+            (60002.0, "ztfr", None, 2e5),
+        ],  # last is an upper limit
+        # rounds 2-3: re-detections re-send prior points + add new ones, so the
+        # new points go through add_photometry_point incrementally
+        [
+            (60000.0, "ztfr", 5e5, 1e4),
+            (60001.0, "ztfg", 6e5, 1e4),
+            (60002.0, "ztfr", None, 2e5),
+            (60003.0, "ztfr", 8e5, 1e4),
+            (60004.0, "ztfg", 4e5, 1e4),
+        ],
+        [(60003.0, "ztfr", 8e5, 1e4), (60005.0, "ztfr", 9e5, 1e4)],
+    ]
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as s:
+            for points in rounds:
+                u = await s.get(User, super_admin_user.id)
+                n = len(points)
+                payload = {
+                    "obj_id": [source_id] * n,
+                    "instrument_id": ztf_camera.id,
+                    "group_ids": [public_group.id],
+                    "mjd": [p[0] for p in points],
+                    "filter": [p[1] for p in points],
+                    "flux": [p[2] for p in points],
+                    "fluxerr": [p[3] for p in points],
+                    "zp": [23.9] * n,
+                    "magsys": ["ab"] * n,
+                    "ra": [1.0] * n,
+                    "dec": [2.0] * n,
+                    "origin": ["incr-test"] * n,
+                }
+                await add_external_photometry(payload, u, s)
+
+            stored = await s.scalar(
+                sa.select(PhotStat).where(PhotStat.obj_id == source_id)
+            )
+            assert stored is not None
+            fresh = PhotStat(obj_id=source_id)
+            all_phot = (
+                await s.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == source_id)
+                )
+            ).all()
+            fresh.full_update(all_phot)
+
+            assert stored.num_obs_global == fresh.num_obs_global
+            assert dict(stored.num_obs_per_filter) == dict(fresh.num_obs_per_filter)
+            assert dict(stored.num_det_per_filter) == dict(fresh.num_det_per_filter)
+            for filt, peak in fresh.peak_mag_per_filter.items():
+                assert stored.peak_mag_per_filter[filt] == pytest.approx(peak)
+                assert stored.mean_mag_per_filter[filt] == pytest.approx(
+                    fresh.mean_mag_per_filter[filt]
+                )
+            assert stored.first_detected_mjd == pytest.approx(fresh.first_detected_mjd)
+            assert stored.last_detected_mjd == pytest.approx(fresh.last_detected_mjd)
+
+    asyncio.run(_run())
+
+
+def test_phot_stat_aggregate(upload_data_token, public_group, ztf_camera):
+    # metadata-only request returns the plottable field list
+    status, data = api("GET", "phot_stats/aggregate", token=upload_data_token)
+    assert status == 200
+    field_values = {f["value"] for f in data["data"]["fields"]}
+    assert "peak_mag_global" in field_values
+    assert "rise_rate" in field_values
+    assert data["data"]["points"] == []
+
+    # a source with photometry gets a PhotStat and should appear
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": np.random.uniform(0, 360),
+            "dec": np.random.uniform(-90, 90),
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    for mjd, flux in zip(np.linspace(57000, 57100, 4), [10.0, 110.0, 170.0, 90.0]):
+        status, data = api(
+            "POST",
+            "photometry",
+            data={
+                "obj_id": source_id,
+                "mjd": mjd,
+                "instrument_id": ztf_camera.id,
+                "flux": flux,
+                "fluxerr": 10.0,
+                "zp": 25.0,
+                "magsys": "ab",
+                "filter": "ztfr",
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={"xField": "num_obs_global", "yField": "num_det_global"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    ids = {p["id"] for p in data["data"]["points"]}
+    assert source_id in ids
+
+    # invalid field is rejected
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={"xField": "not_a_field", "yField": "num_det_global"},
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "Invalid xField" in data["message"]
+
+    # down-selecting on a classification nothing has excludes the source
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "classifications": "not-a-real-classification",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id not in {p["id"] for p in data["data"]["points"]}
+
+    # selecting by group (instead of classification) includes the source
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "group_id": public_group.id,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id in {p["id"] for p in data["data"]["points"]}
+
+    # selecting by an explicit object list restricts to those objects
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "obj_ids": source_id,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id in {p["id"] for p in data["data"]["points"]}
+
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "obj_ids": "not-a-real-object",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id not in {p["id"] for p in data["data"]["points"]}

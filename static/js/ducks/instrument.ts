@@ -35,7 +35,9 @@ interface ModifyInstrumentArg {
 export const instrumentApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getInstrument: build.query<
-      RouteData<"GET /api/instrument/{instrument_id}">,
+      RouteData<"GET /api/instrument/{instrument_id}"> & {
+        log_exists?: boolean;
+      },
       number | string
     >({
       query: (id) => `api/instrument/${id}`,
@@ -103,10 +105,7 @@ invalidateOnMessage("skyportal/REFRESH_INSTRUMENT", () => ["Instrument"]);
 
 export const {
   useGetInstrumentQuery,
-  useLazyGetInstrumentQuery,
-  useGetInstrumentLogsQuery,
   useLazyGetInstrumentLogsQuery,
-  useGetInstrumentSkymapQuery,
   useLazyGetInstrumentSkymapQuery,
   useSubmitInstrumentMutation,
   useModifyInstrumentMutation,

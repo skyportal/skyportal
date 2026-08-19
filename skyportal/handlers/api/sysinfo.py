@@ -17,7 +17,7 @@ max_log_lines = 100
 
 
 class SysInfoHandler(BaseHandler):
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve system/deployment info

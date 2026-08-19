@@ -8,13 +8,34 @@ row-level security still holds: a user who can read only one underlying source
 must not see any of the others' entries.
 """
 
+import base64
+import io
 import uuid
 
 import sqlalchemy as sa
+from PIL import Image
 from tdtax import __version__, taxonomy
 
 from skyportal.models import DBSession, Obj, SuperObj
 from skyportal.tests import api
+
+
+def _post_thumbnail(token, obj_id, ttype, survey):
+    buf = io.BytesIO()
+    Image.new("RGB", (16, 16), (10, 20, 30)).save(buf, format="PNG")
+    status, data = api(
+        "POST",
+        "thumbnail",
+        data={
+            "obj_id": obj_id,
+            "data": base64.b64encode(buf.getvalue()).decode("utf-8"),
+            "ttype": ttype,
+            "survey": survey,
+        },
+        token=token,
+    )
+    assert status == 200, data
+    return data["data"]["id"]
 
 
 def _link_super_obj(obj_ids):
@@ -392,5 +413,50 @@ def test_super_obj_all_aggregations_and_rls(
         )
         assert status == 200, data
         assert _obj_ids(data["data"]) == {obj1}
+    finally:
+        teardown()
+
+
+def test_super_obj_thumbnail_aggregation(
+    super_admin_token,
+    public_source,
+    public_source_group2,
+):
+    """A meta-object linking two per-survey Objs aggregates their alert-cutout
+    thumbnails into the source response, each tagged with its survey so the
+    frontend can label per-survey tiles. Access is via ``Thumbnail.select(user)``,
+    so only cutouts of readable objs are returned."""
+    obj1 = public_source.id
+    obj2 = public_source_group2.id
+
+    _post_thumbnail(super_admin_token, obj1, "new", "ZTF")
+    _post_thumbnail(super_admin_token, obj2, "new", "LSST")
+
+    def new_pairs(payload):
+        return {
+            (t.get("survey"), t["obj_id"])
+            for t in payload["data"]["thumbnails"]
+            if t["type"] == "new"
+        }
+
+    super_obj_id, teardown = _link_super_obj([obj1, obj2])
+    try:
+        # Flag off: only the source's own cutout (survey-tagged), not the link's.
+        status, data = api(
+            "GET", f"sources/{obj1}?includeThumbnails=true", token=super_admin_token
+        )
+        assert status == 200, data
+        pairs = new_pairs(data)
+        assert ("ZTF", obj1) in pairs
+        assert not any(oid == obj2 for _, oid in pairs)
+
+        # Flag on: both surveys' cutouts, each carrying its survey label.
+        status, data = api(
+            "GET",
+            f"sources/{obj1}?includeThumbnails=true&includeSuperObjs=true",
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        assert {("ZTF", obj1), ("LSST", obj2)} <= new_pairs(data)
     finally:
         teardown()

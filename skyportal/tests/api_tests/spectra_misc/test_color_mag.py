@@ -6,7 +6,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {
                 "Mag_G": 15.1,
@@ -37,7 +36,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         "PUT",
         f"sources/{public_source.id}/annotations/{annotation_id}",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {
                 "Mag_G": 15.1,
@@ -65,7 +63,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         "PUT",
         f"sources/{public_source.id}/annotations/{annotation_id}",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {
                 "Mag_G": 15.1,
@@ -123,7 +120,6 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"MagG": 15.1, "MagBp": 16.1, "MagRp": 14.0, "Plx": 20},
         },
@@ -146,7 +142,6 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
         "PUT",
         f"sources/{public_source.id}/annotations/{annotation_id}",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"mag_g": 15.1, "mag_bp": 16.1, "mag_rp": 14.0, "plx": 20},
         },
@@ -168,7 +163,6 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
         "PUT",
         f"sources/{public_source.id}/annotations/{annotation_id}",
         data={
-            "obj_id": public_source.id,
             "origin": "wise_colors",
             "data": {"mag4.6": 15.1, "Mag_3.3": 16.1, "Mag_12": 14.0, "plx": 20},
         },
@@ -199,7 +193,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr1.gaia_source",
             "data": {"MagG": 15.1, "MagBp": 16.1, "MagRp": 14.0, "Plx": 20},
         },
@@ -221,7 +214,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr2.gaia_source",
             "data": {"MagG": 15.2, "MagBp": 16.2, "MagRp": 14.0, "Plx": 20},
         },
@@ -234,7 +226,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"MagG": 15.3, "MagBp": 16.3, "MagRp": 14.0, "Plx": 5},
         },

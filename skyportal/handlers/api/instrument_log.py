@@ -1,9 +1,11 @@
 import json
+from typing import Annotated, Any
 
 import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
-from sqlalchemy.orm import undefer
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
 
@@ -12,97 +14,83 @@ from ...utils.instrument_log import read_logs
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
+InstrumentId = Annotated[
+    int, Field(description="The instrument ID to update the status for")
+]
+
+
+class InstrumentLogPostBody(BaseModel):
+    """Request body for posting instrument logs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: str = Field(
+        description="Arrow-parseable date string (e.g. 2020-01-01)."
+    )
+    end_date: str = Field(description="Arrow-parseable date string (e.g. 2020-01-01).")
+    log: str | dict[str, Any] = Field(
+        description="Nested JSON containing the log messages, or a parsable "
+        "string of log lines."
+    )
+
+
+class InstrumentLogPostResponse(BaseModel):
+    """Data payload returned when posting instrument logs."""
+
+    id: int = Field(description="The id of the InstrumentLog")
+
+
+class InstrumentStatusPutBody(BaseModel):
+    """Request body for updating an instrument's status."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str | dict[str, Any] | None = Field(
+        default=None,
+        description="The status of the instrument, as a JSON object or a "
+        "JSON-encoded string. When empty or omitted, the status is instead "
+        "refreshed from the instrument's remote API.",
+    )
+
 
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id: int):
+    async def post(
+        self, instrument_id: InstrumentId, *, body: InstrumentLogPostBody = None
+    ) -> InstrumentLogPostResponse:
         """
         ---
         summary: Add instrument logs
         description: Add log messages from an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to post logs for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  start_date:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                  end_date:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                  logs:
-                    type: object
-                    description: |
-                       Nested JSON containing the log messages.
-                required:
-                  - start_date
-                  - end_date
-                  - logs
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the InstrumentLog
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-
-        data = self.get_json()
-        start_date = data.get("start_date")
-        if start_date is None:
-            return self.error("date is required")
+        body = self.parse_body(InstrumentLogPostBody)
         try:
-            start_date = arrow.get(start_date).naive
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
+        try:
+            start_date = arrow.get(body.start_date).naive
         except Exception as e:
             return self.error(f"Invalid start_date: {str(e)}")
 
-        end_date = data.get("end_date")
-        if end_date is None:
-            return self.error("date is required")
         try:
-            end_date = arrow.get(end_date).naive
+            end_date = arrow.get(body.end_date).naive
         except Exception as e:
             return self.error(f"Invalid end_date: {str(e)}")
 
-        logs = data.get("log")
-        if logs is None:
-            return self.error("log is required")
-
+        logs = body.log
         if isinstance(logs, str):
             logs = read_logs(logs)
-        elif not isinstance(logs, dict):
-            return self.error("log must be either dictionary or parsable string")
 
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="update").where(
-                Instrument.id == int(instrument_id)
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="update").where(
+                    Instrument.id == instrument_id_int
+                )
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -110,16 +98,21 @@ class InstrumentLogHandler(BaseHandler):
                 log=logs,
                 start_date=start_date,
                 end_date=end_date,
-                instrument_id=instrument_id,
+                instrument_id=instrument_id_int,
             )
 
             session.add(instrument_log)
-            session.commit()
+            await session.commit()
 
             return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
-    def get(self, instrument_id: int):
+    async def get(self, instrument_id: int):
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
 
@@ -135,12 +128,12 @@ class InstrumentLogHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Invalid end_date: {str(e)}")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 stmt = (
                     InstrumentLog.select(session.user_or_token)
                     .options(undefer(InstrumentLog.log))
-                    .where(InstrumentLog.instrument_id == instrument_id)
+                    .where(InstrumentLog.instrument_id == instrument_id_int)
                 )
                 if start_date is not None:
                     stmt = stmt.where(InstrumentLog.end_date >= start_date)
@@ -148,7 +141,8 @@ class InstrumentLogHandler(BaseHandler):
                 if end_date is not None:
                     stmt = stmt.where(InstrumentLog.start_date <= end_date)
 
-                instrument_logs = session.scalars(stmt).all()
+                result = await session.scalars(stmt)
+                instrument_logs = result.all()
 
                 return self.success(data=instrument_logs)
             except Exception as e:
@@ -159,7 +153,12 @@ class InstrumentLogHandler(BaseHandler):
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    def get(self, allocation_id: int):
+    async def get(
+        self,
+        allocation_id: Annotated[
+            int, Field(description="ID for the allocation to retrieve")
+        ],
+    ):
         """
         ---
         summary: Get instrument logs from external API
@@ -167,13 +166,6 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         tags:
           - instruments
         parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to retrieve
           - in: query
             name: startDate
             required: true
@@ -200,11 +192,15 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            allocation_id_int = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
 
         data = {}
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = int(allocation_id)
+        data["allocation_id"] = allocation_id_int
 
         start_date = self.get_query_argument("startDate")
         end_date = self.get_query_argument("endDate")
@@ -218,12 +214,12 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         else:
             end_date = Time.now().datetime
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(selectinload(Allocation.instrument))
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -242,7 +238,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # instrument logs
-                instrument.api_class.retrieve_log(
+                await instrument.api_class.retrieve_log(
                     allocation,
                     start_date,
                     end_date,
@@ -254,32 +250,15 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    def put(self, instrument_id: int):
+    async def put(
+        self, instrument_id: InstrumentId, *, body: InstrumentStatusPutBody = None
+    ):
         """
         ---
         summary: Update instrument status
         description: Update the status of an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to update the status for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: |
-                      The status of the instrument
-                required:
-                  - status
         responses:
           200:
             content:
@@ -290,15 +269,20 @@ class InstrumentStatusHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(InstrumentStatusPutBody)
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        data = self.get_json()
-        status = data.get("status", None)
-        if status in [None, "", {}, []]:
-            with self.Session() as session:
-                stmt = Instrument.select(session.user_or_token, mode="update").where(
-                    Instrument.id == int(instrument_id)
+        status = body.status
+        if status in [None, "", {}]:
+            async with self.AsyncSession() as session:
+                instrument = await session.scalar(
+                    Instrument.select(session.user_or_token, mode="update").where(
+                        Instrument.id == instrument_id_int
+                    )
                 )
-                instrument = session.scalars(stmt).first()
                 if instrument is None:
                     return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -310,11 +294,12 @@ class InstrumentStatusHandler(BaseHandler):
                         "Updating status of this Instrument is not available."
                     )
 
-                allocations = session.scalars(
+                result = await session.scalars(
                     Allocation.select(session.user_or_token).where(
-                        Allocation.instrument_id == int(instrument_id)
+                        Allocation.instrument_id == instrument_id_int
                     )
-                ).all()
+                )
+                allocations = result.all()
                 if len(allocations) == 0:
                     return self.error(
                         f"Cannot find any allocations for instrument with ID: {instrument_id}"
@@ -333,13 +318,13 @@ class InstrumentStatusHandler(BaseHandler):
                     )
 
                 try:
-                    instrument.api_class.update_status(
+                    await instrument.api_class.update_status(
                         allocation,
                         session,
                     )
                     self.push_all(
                         action="skyportal/REFRESH_INSTRUMENT",
-                        payload={"instrument_id": instrument_id},
+                        payload={"instrument_id": instrument_id_int},
                     )
                     return self.success()
                 except Exception as e:
@@ -361,13 +346,13 @@ class InstrumentStatusHandler(BaseHandler):
             if len(status) == 0:
                 return self.error("Invalid status (must be non-empty JSON)")
 
-            with self.Session() as session:
+            async with self.AsyncSession() as session:
                 try:
-                    instrument = session.scalars(
+                    instrument = await session.scalar(
                         Instrument.select(session.user_or_token).where(
-                            Instrument.id == int(instrument_id)
+                            Instrument.id == instrument_id_int
                         )
-                    ).first()
+                    )
                     if instrument is None:
                         return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -383,11 +368,11 @@ class InstrumentStatusHandler(BaseHandler):
 
                     instrument.status = status
                     instrument.last_status_update = utcnow_naive()
-                    session.commit()
+                    await session.commit()
 
                     self.push_all(
                         action="skyportal/REFRESH_INSTRUMENT",
-                        payload={"instrument_id": instrument_id},
+                        payload={"instrument_id": instrument_id_int},
                     )
                     return self.success()
                 except Exception as e:

@@ -6,16 +6,16 @@ import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, CustomUserAccessControl, DBSession, public
+from baselayer.app.models import Base, CustomUserAccessControl, public
 
 _, cfg = load_env()
 
 
 def manage_photometry_validation_access_logic(cls, user_or_token):
     if user_or_token.is_admin or "Manage sources" in user_or_token.permissions:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
     else:
-        return DBSession().query(cls).filter(sa.false())
+        return sa.select(cls).where(sa.false())
 
 
 class PhotometryValidation(Base):

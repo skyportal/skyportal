@@ -31,7 +31,9 @@ export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: { userID, groupID },
       }),
-      invalidatesTags: ["GroupAdmissionRequest"],
+      // Also invalidate Group: an auto-accept group grants membership here, so
+      // the groups list must refetch to move it into the user's groups.
+      invalidatesTags: ["GroupAdmissionRequest", "Group"],
     }),
     deleteAdmissionRequest: build.mutation<unknown, number | string>({
       query: (ID) => ({

@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import uuid
 
 import pytest
@@ -44,17 +45,20 @@ def test_analysis_start(
     page.locator('//div[@data-testid="analysisServiceSelect"]').first.click()
     # select this run's service (its name is a unique uuid) to populate the form
     page.locator(f'//li[contains(., "{name}")]').first.click()
-    page.locator(
-        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
-    ).first.click()
-    expect(
+    # the confirmation notification is pushed over the websocket and dismisses
+    # itself after 3s, so assert on the request the submit fires instead
+    with page.expect_response(
+        lambda response: (
+            f"/api/obj/{public_source.id}/analysis/" in response.url
+            and response.request.method == "POST"
+        )
+    ) as response_info:
         page.locator(
-            f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
-        ).first
-    ).to_be_visible()
+            '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+        ).first.click()
+    assert response_info.value.status == 200
 
 
-@pytest.mark.flaky(reruns=3)
 def test_analysis_with_file_input_start(
     page, user, public_source, analysis_service_token, public_group
 ):
@@ -103,11 +107,18 @@ def test_analysis_with_file_input_start(
         )
     )
 
-    page.locator(
-        '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
-    ).first.click()
-    expect(
+    expect(page.locator('//input[@id="root_image_data"]').first).to_have_value(
+        re.compile(r"spectral_cube_analysis\.fits$")
+    )
+    # the confirmation notification is pushed over the websocket and dismisses
+    # itself after 3s, so assert on the request the submit fires instead
+    with page.expect_response(
+        lambda response: (
+            f"/api/obj/{public_source.id}/analysis/" in response.url
+            and response.request.method == "POST"
+        )
+    ) as response_info:
         page.locator(
-            f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
-        ).first
-    ).to_be_visible()
+            '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
+        ).first.click()
+    assert response_info.value.status == 200

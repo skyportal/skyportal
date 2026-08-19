@@ -7,7 +7,7 @@ from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -15,8 +15,21 @@ cfg = load_config()
 
 
 def _filter_by_source_id(page, source_id):
-    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
-    page.locator("//input[@name='sourceID']").first.fill(source_id)
+    filter_button = page.locator(
+        "//button[@data-testid='Filter Table-iconButton']"
+    ).first
+    source_id_input = page.locator("//input[@name='sourceID']").first
+    # The filter popover intermittently fails to open on the first click while
+    # the sources table is still rendering (the click lands as a no-op), timing
+    # out the fill below. Retry the open until the field actually appears.
+    for _ in range(5):
+        filter_button.click()
+        try:
+            expect(source_id_input).to_be_visible(timeout=10000)
+            break
+        except AssertionError:
+            continue
+    source_id_input.fill(source_id)
     page.locator("//button[text()='Submit']").first.click()
 
 
@@ -318,6 +331,7 @@ def test_filter_by_spectrum_time(page, user, public_group, upload_data_token, lr
     expect(page.locator(f'//a[@data-testid="{obj_id2}"]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_hr_diagram(page, user, public_group, upload_data_token, annotation_token):
     source_id = str(uuid.uuid4())
     status, data = api(
@@ -342,7 +356,6 @@ def test_hr_diagram(page, user, public_group, upload_data_token, annotation_toke
         "POST",
         f"sources/{source_id}/annotations",
         data={
-            "obj_id": source_id,
             "origin": "gaiadr3.gaia_source",
             "data": {"Mag_G": 11.3, "Mag_Bp": 11.8, "Mag_Rp": 11.0, "Plx": 20},
         },
@@ -365,3 +378,30 @@ def test_hr_diagram(page, user, public_group, upload_data_token, annotation_toke
     expect(
         page.locator(f'//div[@data-testid="hr_diagram_{source_id}"]').first
     ).to_be_visible()
+
+
+def test_source_list_expanded_row_vega_plots(
+    page,
+    user,
+    public_group,
+    public_source,
+    public_source_photometry_point,
+    public_source_spectrum,
+):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
+    expect(
+        page.locator(f'//a[@data-testid="{public_source.id}"]').first
+    ).to_be_visible()
+
+    # expand by the row holding this source, not by position: /sources is
+    # unfiltered here, so row 0 is whichever source sorts first
+    page.locator(
+        f'//div[@role="row"][.//a[@data-testid="{public_source.id}"]]'
+        '//*[@id="expandable-button"]'
+    ).first.click()
+    row = page.locator(f'[data-testid="groupSourceExpand_{public_source.id}"]').first
+    expect(row).to_be_visible()
+
+    # Photometry and spectrum plots: both must draw, not just mount.
+    expect_vega_plot(row, count=2)

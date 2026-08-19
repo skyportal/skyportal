@@ -26,7 +26,9 @@ const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
           </Typography>
           <Typography
             variant={isMobile ? "body2" : "body1"}
-            color="text.secondary"
+            sx={{
+              color: "text.secondary",
+            }}
           >
             {!mmadetector.lat && !mmadetector.lon
               ? "..."
@@ -37,7 +39,9 @@ const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
           {mmadetector.elevation !== null && (
             <Typography
               variant={isMobile ? "body2" : "body1"}
-              color="text.secondary"
+              sx={{
+                color: "text.secondary",
+              }}
             >
               Elevation: {mmadetector.elevation}
             </Typography>

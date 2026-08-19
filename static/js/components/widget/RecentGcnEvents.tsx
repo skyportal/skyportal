@@ -105,7 +105,12 @@ const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Recent GCN Events
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />

@@ -168,9 +168,11 @@ function MyCalendar({
         >
           <Typography
             variant="body1"
-            fontWeight="bold"
             data-testid="event_shift_name"
-            sx={{ lineHeight: 1 }}
+            sx={{
+              fontWeight: "bold",
+              lineHeight: 1,
+            }}
           >
             {baseName}
           </Typography>
@@ -322,7 +324,7 @@ function MyCalendar({
       {!shifts ? (
         <CircularProgress />
       ) : (
-        <div className={classes.content}>
+        <div className={classes.content} data-testid="tour-shifts-calendar">
           <Calendar
             events={[...shifts, preSelectedRange]}
             date={defaultDate || new Date()}

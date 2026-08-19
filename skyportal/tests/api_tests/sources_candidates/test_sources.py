@@ -789,6 +789,156 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
     assert data["data"]["sources"][1]["id"] == obj_id2
 
 
+def test_sources_sorting_by_annotation(
+    upload_data_token, super_admin_token, public_group, annotation_token
+):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+    key = "t_E"
+
+    for oid, ra in [(obj_id, 210), (obj_id2, 220)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": oid,
+                "ra": ra,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Values 9 and 10 are chosen so numeric and lexicographic order disagree.
+    for oid, value in [(obj_id, 9), (obj_id2, 10)]:
+        status, data = api(
+            "POST",
+            f"sources/{oid}/annotations",
+            data={"origin": origin, "data": {key: value}},
+            token=annotation_token,
+        )
+        assert status == 200
+
+    # Descending: 10 (obj_id2) must come first; a text sort would rank "9" first.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][1]["id"] == obj_id
+
+    # Ascending reverses the order.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "asc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][1]["id"] == obj_id2
+
+
+def test_sources_sorting_by_annotation_no_leakage(
+    upload_data_token,
+    annotation_token,
+    annotation_token_two_groups,
+    view_only_token,
+    super_admin_token,
+    public_group,
+    public_group2,
+):
+    # Two sources both saved to public_group (so a public_group-only user sees
+    # both). obj_visible has an annotation in public_group; obj_hidden's only
+    # annotation is shared with public_group2, which that user cannot access.
+    obj_visible = str(uuid.uuid4())
+    obj_hidden = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+    key = "t_E"
+
+    for oid, ra in [(obj_visible, 210), (obj_hidden, 220)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": oid,
+                "ra": ra,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Accessible annotation (small value) on obj_visible.
+    status, data = api(
+        "POST",
+        f"sources/{obj_visible}/annotations",
+        data={"origin": origin, "data": {key: 5}, "group_ids": [public_group.id]},
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Larger-valued annotation on obj_hidden, shared only with public_group2.
+    status, data = api(
+        "POST",
+        f"sources/{obj_hidden}/annotations",
+        data={"origin": origin, "data": {key: 100}, "group_ids": [public_group2.id]},
+        token=annotation_token_two_groups,
+    )
+    assert status == 200
+
+    # A user who can access public_group2 (here the admin) sees the value 100
+    # and sorts obj_hidden first when descending.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    ids = [s["id"] for s in data["data"]["sources"]]
+    assert ids[0] == obj_hidden
+    assert ids[1] == obj_visible
+
+    # A public_group-only user must NOT see the public_group2 annotation, so its
+    # value cannot influence the sort: obj_hidden has no accessible annotation
+    # and sorts last (NULLS LAST), while obj_visible (value 5) comes first. If
+    # the hidden value leaked, obj_hidden (value 100) would sort first here.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    ids = [s["id"] for s in data["data"]["sources"]]
+    assert obj_visible in ids and obj_hidden in ids
+    assert ids[0] == obj_visible
+    assert ids[-1] == obj_hidden
+
+
 def test_object_last_detected(
     upload_data_token,
     view_only_token,
@@ -1012,6 +1162,54 @@ def test_sources_filter_by_position(upload_data_token, view_only_token, public_g
     assert data["data"]["sources"][0]["id"] == obj_id1
 
 
+def test_sources_filter_by_position_small_radius(
+    upload_data_token, view_only_token, public_group
+):
+    # Two sources 3 arcsec apart in dec; exercises the healpix cone prefilter
+    # at arcsec scale and its radius boundary.
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra, dec = 100.0, 20.0
+    for oid, d in [(obj_id1, dec), (obj_id2, dec + 3 / 3600)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={"id": oid, "ra": ra, "dec": d, "group_ids": [public_group.id]},
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # 2 arcsec radius: only obj 1 (obj 2 is 3 arcsec away, outside).
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 2 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1}
+
+    # 4 arcsec radius: both sources are within.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 4 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1, obj_id2}
+
+
 def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -1069,6 +1267,48 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id2
+
+
+def test_sources_filter_by_saved_by_current_user(
+    upload_data_token, view_only_token2, public_group
+):
+    # upload_data_token and view_only_token2 are different users, both in
+    # public_group; only the former saves the source below.
+    obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # The saver sees it when filtering to their own saves
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert obj_id in [s["id"] for s in data["data"]["sources"]]
+
+    # Another group member who did not save it does not see it
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=view_only_token2,
+    )
+    assert status == 200
+    assert obj_id not in [s["id"] for s in data["data"]["sources"]]
 
 
 def test_sources_filter_by_time_spectrum(
@@ -2594,30 +2834,74 @@ def test_deduplicate_photometry(
     assert np.isclose(data["data"]["photometry"][0]["mag"], 12.8)
 
 
-def test_source_gcn_crossmatch_string_dateobs(
+def test_source_gcn_crossmatch_event_filters(upload_data_token, public_source):
+    # The crossmatch endpoint accepts GCN/localization tag+property cuts. A
+    # malformed property filter is rejected synchronously (before the async
+    # crossmatch), via the shared apply_gcn_event_filters helper.
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/gcn_event",
+        data={
+            "startDate": "2019-08-13T08:18:05",
+            "endDate": "2019-08-19T08:18:05",
+            "gcnPropertiesFilter": ["BNS:0.5"],  # 2 parts -> invalid (needs 1 or 3)
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "gcnPropertiesFilter" in data["message"]
+
+    # Well-formed tag/property cuts are accepted (no matching events in range is
+    # reported separately, so just confirm the filter params parse and apply).
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/gcn_event",
+        data={
+            "startDate": "2019-08-13T08:18:05",
+            "endDate": "2019-08-19T08:18:05",
+            "gcnTagKeep": ["GW"],
+            "gcnPropertiesFilter": ["FAR:1.0:lt"],
+        },
+        token=upload_data_token,
+    )
+    # No GCN events exist in that window in this test, so the endpoint reports
+    # that rather than a filter error.
+    assert status == 400
+    assert "Cannot find GcnEvents" in data["message"]
+
+
+def test_source_gcn_crossmatch_returns_associated_events(
     super_admin_token, super_admin_user, public_source
 ):
-    # Regression test for a psycopg3 type mismatch. Obj.gcn_crossmatch is an
-    # ARRAY(String) column, so its GCN-event dateobs round-trip out of the DB as
-    # strings. get_source() then filters GcnEvent.dateobs (a timestamp) with that
-    # list; under psycopg3 a "timestamp = varchar" comparison raises
-    # UndefinedFunction unless the values are coerced to datetimes first. Before
-    # the fix this request 500'd; it should return the crossmatched event.
+    # includeGCNCrossmatches reports every event an obj is associated with,
+    # rejections included: the source page hangs its keep/reject control off
+    # this list, so hiding a rejection would leave no way to revisit it.
     import sqlalchemy as sa
 
-    from skyportal.models import DBSession, GcnEvent, Obj
+    from skyportal.models import DBSession, GcnEvent, GcnEventObj
 
     dateobs = datetime(2019, 4, 25, 8, 18, 5)
-    # Exactly how the value round-trips out of the ARRAY(String) column: psycopg
-    # renders the timestamp with a space (not a "T") separator.
-    dateobs_str = "2019-04-25 08:18:05"
+    rejected_dateobs = datetime(2019, 4, 26, 8, 18, 5)
 
     session = DBSession()
-    event = GcnEvent(dateobs=dateobs, sent_by_id=super_admin_user.id)
-    session.add(event)
-    obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-    # Populate the crossmatch column the way LocalizationCrossmatchHandler does.
-    obj.gcn_crossmatch = [dateobs_str]
+    for d in (dateobs, rejected_dateobs):
+        session.add(GcnEvent(dateobs=d, sent_by_id=super_admin_user.id))
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=dateobs,
+            status="confirmed",
+            confirmer_id=super_admin_user.id,
+        )
+    )
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=rejected_dateobs,
+            status="rejected",
+            confirmer_id=super_admin_user.id,
+        )
+    )
     session.commit()
 
     try:
@@ -2628,17 +2912,20 @@ def test_source_gcn_crossmatch_string_dateobs(
             token=super_admin_token,
         )
         assert status == 200, data
-        assert data["status"] == "success"
         crossmatches = data["data"]["gcn_crossmatch"]
-        assert any(arrow.get(c["dateobs"]).naive == dateobs for c in crossmatches), (
-            crossmatches
+        found = {arrow.get(c["dateobs"]).naive for c in crossmatches}
+        assert dateobs in found, crossmatches
+        assert rejected_dateobs in found, (
+            "a rejected association vanished, leaving no way to undo it"
         )
     finally:
         session = DBSession()
-        obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-        if obj is not None:
-            obj.gcn_crossmatch = None
-        event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs))
-        if event is not None:
-            session.delete(event)
+        for row in session.scalars(
+            sa.select(GcnEventObj).where(GcnEventObj.obj_id == public_source.id)
+        ).all():
+            session.delete(row)
+        for d in (dateobs, rejected_dateobs):
+            event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == d))
+            if event is not None:
+                session.delete(event)
         session.commit()

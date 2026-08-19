@@ -338,31 +338,6 @@ const ClassificationRow = ({
   );
 };
 
-const groupBy = (array: any[], key: string) =>
-  array.reduce((result: Record<string, any[]>, cv: any) => {
-    // if we've seen this key before, add the value, else generate
-    // a new list for this key
-    (result[cv[key]] = result[cv[key]] || []).push(cv);
-    return result;
-  }, {});
-
-export const getSortedClasses = (classifications: any[]) => {
-  // Here we compute the most recent non-zero probability class for each taxonomy
-  const filteredClasses = classifications.filter((i) => i.probability > 0);
-  const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
-  const sortedClasses: any[] = [];
-
-  Object.keys(groupedClasses)?.forEach((item) =>
-    sortedClasses.push(
-      (groupedClasses[item] ?? []).sort((a: any, b: any) =>
-        a.modified < b.modified ? 1 : -1,
-      ),
-    ),
-  );
-
-  return sortedClasses;
-};
-
 interface ShowClassificationProps {
   classifications: Record<string, any>[];
   taxonomyList: Record<string, any>[];
@@ -376,10 +351,13 @@ function ShowClassification({
   shortened = false,
   fontSize = "1rem",
 }: ShowClassificationProps) {
+  // A probability of exactly 0 is an explicit "not this class" label, so don't
+  // advertise the object as being of that class (#3483). A null probability
+  // means unspecified and is still shown.
   // `classifications` is frozen RTK Query data, so copy before sorting in place.
-  const sorted_classifications = [...(classifications || [])].sort((a, b) =>
-    a["created_at"] > b["created_at"] ? -1 : 1,
-  );
+  const sorted_classifications = [...(classifications || [])]
+    .filter((c) => c["probability"] !== 0)
+    .sort((a, b) => (a["created_at"] > b["created_at"] ? -1 : 1));
 
   const classificationsGrouped = sorted_classifications.reduce(
     (r: Record<string, any[]>, a: any) => {

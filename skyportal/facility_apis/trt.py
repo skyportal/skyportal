@@ -5,11 +5,12 @@ import urllib
 from datetime import timedelta
 from urllib.parse import urlparse
 
+import aiohttp
 import astropy.units as u
-import requests
 import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -157,7 +158,7 @@ class TRTAPI(FollowUpAPI):
     """SkyPortal interface to the Thai Robotic Telescope"""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to TRT.
 
         Parameters
@@ -168,7 +169,18 @@ class TRTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the chains this method (and validate_request_to_trt) walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         requestgroup = validate_request_to_trt(request)
 
@@ -185,25 +197,23 @@ class TRTAPI(FollowUpAPI):
             payload = json.dumps({"script": [requestgroup]})
             url = f"{cfg['app.trt_endpoint']}/newobservation"
 
-            r = requests.request(
-                "POST",
-                url,
-                data=payload,
-                headers=headers,
-            )
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, data=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
 
-            if r.status_code == 200 and "token expired" in str(r.text):
+            if status == 200 and "token expired" in content:
                 request.status = (
                     "rejected: API token specified in the allocation is expired."
                 )
-            elif r.status_code == 200:
+            elif status == 200:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.text}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -245,7 +255,7 @@ class TRTAPI(FollowUpAPI):
             log(f"Failed to send notification: {e}")
 
     @staticmethod
-    def get(request, session, **kwargs):
+    async def get(request, session, **kwargs):
         """Get a follow-up request from TRT queue (all instruments).
 
         Parameters
@@ -259,19 +269,27 @@ class TRTAPI(FollowUpAPI):
         from ..models import FacilityTransaction, FollowupRequest
         from ..utils.asynchronous import run_async
 
+        # Reload with the chains this method walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
+
         if cfg["app.trt_endpoint"] is not None:
             altdata = request.allocation.altdata
 
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            req = session.scalar(
-                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
-            )
-
             url = f"{cfg['app.trt_endpoint']}/getfilepath"
 
-            content = str(req.transactions[-1].response["content"])
+            content = str(request.transactions[-1].response["content"])
 
             if "token expired" in content:
                 raise ValueError(
@@ -295,16 +313,20 @@ class TRTAPI(FollowUpAPI):
                 "Content-Type": "application/json",
                 "TRT": altdata["token"],
             }
-            r = requests.request("POST", url, headers=headers, data=payload)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, headers=headers, data=payload) as r:
+                    content = await r.text()
+                    status = r.status
 
-            r.raise_for_status()
+            if status >= 400:
+                raise ValueError(f"Error retrieving request: status {status}")
 
-            if r.status_code == 200:
+            if status == 200:
                 try:
-                    data = r.json()
+                    data = json.loads(content)
                 except json.JSONDecodeError:
                     raise ValueError(
-                        f"Unable to parse retrieval response from TRT: {r.content}"
+                        f"Unable to parse retrieval response from TRT: {content}"
                     )
 
                 urls = []
@@ -325,17 +347,17 @@ class TRTAPI(FollowUpAPI):
                 else:
                     request.status = "pending"
             else:
-                request.status = f"failed to retrieve: {r.content.decode()}"
+                request.status = f"failed to retrieve: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", url, headers, payload),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         try:
             flow = Flow()
@@ -381,7 +403,7 @@ class TRTAPI(FollowUpAPI):
             log(f"Failed to send notification: {e}")
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from TRT queue.
 
         Parameters
@@ -394,6 +416,18 @@ class TRTAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction, FollowupRequest
 
+        # Reload with the chains this method walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
+
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
@@ -403,16 +437,15 @@ class TRTAPI(FollowUpAPI):
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            req = session.scalar(
-                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
-            )
-
             url = f"{cfg['app.trt_endpoint']}/cancelobservation"
 
-            content = str(req.transactions[-1].response["content"])
+            content = str(request.transactions[-1].response["content"])
             if "token expired" in content:
                 request.status = "failed to delete: API token specified in the allocation is expired."
-                session.commit()
+                await session.commit()
+                # No HTTP call was made -> no transaction to record; bail before
+                # the session.add(transaction) below (previously UnboundLocalError).
+                return
             else:
                 try:
                     content = json.loads(content)
@@ -433,14 +466,22 @@ class TRTAPI(FollowUpAPI):
                     "Content-Type": "application/json",
                     "TRT": altdata["token"],
                 }
-                r = requests.request("POST", url, headers=headers, data=payload)
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(
+                        url, headers=headers, data=payload
+                    ) as r:
+                        content = await r.text()
+                        status = r.status
 
-                r.raise_for_status()
+                if status >= 400:
+                    raise ValueError(f"Error deleting request: status {status}")
                 request.status = "deleted"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request(
+                        "POST", url, headers, payload
+                    ),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )

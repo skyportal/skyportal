@@ -90,9 +90,11 @@ const CandidatesPreferences = ({
         open={addDialogOpen}
         fullScreen
         onClose={() => setAddDialogOpen(false)}
-        TransitionComponent={Transition}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
+        slots={{
+          transition: Transition,
+        }}
       >
         <Toolbar className={classes.header}>
           <IconButton

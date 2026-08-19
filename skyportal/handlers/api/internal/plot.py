@@ -4,11 +4,18 @@ import astropy.units as u
 import numpy as np
 import pandas as pd
 from astropy import time as ap_time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ....models import ClassicalAssignment, Obj, Telescope
+from ....models import (
+    ClassicalAssignment,
+    Instrument,
+    Obj,
+    ObservingRun,
+    Telescope,
+)
 from ...base import BaseHandler
 from ..photometry import get_effective_wavelength
 
@@ -37,11 +44,16 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     async def get(self, assignment_id: int):
-        with self.Session() as session:
-            assignment = session.scalar(
-                ClassicalAssignment.select(session.user_or_token).where(
-                    ClassicalAssignment.id == assignment_id
+        async with self.AsyncSession() as session:
+            assignment = await session.scalar(
+                ClassicalAssignment.select(session.user_or_token)
+                .options(
+                    selectinload(ClassicalAssignment.obj),
+                    selectinload(ClassicalAssignment.run)
+                    .selectinload(ObservingRun.instrument)
+                    .selectinload(Instrument.telescope),
                 )
+                .where(ClassicalAssignment.id == assignment_id)
             )
             if assignment is None:
                 return self.error(f"Could not load assignment with ID {assignment_id}")
@@ -82,14 +94,14 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         except TypeError:
             return self.error(f"Invalid telescope id: {telescope_id}, must be integer.")
 
-        with self.Session() as session:
-            obj = session.scalar(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error(f"Could not load object with ID {obj_id}")
 
-            telescope = session.scalar(
+            telescope = await session.scalar(
                 Telescope.select(session.user_or_token).where(
                     Telescope.id == telescope_id
                 )
@@ -124,14 +136,14 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
         except TypeError:
             return self.error(f"Invalid telescope id: {telescope_id}, must be integer.")
 
-        with self.Session() as session:
-            obj = session.scalar(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error(f"Could not load object with ID {obj_id}")
 
-            telescope = session.scalar(
+            telescope = await session.scalar(
                 Telescope.select(session.user_or_token).where(
                     Telescope.id == telescope_id
                 )
@@ -190,19 +202,11 @@ class FilterWavelengthHandler(BaseHandler):
             schema:
               type: string
             description: Comma-separated list of filter names (e.g., "g,r,i,z")
-        responses:
+        response:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: array
-                          items:
-                            type: number
+                schema: ArrayOfWavelengths
         """
         filters = self.get_query_argument("filters", None)
         if not filters:

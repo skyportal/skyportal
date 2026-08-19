@@ -32,15 +32,18 @@ import {
   setFilterFormData,
   setCandidatesAnnotationSortOptions,
 } from "../../ducks/candidate/candidates";
+import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
+import { filterAnnotationOrigins } from "./annotationSortOptions";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
+import { Link } from "react-router-dom";
 import { Group } from "../../types";
 
 dayjs.extend(utc);
@@ -278,7 +281,7 @@ const FilterCandidateList = ({
   );
 
   const [classificationsWith, setClassificationsWith] = useState(
-    selectedScanningProfile?.classificationsWith === false ? false : true,
+    selectedScanningProfile?.classificationsWith !== false,
   );
 
   const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
@@ -317,6 +320,16 @@ const FilterCandidateList = ({
       endDate: defaultEndDate,
     },
   });
+
+  // Filters accessible to the user, used to optionally narrow a scan to specific
+  // filters within the selected groups (e.g. isolate a single broker filter that
+  // shares a group with others).
+  const { data: allFilters } = useGetFiltersQuery();
+  // Re-read at each render; group toggles call reset(), which re-renders here.
+  const scanSelectedGroupIDs = getValues("groupIDs") || [];
+  const availableFilters = (allFilters || []).filter((f: any) =>
+    scanSelectedGroupIDs.includes(f.group_id),
+  );
 
   useEffect(() => {
     // set the default values for the firstDetectionAfter and lastDetectionBefore
@@ -364,9 +377,7 @@ const FilterCandidateList = ({
     }
     setSelectedGcnEventId("");
     setSelectedClassifications(scanningProfile?.classifications || []);
-    setClassificationsWith(
-      scanningProfile?.classificationsWith === false ? false : true,
-    );
+    setClassificationsWith(scanningProfile?.classificationsWith !== false);
     if (availableAnnotationsInfo) {
       const newOptions = scanningProfile?.sortingOrigin
         ? (availableAnnotationsInfo[scanningProfile?.sortingOrigin] || [])
@@ -379,6 +390,7 @@ const FilterCandidateList = ({
       startDate,
       endDate,
       groupIDs: scanningProfile?.groupIDs || [],
+      filterIDs: [],
       classifications: scanningProfile?.classifications || [],
       redshiftMinimum: scanningProfile?.redshiftMinimum || "",
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
@@ -466,21 +478,27 @@ const FilterCandidateList = ({
   const validateSorting = () => {
     const formState = getValues();
     return (
-      // All left empty
       formState.sortingOrigin === null ||
-      // Or all filled out
-      (formState.sortingOrigin !== null &&
-        formState.sortingKey !== null &&
-        formState.sortingOrder !== null)
+      (formState.sortingKey !== null && formState.sortingOrder !== null)
     );
   };
 
   const onSubmit = async (formData: any) => {
     setQueryInProgress(true);
-    const data: any = {
-      groupIDs: formData.groupIDs,
-      savedStatus: formData.savedStatus,
-    };
+    // Optionally narrow the scan to specific filters within the selected groups.
+    // The backend treats groupIDs and filterIDs as mutually exclusive (groupIDs
+    // wins), so when filters are chosen we send filterIDs and omit groupIDs.
+    const selectedFilterIDs = (formData.filterIDs || []).filter((id: number) =>
+      (allFilters || []).some(
+        (f: any) => f.id === id && formData.groupIDs.includes(f.group_id),
+      ),
+    );
+    const data: any = { savedStatus: formData.savedStatus };
+    if (selectedFilterIDs.length > 0) {
+      data.filterIDs = selectedFilterIDs;
+    } else {
+      data.groupIDs = formData.groupIDs;
+    }
     // decide if to show rejected candidates
     if (formData.rejectedStatus === "hide") {
       data.listNameReject = "rejected_candidates";
@@ -547,8 +565,21 @@ const FilterCandidateList = ({
     if (annotationFilterList) {
       data.annotationFilterList = annotationFilterList;
     }
+    // Which groups to display columns for: the selected filters' groups when
+    // scanning by filter, otherwise the selected groups.
+    const displayGroupIDs =
+      selectedFilterIDs.length > 0
+        ? [
+            ...new Set(
+              selectedFilterIDs.map(
+                (id: number) =>
+                  (allFilters || []).find((f: any) => f.id === id)?.group_id,
+              ),
+            ),
+          ]
+        : formData.groupIDs;
     setFilterGroups(
-      userAccessibleGroups?.filter((g) => data.groupIDs.includes(g.id)),
+      userAccessibleGroups?.filter((g) => displayGroupIDs.includes(g.id)),
     );
     const fetchParams = { ...data };
 
@@ -613,6 +644,11 @@ const FilterCandidateList = ({
           <Tooltip title="Generate a report of saved candidates">
             <Button secondary onClick={() => setGenerateReportDialogOpen(true)}>
               Generate report
+            </Button>
+          </Tooltip>
+          <Tooltip title="View previously generated scanning reports">
+            <Button secondary component={Link} to="/candidates/scan_reports">
+              View reports
             </Button>
           </Tooltip>
           <GenerateReportForm
@@ -749,8 +785,10 @@ const FilterCandidateList = ({
                       onChange={(event) =>
                         onChange(event.target.checked ? "hide" : "show")
                       }
-                      inputProps={{ "aria-label": "controlled" }}
                       data-testid="rejectedStatusSelect"
+                      slotProps={{
+                        input: { "aria-label": "controlled" },
+                      }}
                     />
                   )}
                 />
@@ -878,6 +916,49 @@ const FilterCandidateList = ({
                   </div>
                 </div>
               </Paper>
+              <Typography
+                variant="h6"
+                className={classes.title}
+                style={{ marginTop: "0.5rem" }}
+              >
+                Filter(s)&nbsp;
+                <span style={{ fontWeight: "normal", fontSize: "0.8rem" }}>
+                  (optional — scan specific filters within the selected groups)
+                </span>
+              </Typography>
+              <Controller
+                name="filterIDs"
+                control={control}
+                defaultValue={[]}
+                render={({ field: { onChange, value } }) => (
+                  <Autocomplete
+                    multiple
+                    size="small"
+                    options={availableFilters}
+                    disabled={availableFilters.length === 0}
+                    getOptionLabel={(option: any) => option?.name ?? ""}
+                    isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+                    value={availableFilters.filter((f: any) =>
+                      (value || []).includes(f.id),
+                    )}
+                    onChange={(_event, newValue: any) =>
+                      onChange(newValue.map((f: any) => f.id))
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant="outlined"
+                        placeholder={
+                          availableFilters.length === 0
+                            ? "Select group(s) first"
+                            : "All filters in selected group(s)"
+                        }
+                        data-testid="scanFilterSelect"
+                      />
+                    )}
+                  />
+                )}
+              />
             </div>
           </Paper>
         </Grid>
@@ -923,13 +1004,13 @@ const FilterCandidateList = ({
                       id="minimum-redshift"
                       label="Minimum"
                       type="number"
-                      inputProps={{ step: 0.001 }}
                       margin="dense"
                       style={{ minWidth: "100%" }}
                       onChange={(event) => onChange(event.target.value)}
                       value={value}
-                      InputLabelProps={{
-                        shrink: true,
+                      slotProps={{
+                        htmlInput: { step: 0.001 },
+                        inputLabel: { shrink: true },
                       }}
                     />
                   )}
@@ -943,13 +1024,13 @@ const FilterCandidateList = ({
                       id="maximum-redshift"
                       label="Maximum"
                       type="number"
-                      inputProps={{ step: 0.001 }}
                       margin="dense"
                       style={{ minWidth: "100%" }}
                       onChange={(event) => onChange(event.target.value)}
                       value={value}
-                      InputLabelProps={{
-                        shrink: true,
+                      slotProps={{
+                        htmlInput: { step: 0.001 },
+                        inputLabel: { shrink: true },
                       }}
                     />
                   )}
@@ -1025,9 +1106,7 @@ const FilterCandidateList = ({
                       }}
                       labelId="localizationSelectLabel"
                       value={value || ""}
-                      onChange={(event) => {
-                        onChange(event.target.value);
-                      }}
+                      onChange={(event) => onChange(event.target.value)}
                       className={classes.select}
                       disabled={!selectedGcnEventId}
                     >
@@ -1054,9 +1133,11 @@ const FilterCandidateList = ({
                       id="cumprob"
                       label="Cumulative Probability"
                       type="number"
-                      inputProps={{ step: 0.01, min: 0, max: 1 }}
                       onChange={(event) => onChange(event.target.value)}
                       defaultValue={0.95}
+                      slotProps={{
+                        htmlInput: { step: 0.01, min: 0, max: 1 },
+                      }}
                     />
                   )}
                   name="localizationCumprob"
@@ -1092,9 +1173,11 @@ const FilterCandidateList = ({
                       id="minNbDect"
                       label="Minimum Number of Detections"
                       type="number"
-                      inputProps={{ step: 1, min: 1 }}
                       onChange={(event) => onChange(event.target.value)}
                       defaultValue={1}
+                      slotProps={{
+                        htmlInput: { step: 1, min: 1 },
+                      }}
                     />
                   )}
                   name="numberDetections"
@@ -1165,6 +1248,9 @@ const FilterCandidateList = ({
                         id="annotationSortingOriginSelect"
                         data-testid="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
                         style={{ minWidth: "100%" }}
                         value={value}
                         onChange={(_event, newValue) => {

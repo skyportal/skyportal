@@ -5,6 +5,7 @@ from pathlib import Path
 
 import model_util
 
+from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.model_util import create_tables
 from baselayer.app.psa import TornadoStorage
@@ -71,7 +72,8 @@ if __name__ == "__main__":
         print("Note: user is not a valid email address")
 
     with status(f"Connecting to database {cfg['database.database']}"):
-        init_db(**cfg["database"])
+        # Setup runs before the pooler is up; connect to Postgres directly.
+        init_db(**{**cfg["database"], "pooler": None})
 
     with status(
         f"Creating tables in database {cfg['database.database']} if they do not exist"
@@ -95,7 +97,7 @@ if __name__ == "__main__":
             for u in [super_admin_user]:
                 DBSession().add(
                     TornadoStorage.user.create_social_auth(
-                        u, u.username, "google-oauth2"
+                        u, u.username, default_auth_backend()
                     )
                 )
     if user != "":
@@ -107,7 +109,7 @@ if __name__ == "__main__":
             for u in [user]:
                 DBSession().add(
                     TornadoStorage.user.create_social_auth(
-                        u, u.username, "google-oauth2"
+                        u, u.username, default_auth_backend()
                     )
                 )
     if adminuser == "" and results.adminuser is not None:

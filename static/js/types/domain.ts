@@ -73,6 +73,7 @@ export interface Annotation {
 export interface PhotStats {
   peak_mag_global?: number | null;
   peak_mjd_global?: number | null;
+  first_detected_mjd?: number | null;
   last_detected_mag?: number | null;
   last_detected_mjd?: number | null;
 }
@@ -124,6 +125,7 @@ export interface Source {
   alias?: string[] | null;
   tns_name?: string | null;
   mpc_name?: string | null;
+  is_roid?: boolean | null;
   host?: { name?: string; [key: string]: unknown } | null;
   host_offset?: number | null;
   annotations?: Annotation[];

@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
+import { useTheme } from "@mui/material/styles";
 import * as d3 from "d3";
 import Typography from "@mui/material/Typography";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetSourceQuery } from "../../ducks/source";
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
-import { PHOT_ZP, greatCircleDistance } from "../../utils";
+import {
+  useGetBrokersQuery,
+  useLazyGetBrokerConeSearchQuery,
+} from "../../ducks/brokers";
+import { PHOT_ZP, greatCircleDistance, plotCanvasTheme } from "../../utils";
 
 import CentroidPlotPlugins, {
   getCrossMatches,
@@ -325,7 +329,7 @@ const CentroidPlot = ({
   sourceId,
   plotStyle = { height: "50vh" },
 }: CentroidPlotProps) => {
-  const dispatch = useAppDispatch();
+  const muiTheme = useTheme();
   const { classes } = useStyles();
 
   const { data: source } = useGetSourceQuery(sourceId);
@@ -335,9 +339,19 @@ const CentroidPlot = ({
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
   const { data: config } = useGetConfigQuery() as { data: any };
 
-  // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
-  // apps on top of the basic SkyPortal
-  const crossMatches = useAppSelector((state) => (state as any).cross_matches);
+  // Reference-catalog cross-matches (Gaia/PS1/AllWISE, keyed by catalog) come
+  // from a broker whose cone_search returns reference catalogs. Other brokers
+  // advertise cone_search too but return their own alert objects (and rate-limit),
+  // so gate on the cross_match_catalogs capability, not "first cone_search".
+  const { data: brokers } = useGetBrokersQuery();
+  const catalogBrokers = (brokers ?? []).filter(
+    (b: any) => b.active && b.capabilities?.cross_match_catalogs,
+  );
+  const coneSearchBrokerId = (
+    catalogBrokers.find((b: any) => b.default_crossmatch) ?? catalogBrokers[0]
+  )?.id;
+  const [triggerConeSearch, { data: crossMatches }] =
+    useLazyGetBrokerConeSearchQuery();
   const [filter2color, setFilter2Color] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
@@ -349,10 +363,19 @@ const CentroidPlot = ({
   }, [config, filter2color]);
 
   useEffect(() => {
-    if (id === sourceId && ra && dec && typeof getCrossMatches === "function") {
-      getCrossMatches(ra, dec, dispatch);
+    if (
+      id === sourceId &&
+      ra != null &&
+      dec != null &&
+      coneSearchBrokerId != null &&
+      typeof getCrossMatches === "function"
+    ) {
+      getCrossMatches(ra, dec, (arg: any) =>
+        triggerConeSearch({ brokerId: coneSearchBrokerId, ...arg }),
+      );
     }
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, coneSearchBrokerId]);
 
   useEffect(() => {
     if (
@@ -385,7 +408,7 @@ const CentroidPlot = ({
           },
           name: filter,
           hoverlabel: {
-            bgcolor: "white",
+            bgcolor: muiTheme.palette.background.paper,
             font: { size: 14 },
             align: "left",
           },
@@ -395,7 +418,7 @@ const CentroidPlot = ({
       });
       setPlotData(photometryTraces);
     }
-  }, [photometry, ra, dec, filter2color]);
+  }, [photometry, ra, dec, filter2color, muiTheme.palette.background.paper]);
 
   if (!filter2color) {
     return (
@@ -490,6 +513,7 @@ const CentroidPlot = ({
         <Plot
           data={[...plotData, ...traces]}
           layout={{
+            ...plotCanvasTheme(muiTheme),
             // 2x2 arcsec plot
             xaxis: {
               title: { text: "ΔRA (arcsec)" },

@@ -2,6 +2,7 @@ __all__ = [
     "GcnNotice",
     "GcnTag",
     "GcnEvent",
+    "GcnEventCrossmatchState",
     "GcnEventUser",
     "GcnProperty",
     "GcnReport",
@@ -25,7 +26,7 @@ from ligo.skymap import (
     postprocess,
 )
 from mocpy import MOC
-from sqlalchemy import func, select
+from sqlalchemy import UniqueConstraint, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property, deferred, relationship
@@ -33,6 +34,7 @@ from sqlalchemy.orm import column_property, deferred, relationship
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
@@ -47,7 +49,7 @@ from baselayer.app.models import (
 
 from ..utils.cache import Cache, dict_to_bytes
 from .allocation import Allocation, AllocationUser
-from .group import accessible_by_group_members
+from .group import accessible_by_group_members, accessible_by_groups_members
 from .localization import Localization
 
 env, cfg = load_env()
@@ -78,9 +80,9 @@ def gcn_update_delete_logic(cls, user_or_token):
 
     if len({"Manage GCNs", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return sa.select(cls)
 
 
 class DefaultGcnTag(Base):
@@ -118,10 +120,18 @@ class DefaultGcnTag(Base):
 class GcnReport(Base):
     """Store GCN report for events."""
 
-    create = read = accessible_by_group_members
+    create = read = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
 
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="reports",
+        doc="The GcnEvent this report belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -193,16 +203,19 @@ class GcnReport(Base):
         if localization_name is None:
             localization = (
                 DBSession()
-                .query(Localization)
-                .where(Localization.dateobs == self.dateobs)
+                .scalars(
+                    sa.select(Localization).where(Localization.dateobs == self.dateobs)
+                )
                 .first()
             )
         else:
             localization = (
                 DBSession()
-                .query(Localization)
-                .where(Localization.dateobs == self.dateobs)
-                .where(Localization.localization_name == localization_name)
+                .scalars(
+                    sa.select(Localization)
+                    .where(Localization.dateobs == self.dateobs)
+                    .where(Localization.localization_name == localization_name)
+                )
                 .first()
             )
 
@@ -354,10 +367,18 @@ class GcnReport(Base):
 class GcnSummary(Base):
     """Store GCN summary text for events."""
 
-    create = read = accessible_by_group_members
+    create = read = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
 
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="summaries",
+        doc="The GcnEvent this summary belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -404,8 +425,16 @@ class GcnSummary(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="gcn_notices",
+        doc="The GcnEvent this notice belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -473,8 +502,16 @@ class GcnNotice(Base):
 class GcnProperty(Base):
     """Store properties for events."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="properties",
+        doc="The GcnEvent this property belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -504,8 +541,16 @@ class GcnProperty(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="_tags",
+        doc="The GcnEvent this tag belongs to.",
     )
 
     sent_by_id = sa.Column(
@@ -535,8 +580,23 @@ class GcnTag(Base):
 class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
 
+    read = accessible_by_groups_members
+
     update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
         gcn_update_delete_logic
+    )
+
+    groups = relationship(
+        "Group",
+        secondary="group_gcnevents",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc=(
+            "Groups that can see this GCN event. Events ingested from public "
+            "streams are attached to the sitewide public group; events from "
+            "proprietary streams are attached only to the groups entitled to "
+            "them."
+        ),
     )
 
     sent_by_id = sa.Column(
@@ -559,10 +619,13 @@ class GcnEvent(Base):
         sa.String, unique=True, doc="Trigger ID supplied by instrument"
     )
 
-    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+    gcn_notices = relationship(
+        "GcnNotice", back_populates="gcnevent", order_by=GcnNotice.date
+    )
 
     properties = relationship(
         "GcnProperty",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnProperty.created_at",
@@ -571,6 +634,7 @@ class GcnEvent(Base):
 
     reports = relationship(
         "GcnReport",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnReport.created_at",
@@ -579,6 +643,7 @@ class GcnEvent(Base):
 
     summaries = relationship(
         "GcnSummary",
+        back_populates="gcnevent",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="GcnSummary.created_at",
@@ -587,6 +652,7 @@ class GcnEvent(Base):
 
     _tags = relationship(
         "GcnTag",
+        back_populates="gcnevent",
         order_by=(
             sa.func.lower(GcnTag.text).notin_({"fermi", "swift", "amon", "lvc"}),
             sa.func.lower(GcnTag.text).notin_({"long", "short"}),
@@ -712,12 +778,7 @@ class GcnEvent(Base):
     @tags.expression
     def tags(cls):
         """List of tags."""
-        return (
-            DBSession()
-            .query(GcnTag.text)
-            .filter(GcnTag.dateobs == cls.dateobs)
-            .subquery()
-        )
+        return sa.select(GcnTag.text).where(GcnTag.dateobs == cls.dateobs).subquery()
 
     @hybrid_property
     def retracted(self):
@@ -873,18 +934,18 @@ def gcntrigger_allocationuser_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_allocation_admin = (
-        DBSession()
-        .query(Allocation)
+        sa.select(Allocation)
         .join(AllocationUser, AllocationUser.allocation_id == Allocation.id)
-        .filter(sa.and_(AllocationUser.user_id == user_id))
+        .where(sa.and_(AllocationUser.user_id == user_id))
     )
-    query = (
-        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
-    )
+    query = sa.select(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(
+        query = query.where(
             aliased.allocation_id.in_(
-                [allocation.id for allocation in user_allocation_admin.all()]
+                [
+                    allocation.id
+                    for allocation in DBSession().scalars(user_allocation_admin).all()
+                ]
             )
         )
     return query
@@ -916,9 +977,9 @@ GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessCont
 def gcnevent_user_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls)
+    query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id)
+        query = query.where(aliased.user_id == user_id)
     return query
 
 
@@ -932,4 +993,132 @@ GcnEvent.event_users_ids = column_property(
     .where(GcnEventUser.gcnevent_id == GcnEvent.id)
     .correlate_except(GcnEventUser)
     .scalar_subquery()
+)
+
+
+class GcnEventCrossmatchState(Base):
+    """Per-(event, filter, localization) bookkeeping for the GCN crossmatch.
+
+    The crossmatch service re-queries an event's localization for as long as the
+    event stays inside its active window, because alerts keep arriving after the
+    event. This table records how far that has got, keyed per filter: a filter
+    carries its own broker, survey and audience, so two filters on one broker
+    progress independently.
+
+    It is also keyed per localization. One event can carry several: an EP
+    observation reports each detected source as its own cone under the shared
+    observation timestamp, and those cones can be tens of degrees apart. Each is
+    a separate patch of sky to search, and each needs its own watermark.
+
+    Read access follows the event: the fact that a restricted event is being
+    crossmatched, and when, is itself information about that event.
+    """
+
+    __tablename__ = "gcnevent_crossmatch_states"
+
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
+    update = delete = CustomUserAccessControl(gcn_update_delete_logic)
+
+    gcnevent_id = sa.Column(
+        sa.ForeignKey("gcnevents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The GcnEvent being crossmatched.",
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="crossmatch_states",
+        doc="The GcnEvent being crossmatched.",
+    )
+
+    filter_id = sa.Column(
+        sa.ForeignKey("filters.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The Filter this state tracks progress against.",
+    )
+
+    filter = relationship(
+        "Filter", doc="The Filter this state tracks progress against."
+    )
+
+    localization_id = sa.Column(
+        sa.ForeignKey("localizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The Localization (one patch of sky) this state tracks.",
+    )
+
+    localization = relationship(
+        "Localization", doc="The Localization this state tracks progress against."
+    )
+
+    last_queried = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        index=True,
+        doc="When this event was last queried for this filter.",
+    )
+
+    last_alert_jd = sa.Column(
+        sa.Float,
+        nullable=True,
+        doc=(
+            "JD of the newest alert seen for this event through this filter. Used as "
+            "the lower bound of the next query so late-arriving alerts are not "
+            "missed, mirroring the watchlist service's last_got_candidates_at."
+        ),
+    )
+
+    status = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="pending",
+        index=True,
+        doc="One of: pending, processing, done, failed.",
+    )
+
+    error = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Message from the most recent failure, if any.",
+    )
+
+    archival_done = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc=(
+            "Whether the one-shot pre-event (archival) search has run for this "
+            "event/broker pair. That window is closed, so it never needs redoing."
+        ),
+    )
+
+    n_matches = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default="0",
+        doc="Cumulative count of alerts matched for this event from this broker.",
+    )
+
+    # Named explicitly: the derived name would be 68 characters, over
+    # PostgreSQL's 63-character identifier limit.
+    __table_args__ = (
+        UniqueConstraint(
+            "gcnevent_id",
+            "filter_id",
+            "localization_id",
+            name="uq_gcnevent_crossmatch_states_event_filter_localization",
+        ),
+    )
+
+
+GcnEvent.crossmatch_states = relationship(
+    "GcnEventCrossmatchState",
+    back_populates="gcnevent",
+    cascade="save-update, merge, refresh-expire, expunge, delete",
+    passive_deletes=True,
+    doc="Per-broker crossmatch progress for this event.",
 )

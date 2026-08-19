@@ -1,9 +1,11 @@
 import json
 import textwrap
 
-import requests
+import aiohttp
+import sqlalchemy as sa
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -92,7 +94,7 @@ class SLACKAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SLACK.
 
         Parameters
@@ -103,7 +105,22 @@ class SLACKAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains _build_payload and this method walk
+        # (allocation->instrument, obj, requester) eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+            )
+        )
 
         req = SLACKRequest()
         requestgroup, requesttext = req._build_payload(request)
@@ -123,22 +140,28 @@ class SLACKAPI(FollowUpAPI):
                 "text": requesttext,
             }
         )
+        headers = {"Content-Type": "application/json"}
 
-        r = requests.post(
-            slack_microservice_url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-        )
-        r.raise_for_status()
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                slack_microservice_url, data=data, headers=headers
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 200:
+        if status >= 400:
+            raise ValueError(f"Error submitting to Slack: {status}: {content}")
+
+        if status == 200:
             request.status = "submitted"
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", slack_microservice_url, headers, data
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -160,17 +183,28 @@ class SLACKAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         from ..models import FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             raise NotImplementedError(
                 "Can't delete requests already sent successfully to Slack."

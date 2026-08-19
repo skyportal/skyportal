@@ -109,18 +109,13 @@ jobs:
           bun-version-file: package.json
 
       - name: Install system dependencies
+        timeout-minutes: 10
+        env:
+          APT_OPTS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30
         run: |
-          sudo apt update -y
+          sudo apt $APT_OPTS update -y
 
-          ### firefox installation
-          sudo snap remove firefox
-          sudo install -d -m 0755 /etc/apt/keyrings
-          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
-          sudo apt update -y
-
-          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
+          sudo apt $APT_OPTS install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -130,13 +125,10 @@ jobs:
           echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
-          firefox --version
 
       - name: Install SkyPortal dependencies
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
       - name: Save current Alembic head on main
@@ -193,8 +185,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-
           # The reference commit uses uv, so install its pinned dependencies
           # straight from its own uv.lock (reproducible; no manual pip pins).
           make dependencies
@@ -211,7 +201,6 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
           # `kill %1` alone is racy — `make run` often backgrounds supervisord
@@ -242,8 +231,10 @@ jobs:
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
           uv pip uninstall pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
-          # Make sure latest revision on main is included in Alembic history
-          n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD )
+          # Make sure latest revision on main is included in Alembic history.
+          # `|| true` because grep exits 1 on no matches, which under `bash -e`
+          # would abort here and skip the explanation below.
+          n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD || true )
           if [[ $n_current_head -eq 0 ]]
           then
             cat << EOF
@@ -270,8 +261,6 @@ jobs:
 
       - name: Run migration
         run: |
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml upgrade head
@@ -312,7 +301,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal2_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           make run &

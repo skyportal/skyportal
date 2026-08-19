@@ -4,7 +4,7 @@ from marshmallow import fields
 
 
 def utcnow_naive() -> datetime:
-    """Naive UTC datetime — drop-in replacement for the deprecated datetime.utcnow()."""
+    """Naive UTC datetime, drop-in replacement for the deprecated datetime.utcnow()."""
     return datetime.now(UTC).replace(tzinfo=None)
 
 

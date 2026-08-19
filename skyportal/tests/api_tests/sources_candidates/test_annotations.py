@@ -16,7 +16,7 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
     )
 
     assert status in [400]
-    assert "origin must be specified" in data["message"]
+    assert "origin: Field required" in data["message"]
 
     # this should not work, since "origin" is empty
     status, data = api(
@@ -31,7 +31,7 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
     )
 
     assert status == 400
-    assert "Input `origin` must begin with alphanumeric/underscore" in data["message"]
+    assert "origin: String should match pattern" in data["message"]
 
 
 def test_post_same_origin_fails(annotation_token, public_source, public_group):
@@ -91,6 +91,37 @@ def test_add_and_retrieve_annotation_group_id(
     assert status == 200
     assert data["data"]["data"] == {"offset_from_host_galaxy": 1.5}
     assert data["data"]["origin"] == "kowalski"
+
+
+def test_post_annotation_ignores_handler_derived_body_fields(
+    annotation_token, public_source
+):
+    # Clients send obj_id (derived by the handler from the URL) in the body; it
+    # must be ignored, not rejected.
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/annotations",
+        data={
+            "obj_id": public_source.id,
+            "origin": str(uuid.uuid4()),
+            "data": {"numeric_field": 1},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    annotation_id = data["data"]["annotation_id"]
+
+    status, data = api(
+        "PUT",
+        f"sources/{public_source.id}/annotations/{annotation_id}",
+        data={
+            "obj_id": public_source.id,
+            "author_id": 1,
+            "data": {"numeric_field": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
 
 
 def test_add_and_retrieve_annotation_no_group_id(annotation_token, public_source):
@@ -341,10 +372,7 @@ def test_cannot_add_annotation_without_data(
         token=annotation_token,
     )
     assert status == 400
-    assert (
-        "Invalid data: the annotation data must be an object with at least one {key: value} pair"
-        in data["message"]
-    )
+    assert "data: Field required" in data["message"]
 
 
 def test_post_invalid_data(annotation_token, public_source, public_group):
@@ -361,4 +389,4 @@ def test_post_invalid_data(annotation_token, public_source, public_group):
     )
 
     assert status == 400
-    assert "Invalid data" in data["message"]
+    assert "data: Input should be a valid dictionary" in data["message"]

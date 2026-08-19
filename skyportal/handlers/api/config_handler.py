@@ -1,9 +1,10 @@
 import copy
 
-from matplotlib.cm import get_cmap
+from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
@@ -28,15 +29,31 @@ TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 ALLOWED_INSTRUMENTS_FOR_SHARING = list(TNS_INSTRUMENT_IDS.keys())
 
-cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
+cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 
 # we convert it to a list of hex colors
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 
+def configured_backends_public():
+    """Sign-in providers, without their credentials."""
+    return [
+        {"name": backend["name"], "label": backend["label"]}
+        for backend in configured_backends()
+    ]
+
+
+def cosmology_parameter_rows(cosmology):
+    """Cosmology parameters at full precision for display; astropy's repr rounds
+    some values (e.g. H0 -> 67.7 instead of 67.66)."""
+    rows = [{"name": "name", "value": str(cosmology.name)}]
+    rows += [{"name": k, "value": str(v)} for k, v in cosmology.parameters.items()]
+    return rows
+
+
 class ConfigHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve instance config
@@ -93,7 +110,9 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
+                "cosmologyParams": cosmology_parameter_rows(cosmo),
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
                 "cosmoref": cosmo.__doc__,
@@ -114,5 +133,10 @@ class ConfigHandler(BaseHandler):
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "usePinecone": USE_PINECONE,
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
+                "authBackends": configured_backends_public(),
+                "publicGroupName": cfg["misc.public_group_name"],
+                "shareDataWithPublicGroupByDefault": cfg.get(
+                    "misc.share_data_with_public_group_by_default", False
+                ),
             }
         )
