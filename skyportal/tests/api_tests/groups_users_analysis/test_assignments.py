@@ -1,4 +1,6 @@
-from skyportal.tests import api
+from skyportal_py.assignments import AssignmentPost
+
+from skyportal.tests import client
 
 
 def test_token_user_post_classical_followup_request(
@@ -11,17 +13,12 @@ def test_token_user_post_classical_followup_request(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp = client(upload_data_token)
+    id = sp.post_assignment(AssignmentPost(**request_data)).id
 
-    status, data = api("GET", f"assignment/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-
+    assignment = sp.fetch_assignment(id)
     for key in request_data:
-        assert data["data"][key] == request_data[key]
+        assert getattr(assignment, key) == request_data[key]
 
 
 def test_token_user_delete_owned_assignment(
@@ -34,14 +31,10 @@ def test_token_user_delete_owned_assignment(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp = client(upload_data_token)
+    id = sp.post_assignment(AssignmentPost(**request_data)).id
 
-    status, data = api("DELETE", f"assignment/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.delete_assignment(id)
 
 
 def test_regular_user_can_delete_super_admin_assignment(
@@ -54,14 +47,9 @@ def test_regular_user_can_delete_super_admin_assignment(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    id = client(super_admin_token).post_assignment(AssignmentPost(**request_data)).id
 
-    status, data = api("DELETE", f"assignment/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(upload_data_token).delete_assignment(id)
 
 
 def test_regular_user_can_modify_super_admin_assignment(
@@ -79,29 +67,18 @@ def test_regular_user_can_modify_super_admin_assignment(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    id = client(super_admin_token).post_assignment(AssignmentPost(**request_data)).id
 
-    request_data = {
-        "run_id": red_transients_run.id,
-        "obj_id": public_source.id,
-        "priority": "4",
-        "comment": "Please take spectrum only below airmass 1.5",
-    }
-
-    status, data = api(
-        "PUT", f"assignment/{id}", data=request_data, token=upload_data_token
+    sp = client(upload_data_token)
+    sp.update_assignment(
+        id,
+        priority="4",
+        comment="Please take spectrum only below airmass 1.5",
     )
-    assert status == 200
-    assert data["status"] == "success"
 
-    status, data = api("GET", f"assignment/{id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["last_modified_by_id"] == user.id
-    assert data["data"]["requester_id"] == super_admin_user.id
+    assignment = sp.fetch_assignment(id)
+    assert assignment.last_modified_by_id == user.id
+    assert assignment.requester_id == super_admin_user.id
 
 
 def test_group1_user_can_see_group2_assignment(
@@ -118,10 +95,8 @@ def test_group1_user_can_see_group2_assignment(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    id = data["data"]["id"]
+    sp_admin = client(super_admin_token)
+    id = sp_admin.post_assignment(AssignmentPost(**request_data)).id
 
     request_data = {
         "run_id": red_transients_run.id,
@@ -130,10 +105,6 @@ def test_group1_user_can_see_group2_assignment(
         "comment": "Please take spectrum only below airmass 1.5",
     }
 
-    status, data = api("POST", "assignment", data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp_admin.post_assignment(AssignmentPost(**request_data))
 
-    status, data = api("GET", f"assignment/{id}", token=view_only_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(view_only_token).fetch_assignment(id)

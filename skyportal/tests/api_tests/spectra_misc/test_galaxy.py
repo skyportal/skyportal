@@ -1,48 +1,44 @@
+import contextlib
 import os
 import time
 import uuid
 
 import numpy as np
+import pytest
 from astropy.table import Table
+from skyportal_py import SkyPortalError
+from skyportal_py.galaxies import GalaxyCatalogPost
+from skyportal_py.sources import SourcePost
 
-from skyportal.tests import api
+from skyportal.tests import client
 
 
 def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
+    sp_admin = client(super_admin_token)
+    sp_view = client(view_only_token)
     dateobs = gcn_GW190814.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
     catalog_name = "test_galaxy_catalog"
     # in case the catalog already exists, delete it.
-    status, data = api(
-        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
-    )
+    with contextlib.suppress(SkyPortalError):
+        sp_admin.delete_galaxy_catalog(catalog_name)
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
-    data = {
-        "catalog_name": catalog_name,
-        "catalog_data": Table.read(datafile)
-        .to_pandas()
-        .replace({np.nan: None})
-        .to_dict(orient="list"),
-    }
+    catalog_data = (
+        Table.read(datafile).to_pandas().replace({np.nan: None}).to_dict(orient="list")
+    )
 
-    status, data = api("POST", "galaxy_catalog", data=data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-
-    params = {"catalog_name": catalog_name}
+    sp_admin.post_galaxy_catalog(
+        GalaxyCatalogPost(catalog_name=catalog_name, catalog_data=catalog_data)
+    )
 
     nretries = 0
     galaxies_loaded = False
     while nretries < 40:
-        status, data = api(
-            "GET", "galaxy_catalog", token=view_only_token, params=params
-        )
-        assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
+        galaxies = sp_view.fetch_galaxies(catalog_name=catalog_name).galaxies
+        if len(galaxies) == 92 and any(
+            g.name == "6dFgs gJ0001313-055904" and g.mstar == 336.60756522868667
+            for g in galaxies
         ):
             galaxies_loaded = True
             break
@@ -52,23 +48,20 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
     assert nretries < 40
     assert galaxies_loaded
 
-    params = {
-        "includeGeoJSON": True,
-        "catalog_name": catalog_name,
-        "localizationDateobs": dateobs,
-        "localizationCumprob": 0.45,
-    }
+    page = sp_view.fetch_galaxies(
+        catalog_name=catalog_name,
+        include_geojson=True,
+        localization_dateobs=dateobs,
+        localization_cumprob=0.45,
+    )
 
-    status, data = api("GET", "galaxy_catalog", token=view_only_token, params=params)
-    assert status == 200
-
-    geojson = data["data"]["geojson"]
-    data = data["data"]["galaxies"]
+    geojson = page.geojson
+    galaxies = page.galaxies
 
     # now we have restricted to only 3/92 being in localization
-    assert len(data) == 3
+    assert len(galaxies) == 3
     assert any(
-        d["name"] == "MCG -04-03-023" and d["mstar"] == 20113219211.26844 for d in data
+        g.name == "MCG -04-03-023" and g.mstar == 20113219211.26844 for g in galaxies
     )
 
     # The GeoJSON takes the form of
@@ -86,78 +79,61 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
         for d in geojson["features"]
     )
 
-    status, data = api(
-        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp_admin.delete_galaxy_catalog(catalog_name)
 
-    params = {"catalog_name": catalog_name}
-
-    status, data = api("GET", "galaxy_catalog", token=view_only_token, params=params)
-    assert status == 400
-    assert f"Catalog with name {catalog_name} not found" in data["message"]
+    with pytest.raises(
+        SkyPortalError, match=f"Catalog with name {catalog_name} not found"
+    ) as err:
+        sp_view.fetch_galaxies(catalog_name=catalog_name)
+    assert err.value.status_code == 400
 
 
 def test_source_host(
     super_admin_token, upload_data_token, view_only_token, public_group
 ):
+    sp_admin = client(super_admin_token)
+    sp_view = client(view_only_token)
     catalog_name = "test_galaxy_catalog"
 
     # in case the catalog already exists, delete it.
-    status, data = api(
-        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
-    )
+    with contextlib.suppress(SkyPortalError):
+        sp_admin.delete_galaxy_catalog(catalog_name)
 
     obj_id = str(uuid.uuid4())
     alias = str(uuid.uuid4())
     origin = str(uuid.uuid4())
 
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.332952,
-            "dec": -33.331228,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-            "alias": [alias],
-            "origin": origin,
-        },
-        token=upload_data_token,
+    resp = client(upload_data_token).post_source(
+        SourcePost(
+            id=obj_id,
+            ra=24.332952,
+            dec=-33.331228,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+            alias=[alias],
+            origin=origin,
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert resp.id == obj_id
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
-    data = {
-        "catalog_name": catalog_name,
-        "catalog_data": Table.read(datafile)
-        .to_pandas()
-        .replace({np.nan: None})
-        .to_dict(orient="list"),
-    }
+    catalog_data = (
+        Table.read(datafile).to_pandas().replace({np.nan: None}).to_dict(orient="list")
+    )
 
-    status, data = api("POST", "galaxy_catalog", data=data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-
-    params = {"catalog_name": catalog_name}
+    sp_admin.post_galaxy_catalog(
+        GalaxyCatalogPost(catalog_name=catalog_name, catalog_data=catalog_data)
+    )
 
     nretries = 0
     galaxies_loaded = False
     while nretries < 40:
-        status, data = api(
-            "GET", "galaxy_catalog", token=view_only_token, params=params
-        )
-        assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
+        galaxies = sp_view.fetch_galaxies(catalog_name=catalog_name).galaxies
+        if len(galaxies) == 92 and any(
+            g.name == "6dFgs gJ0001313-055904" and g.mstar == 336.60756522868667
+            for g in galaxies
         ):
             galaxies_loaded = True
             break
@@ -167,7 +143,6 @@ def test_source_host(
     assert nretries < 40
     assert galaxies_loaded
 
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-    assert "GALEXASC J013719.93-331951.1" in data["data"]["galaxies"]
+    source = sp_view.fetch_source(obj_id)
+    assert source.id == obj_id
+    assert "GALEXASC J013719.93-331951.1" in source.galaxies

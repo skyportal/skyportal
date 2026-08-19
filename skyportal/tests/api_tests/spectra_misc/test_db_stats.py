@@ -1,18 +1,20 @@
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 
 def test_db_stats(
     super_admin_token, public_source, public_group, public_candidate, user
 ):
-    status, data = api("GET", "db_stats", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert isinstance(data["data"]["Number of candidates"], int)
-    assert isinstance(data["data"]["Number of users"], int)
+    stats = client(super_admin_token).fetch_db_stats()
+    assert isinstance(stats["Number of candidates"], int)
+    assert isinstance(stats["Number of users"], int)
 
 
 def test_db_stats_access_denied(
     view_only_token, public_source, public_group, public_candidate, user
 ):
-    status, data = api("GET", "db_stats", token=view_only_token)
-    assert status == 401
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).fetch_db_stats()
+    assert err.value.status_code == 401

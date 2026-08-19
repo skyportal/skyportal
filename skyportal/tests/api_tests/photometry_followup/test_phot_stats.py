@@ -5,6 +5,9 @@ import uuid
 import numpy as np
 import pytest
 import sqlalchemy as sa
+from skyportal_py import SkyPortalError
+from skyportal_py.photometry import PhotometryPost, PhotometryUpdate
+from skyportal_py.sources import SourcePost
 
 from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
@@ -12,7 +15,7 @@ from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.models import User
 from skyportal.models.phot_stat import PhotStat
 from skyportal.models.photometry import PHOT_ZP, Photometry
-from skyportal.tests import api
+from skyportal.tests import client
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -21,132 +24,69 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def test_phot_stats_permissions(upload_data_token, super_admin_token, public_source):
+    sp_user = client(upload_data_token)
+    sp_admin = client(super_admin_token)
+
     # normal user cannot delete or update the phot stats
-    status, data = api(
-        "DELETE", f"sources/{public_source.id}/phot_stat", token=upload_data_token
-    )
-    assert status == 401
-    assert "Unauthorized" in data["message"]
+    with pytest.raises(SkyPortalError, match="Unauthorized") as err:
+        sp_user.delete_source_phot_stat(public_source.id)
+    assert err.value.status_code == 401
 
-    status, data = api(
-        "PUT",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 401
-    assert "Unauthorized" in data["message"]
+    with pytest.raises(SkyPortalError, match="Unauthorized") as err:
+        sp_user.update_source_phot_stat(public_source.id)
+    assert err.value.status_code == 401
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 200
+    sp_user.fetch_source_phot_stat(public_source.id)
     # super user can delete the phot stats
-    status, data = api(
-        "DELETE", f"sources/{public_source.id}/phot_stat", token=super_admin_token
-    )
-    assert status == 200
+    sp_admin.delete_source_phot_stat(public_source.id)
 
     # normal user cannot post a phot stat
-    status, data = api(
-        "POST",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 401
-    assert "Unauthorized" in data["message"]
+    with pytest.raises(SkyPortalError, match="Unauthorized") as err:
+        sp_user.post_source_phot_stat(public_source.id)
+    assert err.value.status_code == 401
 
     # super user can post a phot stat
-    status, data = api(
-        "POST",
-        f"sources/{public_source.id}/phot_stat",
-        token=super_admin_token,
-        data={},
-    )
-    assert status == 200
+    sp_admin.post_source_phot_stat(public_source.id)
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 200
+    sp_user.fetch_source_phot_stat(public_source.id)
     # super admin cannot re-post a phot stat
 
-    status, data = api(
-        "POST",
-        f"sources/{public_source.id}/phot_stat",
-        token=super_admin_token,
-        data={},
-    )
-    assert status == 400
-    assert "already exists" in data["message"]
+    with pytest.raises(SkyPortalError, match="already exists") as err:
+        sp_admin.post_source_phot_stat(public_source.id)
+    assert err.value.status_code == 400
 
 
 def test_delete_phot_stat_does_not_cascade(
     upload_data_token, super_admin_token, public_source
 ):
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
-    phot_ids = [p["id"] for p in data["data"]]
+    sp_user = client(upload_data_token)
+    phot_ids = [p.id for p in sp_user.fetch_photometry(public_source.id)]
 
-    status, data = api(
-        "DELETE", f"sources/{public_source.id}/phot_stat", token=super_admin_token
-    )
-    assert status == 200
+    client(super_admin_token).delete_source_phot_stat(public_source.id)
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 400
+    with pytest.raises(SkyPortalError) as err:
+        sp_user.fetch_source_phot_stat(public_source.id)
+    assert err.value.status_code == 400
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}",
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["data"]["id"] == public_source.id
+    assert sp_user.fetch_source(public_source.id).id == public_source.id
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert {p["id"] for p in data["data"]} == set(phot_ids)
+    assert {p.id for p in sp_user.fetch_photometry(public_source.id)} == set(phot_ids)
 
 
 def test_phot_stats_simple_lightcurve(
     upload_data_token, super_admin_token, public_source, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": np.random.uniform(0, 360),
-            "dec": np.random.uniform(-90, 90),
-            "redshift": np.random.uniform(0, 1),
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    sp.post_source(
+        SourcePost(
+            id=source_id,
+            ra=np.random.uniform(0, 360),
+            dec=np.random.uniform(-90, 90),
+            redshift=np.random.uniform(0, 1),
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
 
     mjd = np.linspace(57000, 57100, 5)
     flux = np.array([10.0, 110.0, 170.0, 180.0, 100.0])
@@ -155,49 +95,36 @@ def test_phot_stats_simple_lightcurve(
 
     # post all these points
     for i in range(len(mjd)):
-        status, data = api(
-            "POST",
-            "photometry",
-            data={
-                "obj_id": source_id,
-                "mjd": mjd[i],
-                "instrument_id": ztf_camera.id,
-                "flux": flux[i],
-                "fluxerr": 10.0,
-                "zp": 25.0,
-                "magsys": "ab",
-                "filter": "ztfr",
-                "group_ids": [public_group.id],
-                "altdata": {"some_key": str(uuid.uuid4())},
-            },
-            token=upload_data_token,
+        sp.post_photometry(
+            PhotometryPost(
+                obj_id=source_id,
+                mjd=mjd[i],
+                instrument_id=ztf_camera.id,
+                flux=flux[i],
+                fluxerr=10.0,
+                zp=25.0,
+                magsys="ab",
+                filter="ztfr",
+                group_ids=[public_group.id],
+                altdata={"some_key": str(uuid.uuid4())},
+            )
         )
-        if status != 200:
-            print(data)
-        assert status == 200
-        assert data["status"] == "success"
 
-    status, data = api(
-        "GET",
-        f"sources/{source_id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
-    photometry = data["data"]
+    photometry = sp.fetch_photometry(source_id)
 
     # get the magnitudes, detections, and limits
     # in the order of MJD, not the order they were posted
-    phot_dict = {p["mjd"]: p for p in photometry}
+    phot_dict = {p.mjd: p for p in photometry}
     mag = []
     det = []
     lim = []
     filt = []
     for j in mjd:
         assert j in phot_dict
-        mag.append(phot_dict[j]["mag"])
-        det.append(phot_dict[j]["snr"] > PHOT_DETECTION_THRESHOLD)
-        lim.append(phot_dict[j]["limiting_mag"])
-        filt.append(phot_dict[j]["filter"])
+        mag.append(phot_dict[j].mag)
+        det.append(phot_dict[j].snr > PHOT_DETECTION_THRESHOLD)
+        lim.append(phot_dict[j].limiting_mag)
+        filt.append(phot_dict[j].filter)
 
     mag = np.array(mag)
     det = np.array(det)
@@ -207,61 +134,41 @@ def test_phot_stats_simple_lightcurve(
     print(f"mags: {mag}")
 
     # get the photometry stats
-    status, data = api(
-        "GET",
-        f"sources/{source_id}/phot_stat",
-        token=upload_data_token,
-    )
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
 
 def test_phot_stats_for_public_source(upload_data_token, public_source):
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
-    photometry = data["data"]
-    mag = [p["mag"] for p in photometry]
+    sp = client(upload_data_token)
+    photometry = sp.fetch_photometry(public_source.id)
+    mag = [p.mag for p in photometry]
     assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
     mag = np.array(mag)
-    mjd = np.array([p["mjd"] for p in photometry])
-    filt = np.array([p["filter"] for p in photometry])
-    det = np.array([p["snr"] > PHOT_DETECTION_THRESHOLD for p in photometry])
-    lim = np.array([p["limiting_mag"] for p in photometry])
+    mjd = np.array([p.mjd for p in photometry])
+    filt = np.array([p.filter for p in photometry])
+    det = np.array([p.snr > PHOT_DETECTION_THRESHOLD for p in photometry])
+    lim = np.array([p.limiting_mag for p in photometry])
 
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/phot_stat",
-        token=upload_data_token,
-        data={},
-    )
-    assert status == 200
-    check_phot_stat_is_consistent(data["data"], mjd, mag, filt, det, lim)
+    phot_stat = sp.fetch_source_phot_stat(public_source.id).model_dump()
+    check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
 
 def test_phot_stat_consistent(
     upload_data_token, super_admin_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
+    sp_admin = client(super_admin_token)
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": np.random.uniform(0, 360),
-            "dec": np.random.uniform(-90, 90),
-            "redshift": np.random.uniform(0, 1),
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    sp.post_source(
+        SourcePost(
+            id=source_id,
+            ra=np.random.uniform(0, 360),
+            dec=np.random.uniform(-90, 90),
+            redshift=np.random.uniform(0, 1),
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
 
     num_points = 20
     mjd = np.random.uniform(55000, 56000, num_points)
@@ -278,49 +185,36 @@ def test_phot_stat_consistent(
     np.random.shuffle(insert_idx)  # input data in random order
 
     for i in insert_idx:
-        status, data = api(
-            "POST",
-            "photometry",
-            data={
-                "obj_id": source_id,
-                "mjd": mjd[i],
-                "instrument_id": ztf_camera.id,
-                "flux": flux[i],
-                "fluxerr": 10.0,
-                "zp": 25.0,
-                "magsys": "ab",
-                "filter": filt[i],
-                "group_ids": [public_group.id],
-                "altdata": {"some_key": str(uuid.uuid4())},
-            },
-            token=upload_data_token,
+        resp = sp.post_photometry(
+            PhotometryPost(
+                obj_id=source_id,
+                mjd=mjd[i],
+                instrument_id=ztf_camera.id,
+                flux=flux[i],
+                fluxerr=10.0,
+                zp=25.0,
+                magsys="ab",
+                filter=filt[i],
+                group_ids=[public_group.id],
+                altdata={"some_key": str(uuid.uuid4())},
+            )
         )
-        if status != 200:
-            print(data)
-        assert status == 200
-        assert data["status"] == "success"
-        phot_ids.append(data["data"]["ids"][0])
+        phot_ids.append(resp.ids[0])
 
-    status, data = api(
-        "GET",
-        f"sources/{source_id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
-    photometry = data["data"]
+    photometry = sp.fetch_photometry(source_id)
     assert len(photometry) == num_points
 
     # get the magnitudes, detections, and limits
     # in the order of MJD, not the order they were posted
-    phot_dict = {p["mjd"]: p for p in photometry}
+    phot_dict = {p.mjd: p for p in photometry}
     mag = []
     det = []
     lim = []
     for j in mjd:
         assert j in phot_dict
-        mag.append(phot_dict[j]["mag"])
-        det.append(phot_dict[j]["snr"] > PHOT_DETECTION_THRESHOLD)
-        lim.append(phot_dict[j]["limiting_mag"])
+        mag.append(phot_dict[j].mag)
+        det.append(phot_dict[j].snr > PHOT_DETECTION_THRESHOLD)
+        lim.append(phot_dict[j].limiting_mag)
 
     mag = np.array(mag)
     det = np.array(det)
@@ -328,41 +222,21 @@ def test_phot_stat_consistent(
     assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
     assert np.sum(det) == num_points - 5
 
-    status, data = api(
-        "GET",
-        f"sources/{source_id}/phot_stat",
-        token=upload_data_token,
-    )
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
     # now re-calculate the points
-    status, data = api(
-        "DELETE", f"sources/{source_id}/phot_stat", token=super_admin_token
-    )
-    assert status == 200
+    sp_admin.delete_source_phot_stat(source_id)
 
-    status, data = api(
-        "POST", f"sources/{source_id}/phot_stat", token=super_admin_token
-    )
-    assert status == 200
+    sp_admin.post_source_phot_stat(source_id)
 
-    status, data = api(
-        "GET",
-        f"sources/{source_id}/phot_stat",
-        token=upload_data_token,
-    )
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
     # now delete a point
-    status, data = api("DELETE", f"photometry/{phot_ids[6]}", token=upload_data_token)
+    sp.delete_photometry(phot_ids[6])
     phot_ids.pop(6)
-
-    assert status == 200
 
     idx = np.ones(num_points, dtype=bool)
     # point inserted at index 6 is some other index
@@ -374,76 +248,57 @@ def test_phot_stat_consistent(
     det_less = det[idx]
     lim_less = lim[idx]
 
-    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
-
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(
         phot_stat, mjd_less, mag_less, filt_less, det_less, lim_less
     )
 
     # re-add that photometry point to check that the phot_stat updates
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": source_id,
-            "mjd": mjd[insert_idx[6]],
-            "instrument_id": ztf_camera.id,
-            "flux": flux[insert_idx[6]],
-            "fluxerr": 10.0,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": filt[insert_idx[6]],
-            "group_ids": [public_group.id],
-            "altdata": {"some_key": str(uuid.uuid4())},
-        },
-        token=upload_data_token,
+    resp = sp.post_photometry(
+        PhotometryPost(
+            obj_id=source_id,
+            mjd=mjd[insert_idx[6]],
+            instrument_id=ztf_camera.id,
+            flux=flux[insert_idx[6]],
+            fluxerr=10.0,
+            zp=25.0,
+            magsys="ab",
+            filter=filt[insert_idx[6]],
+            group_ids=[public_group.id],
+            altdata={"some_key": str(uuid.uuid4())},
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
-    phot_ids.insert(6, data["data"]["ids"][0])
+    phot_ids.insert(6, resp.ids[0])
 
-    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
-
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
     # modify one of the points and see if it updates
     flux[2] = 700.2
-    status, data = api(
-        "PATCH",
-        f"photometry/{phot_ids[insert_idx.index(2)]}",
-        data={
-            "obj_id": source_id,
-            "mjd": mjd[2],
-            "instrument_id": ztf_camera.id,
-            "flux": flux[2],
-            "fluxerr": 10.0,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": filt[2],
-            "group_ids": [public_group.id],
-            "altdata": {"some_key": str(uuid.uuid4())},
-        },
-        token=upload_data_token,
+    sp.update_photometry(
+        phot_ids[insert_idx.index(2)],
+        PhotometryUpdate(
+            obj_id=source_id,
+            mjd=mjd[2],
+            instrument_id=ztf_camera.id,
+            flux=flux[2],
+            fluxerr=10.0,
+            zp=25.0,
+            magsys="ab",
+            filter=filt[2],
+            group_ids=[public_group.id],
+            altdata={"some_key": str(uuid.uuid4())},
+        ),
     )
-    assert status == 200
 
-    status, data = api(
-        "GET", f"photometry/{phot_ids[insert_idx.index(2)]}", token=upload_data_token
-    )
-    assert status == 200
-    assert mjd[2] == data["data"]["mjd"]
-    mag[2] = data["data"]["mag"]
-    det[2] = data["data"]["snr"] > PHOT_DETECTION_THRESHOLD
+    point = sp.fetch_photometry_point(phot_ids[insert_idx.index(2)])
+    assert mjd[2] == point.mjd
+    mag[2] = point.mag
+    det[2] = point.snr > PHOT_DETECTION_THRESHOLD
 
-    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
@@ -451,37 +306,29 @@ def test_phot_stat_consistent(
     flux = np.append(flux, np.random.normal(500, 10, 1))
     filt = np.append(filt, np.random.choice(["ztfg", "ztfr", "ztfi"], 1))
 
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": source_id,
-            "mjd": 58000.0 + np.random.rand() * 100,
-            "instrument_id": ztf_camera.id,
-            "flux": flux[-1],
-            "fluxerr": 10.0,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": filt[-1],
-            "group_ids": [public_group.id],
-            "altdata": {"some_key": str(uuid.uuid4())},
-        },
-        token=upload_data_token,
+    resp = sp.post_photometry(
+        PhotometryPost(
+            obj_id=source_id,
+            mjd=58000.0 + np.random.rand() * 100,
+            instrument_id=ztf_camera.id,
+            flux=flux[-1],
+            fluxerr=10.0,
+            zp=25.0,
+            magsys="ab",
+            filter=filt[-1],
+            group_ids=[public_group.id],
+            altdata={"some_key": str(uuid.uuid4())},
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
-    phot_ids.append(data["data"]["ids"][0])
+    phot_ids.append(resp.ids[0])
 
-    status, data = api("GET", f"photometry/{phot_ids[-1]}", token=upload_data_token)
-    assert status == 200
-    mag = np.append(mag, data["data"]["mag"])
-    mjd = np.append(mjd, data["data"]["mjd"])
+    point = sp.fetch_photometry_point(phot_ids[-1])
+    mag = np.append(mag, point.mag)
+    mjd = np.append(mjd, point.mjd)
     det = np.append(det, True)
     lim = np.append(lim, mag[-1])
 
-    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
-    assert status == 200
-    phot_stat = data["data"]
+    phot_stat = sp.fetch_source_phot_stat(source_id).model_dump()
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
 
@@ -489,6 +336,8 @@ def test_phot_stat_consistent(
 def test_phot_stats_update_handler(
     upload_data_token, super_admin_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
+    sp_admin = client(super_admin_token)
     num_sources = 4
     num_points = 5
     source_ids = []
@@ -498,20 +347,15 @@ def test_phot_stats_update_handler(
 
     for j in range(num_sources):
         source_ids.append(str(uuid.uuid4()))
-        status, data = api(
-            "POST",
-            "sources",
-            data={
-                "id": source_ids[-1],
-                "ra": np.random.uniform(0, 360),
-                "dec": np.random.uniform(-90, 90),
-                "redshift": np.random.uniform(0, 1),
-                "group_ids": [public_group.id],
-            },
-            token=upload_data_token,
+        sp.post_source(
+            SourcePost(
+                id=source_ids[-1],
+                ra=np.random.uniform(0, 360),
+                dec=np.random.uniform(-90, 90),
+                redshift=np.random.uniform(0, 1),
+                group_ids=[public_group.id],
+            )
         )
-        assert status == 200
-        assert data["status"] == "success"
 
         # post some photometry for each source
         mjd = np.random.uniform(55000, 56000, num_points)
@@ -523,236 +367,138 @@ def test_phot_stats_update_handler(
         filt = np.random.choice(["ztfg", "ztfr", "ztfi"], num_points)
 
         for i in range(num_points):
-            status, data = api(
-                "POST",
-                "photometry",
-                data={
-                    "obj_id": source_ids[-1],
-                    "mjd": mjd[i],
-                    "instrument_id": ztf_camera.id,
-                    "flux": flux[i],
-                    "fluxerr": 10.0,
-                    "zp": 25.0,
-                    "magsys": "ab",
-                    "filter": filt[i],
-                    "group_ids": [public_group.id],
-                    "altdata": {"some_key": str(uuid.uuid4())},
-                },
-                token=upload_data_token,
+            sp.post_photometry(
+                PhotometryPost(
+                    obj_id=source_ids[-1],
+                    mjd=mjd[i],
+                    instrument_id=ztf_camera.id,
+                    flux=flux[i],
+                    fluxerr=10.0,
+                    zp=25.0,
+                    magsys="ab",
+                    filter=filt[i],
+                    group_ids=[public_group.id],
+                    altdata={"some_key": str(uuid.uuid4())},
+                )
             )
-            if status != 200:
-                print(data)
-            assert status == 200
-            assert data["status"] == "success"
 
     # get all Objs with or without PhotStats
-    status, data = api(
-        "GET",
-        "phot_stats",
-        token=super_admin_token,
-    )
-    assert status == 200
-    num_sources_total = data["data"]["totalWithPhotStats"]
+    counts = sp_admin.fetch_phot_stats_counts()
+    num_sources_total = counts.total_with_phot_stats
 
     # get only the recent ones posted in this test
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == num_sources
+    assert counts.total_without_phot_stats == 0
 
     # get only sources posted before this test
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtEndTime": t0.isoformat(),
-            "fullUpdateEndTime": t0.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_end_time=t0.isoformat(),
+        full_update_end_time=t0.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources_total - num_sources
+    assert counts.total_with_phot_stats == num_sources_total - num_sources
 
     # delete the phot stats from one object
-    status, data = api(
-        "DELETE",
-        f"sources/{source_ids[0]}/phot_stat",
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp_admin.delete_source_phot_stat(source_ids[0])
 
-    status, data = api(
-        "GET",
-        "phot_stats",
-        token=super_admin_token,
-    )
+    counts = sp_admin.fetch_phot_stats_counts()
 
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources_total - 1
+    assert counts.total_with_phot_stats == num_sources_total - 1
 
     # get only the recent ones posted in this test
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={"createdAtStartTime": t0.isoformat()},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["data"]["totalWithoutPhotStats"] == 1
+    counts = sp_admin.fetch_phot_stats_counts(created_at_start_time=t0.isoformat())
+    assert counts.total_without_phot_stats == 1
 
     # time before we re-calculate the missing PhotStats
     t1 = utcnow_naive()
 
     # only update sources from this test
     # that don't have PhotStats (the deleted one)
-    status, data = api(
-        "POST",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-        },
-        token=super_admin_token,
+    batch = sp_admin.post_phot_stats(
+        created_at_start_time=t0.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalMatches"] == 1
+    assert batch.total_matches == 1
 
     # the sources in this test should now all have phot stats
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={"createdAtStartTime": t0.isoformat()},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    counts = sp_admin.fetch_phot_stats_counts(created_at_start_time=t0.isoformat())
+    assert counts.total_with_phot_stats == num_sources
+    assert counts.total_without_phot_stats == 0
 
     # Only one source has a phot stat updated after t1
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "fullUpdateStartTime": t1.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        full_update_start_time=t1.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == 1
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == 1
+    assert counts.total_without_phot_stats == 0
 
     t2 = utcnow_naive()
 
     # no sources have had a quick update after t2
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "quickUpdateStartTime": t2.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        quick_update_start_time=t2.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == 0
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == 0
+    assert counts.total_without_phot_stats == 0
 
     # all sources from this test have been updated before t2
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "fullUpdateEndTime": t2.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        full_update_end_time=t2.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == num_sources
+    assert counts.total_without_phot_stats == 0
 
     # post another photometry point to trigger quick update:
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": source_ids[1],
-            "mjd": np.random.uniform(55000, 56000),
-            "instrument_id": ztf_camera.id,
-            "flux": np.random.normal(300, 10),
-            "fluxerr": 10.0,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": np.random.choice(["ztfg", "ztfr", "ztfi"]),
-            "group_ids": [public_group.id],
-            "altdata": {"some_key": str(uuid.uuid4())},
-        },
-        token=upload_data_token,
+    sp.post_photometry(
+        PhotometryPost(
+            obj_id=source_ids[1],
+            mjd=np.random.uniform(55000, 56000),
+            instrument_id=ztf_camera.id,
+            flux=np.random.normal(300, 10),
+            fluxerr=10.0,
+            zp=25.0,
+            magsys="ab",
+            filter=np.random.choice(["ztfg", "ztfr", "ztfi"]),
+            group_ids=[public_group.id],
+            altdata={"some_key": str(uuid.uuid4())},
+        )
     )
-    assert status == 200
 
     # check that the quick update has changed the PhotStat on one object
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "quickUpdateStartTime": t2.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        quick_update_start_time=t2.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == 1
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == 1
+    assert counts.total_without_phot_stats == 0
 
     # run a full update on all new sources
-    status, data = api(
-        "PATCH",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-        },
-        token=super_admin_token,
+    batch = sp_admin.update_phot_stats(
+        created_at_start_time=t0.isoformat(),
     )
 
-    assert status == 200
-    assert data["data"]["totalMatches"] == num_sources
+    assert batch.total_matches == num_sources
 
     # make sure we recover all the sources with
     # a full update time after t2
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "fullUpdateStartTime": t2.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        full_update_start_time=t2.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == num_sources
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == num_sources
+    assert counts.total_without_phot_stats == 0
 
     # no sources left updated before t2
-    status, data = api(
-        "GET",
-        "phot_stats",
-        params={
-            "createdAtStartTime": t0.isoformat(),
-            "fullUpdateEndTime": t2.isoformat(),
-        },
-        token=super_admin_token,
+    counts = sp_admin.fetch_phot_stats_counts(
+        created_at_start_time=t0.isoformat(),
+        full_update_end_time=t2.isoformat(),
     )
-    assert status == 200
-    assert data["data"]["totalWithPhotStats"] == 0
-    assert data["data"]["totalWithoutPhotStats"] == 0
+    assert counts.total_with_phot_stats == 0
+    assert counts.total_without_phot_stats == 0
 
 
 def test_phot_stats_bad_data(upload_data_token, public_group, ztf_camera):
@@ -977,18 +723,14 @@ def test_phot_stat_incremental_matches_full_recompute(
     detection and several re-detections, the maintained PhotStat must equal a
     from-scratch full_update over all of the object's photometry — no drift."""
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": np.random.uniform(0, 360),
-            "dec": np.random.uniform(-90, 90),
-            "group_ids": [public_group.id],
-        },
-        token=super_admin_token,
+    client(super_admin_token).post_source(
+        SourcePost(
+            id=source_id,
+            ra=np.random.uniform(0, 360),
+            dec=np.random.uniform(-90, 90),
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
 
     rounds = [
         # round 1: initial detection (object is new -> full_update)
@@ -1057,119 +799,79 @@ def test_phot_stat_incremental_matches_full_recompute(
 
 
 def test_phot_stat_aggregate(upload_data_token, public_group, ztf_camera):
+    sp = client(upload_data_token)
+
     # metadata-only request returns the plottable field list
-    status, data = api("GET", "phot_stats/aggregate", token=upload_data_token)
-    assert status == 200
-    field_values = {f["value"] for f in data["data"]["fields"]}
+    agg = sp.fetch_phot_stats_aggregate()
+    field_values = {f.value for f in agg.fields}
     assert "peak_mag_global" in field_values
     assert "rise_rate" in field_values
-    assert data["data"]["points"] == []
+    assert agg.points == []
 
     # a source with photometry gets a PhotStat and should appear
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": np.random.uniform(0, 360),
-            "dec": np.random.uniform(-90, 90),
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    sp.post_source(
+        SourcePost(
+            id=source_id,
+            ra=np.random.uniform(0, 360),
+            dec=np.random.uniform(-90, 90),
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
 
     for mjd, flux in zip(np.linspace(57000, 57100, 4), [10.0, 110.0, 170.0, 90.0]):
-        status, data = api(
-            "POST",
-            "photometry",
-            data={
-                "obj_id": source_id,
-                "mjd": mjd,
-                "instrument_id": ztf_camera.id,
-                "flux": flux,
-                "fluxerr": 10.0,
-                "zp": 25.0,
-                "magsys": "ab",
-                "filter": "ztfr",
-                "group_ids": [public_group.id],
-            },
-            token=upload_data_token,
+        sp.post_photometry(
+            PhotometryPost(
+                obj_id=source_id,
+                mjd=mjd,
+                instrument_id=ztf_camera.id,
+                flux=flux,
+                fluxerr=10.0,
+                zp=25.0,
+                magsys="ab",
+                filter="ztfr",
+                group_ids=[public_group.id],
+            )
         )
-        assert status == 200
 
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={"xField": "num_obs_global", "yField": "num_det_global"},
-        token=upload_data_token,
+    agg = sp.fetch_phot_stats_aggregate(
+        x_field="num_obs_global", y_field="num_det_global"
     )
-    assert status == 200
-    ids = {p["id"] for p in data["data"]["points"]}
+    ids = {p.id for p in agg.points}
     assert source_id in ids
 
     # invalid field is rejected
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={"xField": "not_a_field", "yField": "num_det_global"},
-        token=upload_data_token,
-    )
-    assert status == 400
-    assert "Invalid xField" in data["message"]
+    with pytest.raises(SkyPortalError, match="Invalid xField") as err:
+        sp.fetch_phot_stats_aggregate(x_field="not_a_field", y_field="num_det_global")
+    assert err.value.status_code == 400
 
     # down-selecting on a classification nothing has excludes the source
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={
-            "xField": "num_obs_global",
-            "yField": "num_det_global",
-            "classifications": "not-a-real-classification",
-        },
-        token=upload_data_token,
+    agg = sp.fetch_phot_stats_aggregate(
+        x_field="num_obs_global",
+        y_field="num_det_global",
+        classifications=["not-a-real-classification"],
     )
-    assert status == 200
-    assert source_id not in {p["id"] for p in data["data"]["points"]}
+    assert source_id not in {p.id for p in agg.points}
 
     # selecting by group (instead of classification) includes the source
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={
-            "xField": "num_obs_global",
-            "yField": "num_det_global",
-            "group_id": public_group.id,
-        },
-        token=upload_data_token,
+    agg = sp.fetch_phot_stats_aggregate(
+        x_field="num_obs_global",
+        y_field="num_det_global",
+        group_id=public_group.id,
     )
-    assert status == 200
-    assert source_id in {p["id"] for p in data["data"]["points"]}
+    assert source_id in {p.id for p in agg.points}
 
     # selecting by an explicit object list restricts to those objects
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={
-            "xField": "num_obs_global",
-            "yField": "num_det_global",
-            "obj_ids": source_id,
-        },
-        token=upload_data_token,
+    agg = sp.fetch_phot_stats_aggregate(
+        x_field="num_obs_global",
+        y_field="num_det_global",
+        obj_ids=[source_id],
     )
-    assert status == 200
-    assert source_id in {p["id"] for p in data["data"]["points"]}
+    assert source_id in {p.id for p in agg.points}
 
-    status, data = api(
-        "GET",
-        "phot_stats/aggregate",
-        params={
-            "xField": "num_obs_global",
-            "yField": "num_det_global",
-            "obj_ids": "not-a-real-object",
-        },
-        token=upload_data_token,
+    agg = sp.fetch_phot_stats_aggregate(
+        x_field="num_obs_global",
+        y_field="num_det_global",
+        obj_ids=["not-a-real-object"],
     )
-    assert status == 200
-    assert source_id not in {p["id"] for p in data["data"]["points"]}
+    assert source_id not in {p.id for p in agg.points}
