@@ -44,33 +44,31 @@ DESI_ORIGIN_PREFIX = "desi_"
 # photometric or always spectroscopic -- instrument.type is often too coarse
 # (e.g. "imager"/"imaging spectrograph" doesn't capture LCO's per-camera split),
 # so the API class itself is the reliable signal for these.
-_PHOTOMETRY_ONLY_APIS = {
-    "ATLASAPI",
-    "PS1API",
-    "ZTFAPI",
-    "BLANCOAPI",
-    "NEWFIRMAPI",
-    "COLIBRIAPI",
-    "KAITAPI",
-    "SINISTROAPI",
-    "SPECTRALAPI",
-    "MUSCATAPI",
-    "IOOAPI",
-    "IOIAPI",
-    "SOARGHTSIMAGERAPI",
-    "TAROTAPI",
-    "TESSAPI",
-    "TRTAPI",
-    "TTTAPI",
-    "WINTERAPI",
-    "SPRINGAPI",
-}
-_SPECTROSCOPY_ONLY_APIS = {
-    "FLOYDSAPI",
-    "SPRATAPI",
-    "NGPSAPI",
-    "SOARGHTSAPI",
-    "SOARTSPECAPI",
+_API_CLASSNAME_TYPE = {
+    "ATLASAPI": "photometry",
+    "PS1API": "photometry",
+    "ZTFAPI": "photometry",
+    "BLANCOAPI": "photometry",
+    "NEWFIRMAPI": "photometry",
+    "COLIBRIAPI": "photometry",
+    "KAITAPI": "photometry",
+    "SINISTROAPI": "photometry",
+    "SPECTRALAPI": "photometry",
+    "MUSCATAPI": "photometry",
+    "IOOAPI": "photometry",
+    "IOIAPI": "photometry",
+    "SOARGHTSIMAGERAPI": "photometry",
+    "TAROTAPI": "photometry",
+    "TESSAPI": "photometry",
+    "TRTAPI": "photometry",
+    "TTTAPI": "photometry",
+    "WINTERAPI": "photometry",
+    "SPRINGAPI": "photometry",
+    "FLOYDSAPI": "spectroscopy",
+    "SPRATAPI": "spectroscopy",
+    "NGPSAPI": "spectroscopy",
+    "SOARGHTSAPI": "spectroscopy",
+    "SOARTSPECAPI": "spectroscopy",
 }
 
 
@@ -129,10 +127,9 @@ def _followup_request_type(allocation, instrument, payload=None):
             else "photometry"
         )
 
-    if api_classname in _PHOTOMETRY_ONLY_APIS:
-        return "photometry"
-    if api_classname in _SPECTROSCOPY_ONLY_APIS:
-        return "spectroscopy"
+    fixed_type = _API_CLASSNAME_TYPE.get(api_classname)
+    if fixed_type:
+        return fixed_type
 
     if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
         return "spectroscopy"
