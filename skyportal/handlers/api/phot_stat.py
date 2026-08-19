@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import arrow
 import sqlalchemy as sa
+from pydantic import Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +17,8 @@ from ...models import (
     Source,
 )
 from ..base import BaseHandler
+
+ObjId = Annotated[str, Field(description="object ID to get statistics on")]
 
 log = make_log("api/source")
 
@@ -48,20 +53,13 @@ DEFAULT_AGGREGATE_POINTS = 20000
 
 class PhotStatHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: ObjId = None):
         """
         ---
         summary: Get photometry stats for a source
         description: retrieve the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -112,20 +110,13 @@ class PhotStatHandler(BaseHandler):
         return self.success(data=phot_stat)
 
     @permissions(["system admin"])
-    async def post(self, obj_id: str = None):
+    async def post(self, obj_id: ObjId = None):
         """
         ---
         summary: Create new phot stats for a source
         description: create a new PhotStat to be associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -166,20 +157,13 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def put(self, obj_id: str = None):
+    async def put(self, obj_id: ObjId = None):
         """
         ---
         summary: Update phot stats for a source
         description: create or update the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -217,20 +201,13 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def delete(self, obj_id: str = None):
+    async def delete(self, obj_id: ObjId = None):
         """
         ---
         summary: Delete phot stats of a source
         description: delete the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:

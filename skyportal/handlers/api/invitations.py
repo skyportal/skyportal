@@ -486,12 +486,6 @@ class InvitationHandler(BaseHandler):
         description: Delete an invitation
         tags:
           - invitations
-        parameters:
-          - in: path
-            name: invitation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

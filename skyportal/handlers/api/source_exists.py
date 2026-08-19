@@ -19,12 +19,6 @@ class SourceExistsHandler(BaseHandler):
           description: Check if a source exists by ID
           tags:
             - sources
-          parameters:
-            - in: path
-              name: obj_id
-              required: false
-              schema:
-                type: string
           responses:
             200:
               content:

@@ -118,19 +118,13 @@ class SuperObjHandler(BaseHandler):
             return self.success(data={"id": super_obj.id})
 
     @auth_or_token
-    async def get(self, super_obj_id=None):
+    async def get(self, super_obj_id: int | None = None):
         """
         ---
         single:
           summary: Retrieve a SuperObj
           tags:
             - super objs
-          parameters:
-            - in: path
-              name: super_obj_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -211,7 +205,7 @@ class SuperObjHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def patch(self, super_obj_id):
+    async def patch(self, super_obj_id: int):
         """
         ---
         summary: Update a SuperObj
@@ -221,12 +215,6 @@ class SuperObjHandler(BaseHandler):
           incrementally and may not be combined with `obj_ids`.
         tags:
           - super objs
-        parameters:
-          - in: path
-            name: super_obj_id
-            required: true
-            schema:
-              type: integer
         requestBody:
           content:
             application/json:
@@ -328,7 +316,7 @@ class SuperObjHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
-    async def delete(self, super_obj_id):
+    async def delete(self, super_obj_id: int):
         """
         ---
         summary: Delete a SuperObj
@@ -337,12 +325,6 @@ class SuperObjHandler(BaseHandler):
           association is removed.
         tags:
           - super objs
-        parameters:
-          - in: path
-            name: super_obj_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

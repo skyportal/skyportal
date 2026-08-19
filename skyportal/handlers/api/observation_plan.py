@@ -11,6 +11,7 @@ import time
 import urllib
 import uuid
 from datetime import datetime, timedelta
+from typing import Annotated
 
 import afterglowpy
 import arrow
@@ -45,6 +46,7 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
 from marshmallow.exceptions import ValidationError
 from matplotlib import animation, dates
+from pydantic import Field
 from simsurvey.models import AngularTimeSeriesSource
 from simsurvey.utils import model_tools
 from sncosmo import get_bandpass
@@ -95,6 +97,10 @@ from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler, format_doc
+
+LocalizationId = Annotated[
+    int, Field(description="ID of localization to generate observability plot for")
+]
 
 env, cfg = load_env()
 log = make_log("api/observation_plan")
@@ -972,11 +978,6 @@ class ObservationPlanRequestHandler(BaseHandler):
           tags:
             - observation plan requests
           parameters:
-            - in: path
-              name: observation_plan_id
-              required: true
-              schema:
-                type: string
             - in: query
               name: includePlannedObservations
               nullable: true
@@ -1310,12 +1311,6 @@ class ObservationPlanRequestHandler(BaseHandler):
         description: Delete observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1527,12 +1522,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
         description: Submit an observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1563,12 +1552,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
         description: Remove an observation plan from the queue.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1720,12 +1703,6 @@ class ObservationPlanGCNHandler(BaseHandler):
         description: Get a GCN-izable summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1947,12 +1924,6 @@ class ObservationPlanMovieHandler(BaseHandler):
         description: Get a movie summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2042,12 +2013,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         description: Submit the observation plan to treasuremap.space
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2213,12 +2178,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         description: Remove observation plan from treasuremap.space.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2307,12 +2266,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
         description: Get survey efficiency analyses of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2373,12 +2326,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         description: Get GeoJSON summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2446,12 +2393,6 @@ class ObservationPlanFieldsHandler(BaseHandler):
         description: Delete selected fields from the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -2524,7 +2465,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
 
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int):
+    async def get(self, localization_id: LocalizationId):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2532,13 +2473,6 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
         tags:
           - localizations
         parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate map for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -2680,7 +2614,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int):
+    async def get(self, localization_id: LocalizationId):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2688,13 +2622,6 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
         tags:
           - localizations
         parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate observability plot for
           - in: query
             name: maximumAirmass
             nullable: true
@@ -2807,28 +2734,19 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int, telescope_id: int):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        telescope_id: Annotated[
+            int, Field(description="ID of telescope to generate airmass chart for")
+        ],
+    ):
         """
         ---
         summary: Create an airmass chart for an event.
         description: Get an airmass chart for the GcnEvent
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate airmass chart for
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -2911,14 +2829,6 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
            to an observing run
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of observation plan request to create observing run for
         responses:
           200:
             content:
@@ -3427,11 +3337,6 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         tags:
           - observation plan requests
         parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
           - in: query
             name: numberInjections
             nullable: true
@@ -3700,12 +3605,6 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         description: Delete a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -3747,12 +3646,6 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -3951,12 +3844,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
           description: Retrieve a single default observation plan
           tags:
             - default observation plan
-          parameters:
-            - in: path
-              name: default_observation_plan_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -4032,12 +3919,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         description: Delete a default observation plan
         tags:
           - filters
-        parameters:
-          - in: path
-            name: default_observation_plan_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

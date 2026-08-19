@@ -34,12 +34,6 @@ class ObjHandler(BaseHandler):
         description: Delete an Obj
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -144,12 +138,6 @@ class ObjPositionHandler(BaseHandler):
         description: Calculate the position of an Obj using its photometry
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

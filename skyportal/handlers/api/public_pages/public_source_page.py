@@ -266,13 +266,6 @@ class PublicSourcePageHandler(BaseHandler):
             only if this page does not already exist
           tags:
             - sources
-          parameters:
-            - in: path
-              name: source_id
-              schema:
-                type: string
-                required: true
-                description: The ID of the source from which to create a public page
           requestBody:
             content:
                 application/json:
@@ -356,13 +349,6 @@ class PublicSourcePageHandler(BaseHandler):
             Retrieve all public pages for a given source from the most recent to the oldest
           tags:
             - sources
-          parameters:
-            - in: path
-              name: source_id
-              schema:
-                type: string
-                required: true
-                description: The ID of the source for which to retrieve the public page
           responses:
             200:
               content:
@@ -409,13 +395,6 @@ class PublicSourcePageHandler(BaseHandler):
         description: Delete a public source page
         tags:
           - sources
-        parameters:
-          - in: path
-            name: page_id
-            schema:
-              type: string
-              required: true
-              description: The ID of the public source page to delete
         responses:
           200:
             content:

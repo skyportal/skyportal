@@ -1,8 +1,10 @@
 from collections import defaultdict
+from typing import Annotated
 
 import astropy.units as u
 import sqlalchemy as sa
 from astropy.time import Time
+from pydantic import Field
 from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
@@ -26,6 +28,10 @@ from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.gcn_crossmatch import ANNOTATION_ORIGIN as GCN_CROSSMATCH_ORIGIN
 from ....utils.parse import safe_round
 from ...base import BaseHandler
+
+ReportId = Annotated[
+    int, Field(description="ID of the report where the item is located")
+]
 
 log = make_log("api/scan_report_item")
 
@@ -551,25 +557,16 @@ async def create_scan_report_items(
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    async def patch(self, report_id: int, item_id: int):
+    async def patch(
+        self,
+        report_id: ReportId,
+        item_id: Annotated[int, Field(description="ID of the report item to update")],
+    ):
         """
         ---
         summary: Update an item from a scanning report
         tags:
           - report item
-        parameters:
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report where the item is located
-          - in: path
-            name: item_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report item to update
         requestBody:
           content:
             application/json:
@@ -625,19 +622,12 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, report_id: int, _):
+    async def get(self, report_id: ReportId, _):
         """
         ---
         summary: Retrieve all items in a scanning report
         tags:
           - report item
-        parameters:
-          - in: path
-            name: report_id
-            required: true
-            schema:
-              type: integer
-            description: ID of the report to retrieve items from
         responses:
           200:
             content:

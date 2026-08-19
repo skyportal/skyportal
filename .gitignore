@@ -80,6 +80,9 @@ services/pgbouncer/pgbouncer.ini
 services/pgbouncer/supervisor.conf
 services/pgbouncer/userlist.txt
 
+# Generated broker_ingest config (from services/broker_ingest/*.template)
+services/broker_ingest/supervisor.conf
+
 # GCN Kafka credential (local only)
 credential
 

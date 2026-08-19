@@ -1,3 +1,7 @@
+from typing import Annotated
+
+from pydantic import Field
+
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
@@ -11,13 +15,23 @@ from ....utils.data_access import check_access_to_sharing_service_async
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 
+GroupId = Annotated[
+    int, Field(description="The ID of the group to add auto_publisher(s) to")
+]
+SharingServiceId = Annotated[
+    int, Field(description="The ID of the external sharing service")
+]
+
 log = make_log("api/sharing_service_group_auto_publisher")
 
 
 class SharingServiceGroupAutoPublisherHandler(BaseHandler):
     @permissions(["Manage sharing services"])
     async def post(
-        self, sharing_service_id: int, group_id: int, user_id: int | None = None
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: GroupId,
+        user_id: int | None = None,
     ):
         """
         ---
@@ -26,18 +40,6 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
         tags:
             - external sharing service
         parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the SharingService
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the group to add auto_publisher(s) to
             - in: query
               name: user_id
               required: false
@@ -174,32 +176,23 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             return self.success(data={"ids": [a.id for a in new_auto_publishers]})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id: int, group_id: int, user_id: int):
+    async def delete(
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: GroupId,
+        user_id: Annotated[
+            int,
+            Field(
+                description="The ID of the User to remove as an auto_publisher. If not provided, the user_id will be taken from the request body."
+            ),
+        ],
+    ):
         """
         ---
         summary: Remove auto_publisher(s) from an SharingServiceGroup
         description: Delete an auto_publisher from an SharingServiceGroup
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: The ID of the external sharing service
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: integer
-              description: The ID of the Group
-            - in: path
-              name: user_id
-              required: false
-              schema:
-                type: integer
-              description: The ID of the User to remove as an auto_publisher. If not provided, the user_id will be taken from the request body.
         requestBody:
             content:
                 application/json:

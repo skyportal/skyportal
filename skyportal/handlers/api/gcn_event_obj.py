@@ -1,5 +1,8 @@
+from typing import Annotated
+
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
+from pydantic import Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -14,6 +17,10 @@ from ...models import (
 )
 from ...utils.naive_datetime import UTCTZnaiveDateTime
 from ..base import BaseHandler
+
+Dateobs = Annotated[
+    str, Field(description="The dateobs of the event, as an arrow parseable string")
+]
 
 log = make_log("api/gcn_event_obj")
 
@@ -73,7 +80,13 @@ class Validator(Schema):
 
 class GcnEventObjHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs: str, source_id: str = None):
+    async def get(
+        self,
+        dateobs: Dateobs,
+        source_id: Annotated[
+            str, Field(description="The source_id of the source to retrieve")
+        ] = None,
+    ):
         """
         ---
         single:
@@ -82,19 +95,6 @@ class GcnEventObjHandler(BaseHandler):
             - sources
           summary: Retrieve a source confirmed/rejected in a GCN
           description: Retrieve a source that has been confirmed or rejected in a GCN
-          parameters:
-            - in: path
-              name: dateobs
-              required: true
-              schema:
-                type: string
-              description: The dateobs of the event, as an arrow parseable string
-            - in: path
-              name: source_id
-              required: false
-              schema:
-                type: string
-              description: The source_id of the source to retrieve
           responses:
             200:
               content:
@@ -120,12 +120,6 @@ class GcnEventObjHandler(BaseHandler):
           summary: Retrieve sources confirmed/rejected in a GCN
           description: Retrieve sources that have been confirmed/rejected in a GCN
           parameters:
-            - in: path
-              name: dateobs
-              required: true
-              schema:
-                type: string
-              description: The dateobs of the event, as an arrow parseable string
             - in: query
               name: sourcesIDList
               nullable: true
@@ -204,7 +198,7 @@ class GcnEventObjHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(["Upload data"])
-    async def post(self, dateobs: str, source_id: str = None):
+    async def post(self, dateobs: Dateobs, source_id: str = None):
         """
         ---
         summary: Confirm or reject a source in a gcn
@@ -212,13 +206,6 @@ class GcnEventObjHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-            description: The dateobs of the event, as an arrow parseable string
         requestBody:
           content:
             application/json:
@@ -387,17 +374,6 @@ class GcnEventObjHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: source_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -509,17 +485,6 @@ class GcnEventObjHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: source_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -605,12 +570,6 @@ class GCNsAssociatedWithSourceHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        parameters:
-          - in: path
-            name: source_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

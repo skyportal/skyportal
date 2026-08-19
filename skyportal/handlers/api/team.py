@@ -114,12 +114,6 @@ class TeamHandler(BaseHandler):
           description: Retrieve a team, its groups, and its derived member roster
           tags:
             - teams
-          parameters:
-            - in: path
-              name: team_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -242,12 +236,6 @@ class TeamHandler(BaseHandler):
           each group added or removed.
         tags:
           - teams
-        parameters:
-          - in: path
-            name: team_id
-            required: true
-            schema:
-              type: integer
         """
         body = self.parse_body(TeamPutBody)
         try:
@@ -300,12 +288,6 @@ class TeamHandler(BaseHandler):
         description: Delete a team (does not affect its groups or their data)
         tags:
           - teams
-        parameters:
-          - in: path
-            name: team_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

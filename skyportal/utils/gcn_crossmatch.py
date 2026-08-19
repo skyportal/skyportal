@@ -404,9 +404,33 @@ async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None)
     return True
 
 
+def match_cutouts(broker, data, session, survey, permissions):
+    """The alert's science/template/difference cutouts, or None.
+
+    ``get_cutouts`` is keyed by candid, not object id, so it needs the alert
+    fetched for the photometry. Failing here only costs the thumbnails, so it
+    stays separate from the light curve.
+    """
+    if not broker.broker_class.implements().get("get_cutouts"):
+        return None
+    candid = data.get("candid") or (data.get("candidate") or {}).get("candid")
+    if candid is None:
+        return None
+    try:
+        cutouts = broker.broker_class.get_cutouts(
+            broker, candid, session, survey=survey, permissions=permissions
+        )
+        if isinstance(cutouts, list):
+            cutouts = cutouts[0] if cutouts else None
+        return cutouts or None
+    except Exception as e:
+        log(f"No cutouts for {data.get('objectId')}: {e}")
+        return None
+
+
 async def ingest_match_photometry(session, user, broker, obj_id, survey, permissions):
-    """Ingest the matched object's light curve, so a scanner has something to
-    judge it on.
+    """Ingest the matched object's light curve and cutouts, so a scanner has
+    something to judge it on.
 
     The crossmatch query projects only enough of each alert to place it in space
     and time -- no detection history -- so the full object is refetched here.
@@ -431,7 +455,8 @@ async def ingest_match_photometry(session, user, broker, obj_id, survey, permiss
         if not data:
             log(f"No photometry for {obj_id}: {broker.name} returned no alert")
             return False
-        await save_object_photometry(data, survey, session, user)
+        cutouts = match_cutouts(broker, data, session, survey, permissions)
+        await save_object_photometry(data, survey, session, user, cutouts=cutouts)
         return True
     except Exception as e:
         log(f"No photometry ingested for {obj_id}: {e}")
