@@ -4,8 +4,8 @@
  * RTK Query conversion of the old `FETCH_GCN_TAGS` duck. Websocket-driven
  * invalidation refetches the tag list; mutations post/delete a tag on an event.
  */
-import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface PostGcnTagArg {
@@ -14,35 +14,28 @@ interface PostGcnTagArg {
 }
 
 interface DeleteGcnTagArg {
-  gcnEventID: number | string;
+  /** The event's dateobs: the delete route is keyed on it, not on an id. */
+  dateobs: string;
   tag: string;
 }
 
 export const gcnTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnTags: build.query<string[], Record<string, unknown> | void>({
-      query: (filterParams) => {
-        const params = buildQueryString(
-          (filterParams as Record<string, string>) ?? {},
-        );
-        return params ? `api/gcn_event/tags?${params}` : "api/gcn_event/tags";
-      },
+    // The handler takes no query parameters; the old duck passed filter params
+    // that the server ignored.
+    getGcnTags: build.query<string[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchGcnEventTags()),
       providesTags: ["GcnTags"],
     }),
-    postGcnTag: build.mutation<unknown, PostGcnTagArg>({
-      query: (data) => ({
-        url: "api/gcn_event/tags",
-        method: "POST",
-        body: data,
-      }),
+    postGcnTag: build.mutation<{ gcntag_id: number }, PostGcnTagArg>({
+      queryFn: ({ dateobs, text }, api) =>
+        clientQuery(api, (client) => client.postGcnEventTag(dateobs, text)),
       invalidatesTags: ["GcnTags"],
     }),
-    deleteGcnTag: build.mutation<unknown, DeleteGcnTagArg>({
-      query: ({ gcnEventID, tag }) => ({
-        url: `api/gcn_event/tags/${gcnEventID}`,
-        method: "DELETE",
-        body: { tag },
-      }),
+    deleteGcnTag: build.mutation<void, DeleteGcnTagArg>({
+      queryFn: ({ dateobs, tag }, api) =>
+        clientQuery(api, (client) => client.deleteGcnEventTag(dateobs, tag)),
       invalidatesTags: ["GcnTags"],
     }),
   }),

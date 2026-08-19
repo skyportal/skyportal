@@ -83,7 +83,7 @@ const GcnTags = ({
   };
 
   const deleteTag = () => {
-    deleteGcnTag({ gcnEventID: gcnEvent.dateobs, tag: tagToDelete })
+    deleteGcnTag({ dateobs: gcnEvent.dateobs, tag: tagToDelete })
       .unwrap()
       .then(() => {
         dispatch(showNotification("GCN Event Tag deleted"));

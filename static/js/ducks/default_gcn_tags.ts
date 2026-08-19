@@ -9,34 +9,27 @@
  * The websocket `REFRESH_DEFAULT_GCN_TAGS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type { DefaultGcnTag, DefaultGcnTagPost } from "skyportal-js/GcnEvents";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultGcnTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getDefaultGcnTags: build.query<RouteData<"GET /api/default_gcn_tag">, void>(
-      {
-        query: () => "api/default_gcn_tag",
-        providesTags: ["FetchDefaultGcnTags"],
-      },
-    ),
-    submitDefaultGcnTag: build.mutation<
-      RouteData<"POST /api/default_gcn_tag">,
-      Record<string, unknown>
-    >({
-      query: (default_tag) => ({
-        url: "api/default_gcn_tag",
-        method: "POST",
-        body: default_tag,
-      }),
+    getDefaultGcnTags: build.query<DefaultGcnTag[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchDefaultGcnTags()),
+      providesTags: ["FetchDefaultGcnTags"],
+    }),
+    submitDefaultGcnTag: build.mutation<{ id: number }, DefaultGcnTagPost>({
+      queryFn: (default_tag, api) =>
+        clientQuery(api, (client) => client.postDefaultGcnTag(default_tag)),
       invalidatesTags: ["FetchDefaultGcnTags"],
     }),
-    deleteDefaultGcnTag: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/default_gcn_tag/${id}`,
-        method: "DELETE",
-      }),
+    deleteDefaultGcnTag: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteDefaultGcnTag(Number(id))),
       invalidatesTags: ["FetchDefaultGcnTags"],
     }),
   }),

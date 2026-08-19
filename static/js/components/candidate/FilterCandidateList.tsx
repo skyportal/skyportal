@@ -1066,7 +1066,7 @@ const FilterCandidateList = ({
                             value !== "") ||
                           (event?.type === "click" && value === "")
                         ) {
-                          setGcnEventsParams({ partialdateobs: value });
+                          setGcnEventsParams({ partialDateobs: value });
                         }
                       }}
                       onChange={(_event, newValue: any) => {

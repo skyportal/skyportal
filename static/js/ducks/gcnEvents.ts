@@ -10,50 +10,42 @@
  * The websocket `REFRESH_GCN_EVENTS` message is bridged to cache invalidation
  * via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import type {
+  FetchGcnEventsOptions,
+  GcnEventsPage,
+} from "skyportal-js/GcnEvents";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-export interface GcnEventsResult {
-  events?: Record<string, any>[] | undefined;
-  totalMatches?: number | undefined;
-  [key: string]: any;
-}
-
-/**
- * Builds a query string from filter params, dropping empty/null/undefined
- * values to mirror the old `API.GET` `filterOutEmptyValues` behaviour.
- */
-const buildGcnEventsQuery = (filterParams: Record<string, any>): string => {
-  const queryString = buildQueryString(filterParams);
-  return `api/gcn_event${queryString ? `?${queryString}` : ""}`;
-};
+export type GcnEventsResult = GcnEventsPage;
 
 export const gcnEventsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnEvents: build.query<GcnEventsResult, Record<string, any> | void>({
-      query: (filterParams) => buildGcnEventsQuery(filterParams ?? {}),
+    getGcnEvents: build.query<GcnEventsPage, FetchGcnEventsOptions | void>({
+      queryFn: (filterParams, api) =>
+        clientQuery(api, (client) => client.fetchGcnEvents(filterParams ?? {})),
       providesTags: ["GcnEvent"],
     }),
     addGcnEventUser: build.mutation<
-      unknown,
+      void,
       { userID: number | string; gcnEventDateobs: string }
     >({
-      query: ({ userID, gcnEventDateobs }) => ({
-        url: `api/gcn_event/${gcnEventDateobs}/users`,
-        method: "POST",
-        body: { userID },
-      }),
+      queryFn: ({ userID, gcnEventDateobs }, api) =>
+        clientQuery(api, (client) =>
+          client.postGcnEventUser(gcnEventDateobs, Number(userID)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
     deleteGcnEventUser: build.mutation<
-      unknown,
+      void,
       { userID: number | string; gcnEventDateobs: string }
     >({
-      query: ({ userID, gcnEventDateobs }) => ({
-        url: `api/gcn_event/${gcnEventDateobs}/users/${userID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ userID, gcnEventDateobs }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnEventUser(gcnEventDateobs, Number(userID)),
+        ),
       invalidatesTags: ["GcnEvent"],
     }),
   }),
