@@ -4,6 +4,7 @@ from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
@@ -32,6 +33,14 @@ cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 
 # we convert it to a list of hex colors
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
+
+
+def configured_backends_public():
+    """Sign-in providers, without their credentials."""
+    return [
+        {"name": backend["name"], "label": backend["label"]}
+        for backend in configured_backends()
+    ]
 
 
 def cosmology_parameter_rows(cosmology):
@@ -124,6 +133,7 @@ class ConfigHandler(BaseHandler):
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "usePinecone": USE_PINECONE,
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
+                "authBackends": configured_backends_public(),
                 "publicGroupName": cfg["misc.public_group_name"],
                 "shareDataWithPublicGroupByDefault": cfg.get(
                     "misc.share_data_with_public_group_by_default", False
