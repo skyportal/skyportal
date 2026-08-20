@@ -125,6 +125,45 @@ def test_token_user_post_candidate_numeric_id(
     assert data["data"]["id"] == str(obj_id)
 
 
+def test_candidate_autosave_group_ids(
+    upload_data_token_two_groups, public_filter, public_group, public_group2
+):
+    """autosaveGroupIds is a comma-separated list; it used to be handed to
+    post_source_async as a raw string, whose per-element int() then ran on
+    single characters."""
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "autosave": "true",
+            "autosaveGroupIds": f"{public_group.id},{public_group2.id}",
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=upload_data_token_two_groups)
+    assert status == 200
+    saved_group_ids = {g["id"] for g in data["data"]["groups"]}
+    assert {public_group.id, public_group2.id}.issubset(saved_group_ids)
+
+
 def test_candidate_name_only_search(
     upload_data_token,
     view_only_token,
