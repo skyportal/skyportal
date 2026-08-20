@@ -16746,6 +16746,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/interests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve the interests registered on a source
+         * @description Retrieve the users interested in working on a source.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Register an interest in a source
+         * @description Register an interest in a source. A user may register several, one per planned publication.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SourceInterestPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        /**
+         * Withdraw an interest in a source
+         * @description Delete one of the requesting user's interests.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{obj_id}/interests/{interest_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw an interest in a source
+         * @description Delete one of the requesting user's interests.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                    interest_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{obj_id}/color_mag": {
         parameters: {
             query?: never;
@@ -24671,6 +24804,8 @@ export interface components {
             obj_id: string;
             /** @description Conversation the comment belongs to, NULL for the main thread. */
             channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Comment body. */
@@ -24710,6 +24845,8 @@ export interface components {
             obj_id: string;
             /** @description Conversation the comment belongs to, NULL for the main thread. */
             channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Comment body. */
             text: string;
             /** @description Filename of the attachment. */
@@ -36096,6 +36233,64 @@ export interface components {
             message?: string;
             data?: components["schemas"]["ShiftUserNoID"][];
         };
+        SourceInterest: {
+            /** @description The Obj the record relates to. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User the record belongs to. */
+            readonly user?: components["schemas"]["User"];
+            /** @description Title of the planned work. */
+            title: string;
+            /** @description Description of the planned work. */
+            description?: string | null;
+            /** @description Link to a related page or document. */
+            link?: string | null;
+            /** @description ID of the Obj the record relates to. */
+            obj_id: string;
+            /** @description ID of the User the record belongs to. */
+            user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleSourceInterest: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["SourceInterest"];
+        };
+        ArrayOfSourceInterests: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["SourceInterest"][];
+        };
+        SourceInterestNoID: {
+            /** @description The Obj the record relates to. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User the record belongs to. */
+            readonly user?: components["schemas"]["User"];
+            /** @description Title of the planned work. */
+            title: string;
+            /** @description Description of the planned work. */
+            description?: string | null;
+            /** @description Link to a related page or document. */
+            link?: string | null;
+            /** @description ID of the Obj the record relates to. */
+            obj_id: string;
+            /** @description ID of the User the record belongs to. */
+            user_id: number;
+        };
+        SingleSourceInterestNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["SourceInterestNoID"];
+        };
+        ArrayOfSourceInterestNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["SourceInterestNoID"][];
+        };
         SourceLabel: {
             /** @description The User that labelled this source. */
             readonly labeller?: components["schemas"]["User"];
@@ -39048,6 +39243,29 @@ export interface components {
              * @description List of IDs of groups to indicate scanning for
              */
             groupIds: number[];
+        };
+        /**
+         * SourceInterestPostBody
+         * @description Request body for registering an interest in a source.
+         */
+        SourceInterestPostBody: {
+            /**
+             * Title
+             * @description Title of the planned work
+             */
+            title: string;
+            /**
+             * Description
+             * @description Description of the planned work
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Link
+             * @description Link to a related page or document
+             * @default null
+             */
+            link: string | null;
         };
         /**
          * AnnotationPostBody

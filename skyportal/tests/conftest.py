@@ -126,6 +126,7 @@ from skyportal.models import (
     Shift,
     ShiftUser,
     Source,
+    SourceInterest,
     SourceLabel,
     SourceView,
     SpatialCatalog,
@@ -6866,6 +6867,28 @@ def public_source_label(public_source, public_group, user):
     obj = (
         DBSession()
         .execute(sa.select(SourceLabel).filter(SourceLabel.id == label_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_source_interest(public_source, user_no_groups):
+    interest = SourceInterest(
+        obj_id=public_source.id,
+        user_id=user_no_groups.id,
+        title=str(uuid.uuid4()),
+    )
+    DBSession.add(interest)
+    DBSession.commit()
+    interest_id = interest.id
+    yield interest
+    obj = (
+        DBSession()
+        .execute(sa.select(SourceInterest).filter(SourceInterest.id == interest_id))
         .scalars()
         .first()
     )

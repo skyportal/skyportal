@@ -62,7 +62,11 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
+import CommentPanel, {
+  INTERESTED_CHANNEL,
+  useCommentPanel,
+} from "../comment/CommentPanel";
+import SourceInterests from "./SourceInterests";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -1125,6 +1129,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     spectroscopy: source.spectrum_exists,
                     classifications: source.classifications?.length > 0,
                   }}
+                />
+              )}
+              {!isReadOnly && (
+                <SourceInterests
+                  sourceID={source.id}
+                  onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
                 />
               )}
             </div>
