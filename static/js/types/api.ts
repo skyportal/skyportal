@@ -21486,6 +21486,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/terms_of_service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve the terms of service and whether they are accepted
+         * @description Returns the instance's configured terms of service, along with
+         *     whether the requesting user has already accepted this version.
+         *     `required` is false when the instance configures no terms.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description Whether this user still needs to accept. */
+                                required?: boolean;
+                                version?: string;
+                                title?: string;
+                                text?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Accept the current terms of service
+         * @description Records that the requesting user accepted the version of the terms
+         *     currently configured. Accepting twice is a no-op.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/thumbnail/{thumbnail_id}": {
         parameters: {
             query?: never;
@@ -37967,6 +38046,48 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["TelescopeNoID"][];
+        };
+        TermsOfServiceAcceptance: {
+            /** @description The User who accepted the terms. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the User who accepted the terms. */
+            user_id: number;
+            /** @description `app.terms_of_service.version` that was in force when accepted. */
+            version: string;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTermsOfServiceAcceptance: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TermsOfServiceAcceptance"];
+        };
+        ArrayOfTermsOfServiceAcceptances: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TermsOfServiceAcceptance"][];
+        };
+        TermsOfServiceAcceptanceNoID: {
+            /** @description The User who accepted the terms. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the User who accepted the terms. */
+            user_id: number;
+            /** @description `app.terms_of_service.version` that was in force when accepted. */
+            version: string;
+        };
+        SingleTermsOfServiceAcceptanceNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TermsOfServiceAcceptanceNoID"];
+        };
+        ArrayOfTermsOfServiceAcceptanceNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TermsOfServiceAcceptanceNoID"][];
         };
         Thumbnail: {
             /** @description The Thumbnail's Obj. */
