@@ -71,7 +71,9 @@ def test_create_page_groups_and_streams(
     assert len(sp.fetch_spectra(public_source.id)) > 0
 
     # Add summary to source
-    sp.update_source(public_source.id, summary="This is a summary")
+    client(super_admin_token).update_source(
+        public_source.id, summary="This is a summary"
+    )
     assert len(sp.fetch_source(public_source.id).summary) > 0
 
     # No classifications
