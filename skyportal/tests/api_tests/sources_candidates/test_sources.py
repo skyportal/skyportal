@@ -1466,14 +1466,10 @@ def test_sources_filter_by_has_tns_name(
     assert page.sources[0].id == obj_id1
 
     # An explicit "false" must not enable the filter (it used to be truthy)
-    status, data = api(
-        "GET",
-        "sources",
-        params={"hasTNSname": "false", "group_ids": f"{public_group.id}"},
-        token=view_only_token,
+    page = client(view_only_token).fetch_sources(
+        has_tns_name=False, group_ids=[public_group.id]
     )
-    assert status == 200
-    returned_ids = {s["id"] for s in data["data"]["sources"]}
+    returned_ids = {s.id for s in page.sources}
     assert {obj_id1, obj_id2}.issubset(returned_ids)
 
 
