@@ -96,7 +96,7 @@
         "regl": "2.1.1",
         "remark-gfm": "4.0.1",
         "semver": "7.7.4",
-        "skyportal-js": "0.2.0",
+        "skyportal-js": "0.3.0",
         "sprintf-js": "1.1.3",
         "style-loader": "4.0.0",
         "styled-components": "6.3.12",
@@ -1989,7 +1989,7 @@
 
     "sirv": ["sirv@3.0.2", "", { "dependencies": { "@polka/url": "^1.0.0-next.24", "mrmime": "^2.0.0", "totalist": "^3.0.0" } }, "sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g=="],
 
-    "skyportal-js": ["skyportal-js@0.2.0", "", { "dependencies": { "valibot": "1.1.0" } }, "sha512-VMYXAELmB+J53Gx2duaUdIqPQvRmbLtaCdq31ewXThfvdGU0OlmP901/RjyHw0ySZVOJEC8E0jgz3JkrRG4k2g=="],
+    "skyportal-js": ["skyportal-js@0.3.0", "", { "dependencies": { "valibot": "1.1.0" } }, "sha512-hg3EFqIbBh85BYvRgBeJgxJkLBdfR4NhoRxMAz9iMN81/EKS7udrWiW859DgGvX9E4nHliogqY5lJDrtjotBfg=="],
 
     "slugify": ["slugify@1.4.7", "", {}, "sha512-tf+h5W1IrjNm/9rKKj0JU2MDMruiopx0jjVA5zCdBtcGjfp0+c5rHw/zADLC3IeKlGHtVbHtpfzvYA0OYT+HKg=="],
 
