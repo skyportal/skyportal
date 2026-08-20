@@ -2050,6 +2050,17 @@ def test_sources_filter_by_has_tns_name(
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
 
+    # An explicit "false" must not enable the filter (it used to be truthy)
+    status, data = api(
+        "GET",
+        "sources",
+        params={"hasTNSname": "false", "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    returned_ids = {s["id"] for s in data["data"]["sources"]}
+    assert {obj_id1, obj_id2}.issubset(returned_ids)
+
 
 def test_sources_filter_by_has_spectrum(
     view_only_token,

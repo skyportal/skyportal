@@ -28,6 +28,7 @@ const CommentThread = lazy(() => import("../comment/CommentThread"));
 
 const MAIN_CHANNEL = "Comments";
 const INLINE_KEY = "sourceChatInline";
+export const INTERESTED_CHANNEL = "Interested";
 
 const useStyles = makeStyles()((theme) => ({
   fab: {
@@ -112,6 +113,7 @@ export const useCommentPanel = () => {
     () => window.localStorage.getItem(INLINE_KEY) !== "false",
   );
   const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<string>(MAIN_CHANNEL);
 
   const toggleInline = () => {
     window.localStorage.setItem(INLINE_KEY, String(!inline));
@@ -119,7 +121,20 @@ export const useCommentPanel = () => {
     setOpen(true);
   };
 
-  return { inline, open, setOpen, toggleInline };
+  const openChannel = (name: string) => {
+    setChannel(name);
+    setOpen(true);
+  };
+
+  return {
+    inline,
+    open,
+    setOpen,
+    toggleInline,
+    channel,
+    setChannel,
+    openChannel,
+  };
 };
 
 export type CommentTarget =
@@ -132,6 +147,8 @@ interface CommentPanelProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   toggleInline?: () => void;
+  channel?: string;
+  setChannel?: (channel: string) => void;
 }
 
 const CommentPanel = ({
@@ -140,9 +157,13 @@ const CommentPanel = ({
   open,
   setOpen,
   toggleInline,
+  channel: controlledChannel,
+  setChannel: setControlledChannel,
 }: CommentPanelProps) => {
   const { classes } = useStyles();
-  const [channel, setChannel] = useState<string>(MAIN_CHANNEL);
+  const [ownChannel, setOwnChannel] = useState<string>(MAIN_CHANNEL);
+  const channel = controlledChannel ?? ownChannel;
+  const setChannel = setControlledChannel ?? setOwnChannel;
   const [newChannel, setNewChannel] = useState<string | null>(null);
   const [addedChannels, setAddedChannels] = useState<string[]>([]);
   const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
@@ -153,11 +174,16 @@ const CommentPanel = ({
   );
   const [deleteConversation] = useDeleteConversationMutation();
 
+  const hasInterested =
+    openedChannels.includes(INTERESTED_CHANNEL) ||
+    channel === INTERESTED_CHANNEL;
+
   const channels = [
     MAIN_CHANNEL,
+    ...(hasInterested ? [INTERESTED_CHANNEL] : []),
     ...new Set(
       [...openedChannels, ...addedChannels].filter(
-        (name) => name !== MAIN_CHANNEL,
+        (name) => name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL,
       ),
     ),
   ];
@@ -253,7 +279,7 @@ const CommentPanel = ({
                 label={
                   <span className={classes.tabLabel}>
                     {name}
-                    {name !== MAIN_CHANNEL && (
+                    {name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL && (
                       <CloseIcon
                         fontSize="inherit"
                         className={classes.tabClose}
@@ -311,6 +337,7 @@ const CommentPanel = ({
               key={channel}
               objID={target.id}
               channel={channel === MAIN_CHANNEL ? undefined : channel}
+              pinned={channel === INTERESTED_CHANNEL}
             />
           ) : (
             <CommentThread

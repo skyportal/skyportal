@@ -430,8 +430,23 @@ class LASAIRBROKER(BrokerAPI):
             return queries + legacy_queries
 
         count = 0
+        # A broker with nothing to poll otherwise looks identical to a broken
+        # one: the loop just sleeps. Say so once, and again if it recurs.
+        warned_no_queries = False
         while not _stopped():
-            for query in await _collect_queries():
+            queries = await _collect_queries()
+            if not queries:
+                if not warned_no_queries:
+                    log(
+                        f"Lasair broker {broker.id} has no queries to poll: attach "
+                        "a filter to it with a saved Lasair query (selected/tables), "
+                        "or set 'queries' in the broker's altdata."
+                    )
+                    warned_no_queries = True
+            else:
+                warned_no_queries = False
+
+            for query in queries:
                 selected = (
                     query.get("fields")
                     or "objects.objectId, objects.ramean, objects.decmean"
