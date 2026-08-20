@@ -1,11 +1,11 @@
 import { useState } from "react";
-import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import ReactMarkdown from "react-markdown";
 
+import Button from "./Button";
 import {
   useAcceptTermsOfServiceMutation,
   useGetTermsOfServiceQuery,
@@ -49,15 +49,11 @@ const TermsOfServiceProvider = () => {
         <ReactMarkdown>{terms.text}</ReactMarkdown>
       </DialogContent>
       <DialogActions>
-        <Button
-          href="/logout"
-          color="secondary"
-          data-testid="terms-of-service-decline"
-        >
+        <Button secondary href="/logout" data-testid="terms-of-service-decline">
           Decline and sign out
         </Button>
         <Button
-          variant="contained"
+          primary
           onClick={onAgree}
           disabled={submitting}
           data-testid="terms-of-service-agree"
