@@ -1,7 +1,7 @@
 """Record terms of service acceptances
 
 Revision ID: a7e3c95d61b4
-Revises: d4c17b9e5a02
+Revises: a3d81c4f7b26
 Create Date: 2026-08-19 00:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a7e3c95d61b4"
-down_revision = "d4c17b9e5a02"
+down_revision = "a3d81c4f7b26"
 branch_labels = None
 depends_on = None
 
