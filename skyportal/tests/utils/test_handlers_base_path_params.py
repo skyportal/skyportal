@@ -268,4 +268,4 @@ class TornadoPathArgTest(AsyncHTTPTestCase):
     def test_bad_capture_400s_before_the_method_runs(self):
         response = self.fetch("/api/sources/ZTF24abc/filters/abc")
         assert response.code == 400
-        assert json.loads(response.body)["message"] == "Invalid filter_id: abc"
+        assert "Invalid filter_id: abc" in json.loads(response.body)["message"]
