@@ -2368,6 +2368,8 @@ export interface paths {
                     includeValidationInfo?: boolean;
                     /** @description Ignored. */
                     includeExtinction?: boolean;
+                    /** @description Ignored. */
+                    includeSuperObjsPhotometry?: boolean;
                 };
                 header?: never;
                 path: {
