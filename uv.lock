@@ -4633,7 +4633,7 @@ dev = [
     { name = "pytest-playwright", specifier = "==0.8.0" },
     { name = "pytest-randomly", specifier = "==4.1.0" },
     { name = "pytest-rerunfailures", specifier = ">=14.0" },
-    { name = "skyportal-py", specifier = "==0.3.0" },
+    { name = "skyportal-py", specifier = "==0.3.1" },
 ]
 docs = [
     { name = "eralchemy2" },
@@ -4647,15 +4647,15 @@ docs = [
 
 [[package]]
 name = "skyportal-py"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/53/fe75e34fc77a7fa51bd6d697d66e78d325593973558fdce852050eb8ee63/skyportal_py-0.3.0.tar.gz", hash = "sha256:0d63a016d296d116bdb37c1478af90808b9dbed0611761b4434939733c37fecb", size = 161768, upload-time = "2026-08-19T16:07:01.305Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/7e/e28dc9d41be18539ecb3e8edc90ac99c857d2e2d2fcbc1c1cfca83354a34/skyportal_py-0.3.1.tar.gz", hash = "sha256:0f0238d657752569d92e8168d82c157ce30a585188d21e8b2d3f23f12a023bfc", size = 163865, upload-time = "2026-08-20T20:06:53.949Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/c6/55941c33e0b889b0de3a5fa399c1d007314a1c5fb1ae43b454219fb1f356/skyportal_py-0.3.0-py3-none-any.whl", hash = "sha256:19570cd92e28d804209849900aaf677a5f8a6b4e88cfb2c1766c139b2821672f", size = 167775, upload-time = "2026-08-19T16:06:59.988Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/17/3514596329dd678f897c9349f7074cbefd9eee8f48ad7f9809d98650b133/skyportal_py-0.3.1-py3-none-any.whl", hash = "sha256:0d1fefc258b4f4617d386da024791c90653faf13550c50c1a94560d6cb47eb39", size = 168099, upload-time = "2026-08-20T20:06:52.654Z" },
 ]
 
 [[package]]
