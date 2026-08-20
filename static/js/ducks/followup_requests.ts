@@ -21,7 +21,38 @@ import { skyportalApi } from "../api/skyportalApi";
 import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-type FollowupRequestsArg = FetchFollowupRequestsOptions | void;
+/**
+ * The filter forms build their params with the API's own spellings
+ * (`sourceID`, `instrumentID`, `allocationID`), so map those onto the client's
+ * option names here rather than at every call site. Anything the client does
+ * not accept would otherwise be dropped silently.
+ */
+interface FollowupRequestsFilter extends Omit<
+  FetchFollowupRequestsOptions,
+  "sourceId" | "instrumentId" | "allocationId"
+> {
+  sourceID?: string | undefined;
+  instrumentID?: number | string | undefined;
+  allocationID?: number | string | undefined;
+}
+
+type FollowupRequestsArg = FollowupRequestsFilter | void;
+
+const toFetchOptions = (
+  params: FollowupRequestsFilter,
+): FetchFollowupRequestsOptions => {
+  const { sourceID, instrumentID, allocationID, ...rest } = params;
+  return {
+    ...rest,
+    ...(sourceID === undefined ? {} : { sourceId: sourceID }),
+    ...(instrumentID === undefined
+      ? {}
+      : { instrumentId: Number(instrumentID) }),
+    ...(allocationID === undefined
+      ? {}
+      : { allocationId: Number(allocationID) }),
+  };
+};
 
 export const followupRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -29,7 +60,10 @@ export const followupRequestsApi = skyportalApi.injectEndpoints({
       {
         queryFn: (params, api) =>
           clientQuery(api, (client) =>
-            client.fetchFollowupRequests({ numPerPage: 10, ...(params ?? {}) }),
+            client.fetchFollowupRequests({
+              numPerPage: 10,
+              ...toFetchOptions(params ?? {}),
+            }),
           ),
         providesTags: ["FollowupRequest"],
       },

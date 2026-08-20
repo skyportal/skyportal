@@ -21,11 +21,30 @@ import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type GcnEventsResult = GcnEventsPage;
 
+/**
+ * The search boxes pass the API's own `partialdateobs` spelling, so accept it
+ * here and map it onto the client's option name; an unrecognised key would be
+ * dropped silently and the search would return everything.
+ */
+interface GcnEventsFilter extends FetchGcnEventsOptions {
+  partialdateobs?: string | undefined;
+}
+
+const toFetchOptions = (params: GcnEventsFilter): FetchGcnEventsOptions => {
+  const { partialdateobs, ...rest } = params;
+  return {
+    ...rest,
+    ...(partialdateobs === undefined ? {} : { partialDateobs: partialdateobs }),
+  };
+};
+
 export const gcnEventsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnEvents: build.query<GcnEventsPage, FetchGcnEventsOptions | void>({
+    getGcnEvents: build.query<GcnEventsPage, GcnEventsFilter | void>({
       queryFn: (filterParams, api) =>
-        clientQuery(api, (client) => client.fetchGcnEvents(filterParams ?? {})),
+        clientQuery(api, (client) =>
+          client.fetchGcnEvents(toFetchOptions(filterParams ?? {})),
+        ),
       providesTags: ["GcnEvent"],
     }),
     addGcnEventUser: build.mutation<
