@@ -201,7 +201,7 @@ def test_scan_report_item_includes_followup_and_assignment(
 
     # Every group the obj is currently an active Source of, including
     # `public_group2` which isn't part of this report's own group_ids/window.
-    assert sorted(item["data"]["groups_saved_to"]) == sorted(
+    assert sorted(item.data["groups_saved_to"]) == sorted(
         [public_group.name, public_group2.name]
     )
 
@@ -280,7 +280,7 @@ def test_scan_report_item_includes_associated_objs(
 
     # The associated obj's own (LSST) detections are merged into
     # detections_by_survey under their own survey key, alongside `obj`'s (ZTF).
-    detections = item["data"]["detections_by_survey"]
+    detections = item.data["detections_by_survey"]
     assert detections is not None
     assert "LSST" in detections
     assert detections["LSST"]["first"]["mag"] == 19.5
