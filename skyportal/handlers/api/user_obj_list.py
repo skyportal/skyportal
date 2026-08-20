@@ -73,6 +73,24 @@ class ListingPatchBody(BaseModel):
     )
 
 
+class ListingDeleteBody(BaseModel):
+    """Request body for removing a listing by obj_id and list_name (used when no
+    listing_id path parameter is supplied)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None,
+        description="ID of user that you want to add the listing to. "
+        "If not given, will default to the associated user object that is posting.",
+    )
+    obj_id: str | None = Field(default=None, description="ID of the listed object.")
+    list_name: str | None = Field(
+        default=None,
+        description='Listing name for this item, e.g., "favorites".',
+    )
+
+
 def check_list_name(name):
     """checks that list_name begins with an alphanumeric character
 
@@ -307,6 +325,8 @@ class UserObjListHandler(BaseHandler):
                 description="ID of the listing object. If not given, must supply the listing's obj_id and list_name (and user_id) to find the correct listing id from that info."
             ),
         ] = None,
+        *,
+        body: ListingDeleteBody = None,
     ):
         """
         ---
@@ -314,26 +334,6 @@ class UserObjListHandler(BaseHandler):
         description: Remove an existing listing
         tags:
         - listings
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: false
-                    description: |
-                      ID of user that you want to add the listing to.
-                      If not given, will default to the associated user object that is posting.
-                  obj_id:
-                    type: string
-                    required: true
-                  list_name:
-                    type: string
-                    required: true
-                    description: |
-                        Listing name for this item, e.g., "favorites".
         responses:
           200:
             content:
@@ -342,6 +342,7 @@ class UserObjListHandler(BaseHandler):
 
 
         """
+        body = self.parse_body(ListingDeleteBody)
         async with self.AsyncSession() as session:
             if listing_id is not None:
                 try:
@@ -355,7 +356,7 @@ class UserObjListHandler(BaseHandler):
                 if listing is None:
                     return self.error(f"Cannot find listing with ID: {listing_id}")
             else:
-                data = self.get_json()
+                data = body.model_dump(exclude_unset=True)
 
                 schema = Listing.__schema__(exclude=["user_id"])
                 user_id = data.pop("user_id", self.associated_user_object.id)

@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 
@@ -69,6 +70,138 @@ async def _user_is_system_admin(user_id, session):
 
 
 log = make_log("api/group")
+
+
+class GroupPostBody(BaseModel):
+    """Request body for creating a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the group.")
+    nickname: str | None = Field(default=None, description="Short group nickname.")
+    description: str | None = Field(
+        default=None, description="Longer description of the group."
+    )
+    auto_accept_requests: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether requests to join the group are "
+        "automatically accepted.",
+    )
+    group_admins: list[int] | None = Field(
+        default=None,
+        description="List of IDs of users to be group admins. Current user will "
+        "automatically be added as a group admin.",
+    )
+
+
+class GroupPostResponse(BaseModel):
+    """Data payload returned when creating a group."""
+
+    id: int = Field(description="New group ID")
+
+
+class GroupPutBody(BaseModel):
+    """Request body for updating a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the group.")
+    nickname: str | None = Field(default=None, description="Short group nickname.")
+    description: str | None = Field(
+        default=None, description="Longer description of the group."
+    )
+    private: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether group is invisible to non-members.",
+    )
+    auto_accept_requests: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether requests to join the group are "
+        "automatically accepted.",
+    )
+
+
+class GroupUserPostBody(BaseModel):
+    """Request body for adding a user to a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    userID: int | None = Field(
+        default=None, description="ID of the user to add to the group."
+    )
+    admin: bool = Field(
+        default=False, description="Boolean indicating whether user is group admin."
+    )
+    canSave: bool = Field(
+        default=True,
+        description="Boolean indicating whether user can save sources to group. "
+        "Defaults to true.",
+    )
+    canSharePhotometry: bool = Field(
+        default=False,
+        description="Boolean indicating whether user can share photometry points "
+        "to other groups. Defaults to false.",
+    )
+
+
+class GroupUserPostResponse(BaseModel):
+    """Data payload returned when adding a user to a group."""
+
+    group_id: int = Field(description="Group ID")
+    user_id: int = Field(description="User ID")
+    admin: bool = Field(description="Boolean indicating whether user is group admin")
+
+
+class GroupUserPatchBody(BaseModel):
+    """Request body for updating a group user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    userID: int | None = Field(default=None, description="ID of the user to update.")
+    admin: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user is group admin. Either this, "
+        "`canSave` or `canSharePhotometry` must be provided in request body.",
+    )
+    canSave: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user can save sources to group. "
+        "Either this, `admin` or `canSharePhotometry` must be provided in "
+        "request body.",
+    )
+    canSharePhotometry: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user can share photometry points "
+        "to other groups. Either this, `admin` or `canSave` must be provided in "
+        "request body.",
+    )
+
+
+class GroupUsersFromGroupsPostBody(BaseModel):
+    """Request body for adding users from other group(s)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fromGroupIDs: list[int] | None = Field(
+        default=None, description="IDs of the groups to add users from."
+    )
+
+
+class GroupStreamPostBody(BaseModel):
+    """Request body for adding an alert stream to a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stream_id: int | None = Field(
+        default=None, description="ID of the stream to add to the group."
+    )
+
+
+class GroupStreamPostResponse(BaseModel):
+    """Data payload returned when adding a stream to a group."""
+
+    group_id: int = Field(description="Group ID")
+    stream_id: int = Field(description="Stream ID")
 
 
 class GroupHandler(BaseHandler):
@@ -298,56 +431,19 @@ class GroupHandler(BaseHandler):
             )
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: GroupPostBody = None) -> GroupPostResponse:
         """
         ---
         summary: Create a new group
         description: Create a new group
         tags:
           - groups
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/GroupNoID'
-                  - type: object
-                    properties:
-                      group_admins:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of IDs of users to be group admins. Current user will
-                          automatically be added as a group admin.
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New group ID
         """
-        data = self.get_json()
-        if data.get("name") is None or (
-            isinstance(data.get("name"), str) and data.get("name").strip() == ""
-        ):
+        body = self.parse_body(GroupPostBody)
+        if body.name is None or body.name.strip() == "":
             return self.error("Missing required parameter: `name`")
 
-        try:
-            group_admin_ids = [int(e) for e in data.get("group_admins", [])]
-        except ValueError:
-            return self.error(
-                "Invalid group_admins field; unable to parse all items to int"
-            )
+        group_admin_ids = body.group_admins or []
 
         async with self.AsyncSession() as session:
             group_admins_result = await session.scalars(
@@ -361,18 +457,18 @@ class GroupHandler(BaseHandler):
                 group_admins.append(self.associated_user_object)
 
             existing_group = await session.scalar(
-                Group.select(session.user_or_token).where(Group.name == data["name"])
+                Group.select(session.user_or_token).where(Group.name == body.name)
             )
             if existing_group is not None:
                 return self.error(
-                    f"Group with name {data['name']} already exists. Please select a new one."
+                    f"Group with name {body.name} already exists. Please select a new one."
                 )
 
             g = Group(
-                name=data["name"],
-                nickname=data.get("nickname") or None,
-                description=data.get("description") or None,
-                auto_accept_requests=data.get("auto_accept_requests", False),
+                name=body.name,
+                nickname=body.nickname or None,
+                description=body.description or None,
+                auto_accept_requests=body.auto_accept_requests or False,
             )
 
             session.add(g)
@@ -387,39 +483,30 @@ class GroupHandler(BaseHandler):
             return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
-    async def put(self, group_id: int):
+    async def put(self, group_id: int, *, body: GroupPutBody = None):
         """
         ---
         summary: Update a group
         description: Update a group
         tags:
           - groups
-        requestBody:
-          content:
-            application/json:
-              schema: GroupNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Group'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(GroupPutBody)
 
         try:
             group_id = int(group_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid group_id: {group_id}")
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
         data["id"] = group_id
 
         async with self.AsyncSession() as session:
@@ -486,7 +573,9 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id: int, *ignored_args):
+    async def post(
+        self, group_id: int, *ignored_args, body: GroupUserPostBody = None
+    ) -> GroupUserPostResponse:
         """
         ---
         summary: Add a group user
@@ -494,73 +583,16 @@ class GroupUserHandler(BaseHandler):
         tags:
           - groups
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userID:
-                    type: integer
-                  admin:
-                    type: boolean
-                  canSave:
-                    type: boolean
-                    description: Boolean indicating whether user can save sources to group. Defaults to true.
-                  canSharePhotometry:
-                    type: boolean
-                    description: Boolean indicating whether user can share photometry points to other groups. Defaults to false.
-                required:
-                  - userID
-                  - admin
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is group admin
         """
+        body = self.parse_body(GroupUserPostBody)
 
-        data = self.get_json()
-
-        user_id = data.get("userID", None)
+        user_id = body.userID
         if user_id is None:
             return self.error("userID parameter must be specified")
-        try:
-            user_id = int(user_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid userID parameter: unable to parse to integer")
 
-        admin = data.get("admin", False)
-        if not isinstance(admin, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `admin`"
-            )
-        can_save = data.get("canSave", True)
-        if not isinstance(can_save, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `canSave`"
-            )
-        can_share_photometry = data.get("canSharePhotometry", False)
-        if not isinstance(can_share_photometry, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `canSharePhotometry`"
-            )
+        admin = body.admin
+        can_save = body.canSave
+        can_share_photometry = body.canSharePhotometry
         try:
             group_id = int(group_id)
         except (TypeError, ValueError):
@@ -647,7 +679,9 @@ class GroupUserHandler(BaseHandler):
             )
 
     @permissions(["Upload data"])
-    async def patch(self, group_id: int, *ignored_args):
+    async def patch(
+        self, group_id: int, *ignored_args, body: GroupUserPatchBody = None
+    ):
         """
         ---
         summary: Update a group user
@@ -655,45 +689,19 @@ class GroupUserHandler(BaseHandler):
         tags:
           - groups
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userID:
-                    type: integer
-                  admin:
-                    type: boolean
-                    description: |
-                      Boolean indicating whether user is group admin. Either this
-                      or `canSave` must be provided in request body.
-                  canSave:
-                    type: boolean
-                    description: |
-                      Boolean indicating whether user can save sources to group. Either
-                      this or `admin` must be provided in request body.
-                required:
-                  - userID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/GroupUser'
+                schema: Success
         """
-        data = self.get_json()
+        body = self.parse_body(GroupUserPatchBody)
         try:
             group_id = int(group_id)
         except (TypeError, ValueError):
             return self.error("Invalid group ID")
 
-        user_id = data.get("userID")
+        user_id = body.userID
         try:
             user_id = int(user_id)
         except (TypeError, ValueError):
@@ -712,30 +720,20 @@ class GroupUserHandler(BaseHandler):
                 )
 
             if (
-                data.get("admin") is None
-                and data.get("canSave") is None
-                and data.get("canSharePhotometry") is None
+                body.admin is None
+                and body.canSave is None
+                and body.canSharePhotometry is None
             ):
                 return self.error(
                     "Missing required parameter: at least one of `admin`, `canSave` or `canSharePhotometry`"
                 )
-            admin = data.get("admin", groupuser.admin)
-            if not isinstance(admin, bool):
-                return self.error(
-                    "Invalid (non-boolean) value provided for parameter `admin`"
-                )
-            can_save = data.get("canSave", groupuser.can_save)
-            if not isinstance(can_save, bool):
-                return self.error(
-                    "Invalid (non-boolean) value provided for parameter `canSave`"
-                )
-            can_share_photometry = data.get(
-                "canSharePhotometry", groupuser.can_share_photometry
+            admin = body.admin if body.admin is not None else groupuser.admin
+            can_save = body.canSave if body.canSave is not None else groupuser.can_save
+            can_share_photometry = (
+                body.canSharePhotometry
+                if body.canSharePhotometry is not None
+                else groupuser.can_share_photometry
             )
-            if not isinstance(can_share_photometry, bool):
-                return self.error(
-                    "Invalid (non-boolean) value provided for parameter `canSharePhotometry`"
-                )
             groupuser.admin = admin
             groupuser.can_save = can_save
             groupuser.can_share_photometry = can_share_photometry
@@ -802,7 +800,9 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id: int, *ignored_args):
+    async def post(
+        self, group_id: int, *ignored_args, body: GroupUsersFromGroupsPostBody = None
+    ):
         """
         ---
         summary: Add users from other group(s)
@@ -810,46 +810,21 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         tags:
           - groups
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  fromGroupIDs:
-                    type: array
-                    items:
-                      type: integer
-                    type: boolean
-                required:
-                  - fromGroupIDs
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/GroupUser'
+                schema: Success
         """
+        body = self.parse_body(GroupUsersFromGroupsPostBody)
         try:
             group_id = int(group_id)
         except (TypeError, ValueError):
             return self.error("Invalid group_id parameter: must be an integer")
 
-        data = self.get_json()
-
-        from_group_ids = data.get("fromGroupIDs")
+        from_group_ids = body.fromGroupIDs
         if from_group_ids is None:
             return self.error("Missing required parameter: fromGroupIDs")
-        if not isinstance(from_group_ids, list | tuple):
-            return self.error(
-                "Improperly formatted fromGroupIDs parameter; "
-                "must be an array of integers."
-            )
 
         async with self.AsyncSession() as session:
             group = await session.scalar(
@@ -904,7 +879,9 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id: int, *ignored_args):
+    async def post(
+        self, group_id: int, *ignored_args, body: GroupStreamPostBody = None
+    ) -> GroupStreamPostResponse:
         """
         ---
         summary: Add alert stream to group
@@ -912,41 +889,13 @@ class GroupStreamHandler(BaseHandler):
         tags:
           - groups
           - streams
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  stream_id:
-                    type: integer
-                required:
-                  - stream_id
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            stream_id:
-                              type: integer
-                              description: Stream ID
         """
-        data = self.get_json()
+        body = self.parse_body(GroupStreamPostBody)
         try:
             group_id = int(group_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid group_id: {group_id}")
-        stream_id = data.get("stream_id")
+        stream_id = body.stream_id
         try:
             stream_id = int(stream_id)
         except (TypeError, ValueError):

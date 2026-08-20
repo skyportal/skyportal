@@ -95,7 +95,10 @@ const SummarySearch = () => {
   const handleSubmit = () => {
     setRunningQuery(true);
     setQueryResult(null);
-    fetchSummaryQuery(formData)
+    // toggleA is a UI-only show/hide options flag; the API rejects unknown
+    // keys, so drop it before submitting.
+    const { toggleA, ...queryData } = formData;
+    fetchSummaryQuery(queryData)
       .unwrap()
       .then((data: any) => {
         setQueryResult(data);

@@ -9,6 +9,7 @@ from astropy.time import Time, TimeDelta
 from obspy.geodetics.base import gps2dist_azimuth
 from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_attribute
 
@@ -32,6 +33,57 @@ from ..base import BaseHandler
 log = make_log("earthquake")
 
 _ = set_attribute  # silence unused-import lint
+
+
+class EarthquakePostBody(BaseModel):
+    """Request body for ingesting an earthquake event, either from a QuakeML
+    xml document or from explicit event properties."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    xml: str | None = Field(
+        default=None, description="QuakeML xml document describing the event"
+    )
+    event_id: str | None = Field(
+        default=None, description="Earthquake event ID; required if xml is not given"
+    )
+    date: str | None = Field(
+        default=None,
+        description="Date of the event; required if xml is not given",
+    )
+    latitude: float | None = Field(
+        default=None, description="Event latitude [deg]; required if xml is not given"
+    )
+    longitude: float | None = Field(
+        default=None, description="Event longitude [deg]; required if xml is not given"
+    )
+    depth: float | None = Field(
+        default=None, description="Event depth [m]; required if xml is not given"
+    )
+    magnitude: float | None = Field(
+        default=None, description="Event magnitude; required if xml is not given"
+    )
+
+
+class EarthquakePostResponse(BaseModel):
+    """ID of the ingested earthquake event."""
+
+    id: str | int | None = Field(description="Earthquake event ID")
+
+
+class EarthquakeMeasurementBody(BaseModel):
+    """Request body for posting or updating a ground velocity measurement;
+    at least one of rfamp or lockloss must be provided."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rfamp: float | None = Field(
+        default=None, description="Earthquake amplitude measured [m/s]"
+    )
+    lockloss: int | None = Field(
+        default=None,
+        description="Earthquake lockloss measured, 0 (no lockloss) or 1 (lockloss)",
+    )
 
 
 async def post_earthquake_from_xml(payload, user_id, session):
@@ -182,57 +234,39 @@ class EarthquakeStatusHandler(BaseHandler):
 
 class EarthquakeHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: EarthquakePostBody = None) -> EarthquakePostResponse:
         """
         ---
         summary: Ingest EarthquakeEvent
         description: Ingest EarthquakeEvent
         tags:
           - earthquakes
-        requestBody:
-          content:
-            application/json:
-              schema: EarthquakeEventNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New Earthquake ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        if "xml" not in data:
-            required_keys = {
-                "date",
-                "event_id",
-                "latitude",
-                "longitude",
-                "depth",
-                "magnitude",
-            }
-            if not required_keys.issubset(set(data.keys())):
+        body = self.parse_body(EarthquakePostBody)
+        if body.xml is None:
+            required = (
+                body.date,
+                body.event_id,
+                body.latitude,
+                body.longitude,
+                body.depth,
+                body.magnitude,
+            )
+            if any(value is None for value in required):
                 return self.error(
                     "Either xml or (event_id, latitude, longitude, depth, magnitude) must be present in data to parse EarthquakeEvent"
                 )
 
         async with self.AsyncSession() as session:
-            if "xml" in data:
+            if body.xml is not None:
                 event_id = await post_earthquake_from_xml(
-                    data["xml"], self.associated_user_object.id, session
+                    body.xml, self.associated_user_object.id, session
                 )
             else:
                 event_id = await post_earthquake_from_dictionary(
-                    data, self.associated_user_object.id, session
+                    body.model_dump(exclude_none=True),
+                    self.associated_user_object.id,
+                    session,
                 )
 
             return self.success(data={"id": event_id})
@@ -643,7 +677,13 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id: str, mma_detector_id: int):
+    async def post(
+        self,
+        earthquake_id: str,
+        mma_detector_id: int,
+        *,
+        body: EarthquakeMeasurementBody = None,
+    ):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -654,16 +694,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/EarthquakeMeasured'
+                schema: Success
         """
-        data = self.get_json()
-        if "rfamp" not in data and "lockloss" not in data:
+        body = self.parse_body(EarthquakeMeasurementBody)
+        if body.rfamp is None and body.lockloss is None:
             return self.error(
                 "Need to provide at least one of rfamp or lockloss measurement"
             )
@@ -698,14 +732,11 @@ class EarthquakeMeasurementHandler(BaseHandler):
                     "Measurement for this earthquake and detector already exists. Please patch that measurement if an update is required"
                 )
 
-            rfamp = data.get("rfamp", None)
-            lockloss = data.get("lockloss", None)
-
             measurement = EarthquakeMeasured(
                 event_id=event.id,
                 detector_id=detector.id,
-                rfamp=rfamp,
-                lockloss=lockloss,
+                rfamp=body.rfamp,
+                lockloss=body.lockloss,
             )
             session.add(measurement)
             await session.commit()
@@ -756,7 +787,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id: str, mma_detector_id: int):
+    async def patch(
+        self,
+        earthquake_id: str,
+        mma_detector_id: int,
+        *,
+        body: EarthquakeMeasurementBody = None,
+    ):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -767,16 +804,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/EarthquakeMeasured'
+                schema: Success
         """
-        data = self.get_json()
-        if "rfamp" not in data and "lockloss" not in data:
+        body = self.parse_body(EarthquakeMeasurementBody)
+        if body.rfamp is None and body.lockloss is None:
             return self.error(
                 "Need to provide at least one of rfamp or lockloss measurement"
             )
@@ -803,13 +834,10 @@ class EarthquakeMeasurementHandler(BaseHandler):
                     "Measurement for this earthquake and detector not found."
                 )
 
-            rfamp = data.get("rfamp", None)
-            lockloss = data.get("lockloss", None)
-
-            if rfamp is not None:
-                measurement.rfamp = rfamp
-            if lockloss is not None:
-                measurement.lockloss = lockloss
+            if body.rfamp is not None:
+                measurement.rfamp = body.rfamp
+            if body.lockloss is not None:
+                measurement.lockloss = body.lockloss
 
             session.add(measurement)
             await session.commit()
