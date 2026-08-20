@@ -56,6 +56,7 @@ from .tag import *
 from .taxonomy import *
 from .team import *
 from .telescope import *
+from .terms_of_service import *
 from .thumbnail import *
 from .user_notification import *
 from .user_token import *

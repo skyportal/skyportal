@@ -217,6 +217,7 @@ from skyportal.handlers.api import (
     TaxonomyHandler,
     TeamHandler,
     TelescopeHandler,
+    TermsOfServiceHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
     UnsourcedFinderHandler,
@@ -615,6 +616,7 @@ skyportal_handlers = [
     (r"/api/taxonomy(/.*)?", TaxonomyHandler),
     (r"/api/teams(/[0-9]+)?", TeamHandler),
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
+    (r"/api/terms_of_service", TermsOfServiceHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
     # Sharing service endpoints

@@ -38,6 +38,16 @@ app:
       - name: https://github.com/skyportal/skyportal/pulls
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
+  # Terms of service each user must accept before using the instance. Off by
+  # default: set `enabled` and supply `text` to turn the prompt on. Bump
+  # `version` to require everyone to accept again; editing `text` alone does
+  # not, so a typo fix costs nobody a re-acceptance. Markdown is rendered.
+  terms_of_service:
+    enabled: false
+    version: 1
+    title: Terms of Service
+    text: ""
+
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
   # login. Write endpoints still 401 because that account holds no write ACLs.

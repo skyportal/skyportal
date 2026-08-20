@@ -33,6 +33,7 @@ import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "../ErrorBoundary";
 import PageTourProvider from "../PageTourProvider";
 import FeatureAnnouncementProvider from "../FeatureAnnouncementProvider";
+import TermsOfServiceProvider from "../TermsOfServiceProvider";
 
 {% for route in app.routes -%}
 const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
@@ -107,6 +108,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <PageTourProvider />
         <FeatureAnnouncementProvider />
+        <TermsOfServiceProvider />
         <SidebarAndHeader/>
         <div
           role="main"
