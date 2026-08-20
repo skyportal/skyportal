@@ -90,31 +90,6 @@ class SourcesConfirmedInGCNGetQuery(BaseModel):
     )
 
 
-def _update_gcn_crossmatch(source_in_gcn, dateobs, confirmed):
-    """Update the obj.gcn_crossmatch list based on confirmation state.
-    Returns True if a change was made (caller should commit).
-    """
-    crossmatches = source_in_gcn.obj.gcn_crossmatch
-    dateobs_str = dateobs.strftime("%Y-%m-%d %H:%M:%S")
-    if confirmed is True:
-        if crossmatches is None:
-            crossmatches = [dateobs]
-        elif dateobs not in crossmatches:
-            crossmatches.append(dateobs)
-        else:
-            return False
-        source_in_gcn.obj.gcn_crossmatch = crossmatches
-        return True
-    if crossmatches is not None and dateobs_str in crossmatches:
-        crossmatches.remove(dateobs_str)
-        if len(crossmatches) == 0:
-            source_in_gcn.obj.gcn_crossmatch = None
-        else:
-            source_in_gcn.obj.gcn_crossmatch = crossmatches
-        return True
-    return False
-
-
 class GcnEventObjHandler(BaseHandler):
     @auth_or_token
     async def get(

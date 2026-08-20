@@ -386,8 +386,8 @@ class ThumbnailPathHandler(BaseHandler):
 
         types = query.types
         required_depth = query.requiredDepth
-        if required_depth <= 0 or required_depth > 32:
-            return self.error("requiredDepth must be at least 0 and no bigger than 31.")
+        if required_depth < 0 or required_depth > 32:
+            return self.error("requiredDepth must be between 0 and 32")
         page_number = query.pageNumber
         num_per_page = min(query.numPerPage, 1000)
 
