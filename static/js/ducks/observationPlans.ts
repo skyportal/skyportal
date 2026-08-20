@@ -37,7 +37,8 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
       providesTags: ["ObservationPlan"],
     }),
     getPlanWithSameNameExists: build.query<PlanNameExists, string>({
-      query: (name) => `api/observation_plan/plan_names?name=${name}`,
+      query: (name) =>
+        `api/observation_plan/plan_names?name=${encodeURIComponent(name)}`,
       providesTags: ["ObservationPlan"],
     }),
   }),

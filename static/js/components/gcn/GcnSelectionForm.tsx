@@ -392,6 +392,29 @@ interface GcnSelectionFormProps {
   dateobs: string;
 }
 
+// The selection form's formData also holds source/galaxy query fields that
+// /api/observation rejects; keep only the ones it accepts.
+const observationFilterParams = (formData: Record<string, any>) => {
+  const {
+    startDate,
+    endDate,
+    localizationName,
+    localizationCumprob,
+    numPerPage,
+    pageNumber,
+    includeGeoJSON,
+  } = formData || {};
+  return {
+    startDate,
+    endDate,
+    localizationName,
+    localizationCumprob,
+    numPerPage,
+    pageNumber,
+    includeGeoJSON,
+  };
+};
+
 const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const theme = useTheme();
   const { classes } = useStyles();
@@ -615,7 +638,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           const result: any = await fetchGcnEventObservations({
             dateobs: gcnEvent?.dateobs,
             filterParams: {
-              ...formDataState,
+              ...observationFilterParams(formDataState),
               instrumentName: instLookUp[selectedInstrumentId]?.name,
               telescopeName:
                 telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
@@ -773,7 +796,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         const result = await fetchGcnEventObservations({
           dateobs: gcnEvent?.dateobs,
           filterParams: {
-            ...formData,
+            ...observationFilterParams(formData),
             instrumentName: instrument.name,
             telescopeName: telescope.name,
             numberObservations: formData?.numberDetections || 1,

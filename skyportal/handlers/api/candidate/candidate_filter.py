@@ -164,8 +164,8 @@ class CandidateFilterHandler(BaseHandler):
         filter_ids = query.filterIDs
         saved_status = query.savedStatus
 
-        page_number = query.pageNumber
-        n_per_page = query.numPerPage
+        page_number = query.pageNumber or 1
+        n_per_page = query.numPerPage or 25
 
         async with self.AsyncSession() as session:
             group_ids, filter_ids = await accessible_group_and_filter_ids(

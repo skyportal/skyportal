@@ -690,7 +690,8 @@ class BrokerPhotometryHandler(BaseHandler):
 class BrokerSurveyPhotometryGetQuery(BaseModel):
     """Query parameters for displaying an object's photometry via its survey's
     broker. The includeOwnerInfo/includeStreamInfo/includeValidationInfo/
-    includeExtinction flags of GET /sources/{id}/photometry are accepted and
+    includeExtinction/includeSuperObjsPhotometry flags of
+    GET /sources/{id}/photometry are accepted and
     ignored, so this endpoint can be dropped in as `photometry_display_endpoint`
     for the source page, which sends them."""
 
@@ -710,6 +711,7 @@ class BrokerSurveyPhotometryGetQuery(BaseModel):
     includeStreamInfo: bool = Field(default=False, description="Ignored.")
     includeValidationInfo: bool = Field(default=False, description="Ignored.")
     includeExtinction: bool = Field(default=False, description="Ignored.")
+    includeSuperObjsPhotometry: bool = Field(default=False, description="Ignored.")
 
 
 class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):

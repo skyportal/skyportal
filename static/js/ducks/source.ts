@@ -176,9 +176,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
       { id: number | string; params: Record<string, any> }
     >({
       query: ({ id, params }) => {
-        const queryParams = params["nameOnly"]
-          ? ""
-          : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
+        const queryParams =
+          params["nameOnly"] || params["ra"] == null || params["dec"] == null
+            ? ""
+            : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
         return {
           url: `api/source_exists/${id}${queryParams}`,
           method: "GET",

@@ -79,10 +79,11 @@ def _is_list_annotation(annotation):
 def query_dict_from(query_arguments, model):
     """Decode tornado query arguments (name → list of bytes) for `model`.
 
-    List-typed fields accept both conventions in use across the API —
+    List-typed fields accept both conventions in use across the API,
     repeated parameters (`?ids=1&ids=2`) and comma-separated values
-    (`?ids=1,2`) — and empty values yield an empty list. Every other field
-    keeps the last value, matching tornado's `get_query_argument`.
+    (`?ids=1,2`); items are stripped and an empty value is treated as absent
+    so the field default applies. Every other field keeps the last value,
+    matching tornado's `get_query_argument`.
     """
     list_fields = {
         name
@@ -93,9 +94,14 @@ def query_dict_from(query_arguments, model):
     for name, values in query_arguments.items():
         decoded = [value.decode("utf-8", "replace") for value in values]
         if name in list_fields:
-            args[name] = [
-                item for value in decoded for item in value.split(",") if item
+            items = [
+                item.strip()
+                for value in decoded
+                for item in value.split(",")
+                if item.strip()
             ]
+            if items:
+                args[name] = items
         else:
             args[name] = decoded[-1]
     return args
@@ -104,7 +110,7 @@ def query_dict_from(query_arguments, model):
 def query_parameters_from(model):
     """Render a pydantic query model's fields as OpenAPI `parameters` entries.
 
-    Query models must be flat (scalars, lists, Literals) — nested models
+    Query models must be flat (scalars, lists, Literals); nested models
     would leave dangling `$defs` references.
     """
     schema = _to_openapi_30(model.model_json_schema(ref_template=REF_TEMPLATE))

@@ -1714,18 +1714,6 @@ class GcnEventHandler(BaseHandler):
 
         localization_properties_filter = query.localizationPropertiesFilter
 
-        # parse_query splits these on commas; strip the surrounding whitespace
-        # that the old handler-side split removed.
-        def strip_items(values):
-            return [item.strip() for item in values] if values is not None else None
-
-        gcn_tag_keep = strip_items(gcn_tag_keep)
-        gcn_tag_remove = strip_items(gcn_tag_remove)
-        localization_tag_keep = strip_items(localization_tag_keep)
-        localization_tag_remove = strip_items(localization_tag_remove)
-        gcn_properties_filter = strip_items(gcn_properties_filter)
-        localization_properties_filter = strip_items(localization_properties_filter)
-
         if dateobs is not None:
             try:
                 dateobs_parsed = arrow.get(dateobs).naive
