@@ -134,26 +134,39 @@ async def post_thumbnail(data, user_id, session):
 
         if survey is not None:
             # Adopt a pre-survey-column legacy row instead of leaving it to be
-            # rendered as a second, same-survey tile alongside this insert. Skip
-            # if a same-survey row already exists: adopting would collide with
-            # it on the unique constraint and raise an uncaught IntegrityError.
-            sibling = sa.orm.aliased(Thumbnail)
-            await session.execute(
-                sa.update(Thumbnail)
+            # rendered as a second, same-survey tile alongside this insert.
+            # Adopt at most one: some objs carry several NULL-survey rows for
+            # the same type (e.g. test fixtures, or two concurrent no-survey
+            # posts), and updating all of them to the same survey at once
+            # would collide with each other under the unique constraint. Skip
+            # entirely if a same-survey row already exists, to avoid
+            # colliding with it instead.
+            legacy_id = await session.scalar(
+                sa.select(Thumbnail.id)
                 .where(
                     Thumbnail.obj_id == data["obj_id"],
                     Thumbnail.type == data["ttype"],
                     Thumbnail.survey.is_(None),
-                    ~sa.select(sibling.id)
-                    .where(
-                        sibling.obj_id == data["obj_id"],
-                        sibling.type == data["ttype"],
-                        sibling.survey == survey,
-                    )
-                    .exists(),
                 )
-                .values(survey=survey)
+                .order_by(Thumbnail.id)
+                .limit(1)
             )
+            if legacy_id is not None:
+                sibling = sa.orm.aliased(Thumbnail)
+                await session.execute(
+                    sa.update(Thumbnail)
+                    .where(
+                        Thumbnail.id == legacy_id,
+                        ~sa.select(sibling.id)
+                        .where(
+                            sibling.obj_id == data["obj_id"],
+                            sibling.type == data["ttype"],
+                            sibling.survey == survey,
+                        )
+                        .exists(),
+                    )
+                    .values(survey=survey)
+                )
             # INSERT .. ON CONFLICT DO UPDATE: a plain SELECT-then-write races a
             # concurrent ingest of the same obj/type/survey, and the loser's
             # IntegrityError at commit kills the whole ingest transaction, not
