@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,6 +33,8 @@ class SharingServiceSubmissionGetQuery(BaseModel):
     """Query parameters for retrieving sharing service submissions."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"sharing_service_id"})
 
     sharing_service_id: int = Field(
         description=(

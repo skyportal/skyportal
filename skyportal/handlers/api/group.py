@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
@@ -76,6 +78,8 @@ class GroupGetQuery(BaseModel):
     """Query parameters for retrieving groups."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeGroupUsers"})
 
     name: str | None = Field(
         default=None,

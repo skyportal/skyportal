@@ -1,6 +1,7 @@
 import ast
 import time
 from io import StringIO
+from typing import ClassVar
 
 import arrow
 import numpy as np
@@ -62,6 +63,19 @@ class InstrumentGetQuery(BaseModel):
     """Query parameters for retrieving one or all instruments."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {
+            "includeGeoJSON",
+            "includeGeoJSONSummary",
+            "includeRegion",
+            "ignoreCache",
+            "localizationDateobs",
+            "localizationName",
+            "localizationCumprob",
+            "airmassTime",
+        }
+    )
 
     includeGeoJSON: bool = Field(
         default=False,

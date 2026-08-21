@@ -3,7 +3,7 @@ import os
 import textwrap
 import traceback
 from contextlib import contextmanager
-from typing import Literal
+from typing import ClassVar, Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -542,6 +542,8 @@ class PhotometricSeriesGetQuery(BaseModel):
     """Query parameters for retrieving photometric series."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"dataFormat"})
 
     dataFormat: str | None = Field(
         default=None,

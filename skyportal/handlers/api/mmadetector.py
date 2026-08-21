@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import arrow
 import sqlalchemy as sa
 from arrow import ParserError
@@ -37,6 +39,8 @@ class MMADetectorGetQuery(BaseModel):
     """Query parameters for listing MMA Detectors."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     name: str | None = Field(
         default=None,
@@ -283,6 +287,8 @@ class MMADetectorSpectrumGetQuery(BaseModel):
     """Query parameters for listing MMA Detector spectra."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     observedBefore: str | None = Field(
         default=None,
@@ -662,6 +668,8 @@ class MMADetectorTimeIntervalGetQuery(BaseModel):
     """Query parameters for listing MMA Detector time intervals."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     observedBefore: str | None = Field(
         default=None,

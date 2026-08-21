@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
@@ -13,6 +15,8 @@ class SuperObjGetQuery(BaseModel):
     """Query parameters for retrieving SuperObjs."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     name: str | None = Field(
         default=None,

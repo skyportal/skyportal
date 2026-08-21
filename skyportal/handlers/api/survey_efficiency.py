@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import joinedload
 
@@ -16,6 +18,8 @@ class SurveyEfficiencyForObservationPlanGetQuery(BaseModel):
     """Query parameters for listing observation plan efficiency analyses."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     observation_plan_id: int | None = Field(
         default=None,
@@ -102,6 +106,8 @@ class SurveyEfficiencyForObservationsGetQuery(BaseModel):
     """Query parameters for listing observation efficiency analyses."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     gcnevent_id: int | None = Field(
         default=None,

@@ -1,4 +1,5 @@
 import io
+from typing import ClassVar
 
 import arrow
 import astropy.units as u
@@ -185,6 +186,8 @@ class EarthquakeGetQuery(BaseModel):
     """Query parameters for retrieving Earthquake events."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     startDate: str | None = Field(
         default=None,

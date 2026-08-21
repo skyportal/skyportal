@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import arrow
 import sqlalchemy as sa
@@ -168,6 +168,8 @@ class ClassificationGetQuery(BaseModel):
     """Query parameters for retrieving classifications."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeTaxonomy"})
 
     startDate: str | None = Field(
         default=None,

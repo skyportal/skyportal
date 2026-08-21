@@ -182,9 +182,15 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                 # body/query params, return annotation) override any
                 # hand-written docstring sections, so docs match validation
                 if query_model is not None:
+                    # `single` shares the handler's model but not all its fields
+                    fields = (
+                        getattr(query_model, "single_fields", None)
+                        if subspec is single_spec
+                        else None
+                    )
                     # a docstring `parameters:` with no entries loads as None
                     subspec["parameters"] = (subspec.get("parameters") or []) + (
-                        query_parameters_from(query_model)
+                        query_parameters_from(query_model, fields)
                     )
 
                 if body_model is not None:

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from astropy.time import Time
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
@@ -76,6 +78,8 @@ class TelescopeGetQuery(BaseModel):
     """Query parameters for retrieving telescopes."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     name: str | None = Field(
         default=None,

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
@@ -82,6 +82,8 @@ class SourcesConfirmedInGCNGetQuery(BaseModel):
     """Query parameters for retrieving sources confirmed/rejected in a GCN."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     sourcesIDList: str = Field(
         default="",

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import ClassVar, Literal
 
 import arrow
 import phonenumbers
@@ -243,6 +243,8 @@ class UserGetQuery(BaseModel):
     """Query parameters for listing users."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     numPerPage: int | None = Field(
         default=None,

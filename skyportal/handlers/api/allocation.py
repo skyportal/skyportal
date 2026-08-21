@@ -1,6 +1,6 @@
 import io
 import json
-from typing import Literal
+from typing import ClassVar, Literal
 
 import astropy
 import matplotlib
@@ -168,6 +168,10 @@ class AllocationGetQuery(BaseModel):
     """Query parameters for retrieving allocations."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"pageNumber", "numPerPage", "sortBy", "sortOrder"}
+    )
 
     numPerPage: int = Field(
         default=50,

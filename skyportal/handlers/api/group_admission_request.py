@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,8 @@ class GroupAdmissionRequestGetQuery(BaseModel):
     """Query parameters for listing group admission requests."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     groupID: int | None = Field(
         default=None,

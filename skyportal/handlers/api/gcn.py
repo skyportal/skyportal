@@ -10,7 +10,7 @@ import operator  # noqa: F401
 import os
 import tempfile
 import traceback
-from typing import Annotated
+from typing import Annotated, ClassVar
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -1479,6 +1479,8 @@ class GcnEventGetQuery(BaseModel):
     """Query parameters for retrieving GCN events."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"excludeNoticeContent"})
 
     startDate: str | None = Field(
         default=None,

@@ -4,7 +4,7 @@ import functools
 import io
 import json
 import os
-from typing import Annotated
+from typing import Annotated, ClassVar
 from urllib.parse import urljoin, urlparse
 
 import numpy as np
@@ -1431,6 +1431,10 @@ class AnalysisGetQuery(BaseModel):
     """Query parameters for retrieving analyses."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"objID", "includeFilename", "includeAnalysisData"}
+    )
 
     objID: str | None = Field(
         default=None,

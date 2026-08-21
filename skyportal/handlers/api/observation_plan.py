@@ -11,7 +11,7 @@ import time
 import urllib
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 import afterglowpy
 import arrow
@@ -869,6 +869,10 @@ class ObservationPlanRequestGetQuery(BaseModel):
     """Query parameters for retrieving observation plan requests."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"includePlannedObservations", "rubinFormat"}
+    )
 
     includePlannedObservations: bool = Field(
         default=False,

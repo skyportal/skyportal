@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import arrow
 import sqlalchemy as sa
@@ -26,6 +26,8 @@ class ShiftGetQuery(BaseModel):
     """Query parameters for retrieving shifts."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     group_id: int | None = Field(
         default=None,

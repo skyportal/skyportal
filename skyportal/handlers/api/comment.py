@@ -3,7 +3,7 @@ import os
 import string
 import time
 import unicodedata
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
@@ -185,6 +185,8 @@ class CommentGetQuery(BaseModel):
     """Query parameters for retrieving comments."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
 
     text: str | None = Field(
         default=None,

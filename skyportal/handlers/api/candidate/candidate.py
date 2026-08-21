@@ -5,7 +5,7 @@ import re
 import time
 import uuid
 from copy import copy
-from typing import Literal
+from typing import ClassVar, Literal
 
 import arrow
 import astropy.units as u
@@ -302,6 +302,8 @@ class CandidateGetQuery(BaseModel):
     """Query parameters for retrieving a single candidate or querying candidates."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeAlerts"})
 
     numPerPage: int = Field(
         default=25,

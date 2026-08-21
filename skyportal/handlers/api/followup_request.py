@@ -10,7 +10,7 @@ import time
 import traceback
 import uuid
 from datetime import timedelta
-from typing import Literal
+from typing import ClassVar, Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -1101,6 +1101,8 @@ class FollowupRequestGetQuery(BaseModel):
     """Query parameters for retrieving followup requests."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeObjThumbnails"})
 
     startDate: str | None = Field(
         default=None,

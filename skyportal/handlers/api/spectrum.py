@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 import arrow
 import numpy as np
@@ -233,6 +233,8 @@ class SpectrumGetQuery(BaseModel):
     """Query parameters for retrieving a single spectrum or multiple spectra."""
 
     model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeOriginalFile"})
 
     includeOriginalFile: bool = Field(
         default=False,

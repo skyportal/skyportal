@@ -113,16 +113,24 @@ def query_dict_from(query_arguments, model):
     return args
 
 
-def query_parameters_from(model):
+def query_parameters_from(model, fields=None):
     """Render a pydantic query model's fields as OpenAPI `parameters` entries.
+
+    `fields` restricts the output to a subset of the model's fields.
 
     Query models must be flat (scalars, lists, Literals); nested models
     would leave dangling `$defs` references.
     """
     schema = _to_openapi_30(model.model_json_schema(ref_template=REF_TEMPLATE))
     required = schema.get("required", [])
+    properties = schema.get("properties", {})
+    unknown = set(fields or ()) - set(properties)
+    if unknown:
+        raise ValueError(f"{model.__name__} has no field(s) {sorted(unknown)}")
     parameters = []
-    for name, prop in schema.get("properties", {}).items():
+    for name, prop in properties.items():
+        if fields is not None and name not in fields:
+            continue
         prop.pop("title", None)
         if prop.get("default", ...) is None:
             del prop["default"]
