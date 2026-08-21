@@ -1,6 +1,8 @@
+import operator
 import os
 import textwrap
 import traceback
+from contextlib import contextmanager
 from typing import Literal
 
 import arrow
@@ -240,29 +242,30 @@ DEFAULT_SERIES_PER_PAGE = 100
 MAX_SERIES_PER_PAGE = 500
 
 
+@contextmanager
+def reraise(message):
+    """Re-raise anything as a ValueError prefixed by `message`, with the traceback."""
+    try:
+        yield
+    except Exception:
+        raise ValueError(f"{message}: {traceback.format_exc()}")
+
+
+def parse_series_data(data):
+    """Coerce a request's `data` into a DataFrame, plus any metadata carried by an
+    HDF5 bytestream. Anything that is neither a dict nor a string is passed through."""
+    if isinstance(data, dict):
+        with reraise("Could not convert data to a DataFrame"):
+            return pd.DataFrame(data), {}
+    if isinstance(data, str):
+        with reraise("Could not load DataFrame from HDF5 file"):
+            return load_dataframe_from_bytestream(data)
+    return data, {}
+
+
 def get_group_ids(data, user, session):
-    """
-    Get group IDs from the request data.
-
-    Parameters
-    ----------
-    data: dict
-        Dictionary that can contain a "group_ids" key.
-    user: skyportal.models.User
-        The user associated with the request.
-    session: sqlalchemy.orm.Session
-        The database session.
-
-    Returns
-    -------
-    group_ids: list of int
-        If input data['group_ids'] is "all",
-        returns the public group ID.
-        Otherwise will return the list of ints.
-        In any case, it will append the user's
-        single user group ID to the list,
-        and return only unique values.
-    """
+    """Group IDs of `data`, resolving "all" to the public group and always
+    including the user's single user group."""
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, str) and group_ids == "all":
         public_group = session.scalars(
@@ -304,24 +307,7 @@ def get_group_ids(data, user, session):
 
 
 def get_stream_ids(data, user, session):
-    """
-    Get stream IDs from the request data.
-
-    Parameters
-    ----------
-    data: dict
-        Dictionary that can contain a "stream_ids" key.
-    user: skyportal.models.User
-        The user associated with the request.
-    session: sqlalchemy.orm.Session
-        The database session.
-
-    Returns
-    -------
-    stream_ids: list of int
-        Verifies each of the stream IDs in the input list
-        and returns the list of unique values.
-    """
+    """Unique stream IDs of `data`, checking each one is accessible."""
     stream_ids = data.pop("stream_ids", [])
     if not isinstance(stream_ids, list | tuple):
         raise ValidationError(
@@ -346,21 +332,13 @@ def get_stream_ids(data, user, session):
 
 
 def individual_enum_checks(metadata):
-    """
-    Check that the metadata dictionary contains
-    the correct values for columns that are enums.
-    E.g., checks that the 'filter' column contains
-    a valid filter name.
-    If not, will raise a ValueError.
-    """
-    # check filter is legal
+    """Raise a ValueError if an enum-backed metadata value is not allowed."""
     if metadata["filter"] not in ALLOWED_BANDPASSES:
         raise ValueError(
             f"Filter {metadata['filter']} is not allowed. "
             f"Allowed filters are: {ALLOWED_BANDPASSES}"
         )
 
-    # check time_stamp_alignement is legal
     tsa = metadata.get("time_stamp_alignment", "middle")
     if tsa not in ["start", "middle", "end"]:
         raise ValueError(
@@ -370,23 +348,7 @@ def individual_enum_checks(metadata):
 
 
 def check_objects_exist(metadata, user, session):
-    """
-    Check that the objects referenced by their IDs
-    in the metadata dictionary exist and are accessible.
-    Will raise a ValueError if any of the objects
-    cannot be accessed by the user.
-
-    Parameters
-    ----------
-    metadata: dict
-        Dictionary containing the metadata for the photometric series.
-        Must have at least an 'object_id' and 'instrument_id' keys.
-    user: skyportal.models.User
-        The user associated with the request.
-    session: sqlalchemy.orm.Session
-        The database session.
-
-    """
+    """Raise a ValueError if any object `metadata` refers to is missing or inaccessible."""
     obj_id = metadata.get("obj_id", None)
     if obj_id is None:
         raise ValueError("Must supply an obj_id")
@@ -426,106 +388,60 @@ def check_objects_exist(metadata, user, session):
             raise ValueError(f"Invalid assignment_id: {assignment_id}")
 
 
-def post_photometric_series(json_data, data, attributes_metadata, user, session):
-    """
-    Post the photometric series.
-
-    Parameters
-    ----------
-    json_data : dict
-        Dictionary containing any information, such as to be added to metadata.
-    data : pandas.DataFrame
-        Photometric series data set.
-    attributes_metadata: dict
-        Dictionary containing the metadata for the photometric series.
-        Must have at least an 'object_id' and 'instrument_id' keys.
-    user: skyportal.models.User
-        The user associated with the request.
-    session: sqlalchemy.orm.Session
-        The database session.
-
-    """
-
-    try:
-        # make sure data has the minimal columns:
-        verify_data(data)
-
-        # check if any metadata can be inferred from the data:
-        metadata = infer_metadata(data)
-
-        # if we got any more data from the HDF5 file:
-        metadata.update(attributes_metadata)
-
-        # now load any additional metadata from the json_data:
-        metadata.update(json_data)
-
-        # remove any metadata items that are None (equivalent to not given):
-        for k, v in metadata.items():
-            if v is None:
-                metadata.pop(k)
-
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
-
-    # check all the related DB objects are valid:
-    try:
+def resolve_metadata(metadata, user, session, owner_id):
+    """Validate the DB objects `metadata` refers to and return it fully parsed,
+    alongside the resolved group and stream IDs."""
+    with reraise("Could not parse group IDs"):
         group_ids = get_group_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
-    try:
+    with reraise("Could not parse stream IDs"):
         stream_ids = get_stream_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
-
-    try:
+    with reraise("Problems accessing database objects"):
         check_objects_exist(metadata, user, session)
-    except Exception:
-        raise ValueError(
-            f"Problems accessing database objects: {traceback.format_exc()}"
-        )
 
-    try:
-        # load the group, stream and owner IDs:
+    with reraise("Problem parsing data/metadata"):
         metadata.update(
             {
                 "group_ids": group_ids,
                 "stream_ids": stream_ids,
-                "owner_id": user.id,
+                "owner_id": owner_id,
             }
         )
-
-        # make sure all required attributes are present
-        # make sure no unknown attributes are present
-        # parse all attributes into correct type
         metadata = verify_metadata(metadata)
 
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
-
-    try:
+    with reraise("Problem parsing metadata"):
         individual_enum_checks(metadata)
-    except Exception:
-        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
 
-    try:
+    return metadata, group_ids, stream_ids
+
+
+def assign_groups_and_streams(ps, group_ids, stream_ids, session):
+    ps.groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    ps.streams = session.scalars(
+        sa.select(Stream).where(Stream.id.in_(stream_ids))
+    ).all()
+
+
+def post_photometric_series(json_data, data, attributes_metadata, user, session):
+    """Create a PhotometricSeries from `data` and the merged metadata, and return its ID."""
+    with reraise("Problem parsing data/metadata"):
+        verify_data(data)
+        metadata = infer_metadata(data)
+        metadata.update(attributes_metadata)
+        metadata.update(json_data)
+        for k, v in metadata.items():
+            if v is None:
+                metadata.pop(k)
+
+    metadata, group_ids, stream_ids = resolve_metadata(metadata, user, session, user.id)
+
+    with reraise("Could not create PhotometricSeries object"):
         ps = PhotometricSeries(data, **metadata)
-        # allow the config to change the default behavior:
         ps.autodelete = cfg.get("photometric_series_autodelete", True)
 
-    except Exception:
-        raise ValueError(
-            f"Could not create PhotometricSeries object: {traceback.format_exc()}"
-        )
+    with reraise("Errors when making file name"):
+        full_name, _ = ps.make_full_name()
 
-    try:
-        # make sure we can get the file name:
-        full_name, path = ps.make_full_name()
-    except Exception:
-        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
-
-    # make sure the file does not exist:
     if os.path.isfile(full_name):
-        # check if there are any entries in the DB that point to this file:
         existing_ps = session.scalars(
             sa.select(PhotometricSeries).where(PhotometricSeries.filename == full_name)
         ).first()
@@ -533,11 +449,9 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
             raise ValueError(
                 f"PhotometricSeries with filename {full_name} already exists"
             )
-        else:
-            # if the file exists but is not in the DB, we can overwrite it
-            os.remove(full_name)
+        # the file exists but is not in the DB, so it is safe to overwrite
+        os.remove(full_name)
 
-    # make sure this file is not already saved using the hash:
     existing_ps = session.scalars(
         sa.select(PhotometricSeries).where(PhotometricSeries.hash == ps.hash)
     ).first()
@@ -550,19 +464,9 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     try:
         ps.save_data()
         session.add(ps)
-
-        # Assign groups and streams to the relationships
-        ps.groups = session.scalars(
-            sa.select(Group).where(Group.id.in_(group_ids))
-        ).all()
-        ps.streams = session.scalars(
-            sa.select(Stream).where(Stream.id.in_(stream_ids))
-        ).all()
-
+        assign_groups_and_streams(ps, group_ids, stream_ids, session)
         session.commit()
-
         return ps.id
-
     except Exception:
         session.rollback()
         ps.delete_data()  # make sure not to leave files behind
@@ -570,115 +474,40 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
 
 
 def update_photometric_series(ps, json_data, data, attributes_metadata, user, session):
-    """
-    Update the photometric series.
-
-    Parameters
-    ----------
-    ps : skyportal.models.PhotometricSeries
-        Photometric series to update.
-    json_data : dict
-        Dictionary containing any information, such as to be added to metadata.
-    data : pandas.DataFrame
-        Photometric series data set.
-    attributes_metadata: dict
-        Dictionary containing the metadata for the photometric series.
-        Must have at least an 'object_id' and 'instrument_id' keys.
-    user: skyportal.models.User
-        The user associated with the request.
-    session: sqlalchemy.orm.Session
-        The database session.
-
-    """
-
-    # check that the data is valid:
+    """Update `ps` in place from `data` and the merged metadata, and return its ID."""
     inferred_metadata = {}
     if data is not None:
-        try:
+        with reraise("Problem parsing data/metadata"):
             verify_data(data)
             inferred_metadata = infer_metadata(data)
-        except Exception:
-            raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
 
     prev_filename = ps.filename
 
     # apply parameters from existing, inferred, bytes stream, and json body.
-    existing_metadata = ps.get_metadata()
-    metadata = {}
-    metadata.update(existing_metadata)
+    metadata = ps.get_metadata()
     metadata.update(inferred_metadata)
     metadata.update(attributes_metadata)
     metadata.update(json_data)
 
-    # check all the related DB objects are valid:
-    try:
-        group_ids = get_group_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
-    try:
-        stream_ids = get_stream_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
+    metadata, group_ids, stream_ids = resolve_metadata(
+        metadata, user, session, ps.owner_id
+    )
 
-    try:
-        check_objects_exist(metadata, user, session)
-    except Exception:
-        raise ValueError(
-            f"Problems accessing database objects: {traceback.format_exc()}"
-        )
-
-    try:
-        # load the group and stream IDs:
-        metadata.update(
-            {
-                "group_ids": group_ids,
-                "stream_ids": stream_ids,
-                "owner_id": ps.owner_id,  # does not change on PATCH
-            }
-        )
-
-        # make sure all required attributes are present
-        # make sure no unknown attributes are present
-        # parse all attributes into correct type
-        metadata = verify_metadata(metadata)
-
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
-
-    try:
-        individual_enum_checks(metadata)
-    except Exception:
-        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
-
-    # update the underlying data (if given)
     if data is not None:
-        try:
+        with reraise("Could not update data"):
             ps.data = data  # also run calc_flux_mag() and calc_stats()
-        except Exception:
-            raise ValueError(f"Could not update data: {traceback.format_exc()}")
 
-    # update the metadata on the PhotometricSeries object
     for k, v in metadata.items():
         setattr(ps, k, v)
 
-    # Update groups and streams relationships
-    ps.groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
-    ps.streams = session.scalars(
-        sa.select(Stream).where(Stream.id.in_(stream_ids))
-    ).all()
+    assign_groups_and_streams(ps, group_ids, stream_ids, session)
 
-    try:
-        # make sure we can get the file name:
-        full_name, path = ps.make_full_name()
-    except Exception:
-        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
+    with reraise("Errors when making file name"):
+        full_name, _ = ps.make_full_name()
 
-    # make sure the file does not exist:
     if prev_filename != full_name and os.path.isfile(full_name):
         raise ValueError(f"New filename already exists: {full_name}")
 
-    # make sure this file is not already saved using the hash:
-    # this includes only objects different from the one being updated
     existing_ps = session.scalars(
         sa.select(PhotometricSeries).where(
             PhotometricSeries.hash == ps.hash, PhotometricSeries.id != ps.id
@@ -691,17 +520,14 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         )
 
     try:
-        # save the new data as temporary file:
         ps.save_data(temp=True)
         session.add(ps)
         session.commit()
-
     except Exception:
         session.rollback()
         ps.delete_data(temp=True)  # make sure not to leave files behind
         raise ValueError(f"Could not save photometric series: {traceback.format_exc()}")
 
-    # get rid of the old data, regardless of new name
     try:
         if os.path.isfile(prev_filename):
             os.remove(prev_filename)
@@ -1075,26 +901,15 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.error(
                 "Must supply data as a dictionary (JSON) or dataframe in HDF5 format. "
             )
-
-        attributes_metadata = {}
-        if isinstance(data, dict):
-            try:
-                data = pd.DataFrame(data)
-            except Exception:
-                return self.error(
-                    f"Could not convert data to a DataFrame. {traceback.format_exc()} "
-                )
-        elif isinstance(data, str):
-            try:
-                data, attributes_metadata = load_dataframe_from_bytestream(data)
-            except Exception:
-                return self.error(
-                    f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
-                )
-        else:
+        if not isinstance(data, dict | str):
             return self.error(
                 "Data must be a dictionary (JSON) or dataframe in HDF5 format. "
             )
+
+        try:
+            data, attributes_metadata = parse_series_data(data)
+        except ValueError as e:
+            return self.error(str(e))
 
         with self.Session() as session:
             try:
@@ -1166,21 +981,10 @@ class PhotometricSeriesHandler(BaseHandler):
             json_data = self.get_json()
             data = json_data.pop("data", None)  # allowed to be None
 
-            attributes_metadata = {}
-            if isinstance(data, dict):
-                try:
-                    data = pd.DataFrame(data)
-                except Exception:
-                    return self.error(
-                        f"Could not convert data to a DataFrame. {traceback.format_exc()} "
-                    )
-            elif isinstance(data, str):
-                try:
-                    data, attributes_metadata = load_dataframe_from_bytestream(data)
-                except Exception:
-                    return self.error(
-                        f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
-                    )
+            try:
+                data, attributes_metadata = parse_series_data(data)
+            except ValueError as e:
+                return self.error(str(e))
 
             try:
                 photometric_series_id = update_photometric_series(
@@ -1290,8 +1094,7 @@ class PhotometricSeriesHandler(BaseHandler):
                 PhotometricSeries.obj_id.contains(str(query.objectID).strip())
             )
         if query.rejectedObjectID:
-            rejected_id = query.rejectedObjectID.split(",")
-            rejected_id = [x.strip() for x in rejected_id]
+            rejected_id = [x.strip() for x in query.rejectedObjectID.split(",")]
             stmt = stmt.where(PhotometricSeries.obj_id.notin_(rejected_id))
 
         if query.seriesName:
@@ -1320,165 +1123,75 @@ class PhotometricSeriesHandler(BaseHandler):
                 os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
             )
             root_folder = os.path.join(basedir, persistent_folder)
-            if filename.startswith(root_folder):
-                pass
-            elif filename.startswith(persistent_folder):
-                filename = os.path.join(basedir, filename)
-            else:
-                filename = os.path.join(root_folder, filename)
+            if not filename.startswith(root_folder):
+                filename = (
+                    os.path.join(basedir, filename)
+                    if filename.startswith(persistent_folder)
+                    else os.path.join(root_folder, filename)
+                )
 
             stmt = stmt.where(PhotometricSeries.filename == filename)
 
-        if query.startAfter is not None:
+        for value, column, after in (
+            (query.startAfter, PhotometricSeries.mjd_first, True),
+            (query.startBefore, PhotometricSeries.mjd_first, False),
+            (query.midAfter, PhotometricSeries.mjd_mid, True),
+            (query.midBefore, PhotometricSeries.mjd_mid, False),
+            (query.endAfter, PhotometricSeries.mjd_last, True),
+            (query.endBefore, PhotometricSeries.mjd_last, False),
+        ):
+            if value is None:
+                continue
             try:
-                start_after_mjd = Time(arrow.get(query.startAfter).datetime).mjd
+                mjd = Time(arrow.get(value).datetime).mjd
             except Exception:
                 return self.error(
-                    f"Cannot parse time {query.startAfter}: {traceback.format_exc()}"
+                    f"Cannot parse time {value}: {traceback.format_exc()}"
                 )
-            stmt = stmt.where(PhotometricSeries.mjd_first > start_after_mjd)
-        if query.startBefore is not None:
-            try:
-                start_before_mjd = Time(arrow.get(query.startBefore).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {query.startBefore}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.mjd_first < start_before_mjd)
-        if query.midAfter is not None:
-            try:
-                middle_after_mjd = Time(arrow.get(query.midAfter).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {query.midAfter}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.mjd_mid > middle_after_mjd)
-        if query.midBefore is not None:
-            try:
-                middle_before_mjd = Time(arrow.get(query.midBefore).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {query.midBefore}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.mjd_mid < middle_before_mjd)
-        if query.endAfter is not None:
-            try:
-                end_after_mjd = Time(arrow.get(query.endAfter).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {query.endAfter}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.mjd_last > end_after_mjd)
-        if query.endBefore is not None:
-            try:
-                end_before_mjd = Time(arrow.get(query.endBefore).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {query.endBefore}: {traceback.format_exc()}"
-                )
-            stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
+            stmt = stmt.where(column > mjd if after else column < mjd)
+
+        model = PhotometricSeries
+        if query.useRobustMagAndRMS:
+            mag, rms = model.robust_mag, model.robust_rms
+        else:
+            mag, rms = model.mean_mag, model.rms_mag
+
+        for value, column, op in (
+            (query.expTime, model.exp_time, operator.eq),
+            (query.minExpTime, model.exp_time, operator.ge),
+            (query.maxExpTime, model.exp_time, operator.le),
+            (query.minFrameRate, model.frame_rate, operator.ge),
+            (query.maxFrameRate, model.frame_rate, operator.le),
+            (query.minNumExposures, model.num_exp, operator.ge),
+            (query.maxNumExposures, model.num_exp, operator.le),
+            (query.instrumentID, model.instrument_id, operator.eq),
+            (query.followupRequestID, model.followup_request_id, operator.eq),
+            (query.assignmentID, model.assignment_id, operator.eq),
+            (query.ownerID, model.owner_id, operator.eq),
+            (query.magFainterThan, mag, operator.ge),
+            (query.magBrighterThan, mag, operator.le),
+            (query.limitingMagFainterThan, model.limiting_mag, operator.ge),
+            (query.limitingMagBrighterThan, model.limiting_mag, operator.le),
+            (query.magrefFainterThan, model.magref, operator.ge),
+            (query.magrefBrighterThan, model.magref, operator.le),
+            (query.minRMS, rms, operator.ge),
+            (query.maxRMS, rms, operator.le),
+            (query.minMedianSNR, model.median_snr, operator.ge),
+            (query.maxMedianSNR, model.median_snr, operator.le),
+            (query.minBestSNR, model.best_snr, operator.ge),
+            (query.maxBestSNR, model.best_snr, operator.le),
+            (query.minWorstSNR, model.worst_snr, operator.ge),
+            (query.maxWorstSNR, model.worst_snr, operator.le),
+            (query.hash, model.hash, operator.eq),
+        ):
+            if value is not None:
+                stmt = stmt.where(op(column, value))
 
         if query.detected is not None:
             stmt = stmt.where(PhotometricSeries.is_detected.is_(query.detected))
 
-        if query.expTime is not None:
-            stmt = stmt.where(PhotometricSeries.exp_time == query.expTime)
-
-        if query.minExpTime is not None:
-            stmt = stmt.where(PhotometricSeries.exp_time >= query.minExpTime)
-
-        if query.maxExpTime is not None:
-            stmt = stmt.where(PhotometricSeries.exp_time <= query.maxExpTime)
-
-        if query.minFrameRate is not None:
-            stmt = stmt.where(PhotometricSeries.frame_rate >= query.minFrameRate)
-
-        if query.maxFrameRate is not None:
-            stmt = stmt.where(PhotometricSeries.frame_rate <= query.maxFrameRate)
-
-        if query.minNumExposures is not None:
-            stmt = stmt.where(PhotometricSeries.num_exp >= query.minNumExposures)
-
-        if query.maxNumExposures is not None:
-            stmt = stmt.where(PhotometricSeries.num_exp <= query.maxNumExposures)
-
-        if query.instrumentID is not None:
-            stmt = stmt.where(PhotometricSeries.instrument_id == query.instrumentID)
-
-        if query.followupRequestID is not None:
-            stmt = stmt.where(
-                PhotometricSeries.followup_request_id == query.followupRequestID
-            )
-
-        if query.assignmentID is not None:
-            stmt = stmt.where(PhotometricSeries.assignment_id == query.assignmentID)
-
-        if query.ownerID is not None:
-            stmt = stmt.where(PhotometricSeries.owner_id == query.ownerID)
-
-        if query.magFainterThan is not None:
-            if query.useRobustMagAndRMS:
-                stmt = stmt.where(PhotometricSeries.robust_mag >= query.magFainterThan)
-            else:
-                stmt = stmt.where(PhotometricSeries.mean_mag >= query.magFainterThan)
-
-        if query.magBrighterThan is not None:
-            if query.useRobustMagAndRMS:
-                stmt = stmt.where(PhotometricSeries.robust_mag <= query.magBrighterThan)
-            else:
-                stmt = stmt.where(PhotometricSeries.mean_mag <= query.magBrighterThan)
-
-        if query.limitingMagFainterThan is not None:
-            stmt = stmt.where(
-                PhotometricSeries.limiting_mag >= query.limitingMagFainterThan
-            )
-
-        if query.limitingMagBrighterThan is not None:
-            stmt = stmt.where(
-                PhotometricSeries.limiting_mag <= query.limitingMagBrighterThan
-            )
-
         if query.limitingMagIsNaN:
             stmt = stmt.where(PhotometricSeries.limiting_mag.is_(None))
-
-        if query.magrefFainterThan is not None:
-            stmt = stmt.where(PhotometricSeries.magref >= query.magrefFainterThan)
-
-        if query.magrefBrighterThan is not None:
-            stmt = stmt.where(PhotometricSeries.magref <= query.magrefBrighterThan)
-
-        if query.maxRMS is not None:
-            if query.useRobustMagAndRMS:
-                stmt = stmt.where(PhotometricSeries.robust_rms <= query.maxRMS)
-            else:
-                stmt = stmt.where(PhotometricSeries.rms_mag <= query.maxRMS)
-
-        if query.minRMS is not None:
-            if query.useRobustMagAndRMS:
-                stmt = stmt.where(PhotometricSeries.robust_rms >= query.minRMS)
-            else:
-                stmt = stmt.where(PhotometricSeries.rms_mag >= query.minRMS)
-
-        if query.minMedianSNR is not None:
-            stmt = stmt.where(PhotometricSeries.median_snr >= query.minMedianSNR)
-
-        if query.maxMedianSNR is not None:
-            stmt = stmt.where(PhotometricSeries.median_snr <= query.maxMedianSNR)
-
-        if query.minBestSNR is not None:
-            stmt = stmt.where(PhotometricSeries.best_snr >= query.minBestSNR)
-
-        if query.maxBestSNR is not None:
-            stmt = stmt.where(PhotometricSeries.best_snr <= query.maxBestSNR)
-
-        if query.minWorstSNR is not None:
-            stmt = stmt.where(PhotometricSeries.worst_snr >= query.minWorstSNR)
-
-        if query.maxWorstSNR is not None:
-            stmt = stmt.where(PhotometricSeries.worst_snr <= query.maxWorstSNR)
-
-        if query.hash is not None:
-            stmt = stmt.where(PhotometricSeries.hash == query.hash)
 
         # a non-column attribute would pass getattr and only fail inside order_by
         if query.sortBy not in sa.inspect(PhotometricSeries).mapper.column_attrs:
