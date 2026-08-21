@@ -1421,6 +1421,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       mode={downMd ? "mobile" : "desktop"}
                       t0={source.t0}
                       showExtinctionCorrection={showExtinctionCorrection}
+                      is_roid={source.is_roid}
                     />
                   )}
                 </div>

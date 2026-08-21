@@ -59,6 +59,8 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import OutburstPlot from "./OutburstPlot";
+import { DEMO_OUTBURST_POINTS } from "./outburstDemoData";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -309,6 +311,8 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Solar-system object flag; enables the geometry-corrected "Outburst" tab.
+  is_roid?: boolean;
   // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
   // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
   modelFits?: ModelFit[];
@@ -327,6 +331,7 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  is_roid = false,
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const muiTheme = useTheme();
@@ -617,6 +622,11 @@ const PhotometryPlot = ({
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
+
+  // Solar-system objects (is_roid) get an extra "Outburst" tab (the
+  // geometry-corrected light-curve view). Prototype: fed by demo geometry until
+  // BOOM supplies per-point rh/delta/phase (in photometry altdata).
+  const isOutburstTab = is_roid && tabIndex === 3;
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -1878,13 +1888,17 @@ const PhotometryPlot = ({
         <Tab label="Mag" />
         <Tab label="Flux" />
         <Tab label="Period" />
+        {is_roid && <Tab label="Outburst" />}
       </Tabs>
+
+      {isOutburstTab && <OutburstPlot points={DEMO_OUTBURST_POINTS} isDemo />}
 
       <div
         style={{
           width: "100%",
           height: plotStyle?.height || "70vh",
           overflowX: "scroll",
+          display: isOutburstTab ? "none" : undefined,
         }}
       >
         <Plot
