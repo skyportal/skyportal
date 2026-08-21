@@ -1,7 +1,7 @@
 """dedupe thumbnail survey
 
 Revision ID: 02dff366befe
-Revises: d4c17b9e5a02
+Revises: a3d81c4f7b26
 Create Date: 2026-08-18
 
 Backfills survey on legacy new/ref/sub rows from their most recent
@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "02dff366befe"
-down_revision = "d4c17b9e5a02"
+down_revision = "a3d81c4f7b26"
 branch_labels = None
 depends_on = None
 
