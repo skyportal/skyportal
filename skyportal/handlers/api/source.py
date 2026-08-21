@@ -2022,10 +2022,8 @@ class SourceHandler(BaseHandler):
         created_or_modified_after = validated["created_or_modified_after"]
 
         if (
-            query.localizationDateobs is not None
-            or query.localizationName is not None
-            and query.requireDetections
-        ):
+            query.localizationDateobs is not None or query.localizationName is not None
+        ) and query.requireDetections:
             if first_detected_date is None or last_detected_date is None:
                 return self.error(
                     "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
