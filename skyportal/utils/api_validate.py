@@ -76,6 +76,16 @@ def _is_list_annotation(annotation):
     return annotation is list or typing.get_origin(annotation) is list
 
 
+@cache
+def _list_fields(model):
+    """Names of a model's list-typed fields. Cached: fields are fixed at import time."""
+    return frozenset(
+        name
+        for name, field in model.model_fields.items()
+        if _is_list_annotation(field.annotation)
+    )
+
+
 def query_dict_from(query_arguments, model):
     """Decode tornado query arguments (name → list of bytes) for `model`.
 
@@ -85,11 +95,7 @@ def query_dict_from(query_arguments, model):
     so the field default applies. Every other field keeps the last value,
     matching tornado's `get_query_argument`.
     """
-    list_fields = {
-        name
-        for name, field in model.model_fields.items()
-        if _is_list_annotation(field.annotation)
-    }
+    list_fields = _list_fields(model)
     args = {}
     for name, values in query_arguments.items():
         decoded = [value.decode("utf-8", "replace") for value in values]
