@@ -445,6 +445,8 @@ class MMADetectorSpectrumHandler(BaseHandler):
             - mma detector spectra
         """
 
+        query = self.parse_query(MMADetectorSpectrumGetQuery)
+
         if spectrum_id is not None:
             try:
                 spectrum_id_int = int(spectrum_id)
@@ -461,9 +463,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
                         f"Could not access spectrum {spectrum_id}.", status=403
                     )
                 return self.success(data=spectrum)
-
-        # multiple spectra
-        query = self.parse_query(MMADetectorSpectrumGetQuery)
 
         observed_before = query.observedBefore
         observed_after = query.observedAfter
@@ -840,6 +839,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           tags:
             - mma detector time intervals
         """
+        query = self.parse_query(MMADetectorTimeIntervalGetQuery)
+
         if time_interval_id is not None:
             try:
                 time_interval_id_int = int(time_interval_id)
@@ -869,9 +870,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                     "detector": time_interval.detector,
                 }
                 return self.success(data=data)
-
-        # multiple time_interval
-        query = self.parse_query(MMADetectorTimeIntervalGetQuery)
 
         observed_before = query.observedBefore
         observed_after = query.observedAfter
