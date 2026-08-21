@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -95,9 +96,18 @@ async def post_thumbnail(data, user_id, session):
 
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
-    file_uri = os.path.abspath(
-        basedir / f"static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
-    )
+
+    # BOOM emits title-case survey names ("Ztf"); normalize so "Ztf" and "ZTF"
+    # can't both satisfy the (obj_id, type, survey) constraint as separate rows.
+    survey = data.get("survey")
+    survey = survey.strip().upper() if survey else None
+    # File path is survey-keyed too: two surveys posting the same obj/type used
+    # to share one filename, so the second write silently clobbered the first
+    # and deleting either row deleted the file the surviving row still used.
+    survey_suffix = f"_{survey}" if survey else ""
+    filename = f"{data['obj_id']}_{data['ttype']}{survey_suffix}.png"
+    file_uri = os.path.abspath(basedir / f"static/thumbnails/{subfolders}/{filename}")
+    public_url = f"/static/thumbnails/{subfolders}/{filename}"
     if not os.path.exists(os.path.dirname(file_uri)):
         Path(os.path.dirname(file_uri)).mkdir(parents=True)
 
@@ -114,45 +124,78 @@ async def post_thumbnail(data, user_id, session):
             "Invalid thumbnail size. Only thumbnails "
             "between (16, 16) and (500, 500) allowed."
         )
-    survey = data.get("survey")
-    public_url = f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
-    try:
-        # Reprocessing an obj (new candid, re-poll, GCN rebuild) re-renders the
-        # same obj/type/survey cutout; update the existing row instead of
-        # inserting a duplicate the source page would then render side by side.
-        existing_stmt = sa.select(Thumbnail).where(
-            Thumbnail.obj_id == data["obj_id"], Thumbnail.type == data["ttype"]
-        )
-        existing_stmt = existing_stmt.where(
-            Thumbnail.survey.is_(None) if survey is None else Thumbnail.survey == survey
-        )
-        t = await session.scalar(existing_stmt)
 
+    try:
         with open(file_uri, "wb") as f:
             f.write(file_bytes)
 
-        if t is None:
-            t = Thumbnail(
-                obj_id=data["obj_id"],
-                type=data["ttype"],
-                survey=survey,
-                file_uri=file_uri,
-                public_url=public_url,
+        # before_insert-only event listener doesn't fire on the upsert path below.
+        is_grayscale = image_is_grayscale(file_uri)
+
+        if survey is not None:
+            # Adopt a pre-survey-column legacy row instead of leaving it to be
+            # rendered as a second, same-survey tile alongside this insert.
+            await session.execute(
+                sa.update(Thumbnail)
+                .where(
+                    Thumbnail.obj_id == data["obj_id"],
+                    Thumbnail.type == data["ttype"],
+                    Thumbnail.survey.is_(None),
+                )
+                .values(survey=survey)
             )
-            session.add(t)
+            # INSERT .. ON CONFLICT DO UPDATE: a plain SELECT-then-write races a
+            # concurrent ingest of the same obj/type/survey, and the loser's
+            # IntegrityError at commit kills the whole ingest transaction, not
+            # just the thumbnail (see _save.py:399's final session.commit()).
+            thumbnail_id = await session.scalar(
+                pg_insert(Thumbnail)
+                .values(
+                    obj_id=data["obj_id"],
+                    type=data["ttype"],
+                    survey=survey,
+                    file_uri=file_uri,
+                    public_url=public_url,
+                    is_grayscale=is_grayscale,
+                )
+                .on_conflict_do_update(
+                    index_elements=["obj_id", "type", "survey"],
+                    set_={
+                        "file_uri": file_uri,
+                        "public_url": public_url,
+                        "is_grayscale": is_grayscale,
+                    },
+                )
+                .returning(Thumbnail.id)
+            )
         else:
+            # NULL never conflicts under the unique index (each NULL is
+            # distinct), so archival/legacy rows with no survey can't use the
+            # ON CONFLICT upsert above and fall back to an explicit lookup.
+            t = await session.scalar(
+                sa.select(Thumbnail).where(
+                    Thumbnail.obj_id == data["obj_id"],
+                    Thumbnail.type == data["ttype"],
+                    Thumbnail.survey.is_(None),
+                )
+            )
+            if t is None:
+                t = Thumbnail(obj_id=data["obj_id"], type=data["ttype"], survey=None)
+                session.add(t)
             t.file_uri = file_uri
             t.public_url = public_url
-            # before_insert-only event listener doesn't fire on this update path.
-            t.is_grayscale = image_is_grayscale(file_uri)
+            t.is_grayscale = is_grayscale
+            await session.flush()
+            thumbnail_id = t.id
+
         await session.commit()
 
-    except (LookupError, StatementError) as e:
+    except StatementError as e:
         if "enum" in str(e):
-            raise LookupError(f"Invalid ttype: {e}")
-        raise StatementError(f"Error creating new thumbnail: {e}")
+            raise LookupError(f"Invalid ttype: {e}") from e
+        raise
 
-    return t.id
+    return thumbnail_id
 
 
 class ThumbnailHandler(BaseHandler):
