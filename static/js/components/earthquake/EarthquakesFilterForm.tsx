@@ -150,7 +150,7 @@ const EarthquakesFilterForm = ({
                   onChange={(event: any) => {
                     reset({
                       ...getValues(),
-                      tagKeep:
+                      statusKeep:
                         event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
@@ -167,7 +167,7 @@ const EarthquakesFilterForm = ({
                   ))}
                 </Select>
               )}
-              name="tagKeep"
+              name="statusKeep"
               control={control}
               defaultValue=""
             />
@@ -187,7 +187,7 @@ const EarthquakesFilterForm = ({
                   onChange={(event: any) => {
                     reset({
                       ...getValues(),
-                      tagRemove:
+                      statusRemove:
                         event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
@@ -204,7 +204,7 @@ const EarthquakesFilterForm = ({
                   ))}
                 </Select>
               )}
-              name="tagRemove"
+              name="statusRemove"
               control={control}
               defaultValue=""
             />

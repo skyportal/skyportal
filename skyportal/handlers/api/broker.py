@@ -1,8 +1,8 @@
 import copy
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -464,9 +464,23 @@ class BrokerCutoutsHandler(BaseHandler):
             return self.success(data=data)
 
 
+class BrokerConeSearchGetQuery(BaseModel):
+    """Query parameters for a broker cone search."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ra: float = Field(description="RA in degrees (0 <= ra < 360).")
+    dec: float = Field(description="Declination in degrees (-90 <= dec <= 90).")
+    radius: float = Field(description="Search radius, in `radius_units`.")
+    radius_units: Literal["deg", "arcmin", "arcsec"] = Field(
+        default="arcsec",
+        description="Units of `radius`. Defaults to arcsec.",
+    )
+
+
 class BrokerConeSearchHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int):
+    def get(self, broker_id: int, *, query: BrokerConeSearchGetQuery = None):
         """
         ---
         summary: Cross-match a position against a broker's archival catalogs
@@ -475,30 +489,6 @@ class BrokerConeSearchHandler(BaseHandler):
           matched sources keyed by catalog name.
         tags:
           - brokers
-        parameters:
-          - in: query
-            name: ra
-            required: true
-            schema:
-              type: number
-            description: RA in degrees (0 <= ra < 360).
-          - in: query
-            name: dec
-            required: true
-            schema:
-              type: number
-            description: Declination in degrees (-90 <= dec <= 90).
-          - in: query
-            name: radius
-            required: true
-            schema:
-              type: number
-          - in: query
-            name: radius_units
-            schema:
-              type: string
-              enum: [deg, arcmin, arcsec]
-              default: arcsec
         responses:
           200:
             content:
@@ -509,16 +499,7 @@ class BrokerConeSearchHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
-        radius_units = self.get_query_argument("radius_units", "arcsec")
-        if ra is None or dec is None or radius is None:
-            return self.error("Missing required parameters: ra, dec, radius.")
-        try:
-            ra, dec, radius = float(ra), float(dec), float(radius)
-        except ValueError:
-            return self.error("ra, dec and radius must be numbers.")
+        query = self.parse_query(BrokerConeSearchGetQuery)
 
         with self.Session() as session:
             broker = session.scalars(
@@ -532,7 +513,12 @@ class BrokerConeSearchHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} does not support cone_search.")
             try:
                 data = broker.broker_class.cone_search(
-                    broker, ra, dec, radius, session, radius_units=radius_units
+                    broker,
+                    query.ra,
+                    query.dec,
+                    query.radius,
+                    session,
+                    radius_units=query.radius_units,
                 )
             except Exception as e:
                 return self.error(f"Error cross-matching with {broker.name}: {e}")
@@ -607,9 +593,32 @@ class BrokerSaveHandler(BaseHandler):
             return self.success(data=result)
 
 
+class BrokerPhotometryGetQuery(BaseModel):
+    """Query parameters for displaying an object's photometry via a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    survey: str | None = Field(
+        default=None,
+        description="Survey the photometry is fetched for.",
+    )
+    format: str = Field(default="mag", description="Photometry format.")
+    magsys: str = Field(default="ab", description="Magnitude system.")
+    refresh: bool = Field(
+        default=False,
+        description="Bypass any cached broker payload and re-fetch.",
+    )
+
+
 class BrokerPhotometryHandler(BaseHandler):
     @auth_or_token
-    async def get(self, broker_id: int, alert_id: AlertId):
+    async def get(
+        self,
+        broker_id: int,
+        alert_id: AlertId,
+        *,
+        query: BrokerPhotometryGetQuery = None,
+    ):
         """
         ---
         summary: Display photometry for an object (DB + on-demand broker)
@@ -624,27 +633,6 @@ class BrokerPhotometryHandler(BaseHandler):
         tags:
           - brokers
           - photometry
-        parameters:
-          - in: query
-            name: survey
-            schema:
-              type: string
-          - in: query
-            name: format
-            schema:
-              type: string
-              default: mag
-          - in: query
-            name: magsys
-            schema:
-              type: string
-              default: ab
-          - in: query
-            name: refresh
-            schema:
-              type: boolean
-              default: false
-            description: Bypass any cached broker payload and re-fetch.
         responses:
           200:
             content:
@@ -655,6 +643,8 @@ class BrokerPhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(BrokerPhotometryGetQuery)
+
         async with self.AsyncSession() as session:
             broker = await session.scalar(
                 Broker.select(self.current_user).where(Broker.id == int(broker_id))
@@ -665,26 +655,22 @@ class BrokerPhotometryHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_photometry"]:
                 return self.error(f"Broker {broker.name} does not support photometry.")
-            return await self._respond_photometry(session, broker, alert_id)
+            return await self._respond_photometry(session, broker, alert_id, query)
 
-    async def _respond_photometry(self, session, broker, object_id):
+    async def _respond_photometry(self, session, broker, object_id, query):
         """Serve merged DB + on-demand broker photometry for ``object_id``. When
         ``broker`` is None (no configured provider for the survey), degrade to
         the object's access-controlled DB photometry so the caller still works."""
         from ...broker_apis._photometry import db_photometry_points
-        from ...utils.parse import str_to_bool
         from ...utils.valkey_cache import get_cache
-
-        survey = self.get_query_argument("survey", None)
-        fmt = self.get_query_argument("format", "mag")
-        outsys = self.get_query_argument("magsys", "ab")
-        refresh = str_to_bool(
-            self.get_query_argument("refresh", "false"), default=False
-        )
 
         if broker is None:
             db_points = await db_photometry_points(
-                object_id, self.associated_user_object, session, outsys=outsys, fmt=fmt
+                object_id,
+                self.associated_user_object,
+                session,
+                outsys=query.magsys,
+                fmt=query.format,
             )
             return self.success(data=db_points)
         try:
@@ -694,19 +680,38 @@ class BrokerPhotometryHandler(BaseHandler):
                 session,
                 self.associated_user_object,
                 cache=get_cache(),
-                survey=survey,
-                outsys=outsys,
-                fmt=fmt,
-                refresh=refresh,
+                survey=query.survey,
+                outsys=query.magsys,
+                fmt=query.format,
+                refresh=query.refresh,
             )
         except Exception as e:
             return self.error(f"Error fetching photometry from {broker.name}: {e}")
         return self.success(data=merged)
 
 
+class BrokerSurveyPhotometryGetQuery(BrokerPhotometryGetQuery):
+    """Query parameters for displaying an object's photometry via its survey's
+    broker. The includeOwnerInfo/includeStreamInfo/includeValidationInfo/
+    includeExtinction/includeSuperObjsPhotometry flags of
+    GET /sources/{id}/photometry are accepted and
+    ignored, so this endpoint can be dropped in as `photometry_display_endpoint`
+    for the source page, which sends them."""
+
+    survey: str = Field(
+        min_length=1,
+        description="Survey whose configured broker serves the photometry.",
+    )
+    includeOwnerInfo: bool = Field(default=False, description="Ignored.")
+    includeStreamInfo: bool = Field(default=False, description="Ignored.")
+    includeValidationInfo: bool = Field(default=False, description="Ignored.")
+    includeExtinction: bool = Field(default=False, description="Ignored.")
+    includeSuperObjsPhotometry: bool = Field(default=False, description="Ignored.")
+
+
 class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
     @auth_or_token
-    async def get(self, object_id):
+    async def get(self, object_id, *, query: BrokerSurveyPhotometryGetQuery = None):
         """
         ---
         summary: Display photometry for an object via the survey's broker
@@ -722,27 +727,6 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
         tags:
           - brokers
           - photometry
-        parameters:
-          - in: query
-            name: survey
-            required: true
-            schema:
-              type: string
-          - in: query
-            name: format
-            schema:
-              type: string
-              default: mag
-          - in: query
-            name: magsys
-            schema:
-              type: string
-              default: ab
-          - in: query
-            name: refresh
-            schema:
-              type: boolean
-              default: false
         responses:
           200:
             content:
@@ -753,9 +737,7 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
               application/json:
                 schema: Error
         """
-        survey = self.get_query_argument("survey", None)
-        if not survey:
-            return self.error("Missing required query parameter: survey")
+        query = self.parse_query(BrokerSurveyPhotometryGetQuery)
 
         async with self.AsyncSession() as session:
             # First active provider that can fetch photometry for this survey.
@@ -771,12 +753,12 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
                 (
                     b
                     for b in brokers
-                    if survey in b.broker_class.surveys
+                    if query.survey in b.broker_class.surveys
                     and b.broker_class.implements()["get_photometry"]
                 ),
                 None,
             )
-            return await self._respond_photometry(session, broker, object_id)
+            return await self._respond_photometry(session, broker, object_id, query)
 
 
 class BrokerFilterTestHandler(BaseHandler):
@@ -920,9 +902,26 @@ def _store_version_validation(altdata, verdict):
 _FILTER_MODULE_ELEMENTS = ("variables", "listVariables", "switchCases", "blocks")
 
 
+class BrokerFilterModulesGetQuery(BaseModel):
+    """Query parameters for reading a broker's filter-building vocabulary."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    survey: str | None = Field(
+        default=None,
+        description="Survey whose filter modules to return.",
+    )
+    elements: Literal["schema", *_FILTER_MODULE_ELEMENTS] = Field(
+        default="schema",
+        description="Element type to return. Defaults to the alert schema.",
+    )
+
+
 class BrokerFilterModulesHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, name=None):
+    def get(
+        self, broker_id: int, name=None, *, query: BrokerFilterModulesGetQuery = None
+    ):
         """
         ---
         summary: Broker filter-building vocabulary
@@ -942,12 +941,9 @@ class BrokerFilterModulesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        survey = self.get_query_argument("survey", None)
-        elements = self.get_query_argument("elements", "schema")
-        if elements != "schema" and elements not in _FILTER_MODULE_ELEMENTS:
-            return self.error(
-                f"'elements' must be 'schema' or one of {list(_FILTER_MODULE_ELEMENTS)}."
-            )
+        query = self.parse_query(BrokerFilterModulesGetQuery)
+        survey, elements = query.survey, query.elements
+
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:
@@ -1429,9 +1425,38 @@ DEFAULT_FILTERS_PER_PAGE = 25
 MAX_FILTERS_PER_PAGE = 100
 
 
+class BrokerFilterCatalogGetQuery(BaseModel):
+    """Query parameters for listing filters and their broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_FILTERS_PER_PAGE,
+        description=(
+            f"Number of filters to return per paginated request. Defaults to "
+            f"{DEFAULT_FILTERS_PER_PAGE}. Capped at {MAX_FILTERS_PER_PAGE}."
+        ),
+    )
+    name: str | None = Field(
+        default=None,
+        description="Case-insensitive substring of the filter name.",
+    )
+    groupID: int | None = Field(default=None, description="Filter by group ID.")
+    streamID: int | None = Field(default=None, description="Filter by stream ID.")
+    # not an int: the handler also accepts the literal "none" for unattached filters
+    brokerID: str | None = Field(
+        default=None,
+        description='A broker id, or "none" for filters attached to no broker.',
+    )
+
+
 class BrokerFilterCatalogHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def get(self, *, query: BrokerFilterCatalogGetQuery = None):
         """
         ---
         summary: List filters and their broker
@@ -1440,33 +1465,6 @@ class BrokerFilterCatalogHandler(BaseHandler):
         tags:
           - brokers
           - filters
-        parameters:
-          - in: query
-            name: pageNumber
-            schema:
-              type: integer
-          - in: query
-            name: numPerPage
-            schema:
-              type: integer
-          - in: query
-            name: name
-            schema:
-              type: string
-            description: Case-insensitive substring of the filter name.
-          - in: query
-            name: groupID
-            schema:
-              type: integer
-          - in: query
-            name: streamID
-            schema:
-              type: integer
-          - in: query
-            name: brokerID
-            schema:
-              type: string
-            description: A broker id, or "none" for filters attached to no broker.
         responses:
           200:
             content:
@@ -1477,23 +1475,16 @@ class BrokerFilterCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            page_number = self.get_query_argument("pageNumber", 1, type=int)
-            n_per_page = self.get_query_argument(
-                "numPerPage", DEFAULT_FILTERS_PER_PAGE, type=int
-            )
-        except ValueError:
-            return self.error("Cannot parse pageNumber or numPerPage as integers.")
-        n_per_page = min(max(n_per_page, 1), MAX_FILTERS_PER_PAGE)
-        page_number = max(page_number, 1)
+        query = self.parse_query(BrokerFilterCatalogGetQuery)
 
-        name = self.get_query_argument("name", None)
-        group_id = self.get_query_argument("groupID", None)
-        stream_id = self.get_query_argument("streamID", None)
-        broker_id = self.get_query_argument("brokerID", None)
+        n_per_page = min(max(query.numPerPage, 1), MAX_FILTERS_PER_PAGE)
+        page_number = max(query.pageNumber, 1)
+
+        name = query.name
+        group_id = query.groupID
+        stream_id = query.streamID
+        broker_id = query.brokerID
         try:
-            group_id = int(group_id) if group_id else None
-            stream_id = int(stream_id) if stream_id else None
             if broker_id and broker_id != "none":
                 broker_id = int(broker_id)
         except ValueError:

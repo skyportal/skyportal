@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 from copy import copy
+from typing import ClassVar, Literal
 
 import arrow
 import astropy.units as u
@@ -13,6 +14,7 @@ import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload  # noqa: F401
@@ -166,7 +168,7 @@ async def fetch_obj_data(model, options, obj_id, session):
 
 
 async def include_requested_obj_data(
-    obj_id, candidate, get_query_argument, session, include_phot_annotations
+    obj_id, candidate, query, session, include_phot_annotations
 ):
     """Add object data to the candidate dictionary based on the query
     parameters. Async equivalent of the previous sync version — uses
@@ -178,8 +180,8 @@ async def include_requested_obj_data(
         The object ID
     candidate : dict
         The candidate dictionary
-    get_query_argument : func
-        The function to get query arguments
+    query : `CandidateGetQuery`
+        The parsed query parameters
     session : ``sqlalchemy.ext.asyncio.AsyncSession``
     include_phot_annotations : bool
         Whether to include photometry annotations
@@ -189,7 +191,7 @@ async def include_requested_obj_data(
     dict
         The updated candidate dictionary
     """
-    if get_query_argument("includePhotometry", False):
+    if query.includePhotometry:
         phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
@@ -211,12 +213,12 @@ async def include_requested_obj_data(
                 Photometry, phot_options, obj_id, session
             )
 
-    if get_query_argument("includeSpectra", False):
+    if query.includeSpectra:
         candidate["spectra"] = await fetch_obj_data(
             Spectrum, [selectinload(Spectrum.instrument)], obj_id, session
         )
 
-    if get_query_argument("includeComments", False):
+    if query.includeComments:
         candidate["comments"] = sorted(
             await fetch_obj_data(
                 Comment, [selectinload(Comment.author)], obj_id, session
@@ -224,7 +226,7 @@ async def include_requested_obj_data(
             key=lambda x: x.created_at,
             reverse=True,
         )
-    if get_query_argument("includeFollowupRequests", False):
+    if query.includeFollowupRequests:
         candidate["followup_requests"] = await fetch_obj_data(
             FollowupRequest,
             [
@@ -240,7 +242,7 @@ async def include_requested_obj_data(
             session,
         )
 
-    if get_query_argument("includeAssociatedObjs", True):
+    if query.includeAssociatedObjs:
         # For each associated obj, we include the same info as for duplicates
         # (obj_id, ra, dec, separation), plus super_obj_{id,name}.
         super_objs_result = await session.scalars(
@@ -296,6 +298,303 @@ def add_computed_fields(candidate_info, obj):
     candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
 
 
+class CandidateGetQuery(BaseModel):
+    """Query parameters for retrieving a single candidate or querying candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeAlerts"})
+
+    numPerPage: int = Field(
+        default=25,
+        description=(
+            "Number of candidates to return per paginated request. Defaults to 25. "
+            "Capped at 500."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    autosave: bool = Field(
+        default=False,
+        description="Automatically save candidates passing query.",
+    )
+    autosaveGroupIds: list[int] | None = Field(
+        default=None,
+        description="Group ID(s) to save candidates to.",
+    )
+    savedStatus: Literal[
+        "all",
+        "savedToAllSelected",
+        "savedToAnySelected",
+        "savedToAnyAccessible",
+        "notSavedToAnyAccessible",
+        "notSavedToAnySelected",
+        "notSavedToAllSelected",
+    ] = Field(
+        default="all",
+        description=(
+            "String indicating the saved status to filter candidate results for. "
+            "Must be one of the enumerated values."
+        ),
+    )
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at <= endDate"
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups if filterIDs is not provided."
+        ),
+    )
+    filterIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups' filters if groupIDs is not provided."
+        ),
+    )
+    sortByAnnotationOrigin: str | None = Field(
+        default=None,
+        description="The origin of the Annotation to sort by",
+    )
+    sortByAnnotationKey: str | None = Field(
+        default=None,
+        description="The key of the Annotation data value to sort by",
+    )
+    sortByAnnotationOrder: str | None = Field(
+        default=None,
+        description=(
+            'The sort order for annotations - either "asc" or "desc". '
+            'Defaults to "asc".'
+        ),
+    )
+    annotationFilterList: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of JSON objects representing annotation filters. "
+            "Filter objects are expected to have keys { origin, key, value } for "
+            "non-numeric value types, or { origin, key, min, max } for numeric values."
+        ),
+    )
+    includePhotometry: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated photometry. "
+            "Defaults to false."
+        ),
+    )
+    includeSpectra: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated spectra. "
+            "Defaults to false."
+        ),
+    )
+    includeComments: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated comments. "
+            "Defaults to false."
+        ),
+    )
+    includeFollowupRequests: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated follow-up requests. "
+            "Defaults to false."
+        ),
+    )
+    includeAssociatedObjs: bool = Field(
+        default=True,
+        description=(
+            "Boolean indicating whether to include associated objects (objects "
+            "grouped under the same super-object). Defaults to true."
+        ),
+    )
+    includeAlerts: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated alerts. "
+            "Defaults to false."
+        ),
+    )
+    classifications: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter for candidates "
+            "matching that/those classification(s)."
+        ),
+    )
+    classificationsReject: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter OUT candidates "
+            "matching with any of those classification(s)."
+        ),
+    )
+    minRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at least this value"
+        ),
+    )
+    maxRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at most this value"
+        ),
+    )
+    listName: str | None = Field(
+        default=None,
+        description=(
+            'Get only candidates saved to the querying user\'s list, e.g., "favorites".'
+        ),
+    )
+    listNameReject: str | None = Field(
+        default=None,
+        description=(
+            "Get only candidates that ARE NOT saved to the querying user's list, "
+            'e.g., "rejected_candidates".'
+        ),
+    )
+    photometryAnnotationsFilter: list[str] | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of "annotation: value: operator" triplet(s) to '
+            "filter for sources matching that/those photometry annotation(s), "
+            'i.e. "drb: 0.5: lt"'
+        ),
+    )
+    photometryAnnotationsFilterOrigin: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of origins. Only photometry annotations from "
+            "these origins are used when filtering with the "
+            "photometryAnnotationsFilter."
+        ),
+    )
+    photometryAnnotationsFilterBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations before this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations after this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterMinCount: int = Field(
+        default=1,
+        description=(
+            "Only return sources that have at least this number of photometry "
+            "annotations passing the photometry annotations filtering criteria. "
+            "Defaults to 1."
+        ),
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each "
+            "localization is associated with a specific GCNEvent by the date the "
+            "event happened, and this date is used as a unique identifier. It can "
+            "be therefore found as Localization.dateobs, queried from the "
+            "/api/localization endpoint or dateobs in the GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. Can be found in "
+            "Localization.localization_name queried from /api/localization "
+            "endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include sources",
+    )
+    firstDetectionAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were first detected after this UTC datetime."
+        ),
+    )
+    lastDetectionBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were last detected before this UTC datetime."
+        ),
+    )
+    numberDetections: int | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have been detected at least this many times."
+        ),
+    )
+    requireDetections: bool = Field(
+        default=True,
+        description=(
+            "Require firstDetectionAfter, lastDetectionBefore, and "
+            "numberDetections to be set when querying candidates in a "
+            "localization. Defaults to True."
+        ),
+    )
+    excludeForcedPhotometry: bool = Field(
+        default=False,
+        description=(
+            "If true, ignore forced photometry when applying firstDetectionAfter, "
+            "lastDetectionBefore, and numberDetections. Defaults to False."
+        ),
+    )
+    nameOnly: bool = Field(
+        default=False,
+        description=(
+            "Intended for frontend use only: if true (and objID is provided), "
+            "return only candidate obj IDs matching the partial name in objID."
+        ),
+    )
+    objID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: partial object ID used by the "
+            "nameOnly autocomplete query."
+        ),
+    )
+    queryID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: ID of a cached candidates query, "
+            "used when paginating."
+        ),
+    )
+    annotationExcludeOrigin: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+    annotationExcludeOutdatedDate: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
     async def head(self, obj_id=None):
@@ -337,7 +636,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: str = None, *, query: CandidateGetQuery = None):
         """
         ---
         single:
@@ -345,28 +644,6 @@ class CandidateHandler(BaseHandler):
           description: Retrieve a candidate
           tags:
             - candidates
-          parameters:
-            - in: query
-              name: includeComments
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated comments. Defaults to false.
-            - in: query
-              name: includeFollowupRequests
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated follow-up requests. Defaults to false.
-            - in: query
-              name: includeAlerts
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated alerts. Defaults to false.
           responses:
             200:
               content:
@@ -381,286 +658,6 @@ class CandidateHandler(BaseHandler):
           description: Retrieve all candidates
           tags:
             - candidates
-          parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of candidates to return per paginated request. Defaults to 25.
-              Capped at 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
-          - in: query
-            name: autosave
-            nullable: true
-            schema:
-                type: boolean
-            description: Automatically save candidates passing query.
-          - in: query
-            name: autosaveGroupIds
-            nullable: true
-            schema:
-                type: boolean
-            description: Group ID(s) to save candidates to.
-          - in: query
-            name: savedStatus
-            nullable: true
-            schema:
-                type: string
-                enum: [all, savedToAllSelected, savedToAnySelected, savedToAnyAccessible, notSavedToAnyAccessible, notSavedToAnySelected, notSavedToAllSelected]
-            description: |
-                String indicating the saved status to filter candidate results for. Must be one of the enumerated values.
-          - in: query
-            name: startDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              Candidate.passed_at >= startDate
-          - in: query
-            name: endDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              Candidate.passed_at <= endDate
-          - in: query
-            name: groupIDs
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's
-              groups if filterIDs is not provided.
-          - in: query
-            name: filterIDs
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
-              groups' filters if groupIDs is not provided.
-          - in: query
-            name: sortByAnnotationOrigin
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The origin of the Annotation to sort by
-          - in: query
-            name: sortByAnnotationKey
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The key of the Annotation data value to sort by
-          - in: query
-            name: sortByAnnotationOrder
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The sort order for annotations - either "asc" or "desc".
-              Defaults to "asc".
-          - in: query
-            name: annotationFilterList
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of JSON objects representing annotation filters.
-              Filter objects are expected to have keys { origin, key, value } for
-              non-numeric value types, or { origin, key, min, max } for numeric values.
-          - in: query
-            name: includePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated photometry. Defaults to
-              false.
-          - in: query
-            name: includeSpectra
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated spectra. Defaults to false.
-          - in: query
-            name: includeComments
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated comments. Defaults to false.
-          - in: query
-            name: classifications
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of classification(s) to filter for candidates matching
-              that/those classification(s).
-          - in: query
-            name: classificationsReject
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-                Comma-separated string of classification(s) to filter OUT candidates matching
-                with any of those classification(s).
-          - in: query
-            name: minRedshift
-            nullable: true
-            schema:
-              type: number
-            description: |
-              If provided, return only candidates with a redshift of at least this value
-          - in: query
-            name: maxRedshift
-            nullable: true
-            schema:
-              type: number
-            description: |
-              If provided, return only candidates with a redshift of at most this value
-          - in: query
-            name: listName
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Get only candidates saved to the querying user's list, e.g., "favorites".
-          - in: query
-            name: listNameReject
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates".
-          - in: query
-            name: photometryAnnotationsFilter
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
-              that/those photometry annotation(s), i.e. "drb: 0.5: lt"
-          - in: query
-            name: photometryAnnotationsFilterOrigin
-            nullable: true
-            schema:
-              type: string
-            description: Comma separated string of origins. Only photometry annotations from these origins are used when filtering with the photometryAnnotationsFilter.
-          - in: query
-            name: photometryAnnotationsFilterBefore
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have photometry annotations before this UTC datetime.
-          - in: query
-            name: photometryAnnotationsFilterAfter
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have photometry annotations after this UTC datetime.
-          - in: query
-            name: photometryAnnotationsFilterMinCount
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1.
-          - in: query
-            name: localizationDateobs
-            schema:
-              type: string
-            description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-          - in: query
-            name: localizationName
-            schema:
-              type: string
-            description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-          - in: query
-            name: localizationCumprob
-            schema:
-              type: number
-            description: |
-              Cumulative probability up to which to include sources
-          - in: query
-            name: firstDetectionAfter
-            schema:
-              type: string
-            description: |
-              Only return sources that were first detected after this UTC datetime.
-          - in: query
-            name: lastDetectionBefore
-            schema:
-              type: string
-            description: |
-              Only return sources that were last detected before this UTC datetime.
-          - in: query
-            name: numberDetections
-            schema:
-              type: integer
-            description: |
-              Only return sources that have been detected at least this many times.
-          - in: query
-            name: requireDetections
-            schema:
-              type: boolean
-            description: |
-              Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True.
-          - in: query
-            name: excludeForcedPhotometry
-            schema:
-              type: boolean
-            description: |
-              If true, ignore forced photometry when applying firstDetectionAfter, lastDetectionBefore, and numberDetections. Defaults to False.
-
           responses:
             200:
               content:
@@ -694,9 +691,11 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
 
+        query = self.parse_query(CandidateGetQuery)
+
         start = time.time()
 
-        include_alerts = self.get_query_argument("includeAlerts", False)
+        include_alerts = query.includeAlerts
 
         if obj_id is not None:
             async with self.AsyncSession() as session:
@@ -739,7 +738,7 @@ class CandidateHandler(BaseHandler):
                 candidate_info = await include_requested_obj_data(
                     obj_id,
                     candidate_info,
-                    self.get_query_argument,
+                    query,
                     session,
                     include_phot_annotations=True,
                 )
@@ -785,13 +784,13 @@ class CandidateHandler(BaseHandler):
 
                 return self.success(data=candidate_info)
 
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 25)
+        page_number = query.pageNumber
+        n_per_page = query.numPerPage
 
         # Lightweight autocomplete for the toolbar quick-search: return candidate
         # obj_ids matching a partial name, skipping the heavy scanning-page query.
-        name_only = self.get_query_argument("nameOnly", "false").lower() == "true"
-        obj_id_partial = self.get_query_argument("objID", None)
+        name_only = query.nameOnly
+        obj_id_partial = query.objID
         if name_only and obj_id_partial:
             async with self.AsyncSession() as session:
                 group_ids = await accessible_group_ids_async(
@@ -813,41 +812,26 @@ class CandidateHandler(BaseHandler):
                 )
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
-        query_id = self.get_query_argument("queryID", None)
-        saved_status = self.get_query_argument("savedStatus", "all")
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        group_ids = self.get_query_argument("groupIDs", None)
-        filter_ids = self.get_query_argument("filterIDs", None)
-        sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
-        annotation_filter_list = self.get_query_argument("annotationFilterList", None)
-        classifications = self.get_query_argument("classifications", None)
-        classifications_reject = self.get_query_argument("classificationsReject", None)
-        min_redshift = self.get_query_argument("minRedshift", None)
-        max_redshift = self.get_query_argument("maxRedshift", None)
-        list_name = self.get_query_argument("listName", None)
-        list_name_reject = self.get_query_argument("listNameReject", None)
-        autosave = self.get_query_argument("autosave", False)
-        autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
-        if autosave_group_ids is not None:
-            # parse here: passing the raw comma-separated string through to
-            # post_source_async would iterate it character by character
-            try:
-                autosave_group_ids = [int(gid) for gid in autosave_group_ids.split(",")]
-            except ValueError:
-                return self.error("Invalid autosaveGroupIds value.")
-        photometry_annotations_filter = self.get_query_argument(
-            "photometryAnnotationsFilter", None
-        )
-        photometry_annotations_filter_origin = self.get_query_argument(
-            "photometryAnnotationsFilterOrigin", None
-        )
-        photometry_annotations_filter_after = self.get_query_argument(
-            "photometryAnnotationsFilterAfter", None
-        )
-        photometry_annotations_filter_before = self.get_query_argument(
-            "photometryAnnotationsFilterBefore", None
-        )
+        query_id = query.queryID
+        saved_status = query.savedStatus
+        start_date = query.startDate
+        end_date = query.endDate
+        group_ids = query.groupIDs
+        filter_ids = query.filterIDs
+        sort_by_origin = query.sortByAnnotationOrigin
+        annotation_filter_list = query.annotationFilterList
+        classifications = query.classifications
+        classifications_reject = query.classificationsReject
+        min_redshift = query.minRedshift
+        max_redshift = query.maxRedshift
+        list_name = query.listName
+        list_name_reject = query.listNameReject
+        autosave = query.autosave
+        autosave_group_ids = query.autosaveGroupIds
+        photometry_annotations_filter = query.photometryAnnotationsFilter
+        photometry_annotations_filter_origin = query.photometryAnnotationsFilterOrigin
+        photometry_annotations_filter_after = query.photometryAnnotationsFilterAfter
+        photometry_annotations_filter_before = query.photometryAnnotationsFilterBefore
         # Parse to naive datetimes so the query compares against the timestamp
         # column rather than a string (Postgres has no timestamp >= text op).
         if photometry_annotations_filter_after is not None:
@@ -870,22 +854,18 @@ class CandidateHandler(BaseHandler):
                     f"Invalid photometryAnnotationsFilterBefore: "
                     f"{photometry_annotations_filter_before}"
                 )
-        photometry_annotations_filter_min_count = self.get_query_argument(
-            "photometryAnnotationsFilterMinCount", 1
+        photometry_annotations_filter_min_count = (
+            query.photometryAnnotationsFilterMinCount
         )
 
-        first_detected_date = self.get_query_argument("firstDetectionAfter", None)
-        last_detected_date = self.get_query_argument("lastDetectionBefore", None)
-        number_of_detections = self.get_query_argument("numberDetections", None)
-        require_detections = self.get_query_argument("requireDetections", True)
-        exclude_forced_photometry = self.get_query_argument(
-            "excludeForcedPhotometry", False
-        )
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument(
-            "localizationCumprob", 0.95, type=float
-        )
+        first_detected_date = query.firstDetectionAfter
+        last_detected_date = query.lastDetectionBefore
+        number_of_detections = query.numberDetections
+        require_detections = query.requireDetections
+        exclude_forced_photometry = query.excludeForcedPhotometry
+        localization_dateobs = query.localizationDateobs
+        localization_name = query.localizationName
+        localization_cumprob = query.localizationCumprob
 
         if localization_dateobs is not None:
             try:
@@ -971,25 +951,11 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None or annotation_filter_list is not None:
                 q = q.outerjoin(Annotation)
 
-            if isinstance(classifications, str):
-                if "," in classifications:
-                    classifications = [c.strip() for c in classifications.split(",")]
-                else:
-                    classifications = [classifications]
+            if classifications:
                 q = q.join(Classification).where(
                     Classification.classification.in_(classifications)
                 )
-            elif classifications is not None:
-                return self.error(
-                    "Invalid classifications value -- must provide at least one string value"
-                )
-            if isinstance(classifications_reject, str):
-                if "," in classifications_reject:
-                    classifications_reject = [
-                        c.strip() for c in classifications_reject.split(",")
-                    ]
-                else:
-                    classifications_reject = [classifications_reject]
+            if classifications_reject:
                 # here we want to keep candidates that:
                 #   1. have no classification
                 #   2. do not have one of the classifications_reject as a classification
@@ -1006,10 +972,6 @@ class CandidateHandler(BaseHandler):
                     classifications_reject_subquery,
                     Obj.id == classifications_reject_subquery.c.obj_id,
                 ).where(classifications_reject_subquery.c.obj_id.is_(None))
-            elif classifications_reject is not None:
-                return self.error(
-                    "Invalid classificationsReject value -- must provide at least one string value"
-                )
 
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
@@ -1043,9 +1005,7 @@ class CandidateHandler(BaseHandler):
                     )
                 q = q.where(Obj.redshift <= max_redshift)
 
-            if self.get_query_argument(
-                "annotationExcludeOrigin", None
-            ) or self.get_query_argument("annotationExcludeOutdatedDate", None):
+            if query.annotationExcludeOrigin or query.annotationExcludeOutdatedDate:
                 return self.error(
                     "annotationExcludeOrigin and annotationExcludeOutdatedDate parameters are no longer supported"
                 )
@@ -1145,8 +1105,8 @@ class CandidateHandler(BaseHandler):
                         )
 
             if sort_by_origin is not None:
-                sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
-                sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
+                sort_by_key = query.sortByAnnotationKey
+                sort_by_order = query.sortByAnnotationOrder
                 # Define a custom sort order to have annotations from the correct origin first, all others afterward
                 origin_sort_order = case(
                     (Annotation.origin == sort_by_origin, 1),
@@ -1166,25 +1126,16 @@ class CandidateHandler(BaseHandler):
                     Obj.id,
                 ]
 
+            # parse_query splits these on commas; strip the surrounding
+            # whitespace that the old handler-side split removed.
             if photometry_annotations_filter is not None:
-                if isinstance(photometry_annotations_filter, str):
-                    photometry_annotations_filter = [
-                        c.strip() for c in photometry_annotations_filter.split(",")
-                    ]
-                else:
-                    return self.error(
-                        "Invalid annotationsFilter value -- must provide at least one string value"
-                    )
+                photometry_annotations_filter = [
+                    item.strip() for item in photometry_annotations_filter
+                ]
             if photometry_annotations_filter_origin is not None:
-                if isinstance(photometry_annotations_filter_origin, str):
-                    photometry_annotations_filter_origin = [
-                        c.strip()
-                        for c in photometry_annotations_filter_origin.split(",")
-                    ]
-                else:
-                    return self.error(
-                        "Invalid annotationsFilterOrigin value -- must provide at least one string value"
-                    )
+                photometry_annotations_filter_origin = [
+                    item.strip() for item in photometry_annotations_filter_origin
+                ]
 
             if (
                 photometry_annotations_filter_origin is not None
@@ -1491,7 +1442,7 @@ class CandidateHandler(BaseHandler):
                     candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
-                        self.get_query_argument,
+                        query,
                         session,
                         include_phot_annotations=False,
                     )

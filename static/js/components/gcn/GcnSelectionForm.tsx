@@ -242,8 +242,7 @@ const GcnEventSourcesPage = ({
     try {
       const sourcesInGcn = await fetchSourcesInGcn({
         dateobs,
-        localizationName,
-        sourcesIdList: sourceAll.map((source) => source.id),
+        sourcesIDList: sourceAll.map((source) => source.id),
       }).unwrap();
       sourceAll.forEach((source) => {
         const match = sourcesInGcn.find(
@@ -781,10 +780,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     };
 
     const fetchGalaxies = async () => {
-      formData.numPerPage = 100;
       await fetchGcnEventGalaxies({
         dateobs: gcnEvent?.dateobs,
-        filterParams: formData,
+        filterParams: { ...formData, numPerPage: 100 },
       });
     };
 

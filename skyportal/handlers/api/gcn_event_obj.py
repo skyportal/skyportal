@@ -1,8 +1,8 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -78,6 +78,20 @@ class Validator(Schema):
                 raise ValidationError("Missing required fields")
 
 
+class SourcesConfirmedInGCNGetQuery(BaseModel):
+    """Query parameters for retrieving sources confirmed/rejected in a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    sourcesIDList: str = Field(
+        default="",
+        description="A comma-separated list of source_id's to retrieve. "
+        "If not provided, all sources confirmed or rejected in GCN will be returned.",
+    )
+
+
 class GcnEventObjHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -86,6 +100,8 @@ class GcnEventObjHandler(BaseHandler):
         source_id: Annotated[
             str, Field(description="The source_id of the source to retrieve")
         ] = None,
+        *,
+        query: SourcesConfirmedInGCNGetQuery = None,
     ):
         """
         ---
@@ -119,15 +135,6 @@ class GcnEventObjHandler(BaseHandler):
             - sources
           summary: Retrieve sources confirmed/rejected in a GCN
           description: Retrieve sources that have been confirmed/rejected in a GCN
-          parameters:
-            - in: query
-              name: sourcesIDList
-              nullable: true
-              schema:
-                type: string
-              description: |
-                  A comma-separated list of source_id's to retrieve.
-                  If not provided, all sources confirmed or rejected in GCN will be returned.
           responses:
             200:
               content:
@@ -147,7 +154,9 @@ class GcnEventObjHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        sources_id_list = self.get_query_argument("sourcesIDList", "")
+        query = self.parse_query(SourcesConfirmedInGCNGetQuery)
+
+        sources_id_list = query.sourcesIDList
         if source_id is not None:
             sources_id_list = source_id
         validator_instance = Validator()

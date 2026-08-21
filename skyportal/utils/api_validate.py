@@ -1,9 +1,10 @@
 """Pydantic-based request validation for API handlers.
 
-Annotate a keyword-only handler parameter with a pydantic model (and
-optionally the return type with a response model); `spec_from_handlers` reads
-these hints to document the endpoint. At runtime the handler validates
-explicitly with `BaseHandler.parse_body`, which 400s with field-level errors:
+Annotate a keyword-only handler parameter named `body` or `query` with a
+pydantic model (and optionally the return type with a response model);
+`spec_from_handlers` reads these hints to document the endpoint. At runtime
+the handler validates explicitly with `BaseHandler.parse_body` /
+`BaseHandler.parse_query`, which 400 with field-level errors:
 
     class MyBody(BaseModel):
         name: str
@@ -11,6 +12,10 @@ explicitly with `BaseHandler.parse_body`, which 400s with field-level errors:
     @permissions(["..."])
     async def post(self, obj_id: str, *, body: MyBody = None) -> MyResponse:
         body = self.parse_body(MyBody)
+
+    @auth_or_token
+    async def get(self, *, query: MyQuery = None):
+        query = self.parse_query(MyQuery)
 
 Positional parameters are path parameters. Their annotations drive both
 coercion (`BaseHandler.prepare`) and the `in: path` entries of the spec, so
@@ -42,18 +47,100 @@ def model_from_annotation(annotation):
     return None
 
 
-def body_model_from(method):
-    """Pydantic model annotating a keyword-only parameter of `method`, or None.
+def _keyword_only_model(method, name):
+    """Pydantic model annotating the keyword-only parameter `name`, or None.
 
     `inspect.signature` follows `__wrapped__`, so this sees through
     `@permissions` / `@auth_or_token`.
     """
-    for param in inspect.signature(method).parameters.values():
-        if param.kind is inspect.Parameter.KEYWORD_ONLY:
-            model = model_from_annotation(param.annotation)
-            if model is not None:
-                return model
+    param = inspect.signature(method).parameters.get(name)
+    if param is not None and param.kind is inspect.Parameter.KEYWORD_ONLY:
+        return model_from_annotation(param.annotation)
     return None
+
+
+def body_model_from(method):
+    """Pydantic request-body model of `method` (its `body` parameter), or None."""
+    return _keyword_only_model(method, "body")
+
+
+def query_model_from(method):
+    """Pydantic query-parameter model of `method` (its `query` parameter), or None."""
+    return _keyword_only_model(method, "query")
+
+
+def _is_list_annotation(annotation):
+    """True if an annotation is a list type, unwrapping `X | None`."""
+    if typing.get_origin(annotation) in (typing.Union, types.UnionType):
+        return any(_is_list_annotation(arg) for arg in typing.get_args(annotation))
+    return annotation is list or typing.get_origin(annotation) is list
+
+
+@cache
+def _list_fields(model):
+    """Names of a model's list-typed fields. Cached: fields are fixed at import time."""
+    return frozenset(
+        name
+        for name, field in model.model_fields.items()
+        if _is_list_annotation(field.annotation)
+    )
+
+
+def query_dict_from(query_arguments, model):
+    """Decode tornado query arguments (name → list of bytes) for `model`.
+
+    List-typed fields accept both conventions in use across the API,
+    repeated parameters (`?ids=1&ids=2`) and comma-separated values
+    (`?ids=1,2`); items are stripped and an empty value is treated as absent
+    so the field default applies. Every other field keeps the last value,
+    matching tornado's `get_query_argument`.
+    """
+    list_fields = _list_fields(model)
+    args = {}
+    for name, values in query_arguments.items():
+        decoded = [value.decode("utf-8", "replace") for value in values]
+        if name in list_fields:
+            items = [
+                item.strip()
+                for value in decoded
+                for item in value.split(",")
+                if item.strip()
+            ]
+            if items:
+                args[name] = items
+        else:
+            args[name] = decoded[-1]
+    return args
+
+
+def query_parameters_from(model, fields=None):
+    """Render a pydantic query model's fields as OpenAPI `parameters` entries.
+
+    `fields` restricts the output to a subset of the model's fields.
+
+    Query models must be flat (scalars, lists, Literals); nested models
+    would leave dangling `$defs` references.
+    """
+    schema = _to_openapi_30(model.model_json_schema(ref_template=REF_TEMPLATE))
+    required = schema.get("required", [])
+    properties = schema.get("properties", {})
+    unknown = set(fields or ()) - set(properties)
+    if unknown:
+        raise ValueError(f"{model.__name__} has no field(s) {sorted(unknown)}")
+    parameters = []
+    for name, prop in properties.items():
+        if fields is not None and name not in fields:
+            continue
+        prop.pop("title", None)
+        if prop.get("default", ...) is None:
+            del prop["default"]
+        parameter = {"in": "query", "name": name, "required": name in required}
+        description = prop.pop("description", None)
+        if description:
+            parameter["description"] = description
+        parameter["schema"] = prop
+        parameters.append(parameter)
+    return parameters
 
 
 def response_model_from(method):

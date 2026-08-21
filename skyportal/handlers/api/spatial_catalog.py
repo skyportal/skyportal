@@ -4,6 +4,7 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
@@ -148,6 +149,17 @@ def delete_catalog(catalog_id):
         Session.remove()
 
 
+class SpatialCatalogGetQuery(BaseModel):
+    """Query parameters for retrieving spatial catalogs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(
+        default=None,
+        description="Name of the catalog being looked up, reported back in the not-found error message.",
+    )
+
+
 class SpatialCatalogHandler(BaseHandler):
     @auth_or_token
     async def post(self):
@@ -232,7 +244,9 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data={"id": catalog.id})
 
     @auth_or_token
-    async def get(self, catalog_id: int | None = None):
+    async def get(
+        self, catalog_id: int | None = None, *, query: SpatialCatalogGetQuery = None
+    ):
         """
         ---
         single:
@@ -279,7 +293,7 @@ class SpatialCatalogHandler(BaseHandler):
                   schema: Error
         """
 
-        catalog_name = self.get_query_argument("catalog_name", None)
+        query = self.parse_query(SpatialCatalogGetQuery)
 
         async with self.AsyncSession() as session:
             if catalog_id is not None:
@@ -295,7 +309,7 @@ class SpatialCatalogHandler(BaseHandler):
                 )
                 catalog = await session.scalar(stmt)
                 if catalog is None:
-                    return self.error(f"No catalog with name: {catalog_name}")
+                    return self.error(f"No catalog with name: {query.catalog_name}")
 
                 data = catalog.to_dict()
                 data["entries"] = [entry.to_dict() for entry in catalog.entries]

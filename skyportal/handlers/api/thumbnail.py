@@ -251,9 +251,51 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
 
+class ThumbnailPathGetQuery(BaseModel):
+    """Query parameters for checking thumbnail paths."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    types: list[str] = Field(
+        default=["new", "ref", "sub"],
+        description=(
+            "types of thumbnails to check. The default is ['new', 'ref', 'sub'] "
+            "which are all the thumbnail types stored locally."
+        ),
+    )
+    requiredDepth: int = Field(
+        default=2,
+        description=(
+            "number of subdirectories that are desired for thumbnails. For example "
+            "if requiredDepth is 2, then thumbnails will be stored in a folder like "
+            "/skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png where 'ab' "
+            "and 'cd' are the first characters of the hash of the source name. "
+            "If requiredDepth is 0, then thumbnails are expected to be all in one "
+            "folder under /skyportal/static/thumbnails."
+        ),
+    )
+
+
+class ThumbnailPathPatchQuery(ThumbnailPathGetQuery):
+    """Query parameters for updating thumbnail paths (same filters as the
+    check, plus pagination over the rows to move)."""
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=(
+            "Number of thumbnails to update per paginated request. Defaults to "
+            "100. Capped at 1000."
+        ),
+    )
+
+
 class ThumbnailPathHandler(BaseHandler):
     @permissions(["System admin"])
-    async def get(self):
+    async def get(self, *, query: ThumbnailPathGetQuery = None):
         """
         ---
         summary: Check thumbnail paths
@@ -262,34 +304,6 @@ class ThumbnailPathHandler(BaseHandler):
           or are not in the correct folder/path.
         tags:
           - thumbnails
-        parameters:
-          - in: query
-            name: types
-            required: false
-            default: ['new', 'ref', 'sub']
-            schema:
-              type: array
-              items:
-                type: string
-            description: |
-              types of thumbnails to check
-              The default is ['new', 'ref', 'sub'] which
-              are all the thumbnail types stored locally.
-          - in: query
-            name: requiredDepth
-            required: false
-            default: 2
-            schema:
-              type: integer
-            description: |
-              number of subdirectories that are desired for
-              thumbnails. For example if requiredDepth is 2,
-                then thumbnails will be stored in a folder like
-                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                where "ab" and "cd" are the first characters of the
-                hash of the source name.
-                If requiredDepth is 0, then thumbnails are expected
-                to be all in one folder under /skyportal/static/thumbnails.
         responses:
           200:
             content:
@@ -310,10 +324,9 @@ class ThumbnailPathHandler(BaseHandler):
                               type: integer
 
         """
-        types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
-        if required_depth is None:
-            return self.error("requiredDepth must be an integer")
+        query = self.parse_query(ThumbnailPathGetQuery)
+        types = query.types
+        required_depth = query.requiredDepth
 
         if required_depth < 0 or required_depth > 32:
             return self.error("requiredDepth must be between 0 and 32")
@@ -337,7 +350,7 @@ class ThumbnailPathHandler(BaseHandler):
         )
 
     @permissions(["System admin"])
-    async def patch(self):
+    async def patch(self, *, query: ThumbnailPathPatchQuery = None):
         """
         ---
         summary: Update thumbnail paths
@@ -346,47 +359,6 @@ class ThumbnailPathHandler(BaseHandler):
           of thumbnails that are not in the correct folder/path.
         tags:
           - thumbnails
-        parameters:
-          - in: query
-            name: types
-            required: false
-            default: ['new', 'ref', 'sub']
-            schema:
-              type: array
-              items:
-                type: string
-            description: |
-              types of thumbnails to check
-              The default is ['new', 'ref', 'sub'] which
-              are all the thumbnail types stored locally.
-          - in: query
-            name: requiredDepth
-            required: false
-            default: 2
-            schema:
-              type: integer
-            description: |
-              number of subdirectories that are desired for
-              thumbnails. For example if requiredDepth is 2,
-                then thumbnails will be stored in a folder like
-                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                where "ab" and "cd" are the first characters of the
-                hash of the source name.
-                If requiredDepth is 0, then thumbnails are expected
-                to be all in one folder under /skyportal/static/thumbnails.
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
         responses:
           200:
             content:
@@ -410,20 +382,14 @@ class ThumbnailPathHandler(BaseHandler):
         # need to import this here because alert.py might import this file
         from .alert import alert_available
 
-        types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
-        if required_depth is None:
-            return self.error("requiredDepth must be an integer")
+        query = self.parse_query(ThumbnailPathPatchQuery)
 
-        if required_depth <= 0 or required_depth > 32:
-            return self.error("requiredDepth must be at least 0 and no bigger than 31.")
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        num_per_page = self.get_query_argument("numPerPage", 100, type=int)
-        if page_number is None or num_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        num_per_page = min(num_per_page, 1000)
+        types = query.types
+        required_depth = query.requiredDepth
+        if required_depth < 0 or required_depth > 32:
+            return self.error("requiredDepth must be between 0 and 32")
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, 1000)
 
         good_like = f"%thumbnails{'/__' * required_depth}/%"
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"

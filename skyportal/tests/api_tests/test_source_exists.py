@@ -42,12 +42,11 @@ def test_source_exists_requires_id_or_coords(view_only_token):
 
 
 def test_source_exists_rejects_non_numeric_coords(view_only_token):
-    """Non-float coord values fall back to None (via the type=float
-    coercion in get_query_argument), so the request degrades to the
-    'no spatial filter, no id' error path rather than 500ing."""
+    """Non-float coord values are rejected by query-parameter validation."""
     status, data = api(
         "GET",
         "source_exists?ra=not-a-float&dec=not-a-float&radius=not-a-float",
         token=view_only_token,
     )
     assert status == 400
+    assert "Invalid/missing parameters: ra" in data["message"]

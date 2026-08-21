@@ -4,7 +4,7 @@ import traceback
 import uuid
 from collections import defaultdict
 from io import StringIO
-from typing import Annotated
+from typing import Annotated, Literal
 
 import arrow
 import astropy.utils.data
@@ -17,7 +17,7 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, load_only, selectinload
@@ -1773,10 +1773,78 @@ async def commit_external_photometry(data, user_id, duplicates="update", refresh
         return ids
 
 
+class PhotometryGetQuery(BaseModel):
+    """Query parameters for getting a single photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: str = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "Must be one of 'mag', 'flux', or 'both'. If a value for this "
+            "query parameter is not provided, the result will be returned "
+            "in magnitude space."
+        ),
+    )
+    magsys: str = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
+
+
+REFRESH_DESCRIPTION = (
+    "If true, triggers a refresh of the object's photometry on the web page, "
+    "only for the users that have the object's source page open."
+)
+
+
+class PhotometryPostQuery(BaseModel):
+    """Query parameters for uploading photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+
+
+class PhotometryPutQuery(BaseModel):
+    """Query parameters for updating and/or uploading photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+    duplicate_ignore_flux: bool = Field(
+        default=False,
+        description=(
+            "If true, will not use the flux/fluxerr of existing rows when looking "
+            "for duplicates but only mjd, instrument_id, filter, and origin. "
+            "Reserved to super admin users only, to avoid misuse and permanent "
+            "data loss."
+        ),
+    )
+    overwrite_flux: bool = Field(
+        default=False,
+        description=(
+            "If true and duplicate_ignore_flux is also true, will update the "
+            "flux/fluxerr of existing rows (duplicates) with the new values. "
+            "Applies only to rows with an origin already specified. If existing "
+            "duplicates have no origin, the update will be skipped."
+        ),
+    )
+
+
+class PhotometryPatchQuery(BaseModel):
+    """Query parameters for updating a photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+
+
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
     @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
-    async def post(self):
+    async def post(self, *, query: PhotometryPostQuery = None):
         """
         ---
         summary: Upload photometry
@@ -1814,8 +1882,8 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-        refresh = self.get_query_argument("refresh", default=False)
-        refresh = str_to_bool(refresh, default=False)
+        query = self.parse_query(PhotometryPostQuery)
+        refresh = query.refresh
 
         async with self.AsyncSession() as session:
             try:
@@ -1873,7 +1941,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @permissions(["Upload data"])
-    async def put(self):
+    async def put(self, *, query: PhotometryPutQuery = None):
         """
         ---
         summary: Update and/or upload photometry
@@ -1911,14 +1979,10 @@ class PhotometryHandler(BaseHandler):
                                 added in request. Can be used to later delete all
                                 points in a single request.
         """
-        refresh = self.get_query_argument("refresh", default=False)
-        refresh = str_to_bool(refresh, default=False)
-
-        overwrite_flux = self.get_query_argument("overwrite_flux", False)
-        overwrite_flux = str_to_bool(overwrite_flux, default=False)
-
-        ignore_flux = self.get_query_argument("duplicate_ignore_flux", False)
-        ignore_flux = str_to_bool(ignore_flux, default=False)
+        query = self.parse_query(PhotometryPutQuery)
+        refresh = query.refresh
+        overwrite_flux = query.overwrite_flux
+        ignore_flux = query.duplicate_ignore_flux
 
         # if ignore_flux is True, verify that the current_user is a super admin
         if ignore_flux and not self.associated_user_object.is_admin:
@@ -2142,7 +2206,11 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id: int | None = None):
+    def get(
+        self, photometry_id: int | None = None, *, query: PhotometryGetQuery = None
+    ):
+        query = self.parse_query(PhotometryGetQuery)
+
         # The route's id is optional (shared with POST), so a bare
         # GET /api/photometry lands here without one. Tornado also passes the
         # captured id as a string, so convert it explicitly.
@@ -2164,14 +2232,11 @@ class PhotometryHandler(BaseHandler):
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
-            # get the desired output format
-            format = self.get_query_argument("format", "mag")
-            outsys = self.get_query_argument("magsys", "ab")
-            output = serialize(phot, outsys, format)
+            output = serialize(phot, query.magsys, query.format)
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    def patch(self, photometry_id: int):
+    def patch(self, photometry_id: int, *, query: PhotometryPatchQuery = None):
         """
         ---
         summary: Update photometry
@@ -2201,6 +2266,9 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(PhotometryPatchQuery)
+        refresh = query.refresh
+
         try:
             photometry_id = int(photometry_id)
         except ValueError:
@@ -2210,8 +2278,6 @@ class PhotometryHandler(BaseHandler):
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
         magsys = data.get("magsys", "ab")
-
-        refresh = self.get_query_argument("refresh", default=False)
 
         with self.Session() as session:
             photometry = session.scalars(
@@ -2427,6 +2493,77 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
 
+class ObjPhotometryGetQuery(BaseModel):
+    """Query parameters for getting an object's photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: str = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "Must be one of 'mag', 'flux', 'both', or 'plot'. If a value for "
+            "this query parameter is not provided, the result will be "
+            "returned in magnitude space. "
+            '"plot" returns a slim per-point payload '
+            "(id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) "
+            "intended for lightcurve plotting; all per-point auxiliary "
+            "joins (groups, annotations, instrument, owner, streams, "
+            "validations) and the ref/tot/extinction blocks are skipped, "
+            "regardless of the corresponding ``include*`` flags."
+        ),
+    )
+    magsys: str = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
+    individualOrSeries: str = Field(
+        default="both",
+        description=(
+            "Whether to return individual photometry points, "
+            "photometric series, or both (Default)."
+        ),
+    )
+    phaseFoldData: bool = Field(
+        default=False,
+        description="Boolean indicating whether to phase fold the light curve. Defaults to false.",
+    )
+    deduplicatePhotometry: bool = Field(
+        default=False,
+        description="Boolean indicating whether to deduplicate photometry. Defaults to false.",
+    )
+    includeOwnerInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry owner. Defaults to false.",
+    )
+    includeStreamInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry stream information. Defaults to false.",
+    )
+    includeValidationInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry validation information. Defaults to false.",
+    )
+    includeAnnotationInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry annotations. Defaults to false.",
+    )
+    includeExtinction: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include Galactic extinction values "
+            "and extinction-corrected magnitudes/fluxes. Defaults to false."
+        ),
+    )
+    includeSuperObjsPhotometry: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to also include photometry of any "
+            "super-objects containing this object. Defaults to false."
+        ),
+    )
+
+
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(
@@ -2434,35 +2571,22 @@ class ObjPhotometryHandler(BaseHandler):
         obj_id: Annotated[
             str, Field(description="ID of the object to retrieve photometry for")
         ],
+        *,
+        query: ObjPhotometryGetQuery = None,
     ):
         # docstring/OpenAPI spec is set via ObjPhotometryHandler.get.__doc__ below
-        individual_or_series = self.get_query_argument("individualOrSeries", "both")
-        phase_fold_data = self.get_query_argument("phaseFoldData", False)
-        format = self.get_query_argument("format", "mag")
-        outsys = self.get_query_argument("magsys", "ab")
-        include_owner_info = self.get_query_argument("includeOwnerInfo", False)
-        include_stream_info = self.get_query_argument("includeStreamInfo", False)
-        include_validation_info = self.get_query_argument(
-            "includeValidationInfo", False
-        )
-        include_annotation_info = self.get_query_argument(
-            "includeAnnotationInfo", False
-        )
-        include_extinction = self.get_query_argument("includeExtinction", False)
-        include_superobjs_photometry = self.get_query_argument(
-            "includeSuperObjsPhotometry", False
-        )
-        deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
-
-        include_owner_info = str_to_bool(include_owner_info, default=False)
-
-        include_stream_info = str_to_bool(include_stream_info, default=False)
-
-        include_validation_info = str_to_bool(include_validation_info, default=False)
-
-        include_annotation_info = str_to_bool(include_annotation_info, default=False)
-
-        include_extinction = str_to_bool(include_extinction, default=False)
+        query = self.parse_query(ObjPhotometryGetQuery)
+        individual_or_series = query.individualOrSeries
+        phase_fold_data = query.phaseFoldData
+        format = query.format
+        outsys = query.magsys
+        include_owner_info = query.includeOwnerInfo
+        include_stream_info = query.includeStreamInfo
+        include_validation_info = query.includeValidationInfo
+        include_annotation_info = query.includeAnnotationInfo
+        include_extinction = query.includeExtinction
+        include_superobjs_photometry = query.includeSuperObjsPhotometry
+        deduplicate_photometry = query.deduplicatePhotometry
 
         with self.Session() as session:
             obj: Obj = session.scalars(
@@ -2734,20 +2858,35 @@ class BulkDeletePhotometryHandler(BaseHandler):
             return self.success(f"Deleted {n} photometry point(s).")
 
 
+class PhotometryRangeGetQuery(BaseModel):
+    """Query parameters for getting photometry over a date range."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: Literal["mag", "flux"] = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "If a value for this query parameter is not provided, the "
+            "result will be returned in magnitude space."
+        ),
+    )
+    magsys: str = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
+
+
 class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def get(self, *, query: PhotometryRangeGetQuery = None):
         """Docstring appears below as an f-string."""
+        query = self.parse_query(PhotometryRangeGetQuery)
 
         json = self.get_json()
-        magsys = self.get_query_argument("magsys", default="ab")
 
-        if magsys not in ALLOWED_MAGSYSTEMS:
+        if query.magsys not in ALLOWED_MAGSYSTEMS:
             return self.error("Invalid mag system.")
-
-        format = self.get_query_argument("format", default="mag")
-        if format not in ["mag", "flux"]:
-            return self.error("Invalid output format.")
 
         with self.Session() as session:
             try:
@@ -2766,24 +2905,24 @@ class PhotometryRangeHandler(BaseHandler):
                 .where(GroupPhotometry.group_id.in_(gids))
                 .subquery()
             )
-            query = Photometry.select(session.user_or_token)
+            stmt = Photometry.select(session.user_or_token)
 
             if instrument_ids is not None:
-                query = query.where(Photometry.instrument_id.in_(instrument_ids))
+                stmt = stmt.where(Photometry.instrument_id.in_(instrument_ids))
             if min_date is not None:
                 mjd = Time(min_date, format="datetime").mjd
-                query = query.where(Photometry.mjd >= mjd)
+                stmt = stmt.where(Photometry.mjd >= mjd)
             if max_date is not None:
                 mjd = Time(max_date, format="datetime").mjd
-                query = query.where(Photometry.mjd <= mjd)
+                stmt = stmt.where(Photometry.mjd <= mjd)
 
-            query = query.join(
+            stmt = stmt.join(
                 group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
             )
 
             output = [
-                serialize(p, magsys, format)
-                for p in session.scalars(query.distinct()).unique().all()
+                serialize(p, query.magsys, query.format)
+                for p in session.scalars(stmt.distinct()).unique().all()
             ]
             return self.success(data=output)
 
@@ -2800,28 +2939,6 @@ PhotometryHandler.get.__doc__ = f"""
         description: Retrieve photometry
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
-
         responses:
           200:
             content:
@@ -2842,78 +2959,6 @@ ObjPhotometryHandler.get.__doc__ = f"""
         description: Retrieve all photometry associated with an Object
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-              "plot" returns a slim per-point payload
-              (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag)
-              intended for lightcurve plotting; all per-point auxiliary
-              joins (groups, annotations, instrument, owner, streams,
-              validations) and the ref/tot/extinction blocks are skipped,
-              regardless of the corresponding ``include*`` flags.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-                - plot
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
-          - in: query
-            name: individualOrSeries
-            nullable: true
-            schema:
-              type: string
-              enum: [individual, series, both]
-            description: >-
-                Whether to return individual photometry points,
-                photometric series, or both (Default).
-          - in: query
-            name: phaseFoldData
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to phase fold the light curve. Defaults to false.
-          - in: query
-            name: deduplicatePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to deduplicate photometry. Defaults to false.
-          - in: query
-            name: includeOwnerInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry owner. Defaults to false.
-          - in: query
-            name: includeStreamInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry stream information. Defaults to false.
-          - in: query
-            name: includeValidationInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry validation information. Defaults to false.
         responses:
           200:
             content:
@@ -2934,27 +2979,6 @@ PhotometryRangeHandler.get.__doc__ = f"""
         description: Get photometry taken by specific instruments over a date range
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
         requestBody:
           content:
             application/json:

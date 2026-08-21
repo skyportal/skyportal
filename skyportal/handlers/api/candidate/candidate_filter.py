@@ -1,7 +1,9 @@
 import operator  # noqa: F401
+from typing import Literal
 
 import arrow
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.sql.expression import func
 
 from baselayer.app.access import auth_or_token
@@ -83,9 +85,70 @@ def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
         return None
 
 
+class CandidateFilterGetQuery(BaseModel):
+    """Query parameters for listing candidates with their alert ids."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at <= endDate"
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups if filterIDs is not provided."
+        ),
+    )
+    filterIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups' filters if groupIDs is not provided."
+        ),
+    )
+    savedStatus: Literal[
+        "all",
+        "savedToAllSelected",
+        "savedToAnySelected",
+        "savedToAnyAccessible",
+        "notSavedToAnyAccessible",
+        "notSavedToAnySelected",
+        "notSavedToAllSelected",
+    ] = Field(
+        default="all",
+        description=(
+            "String indicating the saved status to filter candidate results for. "
+            "Must be one of the enumerated values."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    numPerPage: int = Field(
+        default=25,
+        description=(
+            "Number of candidates to return per paginated request. Defaults to 25. "
+            "Capped at 500."
+        ),
+    )
+
+
 class CandidateFilterHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: CandidateFilterGetQuery = None):
         # here we want a lighter version of the CandidateHandler, that applies
         # only the startDate, endDate, groupIDs, filterIDs, and savedStatus
         # and returns the Candidates themselves including the candidate's alert id (candid)
@@ -93,14 +156,16 @@ class CandidateFilterHandler(BaseHandler):
         # this is useful to map the candidates to the alerts they belong to
         # in the upstream system that sends the alerts to SkyPortal
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        group_ids = self.get_query_argument("groupIDs", None)
-        filter_ids = self.get_query_argument("filterIDs", None)
-        saved_status = self.get_query_argument("savedStatus", "all")
+        query = self.parse_query(CandidateFilterGetQuery)
 
-        page_number = self.get_query_argument("pageNumber", None) or 1
-        n_per_page = self.get_query_argument("numPerPage", None) or 25
+        start_date = query.startDate
+        end_date = query.endDate
+        group_ids = query.groupIDs
+        filter_ids = query.filterIDs
+        saved_status = query.savedStatus
+
+        page_number = query.pageNumber or 1
+        n_per_page = query.numPerPage or 25
 
         async with self.AsyncSession() as session:
             group_ids, filter_ids = await accessible_group_and_filter_ids(

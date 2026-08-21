@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import ClassVar, Literal
 
 import arrow
 import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -237,9 +239,70 @@ async def add_user_and_setup_groups(
     return user.id
 
 
+class UserGetQuery(BaseModel):
+    """Query parameters for listing users."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    numPerPage: int | None = Field(
+        default=None,
+        description="Number of users to return per paginated request. Defaults to all users.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    firstName: str | None = Field(
+        default=None,
+        description="Get users whose first name contains this string.",
+    )
+    lastName: str | None = Field(
+        default=None,
+        description="Get users whose last name contains this string.",
+    )
+    username: str | None = Field(
+        default=None,
+        description="Get users whose username contains this string.",
+    )
+    email: str | None = Field(
+        default=None,
+        description="Get users whose email contains this string.",
+    )
+    role: str | None = Field(
+        default=None,
+        description="Get users with the role.",
+    )
+    acl: str | None = Field(
+        default=None,
+        description="Get users with this ACL.",
+    )
+    group: str | None = Field(
+        default=None,
+        description="Get users part of the group with name given by this parameter.",
+    )
+    stream: str | None = Field(
+        default=None,
+        description="Get users with access to the stream with name given by this parameter.",
+    )
+    includeExpired: bool = Field(
+        default=False,
+        description="Include users with expired accounts in the results.",
+    )
+    sortBy: Literal["username", "createdAt"] = Field(
+        default="username",
+        description="Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date).",
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description="Sort order - 'asc' for ascending (default) or 'desc' for descending.",
+    )
+
+
 class UserHandler(BaseHandler):
     @auth_or_token
-    async def get(self, user_id: int | None = None):
+    async def get(self, user_id: int | None = None, *, query: UserGetQuery = None):
         """
         ---
         single:
@@ -261,89 +324,6 @@ class UserHandler(BaseHandler):
           description: Retrieve all users
           tags:
             - users
-          parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of candidates to return per paginated request. Defaults to all users
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
-          - in: query
-            name: firstName
-            nullable: true
-            schema:
-              type: string
-            description: Get users whose first name contains this string.
-          - in: query
-            name: lastName
-            nullable: true
-            schema:
-              type: string
-            description: Get users whose last name contains this string.
-          - in: query
-            name: username
-            nullable: true
-            schema:
-              type: string
-            description: Get users whose username contains this string.
-          - in: query
-            name: email
-            nullable: true
-            schema:
-              type: string
-            description: Get users whose email contains this string.
-          - in: query
-            name: role
-            nullable: true
-            schema:
-              type: string
-            description: Get users with the role.
-          - in: query
-            name: acl
-            nullable: true
-            schema:
-              type: string
-            description: Get users with this ACL.
-          - in: query
-            name: group
-            nullable: true
-            schema:
-              type: string
-            description: Get users part of the group with name given by this parameter.
-          - in: query
-            name: stream
-            nullable: true
-            schema:
-              type: string
-            description: Get users with access to the stream with name given by this parameter.
-          - in: query
-            name: includeExpired
-            nullable: true
-            schema:
-              type: boolean
-            description: Include users with expired accounts in the results.
-          - in: query
-            name: sortBy
-            nullable: true
-            schema:
-              type: string
-              enum: [username, createdAt]
-            description: |
-              Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date).
-          - in: query
-            name: sortOrder
-            nullable: true
-            schema:
-              type: string
-              enum: [asc, desc]
-            description: Sort order - 'asc' for ascending (default) or 'desc' for descending.
           responses:
             200:
               content:
@@ -369,6 +349,8 @@ class UserHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(UserGetQuery)
+
         if user_id is not None:
             try:
                 user_id = int(user_id)
@@ -394,30 +376,13 @@ class UserHandler(BaseHandler):
                 return self.success(data=user_info)
 
         # get users by query parameters
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        n_per_page = self.get_query_argument("numPerPage", None, type=int)
-        first_name = self.get_query_argument("firstName", None)
-        last_name = self.get_query_argument("lastName", None)
-        username = self.get_query_argument("username", None)
-        email_address = self.get_query_argument("email", None)
-        role = self.get_query_argument("role", None)
-        acl = self.get_query_argument("acl", None)
-        group = self.get_query_argument("group", None)
-        stream = self.get_query_argument("stream", None)
-        include_expired = self.get_query_argument("includeExpired", False)
-        sort_by = self.get_query_argument("sortBy", "username")
-        sort_order = self.get_query_argument("sortOrder", "asc")
-
-        if page_number is None:
-            return self.error("Invalid page number value.")
-
         async with self.AsyncSession() as session:
             stmt = User.select(self.current_user).options(
                 selectinload(User.groups),
                 selectinload(User.streams),
             )
 
-            if not include_expired:
+            if not query.includeExpired:
                 stmt = stmt.where(
                     sa.or_(
                         User.expiration_date >= datetime.now(),
@@ -425,37 +390,34 @@ class UserHandler(BaseHandler):
                     )
                 )
 
-            if first_name is not None:
-                stmt = stmt.where(User.first_name.contains(first_name))
-            if last_name is not None:
-                stmt = stmt.where(User.last_name.contains(last_name))
-            if username is not None:
-                stmt = stmt.where(User.username.contains(username))
-            if email_address is not None:
-                stmt = stmt.where(User.contact_email.contains(email_address))
-            if role is not None:
-                stmt = stmt.join(UserRole).join(Role).where(Role.id == role)
-            if acl is not None:
-                stmt = stmt.join(UserACL).join(ACL).where(ACL.id == acl)
-            if group is not None:
-                stmt = stmt.join(GroupUser).join(Group).where(Group.name == group)
-            if stream is not None:
-                stmt = stmt.join(StreamUser).join(Stream).where(Stream.name == stream)
+            if query.firstName is not None:
+                stmt = stmt.where(User.first_name.contains(query.firstName))
+            if query.lastName is not None:
+                stmt = stmt.where(User.last_name.contains(query.lastName))
+            if query.username is not None:
+                stmt = stmt.where(User.username.contains(query.username))
+            if query.email is not None:
+                stmt = stmt.where(User.contact_email.contains(query.email))
+            if query.role is not None:
+                stmt = stmt.join(UserRole).join(Role).where(Role.id == query.role)
+            if query.acl is not None:
+                stmt = stmt.join(UserACL).join(ACL).where(ACL.id == query.acl)
+            if query.group is not None:
+                stmt = stmt.join(GroupUser).join(Group).where(Group.name == query.group)
+            if query.stream is not None:
+                stmt = (
+                    stmt.join(StreamUser)
+                    .join(Stream)
+                    .where(Stream.name == query.stream)
+                )
 
             sort_field_map = {
                 "username": User.username,
                 "createdAt": User.created_at,
             }
+            sort_field = sort_field_map[query.sortBy]
 
-            if sort_by not in sort_field_map:
-                return self.error(f"Invalid sortBy value: {sort_by}")
-
-            if sort_order not in ["asc", "desc"]:
-                return self.error(f"Invalid sortOrder value: {sort_order}")
-
-            sort_field = sort_field_map[sort_by]
-
-            if sort_order == "desc":
+            if query.sortOrder == "desc":
                 stmt = stmt.order_by(sort_field.desc())
             else:
                 stmt = stmt.order_by(sort_field.asc())
@@ -464,8 +426,10 @@ class UserHandler(BaseHandler):
                 sa.select(func.count()).select_from(stmt)
             )
 
-            if n_per_page is not None:
-                stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
+            if query.numPerPage is not None:
+                stmt = stmt.limit(query.numPerPage).offset(
+                    (query.pageNumber - 1) * query.numPerPage
+                )
             info = {}
             return_values = []
             # accessible_groups' admin branch runs a sync Group.query.all(); query
