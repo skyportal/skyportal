@@ -10,35 +10,32 @@
  * The websocket `REFRESH_RECURRING_APIS` message is bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
+import type {
+  RecurringApi,
+  RecurringApiPost,
+} from "skyportal-js/RecurringApis";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const recurringAPIsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getRecurringAPIs: build.query<
-      RouteData<"GET /api/recurring_api">,
-      Record<string, unknown> | void
-    >({
-      query: (params) => ({
-        url: "api/recurring_api",
-        params: params ?? {},
-      }),
+    // The handler takes no query parameters; the old duck passed params that
+    // the server ignored.
+    getRecurringAPIs: build.query<RecurringApi[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchRecurringApis()),
       providesTags: ["RecurringAPIs"],
     }),
-    submitRecurringAPI: build.mutation<unknown, Record<string, unknown>>({
-      query: (run) => ({
-        url: "api/recurring_api",
-        method: "POST",
-        body: run,
-      }),
+    submitRecurringAPI: build.mutation<{ id: number }, RecurringApiPost>({
+      queryFn: (run, api) =>
+        clientQuery(api, (client) => client.postRecurringApi(run)),
       invalidatesTags: ["RecurringAPIs"],
     }),
-    deleteRecurringAPI: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/recurring_api/${id}`,
-        method: "DELETE",
-      }),
+    deleteRecurringAPI: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteRecurringApi(Number(id))),
       invalidatesTags: ["RecurringAPIs"],
     }),
   }),

@@ -10,9 +10,17 @@
  * The websocket `REFRESH_SOURCE_SPECTRA` message is bridged to `Spectra` tag
  * invalidation via `invalidateOnMessage`.
  */
+import type {
+  BulkSpectraResponse,
+  ParsedSpectrum,
+  PostSpectraBulkOptions,
+  SpectrumAsciiParse,
+  SpectrumAsciiPost,
+} from "skyportal-js/Spectra";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
 
@@ -22,20 +30,7 @@ export interface Spectrum {
   [key: string]: any;
 }
 
-export interface BulkSpectraSource {
-  id: string;
-  redshift: number | null;
-  first_detected_mjd: number | null;
-  peak_mjd: number | null;
-  tns_discovery_date: string | null;
-}
-
-export interface BulkSpectrum {
-  obj_id: string;
-  observed_at: string | null;
-  wavelengths: number[];
-  fluxes: number[];
-}
+export type { BulkSpectraSource, BulkSpectrum } from "skyportal-js/Spectra";
 
 export interface BulkSpectraArgs {
   group_id?: number;
@@ -49,15 +44,26 @@ export const spectraApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // Slim spectra + per-source phase anchors for a whole source set in one
     // request (group / object list / classification), for phase-stacked plots.
-    getBulkSpectra: build.query<
-      {
-        sources: BulkSpectraSource[];
-        spectra: BulkSpectrum[];
-        truncated: boolean;
-      },
-      BulkSpectraArgs
-    >({
-      query: (body) => ({ url: "/api/spectra/bulk", method: "POST", body }),
+    getBulkSpectra: build.query<BulkSpectraResponse, BulkSpectraArgs>({
+      queryFn: (
+        {
+          group_id,
+          obj_ids,
+          classifications,
+          classificationProbThreshold,
+          maxSources,
+        },
+        api,
+      ) =>
+        clientQuery(api, (client) =>
+          client.postSpectraBulk({
+            groupId: group_id,
+            objIds: obj_ids,
+            classifications,
+            classificationProbThreshold,
+            maxSources,
+          } satisfies PostSpectraBulkOptions),
+        ),
       providesTags: ["Spectra"],
     }),
     // The spectrum shape is highly dynamic across SkyPortal apps; consumers read
@@ -67,68 +73,56 @@ export const spectraApi = skyportalApi.injectEndpoints({
       any[],
       { id: number | string; normalization?: string | null }
     >({
-      query: ({ id, normalization = null }) =>
-        `/api/sources/${id}/spectra${
-          normalization
-            ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
-            : ""
-        }`,
-      transformResponse: (data: { spectra?: Spectrum[] }) =>
-        data?.spectra ?? [],
+      queryFn: ({ id, normalization = null }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSpectra(String(id), {
+            ...(normalization ? { normalization } : {}),
+          }),
+        ),
       providesTags: ["Spectra"],
     }),
     // Single spectrum WITH the raw uploaded file (original_file_string), which is
     // deferred from the source-spectra payload. Fetched on demand for download.
     fetchSpectrumOriginalFile: build.query<any, number | string>({
-      query: (id) => `/api/spectra/${id}?includeOriginalFile=true`,
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSpectrum(Number(id), { includeOriginalFile: true }),
+        ),
     }),
-    parseASCIISpectrum: build.mutation<
-      RouteData<"POST /api/spectrum/parse/ascii">,
-      any
-    >({
-      query: (data) => ({
-        url: "/api/spectrum/parse/ascii",
-        method: "POST",
-        body: data,
-      }),
+    parseASCIISpectrum: build.mutation<ParsedSpectrum, SpectrumAsciiParse>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.parseSpectrumAscii(data)),
     }),
     addSyntheticPhotometry: build.mutation<
-      RouteData<"POST /api/spectra/synthphot/{spectrum_id}">,
-      { id: number | string; formData?: { [key: string]: any } }
+      void,
+      { id: number | string; formData?: { filters?: string[] } }
     >({
-      query: ({ id, formData = {} }) => ({
-        url: `/api/spectra/synthphot/${id}`,
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: ({ id, formData = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.postSyntheticPhotometry(Number(id), formData.filters ?? []),
+        ),
       invalidatesTags: ["Spectra"],
     }),
-    deleteSpectrum: build.mutation<
-      RouteData<"DELETE /api/spectrum/{spectrum_id}">,
-      number | string
-    >({
-      query: (id) => ({
-        url: `/api/spectrum/${id}`,
-        method: "DELETE",
-      }),
+    deleteSpectrum: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteSpectrum(Number(id))),
       invalidatesTags: ["Spectra"],
     }),
-    uploadASCIISpectrum: build.mutation<unknown, any>({
-      query: (data) => ({
-        url: "/api/spectrum/ascii",
-        method: "POST",
-        body: data,
-      }),
+    uploadASCIISpectrum: build.mutation<{ id: number }, SpectrumAsciiPost>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.postSpectrumAscii(data)),
       invalidatesTags: ["Spectra"],
     }),
     deleteSpectrumAnnotation: build.mutation<
-      unknown,
+      void,
       { id: number | string; annotationID: number | string }
     >({
-      query: ({ id, annotationID }) => ({
-        url: `/api/spectra/${id}/annotations/${annotationID}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ id, annotationID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteAnnotation(id, Number(annotationID), {
+            resourceType: "spectra",
+          }),
+        ),
       invalidatesTags: ["Spectra"],
     }),
   }),

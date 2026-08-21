@@ -8,29 +8,28 @@
  * logic that only refreshed when the pushed `report_id` matched the currently
  * loaded report.
  */
+import type { ScanReportItem } from "skyportal-js/Candidates";
+
 import { skyportalApi } from "../../api/skyportalApi";
+import { clientQuery } from "../../api/skyportalClient";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
 import type { RootState } from "../../types/store";
-import type { RouteData } from "../../types/routeSchemaMap";
 
 export const scanReportItemApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getScanReportItems: build.query<
-      RouteData<"GET /api/candidates/scan_reports/{report_id}/items/{_}">,
-      number
-    >({
-      query: (reportId) => `api/candidates/scan_reports/${reportId}/items`,
+    getScanReportItems: build.query<ScanReportItem[], number>({
+      queryFn: (reportId, api) =>
+        clientQuery(api, (client) => client.fetchScanReportItems(reportId)),
       providesTags: ["ScanReportItem"],
     }),
     updateScanReportItem: build.mutation<
-      RouteData<"PATCH /api/candidates/scan_reports/{report_id}/items/{item_id}">,
-      { reportId: number; itemId: number; payload: Record<string, unknown> }
+      void,
+      { reportId: number; itemId: number; payload: { comment: string | null } }
     >({
-      query: ({ reportId, itemId, payload }) => ({
-        url: `api/candidates/scan_reports/${reportId}/items/${itemId}`,
-        method: "PATCH",
-        body: payload,
-      }),
+      queryFn: ({ reportId, itemId, payload }, api) =>
+        clientQuery(api, (client) =>
+          client.updateScanReportItem(reportId, itemId, payload.comment),
+        ),
       invalidatesTags: ["ScanReportItem"],
     }),
   }),

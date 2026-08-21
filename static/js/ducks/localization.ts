@@ -12,9 +12,11 @@
  * `deleteLocalization` and `postLocalizationFromNotice` are mutations that
  * invalidate the `Localization` tag.
  */
+import type { Localization } from "skyportal-js/Localizations";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetLocalizationArg {
   dateobs: string;
@@ -23,29 +25,28 @@ interface GetLocalizationArg {
 
 export const localizationApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getLocalization: build.query<
-      RouteData<"GET /api/localization/{dateobs}/name/{localization_name}">,
-      GetLocalizationArg
-    >({
-      query: ({ dateobs, localization_name }) =>
-        `api/localization/${dateobs}/name/${localization_name}`,
+    getLocalization: build.query<Localization, GetLocalizationArg>({
+      queryFn: ({ dateobs, localization_name }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchLocalization(dateobs, localization_name),
+        ),
       providesTags: ["Localization"],
     }),
-    deleteLocalization: build.mutation<unknown, GetLocalizationArg>({
-      query: ({ dateobs, localization_name }) => ({
-        url: `api/localization/${dateobs}/name/${localization_name}`,
-        method: "DELETE",
-      }),
+    deleteLocalization: build.mutation<void, GetLocalizationArg>({
+      queryFn: ({ dateobs, localization_name }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteLocalization(dateobs, localization_name),
+        ),
       invalidatesTags: ["Localization"],
     }),
     postLocalizationFromNotice: build.mutation<
-      unknown,
+      void,
       { dateobs: string; noticeID: number | string }
     >({
-      query: ({ dateobs, noticeID }) => ({
-        url: `api/localization/${dateobs}/notice/${noticeID}`,
-        method: "POST",
-      }),
+      queryFn: ({ dateobs, noticeID }, api) =>
+        clientQuery(api, (client) =>
+          client.postLocalizationFromNotice(dateobs, Number(noticeID)),
+        ),
       invalidatesTags: ["Localization"],
     }),
   }),

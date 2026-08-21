@@ -5,40 +5,45 @@
  * Websocket-driven invalidation refetches the list; mutations submit/delete a
  * default survey efficiency.
  */
-import { buildQueryString } from "../API";
+import type { DefaultSurveyEfficiencyRequest } from "skyportal-js/SurveyEfficiency";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultSurveyEfficienciesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // The handler takes no query parameters; the old duck passed filter params
+    // that the server ignored.
     getDefaultSurveyEfficiencies: build.query<
-      RouteData<"GET /api/default_survey_efficiency">,
-      Record<string, unknown> | void
+      DefaultSurveyEfficiencyRequest[],
+      void
     >({
-      query: (filterParams) => {
-        const params = buildQueryString(filterParams ?? {});
-        return params
-          ? `api/default_survey_efficiency?${params}`
-          : "api/default_survey_efficiency";
-      },
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchDefaultSurveyEfficiencies()),
       providesTags: ["DefaultSurveyEfficiency"],
     }),
-    submitDefaultSurveyEfficiency: build.mutation<unknown, Record<string, any>>(
+    submitDefaultSurveyEfficiency: build.mutation<
+      { id: number },
       {
-        query: (data) => ({
-          url: "api/default_survey_efficiency",
-          method: "POST",
-          body: data,
-        }),
-        invalidatesTags: ["DefaultSurveyEfficiency"],
-      },
-    ),
-    deleteDefaultSurveyEfficiency: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/default_survey_efficiency/${id}`,
-        method: "DELETE",
-      }),
+        default_observationplan_request_id: number | string;
+        payload?: Record<string, unknown>;
+      }
+    >({
+      queryFn: ({ default_observationplan_request_id, payload }, api) =>
+        clientQuery(api, (client) =>
+          client.postDefaultSurveyEfficiency(
+            Number(default_observationplan_request_id),
+            { payload },
+          ),
+        ),
+      invalidatesTags: ["DefaultSurveyEfficiency"],
+    }),
+    deleteDefaultSurveyEfficiency: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) =>
+          client.deleteDefaultSurveyEfficiency(Number(id)),
+        ),
       invalidatesTags: ["DefaultSurveyEfficiency"],
     }),
   }),

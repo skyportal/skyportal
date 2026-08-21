@@ -1,3 +1,4 @@
+import type { MovingObjectFollowupPost } from "skyportal-js/MovingObjects";
 import { useEffect, useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -94,9 +95,11 @@ const MovingObjectObsPlanPage = () => {
   async function onFormSubmit(params: any) {
     setLoading(true);
     let name = params.formData.name.replace(/\s/g, "");
-    let data = Object.fromEntries(
+    // the rjsf form is untyped; null-valued fields are dropped so the server
+    // applies its own defaults
+    let data: MovingObjectFollowupPost = Object.fromEntries(
       Object.entries(params.formData).filter(([_, v]) => v != null),
-    );
+    ) as unknown as MovingObjectFollowupPost;
     try {
       const result = await postMovingObjectObsPlan({ name, data }).unwrap();
       if (result.length === 0) {
@@ -267,13 +270,14 @@ const MovingObjectObsPlanPage = () => {
               </TableHead>
               <TableBody>
                 {planData.map((row) => (
-                  <TableRow key={row.id}>
+                  // the endpoint returns no id, so key on the observation itself
+                  <TableRow key={`${row.field_id}-${row.start_time}`}>
                     <TableCell>{row.start_time}</TableCell>
                     <TableCell>{row.field_id}</TableCell>
                     <TableCell>{row.band}</TableCell>
-                    <TableCell>{row.airmass.toFixed(2)}</TableCell>
-                    <TableCell>{row.moon_distance.toFixed(2)}</TableCell>
-                    <TableCell>{row.sun_altitude.toFixed(2)}</TableCell>
+                    <TableCell>{row.airmass?.toFixed(2)}</TableCell>
+                    <TableCell>{row.moon_distance?.toFixed(2)}</TableCell>
+                    <TableCell>{row.sun_altitude?.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

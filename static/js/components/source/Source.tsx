@@ -241,8 +241,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (g: any) => !g.single_user_group,
   );
   const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
-  const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
-  const associatedGCNs = associatedGcnsData?.["gcns"];
+  const { data: associatedGCNs } = useGetAssociatedGcnsQuery(source.id);
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
 

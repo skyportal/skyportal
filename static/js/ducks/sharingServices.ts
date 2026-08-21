@@ -12,39 +12,43 @@
  * `REFRESH_SHARING_SERVICE_SUBMISSIONS`; both are bridged to tag invalidation
  * via `invalidateOnMessage`.
  */
+import type {
+  SharingService,
+  SharingServicePost,
+  SharingServiceSubmissionPost,
+  SharingServiceSubmissionsPage,
+} from "skyportal-js/SharingServices";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { components } from "../types/api";
-import type { RouteData } from "../types/routeSchemaMap";
 
-export interface SharingServiceSubmissions {
-  sharing_service_id: number | string;
-  submissions: any[];
-  totalMatches: number;
-  [key: string]: unknown;
-}
+export type SharingServiceSubmissions = SharingServiceSubmissionsPage;
 
-interface FetchSharingServicesArg {
-  group_id?: number | string | undefined;
-  [key: string]: unknown;
+/** The group flags, in the snake_case the components already use. */
+interface SharingServiceGroupData {
+  group_id?: number | string;
+  owner?: boolean;
+  auto_share_to_tns?: boolean;
+  auto_share_to_hermes?: boolean;
+  auto_sharing_allow_bots?: boolean;
 }
 
 interface FetchSubmissionsArg {
-  sharing_service_id?: number | string | undefined;
+  sharing_service_id: number | string;
   pageNumber?: number | undefined;
   numPerPage?: number | undefined;
-  [key: string]: unknown;
 }
 
 interface AddSharingServiceGroupArg {
   sharing_service_id: number | string;
-  data: any;
+  data: SharingServiceGroupData;
 }
 
 interface EditSharingServiceGroupArg {
   sharing_service_id: number | string;
   group_id: number | string;
-  data: any;
+  data: SharingServiceGroupData;
 }
 
 interface DeleteSharingServiceGroupArg {
@@ -65,142 +69,162 @@ interface SharingServiceCoauthorArg {
 
 interface EditSharingServiceArg {
   id: number | string;
-  data: any;
+  data: SharingServicePost;
 }
 
 export const sharingServicesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getSharingServices: build.query<
-      components["schemas"]["SharingService"][],
-      FetchSharingServicesArg | void
-    >({
-      query: (params) => ({
-        url: "api/sharing_service",
-        params: (params ?? {}) as Record<string, unknown>,
-      }),
+    // The handler takes no query parameters; the old duck passed a group_id
+    // filter that the server ignored.
+    getSharingServices: build.query<SharingService[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchSharingServices()),
       providesTags: ["SharingService"],
     }),
     getSharingServiceSubmissions: build.query<
-      RouteData<"GET /api/sharing_service/submission"> & {
-        sharing_service_id?: number;
-      },
-      FetchSubmissionsArg | void
+      SharingServiceSubmissionsPage,
+      FetchSubmissionsArg
     >({
-      query: (params) => ({
-        url: "api/sharing_service/submission",
-        params: {
-          ...((params ?? {}) as Record<string, unknown>),
-          include_payload: true,
-        },
-      }),
+      queryFn: ({ sharing_service_id, pageNumber, numPerPage }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchSharingServiceSubmissions(Number(sharing_service_id), {
+            pageNumber,
+            numPerPage,
+            includePayload: true,
+          }),
+        ),
       providesTags: ["SharingServiceSubmission"],
     }),
-    addSharingService: build.mutation<unknown, any>({
-      query: (data) => ({
-        url: "api/sharing_service",
-        method: "PUT",
-        body: data,
-      }),
+    addSharingService: build.mutation<{ id: number }, SharingServicePost>({
+      queryFn: (data, api) =>
+        clientQuery(api, (client) => client.postSharingService(data)),
       invalidatesTags: ["SharingService"],
     }),
-    editSharingService: build.mutation<
-      components["schemas"]["SingleSharingService"],
-      EditSharingServiceArg
+    editSharingService: build.mutation<{ id: number }, EditSharingServiceArg>({
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateSharingService(Number(id), data),
+        ),
+      invalidatesTags: ["SharingService"],
+    }),
+    deleteSharingService: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteSharingService(Number(id))),
+      invalidatesTags: ["SharingService"],
+    }),
+    addSharingServiceGroup: build.mutation<
+      { id: number },
+      AddSharingServiceGroupArg
     >({
-      query: ({ id, data }) => ({
-        url: `api/sharing_service/${id}`,
-        method: "PUT",
-        body: data,
-      }),
-      invalidatesTags: ["SharingService"],
-    }),
-    deleteSharingService: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/sharing_service/${id}`,
-        method: "DELETE",
-      }),
-      invalidatesTags: ["SharingService"],
-    }),
-    addSharingServiceGroup: build.mutation<unknown, AddSharingServiceGroupArg>({
-      query: ({ sharing_service_id, data }) => ({
-        url: `api/sharing_service/${sharing_service_id}/group`,
-        method: "PUT",
-        body: data,
-      }),
+      queryFn: ({ sharing_service_id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateSharingServiceGroup(
+            Number(sharing_service_id),
+            Number(data.group_id),
+            {
+              owner: data.owner,
+              autoShareToTns: data.auto_share_to_tns,
+              autoShareToHermes: data.auto_share_to_hermes,
+              autoSharingAllowBots: data.auto_sharing_allow_bots,
+            },
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     editSharingServiceGroup: build.mutation<
-      components["schemas"]["SharingServiceGroup"],
+      { id: number },
       EditSharingServiceGroupArg
     >({
-      query: ({ sharing_service_id, group_id, data }) => ({
-        url: `api/sharing_service/${sharing_service_id}/group/${group_id}`,
-        method: "PUT",
-        body: data,
-      }),
+      queryFn: ({ sharing_service_id, group_id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateSharingServiceGroup(
+            Number(sharing_service_id),
+            Number(group_id),
+            {
+              owner: data.owner,
+              autoShareToTns: data.auto_share_to_tns,
+              autoShareToHermes: data.auto_share_to_hermes,
+              autoSharingAllowBots: data.auto_sharing_allow_bots,
+            },
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     deleteSharingServiceGroup: build.mutation<
-      unknown,
+      void,
       DeleteSharingServiceGroupArg
     >({
-      query: ({ sharing_service_id, group_id }) => ({
-        url: `api/sharing_service/${sharing_service_id}/group/${group_id}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ sharing_service_id, group_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSharingServiceGroup(
+            Number(sharing_service_id),
+            Number(group_id),
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     addSharingServiceGroupAutoPublishers: build.mutation<
-      unknown,
+      { ids: number[] },
       SharingServiceGroupAutoPublishersArg
     >({
-      query: ({ sharing_service_id, group_id, user_ids = [] }) => ({
-        url: `api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
-        method: "POST",
-        body: { user_ids },
-      }),
+      queryFn: ({ sharing_service_id, group_id, user_ids = [] }, api) =>
+        clientQuery(api, (client) =>
+          client.postSharingServiceAutoPublishers(
+            Number(sharing_service_id),
+            Number(group_id),
+            user_ids.map(Number),
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     deleteSharingServiceGroupAutoPublishers: build.mutation<
-      unknown,
+      void,
       SharingServiceGroupAutoPublishersArg
     >({
-      query: ({ sharing_service_id, group_id, user_ids = [] }) => ({
-        url: `api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
-        method: "DELETE",
-        body: { user_ids },
-      }),
+      queryFn: ({ sharing_service_id, group_id, user_ids = [] }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSharingServiceAutoPublishers(
+            Number(sharing_service_id),
+            Number(group_id),
+            user_ids.map(Number),
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     addSharingServiceCoauthor: build.mutation<
-      components["schemas"]["SharingServiceCoauthor"],
+      { id: number },
       SharingServiceCoauthorArg
     >({
-      query: ({ sharing_service_id, user_id }) => ({
-        url: `api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
-        method: "POST",
-      }),
+      queryFn: ({ sharing_service_id, user_id }, api) =>
+        clientQuery(api, (client) =>
+          client.postSharingServiceCoauthor(
+            Number(sharing_service_id),
+            Number(user_id),
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     deleteSharingServiceCoauthor: build.mutation<
-      unknown,
+      void,
       SharingServiceCoauthorArg
     >({
-      query: ({ sharing_service_id, user_id }) => ({
-        url: `api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ sharing_service_id, user_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteSharingServiceCoauthor(
+            Number(sharing_service_id),
+            Number(user_id),
+          ),
+        ),
       invalidatesTags: ["SharingService"],
     }),
     addSharingServiceSubmission: build.mutation<
-      components["schemas"]["SharingServiceSubmission"],
-      any
+      void,
+      SharingServiceSubmissionPost
     >({
-      query: (formData) => ({
-        url: "api/sharing_service/submission",
-        method: "POST",
-        body: formData,
-      }),
+      queryFn: (formData, api) =>
+        clientQuery(api, (client) =>
+          client.postSharingServiceSubmission(formData),
+        ),
       invalidatesTags: ["SharingServiceSubmission"],
     }),
   }),

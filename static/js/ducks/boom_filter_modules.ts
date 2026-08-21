@@ -9,7 +9,8 @@
  * `brokerFilterBase()` (`/api/brokers/{id}`).
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { brokerFilterBase } from "./brokerFilterTarget";
+import { clientQuery } from "../api/skyportalClient";
+import { brokerFilterTargetId } from "./brokerFilterTarget";
 import { useBoomFilterVersion } from "./boom_filter";
 import { crossmatch_fields } from "../constants/crossmatch";
 
@@ -29,22 +30,28 @@ const patchSchema = (schema: any) => {
 export const boomFilterModulesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getFilterSchema: build.query<any, string>({
-      query: (survey) =>
-        `${brokerFilterBase()}/filter_modules?survey=${survey}&elements=schema`,
-      transformResponse: (response: any) => {
-        try {
-          return patchSchema(response?.schema);
-        } catch (error) {
-          console.error("Error parsing schema JSON:", error);
-          return null;
-        }
-      },
+      queryFn: (survey, api) =>
+        clientQuery(api, async (client) => {
+          const response: any = await client.fetchBrokerFilterModules(
+            brokerFilterTargetId(),
+            { survey, elements: "schema" },
+          );
+          try {
+            return patchSchema(response?.schema);
+          } catch (error) {
+            console.error("Error parsing schema JSON:", error);
+            return null;
+          }
+        }),
     }),
     getFilterElements: build.query<any, { elements: string; survey?: string }>({
-      query: ({ elements, survey }) =>
-        `${brokerFilterBase()}/filter_modules?elements=${elements}${
-          survey ? `&survey=${survey}` : ""
-        }`,
+      queryFn: ({ elements, survey }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerFilterModules(brokerFilterTargetId(), {
+            elements,
+            survey,
+          }),
+        ),
     }),
     // Single module by name, for name-availability checks. Returns null when
     // there is no such module.
@@ -52,28 +59,40 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
       any,
       { name: string; elements: string }
     >({
-      query: ({ name, elements }) =>
-        `${brokerFilterBase()}/filter_modules/${name}?elements=${elements}`,
+      queryFn: ({ name, elements }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchBrokerFilterModule(brokerFilterTargetId(), name, {
+            elements,
+          }),
+        ),
     }),
     postFilterElement: build.mutation<
       any,
       { name: string; data: any; elements: string }
     >({
-      query: ({ name, data, elements }) => ({
-        url: `${brokerFilterBase()}/filter_modules/${name}`,
-        method: "POST",
-        body: { data, elements },
-      }),
+      queryFn: ({ name, data, elements }, api) =>
+        clientQuery(api, (client) =>
+          client.postBrokerFilterModule(
+            brokerFilterTargetId(),
+            name,
+            elements,
+            data,
+          ),
+        ),
     }),
     putFilterElement: build.mutation<
       any,
       { name: string; data: any; elements: string }
     >({
-      query: ({ name, data, elements }) => ({
-        url: `${brokerFilterBase()}/filter_modules/${name}`,
-        method: "PUT",
-        body: { data, elements },
-      }),
+      queryFn: ({ name, data, elements }, api) =>
+        clientQuery(api, (client) =>
+          client.updateBrokerFilterModule(
+            brokerFilterTargetId(),
+            name,
+            elements,
+            data,
+          ),
+        ),
     }),
   }),
 });

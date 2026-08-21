@@ -467,7 +467,7 @@ const SourceStatistics = () => {
   const dmMap = useMemo(() => {
     const m: Record<string, number> = {};
     (data?.points ?? []).forEach((p) => {
-      const dm = distanceModulus(p.redshift);
+      const dm = distanceModulus(p.redshift ?? null);
       if (dm !== null) m[p.id] = dm;
     });
     return m;

@@ -121,7 +121,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
   const records = useMemo(() => {
     const recs: SpectrumRecord[] = [];
     (data?.spectra ?? []).forEach((sp) => {
-      const src = meta[sp.obj_id];
+      const src = sp.obj_id ? meta[sp.obj_id] : undefined;
       if (!src) return;
       const t0 = t0For(src, t0Mode);
       if (t0 == null) return;
@@ -129,7 +129,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
       const flRaw = sp.fluxes;
       if (!Array.isArray(wlRaw) || !Array.isArray(flRaw) || !wlRaw.length)
         return;
-      const mjd = utc_to_mjd(sp.observed_at);
+      const mjd = utc_to_mjd(sp.observed_at ?? null);
       if (mjd == null) return;
       const z = src.redshift ?? null;
       const useRest = restFrame && z != null && z > 0;
@@ -151,7 +151,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
         }
       }
       if (smoothWindow > 0) flux = smoothing_func(flux, smoothWindow) ?? flux;
-      recs.push({ sourceId: sp.obj_id, phase: mjd - t0, wl, flux });
+      recs.push({ sourceId: sp.obj_id ?? "", phase: mjd - t0, wl, flux });
     });
     recs.sort((a, b) => a.phase - b.phase);
     return recs;

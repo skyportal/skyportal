@@ -14,7 +14,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 interface GcnReportTableProps {
-  reports?: any[] | null;
+  reports?: any[] | null | undefined;
   setSelectedGcnReportId: (...a: any[]) => void;
   deleteGcnReport: (...a: any[]) => void;
 }

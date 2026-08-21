@@ -19,28 +19,25 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { buildQueryString as toQueryString } from "../API";
-import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+import type {
+  FetchObservationsOptions,
+  ObservationPost,
+  ObservationQueues,
+  ObservationsPage,
+} from "skyportal-js/Observations";
 
-// Extras returned alongside the wrapper that RouteData does not encode.
-type ObservationListResponse = RouteData<"GET /api/observation"> & {
-  geojson?: object[] | null;
-  field_ids?: number[] | null;
-  probability?: number | null;
-  area?: number | null;
-  min_observations_per_field?: number | null;
-};
+import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+
+type ObservationListResponse = ObservationsPage;
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-type FilterParams = Record<string, unknown>;
-
-const buildQueryString = (filterParams: FilterParams): string => {
-  const params = toQueryString(filterParams);
-  return params ? `api/observation?${params}` : "api/observation";
+type FilterParams = FetchObservationsOptions & {
+  startDate?: string;
+  endDate?: string;
 };
 
 const withObservationDefaults = (filterParams: FilterParams): FilterParams => {
@@ -91,85 +88,112 @@ interface FetchGcnEventObservationsArg {
 
 interface TreasureMapArg {
   id: number | string;
-  data: Record<string, unknown>;
+  data: {
+    startDate?: string;
+    endDate?: string;
+    localizationDateobs: string;
+    localizationName?: string;
+    localizationCumprob?: number;
+    numberObservations?: number;
+  };
 }
 
 interface RequestAPIQueuedObservationsArg {
   id: number | string;
-  data?: Record<string, unknown> | undefined;
+  data?:
+    | { queuesOnly?: boolean; startDate?: string; endDate?: string }
+    | undefined;
 }
 
 export const observationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getObservations: build.query<ObservationListResponse, FilterParams | void>({
-      query: (filterParams) =>
-        buildQueryString(withObservationDefaults(filterParams ?? {})),
+      queryFn: (filterParams, api) => {
+        const { startDate, endDate, ...rest } = withObservationDefaults(
+          filterParams ?? {},
+        );
+        return clientQuery(api, (client) =>
+          client.fetchObservations(startDate ?? "", endDate ?? "", rest),
+        );
+      },
       providesTags: ["Observation"],
     }),
     getGcnEventObservations: build.query<
       ObservationListResponse,
       FetchGcnEventObservationsArg
     >({
-      query: ({ dateobs, filterParams }) =>
-        buildQueryString(
-          withGcnEventObservationDefaults(dateobs, filterParams ?? {}),
-        ),
+      queryFn: ({ dateobs, filterParams }, api) => {
+        const { startDate, endDate, ...rest } = withGcnEventObservationDefaults(
+          dateobs,
+          filterParams ?? {},
+        );
+        return clientQuery(api, (client) =>
+          client.fetchObservations(startDate ?? "", endDate ?? "", rest),
+        );
+      },
       providesTags: ["GcnEventObservation"],
     }),
-    submitObservations: build.mutation<any, Record<string, unknown>>({
-      query: (params) => ({
-        url: "api/observation",
-        method: "POST",
-        body: params,
-      }),
+    submitObservations: build.mutation<void, ObservationPost>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.postObservation(params)),
       invalidatesTags: ["Observation"],
     }),
     uploadObservations: build.mutation<
-      RouteData<"POST /api/observation/ascii">,
-      Record<string, unknown>
+      void,
+      { instrumentID: number | string; observationData: string }
     >({
-      query: (data) => ({
-        url: "api/observation/ascii",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ instrumentID, observationData }, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationAscii(Number(instrumentID), observationData),
+        ),
       invalidatesTags: ["Observation"],
     }),
     requestAPIObservations: build.mutation<
-      RouteData<"POST /api/observation/external_api">,
-      Record<string, unknown>
+      void,
+      { allocation_id: number | string; start_date?: string; end_date?: string }
     >({
-      query: (data) => ({
-        url: "api/observation/external_api",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ allocation_id, start_date, end_date }, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationExternalApi(Number(allocation_id), {
+            startDate: start_date,
+            endDate: end_date,
+          }),
+        ),
       invalidatesTags: ["Observation"],
     }),
     requestAPIQueuedObservations: build.query<
-      RouteData<"GET /api/observation/external_api/{allocation_id}">,
+      ObservationQueues,
       RequestAPIQueuedObservationsArg
     >({
-      query: ({ id, data }) => {
-        const params = toQueryString(data ?? {});
-        return params
-          ? `api/observation/external_api/${id}?${params}`
-          : `api/observation/external_api/${id}`;
-      },
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchObservationExternalApi(Number(id), data ?? {}),
+        ),
     }),
-    submitObservationsTreasureMap: build.mutation<any, TreasureMapArg>({
-      query: ({ id, data }) => ({
-        url: `api/observation/treasuremap/${id}`,
-        method: "POST",
-        body: data,
-      }),
+    submitObservationsTreasureMap: build.mutation<void, TreasureMapArg>({
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.postObservationTreasuremap(
+            Number(id),
+            data.startDate ?? "",
+            data.endDate ?? "",
+            data.localizationDateobs,
+            {
+              localizationName: data.localizationName,
+              localizationCumprob: data.localizationCumprob,
+              numberObservations: data.numberObservations,
+            },
+          ),
+        ),
     }),
-    deleteObservationsTreasureMap: build.mutation<any, TreasureMapArg>({
-      query: ({ id, data }) => ({
-        url: `api/observation/treasuremap/${id}`,
-        method: "DELETE",
-        body: data,
-      }),
+    deleteObservationsTreasureMap: build.mutation<void, TreasureMapArg>({
+      queryFn: ({ id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteObservationTreasuremap(
+            Number(id),
+            data.localizationDateobs,
+          ),
+        ),
     }),
   }),
 });

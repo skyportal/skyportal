@@ -11,7 +11,13 @@
  * form params on `REFRESH_INSTRUMENTS`; here we invalidate the matching tags so
  * the active queries refetch.
  */
+import type {
+  FetchInstrumentsOptions,
+  Instrument,
+} from "skyportal-js/Instruments";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -19,14 +25,11 @@ export type InstrumentFormParams = Record<string, any>;
 
 export const instrumentsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getInstruments: build.query<
-      RouteData<"GET /api/instrument">,
-      Record<string, any> | void
-    >({
-      query: (filterParams) => ({
-        url: "api/instrument",
-        params: filterParams || {},
-      }),
+    getInstruments: build.query<Instrument[], FetchInstrumentsOptions | void>({
+      queryFn: (filterParams, api) =>
+        clientQuery(api, (client) =>
+          client.fetchInstruments(filterParams ?? {}),
+        ),
       providesTags: ["Instruments"],
     }),
     getInstrumentForms: build.query<InstrumentFormParams, void>({
@@ -43,6 +46,8 @@ export const instrumentsApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["InstrumentObsplanForms"],
     }),
+    // raw, and unused: `/api/instrument` without an id only reads `name`, so
+    // the localization/GeoJSON params below are dropped by the handler.
     getGcnEventInstruments: build.query<
       RouteData<"GET /api/instrument">,
       { dateobs: string; filterParams?: Record<string, any> | undefined }

@@ -54,7 +54,7 @@ const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
     try {
       await updateSource({
         id: source.id,
-        payload: { t0: clear ? null : t0 },
+        payload: { t0: clear ? null : Number(t0) },
       }).unwrap();
       dispatch(showNotification("Source t0 successfully updated."));
       setDialogOpen(false);

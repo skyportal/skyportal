@@ -6,34 +6,29 @@
  * the `ScanReport` tag so the list refetches. The websocket
  * `REFRESH_SCAN_REPORTS` message is bridged to cache invalidation.
  */
-import { buildQueryString } from "../../API";
+import type {
+  FetchScanReportsOptions,
+  ScanReportPost,
+  ScanReportsPage,
+} from "skyportal-js/Candidates";
+
 import { skyportalApi } from "../../api/skyportalApi";
+import { clientQuery } from "../../api/skyportalClient";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
-import type { RouteData } from "../../types/routeSchemaMap";
 
 export const scanReportsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getScanReports: build.query<
-      RouteData<"GET /api/candidates/scan_reports">,
-      Record<string, any> | undefined
+      ScanReportsPage,
+      FetchScanReportsOptions | undefined
     >({
-      query: (params) => {
-        const queryString = buildQueryString(params ?? {});
-        return queryString
-          ? `api/candidates/scan_reports?${queryString}`
-          : "api/candidates/scan_reports";
-      },
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.fetchScanReports(params ?? {})),
       providesTags: ["ScanReport"],
     }),
-    generateScanReport: build.mutation<
-      RouteData<"POST /api/candidates/scan_reports">,
-      Record<string, any> | undefined
-    >({
-      query: (payload) => ({
-        url: "api/candidates/scan_reports",
-        method: "POST",
-        body: payload,
-      }),
+    generateScanReport: build.mutation<void, ScanReportPost>({
+      queryFn: (payload, api) =>
+        clientQuery(api, (client) => client.postScanReport(payload)),
       invalidatesTags: ["ScanReport"],
     }),
   }),

@@ -1,36 +1,26 @@
 /**
  * Earthquake statuses (list of available status tags).
  *
- * RTK Query conversion of the old `FETCH_EARTHQUAKE_STATUSES` duck. The endpoint
- * is injected into the central `skyportalApi`, so caching, loading and error
- * state are handled by RTK Query instead of a hand-written reducer.
+ * RTK Query conversion of the old `FETCH_EARTHQUAKE_STATUSES` duck, calling the
+ * typed `skyportal-js` client.
  *
  * The old websocket handler re-fetched the statuses whenever a
  * `FETCH_EARTHQUAKE_STATUSES` message arrived, unconditionally. The RTK Query
  * equivalent invalidates the `EarthquakeStatus` tag so any active query refetches.
  */
-import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export type EarthquakeStatuses = string[];
 
-export interface EarthquakeStatusesArg {
-  [key: string]: unknown;
-}
-
 export const earthquakeStatusesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getEarthquakeStatuses: build.query<
-      EarthquakeStatuses,
-      EarthquakeStatusesArg | void
-    >({
-      query: (filterParams) => {
-        const params = buildQueryString(filterParams ?? {});
-        return params
-          ? `api/earthquake/status?${params}`
-          : "api/earthquake/status";
-      },
+    // The handler takes no query parameters; the old duck passed filter params
+    // that the server ignored.
+    getEarthquakeStatuses: build.query<EarthquakeStatuses, void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchEarthquakeStatuses()),
       providesTags: ["EarthquakeStatus"],
     }),
   }),

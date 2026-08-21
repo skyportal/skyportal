@@ -1,23 +1,23 @@
 /**
  * Single group fetch.
  *
- * RTK Query conversion of the old `FETCH_GROUP` duck. The endpoint is injected
- * into the central `skyportalApi`. The old websocket handler refetched the
+ * RTK Query conversion of the old `FETCH_GROUP` duck, calling the typed
+ * `skyportal-js` client. The old websocket handler refetched the
  * currently-loaded group on a REFRESH_GROUP message whose `group_id` matched the
  * loaded group; here we invalidate the "Group" tag for that id so the active
  * query refetches.
  */
+import type { Group } from "skyportal-js/Groups";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 export const groupApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGroup: build.query<
-      RouteData<"GET /api/groups/{group_id}">,
-      number | string
-    >({
-      query: (id) => `api/groups/${id}`,
+    getGroup: build.query<Group, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchGroup(Number(id))),
       providesTags: (_result, _error, id) => [{ type: "Group", id }],
     }),
   }),

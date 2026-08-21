@@ -5,38 +5,44 @@
  * source_filter — either a classification (name + probability) or a group
  * (saved-to-group trigger). Nested under the analysis service.
  */
+import type {
+  DefaultAnalysis,
+  DefaultAnalysisPost,
+} from "skyportal-js/Analysis";
+
 import { skyportalApi } from "../api/skyportalApi";
-import type { RouteData } from "../types/routeSchemaMap";
+import { clientQuery } from "../api/skyportalClient";
 
 export const defaultAnalysesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getDefaultAnalyses: build.query<
-      RouteData<"GET /api/analysis_service/{analysis_service_id}/default_analysis">,
-      number | string
-    >({
-      query: (analysisServiceId) =>
-        `api/analysis_service/${analysisServiceId}/default_analysis`,
+    getDefaultAnalyses: build.query<DefaultAnalysis[], number | string>({
+      queryFn: (analysisServiceId, api) =>
+        clientQuery(api, (client) =>
+          client.fetchDefaultAnalyses(Number(analysisServiceId)),
+        ),
       providesTags: ["DefaultAnalysis"],
     }),
     submitDefaultAnalysis: build.mutation<
-      any,
-      { analysisServiceId: number | string; body: any }
+      { id: number },
+      { analysisServiceId: number | string; body: DefaultAnalysisPost }
     >({
-      query: ({ analysisServiceId, body }) => ({
-        url: `api/analysis_service/${analysisServiceId}/default_analysis`,
-        method: "POST",
-        body,
-      }),
+      queryFn: ({ analysisServiceId, body }, api) =>
+        clientQuery(api, (client) =>
+          client.postDefaultAnalysis(Number(analysisServiceId), body),
+        ),
       invalidatesTags: ["DefaultAnalysis"],
     }),
     deleteDefaultAnalysis: build.mutation<
-      unknown,
+      void,
       { analysisServiceId: number | string; defaultAnalysisId: number | string }
     >({
-      query: ({ analysisServiceId, defaultAnalysisId }) => ({
-        url: `api/analysis_service/${analysisServiceId}/default_analysis/${defaultAnalysisId}`,
-        method: "DELETE",
-      }),
+      queryFn: ({ analysisServiceId, defaultAnalysisId }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteDefaultAnalysis(
+            Number(analysisServiceId),
+            Number(defaultAnalysisId),
+          ),
+        ),
       invalidatesTags: ["DefaultAnalysis"],
     }),
   }),

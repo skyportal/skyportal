@@ -6,11 +6,13 @@
  * consumer can call `useGetDbInfoQuery()` to read it.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
 export const dbInfoApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getDbInfo: build.query<Record<string, unknown>, void>({
-      query: () => "api/internal/dbinfo",
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchDbinfo()),
       providesTags: ["DBInfo"],
     }),
   }),

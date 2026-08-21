@@ -1,3 +1,5 @@
+// raw: /api/sources/{id}/interests postdates skyportal-js 0.3.0, so the client
+// has no typed endpoint for it yet.
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import { sourceTag } from "./sourceTags";

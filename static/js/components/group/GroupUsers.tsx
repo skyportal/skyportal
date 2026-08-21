@@ -18,14 +18,10 @@ import InviteNewUserForm from "./InviteNewUserForm";
 import AddGroupOfUsersForm from "./AddGroupOfUsersForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 import { useGetConfigQuery } from "../../ducks/config";
+import type { Group } from "skyportal-js/Groups";
 
 interface GroupUsersProps {
-  group: {
-    id?: number;
-    name?: string;
-    nickname?: string | null;
-    users?: any[];
-  };
+  group: Group;
   theme: any;
   currentUser: {
     username?: string;

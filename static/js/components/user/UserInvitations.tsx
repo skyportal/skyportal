@@ -55,8 +55,10 @@ const SAMPLE_CSV_TEXT = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
 
 const ENTITIES = {
-  Groups: { field: "groups", payloadKey: "groupIDs", singular: "Group" },
-  Streams: { field: "streams", payloadKey: "streamIDs", singular: "Stream" },
+  // payloadKey is the client's option name for PATCH /api/invitations/{id};
+  // the POST body (inviteUser) keeps the API's own groupIDs/streamIDs spelling.
+  Groups: { field: "groups", payloadKey: "groupIds", singular: "Group" },
+  Streams: { field: "streams", payloadKey: "streamIds", singular: "Stream" },
 } as const;
 
 type EntityKind = keyof typeof ENTITIES;

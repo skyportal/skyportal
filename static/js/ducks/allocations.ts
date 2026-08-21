@@ -1,59 +1,58 @@
 /**
  * Allocations.
  *
- * RTK Query conversion of the old `FETCH_ALLOCATIONS` duck. Three GET variants
- * hit the same `/api/allocation` endpoint with different `apiType` filters:
- *   - getAllocations: the full list (optionally paginated/sorted/filtered).
+ * RTK Query conversion of the old `FETCH_ALLOCATIONS` duck, calling the typed
+ * `skyportal-js` client. Three GET variants hit the same `/api/allocation`
+ * endpoint with different `apiType` filters:
+ *   - getAllocations: the full list (optionally filtered by instrument).
  *   - getAllocationsApiObsplan: allocations with an observation-plan API class.
  *   - getAllocationsApiClassname: allocations with a follow-up API class.
  *
  * The old websocket `REFRESH_ALLOCATIONS` handler refetched all three lists;
  * here we invalidate the "Allocation" tag so any active variant refetches.
  */
-import { buildQueryString } from "../API";
+import type {
+  Allocation,
+  FetchAllocationsOptions,
+} from "skyportal-js/Allocations";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
-export type AllocationQueryParams = Record<string, unknown>;
-
-const buildAllocationUrl = (params?: AllocationQueryParams): string => {
-  if (!params || Object.keys(params).length === 0) {
-    return "api/allocation";
-  }
-  const queryString = buildQueryString(params);
-  return queryString ? `api/allocation?${queryString}` : "api/allocation";
-};
+export type AllocationQueryParams = FetchAllocationsOptions;
 
 export const allocationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getAllocations: build.query<
-      RouteData<"GET /api/allocation">,
-      AllocationQueryParams | void
-    >({
-      query: (params) => buildAllocationUrl(params || undefined),
+    getAllocations: build.query<Allocation[], AllocationQueryParams | void>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.fetchAllocations(params ?? {})),
       providesTags: ["Allocation"],
     }),
     getAllocationsApiObsplan: build.query<
-      RouteData<"GET /api/allocation">,
+      Allocation[],
       AllocationQueryParams | void
     >({
-      query: (params) =>
-        buildAllocationUrl({
-          apiType: "api_classname_obsplan",
-          ...(params || {}),
-        }),
+      queryFn: (params, api) =>
+        clientQuery(api, (client) =>
+          client.fetchAllocations({
+            apiType: "api_classname_obsplan",
+            ...(params ?? {}),
+          }),
+        ),
       providesTags: ["Allocation"],
     }),
     getAllocationsApiClassname: build.query<
-      RouteData<"GET /api/allocation">,
+      Allocation[],
       AllocationQueryParams | void
     >({
-      query: (params) =>
-        buildAllocationUrl({
-          apiType: "api_classname",
-          ...(params || {}),
-        }),
+      queryFn: (params, api) =>
+        clientQuery(api, (client) =>
+          client.fetchAllocations({
+            apiType: "api_classname",
+            ...(params ?? {}),
+          }),
+        ),
       providesTags: ["Allocation"],
     }),
   }),

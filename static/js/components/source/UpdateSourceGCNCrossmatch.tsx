@@ -100,7 +100,9 @@ const UpdateSourceGCNCrossmatch = ({
 
   // Controlled form data: keep edits in React state so re-renders (e.g. from the
   // tag/property selectors) don't reset the date fields to their defaults.
-  const [formData, setFormData] = useState<Record<string, any>>({
+  const [formData, setFormData] = useState<
+    { startDate: string; endDate: string } & Record<string, any>
+  >({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     probability: 0.95,

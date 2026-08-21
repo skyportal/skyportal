@@ -59,7 +59,7 @@ const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const { data: allocationListApiClassname = [] } =
-    useGetAllocationsApiClassnameQuery({ instrument_id: instrument.id });
+    useGetAllocationsApiClassnameQuery({ instrumentId: instrument.id });
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

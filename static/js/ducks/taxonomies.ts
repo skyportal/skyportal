@@ -1,46 +1,45 @@
 /**
  * Classification taxonomies.
  *
- * RTK Query conversion of the old `FETCH_TAXONOMIES` duck. The websocket
- * `REFRESH_TAXONOMIES` message invalidates the taxonomy list; mutations
- * submit, modify, and delete taxonomies.
+ * RTK Query conversion of the old `FETCH_TAXONOMIES` duck, calling the typed
+ * `skyportal-js` client. The websocket `REFRESH_TAXONOMIES` message invalidates
+ * the taxonomy list; mutations submit, modify, and delete taxonomies.
  */
+import type {
+  Taxonomy,
+  TaxonomyPost,
+  TaxonomyPut,
+} from "skyportal-js/Taxonomies";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
 
 interface ModifyTaxonomyArg {
   id: number | string;
-  params: Record<string, any>;
+  params: TaxonomyPut;
 }
 
 export const taxonomiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTaxonomies: build.query<RouteData<"GET /api/taxonomy">, void>({
-      query: () => "api/taxonomy",
+    getTaxonomies: build.query<Taxonomy[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchTaxonomies()),
       providesTags: ["Taxonomy"],
     }),
-    submitTaxonomy: build.mutation<unknown, Record<string, any>>({
-      query: (params) => ({
-        url: "api/taxonomy",
-        method: "POST",
-        body: params,
-      }),
+    submitTaxonomy: build.mutation<{ taxonomy_id: number }, TaxonomyPost>({
+      queryFn: (params, api) =>
+        clientQuery(api, (client) => client.postTaxonomy(params)),
       invalidatesTags: ["Taxonomy"],
     }),
-    modifyTaxonomy: build.mutation<unknown, ModifyTaxonomyArg>({
-      query: ({ id, params }) => ({
-        url: `api/taxonomy/${id}`,
-        method: "PUT",
-        body: params,
-      }),
+    modifyTaxonomy: build.mutation<void, ModifyTaxonomyArg>({
+      queryFn: ({ id, params }, api) =>
+        clientQuery(api, (client) => client.updateTaxonomy(Number(id), params)),
       invalidatesTags: ["Taxonomy"],
     }),
-    deleteTaxonomy: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/taxonomy/${id}`,
-        method: "DELETE",
-      }),
+    deleteTaxonomy: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteTaxonomy(Number(id))),
       invalidatesTags: ["Taxonomy"],
     }),
   }),

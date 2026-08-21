@@ -23,7 +23,7 @@ import FormValidationError from "../FormValidationError";
 interface GroupOption {
   id: number;
   name: string;
-  nickname?: string | null;
+  nickname?: string | null | undefined;
 }
 
 interface SaveCandidateButtonProps {

@@ -5,34 +5,21 @@
  * across many accessible sources (optionally down-selected by classification)
  * for scatter plotting. Call with no axes to fetch the plottable field list.
  */
+import type {
+  PhotStatAggregate,
+  PhotStatAggregateField,
+  PhotStatAggregatePoint,
+} from "skyportal-js/Sources";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
-export interface PhotStatField {
-  value: string;
-  label: string;
-}
+export type {
+  PhotStatAggregateField as PhotStatField,
+  PhotStatAggregatePoint as PhotStatPoint,
+};
 
-export interface PhotStatPoint {
-  id: string;
-  ra: number | null;
-  dec: number | null;
-  redshift: number | null;
-  classification: string | null;
-  // t0 candidates for phase-stacking spectra.
-  first_detected_mjd?: number | null;
-  peak_mjd?: number | null;
-  tns_discovery_date?: string | null;
-  x: number | null;
-  y: number | null;
-  z?: number | null;
-}
-
-export interface PhotStatAggregate {
-  fields: PhotStatField[];
-  points: PhotStatPoint[];
-  count: number;
-  truncated: boolean;
-}
+export type { PhotStatAggregate };
 
 export interface PhotStatAggregateArgs {
   xField?: string;
@@ -50,10 +37,19 @@ export const photStatAggregateApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getPhotStatAggregate: build.query<PhotStatAggregate, PhotStatAggregateArgs>(
       {
-        query: (params) => ({
-          url: "api/phot_stats/aggregate",
-          params,
-        }),
+        queryFn: (params, api) =>
+          clientQuery(api, (client) =>
+            client.fetchPhotStatsAggregate({
+              xField: params.xField,
+              yField: params.yField,
+              zField: params.zField,
+              classifications: params.classifications?.split(","),
+              classificationProbThreshold: params.classificationProbThreshold,
+              groupId: params.group_id,
+              objIds: params.obj_ids?.split(","),
+              maxMatches: params.maxMatches,
+            }),
+          ),
       },
     ),
   }),

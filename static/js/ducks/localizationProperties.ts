@@ -1,21 +1,14 @@
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
-
-export type LocalizationPropertiesArgs =
-  | Record<string, string | number | boolean>
-  | undefined;
 
 export const localizationPropertiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getLocalizationProperties: build.query<
-      RouteData<"GET /api/localization/properties">,
-      LocalizationPropertiesArgs
-    >({
-      query: (filterParams) => ({
-        url: "api/localization/properties",
-        params: filterParams ?? {},
-      }),
+    // The handler takes no query parameters; the old duck passed filter params
+    // that the server ignored.
+    getLocalizationProperties: build.query<string[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchLocalizationProperties()),
       providesTags: ["LocalizationProperties"],
     }),
   }),

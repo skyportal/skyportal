@@ -13,6 +13,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { useSubmitAssignmentMutation } from "../../ducks/source";
+import type { AssignmentPost } from "skyportal-js/Assignments";
 
 import Button from "../Button";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
@@ -98,10 +99,9 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
     );
   }
 
-  const initialFormState = {
+  const initialFormState: AssignmentPost = {
     comment: "",
-    run_id:
-      upcomingObservingRuns.length > 0 ? upcomingObservingRuns[0].id : null,
+    run_id: upcomingObservingRuns.length > 0 ? upcomingObservingRuns[0].id : 0,
     priority: "1",
     obj_id,
   };

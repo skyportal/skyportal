@@ -5,46 +5,49 @@
  * duck. Each action is a mutation injected into the central `skyportalApi`.
  * The mutations invalidate the `PhotometryValidation` tag.
  */
+import type {
+  PhotometryValidationOptions,
+  PhotometryValidationResponse,
+} from "skyportal-js/Photometry";
+
 import { skyportalApi } from "../api/skyportalApi";
-import type { RouteData } from "../types/routeSchemaMap";
+import { clientQuery } from "../api/skyportalClient";
 
 interface PhotometryValidationArg {
   id: number | string;
-  data?: Record<string, unknown> | undefined;
+  data?: PhotometryValidationOptions | undefined;
 }
 
 export const photometryValidationApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     submitPhotometryValidation: build.mutation<
-      RouteData<"POST /api/photometry/{photometry_id}/validation">,
+      PhotometryValidationResponse,
       PhotometryValidationArg
     >({
-      query: ({ id, data = {} }) => ({
-        url: `api/photometry/${id}/validation`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ id, data = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.postPhotometryValidation(Number(id), data),
+        ),
       invalidatesTags: ["PhotometryValidation"],
     }),
     patchPhotometryValidation: build.mutation<
-      RouteData<"PATCH /api/photometry/{photometry_id}/validation">,
+      PhotometryValidationResponse,
       PhotometryValidationArg
     >({
-      query: ({ id, data = {} }) => ({
-        url: `api/photometry/${id}/validation`,
-        method: "PATCH",
-        body: data,
-      }),
+      queryFn: ({ id, data = {} }, api) =>
+        clientQuery(api, (client) =>
+          client.updatePhotometryValidation(Number(id), data),
+        ),
       invalidatesTags: ["PhotometryValidation"],
     }),
     deletePhotometryValidation: build.mutation<
-      unknown,
+      PhotometryValidationResponse,
       PhotometryValidationArg
     >({
-      query: ({ id }) => ({
-        url: `api/photometry/${id}/validation`,
-        method: "DELETE",
-      }),
+      queryFn: ({ id }, api) =>
+        clientQuery(api, (client) =>
+          client.deletePhotometryValidation(Number(id)),
+        ),
       invalidatesTags: ["PhotometryValidation"],
     }),
   }),

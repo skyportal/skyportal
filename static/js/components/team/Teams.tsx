@@ -280,7 +280,7 @@ const TeamCard = ({ team, canManage }: { team: Team; canManage: boolean }) => {
     <Paper className={classes.teamCard}>
       <div className={classes.teamHeader}>
         {team.logo_url ? (
-          <Avatar src={team.logo_url} alt={team.name} />
+          <Avatar src={team.logo_url} alt={team.name ?? undefined} />
         ) : (
           <span
             style={{

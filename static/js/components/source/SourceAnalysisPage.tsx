@@ -93,7 +93,6 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
   const { data: analysisData } = useGetAnalysisQuery({
     analysis_id: route.analysis_id,
     analysis_resource_type: "obj",
-    params: { objID: route.obj_id },
   });
   const { data: analysisResults } = useGetAnalysisResultsQuery({
     analysis_id: route.analysis_id,

@@ -14,6 +14,7 @@
  * this duck.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 
 export interface MinimalPhotometryDatum {
   id: number;
@@ -34,47 +35,35 @@ export interface OverlayPhotometryDatum {
   extinction: number | null;
 }
 
-interface RawPhotometryDatum {
-  id: number;
-  obj_id: string;
-  filter: string;
-  limiting_mag: number;
-  mag: number | null;
-  magerr: number | null;
-  mjd: number;
-  origin?: string | null;
-  [key: string]: unknown;
-}
-
 export const photometryMinimalApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getSourcePhotometryMinimal: build.query<
       MinimalPhotometryDatum[],
       number | string
     >({
-      query: (id) => ({
-        url: `api/sources/${id}/photometry`,
-        params: {
-          format: "plot",
-          magsys: "ab",
-          individualOrSeries: "both",
-          includeSuperObjsPhotometry: true,
-        },
-      }),
       // Keep only the fields the old reducer exposed, normalising `origin`.
-      transformResponse: (data: RawPhotometryDatum[]) =>
-        (data ?? []).map((datum) => ({
-          id: datum.id,
-          obj_id: datum.obj_id,
-          filter: datum.filter,
-          limiting_mag: datum.limiting_mag,
-          mag: datum.mag,
-          magerr: datum.magerr,
-          mjd: datum.mjd,
-          origin: ["None", ""].includes(datum.origin ?? "")
-            ? null
-            : (datum.origin ?? null),
-        })),
+      queryFn: (id, api) =>
+        clientQuery(api, async (client) =>
+          (
+            await client.fetchPhotometry(String(id), {
+              format: "plot",
+              magsys: "ab",
+              individualOrSeries: "both",
+              includeSuperObjsPhotometry: true,
+            })
+          ).map((datum) => ({
+            id: datum.id,
+            obj_id: datum.obj_id ?? "",
+            filter: datum.filter ?? "",
+            limiting_mag: datum.limiting_mag ?? 0,
+            mag: datum.mag ?? null,
+            magerr: datum.magerr ?? null,
+            mjd: datum.mjd ?? 0,
+            origin: ["None", ""].includes(datum.origin ?? "")
+              ? null
+              : (datum.origin ?? null),
+          })),
+        ),
       providesTags: ["Photometry"],
     }),
     // Photometry for the Source Statistics overlays. When `includeExtinction`
@@ -84,27 +73,26 @@ export const photometryMinimalApi = skyportalApi.injectEndpoints({
       OverlayPhotometryDatum[],
       { id: number | string; includeExtinction: boolean }
     >({
-      query: ({ id, includeExtinction }) => ({
-        url: `api/sources/${id}/photometry`,
-        // format "mag" (not "plot") so the backend attaches `mag_corr`/
-        // `extinction` when requested.
-        params: {
-          format: "mag",
-          magsys: "ab",
-          individualOrSeries: "both",
-          includeSuperObjsPhotometry: true,
-          ...(includeExtinction ? { includeExtinction: true } : {}),
-        },
-      }),
-      transformResponse: (data: RawPhotometryDatum[]) =>
-        (data ?? []).map((datum) => ({
-          filter: datum.filter,
-          mjd: datum.mjd,
-          mag: datum.mag,
-          mag_corr: (datum["mag_corr"] as number | null | undefined) ?? null,
-          extinction:
-            (datum["extinction"] as number | null | undefined) ?? null,
-        })),
+      queryFn: ({ id, includeExtinction }, api) =>
+        clientQuery(api, async (client) =>
+          (
+            await client.fetchPhotometry(String(id), {
+              // format "mag" (not "plot") so the backend attaches `mag_corr`/
+              // `extinction` when requested.
+              format: "mag",
+              magsys: "ab",
+              individualOrSeries: "both",
+              includeSuperObjsPhotometry: true,
+              includeExtinction,
+            })
+          ).map((datum) => ({
+            filter: datum.filter ?? "",
+            mjd: datum.mjd ?? 0,
+            mag: datum.mag ?? null,
+            mag_corr: datum.mag_corr ?? null,
+            extinction: datum.extinction ?? null,
+          })),
+        ),
       providesTags: ["Photometry"],
     }),
   }),

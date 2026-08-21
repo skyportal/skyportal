@@ -6,25 +6,34 @@
  * submit/patch/delete the confirmation status of a single source and invalidate
  * the `SourceInGcn` tag so the list refetches.
  */
-import { buildQueryString } from "../API";
+import type {
+  GcnEventObj,
+  GcnEventObjPost,
+  GcnEventObjStatus,
+} from "skyportal-js/GcnEvents";
+
 import { skyportalApi } from "../api/skyportalApi";
-import type { RouteData } from "../types/routeSchemaMap";
+import { clientQuery } from "../api/skyportalClient";
 
 interface FetchSourcesInGcnArg {
   dateobs: string;
+  /**
+   * Only used as part of the cache key: the handler reads `sourcesIDList` and
+   * nothing else.
+   */
   localizationName?: string | undefined;
   sourcesIdList?: (string | number)[] | undefined;
 }
 
 interface SubmitSourceInGcnArg {
   dateobs: string;
-  data: Record<string, unknown>;
+  data: GcnEventObjPost;
 }
 
 interface PatchSourceInGcnArg {
   dateobs: string;
   source_id: number | string;
-  data: Record<string, unknown>;
+  data: { status: GcnEventObjStatus; explanation?: string; notes?: string };
 }
 
 interface DeleteSourceInGcnArg {
@@ -34,42 +43,35 @@ interface DeleteSourceInGcnArg {
 
 export const sourcesInGcnApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getSourcesInGcn: build.query<
-      RouteData<"GET /api/sources_in_gcn/{dateobs}">,
-      FetchSourcesInGcnArg
-    >({
-      query: ({ dateobs, ...filterParams }) => {
-        const params = buildQueryString(filterParams);
-        return params
-          ? `api/sources_in_gcn/${dateobs}?${params}`
-          : `api/sources_in_gcn/${dateobs}`;
-      },
+    getSourcesInGcn: build.query<GcnEventObj[], FetchSourcesInGcnArg>({
+      queryFn: ({ dateobs, sourcesIdList }, api) =>
+        clientQuery(api, (client) =>
+          client.fetchGcnEventSources(dateobs, {
+            sourceIds: sourcesIdList?.map(String),
+          }),
+        ),
       providesTags: ["SourceInGcn"],
     }),
-    submitSourceInGcn: build.mutation<unknown, SubmitSourceInGcnArg>({
-      query: ({ dateobs, data }) => ({
-        url: `api/sources_in_gcn/${dateobs}`,
-        method: "POST",
-        body: data,
-      }),
+    submitSourceInGcn: build.mutation<{ id: number }, SubmitSourceInGcnArg>({
+      queryFn: ({ dateobs, data }, api) =>
+        clientQuery(api, (client) => client.postGcnEventSource(dateobs, data)),
       invalidatesTags: ["SourceInGcn"],
     }),
-    patchSourceInGcn: build.mutation<
-      RouteData<"PATCH /api/sources_in_gcn/{dateobs}/{source_id}">,
-      PatchSourceInGcnArg
-    >({
-      query: ({ dateobs, source_id, data }) => ({
-        url: `api/sources_in_gcn/${dateobs}/${source_id}`,
-        method: "PATCH",
-        body: data,
-      }),
+    patchSourceInGcn: build.mutation<{ id: number }, PatchSourceInGcnArg>({
+      queryFn: ({ dateobs, source_id, data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateGcnEventSource(dateobs, String(source_id), data.status, {
+            explanation: data.explanation,
+            notes: data.notes,
+          }),
+        ),
       invalidatesTags: ["SourceInGcn"],
     }),
-    deleteSourceInGcn: build.mutation<unknown, DeleteSourceInGcnArg>({
-      query: ({ dateobs, source_id }) => ({
-        url: `api/sources_in_gcn/${dateobs}/${source_id}`,
-        method: "DELETE",
-      }),
+    deleteSourceInGcn: build.mutation<{ id: number }, DeleteSourceInGcnArg>({
+      queryFn: ({ dateobs, source_id }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteGcnEventSource(dateobs, String(source_id)),
+        ),
       invalidatesTags: ["SourceInGcn"],
     }),
   }),

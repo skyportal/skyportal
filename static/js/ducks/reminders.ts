@@ -11,31 +11,31 @@
  * matching the pushed id, for each resource type. Those are bridged to scoped
  * cache invalidation via `invalidateOnMessage`.
  */
+import type {
+  Reminder,
+  ReminderPost,
+  ReminderResourceType,
+  ReminderUpdate,
+} from "skyportal-js/Reminders";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-interface Reminder {
-  id: number;
-  user_id: number;
-  text: string;
-  next_reminder: string;
-  number_of_reminders: number;
-  reminder_delay: number;
-  [key: string]: unknown;
-}
+export type { ReminderResourceType };
 
 interface RemindersArg {
   resourceId: number | string;
-  resourceType: string;
+  resourceType: ReminderResourceType;
 }
 
 interface SubmitReminderArg extends RemindersArg {
-  data: Record<string, unknown>;
+  data: ReminderPost;
 }
 
 interface UpdateReminderArg extends RemindersArg {
   reminderID: number | string;
-  data: Record<string, unknown>;
+  data: ReminderUpdate;
 }
 
 interface DeleteReminderArg extends RemindersArg {
@@ -50,39 +50,44 @@ const reminderTag = (resourceType: string, resourceId: number | string) => ({
 export const remindersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getReminders: build.query<Reminder[], RemindersArg>({
-      query: ({ resourceId, resourceType }) =>
-        `api/${resourceType}/${resourceId}/reminders`,
-      transformResponse: (data: { reminders?: Reminder[] }) =>
-        data?.reminders ?? [],
+      queryFn: ({ resourceId, resourceType }, api) =>
+        clientQuery(
+          api,
+          async (client) =>
+            (await client.fetchReminders(String(resourceId), { resourceType }))
+              .reminders,
+        ),
       providesTags: (_result, _error, { resourceId, resourceType }) => [
         reminderTag(resourceType, resourceId),
       ],
     }),
     submitReminder: build.mutation<unknown, SubmitReminderArg>({
-      query: ({ resourceId, resourceType, data }) => ({
-        url: `api/${resourceType}/${resourceId}/reminders`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: ({ resourceId, resourceType, data }, api) =>
+        clientQuery(api, (client) =>
+          client.postReminder(String(resourceId), data, { resourceType }),
+        ),
       invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
         reminderTag(resourceType, resourceId),
       ],
     }),
     updateReminder: build.mutation<unknown, UpdateReminderArg>({
-      query: ({ resourceId, resourceType, reminderID, data }) => ({
-        url: `api/${resourceType}/${resourceId}/reminders/${reminderID}`,
-        method: "PATCH",
-        body: data,
-      }),
+      queryFn: ({ resourceId, resourceType, reminderID, data }, api) =>
+        clientQuery(api, (client) =>
+          client.updateReminder(String(resourceId), Number(reminderID), data, {
+            resourceType,
+          }),
+        ),
       invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
         reminderTag(resourceType, resourceId),
       ],
     }),
-    deleteReminder: build.mutation<unknown, DeleteReminderArg>({
-      query: ({ resourceId, resourceType, reminderID }) => ({
-        url: `api/${resourceType}/${resourceId}/reminders/${reminderID}`,
-        method: "DELETE",
-      }),
+    deleteReminder: build.mutation<void, DeleteReminderArg>({
+      queryFn: ({ resourceId, resourceType, reminderID }, api) =>
+        clientQuery(api, (client) =>
+          client.deleteReminder(String(resourceId), Number(reminderID), {
+            resourceType,
+          }),
+        ),
       invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
         reminderTag(resourceType, resourceId),
       ],

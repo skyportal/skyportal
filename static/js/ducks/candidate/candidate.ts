@@ -13,8 +13,10 @@
  * duck's concern, so the thunk stays here for it to import.
  */
 import * as API from "../../API";
+import type { Candidate } from "skyportal-js/Candidates";
+
 import { skyportalApi } from "../../api/skyportalApi";
-import type { RouteData } from "../../types/routeSchemaMap";
+import { clientQuery } from "../../api/skyportalClient";
 
 const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
 
@@ -28,11 +30,9 @@ export const fetchCandidate = (id: number | string, how = FETCH_CANDIDATE) =>
 
 export const candidateApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getCandidate: build.query<
-      RouteData<"GET /api/candidates/{obj_id}">,
-      number | string
-    >({
-      query: (id) => `api/candidates/${id}`,
+    getCandidate: build.query<Candidate, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchCandidate(String(id))),
       providesTags: ["Candidate"],
     }),
   }),

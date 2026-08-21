@@ -9,3 +9,5 @@ export const setBrokerFilterTarget = (id) => {
 };
 
 export const brokerFilterBase = () => `/api/brokers/${brokerId}`;
+
+export const brokerFilterTargetId = () => Number(brokerId);

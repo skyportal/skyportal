@@ -1,73 +1,78 @@
 /**
  * Telescopes.
  *
- * RTK Query conversion of the old `FETCH_TELESCOPES` duck. The list endpoint is
- * injected into the central `skyportalApi`; submit/delete are mutations that
- * invalidate the `Telescope` tag so the list refetches. The single-telescope
- * fetch is kept as a query keyed on id.
+ * RTK Query conversion of the old `FETCH_TELESCOPES` duck, calling the typed
+ * `skyportal-js` client; submit/delete are mutations that invalidate the
+ * `Telescope` tag so the list refetches. The single-telescope fetch is kept as a
+ * query keyed on id.
  *
  * The old websocket handlers refreshed the currently-loaded telescope on
  * `REFRESH_TELESCOPE` and the whole list on `REFRESH_TELESCOPES`; both are
  * bridged to invalidation of the `Telescope` tag.
  */
+import type {
+  Telescope,
+  TelescopePost,
+  TelescopePut,
+} from "skyportal-js/Telescopes";
+
 import { skyportalApi } from "../api/skyportalApi";
+import { clientQuery } from "../api/skyportalClient";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import type { RouteData } from "../types/routeSchemaMap";
+
+// The edit form seeds its state from the full telescope object, so only the
+// fields the PUT accepts are forwarded. The client's payload type checks the
+// list.
+const PUT_FIELDS = [
+  "name",
+  "nickname",
+  "lat",
+  "lon",
+  "elevation",
+  "diameter",
+  "skycam_link",
+  "weather_link",
+  "robotic",
+  "fixed_location",
+] as const satisfies ReadonlyArray<keyof TelescopePut>;
 
 export const telescopesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTelescopes: build.query<RouteData<"GET /api/telescope">, void>({
-      query: () => "api/telescope",
+    getTelescopes: build.query<Telescope[], void>({
+      queryFn: (_arg, api) =>
+        clientQuery(api, (client) => client.fetchTelescopes()),
       providesTags: ["Telescope"],
     }),
-    getTelescope: build.query<
-      RouteData<"GET /api/telescope/{telescope_id}">,
-      number | string
-    >({
-      query: (id) => `api/telescope/${id}`,
+    getTelescope: build.query<Telescope, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.fetchTelescope(Number(id))),
       providesTags: ["Telescope"],
     }),
-    submitTelescope: build.mutation<unknown, Record<string, any>>({
-      query: (tele) => ({
-        url: "api/telescope",
-        method: "POST",
-        body: tele,
-      }),
+    submitTelescope: build.mutation<{ id: number }, TelescopePost>({
+      queryFn: (tele, api) =>
+        clientQuery(api, (client) => client.postTelescope(tele)),
       invalidatesTags: ["Telescope"],
     }),
     updateTelescope: build.mutation<
-      unknown,
+      void,
       { id: number | string; data: Record<string, any> }
     >({
-      // The edit form seeds its state from the full telescope object; only
-      // send the fields the endpoint accepts.
-      query: ({ id, data }) => ({
-        url: `api/telescope/${id}`,
-        method: "PUT",
-        body: Object.fromEntries(
-          [
-            "name",
-            "nickname",
-            "lat",
-            "lon",
-            "elevation",
-            "diameter",
-            "skycam_link",
-            "weather_link",
-            "robotic",
-            "fixed_location",
-          ]
-            .filter((key) => key in data)
-            .map((key) => [key, data[key]]),
-        ),
-      }),
+      queryFn: ({ id, data }, api) => {
+        const payload: TelescopePut = Object.fromEntries(
+          PUT_FIELDS.filter((key) => key in data).map((key) => [
+            key,
+            data[key],
+          ]),
+        );
+        return clientQuery(api, (client) =>
+          client.updateTelescope(Number(id), payload),
+        );
+      },
       invalidatesTags: ["Telescope"],
     }),
-    deleteTelescope: build.mutation<unknown, number | string>({
-      query: (id) => ({
-        url: `api/telescope/${id}`,
-        method: "DELETE",
-      }),
+    deleteTelescope: build.mutation<void, number | string>({
+      queryFn: (id, api) =>
+        clientQuery(api, (client) => client.deleteTelescope(Number(id))),
       invalidatesTags: ["Telescope"],
     }),
   }),
