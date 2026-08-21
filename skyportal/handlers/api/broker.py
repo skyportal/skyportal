@@ -7,11 +7,14 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
 from ...models import Broker, Filter, Stream, set_autosave
 from ..base import BaseHandler
+
+log = make_log("api/broker")
 
 AlertId = Annotated[
     str,
@@ -874,14 +877,10 @@ class BrokerFilterValidateHandler(BaseHandler):
                 )
             except Exception as e:
                 return self.error(f"Error validating filter on {broker.name}: {e}")
-            # Record the verdict keyed on fid; activation checks this. Keying on
-            # fid means it survives active on/off and is invalidated only when the
-            # active version changes (a new fid).
-            f.altdata.setdefault("boom", {})["validation"] = {
-                "fid": result.get("fid"),
-                "passed": bool(result.get("passed")),
-                "message": result.get("message"),
-            }
+            # Record the verdict per version (fid) so each version keeps its own
+            # result and message; activation reads this. Validating one version no
+            # longer clobbers another's verdict.
+            _store_version_validation(f.altdata, result)
             flag_modified(f, "altdata")
             session.commit()
             return self.success(data=result)
@@ -891,6 +890,30 @@ def _get_broker(handler, session, broker_id):
     return session.scalars(
         Broker.select(handler.current_user).where(Broker.id == int(broker_id))
     ).first()
+
+
+def _version_validation(altdata, fid):
+    """The stored validation verdict for a filter version, or None.
+
+    Reads the per-fid map, falling back to the legacy single-slot record so
+    versions validated before the map existed still count.
+    """
+    boom = (altdata or {}).get("boom") or {}
+    verdict = (boom.get("validations") or {}).get(fid)
+    if verdict is None:
+        legacy = boom.get("validation") or {}
+        if legacy.get("fid") == fid:
+            verdict = legacy
+    return verdict or None
+
+
+def _store_version_validation(altdata, verdict):
+    """Persist a BOOM validation verdict under its fid in the per-fid map."""
+    boom = altdata.setdefault("boom", {})
+    boom.setdefault("validations", {})[verdict.get("fid")] = {
+        "passed": bool(verdict.get("passed")),
+        "message": verdict.get("message"),
+    }
 
 
 # Custom filter-module element types; the store is provider-owned.
@@ -1224,14 +1247,13 @@ class BrokerFiltersHandler(BaseHandler):
                         permissions=perms,
                     )
                     f.broker_id = broker.id
+                    new_fid = resp["active_fid"]
                     f.altdata = {
                         "boom": {"filter_id": resp["id"]},
                         "autoAnnotate": False,
                         "autoSave": False,
                         "autoFollowup": False,
-                        "filters": [
-                            {"fid": resp["active_fid"], "version": data["filters"]}
-                        ],
+                        "filters": [{"fid": new_fid, "version": data["filters"]}],
                     }
                 else:
                     boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
@@ -1243,12 +1265,29 @@ class BrokerFiltersHandler(BaseHandler):
                         boom_filter_id=boom_filter_id,
                         pipeline=data["altdata"],
                     )
+                    new_fid = resp["fid"]
                     f.altdata.setdefault("filters", []).append(
-                        {"fid": resp["fid"], "version": data["filters"]}
+                        {"fid": new_fid, "version": data["filters"]}
                     )
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error creating filter on {broker.name}: {e}")
+            # Validate the new version now so its verdict (pass, or the failure
+            # reason) is attached immediately, rather than only once the user
+            # remembers to validate it. Best-effort: a slow/failed validation must
+            # not fail the save -- the user can still validate manually.
+            if broker.broker_class.implements()["validate_filter"]:
+                try:
+                    verdict = broker.broker_class.validate_filter(
+                        broker,
+                        session,
+                        boom_filter_id=(f.altdata.get("boom") or {}).get("filter_id"),
+                        fid=new_fid,
+                    )
+                    _store_version_validation(f.altdata, verdict)
+                    flag_modified(f, "altdata")
+                except Exception as e:
+                    log(f"Auto-validation of filter {f.id} version {new_fid}: {e}")
             session.commit()
             return self.success(data={"id": f.id})
 
@@ -1298,16 +1337,22 @@ class BrokerFiltersHandler(BaseHandler):
                     # user is an admin. BOOM then skips its own (slow) inline
                     # validation, so the toggle is fast.
                     if data["active"]:
-                        validation = (f.altdata.get("boom") or {}).get(
-                            "validation"
-                        ) or {}
-                        validated = (
-                            validation.get("passed") is True
-                            and validation.get("fid") == data["active_fid"]
+                        verdict = (
+                            _version_validation(f.altdata, data["active_fid"]) or {}
                         )
-                        if not validated and not self.current_user.is_system_admin:
+                        if (
+                            verdict.get("passed") is not True
+                            and not self.current_user.is_system_admin
+                        ):
+                            reason = verdict.get("message")
                             return self.error(
-                                "This filter version must be validated before it can be activated."
+                                "This filter version must be validated before it "
+                                "can be activated."
+                                + (
+                                    f" Last validation failed: {reason}"
+                                    if reason
+                                    else ""
+                                )
                             )
                     broker.broker_class.update_filter(
                         broker,
