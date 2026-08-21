@@ -7,7 +7,7 @@ from typing import Annotated
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -1278,6 +1278,12 @@ class CommentAttachmentGetQuery(BaseModel):
         default=False,
         description="If true, return an attachment preview. False by default.",
     )
+
+    @model_validator(mode="after")
+    def _preview_overrides_default_download(self):
+        if self.preview and "download" not in self.model_fields_set:
+            self.download = False
+        return self
 
 
 class CommentAttachmentHandler(BaseHandler):
