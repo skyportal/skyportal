@@ -31,6 +31,8 @@ from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
 from .followup_request import MAX_FOLLOWUP_REQUESTS
 
+MAX_OBSERVATION_PLANS = 1000
+
 
 class AllocationObservationPlanGetQuery(BaseModel):
     """Query parameters for listing an allocation's observation plans."""
@@ -39,7 +41,11 @@ class AllocationObservationPlanGetQuery(BaseModel):
 
     numPerPage: int = Field(
         default=50,
-        description="Number of observation plans to return per paginated request. Defaults to 50.",
+        le=MAX_OBSERVATION_PLANS,
+        description=(
+            "Number of observation plans to return per paginated request. "
+            f"Defaults to 50. Can be no larger than {MAX_OBSERVATION_PLANS}."
+        ),
     )
     pageNumber: int = Field(
         default=1,
