@@ -69,7 +69,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Number of observation plans to return per paginated request. Defaults to 50. */
+                    /** @description Number of observation plans to return per paginated request. Defaults to 50. Can be no larger than 1000. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
@@ -2289,8 +2289,11 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    survey?: string;
+                    /** @description Survey the photometry is fetched for. */
+                    survey?: string | null;
+                    /** @description Photometry format. */
                     format?: string;
+                    /** @description Magnitude system. */
                     magsys?: string;
                     /** @description Bypass any cached broker payload and re-fetch. */
                     refresh?: boolean;
@@ -14345,10 +14348,10 @@ export interface paths {
                     minWorstSNR?: number | null;
                     /** @description Get only a series that matches this file hash. This is useful if you have an HDF5 file downloaded from the SkyPortal backend, and want to associate it with a PhotometrySeries object. We use an MD5 hash of the file contents. */
                     hash?: string | null;
-                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    /** @description The column of the photometric series to sort by. Defaults to obj_id. */
                     sortBy?: string;
                     /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
-                    sortOrder?: string;
+                    sortOrder?: "asc" | "desc";
                     /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
@@ -14720,10 +14723,10 @@ export interface paths {
                     minWorstSNR?: number | null;
                     /** @description Get only a series that matches this file hash. This is useful if you have an HDF5 file downloaded from the SkyPortal backend, and want to associate it with a PhotometrySeries object. We use an MD5 hash of the file contents. */
                     hash?: string | null;
-                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    /** @description The column of the photometric series to sort by. Defaults to obj_id. */
                     sortBy?: string;
                     /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
-                    sortOrder?: string;
+                    sortOrder?: "asc" | "desc";
                     /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
@@ -20246,7 +20249,14 @@ export interface paths {
         /** Retrieve a SuperObj */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Filter by (partial) name */
+                    name?: string | null;
+                    /** @description Filter by moving-object status */
+                    isRoid?: boolean | null;
+                    /** @description Only SuperObjs linking this Obj */
+                    objID?: string | null;
+                };
                 header?: never;
                 path: {
                     super_obj_id: number;
@@ -20370,11 +20380,11 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Filter by (partial) name */
-                    name?: string;
+                    name?: string | null;
                     /** @description Filter by moving-object status */
-                    isRoid?: boolean;
+                    isRoid?: boolean | null;
                     /** @description Only SuperObjs linking this Obj */
-                    objID?: string;
+                    objID?: string | null;
                 };
                 header?: never;
                 path?: never;
