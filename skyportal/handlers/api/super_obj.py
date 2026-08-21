@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -6,6 +7,25 @@ from baselayer.app.access import auth_or_token, permissions
 from ...models import Obj, SuperObj
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler
+
+
+class SuperObjGetQuery(BaseModel):
+    """Query parameters for retrieving SuperObjs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="Filter by (partial) name",
+    )
+    isRoid: bool | None = Field(
+        default=None,
+        description="Filter by moving-object status",
+    )
+    objID: str | None = Field(
+        default=None,
+        description="Only SuperObjs linking this Obj",
+    )
 
 
 def super_obj_to_dict(super_obj):
@@ -118,7 +138,12 @@ class SuperObjHandler(BaseHandler):
             return self.success(data={"id": super_obj.id})
 
     @auth_or_token
-    async def get(self, super_obj_id: int | None = None):
+    async def get(
+        self,
+        super_obj_id: int | None = None,
+        *,
+        query: SuperObjGetQuery = None,
+    ):
         """
         ---
         single:
@@ -138,22 +163,6 @@ class SuperObjHandler(BaseHandler):
           summary: Retrieve multiple SuperObjs
           tags:
             - super objs
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by (partial) name
-            - in: query
-              name: isRoid
-              schema:
-                type: boolean
-              description: Filter by moving-object status
-            - in: query
-              name: objID
-              schema:
-                type: string
-              description: Only SuperObjs linking this Obj
           responses:
             200:
               content:
@@ -164,6 +173,8 @@ class SuperObjHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(SuperObjGetQuery)
+
         async with self.AsyncSession() as session:
             options = [selectinload(SuperObj.objs)]
 
@@ -184,20 +195,14 @@ class SuperObjHandler(BaseHandler):
 
             stmt = SuperObj.select(session.user_or_token, options=options)
 
-            name = self.get_query_argument("name", None)
-            if name is not None:
-                stmt = stmt.where(SuperObj.name.contains(name))
+            if query.name is not None:
+                stmt = stmt.where(SuperObj.name.contains(query.name))
 
-            is_roid = self.get_query_argument("isRoid", None)
-            if is_roid is not None:
-                try:
-                    stmt = stmt.where(SuperObj.is_roid.is_(str_to_bool(is_roid)))
-                except ValueError:
-                    return self.error("Invalid isRoid value")
+            if query.isRoid is not None:
+                stmt = stmt.where(SuperObj.is_roid.is_(query.isRoid))
 
-            obj_id = self.get_query_argument("objID", None)
-            if obj_id is not None:
-                stmt = stmt.where(SuperObj.objs.any(Obj.id == obj_id))
+            if query.objID is not None:
+                stmt = stmt.where(SuperObj.objs.any(Obj.id == query.objID))
 
             result = await session.scalars(stmt)
             return self.success(
