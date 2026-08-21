@@ -127,10 +127,16 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   const [validating, setValidating] = useState(false);
 
   // A filter version may be activated only once it has passed validation for
-  // that fid (or by an admin). Keyed on fid, so it survives active on/off.
-  const validation = filter_v?.altdata?.boom?.validation;
-  const isValidated =
-    !!validation?.passed && validation?.fid === filter_v?.active_fid;
+  // that fid (or by an admin). Verdicts are stored per fid so each version keeps
+  // its own result; fall back to the legacy single-slot record for old data.
+  const boomValidations = filter_v?.altdata?.boom?.validations;
+  const legacyValidation = filter_v?.altdata?.boom?.validation;
+  const validation =
+    boomValidations?.[filter_v?.active_fid] ??
+    (legacyValidation?.fid === filter_v?.active_fid
+      ? legacyValidation
+      : undefined);
+  const isValidated = !!validation?.passed;
 
   const { data: groupsData } = useGetGroupsQuery();
   const allGroups = groupsData?.all;
@@ -250,6 +256,10 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
           {isValidated
             ? "Validated ✓"
             : validation.message || "Not validated for this version"}
+        </Typography>
+      ) : !filter_v.active ? (
+        <Typography variant="caption" color="textSecondary">
+          Not validated for this version
         </Typography>
       ) : null}
     </Box>
