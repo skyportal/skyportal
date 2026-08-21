@@ -13,6 +13,9 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
@@ -249,18 +252,41 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
           Running the filter over a night of alerts — this can take a while.
         </Typography>
       ) : validation ? (
-        <Typography
-          variant="caption"
-          color={isValidated ? "textSecondary" : "error"}
+        <Tooltip
+          title={!isValidated && validation.message ? validation.message : ""}
         >
-          {isValidated
-            ? "Validated ✓"
-            : validation.message || "Not validated for this version"}
-        </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              minWidth: 0,
+            }}
+          >
+            {isValidated ? (
+              <CheckCircleIcon fontSize="small" color="success" />
+            ) : (
+              <CancelIcon fontSize="small" color="error" />
+            )}
+            <Typography
+              variant="caption"
+              color={isValidated ? "success.main" : "error"}
+            >
+              {isValidated
+                ? "Validated"
+                : validation.message
+                  ? "Validation failed (hover for details)"
+                  : "Validation failed"}
+            </Typography>
+          </Box>
+        </Tooltip>
       ) : !filter_v.active ? (
-        <Typography variant="caption" color="textSecondary">
-          Not validated for this version
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <HelpOutlineIcon fontSize="small" color="disabled" />
+          <Typography variant="caption" color="textSecondary">
+            Not validated for this version
+          </Typography>
+        </Box>
       ) : null}
     </Box>
   );
