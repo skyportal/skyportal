@@ -1,6 +1,7 @@
 import os
 import textwrap
 import traceback
+from typing import Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -1020,9 +1021,9 @@ class PhotometricSeriesGetQuery(BaseModel):
     )
     sortBy: str = Field(
         default="obj_id",
-        description='The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]',
+        description="The column of the photometric series to sort by. Defaults to obj_id.",
     )
-    sortOrder: str = Field(
+    sortOrder: Literal["asc", "desc"] = Field(
         default="asc",
         description='The sort order - either "asc" or "desc". Defaults to "asc"',
     )
@@ -1479,32 +1480,18 @@ class PhotometricSeriesHandler(BaseHandler):
         if query.hash is not None:
             stmt = stmt.where(PhotometricSeries.hash == query.hash)
 
-        try:
-            # add any additional enums to this list:
-            if query.sortBy in ["filter"]:
-                # sorting enums is done by default using their order in the original
-                # definition, which is not alphabetical order (which is what the user expects)
-                # ref: https://stackoverflow.com/a/23618085
-                # Cast the enum column to String for the case() value mapping
-                # — psycopg3 won't implicitly compare bandpasses to varchar.
-                whens = {
-                    name: name
-                    for name in getattr(PhotometricSeries, query.sortBy).type.enums
-                }
-                order_by_column = case(
-                    whens,
-                    value=sa.cast(getattr(PhotometricSeries, query.sortBy), sa.String),
-                )
-            else:
-                order_by_column = getattr(PhotometricSeries, query.sortBy)
-        except AttributeError:
+        # a non-column attribute would pass getattr and only fail inside order_by
+        if query.sortBy not in sa.inspect(PhotometricSeries).mapper.column_attrs:
             return self.error(
                 f"Invalid value for sortBy {query.sortBy}. Could not find column. "
             )
 
-        if query.sortOrder not in ["asc", "desc"]:
-            return self.error(
-                f'Invalid value "{query.sortOrder}" for sortOrder. Must be "asc" or "desc". '
+        order_by_column = getattr(PhotometricSeries, query.sortBy)
+        if isinstance(order_by_column.type, sa.Enum):
+            # enums sort by declaration order, not the alphabetical order users expect
+            order_by_column = case(
+                {name: name for name in order_by_column.type.enums},
+                value=sa.cast(order_by_column, sa.String),
             )
         if query.sortOrder == "desc":
             order_by_column = order_by_column.desc()
