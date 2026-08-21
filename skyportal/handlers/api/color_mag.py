@@ -194,13 +194,6 @@ class ObjColorMagHandler(BaseHandler):
             based on cross-matches to some catalog (default is GAIA).
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve photometry for
         responses:
           200:
             content:
