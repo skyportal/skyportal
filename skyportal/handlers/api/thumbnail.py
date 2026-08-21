@@ -134,13 +134,23 @@ async def post_thumbnail(data, user_id, session):
 
         if survey is not None:
             # Adopt a pre-survey-column legacy row instead of leaving it to be
-            # rendered as a second, same-survey tile alongside this insert.
+            # rendered as a second, same-survey tile alongside this insert. Skip
+            # if a same-survey row already exists: adopting would collide with
+            # it on the unique constraint and raise an uncaught IntegrityError.
+            sibling = sa.orm.aliased(Thumbnail)
             await session.execute(
                 sa.update(Thumbnail)
                 .where(
                     Thumbnail.obj_id == data["obj_id"],
                     Thumbnail.type == data["ttype"],
                     Thumbnail.survey.is_(None),
+                    ~sa.select(sibling.id)
+                    .where(
+                        sibling.obj_id == data["obj_id"],
+                        sibling.type == data["ttype"],
+                        sibling.survey == survey,
+                    )
+                    .exists(),
                 )
                 .values(survey=survey)
             )

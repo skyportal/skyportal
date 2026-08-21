@@ -4,27 +4,13 @@ Revision ID: 02dff366befe
 Revises: d4c17b9e5a02
 Create Date: 2026-08-18
 
-Backfills survey on legacy new/ref/sub thumbnails (added before the survey
-column existed) whose object was later reprocessed under a known survey,
-drops the resulting duplicate rows, and enforces one thumbnail per
-obj/type/survey going forward. See "thumbnails are duplicated for ztf"
-report: rows with survey=NULL and survey='ZTF' for the same obj/type were
-being rendered as separate tiles by the source page.
-
-The backfill only touches a NULL row when a sibling row for the same
-obj/type already carries a real survey value (i.e. the object was
-reprocessed post-migration) - that's the object's own observed survey, not
-a guess. A NULL row with no such sibling is left alone: with only one row
-for that obj/type it isn't rendered as a duplicate, and we don't know it
-was ZTF (LSST/BOOM ingestion may predate this column too).
-
-The dedup DELETE covers every type, not just new/ref/sub: the constraint
-applies table-wide, and a POST accepts any ttype (e.g. new_gz), so a
-duplicate on another type with a non-NULL survey would otherwise fail
-``ADD CONSTRAINT`` and abort the migration. It runs batched and in
-autocommit, and the unique index is built CONCURRENTLY, so this doesn't
-hold a table-wide lock the way a single unbatched DELETE + non-concurrent
-ADD CONSTRAINT would (see 3d9f7a1c2b45 for the same pattern on this table).
+Backfills survey on legacy new/ref/sub rows from their most recent
+same-obj/type sibling (a NULL row with no such sibling is left alone),
+dedupes any remaining (obj_id, type, survey) duplicates table-wide, and
+adds a unique constraint to enforce one thumbnail per survey going
+forward. Batched delete + CONCURRENTLY index build to avoid a table-wide
+lock (see 3d9f7a1c2b45 for the same pattern). Fixes duplicate ZTF tiles
+on the source page.
 """
 
 import sqlalchemy as sa
@@ -42,15 +28,22 @@ DELETE_BATCH_SIZE = 5000
 
 
 def upgrade():
+    # DISTINCT ON picks one deterministic sibling (the most recent) per
+    # obj_id/type: a plain self-join here left the choice up to Postgres when
+    # an obj/type had siblings on two different surveys.
     op.execute(
         """
         UPDATE thumbnails t
-        SET survey = t2.survey
-        FROM thumbnails t2
-        WHERE t.obj_id = t2.obj_id
-          AND t.type = t2.type
+        SET survey = pick.survey
+        FROM (
+            SELECT DISTINCT ON (obj_id, type) obj_id, type, survey
+            FROM thumbnails
+            WHERE survey IS NOT NULL
+            ORDER BY obj_id, type, created_at DESC, id DESC
+        ) pick
+        WHERE t.obj_id = pick.obj_id
+          AND t.type = pick.type
           AND t.survey IS NULL
-          AND t2.survey IS NOT NULL
           AND t.type IN ('new', 'ref', 'sub')
         """
     )
