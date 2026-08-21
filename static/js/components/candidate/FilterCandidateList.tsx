@@ -529,9 +529,8 @@ const FilterCandidateList = ({
       data.localizationDateobs = gcnEventsLookUp[formData.gcneventid]?.dateobs;
       data.localizationName = gcnEventsLookUp[
         formData.gcneventid
-      ]?.localizations?.filter(
-        (l: any) => l.id === formData.localizationid,
-      )[0]?.localization_name;
+      ]?.localizations?.filter((l: any) => l.id === formData.localizationid)[0]
+        ?.localization_name;
       if (formData.localizationCumprob) {
         data.localizationCumprob = formData.localizationCumprob;
       }
