@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-ENV NODE_MAJOR=20
+ENV NODE_MAJOR=26
 ENV PATH="/root/.cargo/bin:${PATH}"
 # Point sncosmo at the vendored data in the skyportal-data submodule (baked in
 # by `ADD . /skyportal`). SNCOSMO_DATA_DIR takes precedence over the config's

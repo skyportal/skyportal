@@ -81,7 +81,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
+          node-version: "26.x"
           package-manager-cache: false
 
       - uses: oven-sh/setup-bun@v2
