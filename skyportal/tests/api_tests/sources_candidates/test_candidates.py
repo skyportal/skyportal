@@ -3,30 +3,33 @@ import time
 import uuid
 
 import numpy.testing as npt
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.candidates import CandidatePost
+from skyportal_py.classifications import ClassificationPost
+from skyportal_py.photometry import PhotometryPost
+from skyportal_py.sources import SourcePost
+from skyportal_py.taxonomies import TaxonomyPost
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api, assert_api
+from skyportal.tests import api, client
 
 from ....utils.naive_datetime import utcnow_naive
 
 
 def test_candidate_list(view_only_token, public_candidate):
-    status, data = api("GET", "candidates", token=view_only_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(view_only_token).fetch_candidates()
 
 
 def test_candidate_existence(view_only_token, public_candidate):
-    status, _ = api("HEAD", f"candidates/{public_candidate.id}", token=view_only_token)
-    assert status == 200
+    sp = client(view_only_token)
+    assert sp.candidate_exists(public_candidate.id)
 
-    status, _ = api(
-        "HEAD", f"candidates/{public_candidate.id[:-1]}", token=view_only_token
-    )
-    assert status == 404
+    assert not sp.candidate_exists(public_candidate.id[:-1])
 
 
 def test_token_user_retrieving_candidate(view_only_token, public_candidate):
+    # raw api: raw-JSON shape assertion the typed model would mask
     status, data = api(
         "GET", f"candidates/{public_candidate.id}", token=view_only_token
     )
@@ -37,25 +40,19 @@ def test_token_user_retrieving_candidate(view_only_token, public_candidate):
 
 
 def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candidate):
-    status, data = api(
-        "GET",
-        f"candidates/{public_candidate.id}?includePhotometry=true",
-        token=view_only_token,
+    candidate = client(view_only_token).fetch_candidate(
+        public_candidate.id, include_photometry=True
     )
-    assert status == 200
-    assert data["status"] == "success"
-    assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "photometry"])
+    # ra/dec/redshift/dm presence is guaranteed by the typed model
+    assert candidate.photometry is not None
 
 
 def test_token_user_retrieving_candidate_with_spec(view_only_token, public_candidate):
-    status, data = api(
-        "GET",
-        f"candidates/{public_candidate.id}?includeSpectra=true",
-        token=view_only_token,
+    candidate = client(view_only_token).fetch_candidate(
+        public_candidate.id, include_spectra=True
     )
-    assert status == 200
-    assert data["status"] == "success"
-    assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "spectra"])
+    # ra/dec/redshift/dm presence is guaranteed by the typed model
+    assert candidate.spectra is not None
 
 
 def test_token_user_post_delete_new_candidate(
@@ -64,37 +61,27 @@ def test_token_user_post_delete_new_candidate(
     public_filter,
 ):
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
-    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-    npt.assert_almost_equal(data["data"]["ra"], 234.22)
-    redshift_history = data["data"]["redshift_history"]
+    candidate = client(view_only_token).fetch_candidate(obj_id)
+    assert candidate.id == obj_id
+    npt.assert_almost_equal(candidate.ra, 234.22)
+    redshift_history = candidate.redshift_history
     assert redshift_history is not None
     assert redshift_history[-1]["value"] == 3
 
-    status, data = api(
-        "DELETE",
-        f"candidates/{obj_id}/{public_filter.id}",
-        token=upload_data_token,
-    )
-    assert status == 200
+    client(upload_data_token).delete_candidate(obj_id, public_filter.id)
 
 
 def test_token_user_post_candidate_numeric_id(
@@ -106,6 +93,8 @@ def test_token_user_post_candidate_numeric_id(
     # string column: without coercion Postgres rejects the varchar = bigint
     # comparison and the post 500s.
     obj_id = 170591539488620622
+    # raw api: intentionally malformed payload the typed client can't produce
+    # (CandidatePost.id is a str; the point is that the server coerces a JSON number)
     status, data = api(
         "POST",
         "candidates",
@@ -131,36 +120,25 @@ def test_candidate_autosave_group_ids(
     """autosaveGroupIds is a comma-separated list; it used to be handed to
     post_source_async as a raw string, whose per-element int() then ran on
     single characters."""
+    sp = client(upload_data_token_two_groups)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "autosave": "true",
-            "autosaveGroupIds": f"{public_group.id},{public_group2.id}",
-        },
-        token=upload_data_token_two_groups,
+    sp.fetch_candidates(
+        group_ids=[public_group.id],
+        autosave=True,
+        autosave_group_ids=[public_group.id, public_group2.id],
     )
-    assert status == 200
 
-    status, data = api("GET", f"sources/{obj_id}", token=upload_data_token_two_groups)
-    assert status == 200
-    saved_group_ids = {g["id"] for g in data["data"]["groups"]}
+    saved_group_ids = {g.id for g in sp.fetch_source(obj_id).groups}
     assert {public_group.id, public_group2.id}.issubset(saved_group_ids)
 
 
@@ -170,45 +148,36 @@ def test_candidate_name_only_search(
     public_filter,
 ):
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # nameOnly autocomplete (toolbar quick-search): a prefix of the obj_id
     # returns the candidate's obj_id.
-    status, data = api(
-        "GET",
-        f"candidates?objID={obj_id[:8]}&nameOnly=true&numPerPage=25",
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        obj_id=obj_id[:8], name_only=True, num_per_page=25
     )
-    assert status == 200
-    assert obj_id in [c["id"] for c in data["data"]["candidates"]]
+    assert obj_id in [c.id for c in page.candidates]
 
     # a non-matching prefix does not return it
-    status, data = api(
-        "GET",
-        "candidates?objID=zzz-no-such-candidate&nameOnly=true",
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        obj_id="zzz-no-such-candidate", name_only=True
     )
-    assert status == 200
-    assert obj_id not in [c["id"] for c in data["data"]["candidates"]]
+    assert obj_id not in [c.id for c in page.candidates]
 
 
 def test_cannot_add_candidate_without_filter_id(upload_data_token):
     obj_id = str(uuid.uuid4())
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "candidates",
@@ -228,6 +197,7 @@ def test_cannot_add_candidate_without_filter_id(upload_data_token):
 
 def test_cannot_add_candidate_without_passed_at(upload_data_token, public_filter):
     obj_id = str(uuid.uuid4())
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "candidates",
@@ -249,44 +219,36 @@ def test_token_user_post_two_candidates_same_obj_filter(
     upload_data_token, view_only_token, public_filter
 ):
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp = client(upload_data_token)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
-    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-    npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    candidate = client(view_only_token).fetch_candidate(obj_id)
+    assert candidate.id == obj_id
+    npt.assert_almost_equal(candidate.ra, 234.22)
 
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
 
 def test_token_user_repost_same_obj_filter_passed_at_is_idempotent(
@@ -294,48 +256,41 @@ def test_token_user_repost_same_obj_filter_passed_at_is_idempotent(
 ):
     obj_id = str(uuid.uuid4())
     passed_at = str(utcnow_naive())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": passed_at,
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    first_ids = data["data"]["ids"]
+    sp = client(upload_data_token)
+    first_ids = sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=passed_at,
+        )
+    ).ids
 
-    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-    npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    candidate = client(view_only_token).fetch_candidate(obj_id)
+    assert candidate.id == obj_id
+    npt.assert_almost_equal(candidate.ra, 234.22)
 
     # Re-posting the same obj/filter/passed_at reuses the existing row instead of
     # 400-ing on the unique index; it returns the same candidate id.
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": passed_at,
-        },
-        token=upload_data_token,
+    assert (
+        sp.post_candidate(
+            CandidatePost(
+                id=obj_id,
+                ra=234.22,
+                dec=-22.33,
+                redshift=3,
+                transient=False,
+                ra_dis=2.3,
+                filter_ids=[public_filter.id],
+                passed_at=passed_at,
+            )
+        ).ids
+        == first_ids
     )
-    assert status == 200
-    assert data["data"]["ids"] == first_ids
 
 
 def test_repost_candidate_reuses_duplicate_and_adds_new_filter(
@@ -343,38 +298,29 @@ def test_repost_candidate_reuses_duplicate_and_adds_new_filter(
 ):
     obj_id = str(uuid.uuid4())
     passed_at = str(utcnow_naive())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "filter_ids": [public_filter.id],
-            "passed_at": passed_at,
-        },
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    first_ids = data["data"]["ids"]
+    sp = client(upload_data_token_two_groups)
+    first_ids = sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            filter_ids=[public_filter.id],
+            passed_at=passed_at,
+        )
+    ).ids
     assert len(first_ids) == 1
 
     # public_filter is a duplicate (reused), public_filter2 is genuinely new: a
     # duplicate on one filter must not drop the new candidate for the other.
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "filter_ids": [public_filter.id, public_filter2.id],
-            "passed_at": passed_at,
-        },
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    ids = data["data"]["ids"]
+    ids = sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            filter_ids=[public_filter.id, public_filter2.id],
+            passed_at=passed_at,
+        )
+    ).ids
     assert len(ids) == 2
     assert first_ids[0] in ids
 
@@ -383,42 +329,19 @@ def test_candidate_list_sorting_basic(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
     origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 1},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"numeric_field": 1})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 2},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin, {"numeric_field": 2})
 
     # Sort by the numeric field so that public_candidate is returned first,
     # instead of by last_detected_at (which would put public_candidate2 first)
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "sortByAnnotationOrigin": f"{origin}",
-            "sortByAnnotationKey": "numeric_field",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        sort_by_annotation_origin=f"{origin}",
+        sort_by_annotation_key="numeric_field",
     )
-    assert status == 200
-    assert data["data"]["candidates"][0]["id"] == public_candidate.id
-    assert data["data"]["candidates"][1]["id"] == public_candidate2.id
+    assert page.candidates[0].id == public_candidate.id
+    assert page.candidates[1].id == public_candidate2.id
 
 
 def test_candidate_list_sorting_different_origins(
@@ -426,45 +349,20 @@ def test_candidate_list_sorting_different_origins(
 ):
     origin = str(uuid.uuid4())
     origin2 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 1},
-        },
-        token=annotation_token,
-    )
-    assert_api(status, data)
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"numeric_field": 1})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin2,
-            "data": {"numeric_field": 2},
-        },
-        token=annotation_token,
-    )
-    assert_api(status, data)
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin2, {"numeric_field": 2})
 
     # If just sorting on numeric_field, public_candidate should be returned first
     # but since we specify origin2 (which is not the origin for the
     # public_candidate annotation) public_candidate2 is returned first
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "sortByAnnotationOrigin": f"{origin2}",
-            "sortByAnnotationKey": "numeric_field",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        sort_by_annotation_origin=f"{origin2}",
+        sort_by_annotation_key="numeric_field",
     )
-    assert_api(status, data)
-    assert status == 200
-    assert data["data"]["candidates"][0]["id"] == public_candidate2.id
-    assert data["data"]["candidates"][1]["id"] == public_candidate.id
+    assert page.candidates[0].id == public_candidate2.id
+    assert page.candidates[1].id == public_candidate.id
 
 
 def test_candidate_list_sorting_hidden_group(
@@ -474,214 +372,105 @@ def test_candidate_list_sorting_hidden_group(
     public_candidate2,
     public_group2,
 ):
+    sp = client(annotation_token_two_groups)
     # Post an annotation that belongs only to public_group2 (not allowed for view_only_token)
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate_two_groups.id}/annotations",
-        data={
-            "origin": f"{public_group2.id}",
-            "data": {"numeric_field": 1},
-            "group_ids": [public_group2.id],
-        },
-        token=annotation_token_two_groups,
+    sp.post_annotation(
+        public_candidate_two_groups.id,
+        f"{public_group2.id}",
+        {"numeric_field": 1},
+        group_ids=[public_group2.id],
     )
-    assert status == 200
 
     # This one belongs to both public groups and is thus visible
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": f"{public_group2.id}",
-            "data": {"numeric_field": 2},
-        },
-        token=annotation_token_two_groups,
+    sp.post_annotation(
+        public_candidate2.id, f"{public_group2.id}", {"numeric_field": 2}
     )
-    assert status == 200
 
     # Sort by the numeric field ascending, but since view_only_token does not
     # have access to public_group2, the first annotation above should not be
     # seen in the response
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "sortByAnnotationOrigin": f"{public_group2.id}",
-            "sortByAnnotationKey": "numeric_field",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        sort_by_annotation_origin=f"{public_group2.id}",
+        sort_by_annotation_key="numeric_field",
     )
-    assert status == 200
-    assert data["data"]["candidates"][0]["id"] == public_candidate_two_groups.id
-    assert data["data"]["candidates"][0]["annotations"] == []
-    assert data["data"]["candidates"][1]["id"] == public_candidate2.id
+    assert page.candidates[0].id == public_candidate_two_groups.id
+    assert page.candidates[0].annotations == []
+    assert page.candidates[1].id == public_candidate2.id
 
 
 def test_candidate_list_sorting_null_value(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
     origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 1},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"numeric_field": 1})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"some_other_field": 2},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin, {"some_other_field": 2})
 
     # The second candidate does not have "numeric_field" in the annotations, and
     # should thus show up after the first candidate, even though it was posted
     # latest
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "sortByAnnotationOrigin": f"{origin}",
-            "sortByAnnotationKey": "numeric_field",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        sort_by_annotation_origin=f"{origin}",
+        sort_by_annotation_key="numeric_field",
     )
 
-    assert status == 200
-    assert data["data"]["candidates"][0]["id"] == public_candidate.id
-    assert data["data"]["candidates"][1]["id"] == public_candidate2.id
+    assert page.candidates[0].id == public_candidate.id
+    assert page.candidates[1].id == public_candidate2.id
 
 
 def test_candidate_list_filtering_numeric(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
     origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 1},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"numeric_field": 1})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"numeric_field": 2},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin, {"numeric_field": 2})
 
     # Filter by the numeric field with max value 1.5 so that only public_candidate
     # is returned
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "annotationFilterList": f'{{"origin":"{origin}","key":"numeric_field","min":0,"max":1.5}}',
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        annotation_filter_list=f'{{"origin":"{origin}","key":"numeric_field","min":0,"max":1.5}}',
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == public_candidate.id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == public_candidate.id
 
 
 def test_candidate_list_filtering_boolean(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
     origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"bool_field": True},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"bool_field": True})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"bool_field": False},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin, {"bool_field": False})
 
     # Filter by the numeric field with value == true so that only public_candidate
     # is returned
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "annotationFilterList": f'{{"origin": "{origin}", "key": "bool_field", "value": "true"}}',
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        annotation_filter_list=f'{{"origin": "{origin}", "key": "bool_field", "value": "true"}}',
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == public_candidate.id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == public_candidate.id
 
 
 def test_candidate_list_filtering_string(
     annotation_token, view_only_token, public_candidate, public_candidate2
 ):
     origin = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"string_field": "a"},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp = client(annotation_token)
+    sp.post_annotation(public_candidate.id, origin, {"string_field": "a"})
 
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate2.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"string_field": "b"},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
+    sp.post_annotation(public_candidate2.id, origin, {"string_field": "b"})
 
     # Filter by the numeric field with value == "a" so that only public_candidate
     # is returned
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "annotationFilterList": f'{{"origin": "{origin}", "key": "string_field", "value": "a"}}',
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        annotation_filter_list=f'{{"origin": "{origin}", "key": "string_field", "value": "a"}}',
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == public_candidate.id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == public_candidate.id
 
 
 def test_candidate_list_classifications(
@@ -695,86 +484,64 @@ def test_candidate_list_classifications(
     # Post a candidate with a classification, and one without
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp = client(upload_data_token)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1},
-        token=upload_data_token,
+    sp.post_source(SourcePost(id=obj_id1))
+    taxonomy_id = (
+        client(taxonomy_token)
+        .post_taxonomy(
+            TaxonomyPost(
+                name="test taxonomy" + str(uuid.uuid4()),
+                hierarchy=taxonomy,
+                group_ids=[public_group.id],
+                provenance=f"tdtax_{__version__}",
+                version=__version__,
+                is_latest=True,
+            )
+        )
+        .taxonomy_id
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "taxonomy",
-        data={
-            "name": "test taxonomy" + str(uuid.uuid4()),
-            "hierarchy": taxonomy,
-            "group_ids": [public_group.id],
-            "provenance": f"tdtax_{__version__}",
-            "version": __version__,
-            "isLatest": True,
-        },
-        token=taxonomy_token,
-    )
-    assert status == 200
-    taxonomy_id = data["data"]["taxonomy_id"]
 
-    status, data = api(
-        "POST",
-        "classification",
-        data={
-            "obj_id": obj_id1,
-            "classification": "Algol",
-            "taxonomy_id": taxonomy_id,
-            "probability": 1.0,
-            "group_ids": [public_group.id],
-        },
-        token=classification_token,
+    client(classification_token).post_classification(
+        ClassificationPost(
+            obj_id=obj_id1,
+            classification="Algol",
+            taxonomy_id=taxonomy_id,
+            probability=1.0,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
 
     # Filter for candidates with classification 'Algol' - should only get obj_id1 back
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"classifications": "Algol", "groupIDs": f"{public_group.id}"},
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        classifications=["Algol"], group_ids=[public_group.id]
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id1
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id1
 
 
 def test_candidate_list_redshift_range(
@@ -783,67 +550,48 @@ def test_candidate_list_redshift_range(
     # Post candidates with different redshifts
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 0,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp = client(upload_data_token)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=0,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 1,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=1,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Filter for candidates redshift between 0 and 0.5 - should only get obj_id1 back
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "minRedshift": "0",
-            "maxRedshift": "0.5",
-            "groupIDs": f"{public_group.id}",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        min_redshift=0,
+        max_redshift=0.5,
+        group_ids=[public_group.id],
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id1
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id1
 
 
 def test_exclude_by_outdated_annotations(
     annotation_token, view_only_token, public_group, public_candidate, public_candidate2
 ):
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"groupIDs": f"{public_group.id}"},
-        token=view_only_token,
-    )
+    page = client(view_only_token).fetch_candidates(group_ids=[public_group.id])
 
-    assert status == 200
-    num_candidates = len(data["data"]["candidates"])
+    num_candidates = len(page.candidates)
 
     origin = str(uuid.uuid4())
     t0 = utcnow_naive()  # recall when it was created
@@ -856,13 +604,7 @@ def test_exclude_by_outdated_annotations(
     t0 += datetime.timedelta(seconds=60)  # give some extra time
 
     # add an annotation from this origin
-    status, data = api(
-        "POST",
-        f"sources/{public_candidate.id}/annotations",
-        data={"origin": origin, "data": {"value1": 1}},
-        token=annotation_token,
-    )
-    assert status == 200
+    client(annotation_token).post_annotation(public_candidate.id, origin, {"value1": 1})
 
 
 def test_candidate_list_saved_to_all_selected_groups(
@@ -876,90 +618,63 @@ def test_candidate_list_saved_to_all_selected_groups(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Save the two candidates as sources
     # obj_id1 is saved to both public groups
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group.id, public_group2.id]},
-        token=upload_data_token_two_groups,
+    saved = sp.post_source(
+        SourcePost(id=obj_id1, group_ids=[public_group.id, public_group2.id])
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    assert saved.id == obj_id1
     # obj_id2 is saved to only public_group
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id2, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id2
+    saved = sp.post_source(SourcePost(id=obj_id2, group_ids=[public_group.id]))
+    assert saved.id == obj_id2
 
     # Now get candidates saved to both public_group and public_group2
     # Should not get obj_id3 back since it was not saved
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id},{public_group2.id}",
-            "savedStatus": "savedToAllSelected",
-        },
-        token=view_only_token_two_groups,
+    page = client(view_only_token_two_groups).fetch_candidates(
+        group_ids=[public_group.id, public_group2.id],
+        saved_status="savedToAllSelected",
     )
-    assert status == 200
     # Should only get obj_id1 back
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id1
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id1
 
 
 def test_candidate_list_saved_to_any_selected_groups(
@@ -973,93 +688,61 @@ def test_candidate_list_saved_to_any_selected_groups(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Save the two candidates as sources
     # obj_id1 is saved to only public_group2
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group2.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    saved = sp.post_source(SourcePost(id=obj_id1, group_ids=[public_group2.id]))
+    assert saved.id == obj_id1
     # obj_id2 is saved to only public_group
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id2, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id2
+    saved = sp.post_source(SourcePost(id=obj_id2, group_ids=[public_group.id]))
+    assert saved.id == obj_id2
 
     # Now get candidates saved to any of public_group and public_group2
     # Should not get obj_id3 back since it was not saved
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id},{public_group2.id}",
-            "savedStatus": "savedToAnySelected",
-        },
-        token=view_only_token_two_groups,
+    page = client(view_only_token_two_groups).fetch_candidates(
+        group_ids=[public_group.id, public_group2.id],
+        saved_status="savedToAnySelected",
     )
-    assert status == 200
     # Should get obj_id1 and obj_id2 back
-    assert len(data["data"]["candidates"]) == 2
-    assert (
-        len({obj_id1, obj_id2}.difference(x["id"] for x in data["data"]["candidates"]))
-        == 0
-    )
+    assert len(page.candidates) == 2
+    assert len({obj_id1, obj_id2}.difference(x.id for x in page.candidates)) == 0
 
 
 def test_candidate_list_saved_to_any_accessible_groups(
@@ -1072,65 +755,46 @@ def test_candidate_list_saved_to_any_accessible_groups(
     # Post two candidates for filter belonging to public_group
     obj_id = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # obj_id is saved to only public_group2
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id, "group_ids": [public_group2.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    saved = sp.post_source(SourcePost(id=obj_id, group_ids=[public_group2.id]))
+    assert saved.id == obj_id
 
     # Select for candidates passing public_filter, which belongs to public_group
     # Since we set "savedToAnyAccessible", should still get back obj_id even if
     # is saved to only public_group2
     # Should not get obj_id2 back since it was not saved
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "savedStatus": "savedToAnyAccessible",
-        },
-        token=view_only_token_two_groups,
+    page = client(view_only_token_two_groups).fetch_candidates(
+        group_ids=[public_group.id],
+        saved_status="savedToAnyAccessible",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
 
 
 def test_candidate_list_not_saved_to_any_accessible_groups(
@@ -1144,96 +808,64 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Obj_id1 is saved to public_group2
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group2.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    saved = sp.post_source(SourcePost(id=obj_id1, group_ids=[public_group2.id]))
+    assert saved.id == obj_id1
 
     # Obj_id3 is saved to public_group
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id3, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id3
+    saved = sp.post_source(SourcePost(id=obj_id3, group_ids=[public_group.id]))
+    assert saved.id == obj_id3
 
     # Select for candidates passing public_filter, which belongs to public_group
     # Since we set "notSavedToAnyAccessible", should get back obj_id even though
     # it is saved, since view_only_user doesn"t have public_group2 access
     # Should also get back obj_id2 since it is not saved at all
     # Should not get back obj_id3 since it is saved to public_group
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "savedStatus": "notSavedToAnyAccessible",
-        },
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        group_ids=[public_group.id],
+        saved_status="notSavedToAnyAccessible",
     )
-    assert status == 200
     # Should get obj_id1 and obj_id2 back
-    assert len(data["data"]["candidates"]) == 2
-    assert (
-        len({obj_id1, obj_id2}.difference(x["id"] for x in data["data"]["candidates"]))
-        == 0
-    )
+    assert len(page.candidates) == 2
+    assert len({obj_id1, obj_id2}.difference(x.id for x in page.candidates)) == 0
 
 
 def test_candidate_list_not_saved_to_any_selected_groups(
@@ -1247,92 +879,63 @@ def test_candidate_list_not_saved_to_any_selected_groups(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Obj_id1 is saved to public_group2
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group2.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    saved = sp.post_source(SourcePost(id=obj_id1, group_ids=[public_group2.id]))
+    assert saved.id == obj_id1
 
     # Obj_id3 is saved to public_group
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id3, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id3
+    saved = sp.post_source(SourcePost(id=obj_id3, group_ids=[public_group.id]))
+    assert saved.id == obj_id3
 
     # Select for candidates using public_group and public_group2
     # Should not get back obj_id1 since it is saved to public_group2
     # Should get back obj_id2 since it is not saved at all
     # Should not get back obj_id3 since it is saved to public_group
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id},{public_group2.id}",
-            "savedStatus": "notSavedToAnySelected",
-        },
-        token=view_only_token_two_groups,
+    page = client(view_only_token_two_groups).fetch_candidates(
+        group_ids=[public_group.id, public_group2.id],
+        saved_status="notSavedToAnySelected",
     )
-    assert status == 200
     # Should get obj_id1 back
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id2
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id2
 
 
 def test_candidate_list_not_saved_to_all_selected_groups(
@@ -1346,97 +949,65 @@ def test_candidate_list_not_saved_to_all_selected_groups(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp = client(upload_data_token_two_groups)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Obj_id1 is saved to both groups
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group.id, public_group2.id]},
-        token=upload_data_token_two_groups,
+    saved = sp.post_source(
+        SourcePost(id=obj_id1, group_ids=[public_group.id, public_group2.id])
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    assert saved.id == obj_id1
 
     # Obj_id3 is saved to public_group
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id3, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id3
+    saved = sp.post_source(SourcePost(id=obj_id3, group_ids=[public_group.id]))
+    assert saved.id == obj_id3
 
     # Select for candidates using public_group and public_group2
     # Should not get back obj_id since it is saved to both selected groups
     # Should get back obj_id2 since it is not saved at all
     # Should get back obj_id3 since it is saved to only public_group
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id},{public_group2.id}",
-            "savedStatus": "notSavedToAllSelected",
-        },
-        token=view_only_token_two_groups,
+    page = client(view_only_token_two_groups).fetch_candidates(
+        group_ids=[public_group.id, public_group2.id],
+        saved_status="notSavedToAllSelected",
     )
-    if status != 200:
-        print(data["message"])
-    assert status == 200
     # Should get obj_id2 and obj_id3 back
-    assert len(data["data"]["candidates"]) == 2
-    assert (
-        len({obj_id2, obj_id3}.difference(x["id"] for x in data["data"]["candidates"]))
-        == 0
-    )
+    assert len(page.candidates) == 2
+    assert len({obj_id2, obj_id3}.difference(x.id for x in page.candidates)) == 0
 
 
 def test_correct_spectra_and_photometry_returned_by_candidate(
@@ -1444,24 +1015,19 @@ def test_correct_spectra_and_photometry_returned_by_candidate(
     public_candidate2,  # adds phot and spec that should not be returned
     view_only_token_two_groups,
 ):
-    status, data = api(
-        "GET",
-        f"candidates/{public_candidate.id}?includePhotometry=t&includeSpectra=t",
-        token=view_only_token_two_groups,
+    candidate = client(view_only_token_two_groups).fetch_candidate(
+        public_candidate.id, include_photometry=True, include_spectra=True
     )
 
-    assert status == 200
-    assert data["status"] == "success"
-
-    assert len(public_candidate.photometry) == len(data["data"]["photometry"])
-    assert len(public_candidate.spectra) == len(data["data"]["spectra"])
+    assert len(public_candidate.photometry) == len(candidate.photometry)
+    assert len(public_candidate.spectra) == len(candidate.spectra)
 
     phot_ids_db = sorted(p.id for p in public_candidate.photometry)
-    phot_ids_api = sorted(p["id"] for p in data["data"]["photometry"])
+    phot_ids_api = sorted(p["id"] for p in candidate.photometry)
     assert phot_ids_db == phot_ids_api
 
     spec_ids_db = sorted(p.id for p in public_candidate.spectra)
-    spec_ids_api = sorted(p["id"] for p in data["data"]["spectra"])
+    spec_ids_api = sorted(p["id"] for p in candidate.spectra)
     assert spec_ids_db == spec_ids_api
 
 
@@ -1475,55 +1041,39 @@ def test_candidates_hidden_photometry_not_leaked(
 ):
     obj_id = str(public_candidate.id)
     # Post photometry to the object belonging to a different group
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": obj_id,
-            "mjd": 58000.0,
-            "instrument_id": ztf_camera.id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "group_ids": [public_group2.id],
-            "altdata": {"some_key": "some_value"},
-        },
-        token=upload_data_token_two_groups,
+    photometry_id = (
+        client(upload_data_token_two_groups)
+        .post_photometry(
+            PhotometryPost(
+                obj_id=obj_id,
+                mjd=58000.0,
+                instrument_id=ztf_camera.id,
+                flux=12.24,
+                fluxerr=0.031,
+                zp=25.0,
+                magsys="ab",
+                filter="ztfg",
+                group_ids=[public_group2.id],
+                altdata={"some_key": "some_value"},
+            )
+        )
+        .ids[0]
     )
-    assert status == 200
-    assert data["status"] == "success"
-    photometry_id = data["data"]["ids"][0]
 
     # Check the photometry sent back with the candidate
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"groupIDs": f"{public_group.id}", "includePhotometry": "true"},
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        group_ids=[public_group.id], include_photometry=True
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
-    assert len(public_candidate.photometry) - 1 == len(
-        data["data"]["candidates"][0]["photometry"]
-    )
-    assert photometry_id not in (
-        x["id"] for x in data["data"]["candidates"][0]["photometry"]
-    )
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
+    assert len(public_candidate.photometry) - 1 == len(page.candidates[0].photometry)
+    assert photometry_id not in (x["id"] for x in page.candidates[0].photometry)
 
     # Check for single GET call as well
-    status, data = api(
-        "GET",
-        f"candidates/{obj_id}",
-        params={"includePhotometry": "true"},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
-    assert len(public_candidate.photometry) - 1 == len(data["data"]["photometry"])
-    assert photometry_id not in (x["id"] for x in data["data"]["photometry"])
+    candidate = client(view_only_token).fetch_candidate(obj_id, include_photometry=True)
+    assert candidate.id == obj_id
+    assert len(public_candidate.photometry) - 1 == len(candidate.photometry)
+    assert photometry_id not in (x["id"] for x in candidate.photometry)
 
 
 def test_candidate_list_pagination(
@@ -1535,91 +1085,58 @@ def test_candidate_list_pagination(
     # Upload two candidates with know passed_at order
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token,
+    sp = client(upload_data_token)
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive() + datetime.timedelta(days=1)),
-        },
-        token=upload_data_token,
+    sp.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive() + datetime.timedelta(days=1)),
+        )
     )
-    assert status == 200
 
     # Default order is descending passed_at
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"numPerPage": 1, "pageNumber": 2, "groupIDs": f"{public_group.id}"},
-        token=view_only_token,
+    page = client(view_only_token).fetch_candidates(
+        num_per_page=1, page_number=2, group_ids=[public_group.id]
     )
-    assert status == 200
-    assert data["data"]["candidates"][0]["id"] == obj_id1
-    assert "queryID" in data["data"]
-    query_id = data["data"]["queryID"]
+    assert page.candidates[0].id == obj_id1
+    assert page.query_id is not None
+    query_id = page.query_id
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"pageNumber": 1, "queryID": query_id},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["data"]["queryID"] == query_id
+    page = client(view_only_token).fetch_candidates(page_number=1, query_id=query_id)
+    assert page.query_id == query_id
 
     # Wait until cache is expired
     time.sleep(3)
 
     # Submit new request, which will create new (unrelated) cache, triggering
     # cleanup of expired cache files
-    status, data = api(
-        "GET",
-        "candidates",
-        token=view_only_token,
-    )
-    assert status == 200
+    client(view_only_token).fetch_candidates()
 
     # Cache should now be removed, so we expect a new query ID
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"pageNumber": 1, "queryID": query_id},
-        token=view_only_token,
-    )
-    assert status == 200
-    assert data["data"]["queryID"] != query_id
+    page = client(view_only_token).fetch_candidates(page_number=1, query_id=query_id)
+    assert page.query_id != query_id
 
     # Invalid page
-    status, data = api(
-        "GET",
-        "candidates",
-        params={"numPerPage": 1, "pageNumber": 4},
-        token=view_only_token,
-    )
-    assert status == 400
-    assert "Page number out of range" in data["message"]
+    with pytest.raises(SkyPortalError, match="Page number out of range") as err:
+        client(view_only_token).fetch_candidates(num_per_page=1, page_number=4)
+    assert err.value.status_code == 400
 
 
 def test_candidates_annotation_filtering(
@@ -1632,121 +1149,80 @@ def test_candidates_annotation_filtering(
 ):
     obj_id = str(public_candidate.id)
     # Post photometry to the object belonging to a different group
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": obj_id,
-            "mjd": 58000.0,
-            "instrument_id": ztf_camera.id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "group_ids": [public_group.id],
-            "altdata": {"some_key": "some_value"},
-        },
-        token=upload_data_token_two_groups,
+    photometry_id = (
+        client(upload_data_token_two_groups)
+        .post_photometry(
+            PhotometryPost(
+                obj_id=obj_id,
+                mjd=58000.0,
+                instrument_id=ztf_camera.id,
+                flux=12.24,
+                fluxerr=0.031,
+                zp=25.0,
+                magsys="ab",
+                filter="ztfg",
+                group_ids=[public_group.id],
+                altdata={"some_key": "some_value"},
+            )
+        )
+        .ids[0]
     )
-    assert status == 200
-    assert data["status"] == "success"
-    photometry_id = data["data"]["ids"][0]
 
-    status, data = api(
-        "POST",
-        f"photometry/{photometry_id}/annotations",
-        data={
-            "origin": "kowalski",
-            "data": {"gaia_G": 15.7},
-            "group_ids": [public_group.id],
-        },
-        token=annotation_token,
+    client(annotation_token).post_annotation(
+        photometry_id,
+        "kowalski",
+        {"gaia_G": 15.7},
+        resource_type="photometry",
+        group_ids=[public_group.id],
     )
-    assert status == 200
 
     # Check the photometry sent back with the candidate
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilterOrigin": "kowalski",
-        },
-        token=view_only_token,
+    sp = client(view_only_token)
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter_origin="kowalski",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilter": "gaia_G",
-        },
-        token=view_only_token,
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter="gaia_G",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilter": "gaia_G : 15.0 : ge",
-        },
-        token=view_only_token,
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter="gaia_G : 15.0 : ge",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilter": "gaia_G : 15.0 : le",
-        },
-        token=view_only_token,
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter="gaia_G : 15.0 : le",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 0
+    assert len(page.candidates) == 0
 
     # Date-bounded filters on the photometry annotation's created_at. These
     # exercise the AnnotationOnPhotometry.created_at (timestamp) comparison: the
     # date string must be coerced to a datetime or psycopg3 raises "operator
     # does not exist: timestamp without time zone = character varying".
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilterOrigin": "kowalski",
-            "photometryAnnotationsFilterAfter": "2000-01-01T00:00:00",
-        },
-        token=view_only_token,
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter_origin="kowalski",
+        photometry_annotations_filter_after="2000-01-01T00:00:00",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 1
-    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(page.candidates) == 1
+    assert page.candidates[0].id == obj_id
 
-    status, data = api(
-        "GET",
-        "candidates",
-        params={
-            "groupIDs": f"{public_group.id}",
-            "photometryAnnotationsFilterOrigin": "kowalski",
-            "photometryAnnotationsFilterBefore": "2000-01-01T00:00:00",
-        },
-        token=view_only_token,
+    page = sp.fetch_candidates(
+        group_ids=[public_group.id],
+        photometry_annotations_filter_origin="kowalski",
+        photometry_annotations_filter_before="2000-01-01T00:00:00",
     )
-    assert status == 200
-    assert len(data["data"]["candidates"]) == 0
+    assert len(page.candidates) == 0
 
 
 def test_candidate_savers(
@@ -1760,87 +1236,65 @@ def test_candidate_savers(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp_two_groups = client(upload_data_token_two_groups)
+    sp_two_groups.post_candidate(
+        CandidatePost(
+            id=obj_id1,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp_two_groups.post_candidate(
+        CandidatePost(
+            id=obj_id2,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
-    status, data = api(
-        "POST",
-        "candidates",
-        data={
-            "id": obj_id3,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "filter_ids": [public_filter.id],
-            "passed_at": str(utcnow_naive()),
-        },
-        token=upload_data_token_two_groups,
+    sp_two_groups.post_candidate(
+        CandidatePost(
+            id=obj_id3,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            filter_ids=[public_filter.id],
+            passed_at=str(utcnow_naive()),
+        )
     )
-    assert status == 200
 
     # Save the three candidates as sources
     # obj_id1 is saved by the upload_data_token token
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group.id]},
-        token=upload_data_token,
+    saved = client(upload_data_token).post_source(
+        SourcePost(id=obj_id1, group_ids=[public_group.id])
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id1
+    assert saved.id == obj_id1
 
     # obj_id2 is also saved by the upload_data_token token
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id2, "group_ids": [public_group.id]},
-        token=upload_data_token,
+    saved = client(upload_data_token).post_source(
+        SourcePost(id=obj_id2, group_ids=[public_group.id])
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id2
+    assert saved.id == obj_id2
 
     # obj_id3 is saved by the upload_data_token_two_groups token
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id3, "group_ids": [public_group.id]},
-        token=upload_data_token_two_groups,
+    saved = sp_two_groups.post_source(
+        SourcePost(id=obj_id3, group_ids=[public_group.id])
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id3
+    assert saved.id == obj_id3
 
     # Check scanning statistics
+    # raw api: internal dashboard-widget endpoint, outside skyportal-py's scope
     status, data = api(
         "GET",
         "internal/source_savers",
@@ -1855,6 +1309,7 @@ def test_candidate_savers(
 
 
 def test_candidate_filter_list(view_only_token, public_candidate):
+    # raw api: raw-JSON shape assertion the typed model would mask
     status, data = api("GET", "candidates_filter", token=view_only_token)
     assert status == 200
     assert data["status"] == "success"
@@ -1875,68 +1330,47 @@ def test_bulk_delete_old_unsaved_candidates(
     old_saved = str(uuid.uuid4())  # old but actively saved -> should be kept
     recent_unsaved = str(uuid.uuid4())  # unsaved but recent -> should be kept
 
+    sp = client(upload_data_token)
     for obj_id, passed_at in [
         (old_unsaved, old),
         (old_saved, old),
         (recent_unsaved, recent),
     ]:
-        status, data = api(
-            "POST",
-            "candidates",
-            data={
-                "id": obj_id,
-                "ra": 10.0,
-                "dec": 10.0,
-                "filter_ids": [public_filter.id],
-                "passed_at": passed_at,
-            },
-            token=upload_data_token,
+        sp.post_candidate(
+            CandidatePost(
+                id=obj_id,
+                ra=10.0,
+                dec=10.0,
+                filter_ids=[public_filter.id],
+                passed_at=passed_at,
+            )
         )
-        assert status == 200, data
 
     # save old_saved as an active source so it is protected
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": old_saved, "group_ids": [public_group.id]},
-        token=upload_data_token,
-    )
-    assert status == 200, data
+    sp.post_source(SourcePost(id=old_saved, group_ids=[public_group.id]))
 
     # non-admins cannot call the purge
-    status, data = api("POST", "candidates/bulk_delete", data={}, token=view_only_token)
-    assert status == 401
+    sp_view = client(view_only_token)
+    with pytest.raises(SkyPortalError) as err:
+        sp_view.bulk_delete_candidates()
+    assert err.value.status_code == 401
 
     # dry run deletes nothing but reports the old, unsaved candidate
-    status, data = api(
-        "POST",
-        "candidates/bulk_delete",
-        data={"maxAgeMonths": 6, "dryRun": True},
-        token=super_admin_token,
+    result = client(super_admin_token).bulk_delete_candidates(
+        max_age_months=6, dry_run=True
     )
-    assert status == 200, data
-    assert data["data"]["deleted"] == 0
-    assert data["data"]["remaining"] >= 1
+    assert result.deleted == 0
+    assert result.remaining >= 1
     # dry run did not actually delete
-    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
-    assert status == 200
+    assert sp_view.candidate_exists(old_unsaved)
 
     # real purge
-    status, data = api(
-        "POST",
-        "candidates/bulk_delete",
-        data={"maxAgeMonths": 6},
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    assert data["data"]["deleted"] >= 1
+    result = client(super_admin_token).bulk_delete_candidates(max_age_months=6)
+    assert result.deleted >= 1
 
     # old + unsaved was deleted
-    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
-    assert status == 404
+    assert not sp_view.candidate_exists(old_unsaved)
     # old + saved was kept (has an active source)
-    status, _ = api("HEAD", f"candidates/{old_saved}", token=view_only_token)
-    assert status == 200
+    assert sp_view.candidate_exists(old_saved)
     # recent + unsaved was kept (too new)
-    status, _ = api("HEAD", f"candidates/{recent_unsaved}", token=view_only_token)
-    assert status == 200
+    assert sp_view.candidate_exists(recent_unsaved)

@@ -1,26 +1,22 @@
 import uuid
 
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 
 def test_obj_photometry(upload_data_token, public_source):
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 200
+    sp = client(upload_data_token)
+    sp.fetch_photometry(public_source.id)
 
     obj_id = str(uuid.uuid4())
 
     # try a non-existent source
-    status, data = api(
-        "GET",
-        f"sources/{obj_id}/photometry",
-        token=upload_data_token,
-    )
-    assert status == 403
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_photometry(obj_id)
+    assert err.value.status_code == 403
     assert (
-        data["message"]
+        str(err.value)
         == f"Insufficient permissions for User {upload_data_token} to read Obj {obj_id}"
     )

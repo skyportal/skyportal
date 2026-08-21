@@ -3,6 +3,7 @@ from skyportal.tests import api
 
 
 def test_versioned_request(view_only_token, public_source):
+    # raw api: raw-JSON envelope ("version") assertion the typed client would mask
     response = api(
         "GET", "sources/{public_source.id}", token=view_only_token, raw_response=True
     )

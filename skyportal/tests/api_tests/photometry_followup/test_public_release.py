@@ -1,21 +1,29 @@
 import time
 import uuid
 
-from skyportal.tests import api, assert_api, assert_api_fail
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.public_pages import PublicReleasePost, PublicReleaseUpdate
+from skyportal_py.source_groups import SourceGroupsPost
+from skyportal_py.sources import SourcePost
+
+from skyportal.tests import api, assert_api, assert_api_fail, client
 
 
 def test_create_release(
     view_only_token, manage_sources_token, public_source, public_group
 ):
+    sp = client(manage_sources_token)
     link_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={},
-        token=view_only_token,
-    )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    with pytest.raises(SkyPortalError, match="HTTP 401: Unauthorized") as err:
+        client(view_only_token).post_public_release(
+            PublicReleasePost(
+                name="Name", link_name=link_name, group_ids=[public_group.id]
+            )
+        )
+    assert err.value.status_code == 401
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "public_pages/release",
@@ -24,6 +32,7 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400, "No data provided")
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "public_pages/release",
@@ -32,6 +41,7 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400, "Name is required")
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "public_pages/release",
@@ -40,6 +50,7 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400, "Link name is required")
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "public_pages/release",
@@ -48,102 +59,81 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400, "Specify at least one group")
 
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={"name": "Name", "link_name": "Link name", "group_ids": []},
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400, "Specify at least one group")
+    with pytest.raises(SkyPortalError, match="Specify at least one group") as err:
+        sp.post_public_release(
+            PublicReleasePost(name="Name", link_name="Link name", group_ids=[])
+        )
+    assert err.value.status_code == 400
 
     error_validation_link_name = (
         "Link name must contain only alphanumeric characters, dashes, underscores, periods, "
         "or plus signs"
     )
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={"name": "Name", "link_name": "Link name", "group_ids": [0]},
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400, error_validation_link_name)
+    with pytest.raises(SkyPortalError, match=error_validation_link_name) as err:
+        sp.post_public_release(
+            PublicReleasePost(name="Name", link_name="Link name", group_ids=[0])
+        )
+    assert err.value.status_code == 400
 
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={"name": "Name", "link_name": "Link_name_é", "group_ids": [0]},
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400, error_validation_link_name)
+    with pytest.raises(SkyPortalError, match=error_validation_link_name) as err:
+        sp.post_public_release(
+            PublicReleasePost(name="Name", link_name="Link_name_é", group_ids=[0])
+        )
+    assert err.value.status_code == 400
 
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={"name": "Name", "link_name": "Aa0_Zz9-.+", "group_ids": [0]},
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400)
-    assert data["message"] != error_validation_link_name
-    assert data["message"] == "Invalid groups"
+    with pytest.raises(SkyPortalError) as err:
+        sp.post_public_release(
+            PublicReleasePost(name="Name", link_name="Aa0_Zz9-.+", group_ids=[0])
+        )
+    assert err.value.status_code == 400
+    assert str(err.value) != error_validation_link_name
+    assert str(err.value) == "Invalid groups"
 
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-        },
-        token=manage_sources_token,
-    )
-    assert_api(status, data)
-    release_id = data["data"]["id"]
+    release_id = sp.post_public_release(
+        PublicReleasePost(
+            name="Name",
+            link_name=link_name,
+            group_ids=[public_group.id],
+        )
+    ).id
 
-    status, data = api("GET", "public_pages/release", token=manage_sources_token)
-    assert_api(status, data)
-    release = next(r for r in data["data"] if r["id"] == release_id)
-    assert release["is_visible"] is True
-    assert release["auto_publish_enabled"] is False
-    assert release["group_ids"] == [public_group.id]
+    releases = sp.fetch_public_releases()
+    release = next(r for r in releases if r.id == release_id)
+    assert release.is_visible is True
+    assert release.auto_publish_enabled is False
+    assert release.group_ids == [public_group.id]
 
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-        },
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400, "This link name is already in use")
+    with pytest.raises(SkyPortalError, match="This link name is already in use") as err:
+        sp.post_public_release(
+            PublicReleasePost(
+                name="Name",
+                link_name=link_name,
+                group_ids=[public_group.id],
+            )
+        )
+    assert err.value.status_code == 400
 
 
 def test_update_release(
     view_only_token, manage_sources_token, public_source, public_group
 ):
+    sp = client(manage_sources_token)
     link_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-        },
-        token=manage_sources_token,
-    )
-    assert_api(status, data)
-    release_id = data["data"]["id"]
+    release_id = sp.post_public_release(
+        PublicReleasePost(
+            name="Name",
+            link_name=link_name,
+            group_ids=[public_group.id],
+        )
+    ).id
 
-    status, data = api(
-        "PATCH",
-        f"public_pages/release/{release_id}",
-        data={},
-        token=view_only_token,
-    )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    with pytest.raises(SkyPortalError, match="HTTP 401: Unauthorized") as err:
+        client(view_only_token).update_public_release(
+            release_id, PublicReleaseUpdate(name="Name", group_ids=[public_group.id])
+        )
+    assert err.value.status_code == 401
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
@@ -152,6 +142,7 @@ def test_update_release(
     )
     assert_api_fail(status, data, 400, "No data provided")
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
@@ -160,6 +151,7 @@ def test_update_release(
     )
     assert_api_fail(status, data, 400, "Name is required")
 
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
@@ -168,48 +160,40 @@ def test_update_release(
     )
     assert_api_fail(status, data, 400, "Specify at least one group")
 
-    status, data = api(
-        "PATCH",
-        f"public_pages/release/{release_id}",
-        data={"name": "Name", "group_ids": []},
-        token=manage_sources_token,
+    with pytest.raises(SkyPortalError, match="Specify at least one group") as err:
+        sp.update_public_release(
+            release_id, PublicReleaseUpdate(name="Name", group_ids=[])
+        )
+    assert err.value.status_code == 400
+
+    with pytest.raises(SkyPortalError, match="Invalid groups") as err:
+        sp.update_public_release(
+            release_id, PublicReleaseUpdate(name="Name", group_ids=[0])
+        )
+    assert err.value.status_code == 400
+
+    releases = sp.fetch_public_releases()
+    release = next(r for r in releases if r.id == release_id)
+    assert release.is_visible is True
+    assert release.auto_publish_enabled is False
+
+    sp.update_public_release(
+        release_id,
+        PublicReleaseUpdate(
+            name="Name",
+            group_ids=[public_group.id],
+            is_visible=False,
+            auto_publish_enabled=True,
+        ),
     )
-    assert_api_fail(status, data, 400, "Specify at least one group")
 
-    status, data = api(
-        "PATCH",
-        f"public_pages/release/{release_id}",
-        data={"name": "Name", "group_ids": [0]},
-        token=manage_sources_token,
-    )
-    assert_api_fail(status, data, 400, "Invalid groups")
+    releases = sp.fetch_public_releases()
+    release = next(r for r in releases if r.id == release_id)
+    assert release.is_visible is False
+    assert release.auto_publish_enabled is True
+    assert release.link_name == link_name
 
-    status, data = api("GET", "public_pages/release", token=manage_sources_token)
-    assert_api(status, data)
-    release = next(r for r in data["data"] if r["id"] == release_id)
-    assert release["is_visible"] is True
-    assert release["auto_publish_enabled"] is False
-
-    status, data = api(
-        "PATCH",
-        f"public_pages/release/{release_id}",
-        data={
-            "name": "Name",
-            "group_ids": [public_group.id],
-            "is_visible": False,
-            "auto_publish_enabled": True,
-        },
-        token=manage_sources_token,
-    )
-    assert_api(status, data)
-
-    status, data = api("GET", "public_pages/release", token=manage_sources_token)
-    assert_api(status, data)
-    release = next(r for r in data["data"] if r["id"] == release_id)
-    assert release["is_visible"] is False
-    assert release["auto_publish_enabled"] is True
-    assert release["link_name"] == link_name
-
+    # raw api: PublicReleaseUpdate omits link_name by design (it is immutable server-side)
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
@@ -222,11 +206,10 @@ def test_update_release(
     )
     assert_api(status, data)
 
-    status, data = api("GET", "public_pages/release", token=manage_sources_token)
-    assert_api(status, data)
-    release = next(r for r in data["data"] if r["id"] == release_id)
-    assert release["link_name"] != "new_link_name"
-    assert release["link_name"] == link_name
+    releases = sp.fetch_public_releases()
+    release = next(r for r in releases if r.id == release_id)
+    assert release.link_name != "new_link_name"
+    assert release.link_name == link_name
 
 
 def test_auto_publish_enabled_and_delete_sources_in_same_group_when_create_or_update_source(
@@ -239,154 +222,104 @@ def test_auto_publish_enabled_and_delete_sources_in_same_group_when_create_or_up
 ):
     link_name = str(uuid.uuid4())
     # create a release with auto_publish_enabled to false
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-            "auto_publish_enabled": False,
-        },
-        token=manage_sources_token,
+    release_id = (
+        client(manage_sources_token)
+        .post_public_release(
+            PublicReleasePost(
+                name="Name",
+                link_name=link_name,
+                group_ids=[public_group.id],
+                auto_publish_enabled=False,
+            )
+        )
+        .id
     )
-    assert_api(status, data)
-    release_id = data["data"]["id"]
 
     # create a source in the same group
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": 26.5,
-            "dec": 28.3,
-            "redshift": 0.5,
-            "group_ids": [public_group.id],
-        },
-        token=super_admin_token,
+    client(super_admin_token).post_source(
+        SourcePost(
+            id=source_id,
+            ra=26.5,
+            dec=28.3,
+            redshift=0.5,
+            group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     # check that the source have not been published
-    status, data = api(
-        "GET",
-        f"public_pages/source/{source_id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
-    assert len(data["data"]) == 0
+    pages = client(view_only_token).fetch_public_source_pages(source_id)
+    assert len(pages) == 0
 
     # update the release to auto_publish_enabled to true
-    status, data = api(
-        "PATCH",
-        f"public_pages/release/{release_id}",
-        data={
-            "name": "Name",
-            "group_ids": [public_group.id],
-            "auto_publish_enabled": True,
-        },
-        token=manage_sources_token,
+    client(manage_sources_token).update_public_release(
+        release_id,
+        PublicReleaseUpdate(
+            name="Name",
+            group_ids=[public_group.id],
+            auto_publish_enabled=True,
+        ),
     )
-    assert_api(status, data)
 
     # create a new source in the same group
     new_source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": new_source_id,
-            "ra": 26.5,
-            "dec": 28.3,
-            "redshift": 0.5,
-            "group_ids": [public_group.id],
-        },
-        token=super_admin_token,
+    client(super_admin_token).post_source(
+        SourcePost(
+            id=new_source_id,
+            ra=26.5,
+            dec=28.3,
+            redshift=0.5,
+            group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     # check that the new source have been published
     for n_times in range(3):
-        status, data = api(
-            "GET",
-            f"public_pages/source/{new_source_id}",
-            token=view_only_token,
-        )
-        assert_api(status, data)
-        if len(data["data"]) == 1:
-            assert data["data"][0]["release_link_name"] == link_name
+        pages = client(view_only_token).fetch_public_source_pages(new_source_id)
+        if len(pages) == 1:
+            assert pages[0].release_link_name == link_name
             break
         time.sleep(2)
     assert n_times < 2
 
     # Update the source by first unregister it to the release group.
-    status, data = api(
-        "POST",
-        "source_groups",
-        data={
-            "objId": new_source_id,
-            "unsaveGroupIds": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source_groups(
+        SourceGroupsPost(
+            obj_id=new_source_id,
+            unsave_group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     # check that the automatically published source have been deleted
     for n_times in range(3):
-        status, data = api(
-            "GET",
-            f"public_pages/source/{new_source_id}",
-            token=view_only_token,
-        )
-        assert_api(status, data)
-        if len(data["data"]) == 0:
+        pages = client(view_only_token).fetch_public_source_pages(new_source_id)
+        if len(pages) == 0:
             break
         time.sleep(2)
     assert n_times < 2
 
     # Update the source by register it back to the release group.
-    status, data = api(
-        "POST",
-        "source_groups",
-        data={
-            "objId": new_source_id,
-            "inviteGroupIds": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source_groups(
+        SourceGroupsPost(
+            obj_id=new_source_id,
+            invite_group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     for n_time in range(3):
         # check that the new source have been published
-        status, data = api(
-            "GET",
-            f"public_pages/source/{new_source_id}",
-            token=view_only_token,
-        )
-        assert_api(status, data)
+        pages = client(view_only_token).fetch_public_source_pages(new_source_id)
 
-        if len(data["data"]) == 1:
-            assert data["data"][0]["release_link_name"] == link_name
+        if len(pages) == 1:
+            assert pages[0].release_link_name == link_name
             break
         else:
             time.sleep(2)
     assert n_time < 2
 
-    status, data = api(
-        "DELETE",
-        f"objs/{source_id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
+    client(view_only_token).delete_obj(source_id)
 
-    status, data = api(
-        "DELETE",
-        f"objs/{new_source_id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
+    client(view_only_token).delete_obj(new_source_id)
 
 
 def test_auto_publish_enabled_and_delete_sources_in_same_group_when_update_source_with_photometry(
@@ -399,62 +332,40 @@ def test_auto_publish_enabled_and_delete_sources_in_same_group_when_update_sourc
 ):
     link_name = str(uuid.uuid4())
     # create a release with auto_publish_enabled to true
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-            "auto_publish_enabled": True,
-        },
-        token=manage_sources_token,
+    client(manage_sources_token).post_public_release(
+        PublicReleasePost(
+            name="Name",
+            link_name=link_name,
+            group_ids=[public_group.id],
+            auto_publish_enabled=True,
+        )
     )
-    assert_api(status, data)
 
     # Update the source by first unregister it to the release group.
-    status, data = api(
-        "POST",
-        "source_groups",
-        data={
-            "objId": public_source.id,
-            "unsaveGroupIds": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source_groups(
+        SourceGroupsPost(
+            obj_id=public_source.id,
+            unsave_group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     # check that no source have been already published in the release
-    status, data = api(
-        "GET",
-        f"public_pages/source/{public_source.id}",
-        token=view_only_token,
-    )
-    assert_api(status, data)
-    assert all(x["release_link_name"] != link_name for x in data["data"])
+    pages = client(view_only_token).fetch_public_source_pages(public_source.id)
+    assert all(x.release_link_name != link_name for x in pages)
 
     # Update the source by register it back to the release group.
-    status, data = api(
-        "POST",
-        "source_groups",
-        data={
-            "objId": public_source.id,
-            "inviteGroupIds": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source_groups(
+        SourceGroupsPost(
+            obj_id=public_source.id,
+            invite_group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
 
     for n_time in range(3):
         # check that the source have been published
-        status, data = api(
-            "GET",
-            f"public_pages/source/{public_source.id}",
-            token=view_only_token,
-        )
-        assert_api(status, data)
+        pages = client(view_only_token).fetch_public_source_pages(public_source.id)
 
-        if any(x["release_link_name"] == link_name for x in data["data"]):
+        if any(x.release_link_name == link_name for x in pages):
             break
         else:
             time.sleep(2)
@@ -465,33 +376,28 @@ def test_delete_release(
     view_only_token, manage_sources_token, public_source, public_group
 ):
     link_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "public_pages/release",
-        data={
-            "name": "Name",
-            "link_name": link_name,
-            "group_ids": [public_group.id],
-        },
-        token=manage_sources_token,
+    release_id = (
+        client(manage_sources_token)
+        .post_public_release(
+            PublicReleasePost(
+                name="Name",
+                link_name=link_name,
+                group_ids=[public_group.id],
+            )
+        )
+        .id
     )
-    assert_api(status, data)
-    release_id = data["data"]["id"]
 
+    # raw api: intentionally malformed request (no release ID) the typed client can't produce
     status, data = api("DELETE", "public_pages/release/", token=view_only_token)
     assert_api_fail(status, data, 405, "HTTP 405: Method Not Allowed")
 
-    status, data = api(
-        "DELETE", f"public_pages/release/{release_id}", token=view_only_token
-    )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    with pytest.raises(SkyPortalError, match="HTTP 401: Unauthorized") as err:
+        client(view_only_token).delete_public_release(release_id)
+    assert err.value.status_code == 401
 
-    status, data = api(
-        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
-    )
-    assert_api(status, data)
+    client(manage_sources_token).delete_public_release(release_id)
 
-    status, data = api(
-        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
-    )
-    assert_api_fail(status, data, 404, "Release not found")
+    with pytest.raises(SkyPortalError, match="Release not found") as err:
+        client(manage_sources_token).delete_public_release(release_id)
+    assert err.value.status_code == 404

@@ -1,6 +1,8 @@
+import json
 import os
 import time
 import uuid
+from contextlib import suppress
 from datetime import timedelta
 
 import numpy as np
@@ -9,10 +11,19 @@ import requests
 import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
+from skyportal_py import SkyPortalError
+from skyportal_py.allocations import AllocationPost
+from skyportal_py.galaxies import GalaxyCatalogPost
+from skyportal_py.gcn_events import GcnEventObjPost, GcnEventPost, GcnSummaryPost
+from skyportal_py.instruments import InstrumentPost
+from skyportal_py.mmadetectors import MMADetectorPost
+from skyportal_py.photometry import PhotometryPost
+from skyportal_py.sources import SourcePost
+from skyportal_py.telescopes import TelescopePost
 
 from skyportal.handlers.api.gcn import add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
-from skyportal.tests import api, retry_until
+from skyportal.tests import client, retry_until
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -34,26 +45,23 @@ else:
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_GW(super_admin_token, view_only_token):
+    sp = client(super_admin_token)
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {"xml": payload}
+    event_data = GcnEventPost(xml=payload)
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(event_data)
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2019-04-25T08:18:05"
-    assert "GW" in data["tags"]
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2019-04-25T08:18:05"
+    assert "GW" in event.tags
     property_dict = {
         "BBH": 0.0,
         "BNS": 0.999402567114,
@@ -65,137 +73,90 @@ def test_gcn_GW(super_admin_token, view_only_token):
         "Terrestrial": 0.00059743288626,
         "num_instruments": 2,
     }
-    assert data["properties"][0]["data"] == property_dict
+    assert event.properties[0].data == property_dict
 
-    params = {
-        "startDate": "2019-04-25T00:00:00",
-        "endDate": "2019-04-26T00:00:00",
-        "gcnTagKeep": "GW",
-    }
+    page = sp.fetch_gcn_events(
+        start_date="2019-04-25T00:00:00",
+        end_date="2019-04-26T00:00:00",
+        gcn_tag_keep=["GW"],
+    )
+    assert len(page.events) > 0
+    event = page.events[0]
+    assert event.dateobs.isoformat() == "2019-04-25T08:18:05"
+    assert "GW" in event.tags
 
-    status, data = api("GET", "gcn_event", token=super_admin_token, params=params)
-    assert status == 200
-    data = data["data"]
-    assert len(data["events"]) > 0
-    data = data["events"][0]
-    assert data["dateobs"] == "2019-04-25T08:18:05"
-    assert "GW" in data["tags"]
+    page = sp.fetch_gcn_events(
+        start_date="2019-04-25T00:00:00",
+        end_date="2019-04-26T00:00:00",
+        gcn_tag_keep=["Fermi"],
+    )
+    assert len(page.events) == 0
 
-    params = {
-        "startDate": "2019-04-25T00:00:00",
-        "endDate": "2019-04-26T00:00:00",
-        "gcnTagKeep": "Fermi",
-    }
-
-    status, data = api("GET", "gcn_event", token=super_admin_token, params=params)
-    assert status == 200
-    data = data["data"]
-    assert len(data["events"]) == 0
-
-    params = {"include2DMap": True}
     skymap = "bayestar.fits.gz"
-    status, data = api(
-        "GET",
-        f"localization/{dateobs}/name/{skymap}",
-        token=super_admin_token,
-        params=params,
-    )
+    localization = sp.fetch_localization(dateobs, skymap, include_2d_map=True)
 
-    data = data["data"]
-    assert data["dateobs"] == "2019-04-25T08:18:05"
-    assert data["localization_name"] == "bayestar.fits.gz"
-    assert np.isclose(np.sum(data["flat_2d"]), 1)
+    assert localization.dateobs.isoformat() == "2019-04-25T08:18:05"
+    assert localization.localization_name == "bayestar.fits.gz"
+    assert np.isclose(np.sum(localization.flat_2d), 1)
 
-    status, data = api(
-        "DELETE",
-        f"localization/{dateobs}/name/{skymap}",
-        token=view_only_token,
-    )
-    assert status == 404
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).delete_localization(dateobs, skymap)
+    assert err.value.status_code == 404
 
-    status, data = api(
-        "DELETE",
-        f"localization/{dateobs}/name/{skymap}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.delete_localization(dateobs, skymap)
 
-    # delete the event
-    status, data = api(
-        "DELETE", "gcn_event/2019-04-25T08:18:05", token=super_admin_token
-    )
+    # delete the event (result was not checked before, so tolerate failure)
+    with suppress(SkyPortalError):
+        sp.delete_gcn_event("2019-04-25T08:18:05")
 
 
 def test_gcn_Fermi(super_admin_token, view_only_token):
+    sp = client(super_admin_token)
     datafile = (
         f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     )
     with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {"xml": payload}
+    event_data = GcnEventPost(xml=payload)
 
     dateobs = "2018-01-16 00:36:53"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(event_data)
 
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
-
-    params = {"include2DMap": True}
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status != 200:
-        print(data)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2018-01-16T00:36:53"
-    assert "GRB" in data["tags"]
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2018-01-16T00:36:53"
+    assert "GRB" in event.tags
 
     skymap = "214.74000_28.14000_11.19000"
-    status, data = api(
-        "GET",
-        f"localization/{dateobs}/name/{skymap}",
-        token=super_admin_token,
-        params=params,
-    )
+    localization = sp.fetch_localization(dateobs, skymap, include_2d_map=True)
 
-    data = data["data"]
-    assert data["dateobs"] == "2018-01-16T00:36:53"
-    assert data["localization_name"] == "214.74000_28.14000_11.19000"
-    assert np.isclose(np.sum(data["flat_2d"]), 1)
+    assert localization.dateobs.isoformat() == "2018-01-16T00:36:53"
+    assert localization.localization_name == "214.74000_28.14000_11.19000"
+    assert np.isclose(np.sum(localization.flat_2d), 1)
 
-    status, data = api(
-        "DELETE",
-        f"localization/{dateobs}/name/{skymap}",
-        token=view_only_token,
-    )
-    assert status == 404
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).delete_localization(dateobs, skymap)
+    assert err.value.status_code == 404
 
-    status, data = api(
-        "DELETE",
-        f"localization/{dateobs}/name/{skymap}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.delete_localization(dateobs, skymap)
 
 
 def test_gcn_from_moc(super_admin_token):
+    sp = client(super_admin_token)
     name = str(uuid.uuid4())
-    post_data = {
-        "name": name,
-        "nickname": name,
-        "type": "gravitational-wave",
-        "fixed_location": True,
-        "lat": 0.0,
-        "lon": 0.0,
-    }
-
-    status, data = api("POST", "mmadetector", data=post_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    mmadetector_id = data["data"]["id"]
+    mmadetector_id = sp.post_mmadetector(
+        MMADetectorPost(
+            name=name,
+            nickname=name,
+            type="gravitational-wave",
+            fixed_location=True,
+            lat=0.0,
+            lon=0.0,
+        )
+    ).id
 
     skymap = f"{os.path.dirname(__file__)}/../../data/GRB220617A_IPN_map_hpx.fits.gz"
     dateobs = "2022-06-18T18:31:12"
@@ -203,88 +164,68 @@ def test_gcn_from_moc(super_admin_token):
     skymap, _, _ = from_url(skymap)
     properties = {"BNS": 0.9, "NSBH": 0.1}
 
-    event_data = {
-        "dateobs": dateobs,
-        "skymap": skymap,
-        "tags": tags,
-        "properties": properties,
-    }
+    event_data = GcnEventPost(
+        dateobs=dateobs,
+        skymap=skymap,
+        tags=tags,
+        properties=properties,
+    )
 
     dateobs = "2022-06-18 18:31:12"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(event_data)
 
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-06-18T18:31:12"
-    assert "IPN" in data["tags"]
-    assert name in [detector["name"] for detector in data["detectors"]]
-    properties_dict = data["properties"][0]
-    assert properties_dict["data"] == properties
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2022-06-18T18:31:12"
+    assert "IPN" in event.tags
+    assert name in [detector.name for detector in event.detectors]
+    properties_dict = event.properties[0]
+    assert properties_dict.data == properties
 
-    status, data = api("GET", f"mmadetector/{mmadetector_id}", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    data = data["data"]
-    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
+    mmadetector = sp.fetch_mmadetector(mmadetector_id)
+    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in mmadetector.events]
 
-    params = {"gcnPropertiesFilter": "BNS: 0.5: gt, NSBH: 0.5: lt"}
-    status, data = api("GET", "gcn_event", token=super_admin_token, params=params)
-    assert status == 200
-    data = data["data"]
-    assert "2022-06-18T18:31:12" in [event["dateobs"] for event in data["events"]]
+    page = sp.fetch_gcn_events(gcn_properties_filter=["BNS: 0.5: gt", "NSBH: 0.5: lt"])
+    assert "2022-06-18T18:31:12" in [event.dateobs.isoformat() for event in page.events]
 
-    params = {"gcnPropertiesFilter": "BNS: 0.5: lt, NSBH: 0.5: lt"}
-    status, data = api("GET", "gcn_event", token=super_admin_token, params=params)
-    assert status == 200
-    data = data["data"]
-    assert "2022-06-18T18:31:12" not in [event["dateobs"] for event in data["events"]]
+    page = sp.fetch_gcn_events(gcn_properties_filter=["BNS: 0.5: lt", "NSBH: 0.5: lt"])
+    assert "2022-06-18T18:31:12" not in [
+        event.dateobs.isoformat() for event in page.events
+    ]
 
 
 def test_gcn_from_json(super_admin_token):
+    sp = client(super_admin_token)
     datafile = f"{os.path.dirname(__file__)}/../../data/EP240508.json"
     with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data = {"json": payload}
+    event_data = GcnEventPost(json_notice=json.loads(payload))
 
     dateobs = "2024-05-08T07:38:01"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(event_data)
 
     dateobs = "2024-05-08T07:38:01"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2024-05-08T07:38:01"
-    assert "Einstein Probe" in data["tags"]
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2024-05-08T07:38:01"
+    assert "Einstein Probe" in event.tags
 
-    params = {"include2DMap": True}
     skymap = "229.83800_-29.74700_0.05090"
     n_retries = 0
     while True:
         try:
-            status, data = api(
-                "GET",
-                f"localization/{dateobs}/name/{skymap}",
-                token=super_admin_token,
-                params=params,
-            )
+            localization = sp.fetch_localization(dateobs, skymap, include_2d_map=True)
 
-            data = data["data"]
-            assert data.get("dateobs") == "2024-05-08T07:38:01"
-            assert data.get("localization_name") == skymap
-            assert np.isclose(np.sum(data.get("flat_2d", [])), 1)
+            assert localization.dateobs is not None
+            assert localization.dateobs.isoformat() == "2024-05-08T07:38:01"
+            assert localization.localization_name == skymap
+            assert np.isclose(np.sum(localization.flat_2d or []), 1)
             break
         except AssertionError as e:
             if n_retries == 5:
@@ -292,20 +233,15 @@ def test_gcn_from_json(super_admin_token):
             n_retries += 1
             time.sleep(2)
 
-    status, data = api(
-        "DELETE",
-        f"localization/{dateobs}/name/{skymap}",
-        token=super_admin_token,
-    )
-    assert status == 200
+    sp.delete_localization(dateobs, skymap)
 
-    # delete the event
-    status, data = api(
-        "DELETE", "gcn_event/2024-05-08T07:38:01", token=super_admin_token
-    )
+    # delete the event (result was not checked before, so tolerate failure)
+    with suppress(SkyPortalError):
+        sp.delete_gcn_event("2024-05-08T07:38:01")
 
 
 def test_gcn_from_igwn_json(super_admin_token):
+    sp = client(super_admin_token)
     # LVK IGWN gwalert JSON (replaces the retired GCN Classic LVC VOEvents). The
     # skymap is embedded in the alert as base64 and ingested directly.
     datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_preliminary.json"
@@ -313,36 +249,25 @@ def test_gcn_from_igwn_json(super_admin_token):
         payload = fid.read()
 
     dateobs = "2026-06-05T11:57:26"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data={"json": payload}, token=super_admin_token
-        )
-        assert status == 200, data
-        assert data["status"] == "success"
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(GcnEventPost(json_notice=json.loads(payload)))
 
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == dateobs
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == dateobs
     for tag in ("GW", "BNS", "Significant"):
-        assert tag in data["tags"]
-    assert "LVC#MS260605l" in data["aliases"]
+        assert tag in event.tags
+    assert "LVC#MS260605l" in event.aliases
 
     skymap = "MS260605l-PRELIMINARY.multiorder.fits"
-    params = {"include2DMap": True}
     n_retries = 0
     while True:
         try:
-            status, data = api(
-                "GET",
-                f"localization/{dateobs}/name/{skymap}",
-                token=super_admin_token,
-                params=params,
-            )
-            data = data["data"]
-            assert data.get("localization_name") == skymap
-            assert np.isclose(np.sum(data.get("flat_2d", [])), 1)
+            localization = sp.fetch_localization(dateobs, skymap, include_2d_map=True)
+            assert localization.localization_name == skymap
+            assert np.isclose(np.sum(localization.flat_2d or []), 1)
             break
         except AssertionError as e:
             if n_retries == 10:
@@ -354,84 +279,69 @@ def test_gcn_from_igwn_json(super_admin_token):
     datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_retraction.json"
     with open(datafile, "rb") as fid:
         retraction = fid.read()
-    status, data = api(
-        "POST", "gcn_event", data={"json": retraction}, token=super_admin_token
-    )
-    assert status == 200, data
+    sp.post_gcn_event(GcnEventPost(json_notice=json.loads(retraction)))
 
     n_retries = 0
     while True:
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        assert status == 200
-        if "retracted" in data["data"]["tags"] or n_retries == 5:
+        event = sp.fetch_gcn_event(dateobs)
+        if "retracted" in event.tags or n_retries == 5:
             break
         n_retries += 1
         time.sleep(2)
-    assert "retracted" in data["data"]["tags"]
+    assert "retracted" in event.tags
 
-    api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
-    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+    # cleanup (results were not checked before, so tolerate failure)
+    with suppress(SkyPortalError):
+        sp.delete_localization(dateobs, skymap)
+    with suppress(SkyPortalError):
+        sp.delete_gcn_event(dateobs)
 
 
 def test_gcn_from_polygon(super_admin_token):
+    sp = client(super_admin_token)
     localization_name = str(uuid.uuid4())
     dateobs = "2022-09-03T14:44:12"
     polygon = [(30.0, 60.0), (40.0, 60.0), (40.0, 70.0), (30.0, 70.0)]
     tags = ["IPN", "GRB"]
     skymap = {"polygon": polygon, "localization_name": localization_name}
 
-    event_data = {"dateobs": dateobs, "skymap": skymap, "tags": tags}
-
-    status, data = api("POST", "gcn_event", data=event_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.post_gcn_event(GcnEventPost(dateobs=dateobs, skymap=skymap, tags=tags))
 
     dateobs = "2022-09-03 14:44:12"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-09-03T14:44:12"
-    assert "IPN" in data["tags"]
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2022-09-03T14:44:12"
+    assert "IPN" in event.tags
 
 
 def test_gcn_Swift(super_admin_token):
+    sp = client(super_admin_token)
     datafile = f"{os.path.dirname(__file__)}/../../data/SWIFT_1125809-092.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data_1 = {"xml": payload}
+    event_data_1 = GcnEventPost(xml=payload)
 
     datafile = f"{os.path.dirname(__file__)}/../../data/SWIFT_1125809-104.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
-    event_data_2 = {"xml": payload}
+    event_data_2 = GcnEventPost(xml=payload)
 
     dateobs = "2022-09-30 11:11:52"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    try:
+        sp.fetch_gcn_event(dateobs)
+    except SkyPortalError as err:
+        if err.status_code == 404:
+            sp.post_gcn_event(event_data_1)
+            sp.post_gcn_event(event_data_2)
 
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data_1, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
-
-        status, data = api(
-            "POST", "gcn_event", data=event_data_2, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
-
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    data = data["data"]
-    assert data["dateobs"] == "2022-09-30T11:11:52"
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.dateobs.isoformat() == "2022-09-30T11:11:52"
     assert any(
-        loc["localization_name"] == "64.71490_13.35000_0.00130"
-        for loc in data["localizations"]
+        loc.localization_name == "64.71490_13.35000_0.00130"
+        for loc in event.localizations
     )
     assert any(
-        loc["localization_name"] == "64.73730_13.35170_0.05000"
-        for loc in data["localizations"]
+        loc.localization_name == "64.73730_13.35170_0.05000"
+        for loc in event.localizations
     )
 
     # wait for the async tasks to finish before finishing the tests, which will delete the user
@@ -451,78 +361,61 @@ def test_gcn_summary_sources(
     dateobs = gcn_GW190814.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "redshift": 3,
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source(
+        SourcePost(
+            id=obj_id,
+            ra=24.6258,
+            dec=-32.9024,
+            redshift=3,
+        )
     )
-    assert status == 200
 
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
+    client(view_only_token).fetch_source(obj_id)
 
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": obj_id,
-            "mjd": 58709 + 1,
-            "instrument_id": ztf_camera.id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "ra_unc": 0.01,
-            "dec_unc": 0.01,
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_photometry(
+        PhotometryPost(
+            obj_id=obj_id,
+            mjd=58709 + 1,
+            instrument_id=ztf_camera.id,
+            flux=12.24,
+            fluxerr=0.031,
+            zp=25.0,
+            magsys="ab",
+            filter="ztfg",
+            ra=24.6258,
+            dec=-32.9024,
+            ra_unc=0.01,
+            dec_unc=0.01,
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
 
     # get the gcn event summary
-    data = {
-        "title": "gcn summary",
-        "subject": "follow-up",
-        "userIds": super_admin_user.id,
-        "groupId": public_group.id,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 0.99,
-        "numberDetections": 1,
-        "showSources": True,
-        "showGalaxies": False,
-        "showObservations": False,
-        "noText": False,
-    }
-
-    status, data = api(
-        "POST",
-        f"gcn_event/{dateobs}/summary",
-        data=data,
-        token=super_admin_token,
+    summary_id = (
+        client(super_admin_token)
+        .post_gcn_summary(
+            dateobs,
+            GcnSummaryPost(
+                title="gcn summary",
+                subject="follow-up",
+                user_ids=[super_admin_user.id],
+                group_id=public_group.id,
+                start_date="2019-08-13 08:18:05",
+                end_date="2019-08-19 08:18:05",
+                localization_cumprob=0.99,
+                number_detections=1,
+                show_sources=True,
+                show_galaxies=False,
+                show_observations=False,
+                no_text=False,
+            ),
+        )
+        .id
     )
-    assert status == 200
-    summary_id = data["data"]["id"]
 
     def summary_ready():
-        status, data = api(
-            "GET",
-            f"gcn_event/{dateobs}/summary/{summary_id}",
-            token=view_only_token,
-        )
-        assert status == 200
-        assert data["data"]["text"] != "pending"
-        return data["data"]["text"]
+        summary = client(view_only_token).fetch_gcn_summary(dateobs, summary_id)
+        assert summary.text != "pending"
+        return summary.text
 
     text = retry_until(summary_ready, timeout=200)
     lines = list(filter(None, text.split("\n")))
@@ -573,77 +466,60 @@ def test_gcn_summary_galaxies(
     public_group,
     gcn_GW190814,
 ):
+    sp = client(super_admin_token)
     dateobs = gcn_GW190814.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
     catalog_name = "test_galaxy_catalog"
     # in case the catalog already exists, delete it.
-    status, data = api(
-        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
-    )
+    with suppress(SkyPortalError):
+        sp.delete_galaxy_catalog(catalog_name)
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
-    data = {
-        "catalog_name": catalog_name,
-        "catalog_data": Table.read(datafile)
-        .to_pandas()
-        .replace({np.nan: None})
-        .to_dict(orient="list"),
-    }
-
-    status, data = api("POST", "galaxy_catalog", data=data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-
-    params = {"catalog_name": catalog_name}
+    sp.post_galaxy_catalog(
+        GalaxyCatalogPost(
+            catalog_name=catalog_name,
+            catalog_data=Table.read(datafile)
+            .to_pandas()
+            .replace({np.nan: None})
+            .to_dict(orient="list"),
+        )
+    )
 
     def galaxies_loaded():
-        status, data = api(
-            "GET", "galaxy_catalog", token=view_only_token, params=params
+        galaxies = (
+            client(view_only_token).fetch_galaxies(catalog_name=catalog_name).galaxies
         )
-        assert status == 200
-        galaxies = data["data"]["galaxies"]
         assert len(galaxies) == 92
         assert any(
-            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in galaxies
+            galaxy.name == "6dFgs gJ0001313-055904"
+            and galaxy.mstar == 336.60756522868667
+            for galaxy in galaxies
         )
 
     retry_until(galaxies_loaded, timeout=80)
 
     # get the gcn event summary
-    data = {
-        "title": "gcn summary",
-        "subject": "follow-up",
-        "userIds": super_admin_user.id,
-        "groupId": public_group.id,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 0.99,
-        "showSources": False,
-        "showGalaxies": True,
-        "showObservations": False,
-        "noText": False,
-    }
-
-    status, data = api(
-        "POST",
-        f"gcn_event/{dateobs}/summary",
-        data=data,
-        token=super_admin_token,
-    )
-    assert status == 200
-    summary_id = data["data"]["id"]
+    summary_id = sp.post_gcn_summary(
+        dateobs,
+        GcnSummaryPost(
+            title="gcn summary",
+            subject="follow-up",
+            user_ids=[super_admin_user.id],
+            group_id=public_group.id,
+            start_date="2019-08-13 08:18:05",
+            end_date="2019-08-19 08:18:05",
+            localization_cumprob=0.99,
+            show_sources=False,
+            show_galaxies=True,
+            show_observations=False,
+            no_text=False,
+        ),
+    ).id
 
     def summary_ready():
-        status, data = api(
-            "GET",
-            f"gcn_event/{dateobs}/summary/{summary_id}",
-            token=view_only_token,
-            params=params,
-        )
-        assert status == 200
-        assert data["data"]["text"] != "pending"
-        return data["data"]["text"]
+        summary = client(view_only_token).fetch_gcn_summary(dateobs, summary_id)
+        assert summary.text != "pending"
+        return summary.text
 
     lines = list(filter(None, retry_until(summary_ready, timeout=200).split("\n")))
 
@@ -684,9 +560,8 @@ def test_gcn_summary_galaxies(
         for line in lines[galaxy_idx:]
     ), lines[galaxy_idx:]
 
-    status, data = api(
-        "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
-    )
+    with suppress(SkyPortalError):
+        sp.delete_galaxy_catalog(catalog_name)
 
 
 def test_gcn_instrument_field(
@@ -699,18 +574,14 @@ def test_gcn_instrument_field(
         "ZTF", super_admin_token, list(range(200, 250))
     )
 
-    status, data = api(
-        "GET",
-        f"gcn_event/{dateobs}/instrument/{instrument_id}",
-        token=super_admin_token,
+    fields = client(super_admin_token).fetch_gcn_event_instrument_fields(
+        dateobs, instrument_id
     )
-    assert status == 200
-    assert data["status"] == "success"
 
-    assert "field_ids" in data["data"]
-    assert "probabilities" in data["data"]
+    assert fields.field_ids
+    assert fields.probabilities
 
-    assert set(data["data"]["field_ids"]) == {201, 202, 246, 247}
+    assert set(fields.field_ids) == {201, 202, 246, 247}
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
@@ -722,165 +593,85 @@ def test_confirm_reject_source_in_gcn(
     upload_data_token,
     gcn_GW190814,
 ):
+    sp = client(upload_data_token)
     dateobs = gcn_GW190814.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "redshift": 3,
-        },
-        token=upload_data_token,
+    sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=24.6258,
+            dec=-32.9024,
+            redshift=3,
+        )
     )
-    assert status == 200
 
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
+    client(view_only_token).fetch_source(obj_id)
 
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": obj_id,
-            "mjd": 58709 + 1,
-            "instrument_id": ztf_camera.id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "ra_unc": 0.01,
-            "dec_unc": 0.01,
-        },
-        token=upload_data_token,
+    sp.post_photometry(
+        PhotometryPost(
+            obj_id=obj_id,
+            mjd=58709 + 1,
+            instrument_id=ztf_camera.id,
+            flux=12.24,
+            fluxerr=0.031,
+            zp=25.0,
+            magsys="ab",
+            filter="ztfg",
+            ra=24.6258,
+            dec=-32.9024,
+            ra_unc=0.01,
+            dec_unc=0.01,
+        )
     )
-    assert status == 200
-    assert data["status"] == "success"
 
-    params = {
-        "sourcesIdList": obj_id,
-    }
-    status, data = api(
-        "GET",
-        f"sources_in_gcn/{dateobs}",
-        params=params,
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert len(data["data"]) == 0
+    sources = sp.fetch_gcn_event_sources(dateobs, source_ids=[obj_id])
+    assert len(sources) == 0
 
     # confirm source
-    params = {
-        "source_id": obj_id,
-        "localization_name": "LALInference.v1.fits.gz",
-        "localization_cumprob": 0.95,
-        "status": "confirmed",
-        "start_date": "2019-08-13 08:18:05",
-        "end_date": "2019-08-19 08:18:05",
-    }
-
     # vetting needs no GCN-specific ACL, just the ability to write data
-    status, data = api(
-        "POST",
-        f"sources_in_gcn/{dateobs}",
-        data=params,
-        token=upload_data_token,
+    sp.post_gcn_event_source(
+        dateobs,
+        GcnEventObjPost(
+            source_id=obj_id,
+            localization_name="LALInference.v1.fits.gz",
+            localization_cumprob=0.95,
+            status="confirmed",
+            start_date="2019-08-13 08:18:05",
+            end_date="2019-08-19 08:18:05",
+        ),
     )
-    assert status == 200, data
 
-    params = {
-        "sourcesIdList": obj_id,
-    }
-    status, data = api(
-        "GET",
-        f"sources_in_gcn/{dateobs}",
-        params=params,
-        token=upload_data_token,
-    )
-    assert status == 200
-    data = data["data"]
-    assert len(data) == 1
-    assert data[0]["obj_id"] == obj_id
-    assert data[0]["dateobs"] == dateobs
-    assert data[0]["status"] == "confirmed"
+    sources = sp.fetch_gcn_event_sources(dateobs, source_ids=[obj_id])
+    assert len(sources) == 1
+    assert sources[0].obj_id == obj_id
+    assert sources[0].dateobs.isoformat() == dateobs
+    assert sources[0].status == "confirmed"
 
     # find gcns associated to source
-    status, data = api(
-        "GET",
-        f"associated_gcns/{obj_id}",
-        token=upload_data_token,
-    )
-    assert status == 200
-    data = data["data"]
-    assert dateobs in data["gcns"]
+    gcns = sp.fetch_gcn_events_associated_with_source(obj_id)
+    assert dateobs in gcns
 
     # reject source
-    params = {
-        "status": "rejected",
-    }
+    sp.update_gcn_event_source(dateobs, obj_id, "rejected")
 
-    status, data = api(
-        "PATCH",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        data=params,
-        token=upload_data_token,
-    )
-    assert status == 200, data
-
-    params = {
-        "sourcesIdList": obj_id,
-    }
-    status, data = api(
-        "GET",
-        f"sources_in_gcn/{dateobs}",
-        params=params,
-        token=upload_data_token,
-    )
-    assert status == 200
-    data = data["data"]
-    assert len(data) == 1
-    assert data[0]["obj_id"] == obj_id
-    assert data[0]["dateobs"] == dateobs
-    assert data[0]["status"] == "rejected"
+    sources = sp.fetch_gcn_event_sources(dateobs, source_ids=[obj_id])
+    assert len(sources) == 1
+    assert sources[0].obj_id == obj_id
+    assert sources[0].dateobs.isoformat() == dateobs
+    assert sources[0].status == "rejected"
 
     # verify that no gcns are associated to source
 
     # find no gcns associated to source
-    status, data = api(
-        "GET",
-        f"associated_gcns/{obj_id}",
-        token=upload_data_token,
-    )
-    assert status == 200
-    data = data["data"]
-    assert len(data["gcns"]) == 0
+    gcns = sp.fetch_gcn_events_associated_with_source(obj_id)
+    assert len(gcns) == 0
 
     # mark source as unknow (delete it from the table)
-    status, data = api(
-        "DELETE",
-        f"sources_in_gcn/{dateobs}/{obj_id}",
-        token=upload_data_token,
-    )
-    assert status == 200, data
+    sp.delete_gcn_event_source(dateobs, obj_id)
 
-    params = {
-        "sourcesIdList": obj_id,
-    }
-    status, data = api(
-        "GET",
-        f"sources_in_gcn/{dateobs}",
-        params=params,
-        token=upload_data_token,
-    )
-    assert status == 200
-    data = data["data"]
-    assert len(data) == 0
+    sources = sp.fetch_gcn_event_sources(dateobs, source_ids=[obj_id])
+    assert len(sources) == 0
 
 
 @pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
@@ -889,42 +680,36 @@ def test_gcn_tach(
     view_only_token,
     gcn_GRB180116A,
 ):
+    sp = client(super_admin_token)
     dateobs = gcn_GRB180116A.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
+    event = sp.fetch_gcn_event(dateobs)
 
-    data = data["data"]
-    assert "aliases" in data
-    assert "GRB180116A" not in data["aliases"]
-    aliases_len = len(data["aliases"])
+    assert event.aliases is not None
+    assert "GRB180116A" not in event.aliases
+    aliases_len = len(event.aliases)
 
-    status, data = api("POST", f"gcn_event/{dateobs}/tach", token=view_only_token)
-    assert status == 401
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).post_gcn_event_tach(dateobs)
+    assert err.value.status_code == 401
 
-    status, data = api("POST", f"gcn_event/{dateobs}/tach", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.post_gcn_event_tach(dateobs)
 
     for n_times in range(30):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            if len(data["data"]["aliases"]) > 1:
-                aliases = data["data"]["aliases"]
-                break
-            time.sleep(1)
+        event = sp.fetch_gcn_event(dateobs)
+        if len(event.aliases) > 1:
+            aliases = event.aliases
+            break
+        time.sleep(1)
 
     assert n_times < 29
     assert len(aliases) == aliases_len + 1
     assert "GRB180116A" in aliases
 
-    status, data = api("GET", f"gcn_event/{dateobs}/tach", token=super_admin_token)
+    tach = sp.fetch_gcn_event_tach(dateobs)
 
-    assert status == 200
-    assert data["status"] == "success"
-    data = data["data"]
-    assert len(data["aliases"]) == 2
-    assert len(data["circulars"]) == 3
-    assert data["tach_id"] is not None
+    assert len(tach.aliases) == 2
+    assert len(tach.circulars) == 3
+    assert tach.tach_id is not None
 
 
 def test_gcn_allocation_triggers(
@@ -933,44 +718,36 @@ def test_gcn_allocation_triggers(
     view_only_token,
     gcn_GRB180116A,
 ):
+    sp = client(super_admin_token)
     dateobs = gcn_GRB180116A.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
 
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
+    sp.fetch_gcn_event(dateobs)
 
     name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "telescope",
-        data={
-            "name": name,
-            "nickname": name,
-            "lat": 0.0,
-            "lon": 0.0,
-            "elevation": 0.0,
-            "diameter": 10.0,
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    telescope_id = data["data"]["id"]
+    telescope_id = sp.post_telescope(
+        TelescopePost(
+            name=name,
+            nickname=name,
+            lat=0.0,
+            lon=0.0,
+            elevation=0.0,
+            diameter=10.0,
+        )
+    ).id
 
     instrument_name = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "instrument",
-        data={
-            "name": instrument_name,
-            "type": "imager",
-            "band": "Optical",
-            "filters": ["ztfr"],
-            "telescope_id": telescope_id,
-            "api_classname": "ZTFAPI",
-            "api_classname_obsplan": "ZTFMMAAPI",
-            "field_fov_type": "circle",
-            "field_fov_attributes": 3.0,
-            "sensitivity_data": {
+    instrument_id = sp.post_instrument(
+        InstrumentPost(
+            name=instrument_name,
+            type="imager",
+            band="Optical",
+            filters=["ztfr"],
+            telescope_id=telescope_id,
+            api_classname="ZTFAPI",
+            api_classname_obsplan="ZTFMMAAPI",
+            field_fov_type="circle",
+            field_fov_attributes=3.0,
+            sensitivity_data={
                 "ztfr": {
                     "limiting_magnitude": 20.3,
                     "magsys": "ab",
@@ -978,91 +755,67 @@ def test_gcn_allocation_triggers(
                     "zeropoint": 26.3,
                 }
             },
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    instrument_id = data["data"]["id"]
+        )
+    ).id
 
-    request_data = {
-        "group_id": public_group.id,
-        "instrument_id": instrument_id,
-        "pi": "Shri Kulkarni",
-        "hours_allocated": 200,
-        "validity_ranges": [
-            {
-                "start_date": "2021-02-27T00:00:00.000Z",
-                "end_date": "3021-07-20T00:00:00.000Z",
-            }
-        ],
-        "proposal_id": "COO-2020A-P01",
-        "default_share_group_ids": [public_group.id],
-    }
+    allocation_id = sp.post_allocation(
+        AllocationPost(
+            group_id=public_group.id,
+            instrument_id=instrument_id,
+            pi="Shri Kulkarni",
+            hours_allocated=200,
+            validity_ranges=[
+                {
+                    "start_date": "2021-02-27T00:00:00.000Z",
+                    "end_date": "3021-07-20T00:00:00.000Z",
+                }
+            ],
+            proposal_id="COO-2020A-P01",
+            default_share_group_ids=[public_group.id],
+        )
+    ).id
 
-    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    allocation_id = data["data"]["id"]
+    sp.fetch_allocation(allocation_id)
 
-    status, data = api("GET", f"allocation/{allocation_id}", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    sp.update_gcn_event_trigger(dateobs, allocation_id, triggered=True)
 
-    status, data = api(
-        "PUT",
-        f"gcn_event/{dateobs}/triggered/{allocation_id}",
-        data={"triggered": True},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-
-    status, data = api(
-        "PUT",
-        f"gcn_event/{dateobs}/triggered/{allocation_id}",
-        data={"triggered": False},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp.update_gcn_event_trigger(dateobs, allocation_id, triggered=False)
 
     # now we verify that the view_only_token can't change the triggered status
-    status, data = api(
-        "PUT",
-        f"gcn_event/{dateobs}/triggered/{allocation_id}",
-        data={"triggered": True},
-        token=view_only_token,
-    )
-    assert status == 401
+    with pytest.raises(SkyPortalError) as err:
+        client(view_only_token).update_gcn_event_trigger(
+            dateobs, allocation_id, triggered=True
+        )
+    assert err.value.status_code == 401
 
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["gcn_triggers"][0]["allocation_id"] == allocation_id
-    assert data["data"]["gcn_triggers"][0]["triggered"] is False
+    event = sp.fetch_gcn_event(dateobs)
+    assert event.gcn_triggers[0].allocation_id == allocation_id
+    assert event.gcn_triggers[0].triggered is False
 
 
 def test_gcn_autogenerated_source_has_t0(super_admin_token):
     """A source auto-created from a tight localization carries the event time as t0."""
+    sp = client(super_admin_token)
     dateobs = (utcnow_naive() - timedelta(days=3)).replace(microsecond=0)
-    payload = {
-        "dateobs": dateobs.isoformat(),
-        # error well under SOURCE_RADIUS_THRESHOLD, so post_gcn_source fires
-        "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.04},
-        # no group_ids -> sitewide public group, which post_gcn_source requires
-    }
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    sp.post_gcn_event(
+        GcnEventPost(
+            dateobs=dateobs.isoformat(),
+            # error well under SOURCE_RADIUS_THRESHOLD, so post_gcn_source fires
+            skymap={"ra": 42.0, "dec": 12.0, "error": 0.04},
+            # no group_ids -> sitewide public group, which post_gcn_source requires
+        )
+    )
 
     obj_id = f"GCN-{dateobs.strftime('%y%m%d_%H%M%S')}"
+    source = None
     for _ in range(30):
-        status, data = api("GET", f"sources/{obj_id}", token=super_admin_token)
-        if status == 200:
+        try:
+            source = sp.fetch_source(obj_id)
             break
-        time.sleep(1)
-    assert status == 200, f"source {obj_id} was never created: {data}"
-    assert data["data"]["t0"] == pytest.approx(Time(dateobs.isoformat()).mjd)
+        except SkyPortalError:
+            time.sleep(1)
+    assert source is not None, f"source {obj_id} was never created"
+    assert source.t0 == pytest.approx(Time(dateobs.isoformat()).mjd)
 
 
 def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
@@ -1077,6 +830,7 @@ def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
     pass when it ingests a new skymap, so re-posting an existing event does not
     exercise it.
     """
+    sp = client(super_admin_token)
     datafile = (
         f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     )
@@ -1084,14 +838,14 @@ def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
         payload = fid.read()
     dateobs = "2018-01-16 00:36:53"
 
-    status, data = api(
-        "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
-    )
-    assert status in (200, 400), data  # 400 if an earlier test already posted it
+    try:
+        sp.post_gcn_event(GcnEventPost(xml=payload))
+    except SkyPortalError as err:
+        # 400 if an earlier test already posted it
+        assert err.status_code == 400, str(err)
 
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    assert status == 200, data
-    notice_types = [n["notice_type"] for n in data["data"]["gcn_notices"]]
+    event = sp.fetch_gcn_event(dateobs)
+    notice_types = [n.notice_type for n in event.gcn_notices]
     assert notice_types, "event has no notices to match on"
 
     matching, nonmatching = str(uuid.uuid4()), str(uuid.uuid4())

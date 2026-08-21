@@ -7,30 +7,30 @@ import uuid
 
 import pytest
 import sqlalchemy as sa
+from skyportal_py import SkyPortalError
+from skyportal_py.sources import SourcePost
+from skyportal_py.thumbnails import ThumbnailPost
 
 from baselayer.app.models import async_plain_session_factory
 from skyportal.models import DBSession, Obj, Thumbnail
-from skyportal.tests import api, assert_api
+from skyportal.tests import api, client
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     # Don't wait for the thumbnail_queue background service — it fetches the
     # most-recent unprocessed obj and a busy test suite keeps pushing newer
@@ -42,41 +42,26 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
 
     asyncio.run(_backfill_thumbnails())
 
-    status, data = api(
-        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-    )
-    thumbnails = data.get("data", {}).get("thumbnails", [])
+    thumbnails = sp.fetch_source(obj_id, include_thumbnails=True).thumbnails
     assert isinstance(thumbnails, list) and len(thumbnails) == 3
 
     orig_source_thumbnail_count = len(thumbnails)
     data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new.png"), "rb").read()
-    )
+    ).decode()
     ttype = "new"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    thumbnail_id = data["data"]["id"]
+    thumbnail_id = sp.post_thumbnail(
+        ThumbnailPost(obj_id=obj_id, data=data, ttype=ttype)
+    ).id
     assert isinstance(thumbnail_id, int)
 
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["type"] == "new"
+    assert sp.fetch_thumbnail(thumbnail_id).type == "new"
 
     # POST/thumbnail is synchronous; this short poll only guards read-after-write.
     nretries = 0
     thumbnails_loaded = False
     while nretries < 5:
-        status, data = api(
-            "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-        )
-        thumbnails = data.get("data", {}).get("thumbnails", [])
+        thumbnails = sp.fetch_source(obj_id, include_thumbnails=True).thumbnails
         if (
             isinstance(thumbnails, list)
             and len(thumbnails) == orig_source_thumbnail_count + 1
@@ -98,18 +83,9 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     from services.thumbnail_queue.thumbnail_queue import fetch_obj
 
     obj_id = str(uuid.uuid4())
-    status, _ = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source(
+        SourcePost(id=obj_id, ra=234.22, dec=-22.33, group_ids=[public_group.id])
     )
-    assert status == 200
 
     async def _fetch_backfill_fetch():
         async with async_plain_session_factory() as session:
@@ -139,18 +115,9 @@ def test_thumbnail_queue_classifies_remote_grayscale(
     from services.thumbnail_queue import thumbnail_queue as tq
 
     obj_id = str(uuid.uuid4())
-    status, _ = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source(
+        SourcePost(id=obj_id, ra=234.22, dec=-22.33, group_ids=[public_group.id])
     )
-    assert status == 200
 
     async def _values():
         async with async_plain_session_factory() as session:
@@ -210,27 +177,24 @@ def test_cannot_post_thumbnail_invalid_ttype(
     upload_data_token, public_group, ztf_camera
 ):
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = client(upload_data_token).post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new.png"), "rb").read()
     )
     ttype = "invalid_ttype"
+    # raw api: intentionally malformed payload the typed client can't produce
     status, data = api(
         "POST",
         "thumbnail",
@@ -245,222 +209,172 @@ def test_cannot_post_thumbnail_invalid_ttype(
 def test_cannot_post_thumbnail_invalid_image_type(
     upload_data_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     data = base64.b64encode(
         open(
             os.path.abspath("skyportal/tests/data/candid-87704463155000_ref.jpg"), "rb"
         ).read()
-    )
+    ).decode()
     ttype = "ref"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "Invalid thumbnail image type. Only PNG are supported." in data["message"]
+    with pytest.raises(
+        SkyPortalError,
+        match=re.escape("Invalid thumbnail image type. Only PNG are supported."),
+    ) as err:
+        sp.post_thumbnail(ThumbnailPost(obj_id=obj_id, data=data, ttype=ttype))
+    assert err.value.status_code == 400
 
 
 def test_cannot_post_thumbnail_invalid_size(
     upload_data_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new_13px.png"), "rb").read()
-    )
+    ).decode()
     ttype = "ref"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "Invalid thumbnail size." in data["message"]
+    with pytest.raises(
+        SkyPortalError, match=re.escape("Invalid thumbnail size.")
+    ) as err:
+        sp.post_thumbnail(ThumbnailPost(obj_id=obj_id, data=data, ttype=ttype))
+    assert err.value.status_code == 400
 
 
 def test_cannot_post_thumbnail_invalid_file_type(
     upload_data_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
-    data = base64.b64encode(os.urandom(2048))  # invalid image data
+    data = base64.b64encode(os.urandom(2048)).decode()  # invalid image data
     ttype = "ref"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "cannot identify image file" in data["message"]
+    with pytest.raises(SkyPortalError, match="cannot identify image file") as err:
+        sp.post_thumbnail(ThumbnailPost(obj_id=obj_id, data=data, ttype=ttype))
+    assert err.value.status_code == 400
 
 
 def test_delete_thumbnail_deletes_file_on_disk(
     upload_data_token, super_admin_token, public_group
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     thumbnail_data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new.png"), "rb").read()
-    )
+    ).decode()
     ttype = "new"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": thumbnail_data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    thumbnail_id = data["data"]["id"]
+    thumbnail_id = sp.post_thumbnail(
+        ThumbnailPost(obj_id=obj_id, data=thumbnail_data, ttype=ttype)
+    ).id
     assert isinstance(thumbnail_id, int)
 
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["type"] == ttype
+    assert sp.fetch_thumbnail(thumbnail_id).type == ttype
 
     nretries = 0
     thumbnail = None
     # look for the newly created thumbnail
     while nretries < 5:
-        status, data = api(
-            "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-        )
-        thumbnails = data.get("data", {}).get("thumbnails", [])
+        thumbnails = sp.fetch_source(obj_id, include_thumbnails=True).thumbnails
         if isinstance(thumbnails, list) and any(
-            t["id"] == thumbnail_id for t in thumbnails
+            t.id == thumbnail_id for t in thumbnails
         ):
-            thumbnail = next((t for t in thumbnails if t["id"] == thumbnail_id), None)
+            thumbnail = next((t for t in thumbnails if t.id == thumbnail_id), None)
             break
         nretries += 1
         time.sleep(2)
 
     assert thumbnail is not None
 
-    fpath = thumbnail["file_uri"]
+    fpath = thumbnail.file_uri
     assert os.path.exists(fpath)
 
-    status, data = api("DELETE", f"thumbnail/{thumbnail_id}", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(super_admin_token).delete_thumbnail(thumbnail_id)
 
     assert not os.path.exists(fpath)
 
 
 def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_group):
+    sp = client(upload_data_token)
+    admin = client(super_admin_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert_api(status, data)
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     thumbnail_data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new.png"), "rb").read()
-    )
+    ).decode()
     ttype = "new"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": thumbnail_data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert_api(status, data)
-    thumbnail_id = data["data"]["id"]
+    thumbnail_id = sp.post_thumbnail(
+        ThumbnailPost(obj_id=obj_id, data=thumbnail_data, ttype=ttype)
+    ).id
     assert isinstance(thumbnail_id, int)
 
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert_api(status, data)
-    assert data["data"]["type"] == ttype
+    assert sp.fetch_thumbnail(thumbnail_id).type == ttype
 
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert_api(status, data)
-    thumbnail = data["data"]
-    assert thumbnail["obj_id"] == obj_id
-    fpath = thumbnail["file_uri"]
+    thumbnail = sp.fetch_thumbnail(thumbnail_id)
+    assert thumbnail.obj_id == obj_id
+    fpath = thumbnail.file_uri
     assert os.path.exists(fpath)
 
     # check there are exactly two subfolders of two letters
@@ -469,53 +383,31 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
     assert bool(re.match(r"^[a-f0-9]{2}/[a-f-0-9]{2}$", subfolders2))
 
     # now push the thumbnails to 3 levels deep
-    status, data = api(
-        "PATCH",
-        "thumbnailPath",
-        params={
-            "type": ttype,
-            "requiredDepth": 3,
-            "numPerPage": 500,
-        },
-        token=super_admin_token,
-    )
+    # (this always sent a `type` param the server ignores — it reads `types` —
+    # so the server-default types are checked, which include "new")
+    report = admin.update_thumbnail_paths(required_depth=3, num_per_page=500)
 
-    assert_api(status, data)
-    assert data["data"]["totalMatches"] < 500  # otherwise some are not moved!
-    assert data["data"]["inWrongFolder"] == 0  # all thumbnails are updated
+    assert report.total_matches < 500  # otherwise some are not moved!
+    assert report.in_wrong_folder == 0  # all thumbnails are updated
 
     # check the new folder structure
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert_api(status, data)
-    thumbnail = data["data"]
-    assert thumbnail["obj_id"] == obj_id
-    fpath = thumbnail["file_uri"]
+    thumbnail = sp.fetch_thumbnail(thumbnail_id)
+    assert thumbnail.obj_id == obj_id
+    fpath = thumbnail.file_uri
     assert os.path.exists(fpath)
     subfolders3 = os.path.dirname(fpath.split("thumbnails/")[1])
     assert bool(re.match(r"^[a-f0-9]{2}/[a-f-0-9]{2}/[a-f-0-9]{2}$", subfolders3))
 
     # return the thumbnails to 2 levels deep
-    status, data = api(
-        "PATCH",
-        "thumbnailPath",
-        params={
-            "type": ttype,
-            "requiredDepth": 2,
-            "numPerPage": 500,
-        },
-        token=super_admin_token,
-    )
+    report = admin.update_thumbnail_paths(required_depth=2, num_per_page=500)
 
-    assert_api(status, data)
-    assert data["data"]["totalMatches"] < 500  # otherwise some are not moved!
-    assert data["data"]["inWrongFolder"] == 0  # all thumbnails are updated
+    assert report.total_matches < 500  # otherwise some are not moved!
+    assert report.in_wrong_folder == 0  # all thumbnails are updated
 
     # make sure the new folder structure is back to normal
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert_api(status, data)
-    thumbnail = data["data"]
-    assert thumbnail["obj_id"] == obj_id
-    fpath = thumbnail["file_uri"]
+    thumbnail = sp.fetch_thumbnail(thumbnail_id)
+    assert thumbnail.obj_id == obj_id
+    fpath = thumbnail.file_uri
     assert os.path.exists(fpath)
 
     subfolders4 = os.path.dirname(fpath.split("thumbnails/")[1])
@@ -528,8 +420,7 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
     assert len(os.listdir(old_folder)) == 0
 
     # delete empty folders
-    status, data = api("DELETE", "thumbnailPath", token=super_admin_token)
-    assert_api(status, data)
+    admin.delete_thumbnail_folders()
 
     assert not os.path.exists(old_folder)
 
@@ -538,46 +429,34 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
 def test_token_user_delete_thumbnail_cascade_source(
     upload_data_token, super_admin_token, public_group, ztf_camera
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "redshift": 3,
-            "transient": False,
-            "ra_dis": 2.3,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    saved = sp.post_source(
+        SourcePost(
+            id=obj_id,
+            ra=234.22,
+            dec=-22.33,
+            redshift=3,
+            transient=False,
+            ra_dis=2.3,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200
-    assert data["data"]["id"] == obj_id
+    assert saved.id == obj_id
 
     orig_source_thumbnail_count = len(
         DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails
     )
     data = base64.b64encode(
         open(os.path.abspath("skyportal/tests/data/14gqr_new.png"), "rb").read()
-    )
+    ).decode()
     ttype = "new"
-    status, data = api(
-        "POST",
-        "thumbnail",
-        data={"obj_id": obj_id, "data": data, "ttype": ttype},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    thumbnail_id = data["data"]["id"]
+    thumbnail_id = sp.post_thumbnail(
+        ThumbnailPost(obj_id=obj_id, data=data, ttype=ttype)
+    ).id
     assert isinstance(thumbnail_id, int)
 
-    status, data = api("GET", f"thumbnail/{thumbnail_id}", token=upload_data_token)
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["type"] == "new"
+    assert sp.fetch_thumbnail(thumbnail_id).type == "new"
 
     assert (
         DBSession.query(Thumbnail).filter(Thumbnail.id == thumbnail_id).first().obj.id
@@ -587,9 +466,7 @@ def test_token_user_delete_thumbnail_cascade_source(
         == orig_source_thumbnail_count + 1
     )
 
-    status, data = api("DELETE", f"thumbnail/{thumbnail_id}", token=super_admin_token)
-    assert status == 200
-    assert data["status"] == "success"
+    client(super_admin_token).delete_thumbnail(thumbnail_id)
 
     assert (
         len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
@@ -600,22 +477,15 @@ def test_token_user_delete_thumbnail_cascade_source(
 def test_survey_thumbnail_skymapper_and_on_demand(
     upload_data_token, super_admin_token, public_group
 ):
+    sp = client(upload_data_token)
     obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 234.22,
-            "dec": -22.33,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    sp.post_source(
+        SourcePost(id=obj_id, ra=234.22, dec=-22.33, group_ids=[public_group.id])
     )
-    assert status == 200
 
     # Default survey-thumbnail generation is SDSS/PS1/LS only; SkyMapper and the
     # pointed instruments (HST/Chandra/JWST) are on-demand.
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "POST",
         "internal/survey_thumbnail",
@@ -624,14 +494,14 @@ def test_survey_thumbnail_skymapper_and_on_demand(
     )
     assert status == 200
 
-    status, data = api(
-        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-    )
-    types = {t["type"] for t in data["data"]["thumbnails"]}
+    types = {
+        t.type for t in sp.fetch_source(obj_id, include_thumbnails=True).thumbnails
+    }
     assert {"sdss", "ls", "ps1"} <= types
     assert not ({"sm", "hst", "chandra", "jwst"} & types)
 
     # Unknown thumbnail types are rejected.
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "POST",
         "internal/survey_thumbnail",
@@ -643,6 +513,7 @@ def test_survey_thumbnail_skymapper_and_on_demand(
 
     # SkyMapper is available on-demand (placeholder here since the cutout service
     # is disabled in test config, but the thumbnail is created).
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "POST",
         "internal/survey_thumbnail",
@@ -650,7 +521,6 @@ def test_survey_thumbnail_skymapper_and_on_demand(
         token=super_admin_token,
     )
     assert status == 200
-    status, data = api(
-        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-    )
-    assert "sm" in {t["type"] for t in data["data"]["thumbnails"]}
+    assert "sm" in {
+        t.type for t in sp.fetch_source(obj_id, include_thumbnails=True).thumbnails
+    }

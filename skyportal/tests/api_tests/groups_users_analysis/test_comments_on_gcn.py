@@ -1,4 +1,7 @@
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 
 def test_add_and_retrieve_comment_on_gcn(
@@ -6,24 +9,16 @@ def test_add_and_retrieve_comment_on_gcn(
 ):
     gcnevent_id = gcn_GW190425.id
 
-    status, data = api(
-        "POST",
-        f"gcn_event/{gcnevent_id}/comments",
-        data={
-            "text": "Comment text",
-            "group_ids": [public_group.id],
-        },
-        token=comment_token,
-    )
-    assert status == 200
-    comment_id = data["data"]["comment_id"]
+    sp = client(comment_token)
+    comment_id = sp.post_comment(
+        gcnevent_id,
+        "Comment text",
+        resource_type="gcn_event",
+        group_ids=[public_group.id],
+    ).comment_id
 
-    status, data = api(
-        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
-    )
-
-    assert status == 200
-    assert data["data"]["text"] == "Comment text"
+    comment = sp.fetch_comment(gcnevent_id, comment_id, resource_type="gcn_event")
+    assert comment.text == "Comment text"
 
 
 def test_delete_comment_on_gcn(
@@ -31,41 +26,24 @@ def test_delete_comment_on_gcn(
 ):
     gcnevent_id = gcn_GW190425.id
 
-    status, data = api(
-        "POST",
-        f"gcn_event/{gcnevent_id}/comments",
-        data={"text": "Comment text"},
-        token=comment_token,
-    )
-    assert status == 200
-    comment_id = data["data"]["comment_id"]
+    sp = client(comment_token)
+    comment_id = sp.post_comment(
+        gcnevent_id, "Comment text", resource_type="gcn_event"
+    ).comment_id
 
-    status, data = api(
-        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
-    )
-    assert status == 200
-    assert data["data"]["text"] == "Comment text"
+    comment = sp.fetch_comment(gcnevent_id, comment_id, resource_type="gcn_event")
+    assert comment.text == "Comment text"
 
     # try to delete using the wrong object ID
-    status, data = api(
-        "DELETE",
-        f"gcn_event/{gcnevent_id}zzz/comments/{comment_id}",
-        token=comment_token,
-    )
-    assert status == 400
-    assert (
-        "Comment resource ID does not match resource ID given in path"
-        in data["message"]
-    )
+    with pytest.raises(
+        SkyPortalError,
+        match="Comment resource ID does not match resource ID given in path",
+    ) as err:
+        sp.delete_comment(f"{gcnevent_id}zzz", comment_id, resource_type="gcn_event")
+    assert err.value.status_code == 400
 
-    status, data = api(
-        "DELETE",
-        f"gcn_event/{gcnevent_id}/comments/{comment_id}",
-        token=comment_token,
-    )
-    assert status == 200
+    sp.delete_comment(gcnevent_id, comment_id, resource_type="gcn_event")
 
-    status, data = api(
-        "GET", f"gcn_event/{gcnevent_id}/comments/{comment_id}", token=comment_token
-    )
-    assert status == 403
+    with pytest.raises(SkyPortalError) as err:
+        sp.fetch_comment(gcnevent_id, comment_id, resource_type="gcn_event")
+    assert err.value.status_code == 403

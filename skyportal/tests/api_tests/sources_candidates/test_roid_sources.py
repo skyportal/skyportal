@@ -5,19 +5,16 @@ import uuid
 
 import numpy as np
 import sqlalchemy as sa
+from skyportal_py.sources import SourcePost
 
 from skyportal.models import DBSession, Obj
-from skyportal.tests import api
+from skyportal.tests import client
 
 
 def make_source(obj_id, ra, dec, group_id, token, is_roid=False):
-    status, _ = api(
-        "POST",
-        "sources",
-        data={"id": obj_id, "ra": ra, "dec": dec, "group_ids": [group_id]},
-        token=token,
+    client(token).post_source(
+        SourcePost(id=obj_id, ra=ra, dec=dec, group_ids=[group_id])
     )
-    assert status == 200
     if is_roid:
         session = DBSession()
         obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
@@ -36,11 +33,10 @@ def test_roid_has_no_duplicates(public_group, upload_data_token):
         static_id, ra + 0.0001, dec + 0.0005, public_group.id, upload_data_token
     )
 
-    status, data = api("GET", f"sources/{roid_id}", token=upload_data_token)
-    assert status == 200
-    assert data["data"]["duplicates"] == []
+    source = client(upload_data_token).fetch_source(roid_id)
+    assert source.duplicates == []
     # Positional galaxy association is equally meaningless for it.
-    assert data["data"]["galaxies"] is None
+    assert source.galaxies is None
 
 
 def test_roid_is_not_a_duplicate_of_a_static_source(public_group, upload_data_token):
@@ -59,9 +55,8 @@ def test_roid_is_not_a_duplicate_of_a_static_source(public_group, upload_data_to
         is_roid=True,
     )
 
-    status, data = api("GET", f"sources/{static_id}", token=upload_data_token)
-    assert status == 200
-    assert [d["obj_id"] for d in data["data"]["duplicates"]] == []
+    source = client(upload_data_token).fetch_source(static_id)
+    assert [d.obj_id for d in source.duplicates] == []
 
 
 def test_static_sources_still_duplicate_each_other(public_group, upload_data_token):
@@ -75,6 +70,5 @@ def test_static_sources_still_duplicate_each_other(public_group, upload_data_tok
         second_id, ra + 0.0001, dec + 0.0005, public_group.id, upload_data_token
     )
 
-    status, data = api("GET", f"sources/{first_id}", token=upload_data_token)
-    assert status == 200
-    assert [d["obj_id"] for d in data["data"]["duplicates"]] == [second_id]
+    source = client(upload_data_token).fetch_source(first_id)
+    assert [d.obj_id for d in source.duplicates] == [second_id]

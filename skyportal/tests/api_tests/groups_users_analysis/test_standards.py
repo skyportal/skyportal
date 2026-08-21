@@ -2,6 +2,7 @@ from skyportal.tests import api
 
 
 def test_standards(view_only_token):
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "GET",
         "internal/standards",
@@ -23,6 +24,7 @@ def test_standards(view_only_token):
 
 
 def test_standards_bad_standard_list(view_only_token):
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "GET",
         "internal/standards",
@@ -40,6 +42,7 @@ def test_standards_bad_standard_list(view_only_token):
 
 
 def test_standards_bad_range(view_only_token):
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "GET",
         "internal/standards",
@@ -72,6 +75,7 @@ def test_standards_bad_range(view_only_token):
 
 
 def test_standards_filter(view_only_token):
+    # raw api: internal endpoint outside skyportal-py's scope
     status, data = api(
         "GET",
         "internal/standards",

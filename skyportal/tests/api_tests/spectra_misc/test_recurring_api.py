@@ -3,7 +3,11 @@ import time
 import uuid
 from datetime import timedelta
 
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+from skyportal_py.recurring_apis import RecurringAPIPost
+
+from skyportal.tests import client
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -14,6 +18,7 @@ def test_post_and_verify_recurring_api(
     next_call = utcnow_naive() + timedelta(seconds=1)
     obj_id = str(uuid.uuid4())
 
+    sp = client(super_admin_token)
     request_data = {
         "next_call": next_call.strftime("%Y-%m-%dT%H:%M:%S"),
         "call_delay": 0.001,
@@ -22,14 +27,8 @@ def test_post_and_verify_recurring_api(
         "payload": "{Test incorrect payload}",
     }
 
-    status, data = api(
-        "POST",
-        "recurring_api",
-        data=request_data,
-        token=super_admin_token,
-    )
-    assert status == 400
-    assert data["message"] == "payload must be a valid JSON string"
+    with pytest.raises(SkyPortalError, match="payload must be a valid JSON string"):
+        sp.post_recurring_api(RecurringAPIPost(**request_data))
 
     request_data["payload"] = json.dumps(
         {
@@ -41,37 +40,18 @@ def test_post_and_verify_recurring_api(
         }
     )
 
-    endpoint = "recurring_api"
-    status, data = api(
-        "POST",
-        endpoint,
-        data=request_data,
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    recurring_api_id = data["data"]["id"]
+    recurring_api_id = sp.post_recurring_api(RecurringAPIPost(**request_data)).id
 
-    endpoint = f"recurring_api/{recurring_api_id}"
-    status, data = api(
-        "GET",
-        endpoint,
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
+    sp.fetch_recurring_api(recurring_api_id)
 
-    endpoint = f"sources/{obj_id}"
+    source = None
     n_retries = 0
     while n_retries < 10:
-        status, data = api(
-            "GET",
-            endpoint,
-            token=view_only_token,
-        )
-        if data["status"] == "success":
+        try:
+            source = client(view_only_token).fetch_source(obj_id)
             break
-        time.sleep(15)
-        n_retries += 1
+        except SkyPortalError:
+            time.sleep(15)
+            n_retries += 1
     assert n_retries < 10
-    assert status == 200
+    assert source is not None

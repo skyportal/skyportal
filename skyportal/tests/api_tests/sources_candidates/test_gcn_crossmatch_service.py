@@ -12,6 +12,7 @@ import base64
 import gzip
 import io
 import uuid
+from contextlib import suppress
 from datetime import timedelta
 
 import numpy as np
@@ -19,6 +20,8 @@ import pytest
 import sqlalchemy as sa
 from astropy.io import fits
 from astropy.time import Time
+from skyportal_py import SkyPortalError
+from skyportal_py.gcn_events import GcnEventPost
 
 from baselayer.app import models
 from skyportal.broker_apis import GENERICBROKER
@@ -34,7 +37,7 @@ from skyportal.models import (
     Source,
     Thumbnail,
 )
-from skyportal.tests import api
+from skyportal.tests import client
 from skyportal.tests.fixtures import (
     FilterFactory,
     InstrumentFactory,
@@ -68,16 +71,15 @@ def _unique_id(prefix):
 def _post_event(token, group_ids, ra, dec):
     """A cone event recent enough to be inside the crossmatch window."""
     dateobs = (utcnow_naive() - timedelta(hours=6)).replace(microsecond=0)
-    payload = {
-        "dateobs": dateobs.isoformat(),
-        "trigger_id": f"XM{uuid.uuid4().hex[:10]}",
-        "skymap": {"ra": ra, "dec": dec, "error": ERROR},
-        "tags": ["TEST"],
-        "group_ids": list(group_ids),
-    }
-    status, data = api("POST", "gcn_event", data=payload, token=token)
-    assert status == 200, data
-    return dateobs, payload["trigger_id"]
+    payload = GcnEventPost(
+        dateobs=dateobs.isoformat(),
+        trigger_id=f"XM{uuid.uuid4().hex[:10]}",
+        skymap={"ra": ra, "dec": dec, "error": ERROR},
+        tags=["TEST"],
+        group_ids=list(group_ids),
+    )
+    client(token).post_gcn_event(payload)
+    return dateobs, payload.trigger_id
 
 
 @pytest.fixture()
@@ -86,7 +88,9 @@ def crossmatch_event(super_admin_token, public_group2):
     ra, dec = _unique_position()
     dateobs, trigger_id = _post_event(super_admin_token, [public_group2.id], ra, dec)
     yield dateobs, trigger_id, ra, dec
-    api("DELETE", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token)
+    # result was not checked before, so tolerate failure
+    with suppress(SkyPortalError):
+        client(super_admin_token).delete_gcn_event(dateobs.isoformat())
 
 
 @pytest.fixture()
@@ -302,14 +306,13 @@ def test_crossmatch_skips_events_outside_the_age_window(
         - timedelta(days=400)
         - timedelta(seconds=int(np.random.randint(0, 10**5)))
     ).replace(microsecond=0)
-    payload = {
-        "dateobs": old_dateobs.isoformat(),
-        "trigger_id": f"XM{uuid.uuid4().hex[:10]}",
-        "skymap": {"ra": ra, "dec": dec, "error": ERROR},
-        "group_ids": [public_group2.id],
-    }
-    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
-    assert status == 200, data
+    payload = GcnEventPost(
+        dateobs=old_dateobs.isoformat(),
+        trigger_id=f"XM{uuid.uuid4().hex[:10]}",
+        skymap={"ra": ra, "dec": dec, "error": ERROR},
+        group_ids=[public_group2.id],
+    )
+    client(super_admin_token).post_gcn_event(payload)
 
     obj_id = _unique_id("XM_old")
     recorded = {}
@@ -931,18 +934,14 @@ def test_crossmatch_searches_every_localization_of_an_event(
     dateobs, _ = _post_event(super_admin_token, [public_group2.id], ra_a, dec_a)
     # A second cone on the same event, exactly how a sibling EP source arrives:
     # posted under the same observation timestamp, which is the event's key.
-    status, data = api(
-        "POST",
-        "gcn_event",
-        data={
-            "dateobs": dateobs.isoformat(),
-            "skymap": {"ra": ra_b, "dec": dec_b, "error": ERROR},
-            "tags": ["TEST"],
-            "group_ids": [public_group2.id],
-        },
-        token=super_admin_token,
+    client(super_admin_token).post_gcn_event(
+        GcnEventPost(
+            dateobs=dateobs.isoformat(),
+            skymap={"ra": ra_b, "dec": dec_b, "error": ERROR},
+            tags=["TEST"],
+            group_ids=[public_group2.id],
+        )
     )
-    assert status == 200, data
 
     event_jd = float(Time(dateobs).jd)
     obj_a = _unique_id("XM_loc_a")

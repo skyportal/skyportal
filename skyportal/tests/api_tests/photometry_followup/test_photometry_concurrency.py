@@ -12,7 +12,7 @@ deliberately have N HTTP clients race on the *same* dedup tuple
 ON-CONFLICT DO NOTHING / DO UPDATE paths actually fire under contention.
 
 Concurrency is provided by `concurrent.futures.ThreadPoolExecutor`
-calling the test client's `api(...)` helper. The test server is the
+calling the typed skyportal-py client. The test server is the
 same single-process tornado supervisor the rest of the suite uses, so
 "concurrent" here means multiple HTTP requests in flight against the
 same backend at the same time.
@@ -21,19 +21,29 @@ same backend at the same time.
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from skyportal.tests import api
+from skyportal_py import SkyPortalError
+from skyportal_py.photometry import PhotometryPost
+from skyportal_py.sources import SourcePost
+
+from skyportal.tests import client
 
 N_WORKERS = 8
 
 
 def _post_photometry(token, payload):
-    """Single POST call returning (status, response_json)."""
-    return api("POST", "photometry", data=payload, token=token)
+    """Single POST call returning (status, response-or-error)."""
+    try:
+        return 200, client(token).post_photometry(payload)
+    except SkyPortalError as err:
+        return err.status_code, err
 
 
 def _put_photometry(token, payload):
-    """Single PUT call returning (status, response_json)."""
-    return api("PUT", "photometry", data=payload, token=token)
+    """Single PUT call returning (status, response-or-error)."""
+    try:
+        return 200, client(token).upsert_photometry(payload)
+    except SkyPortalError as err:
+        return err.status_code, err
 
 
 def test_concurrent_post_identical_dedup_key(
@@ -51,20 +61,20 @@ def test_concurrent_post_identical_dedup_key(
       mode is the default).
     - No worker sees a 500 (no IntegrityError leaks through).
     """
-    payload = {
-        "obj_id": str(public_source.id),
-        "instrument_id": ztf_camera.id,
-        "mjd": [59500.0],
-        "mag": [19.5],
-        "magerr": [0.05],
-        "limiting_mag": [21.0],
-        "magsys": ["ab"],
-        "filter": ["ztfr"],
-        "ra": [42.0],
-        "dec": [-22.0],
-        "origin": [f"concurrency-test-{uuid.uuid4()}"],
-        "group_ids": [public_group.id],
-    }
+    payload = PhotometryPost(
+        obj_id=str(public_source.id),
+        instrument_id=ztf_camera.id,
+        mjd=[59500.0],
+        mag=[19.5],
+        magerr=[0.05],
+        limiting_mag=[21.0],
+        magsys=["ab"],
+        filter=["ztfr"],
+        ra=[42.0],
+        dec=[-22.0],
+        origin=[f"concurrency-test-{uuid.uuid4()}"],
+        group_ids=[public_group.id],
+    )
 
     with ThreadPoolExecutor(max_workers=N_WORKERS) as pool:
         futures = [
@@ -98,18 +108,10 @@ def test_concurrent_post_identical_dedup_key(
         ), f"unexpected 400 body: {err}"
 
     # End state: exactly one photometry row for this origin tag exists.
-    status, get_data = api(
-        "GET",
-        f"sources/{public_source.id}",
-        params={"includePhotometry": "true"},
-        token=upload_data_token,
+    source = client(upload_data_token).fetch_source(
+        str(public_source.id), include_photometry=True
     )
-    assert status == 200
-    matching = [
-        p
-        for p in get_data["data"]["photometry"]
-        if p.get("origin") == payload["origin"][0]
-    ]
+    matching = [p for p in source.photometry if p.origin == payload.origin[0]]
     assert len(matching) == 1, (
         f"expected exactly 1 row for this origin, found {len(matching)}"
     )
@@ -150,34 +152,35 @@ def test_concurrent_put_ignore_flux_overwrite_flux(
     mjd = 59600.0
 
     # Seed: create the row that the concurrent PUTs will then update.
-    seed_payload = {
-        "obj_id": str(public_source.id),
-        "instrument_id": ztf_camera.id,
-        "mjd": [mjd],
-        "mag": [19.0],
-        "magerr": [0.05],
-        "limiting_mag": [21.0],
-        "magsys": ["ab"],
-        "filter": ["ztfr"],
-        "ra": [42.0],
-        "dec": [-22.0],
-        "origin": [origin],
-        "group_ids": [public_group.id],
-    }
-    status, data = api("POST", "photometry", data=seed_payload, token=upload_data_token)
-    assert status == 200, f"seed POST failed: {data}"
+    seed_payload = PhotometryPost(
+        obj_id=str(public_source.id),
+        instrument_id=ztf_camera.id,
+        mjd=[mjd],
+        mag=[19.0],
+        magerr=[0.05],
+        limiting_mag=[21.0],
+        magsys=["ab"],
+        filter=["ztfr"],
+        ra=[42.0],
+        dec=[-22.0],
+        origin=[origin],
+        group_ids=[public_group.id],
+    )
+    client(upload_data_token).post_photometry(seed_payload)
 
     # Each worker submits a distinct mag at the same (mjd, filter, origin).
     mags_in = [20.0 + 0.1 * i for i in range(N_WORKERS)]
 
+    sp_admin = client(super_admin_token)
+
     def _put_with_mag(mag):
-        payload = {**seed_payload, "mag": [mag]}
-        return api(
-            "PUT",
-            "photometry?duplicate_ignore_flux=True&overwrite_flux=True",
-            data=payload,
-            token=super_admin_token,
-        )
+        payload = seed_payload.model_copy(update={"mag": [mag]})
+        try:
+            return 200, sp_admin.upsert_photometry(
+                payload, duplicate_ignore_flux=True, overwrite_flux=True
+            )
+        except SkyPortalError as err:
+            return err.status_code, err
 
     with ThreadPoolExecutor(max_workers=N_WORKERS) as pool:
         results = list(pool.map(_put_with_mag, mags_in))
@@ -189,20 +192,16 @@ def test_concurrent_put_ignore_flux_overwrite_flux(
         f"sample error body: {errors[0] if errors else None}"
     )
 
-    status, get_data = api(
-        "GET",
-        f"sources/{public_source.id}",
-        params={"includePhotometry": "true"},
-        token=upload_data_token,
+    source = client(upload_data_token).fetch_source(
+        str(public_source.id), include_photometry=True
     )
-    assert status == 200
-    matching = [p for p in get_data["data"]["photometry"] if p.get("origin") == origin]
+    matching = [p for p in source.photometry if p.origin == origin]
     assert len(matching) == 1, (
         f"expected exactly 1 row for this origin after concurrent "
         f"ignore_flux+overwrite_flux PUTs, found {len(matching)} "
         "(dedup pre-check race?)"
     )
-    final_mag = matching[0]["mag"]
+    final_mag = matching[0].mag
     # The final mag must be one of the submitted values (a real winner
     # of the race), not the seed mag (which would mean ALL updates were
     # lost) and not something corrupt.
@@ -228,21 +227,21 @@ def test_concurrent_post_disjoint_keys(
     base_mjd = 59700.0
 
     def _post_at_offset(i):
-        payload = {
-            "obj_id": str(public_source.id),
-            "instrument_id": ztf_camera.id,
-            "mjd": [base_mjd + i],
-            "mag": [19.5],
-            "magerr": [0.05],
-            "limiting_mag": [21.0],
-            "magsys": ["ab"],
-            "filter": ["ztfr"],
-            "ra": [42.0],
-            "dec": [-22.0],
-            "origin": [f"disjoint-{uuid.uuid4()}"],
-            "group_ids": [public_group.id],
-        }
-        return api("POST", "photometry", data=payload, token=upload_data_token)
+        payload = PhotometryPost(
+            obj_id=str(public_source.id),
+            instrument_id=ztf_camera.id,
+            mjd=[base_mjd + i],
+            mag=[19.5],
+            magerr=[0.05],
+            limiting_mag=[21.0],
+            magsys=["ab"],
+            filter=["ztfr"],
+            ra=[42.0],
+            dec=[-22.0],
+            origin=[f"disjoint-{uuid.uuid4()}"],
+            group_ids=[public_group.id],
+        )
+        return _post_photometry(upload_data_token, payload)
 
     with ThreadPoolExecutor(max_workers=N_WORKERS) as pool:
         results = list(pool.map(_post_at_offset, range(N_WORKERS)))
@@ -252,7 +251,7 @@ def test_concurrent_post_disjoint_keys(
         f"disjoint POSTs should all succeed, got: {statuses}"
     )
 
-    inserted_ids = {data["data"]["ids"][0] for _, data in results}
+    inserted_ids = {data.ids[0] for _, data in results}
     assert len(inserted_ids) == N_WORKERS, (
         f"expected {N_WORKERS} distinct row IDs, got {len(inserted_ids)} "
         "(some inserts may have collided)"
@@ -272,18 +271,14 @@ def test_concurrent_posts_phot_stat_no_double_count(
     object's very first PhotStat row.
     """
     source_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": source_id,
-            "ra": 12.3,
-            "dec": -4.5,
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    client(upload_data_token).post_source(
+        SourcePost(
+            id=source_id,
+            ra=12.3,
+            dec=-4.5,
+            group_ids=[public_group.id],
+        )
     )
-    assert status == 200, data
 
     base_mjds = [59700.0 + i for i in range(10)]  # shared across workers -> collisions
     n_unique = 5
@@ -292,18 +287,18 @@ def test_concurrent_posts_phot_stat_no_double_count(
         unique = [59800.0 + worker * 100 + i for i in range(n_unique)]
         mjds = base_mjds + unique
         n = len(mjds)
-        payload = {
-            "obj_id": source_id,
-            "instrument_id": ztf_camera.id,
-            "mjd": mjds,
-            "mag": [19.0] * n,
-            "magerr": [0.05] * n,
-            "limiting_mag": [21.0] * n,
-            "magsys": ["ab"] * n,
-            "filter": ["ztfr"] * n,
-            "origin": ["concurrency-photstat"] * n,
-            "group_ids": [public_group.id],
-        }
+        payload = PhotometryPost(
+            obj_id=source_id,
+            instrument_id=ztf_camera.id,
+            mjd=mjds,
+            mag=[19.0] * n,
+            magerr=[0.05] * n,
+            limiting_mag=[21.0] * n,
+            magsys=["ab"] * n,
+            filter=["ztfr"] * n,
+            origin=["concurrency-photstat"] * n,
+            group_ids=[public_group.id],
+        )
         return _put_photometry(upload_data_token, payload)
 
     with ThreadPoolExecutor(max_workers=N_WORKERS) as executor:
@@ -313,17 +308,13 @@ def test_concurrent_posts_phot_stat_no_double_count(
 
     expected = len(base_mjds) + N_WORKERS * n_unique
 
-    status, data = api(
-        "GET", f"sources/{source_id}/photometry", token=upload_data_token
-    )
-    assert status == 200
-    assert len(data["data"]) == expected, (
-        f"expected {expected} distinct photometry rows, got {len(data['data'])}"
+    points = client(upload_data_token).fetch_photometry(source_id)
+    assert len(points) == expected, (
+        f"expected {expected} distinct photometry rows, got {len(points)}"
     )
 
-    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
-    assert status == 200
-    assert data["data"]["num_obs_global"] == expected, (
-        f"PhotStat num_obs_global={data['data']['num_obs_global']} != distinct "
+    phot_stat = client(upload_data_token).fetch_source_phot_stat(source_id)
+    assert phot_stat.num_obs_global == expected, (
+        f"PhotStat num_obs_global={phot_stat.num_obs_global} != distinct "
         f"photometry count {expected} (double-count or loss under concurrency)"
     )

@@ -3,6 +3,7 @@ import time
 import urllib.parse
 
 import requests
+from skyportal_py import create_client
 
 from baselayer.app.config import load_config
 
@@ -18,6 +19,25 @@ session.trust_env = (
 )
 
 cfg = load_config(config_files=["test_config.yaml"])
+
+_clients = {}
+
+
+def client(token=None, host=None):
+    """Return a skyportal-py client for the test server (we dogfood the
+    first-party client in the API tests).
+
+    Clients are cached per (host, token) so connections are pooled.
+    trust_env=False for the same netrc reason as the requests session above;
+    timeout=None because, like the requests session, tests wait out slow
+    endpoints rather than failing on a client-side deadline.
+    """
+    if host is None:
+        host = f"http://localhost:{cfg['ports.app']}"
+    key = (host, token)
+    if key not in _clients:
+        _clients[key] = create_client(host, token=token, timeout=None, trust_env=False)
+    return _clients[key]
 
 
 def api(

@@ -1,4 +1,7 @@
-from skyportal.tests import api
+import pytest
+from skyportal_py import SkyPortalError
+
+from skyportal.tests import client
 
 # Keys the ConfigHandler advertises in its docstring schema. If the handler
 # ever drops one of these, this test should catch it.
@@ -35,10 +38,7 @@ def test_config_returns_required_keys(view_only_token):
     Any authenticated user can read the config (it's frontend bootstrap
     data, not sensitive). This test pins the contract.
     """
-    status, data = api("GET", "config", token=view_only_token)
-    assert status == 200
-    assert data["status"] == "success"
-    cfg = data["data"]
+    cfg = client(view_only_token).fetch_config()
     assert isinstance(cfg, dict)
     missing = _REQUIRED_KEYS - set(cfg)
     assert not missing, f"config missing keys: {sorted(missing)}"
@@ -58,9 +58,7 @@ def test_config_cosmology_params_full_precision(view_only_token):
     rounds some values (e.g. H0 to 67.7 instead of 67.66)."""
     from skyportal.models import cosmo
 
-    status, data = api("GET", "config", token=view_only_token)
-    assert status == 200
-    params = data["data"]["cosmologyParams"]
+    params = client(view_only_token).fetch_config()["cosmologyParams"]
     assert isinstance(params, list) and params
     assert all(set(row) == {"name", "value"} for row in params)
 
@@ -73,5 +71,6 @@ def test_config_cosmology_params_full_precision(view_only_token):
 
 def test_config_requires_authentication():
     """The endpoint is gated by auth_or_token."""
-    status, _ = api("GET", "config")  # no token
-    assert status == 401
+    with pytest.raises(SkyPortalError) as err:
+        client().fetch_config()  # no token
+    assert err.value.status_code == 401
