@@ -1553,12 +1553,10 @@ const PhotometryPlot = ({
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
-          if (
-            !(
-              newTrace.name &&
-              ["detections", "upperLimits"].includes(newTrace.dataType)
-            )
-          ) {
+          if (!(
+            newTrace.name &&
+            ["detections", "upperLimits"].includes(newTrace.dataType)
+          )) {
             return newTrace;
           }
           if (
