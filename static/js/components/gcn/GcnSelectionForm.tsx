@@ -392,29 +392,6 @@ interface GcnSelectionFormProps {
   dateobs: string;
 }
 
-// The selection form's formData also holds source/galaxy query fields that
-// /api/observation rejects; keep only the ones it accepts.
-const observationFilterParams = (formData: Record<string, any>) => {
-  const {
-    startDate,
-    endDate,
-    localizationName,
-    localizationCumprob,
-    numPerPage,
-    pageNumber,
-    includeGeoJSON,
-  } = formData || {};
-  return {
-    startDate,
-    endDate,
-    localizationName,
-    localizationCumprob,
-    numPerPage,
-    pageNumber,
-    includeGeoJSON,
-  };
-};
-
 const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const theme = useTheme();
   const { classes } = useStyles();
@@ -638,7 +615,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           const result: any = await fetchGcnEventObservations({
             dateobs: gcnEvent?.dateobs,
             filterParams: {
-              ...observationFilterParams(formDataState),
+              ...formDataState,
               instrumentName: instLookUp[selectedInstrumentId]?.name,
               telescopeName:
                 telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
@@ -765,19 +742,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     }
 
     const fetchSources = async () => {
-      // Only send params the sources endpoint accepts; formData also holds
-      // galaxy/observation query fields the server rejects.
-      const {
-        queryList: _queryList,
-        catalog_name: _catalogName,
-        maxDistance: _maxDistance,
-        ...sourceFilterParams
-      } = formData;
       setGcnSourcesArgs({
         dateobs: gcnEvent?.dateobs,
-        filterParams: sourceFilterParams,
+        filterParams: formData,
       });
-      setSourceFilteringState(sourceFilterParams);
+      setSourceFilteringState(formData);
     };
 
     const fetchObservations = async () => {
@@ -796,7 +765,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         const result = await fetchGcnEventObservations({
           dateobs: gcnEvent?.dateobs,
           filterParams: {
-            ...observationFilterParams(formData),
+            ...formData,
             instrumentName: instrument.name,
             telescopeName: telescope.name,
             numberObservations: formData?.numberDetections || 1,
@@ -811,18 +780,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     };
 
     const fetchGalaxies = async () => {
-      // Only send params the galaxy_catalog endpoint accepts; formData also
-      // holds source/observation query fields the server rejects.
       await fetchGcnEventGalaxies({
         dateobs: gcnEvent?.dateobs,
-        filterParams: {
-          catalog_name: formData.catalog_name,
-          localizationName: formData.localizationName,
-          localizationCumprob: formData.localizationCumprob,
-          maxDistance: formData.maxDistance,
-          numPerPage: 100,
-          pageNumber: formData.pageNumber,
-        },
+        filterParams: { ...formData, numPerPage: 100 },
       });
     };
 

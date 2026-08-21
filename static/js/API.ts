@@ -148,6 +148,14 @@ export const filterOutEmptyValues = (
   return filteredParams;
 };
 
+export const pickParams = (
+  params: Record<string, any>,
+  keys: readonly string[],
+): Record<string, any> =>
+  Object.fromEntries(
+    Object.entries(params).filter(([key]) => keys.includes(key)),
+  );
+
 /**
  * Encode an object as a URL query string (no leading "?"), skipping null,
  * undefined, "" and empty arrays. Use this everywhere query params are built so

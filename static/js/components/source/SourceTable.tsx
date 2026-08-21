@@ -1684,13 +1684,6 @@ const SourceTable = ({
       data.requireDetections = false;
     }
 
-    // Form-only selection ids: the sources endpoint takes the resolved names
-    // (localizationDateobs/localizationName/spatialCatalog*) and rejects these.
-    delete data.gcneventid;
-    delete data.localizationid;
-    delete data.spatialcatalogid;
-    delete data.spatialcatalogentryid;
-
     setTableFilterList(
       Object.entries(data).map(([key, value]: [string, any]) => {
         if (key === "position") {

@@ -82,13 +82,6 @@ const RetrieveSpatialCatalogSources = ({
       delete data.position;
     }
 
-    // Form-only selection ids: the sources endpoint takes the resolved names
-    // (localizationDateobs/localizationName/spatialCatalog*) and rejects these.
-    delete data.gcneventid;
-    delete data.localizationid;
-    delete data.spatialcatalogid;
-    delete data.spatialcatalogentryid;
-
     setSourcesArgs({
       catalogName: catalog.catalog_name,
       entryName: entry.entry_name,
