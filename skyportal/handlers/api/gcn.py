@@ -5120,8 +5120,8 @@ class LocalizationCrossmatchGetQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id1: int | None = Field(default=None, description="ID of the first localization.")
-    id2: int | None = Field(default=None, description="ID of the second localization.")
+    id1: int = Field(description="ID of the first localization.")
+    id2: int = Field(description="ID of the second localization.")
 
 
 class LocalizationCrossmatchHandler(BaseHandler):
@@ -5149,8 +5149,6 @@ class LocalizationCrossmatchHandler(BaseHandler):
 
         id1_int = query.id1
         id2_int = query.id2
-        if id1_int is None or id2_int is None:
-            return self.error("Please provide two localization id")
 
         local_temp_files = []
 
