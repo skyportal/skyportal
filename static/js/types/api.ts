@@ -2688,6 +2688,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidates_filter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get candidates with their alert ids
+         * @description A lighter CandidateHandler that returns the Candidates themselves, including the alert id (candid) they passed on, rather than the Objs. Lets the upstream system that sends the alerts map them back to candidates.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at >= startDate */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at <= endDate */
+                    endDate?: string | null;
+                    /** @description Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's groups if filterIDs is not provided. */
+                    groupIDs?: string | null;
+                    /** @description Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's groups' filters if groupIDs is not provided. */
+                    filterIDs?: string | null;
+                    /** @description String indicating the saved status to filter candidate results for. Must be one of the enumerated values. */
+                    savedStatus?: "all" | "savedToAllSelected" | "savedToAnySelected" | "savedToAnyAccessible" | "notSavedToAnyAccessible" | "notSavedToAnySelected" | "notSavedToAllSelected";
+                    /** @description Page number for paginated query results. Defaults to 1 */
+                    pageNumber?: number;
+                    /** @description Number of candidates to return per paginated request. Defaults to 25. Capped at 500. */
+                    numPerPage?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidates/scan_reports/{report_id}/items/{_}": {
         parameters: {
             query?: never;
@@ -10962,7 +11006,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get instrument logs
+         * @description Retrieve an instrument's log messages over a date range
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). Only return logs ending after this date. */
+                    startDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). Only return logs starting before this date. */
+                    endDate?: string | null;
+                };
+                header?: never;
+                path: {
+                    instrument_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
         put?: never;
         /**
          * Add instrument logs

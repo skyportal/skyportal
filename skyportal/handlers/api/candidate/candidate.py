@@ -56,12 +56,10 @@ from ....utils.data_access import (
     accessible_group_and_filter_ids,
     accessible_group_ids_async,
 )
-from ....utils.parse import get_page_and_n_per_page
+from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
-from .candidate_filter import (
-    get_subquery_for_saved_status,
-)
+from .candidate_filter import SAVED_STATUSES, get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -324,15 +322,7 @@ class CandidateGetQuery(BaseModel):
         default=None,
         description="Group ID(s) to save candidates to.",
     )
-    savedStatus: Literal[
-        "all",
-        "savedToAllSelected",
-        "savedToAnySelected",
-        "savedToAnyAccessible",
-        "notSavedToAnyAccessible",
-        "notSavedToAnySelected",
-        "notSavedToAllSelected",
-    ] = Field(
+    savedStatus: Literal[*SAVED_STATUSES] = Field(
         default="all",
         description=(
             "String indicating the saved status to filter candidate results for. "
@@ -925,23 +915,19 @@ class CandidateHandler(BaseHandler):
             candidate_query = sa.select(Candidate).where(
                 Candidate.filter_id.in_(filter_ids)
             )
-            if start_date and start_date.strip().lower() not in {
-                "",
-                "null",
-                "undefined",
-            }:
-                try:
-                    start_date = arrow.get(start_date).datetime
-                except Exception as e:
-                    return self.error(f"Invalid startDate value: {e}")
+            try:
+                start_date = parse_optional_date(start_date)
+            except Exception as e:
+                return self.error(f"Invalid startDate value: {e}")
+            try:
+                end_date = parse_optional_date(end_date)
+            except Exception as e:
+                return self.error(f"Invalid endDate value: {e}")
+            if start_date:
                 candidate_query = candidate_query.where(
                     Candidate.passed_at >= start_date
                 )
-            if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
-                try:
-                    end_date = arrow.get(end_date).datetime
-                except Exception as e:
-                    return self.error(f"Invalid endDate value: {e}")
+            if end_date:
                 candidate_query = candidate_query.where(Candidate.passed_at <= end_date)
             candidate_subquery = candidate_query.subquery()
             # We'll join in the nested data for Obj (like photometry) later
@@ -980,13 +966,8 @@ class CandidateHandler(BaseHandler):
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
             q = get_subquery_for_saved_status(
-                session, q, saved_status, group_ids, session.user_or_token
+                q, saved_status, group_ids, session.user_or_token
             )
-
-            if q is None:
-                return self.error(
-                    f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
-                )
 
             if min_redshift is not None:
                 try:
