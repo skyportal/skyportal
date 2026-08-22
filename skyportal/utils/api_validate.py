@@ -91,9 +91,9 @@ def query_dict_from(query_arguments, model):
 
     List-typed fields accept both conventions in use across the API,
     repeated parameters (`?ids=1&ids=2`) and comma-separated values
-    (`?ids=1,2`); items are stripped and an empty value is treated as absent
-    so the field default applies. Every other field keeps the last value,
-    matching tornado's `get_query_argument`.
+    (`?ids=1,2`); items are stripped. Every other field keeps the last value,
+    matching tornado's `get_query_argument`. An empty value (`?ids=`) is
+    treated as absent so the field default applies.
     """
     list_fields = _list_fields(model)
     args = {}
@@ -108,7 +108,7 @@ def query_dict_from(query_arguments, model):
             ]
             if items:
                 args[name] = items
-        else:
+        elif decoded[-1] != "":
             args[name] = decoded[-1]
     return args
 
