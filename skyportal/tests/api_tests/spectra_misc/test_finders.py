@@ -70,7 +70,7 @@ def test_finder_rejects_invalid_parameters(upload_data_token, public_source):
         token=upload_data_token,
     )
     assert status == 400
-    assert "Invalid image source" in data["message"]
+    assert "image_source: Input should be" in data["message"]
 
     status, data = api(
         "GET",
