@@ -4,7 +4,8 @@ Revision ID: 02dff366befe
 Revises: a3d81c4f7b26
 Create Date: 2026-08-18
 
-Backfills survey on legacy new/ref/sub rows from their most recent
+Uppercases existing survey values, backfills
+survey on legacy new/ref/sub rows from their most recent
 same-obj/type sibling (a NULL row with no such sibling is left alone),
 dedupes any remaining (obj_id, type, survey) duplicates table-wide, and
 adds a unique constraint to enforce one thumbnail per survey going
@@ -28,6 +29,15 @@ DELETE_BATCH_SIZE = 5000
 
 
 def upgrade():
+    # Must run before the dedupe: "Ztf" and "ZTF" are distinct under the constraint.
+    op.execute(
+        """
+        UPDATE thumbnails
+        SET survey = upper(trim(survey))
+        WHERE survey IS NOT NULL AND survey <> upper(trim(survey))
+        """
+    )
+
     # DISTINCT ON picks one deterministic sibling (the most recent) per
     # obj_id/type: a plain self-join here left the choice up to Postgres when
     # an obj/type had siblings on two different surveys.
