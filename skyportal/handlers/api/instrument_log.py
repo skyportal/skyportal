@@ -121,6 +121,13 @@ class InstrumentLogHandler(BaseHandler):
 
     @auth_or_token
     async def get(self, instrument_id: int, *, query: InstrumentLogGetQuery = None):
+        """
+        ---
+        summary: Get instrument logs
+        description: Retrieve an instrument's log messages over a date range
+        tags:
+          - instruments
+        """
         query = self.parse_query(InstrumentLogGetQuery)
 
         try:

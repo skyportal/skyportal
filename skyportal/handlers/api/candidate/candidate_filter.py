@@ -149,6 +149,13 @@ class CandidateFilterGetQuery(BaseModel):
 class CandidateFilterHandler(BaseHandler):
     @auth_or_token
     async def get(self, *, query: CandidateFilterGetQuery = None):
+        """
+        ---
+        summary: Get candidates with their alert ids
+        description: Retrieve candidates with the alert id (candid) they passed on
+        tags:
+          - candidates
+        """
         # here we want a lighter version of the CandidateHandler, that applies
         # only the startDate, endDate, groupIDs, filterIDs, and savedStatus
         # and returns the Candidates themselves including the candidate's alert id (candid)
