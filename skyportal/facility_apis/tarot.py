@@ -53,6 +53,23 @@ filters_value = {
 tarot_proxy_endpoint = cfg.get("app.tarot_proxy_endpoint")
 
 
+async def decode_response(response):
+    """Decode a TAROT response body.
+
+    TAROT replies in Latin-1 without declaring it, so aiohttp's `.text()` tries
+    UTF-8 and raises on any accent. Latin-1 maps every byte, so this can't fail.
+    """
+    body = await response.read()
+    for encoding in (response.charset, "utf-8", "latin-1"):
+        if encoding is None:
+            continue
+        try:
+            return body.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return body.decode("utf-8", errors="replace")
+
+
 def get_header(altdata):
     return {
         "Authorization": f"token {altdata['proxy_token']}",
@@ -372,7 +389,7 @@ async def login_to_tarot(request, session, altdata):
             headers=headers,
             timeout=aiohttp.ClientTimeout(total=7.0),
         ) as login_response:
-            login_text = await login_response.text()
+            login_text = await decode_response(login_response)
             login_status = login_response.status
 
     error = None
@@ -476,7 +493,7 @@ class TAROTAPI(FollowUpAPI):
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=7.0),
             ) as response:
-                response_text = await response.text()
+                response_text = await decode_response(response)
                 response_status = response.status
 
         if "New Scene Inserted" not in response_text:
@@ -569,7 +586,7 @@ class TAROTAPI(FollowUpAPI):
                 async with http_session.get(
                     url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
                 ) as response:
-                    response_text = await response.text()
+                    response_text = await decode_response(response)
                     response_status = response.status
 
             if response_status != 200:
@@ -618,7 +635,7 @@ class TAROTAPI(FollowUpAPI):
                 async with http_session.get(
                     url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
                 ) as response_sequenced:
-                    response_sequenced_text = await response_sequenced.text()
+                    response_sequenced_text = await decode_response(response_sequenced)
                     response_sequenced_status = response_sequenced.status
             if response_sequenced_status != 200:
                 transaction = FacilityTransaction(
@@ -657,7 +674,9 @@ class TAROTAPI(FollowUpAPI):
                 async with http_session.get(
                     url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
                 ) as response_observation:
-                    response_observation_text = await response_observation.text()
+                    response_observation_text = await decode_response(
+                        response_observation
+                    )
                     response_observation_status = response_observation.status
 
             if response_observation_status != 200:
@@ -766,7 +785,7 @@ class TAROTAPI(FollowUpAPI):
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=7.0),
                     ) as response:
-                        response_text = await response.text()
+                        response_text = await decode_response(response)
                         response_status = response.status
 
                 if response_status != 200:
