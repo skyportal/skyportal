@@ -22,10 +22,15 @@
         {% block loginText -%}
         <p>{{ app.login_message }}</p>
         {%- endblock %}
-        {%- for button in app.login_buttons %}
+        {%- for backend in auth_backends %}
+        {%- set button = app.login_buttons | selectattr('url', 'equalto', '/login/' ~ backend.name) | first | default(none) %}
         <div class="loginButton">
-          <a href="{{ button.url }}">
+          <a href="/login/{{ backend.name }}">
+            {%- if button %}
             <img src="{{ button.image }}" alt="{{ button.alt_text }}" />
+            {%- else %}
+            <span class="loginButtonText">{{ backend.label }}</span>
+            {%- endif %}
           </a>
         </div>
         {%- endfor %}

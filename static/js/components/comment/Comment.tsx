@@ -1,8 +1,10 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { isMobile } from "react-device-detect";
 
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
@@ -45,6 +47,29 @@ const actionButtonStyle = {
   padding: "0.125rem",
   color: "text.secondary",
 };
+
+const LINK_REGEX = /(\[[^\]]*\]\([^)]*\)|<[^\s>]+>|(?:https?:\/\/|www\.)\S+)/g;
+const MENTION_REGEX = /(?<!\w)([@#])([\w-@]+)/g;
+
+const highlightMentions = (text: string) =>
+  text
+    .split(LINK_REGEX)
+    .map((chunk, index) =>
+      index % 2 ? chunk : chunk.replace(MENTION_REGEX, "***$1$2***"),
+    )
+    .join("");
+
+const markdownLink = ({ node, children, ...props }: any) => (
+  <Link
+    {...props}
+    target="_blank"
+    rel="noopener noreferrer"
+    onClick={(event: any) => event.stopPropagation()}
+    sx={{ overflowWrap: "anywhere" }}
+  >
+    {children}
+  </Link>
+);
 
 interface CommentProps {
   resourceType?: string;
@@ -163,13 +188,7 @@ const Comment = ({
   };
 
   const renderCommentText = () => {
-    // Format the text to highlight mentions
-    const formattedText = (text ?? "").replace(
-      /(?<!\w)([@#])([\w-@]+)/g,
-      (_match, symbol, username) => {
-        return `***${symbol}${username}***`;
-      },
-    );
+    const formattedText = highlightMentions(text ?? "");
 
     if (spectrum_id && objID && spectra && resourceType === "sources") {
       const spectrum = spectra.find((spec: any) => spec.id === spectrum_id);
@@ -288,7 +307,8 @@ const Comment = ({
           >
             <ReactMarkdown
               className={commentMessageStyle}
-              components={{ text: emojiSupport }}
+              remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
+              components={{ text: emojiSupport, a: markdownLink }}
             >
               {renderCommentText()}
             </ReactMarkdown>

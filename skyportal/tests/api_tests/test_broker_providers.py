@@ -269,6 +269,33 @@ def test_boom_query_alerts_infers_survey_from_object_id(monkeypatch):
     }
 
 
+def test_save_as_source_infers_survey_from_object_id(monkeypatch):
+    """Saving an LSST object through a broker whose altdata defaults to ZTF must
+    ingest it as LSST, not as ZTF bands ('ztfz' is not a real filter)."""
+    import asyncio
+
+    from skyportal.broker_apis import _save
+
+    captured = {}
+
+    def fake_get_alert(_broker, alert_id, _session, **kwargs):
+        captured["fetched_survey"] = kwargs.get("survey")
+        return {"objectId": alert_id}
+
+    async def fake_save(_data, survey, *_args, **_kwargs):
+        captured["survey"] = survey
+
+    monkeypatch.setattr(BOOMBROKER, "get_alert", staticmethod(fake_get_alert))
+    monkeypatch.setattr(_save, "save_object_as_source", fake_save)
+
+    asyncio.run(
+        BOOMBROKER.save_as_source(
+            _MockBroker({"survey": "ZTF"}), "170591514995458386", None, None, [1]
+        )
+    )
+    assert captured == {"fetched_survey": "LSST", "survey": "LSST"}
+
+
 @pytest.mark.parametrize(
     ("permissions", "expected"),
     [

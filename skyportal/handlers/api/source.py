@@ -783,6 +783,10 @@ async def post_source_async(data, user_id, session, refresh_source=True):
 
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
+    # Obj.id is a string column; numeric survey ids arrive as JSON numbers and
+    # would blow up the checks below (and the varchar comparison) untouched.
+    data["id"] = str(data["id"])
+
     if " " in data["id"]:
         raise AttributeError("No spaces allowed in source ID")
 
@@ -1050,6 +1054,10 @@ def post_source(data, user_id, session, refresh_source=True):
     warnings = []
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
+
+    # Obj.id is a string column; numeric survey ids arrive as JSON numbers and
+    # would blow up the checks below (and the varchar comparison) untouched.
+    data["id"] = str(data["id"])
 
     if " " in data["id"]:
         raise AttributeError("No spaces allowed in source ID")
@@ -2250,8 +2258,14 @@ class SourceHandler(BaseHandler):
         alias = self.get_query_argument("alias", None)
         origin = self.get_query_argument("origin", None)
         tns_name = self.get_query_argument("TNSname", None)
-        has_tns_name = self.get_query_argument("hasTNSname", None)
-        has_no_tns_name = self.get_query_argument("hasNoTNSname", None)
+        # None default skips baselayer's bool coercion, so normalize here or
+        # any non-empty value, including "false", would enable the filter
+        has_tns_name = str_to_bool(
+            self.get_query_argument("hasTNSname", None), default=False
+        )
+        has_no_tns_name = str_to_bool(
+            self.get_query_argument("hasNoTNSname", None), default=False
+        )
         has_been_labelled = self.get_query_argument("hasBeenLabelled", False)
         has_not_been_labelled = self.get_query_argument("hasNotBeenLabelled", False)
         current_user_labeller = self.get_query_argument("currentUserLabeller", False)

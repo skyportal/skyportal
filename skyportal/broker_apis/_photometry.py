@@ -29,6 +29,8 @@ import traceback
 
 from baselayer.log import make_log
 
+from ..utils.survey import survey_from_object_id
+
 log = make_log("broker/photometry")
 
 # Group keys that form a PhotFluxFlexible payload for standardize_photometry_data
@@ -199,7 +201,11 @@ async def display_photometry(
     broker fetch, the object's PhotStat summary is recomputed fire-and-forget.
     Shared by every provider via the interface's default ``get_photometry``.
     """
-    survey = survey or (broker.altdata or {}).get("survey")
+    survey = (
+        survey
+        or survey_from_object_id(object_id, cls.surveys)
+        or (broker.altdata or {}).get("survey")
+    )
 
     user_id, group_ids, stream_ids, is_admin = await resolve_scope(user, session)
     key = photometry_key(

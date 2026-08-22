@@ -1,3 +1,4 @@
+from ..utils.survey import survey_from_object_id
 from ._base import _Base
 
 
@@ -131,15 +132,23 @@ class BrokerAPI(_Base):
         available), then hand off to the shared, survey-keyed writer
         (``_save.save_object_as_source``). Override only for a non-standard
         alert shape.
+
+        The survey is inferred from the object id before falling back to the
+        broker's ``altdata`` default, which names a single survey: a multi-survey
+        broker would otherwise ingest an LSST object's bands as ZTF ones.
         """
         from ._save import save_object_as_source
 
+        kwargs["survey"] = kwargs.get("survey") or survey_from_object_id(
+            alert_id, cls.surveys
+        )
         data = cls.get_alert(broker, alert_id, session, **kwargs)
         survey = (
-            kwargs.get("survey")
+            kwargs["survey"]
             or (data.get("survey") if isinstance(data, dict) else None)
             or (broker.altdata or {}).get("survey")
         )
+        kwargs["survey"] = survey
         cutouts = None
         candid = None
         if isinstance(data, dict):

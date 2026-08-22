@@ -37,7 +37,7 @@ import { useGetBrokersQuery } from "../../ducks/brokers";
 import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
 
-const drawerWidth = 170;
+const drawerWidth = 220;
 const miniDrawerWidth = 65;
 
 const useStyles = makeStyles()((theme) => ({

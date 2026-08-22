@@ -8,6 +8,7 @@ from astropy.utils.iers import conf as iers_conf
 from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.model_util import create_tables
 from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
@@ -191,6 +192,7 @@ from skyportal.handlers.api import (
     SourceFinderHandler,
     SourceGroupsHandler,
     SourceHandler,
+    SourceInterestHandler,
     SourceLabelsHandler,
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
@@ -268,9 +270,11 @@ log = make_log("app_server")
 class CustomApplication(tornado.web.Application):
     def log_request(self, handler):
         # We don't want to log expected exceptions intentionally raised
-        # during auth pipeline; such exceptions will have "google-oauth2" in
-        # their request route
-        if "google-oauth2" in str(handler.request.uri):
+        # during auth pipeline; those requests are routed to the auth backend
+        if any(
+            f"/{backend['name']}" in str(handler.request.uri)
+            for backend in configured_backends()
+        ):
             return
         return super().log_request(handler)
 
@@ -538,6 +542,8 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications", ObjClassificationHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/groups", ObjGroupsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/labels", SourceLabelsHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests", SourceInterestHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests(/[0-9]+)", SourceInterestHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag", ObjColorMagHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),

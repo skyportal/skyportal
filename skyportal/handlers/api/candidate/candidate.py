@@ -829,6 +829,13 @@ class CandidateHandler(BaseHandler):
         list_name_reject = self.get_query_argument("listNameReject", None)
         autosave = self.get_query_argument("autosave", False)
         autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
+        if autosave_group_ids is not None:
+            # parse here: passing the raw comma-separated string through to
+            # post_source_async would iterate it character by character
+            try:
+                autosave_group_ids = [int(gid) for gid in autosave_group_ids.split(",")]
+            except ValueError:
+                return self.error("Invalid autosaveGroupIds value.")
         photometry_annotations_filter = self.get_query_argument(
             "photometryAnnotationsFilter", None
         )
@@ -1584,6 +1591,13 @@ class CandidateHandler(BaseHandler):
                               description: List of new candidate IDs
         """
         data = self.get_json()
+
+        if data.get("id") is None:
+            return self.error("Missing required parameter: `id`.")
+        # Obj.id is a string column, but survey ids are often numeric (e.g. LSST
+        # diaObject ids) and arrive as JSON numbers; comparing those against a
+        # varchar column errors out in Postgres, so normalize once up front.
+        data["id"] = str(data["id"])
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(

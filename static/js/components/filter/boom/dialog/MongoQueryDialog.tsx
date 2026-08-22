@@ -252,8 +252,8 @@ const MongoQueryDialog = () => {
   }, [filter_stream, selectedCollection, dispatch]);
 
   const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
   const defaultEndDate = new Date();
-  defaultEndDate.setDate(defaultEndDate.getDate() + 1);
 
   const { getValues, control, watch } = useForm({
     startDate: defaultStartDate,

@@ -33,6 +33,11 @@ export interface SourcesResult {
   totalMatches: number;
   pageNumber: number;
   numPerPage: number;
+  /**
+   * Handle for the backend's cached obj_id list, assigned on the first page.
+   * Echo it back on later pages to skip re-running the full ordering query.
+   */
+  queryID?: string | null;
   [key: string]: any;
 }
 
@@ -49,9 +54,50 @@ const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   return params;
 };
 
+/**
+ * Opt into the backend's server-side query cache (`useCache` + `queryID`).
+ *
+ * `/api/sources` has no LIMIT on its ordering query: it aggregates
+ * MAX(saved_at) over *every* matching source to build the full ordered obj_id
+ * list, because `totalMatches` is the length of that list. On a Fritz-sized
+ * database that is a ~2-3s full scan, and without a queryID it is repeated on
+ * every single page request.
+ *
+ * Passing `useCache=true` makes the backend persist that list and hand back a
+ * `queryID`; echoing the id on later pages serves them from the cached list
+ * instead (measured ~3.3s -> ~1.0s per page). This is the same mechanism the
+ * scanning page already uses via `getCandidates`.
+ *
+ * The handler validates the pairing strictly, so mirror its contract exactly:
+ *   - page 1 must NOT carry a queryID (the backend assigns one)
+ *   - page > 1 must carry one, or the request is rejected
+ * Anything that would violate it falls back to an uncached query rather than
+ * erroring.
+ */
+const withQueryCache = (params: FilterParams): FilterParams => {
+  const p = { ...params };
+  const pageNumber = Number(p["pageNumber"] ?? 1);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 1) {
+    delete p["queryID"];
+    p["useCache"] = true;
+  } else if (p["queryID"]) {
+    p["useCache"] = true;
+  } else {
+    // Page > 1 with no queryID (e.g. a deep-linked page, or a cache entry the
+    // backend has since expired): ask for the full query instead of tripping
+    // the handler's validation.
+    delete p["useCache"];
+  }
+  return p;
+};
+
 /** Build a `/api/sources?...` URL from a filterParams object. */
 const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
-  const filtered = filterOutEmptyValues(params, true, removeFalse);
+  const filtered = filterOutEmptyValues(
+    withQueryCache(params),
+    true,
+    removeFalse,
+  );
   const queryString = buildQueryString(filtered);
   return `/api/sources?${queryString}`;
 };
