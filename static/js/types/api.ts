@@ -258,10 +258,10 @@ export interface paths {
                     sortOrder?: "asc" | "desc";
                     /** @description Instrument ID to retrieve allocations for. */
                     instrument_id?: number | null;
-                    /** @description Restrict to allocations on instruments with this API class defined. Must be either api_classname or api_classname_obsplan. */
-                    apiType?: string | null;
-                    /** @description Restrict to allocations whose instrument API implements this method (e.g. submit, queued, send_skymap). Requires apiType. */
-                    apiImplements?: string | null;
+                    /** @description Restrict to allocations on instruments with this API class defined. */
+                    apiType?: "api_classname" | "api_classname_obsplan" | null;
+                    /** @description Restrict to allocations whose instrument API implements this method. Requires apiType. */
+                    apiImplements?: "update" | "delete" | "get" | "submit" | "send" | "remove" | "retrieve" | "queued" | "remove_queue" | "prepare_payload" | "send_skymap" | "queued_skymap" | "remove_skymap" | "retrieve_log" | "update_status" | null;
                 };
                 header?: never;
                 path?: never;
@@ -2278,9 +2278,9 @@ export interface paths {
                     /** @description Survey the photometry is fetched for. */
                     survey?: string | null;
                     /** @description Photometry format. */
-                    format?: string;
+                    format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
-                    magsys?: string;
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                     /** @description Bypass any cached broker payload and re-fetch. */
                     refresh?: boolean;
                 };
@@ -2344,9 +2344,9 @@ export interface paths {
                     /** @description Survey whose configured broker serves the photometry. */
                     survey: string;
                     /** @description Photometry format. */
-                    format?: string;
+                    format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
-                    magsys?: string;
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                     /** @description Bypass any cached broker payload and re-fetch. */
                     refresh?: boolean;
                     /** @description Ignored. */
@@ -9373,11 +9373,11 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: {
+                query: {
                     /** @description ID of the first localization. */
-                    id1?: number | null;
+                    id1: number;
                     /** @description ID of the second localization. */
-                    id2?: number | null;
+                    id2: number;
                 };
                 header?: never;
                 path?: never;
@@ -11652,13 +11652,13 @@ export interface paths {
                     /** @description Boolean indicating whether to include integrated probability and area. Defaults to false. */
                     returnStatistics?: boolean;
                     /** @description Method to use for computing integrated probability and area. Defaults to 'python'. To use the database/postgres based method, use 'db'. */
-                    statsMethod?: string;
+                    statsMethod?: "python" | "db";
                     /** @description Boolean indicating whether to log the stats computation time. Defaults to false. */
                     statsLogging?: boolean;
                     /** @description Boolean indicating whether to include associated GeoJSON. Defaults to false. */
                     includeGeoJSON?: boolean;
                     /** @description Whether to include queued or executed observations. Defaults to executed. */
-                    observationStatus?: string;
+                    observationStatus?: "executed" | "queued";
                     /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Number of observations to return per paginated request. Defaults to 100. Can be no larger than 10000. */
@@ -13653,10 +13653,10 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Return the photometry in flux or magnitude space? Must be one of 'mag', 'flux', or 'both'. If a value for this query parameter is not provided, the result will be returned in magnitude space. */
-                    format?: string;
+                    /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. */
+                    format?: "mag" | "flux" | "both";
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: string;
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                 };
                 header?: never;
                 path: {
@@ -14024,7 +14024,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Format of the data to return. If `none`, the data will not be returned. If `hdf5`, the data will be returned as a bytestream in HDF5 format. (to see how to unpack this data format, look at `photometric_series.md`) If `json`, the data will be returned as a JSON object, where each key is a list of values for that column. Defaults to `json` when retrieving a single series, and to `none` when querying multiple series. To specifically request the data when querying multiple series, use `dataFormat=json` or `dataFormat=hdf5`. Keep in mind this could be a large amount of data if the query arguments do not filter down the number of returned series. */
-                    dataFormat?: string | null;
+                    dataFormat?: "json" | "hdf5" | "none" | null;
                 };
                 header?: never;
                 path: {
@@ -14299,7 +14299,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Format of the data to return. If `none`, the data will not be returned. If `hdf5`, the data will be returned as a bytestream in HDF5 format. (to see how to unpack this data format, look at `photometric_series.md`) If `json`, the data will be returned as a JSON object, where each key is a list of values for that column. Defaults to `json` when retrieving a single series, and to `none` when querying multiple series. To specifically request the data when querying multiple series, use `dataFormat=json` or `dataFormat=hdf5`. Keep in mind this could be a large amount of data if the query arguments do not filter down the number of returned series. */
-                    dataFormat?: string | null;
+                    dataFormat?: "json" | "hdf5" | "none" | null;
                     /** @description RA for spatial filtering (in decimal degrees) */
                     ra?: number | null;
                     /** @description Declination for spatial filtering (in decimal degrees) */
@@ -15215,7 +15215,7 @@ export interface paths {
                     /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. */
                     format?: "mag" | "flux";
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: string;
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                 };
                 header?: never;
                 path?: never;
@@ -15639,12 +15639,12 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Return the photometry in flux or magnitude space? Must be one of 'mag', 'flux', 'both', or 'plot'. If a value for this query parameter is not provided, the result will be returned in magnitude space. "plot" returns a slim per-point payload (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) intended for lightcurve plotting; all per-point auxiliary joins (groups, annotations, instrument, owner, streams, validations) and the ref/tot/extinction blocks are skipped, regardless of the corresponding ``include*`` flags. */
-                    format?: string;
+                    /** @description Return the photometry in flux or magnitude space? If a value for this query parameter is not provided, the result will be returned in magnitude space. "plot" returns a slim per-point payload (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) intended for lightcurve plotting; all per-point auxiliary joins (groups, annotations, instrument, owner, streams, validations) and the ref/tot/extinction blocks are skipped, regardless of the corresponding ``include*`` flags. */
+                    format?: "mag" | "flux" | "both" | "plot";
                     /** @description The magnitude or zeropoint system of the output. (Default AB) */
-                    magsys?: string;
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                     /** @description Whether to return individual photometry points, photometric series, or both (Default). */
-                    individualOrSeries?: string;
+                    individualOrSeries?: "individual" | "series" | "both";
                     /** @description Boolean indicating whether to phase fold the light curve. Defaults to false. */
                     phaseFoldData?: boolean;
                     /** @description Boolean indicating whether to deduplicate photometry. Defaults to false. */
@@ -15897,7 +15897,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Which facility to generate the starlist for */
-                    facility?: string;
+                    facility?: "Keck" | "P200" | "P200-NGPS" | "Shane";
                     /** @description Requested number of offset stars (set to zero to get starlist of just the source itself) */
                     num_offset_stars?: number;
                     /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
@@ -16017,15 +16017,15 @@ export interface paths {
                     /** @description Image size in arcmin (square). Must be between 2 and 15. */
                     imsize?: number;
                     /** @description Which facility to generate the starlist for */
-                    facility?: string;
-                    /** @description Source of the image used in the finding chart (desi, dss, ztfref or ps1). Defaults to ps1 */
-                    image_source?: string;
+                    facility?: "Keck" | "P200" | "P200-NGPS" | "Shane";
+                    /** @description Source of the image used in the finding chart. Defaults to ps1 */
+                    image_source?: "desi" | "dss" | "ztfref" | "ps1" | "ps1_cds";
                     /** @description Use ZTFref catalog for offset star positions, otherwise DR3 */
                     use_ztfref?: boolean;
                     /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
                     obstime?: string | null;
-                    /** @description output type, either png or pdf */
-                    type?: string;
+                    /** @description output type */
+                    type?: "png" | "pdf";
                     /** @description desired number of offset stars [0,4] (default: 3) */
                     num_offset_stars?: number;
                     /** @description Brightest (smallest) offset-star magnitude to allow. Defaults to the facility value when omitted. */
@@ -21798,8 +21798,8 @@ export interface paths {
         get: {
             parameters: {
                 query: {
-                    /** @description What is the type of the search? From gaia or by position? One of gaia_dr3, gaia_dr2, or pos. If `pos` then `ra` and `dec` should be given. If otherwise, the catalog is queried for id `catalog_id` and the position information is pulled from there. */
-                    location_type: string;
+                    /** @description What is the type of the search? From gaia or by position? If `pos` then `ra` and `dec` should be given. If otherwise, the catalog is queried for id `catalog_id` and the position information is pulled from there. */
+                    location_type: "gaia_dr3" | "gaia_dr2" | "pos";
                     /** @description ID of the object in the Gaia catalog (if `location_type` is not `pos`). */
                     catalog_id?: string;
                     /** @description RA of the source of interest at the time of observation of interest (ie. the user is responsible for proper motion calulations). Required if `location_type` is `pos`. */
@@ -21808,16 +21808,16 @@ export interface paths {
                     dec?: number | null;
                     /** @description Image size in arcmin (square). Defaults to 4.0 */
                     imsize?: number;
-                    /** @description What type of starlist should be used? One of Keck, Shane, P200, or P200-NGPS. Defaults to Keck */
-                    facility?: string;
+                    /** @description What type of starlist should be used? Defaults to Keck */
+                    facility?: "Keck" | "P200" | "P200-NGPS" | "Shane";
                     /** @description Source of the image used in the finding chart. Defaults to ps1 */
-                    image_source?: string;
+                    image_source?: "desi" | "dss" | "ztfref" | "ps1" | "ps1_cds";
                     /** @description Use ZTFref catalog for offset star positions, otherwise DR3. Defaults to True. */
                     use_ztfref?: boolean;
                     /** @description datetime of observation in isoformat (e.g. 2020-12-30T12:34:10). Defaults to now. */
                     obstime?: string | null;
-                    /** @description Output datafile type. One of png or pdf. Defaults to pdf. */
-                    type?: string;
+                    /** @description Output datafile type. Defaults to pdf. */
+                    type?: "png" | "pdf";
                     /** @description Number of offset stars to determine and show [0,4] (default: 3) */
                     num_offset_stars?: number;
                 };
