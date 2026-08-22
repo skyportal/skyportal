@@ -428,9 +428,7 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         metadata = infer_metadata(data)
         metadata.update(attributes_metadata)
         metadata.update(json_data)
-        for k, v in metadata.items():
-            if v is None:
-                metadata.pop(k)
+        metadata = {k: v for k, v in metadata.items() if v is not None}
 
     metadata, group_ids, stream_ids = resolve_metadata(metadata, user, session, user.id)
 
