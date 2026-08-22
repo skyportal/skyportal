@@ -1301,18 +1301,6 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
-  # Solar-system object (asteroid 6478 Gault, a real active asteroid). is_roid
-  # enables the geometry-corrected "Outburst" light-curve tab; the outburst
-  # statistic runs on its ZTF photometry (demo geometry until BOOM supplies it).
-  - id: sso_6478
-    ra: 180.0
-    dec: 10.0
-    is_roid: true
-    mpc_name: "(6478) Gault"
-    alias: ["SSO 6478"]
-    group_ids:
-      - =public_group_id
-      - =program_A
   # Real EP/ZTF pair: optical counterpart to X-ray transient EP260806a
   # (GCN #45299), reported in a ZTF circular as detected at T0+12 hrs. Paired
   # with the gcn_event entry below so the GCN crossmatch has a genuine match to
@@ -1509,15 +1497,6 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
-  # Asteroid 6478 Gault: 14 nights of g/r/i for the SSO Outburst tab demo.
-  - obj_id: sso_6478
-    instrument_id: =ZTF
-    file: sso_6478_phot.csv
-    group_ids:
-      - =public_group_id
-      - =program_A
-    stream_ids:
-      - =ztf_public
   # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
   # from the ZTF circular for EP260806a.
   - obj_id: ZTF26abmjjnm

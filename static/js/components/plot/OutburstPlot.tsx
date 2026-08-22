@@ -36,10 +36,9 @@ const Y_MODES: { key: YMode; label: string; axis: string }[] = [
 
 interface OutburstPlotProps {
   points: OutburstPoint[];
-  isDemo?: boolean;
 }
 
-const OutburstPlot = ({ points, isDemo = false }: OutburstPlotProps) => {
+const OutburstPlot = ({ points }: OutburstPlotProps) => {
   const [yMode, setYMode] = useState<YMode>("H");
   const report = useMemo(() => outburstReport(points), [points]);
 
@@ -158,9 +157,6 @@ const OutburstPlot = ({ points, isDemo = false }: OutburstPlotProps) => {
             size="small"
           />
         </Tooltip>
-        {isDemo && (
-          <Chip label="demo geometry" size="small" variant="outlined" />
-        )}
       </Box>
       <Plot
         data={lcTraces as any}

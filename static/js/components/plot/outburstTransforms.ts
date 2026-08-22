@@ -1,11 +1,11 @@
 // Client-side outburst transforms for the SSO light-curve tab: geometry- and
-// colour-correct apparent magnitudes and compute the outburst statistic, live in
-// the browser. Mirrors skyportal/utils/outburst.py (verified against the same
-// sbpy HG12 fixtures in outburstTransforms.test.ts).
+// colour-correct apparent magnitudes and recompute the outburst statistic in the
+// browser so the tab can render the corrected light curve. The authoritative,
+// per-alert statistic is BOOM's (M. Kelley); this mirrors that math for display.
 //
-// The HG1G2 basis splines are stored as the precomputed piecewise-cubic
-// coefficients from the Python implementation, so this only evaluates
-// polynomials (no linear solve) and matches bit-for-bit.
+// The HG1G2 / HG12* (Penttila 2016) basis splines are stored as precomputed
+// piecewise-cubic coefficients (so this only evaluates polynomials, no linear
+// solve); the phase function is checked against sbpy fixtures in the test.
 
 interface Spline {
   nodes: number[];

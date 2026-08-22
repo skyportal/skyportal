@@ -1234,8 +1234,6 @@ analysis_services:
         model: text-embedding-3-small
         cloud: aws
         region: us-east-1
-  outburst_analysis_service:
-    port: 7004
 
 
 

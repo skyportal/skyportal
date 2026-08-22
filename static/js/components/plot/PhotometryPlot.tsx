@@ -60,7 +60,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
 import OutburstPlot from "./OutburstPlot";
-import { DEMO_OUTBURST_POINTS } from "./outburstDemoData";
+import { OutburstPoint } from "./outburstTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -624,9 +624,31 @@ const PhotometryPlot = ({
   const [markerSize, setMarkerSize] = useState<any>(6);
 
   // Solar-system objects (is_roid) get an extra "Outburst" tab (the
-  // geometry-corrected light-curve view). Prototype: fed by demo geometry until
-  // BOOM supplies per-point rh/delta/phase (in photometry altdata).
+  // geometry-corrected light-curve view). Points need per-point geometry
+  // (rh/delta/phase in photometry altdata, supplied by BOOM); the tab is empty
+  // until that exists.
   const isOutburstTab = is_roid && tabIndex === 3;
+  const outburstPoints = useMemo<OutburstPoint[]>(
+    () =>
+      (mainPhotometry || [])
+        .filter(
+          (p: any) =>
+            p?.mag != null &&
+            p?.altdata?.rh != null &&
+            p?.altdata?.delta != null &&
+            p?.altdata?.phase != null,
+        )
+        .map((p: any) => ({
+          time: p.mjd,
+          mag: p.mag,
+          magerr: p.magerr ?? 0,
+          band: (p.filter || "").replace(/^ztf/i, "") || p.filter,
+          rh: p.altdata.rh,
+          delta: p.altdata.delta,
+          phase: p.altdata.phase,
+        })),
+    [mainPhotometry],
+  );
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -1891,7 +1913,7 @@ const PhotometryPlot = ({
         {is_roid && <Tab label="Outburst" />}
       </Tabs>
 
-      {isOutburstTab && <OutburstPlot points={DEMO_OUTBURST_POINTS} isDemo />}
+      {isOutburstTab && <OutburstPlot points={outburstPoints} />}
 
       <div
         style={{
