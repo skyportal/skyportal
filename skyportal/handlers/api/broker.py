@@ -9,7 +9,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from baselayer.app.access import auth_or_token, permissions
 
 from ...broker_apis.interface import survey_permissions
-from ...enum_types import ALLOWED_BROKER_CLASSNAMES
+from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
 from ...models import Broker, Filter, Stream, set_autosave
 from ..base import BaseHandler
 
@@ -599,8 +599,12 @@ class BrokerPhotometryGetQuery(BaseModel):
         default=None,
         description="Survey the photometry is fetched for.",
     )
-    format: str = Field(default="mag", description="Photometry format.")
-    magsys: str = Field(default="ab", description="Magnitude system.")
+    format: Literal["mag", "flux", "both"] = Field(
+        default="mag", description="Photometry format."
+    )
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
+        default="ab", description="Magnitude system."
+    )
     refresh: bool = Field(
         default=False,
         description="Bypass any cached broker payload and re-fetch.",
@@ -1443,7 +1447,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
             if broker_id and broker_id != "none":
                 broker_id = int(broker_id)
         except ValueError:
-            return self.error("groupID, streamID and brokerID must be integers.")
+            return self.error("brokerID must be an integer.")
 
         with self.Session() as session:
             stmt = Filter.select(self.current_user).distinct()

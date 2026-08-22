@@ -2431,7 +2431,7 @@ class SourceOffsetsGetQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    facility: str = Field(
+    facility: Literal[*facility_parameters] = Field(
         default="Keck",
         description="Which facility to generate the starlist for",
     )
@@ -2568,9 +2568,6 @@ class SourceOffsetsHandler(BaseHandler):
                 isoparse(obstime)
             except (ValueError, TypeError):
                 return self.error("obstime is not valid isoformat")
-
-            if facility not in facility_parameters:
-                return self.error("Invalid facility")
 
             radius_degrees = facility_parameters[facility]["radius_degrees"]
             mag_limit = facility_parameters[facility]["mag_limit"]
@@ -2872,16 +2869,13 @@ class SourceFinderGetQuery(BaseModel):
         default=4.0,
         description="Image size in arcmin (square). Must be between 2 and 15.",
     )
-    facility: str = Field(
+    facility: Literal[*facility_parameters] = Field(
         default="Keck",
         description="Which facility to generate the starlist for",
     )
-    image_source: str = Field(
+    image_source: Literal[*source_image_parameters] = Field(
         default="ps1",
-        description=(
-            "Source of the image used in the finding chart (desi, dss, ztfref or "
-            "ps1). Defaults to ps1"
-        ),
+        description="Source of the image used in the finding chart. Defaults to ps1",
     )
     use_ztfref: bool = Field(
         default=True,
@@ -2894,9 +2888,9 @@ class SourceFinderGetQuery(BaseModel):
             "Defaults to now."
         ),
     )
-    type: str = Field(
+    type: Literal["png", "pdf"] = Field(
         default="pdf",
-        description="output type, either png or pdf",
+        description="output type",
     )
     num_offset_stars: int = Field(
         default=3,

@@ -1,5 +1,6 @@
 import functools
 import io
+from typing import Literal
 
 from astropy.time import Time
 from dateutil.parser import isoparse
@@ -29,12 +30,12 @@ class UnsourcedFinderGetQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    location_type: str = Field(
+    location_type: Literal["gaia_dr3", "gaia_dr2", "pos"] = Field(
         description=(
-            "What is the type of the search? From gaia or by position? One of "
-            "gaia_dr3, gaia_dr2, or pos. If `pos` then `ra` and `dec` should be "
-            "given. If otherwise, the catalog is queried for id `catalog_id` "
-            "and the position information is pulled from there."
+            "What is the type of the search? From gaia or by position? If `pos` "
+            "then `ra` and `dec` should be given. If otherwise, the catalog is "
+            "queried for id `catalog_id` and the position information is pulled "
+            "from there."
         ),
     )
     catalog_id: str = Field(
@@ -61,14 +62,11 @@ class UnsourcedFinderGetQuery(BaseModel):
         default=4.0,
         description="Image size in arcmin (square). Defaults to 4.0",
     )
-    facility: str = Field(
+    facility: Literal[*facility_parameters] = Field(
         default="Keck",
-        description=(
-            "What type of starlist should be used? One of Keck, Shane, P200, "
-            "or P200-NGPS. Defaults to Keck"
-        ),
+        description="What type of starlist should be used? Defaults to Keck",
     )
-    image_source: str = Field(
+    image_source: Literal[*source_image_parameters] = Field(
         default="ps1",
         description="Source of the image used in the finding chart. Defaults to ps1",
     )
@@ -86,9 +84,9 @@ class UnsourcedFinderGetQuery(BaseModel):
             "Defaults to now."
         ),
     )
-    type: str = Field(
+    type: Literal["png", "pdf"] = Field(
         default="pdf",
-        description="Output datafile type. One of png or pdf. Defaults to pdf.",
+        description="Output datafile type. Defaults to pdf.",
     )
     num_offset_stars: int = Field(
         default=3,
@@ -125,8 +123,6 @@ class UnsourcedFinderHandler(BaseHandler):
         query = self.parse_query(UnsourcedFinderGetQuery)
 
         location_type = query.location_type
-        if location_type not in ["gaia_dr3", "gaia_dr2", "pos"]:
-            return self.error(f"Invalid argument for `location_type`: {location_type}")
 
         obstime = (
             query.obstime if query.obstime is not None else utcnow_naive().isoformat()
@@ -185,8 +181,6 @@ class UnsourcedFinderHandler(BaseHandler):
             extra_display_string = ""
 
         output_type = query.type
-        if output_type not in ["png", "pdf"]:
-            return self.error(f"Invalid argument for `type`: {output_type}")
 
         imsize = query.imsize
         if imsize < 2.0 or imsize > 15.0:
@@ -201,12 +195,6 @@ class UnsourcedFinderHandler(BaseHandler):
             return self.error(
                 "The value for `num_offset_stars` is outside the allowed range [0, 4]"
             )
-
-        if facility not in facility_parameters:
-            return self.error("Invalid facility")
-
-        if image_source not in source_image_parameters:
-            return self.error("Invalid source image")
 
         radius_degrees = facility_parameters[facility]["radius_degrees"]
         mag_limit = facility_parameters[facility]["mag_limit"]

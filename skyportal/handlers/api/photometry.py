@@ -1778,16 +1778,15 @@ class PhotometryGetQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    format: str = Field(
+    format: Literal["mag", "flux", "both"] = Field(
         default="mag",
         description=(
             "Return the photometry in flux or magnitude space? "
-            "Must be one of 'mag', 'flux', or 'both'. If a value for this "
-            "query parameter is not provided, the result will be returned "
-            "in magnitude space."
+            "If a value for this query parameter is not provided, the result "
+            "will be returned in magnitude space."
         ),
     )
-    magsys: str = Field(
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
         default="ab",
         description="The magnitude or zeropoint system of the output. (Default AB)",
     )
@@ -2498,13 +2497,12 @@ class ObjPhotometryGetQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    format: str = Field(
+    format: Literal["mag", "flux", "both", "plot"] = Field(
         default="mag",
         description=(
             "Return the photometry in flux or magnitude space? "
-            "Must be one of 'mag', 'flux', 'both', or 'plot'. If a value for "
-            "this query parameter is not provided, the result will be "
-            "returned in magnitude space. "
+            "If a value for this query parameter is not provided, the result "
+            "will be returned in magnitude space. "
             '"plot" returns a slim per-point payload '
             "(id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) "
             "intended for lightcurve plotting; all per-point auxiliary "
@@ -2513,11 +2511,11 @@ class ObjPhotometryGetQuery(BaseModel):
             "regardless of the corresponding ``include*`` flags."
         ),
     )
-    magsys: str = Field(
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
         default="ab",
         description="The magnitude or zeropoint system of the output. (Default AB)",
     )
-    individualOrSeries: str = Field(
+    individualOrSeries: Literal["individual", "series", "both"] = Field(
         default="both",
         description=(
             "Whether to return individual photometry points, "
@@ -2871,7 +2869,7 @@ class PhotometryRangeGetQuery(BaseModel):
             "result will be returned in magnitude space."
         ),
     )
-    magsys: str = Field(
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
         default="ab",
         description="The magnitude or zeropoint system of the output. (Default AB)",
     )
@@ -2884,9 +2882,6 @@ class PhotometryRangeHandler(BaseHandler):
         query = self.parse_query(PhotometryRangeGetQuery)
 
         json = self.get_json()
-
-        if query.magsys not in ALLOWED_MAGSYSTEMS:
-            return self.error("Invalid mag system.")
 
         with self.Session() as session:
             try:

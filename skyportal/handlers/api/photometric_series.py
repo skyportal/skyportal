@@ -545,7 +545,7 @@ class PhotometricSeriesGetQuery(BaseModel):
 
     single_fields: ClassVar[frozenset[str]] = frozenset({"dataFormat"})
 
-    dataFormat: str | None = Field(
+    dataFormat: Literal["json", "hdf5", "none"] | None = Field(
         default=None,
         description=(
             "Format of the data to return. If `none`, the data will not be returned. "
@@ -1073,12 +1073,6 @@ class PhotometricSeriesHandler(BaseHandler):
 
         # get all photometric series
         data_format = "none" if query.dataFormat is None else query.dataFormat
-
-        # verify the format is valid before going through the whole query
-        if data_format.lower() not in ["none", "json", "hdf5"]:
-            return self.error(
-                f'Invalid dataFormat: "{data_format}". Must be one of "none", "json", "hdf5".'
-            )
 
         stmt = PhotometricSeries.select(self.current_user)
 

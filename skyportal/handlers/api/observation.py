@@ -4,7 +4,7 @@ import json
 import time
 import urllib
 from io import StringIO
-from typing import Annotated
+from typing import Annotated, Literal
 
 import arrow
 import astropy.units as u
@@ -926,7 +926,7 @@ class ObservationGetQuery(BaseModel):
             "Defaults to false."
         ),
     )
-    statsMethod: str = Field(
+    statsMethod: Literal["python", "db"] = Field(
         default="python",
         description=(
             "Method to use for computing integrated probability and area. Defaults "
@@ -945,7 +945,7 @@ class ObservationGetQuery(BaseModel):
             "Boolean indicating whether to include associated GeoJSON. Defaults to false."
         ),
     )
-    observationStatus: str = Field(
+    observationStatus: Literal["executed", "queued"] = Field(
         default="executed",
         description="Whether to include queued or executed observations. Defaults to executed.",
     )

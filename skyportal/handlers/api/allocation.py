@@ -197,18 +197,34 @@ class AllocationGetQuery(BaseModel):
         default=None,
         description="Instrument ID to retrieve allocations for.",
     )
-    apiType: str | None = Field(
+    apiType: Literal["api_classname", "api_classname_obsplan"] | None = Field(
         default=None,
-        description=(
-            "Restrict to allocations on instruments with this API class "
-            "defined. Must be either api_classname or api_classname_obsplan."
-        ),
+        description="Restrict to allocations on instruments with this API class defined.",
     )
-    apiImplements: str | None = Field(
+    apiImplements: (
+        Literal[
+            "update",
+            "delete",
+            "get",
+            "submit",
+            "send",
+            "remove",
+            "retrieve",
+            "queued",
+            "remove_queue",
+            "prepare_payload",
+            "send_skymap",
+            "queued_skymap",
+            "remove_skymap",
+            "retrieve_log",
+            "update_status",
+        ]
+        | None
+    ) = Field(
         default=None,
         description=(
             "Restrict to allocations whose instrument API implements this "
-            "method (e.g. submit, queued, send_skymap). Requires apiType."
+            "method. Requires apiType."
         ),
     )
 
@@ -411,37 +427,12 @@ class AllocationHandler(BaseHandler):
                         instruments_subquery,
                         Allocation.instrument_id == instruments_subquery.c.id,
                     )
-                else:
-                    return self.error(
-                        f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
-                    )
 
             allocations_result = await session.scalars(allocations_stmt)
             allocations = allocations_result.unique().all()
 
             apiImplements = query.apiImplements
             if apiImplements is not None:
-                if apiImplements not in [
-                    "update",
-                    "delete",
-                    "get",
-                    "submit",
-                    "send",
-                    "remove",
-                    "retrieve",
-                    "queued",
-                    "remove_queue",
-                    "prepare_payload",
-                    "send_skymap",
-                    "queued_skymap",
-                    "remove_skymap",
-                    "retrieve_log",
-                    "update_status",
-                ]:
-                    return self.error(
-                        f"apiImplements {apiImplements} not a valid argument"
-                    )
-
                 if apitype is None:
                     return self.error(
                         "apiImplements can only be checked if apitype is specified"
