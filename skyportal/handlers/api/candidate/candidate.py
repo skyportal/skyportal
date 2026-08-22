@@ -1126,8 +1126,6 @@ class CandidateHandler(BaseHandler):
                     Obj.id,
                 ]
 
-            # parse_query splits these on commas; strip the surrounding
-            # whitespace that the old handler-side split removed.
             if photometry_annotations_filter is not None:
                 photometry_annotations_filter = [
                     item.strip() for item in photometry_annotations_filter

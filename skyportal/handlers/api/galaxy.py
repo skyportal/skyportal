@@ -702,8 +702,6 @@ class GalaxyCatalogHandler(BaseHandler):
         """
         query = self.parse_query(GalaxyCatalogGetQuery)
 
-        # the query parameter takes precedence, but unlike before it no longer
-        # discards the documented /api/galaxy_catalog/{catalog_name} path value
         if query.catalog_name is not None:
             catalog_name = query.catalog_name
         localization_dateobs = query.localizationDateobs
