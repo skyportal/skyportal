@@ -79,8 +79,9 @@ class SourceExistsHandler(BaseHandler):
         """
         query = self.parse_query(SourceExistsGetQuery)
         ra, dec, radius = query.ra, query.dec, query.radius
+        has_position = ra is not None and dec is not None and radius is not None
 
-        if not (all([ra, dec, radius]) or obj_id):
+        if not has_position and not obj_id:
             return self.error(
                 "Provide an obj_id, or either ra, dec, and radius for spatial filtering."
             )
@@ -98,7 +99,7 @@ class SourceExistsHandler(BaseHandler):
                             "message": f"A source with the name {obj_id} already exists.",
                         }
                     )
-                if not all([ra, dec, radius]):
+                if not has_position:
                     return self.success(
                         {
                             "source_exists": False,
@@ -107,10 +108,6 @@ class SourceExistsHandler(BaseHandler):
                     )
 
             source_query = Source.select(session.user_or_token)
-            if ra is None or dec is None or radius is None:
-                return self.error(
-                    "Invalid values for ra, dec or radius - could not convert to float"
-                )
             other = ca.Point(ra=ra, dec=dec)
             obj_query = Obj.select(session.user_or_token).where(
                 Obj.within(other, radius)
