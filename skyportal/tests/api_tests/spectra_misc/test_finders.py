@@ -70,7 +70,7 @@ def test_finder_rejects_invalid_parameters(upload_data_token, public_source):
         token=upload_data_token,
     )
     assert status == 400
-    assert "Invalid image source" in data["message"]
+    assert "image_source: Input should be" in data["message"]
 
     status, data = api(
         "GET",
@@ -114,7 +114,7 @@ def test_unsourced_finder(upload_data_token):
             "catalog_id": "3905335598144227200",
             "location_type": "gaia_dr3",
             "image_source": "ps1",
-            "output_type": "pdf",
+            "type": "pdf",
             "obstime": "2012-02-28",
             "use_ztfref": False,
         },
@@ -137,7 +137,7 @@ def test_unsourced_finder(upload_data_token):
             "ra": 234.22,
             "dec": -22.33,
             "image_source": "ps1",
-            "output_type": "pdf",
+            "type": "pdf",
             "obstime": "2020-02-28",
             "use_ztfref": False,
         },
@@ -159,7 +159,7 @@ def test_unsourced_finder(upload_data_token):
             "catalog_id": "-1",
             "location_type": "gaia_dr3",
             "image_source": "ps1",
-            "output_type": "pdf",
+            "type": "pdf",
             "obstime": "2012-02-28",
             "use_ztfref": False,
         },

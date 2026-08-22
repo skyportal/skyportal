@@ -10,7 +10,7 @@ import operator  # noqa: F401
 import os
 import tempfile
 import traceback
-from typing import Annotated
+from typing import Annotated, ClassVar
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -32,7 +32,7 @@ from astropy.time import Time
 from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     joinedload,
@@ -113,7 +113,7 @@ from ...utils.gcn import (
 from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
 from .observation import MAX_OBSERVATIONS, get_observations
@@ -1475,6 +1475,91 @@ class GcnEventCatalogQueryHandler(BaseHandler):
             return self.success(data=queries)
 
 
+class GcnEventGetQuery(BaseModel):
+    """Query parameters for retrieving GCN events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"excludeNoticeContent"})
+
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs >= startDate",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs <= endDate",
+    )
+    partialdateobs: str | None = Field(
+        default=None,
+        description=(
+            "Partial dateobs string (or alias substring) to filter events whose "
+            "dateobs starts with the given value or whose aliases contain it."
+        ),
+    )
+    gcnTagKeep: list[str] | None = Field(
+        default=None,
+        description="Comma-separated string of `GcnTag`s. Returns events that match any of them.",
+    )
+    gcnTagRemove: list[str] | None = Field(
+        default=None,
+        description="Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.",
+    )
+    localizationTagKeep: list[str] | None = Field(
+        default=None,
+        description="Comma-separated string of `LocalizationTag`s. Returns events that match any of them.",
+    )
+    localizationTagRemove: list[str] | None = Field(
+        default=None,
+        description="Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags.",
+    )
+    gcnPropertiesFilter: list[str] | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching '
+            'that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"'
+        ),
+    )
+    localizationPropertiesFilter: list[str] | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching '
+            'that/those property(ies), i.e. "area_90" or "area_90: 500: lt"'
+        ),
+    )
+    numPerPage: int = Field(
+        default=10,
+        description=(
+            "Number of GCN events to return per paginated request. "
+            f"Defaults to 10. Can be no larger than {MAX_GCNEVENTS}."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    sortBy: str | None = Field(
+        default=None,
+        description='Field to sort by. Currently only "dateobs" is supported.',
+    )
+    sortOrder: str = Field(
+        default="asc",
+        description='Sort order, "asc" or "desc". Defaults to "asc".',
+    )
+    excludeNoticeContent: bool = Field(
+        default=False,
+        description="If true, do not include the notice content in the response. Defaults to false.",
+    )
+    # comma-separated: the handler owns the split and its error message
+    groupIds: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of group IDs. If provided, only return events "
+            "shared with those groups."
+        ),
+    )
+
+
 class GcnEventHandler(BaseHandler):
     @auth_or_token
     async def post(self):
@@ -1545,8 +1630,7 @@ class GcnEventHandler(BaseHandler):
             )
 
     @auth_or_token
-    @format_doc(MAX_GCNEVENTS=MAX_GCNEVENTS)
-    async def get(self, dateobs: str = None):
+    async def get(self, dateobs: str = None, *, query: GcnEventGetQuery = None):
         """
         ---
         single:
@@ -1554,15 +1638,6 @@ class GcnEventHandler(BaseHandler):
           description: Retrieve a GCN event
           tags:
             - gcn events
-          parameters:
-            - in: query
-              name: excludeNoticeContent
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                If true, do not include the notice content in the response.
-                Defaults to false.
           responses:
             200:
               content:
@@ -1587,119 +1662,6 @@ class GcnEventHandler(BaseHandler):
           description: Retrieve multiple GCN events
           tags:
             - gcn events
-          parameters:
-            - in: query
-              name: startDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                dateobs >= startDate
-            - in: query
-              name: endDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                dateobs <= endDate
-            - in: query
-              name: partialdateobs
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Partial dateobs string (or alias substring) to filter events whose
-                dateobs starts with the given value or whose aliases contain it.
-            - in: query
-              name: gcnTagKeep
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma-separated string of `GcnTag`s. Returns events that match any of them.
-            - in: query
-              name: gcnTagRemove
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.
-            - in: query
-              name: groupIds
-              schema:
-                type: string
-              description: |
-                Comma-separated group ids; return only events shared with at
-                least one of them. Narrows within what the user can already
-                read, it does not widen access.
-            - in: query
-              name: localizationTagKeep
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma-separated string of `LocalizationTag`s. Returns events that match any of them.
-            - in: query
-              name: localizationTagRemove
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags.
-            - in: query
-              name: gcnPropertiesFilter
-              nullable: true
-              schema:
-                type: array
-                items:
-                  type: string
-              explode: false
-              style: simple
-              description: |
-                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching
-                that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"
-            - in: query
-              name: localizationPropertiesFilter
-              nullable: true
-              schema:
-                type: array
-                items:
-                  type: string
-              explode: false
-              style: simple
-              description: |
-                Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching
-                that/those property(ies), i.e. "area_90" or "area_90: 500: lt"
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of GCN events to return per paginated request.
-                Defaults to 10. Can be no larger than {MAX_GCNEVENTS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1.
-            - in: query
-              name: sortBy
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Field to sort by. Currently only "dateobs" is supported.
-            - in: query
-              name: sortOrder
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Sort order, "asc" or "desc". Defaults to "asc".
           responses:
             200:
               content:
@@ -1724,93 +1686,35 @@ class GcnEventHandler(BaseHandler):
                   schema: Error
         """
 
-        partialdateobs = self.get_query_argument("partialdateobs", None)
+        query = self.parse_query(GcnEventGetQuery)
+
+        partialdateobs = query.partialdateobs
 
         if dateobs is not None and partialdateobs is not None:
             return self.error(
                 "Cannot specify both dateobs and partialdateobs query parameters"
             )
 
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 10)
         try:
             page_number, n_per_page = get_page_and_n_per_page(
-                page_number, n_per_page, MAX_GCNEVENTS
+                query.pageNumber, query.numPerPage, MAX_GCNEVENTS
             )
         except ValueError as e:
             return self.error(str(e))
 
-        sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", "asc")
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        gcn_tag_keep = self.get_query_argument("gcnTagKeep", None)
-        gcn_tag_remove = self.get_query_argument("gcnTagRemove", None)
-        localization_tag_keep = self.get_query_argument("localizationTagKeep", None)
-        localization_tag_remove = self.get_query_argument("localizationTagRemove", None)
-        gcn_properties_filter = self.get_query_argument("gcnPropertiesFilter", None)
-        no_notice_content = self.get_query_argument("excludeNoticeContent", False)
-        group_ids = self.get_query_argument("groupIds", None)
+        sort_by = query.sortBy
+        sort_order = query.sortOrder
+        start_date = query.startDate
+        end_date = query.endDate
+        gcn_tag_keep = query.gcnTagKeep
+        gcn_tag_remove = query.gcnTagRemove
+        localization_tag_keep = query.localizationTagKeep
+        localization_tag_remove = query.localizationTagRemove
+        gcn_properties_filter = query.gcnPropertiesFilter
+        no_notice_content = query.excludeNoticeContent
+        group_ids = query.groupIds
 
-        if gcn_tag_keep is not None:
-            if isinstance(gcn_tag_keep, str):
-                gcn_tag_keep = [c.strip() for c in gcn_tag_keep.split(",")]
-            else:
-                return self.error(
-                    "Invalid gcnTagKeep value -- must provide at least one string value"
-                )
-
-        if gcn_tag_remove is not None:
-            if isinstance(gcn_tag_remove, str):
-                gcn_tag_remove = [c.strip() for c in gcn_tag_remove.split(",")]
-            else:
-                return self.error(
-                    "Invalid gcnTagRemove value -- must provide at least one string value"
-                )
-
-        if localization_tag_keep is not None:
-            if isinstance(localization_tag_keep, str):
-                localization_tag_keep = [
-                    c.strip() for c in localization_tag_keep.split(",")
-                ]
-            else:
-                return self.error(
-                    "Invalid localizationTagKeep value -- must provide at least one string value"
-                )
-
-        if localization_tag_remove is not None:
-            if isinstance(localization_tag_remove, str):
-                localization_tag_remove = [
-                    c.strip() for c in localization_tag_remove.split(",")
-                ]
-            else:
-                return self.error(
-                    "Invalid localizationTagRemove value -- must provide at least one string value"
-                )
-
-        if gcn_properties_filter is not None:
-            if isinstance(gcn_properties_filter, str):
-                gcn_properties_filter = [
-                    c.strip() for c in gcn_properties_filter.split(",")
-                ]
-            else:
-                return self.error(
-                    "Invalid gcnPropertiesFilter value -- must provide at least one string value"
-                )
-
-        localization_properties_filter = self.get_query_argument(
-            "localizationPropertiesFilter", None
-        )
-
-        if localization_properties_filter is not None:
-            if isinstance(localization_properties_filter, str):
-                localization_properties_filter = [
-                    c.strip() for c in localization_properties_filter.split(",")
-                ]
-            else:
-                return self.error(
-                    "Invalid localizationPropertiesFilter value -- must provide at least one string value"
-                )
+        localization_properties_filter = query.localizationPropertiesFilter
 
         if dateobs is not None:
             try:
@@ -1961,7 +1865,7 @@ class GcnEventHandler(BaseHandler):
                 return self.success(data=data)
 
         async with self.AsyncSession() as session:
-            query = GcnEvent.select(
+            stmt = GcnEvent.select(
                 session.user_or_token,
                 options=[
                     selectinload(GcnEvent.localizations).selectinload(
@@ -1982,7 +1886,7 @@ class GcnEventHandler(BaseHandler):
                     if len(partialdateobs) > 10 and partialdateobs[10] == "T":
                         partialdateobs = partialdateobs.replace("T", " ")
                 partialdateobs = partialdateobs.strip().lower()
-                query = query.where(
+                stmt = stmt.where(
                     cast(GcnEvent.dateobs, sa.String).like(f"{partialdateobs}%")
                     | sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
                         f"%{partialdateobs}%"
@@ -1990,10 +1894,10 @@ class GcnEventHandler(BaseHandler):
                 )
             if start_date:
                 start_date = arrow.get(start_date.strip()).datetime
-                query = query.where(GcnEvent.dateobs >= start_date)
+                stmt = stmt.where(GcnEvent.dateobs >= start_date)
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
-                query = query.where(GcnEvent.dateobs <= end_date)
+                stmt = stmt.where(GcnEvent.dateobs <= end_date)
             if group_ids:
                 # Narrow to events shared with particular groups. Access is
                 # already enforced by GcnEvent.read; this is the user asking to
@@ -2004,7 +1908,7 @@ class GcnEventHandler(BaseHandler):
                 except ValueError:
                     return self.error("Invalid groupIds: must be comma-separated ints")
                 if group_ids:
-                    query = query.where(
+                    stmt = stmt.where(
                         GcnEvent.id.in_(
                             sa.select(GroupGcnEvent.gcnevent_id).where(
                                 GroupGcnEvent.group_id.in_(group_ids)
@@ -2012,8 +1916,8 @@ class GcnEventHandler(BaseHandler):
                         )
                     )
             try:
-                query = apply_gcn_event_filters(
-                    query,
+                stmt = apply_gcn_event_filters(
+                    stmt,
                     session.user_or_token,
                     gcn_tag_keep=gcn_tag_keep,
                     gcn_tag_remove=gcn_tag_remove,
@@ -2026,7 +1930,7 @@ class GcnEventHandler(BaseHandler):
                 return self.error(str(e))
 
             total_matches = await session.scalar(
-                sa.select(sa.func.count()).select_from(query.distinct())
+                sa.select(sa.func.count()).select_from(stmt.distinct())
             )
 
             order_by = None
@@ -2041,17 +1945,17 @@ class GcnEventHandler(BaseHandler):
             if order_by is None:
                 order_by = [GcnEvent.dateobs.desc()]
 
-            query = query.order_by(*order_by)
+            stmt = stmt.order_by(*order_by)
 
             if n_per_page is not None:
-                query = (
-                    query.distinct()
+                stmt = (
+                    stmt.distinct()
                     .limit(n_per_page)
                     .offset((page_number - 1) * n_per_page)
                 )
 
             events = []
-            events_result = await session.scalars(query)
+            events_result = await session.scalars(stmt)
             for event in events_result.unique().all():
                 event.gcn_notices = sorted(
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
@@ -2911,25 +2815,32 @@ def add_tiles_properties_contour_and_obsplan(
             Session.remove()
 
 
+class LocalizationGetQuery(BaseModel):
+    """Query parameters for retrieving a GCN localization."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    include2DMap: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include flatted skymap. Defaults to false.",
+    )
+
+
 class LocalizationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs: str, localization_name: str):
+    async def get(
+        self,
+        dateobs: str,
+        localization_name: str,
+        *,
+        query: LocalizationGetQuery = None,
+    ):
         """
         ---
         summary: Get a GCN localization
         description: Retrieve a GCN localization
         tags:
           - localizations
-        parameters:
-          - in: query
-            name: include2DMap
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include flatted skymap. Defaults to
-              false.
-
         responses:
           200:
             content:
@@ -2946,8 +2857,9 @@ class LocalizationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(LocalizationGetQuery)
 
-        include_2D_map = self.get_query_argument("include2DMap", False)
+        include_2D_map = query.include2DMap
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -5203,9 +5115,18 @@ class LocalizationDownloadHandler(BaseHandler):
                         pass
 
 
+class LocalizationCrossmatchGetQuery(BaseModel):
+    """Query parameters for crossmatching two localizations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id1: int = Field(description="ID of the first localization.")
+    id2: int = Field(description="ID of the second localization.")
+
+
 class LocalizationCrossmatchHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: LocalizationCrossmatchGetQuery = None):
         """
         ---
         summary: Crossmatch two localizations
@@ -5224,18 +5145,11 @@ class LocalizationCrossmatchHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        id1 = self.get_query_argument("id1", None)
-        id2 = self.get_query_argument("id2", None)
-        if id1 is None or id2 is None:
-            return self.error("Please provide two localization id")
+        query = self.parse_query(LocalizationCrossmatchGetQuery)
 
-        id1 = id1.strip()
-        id2 = id2.strip()
-        try:
-            id1_int = int(id1)
-            id2_int = int(id2)
-        except (ValueError, TypeError):
-            return self.error("Localization IDs must be integers")
+        id1_int = query.id1
+        id2_int = query.id2
+
         local_temp_files = []
 
         async with self.AsyncSession() as session:
@@ -5304,9 +5218,28 @@ class LocalizationCrossmatchHandler(BaseHandler):
                         pass
 
 
+class GcnEventInstrumentFieldGetQuery(BaseModel):
+    """Query parameters for instrument field probabilities for a skymap."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    localization_name: str | None = Field(
+        default=None, description="Localization map name"
+    )
+    integrated_probability: float = Field(
+        default=0.95, description="Cumulative integrated probability threshold"
+    )
+
+
 class GcnEventInstrumentFieldHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs: str, instrument_id: int):
+    async def get(
+        self,
+        dateobs: str,
+        instrument_id: int,
+        *,
+        query: GcnEventInstrumentFieldGetQuery = None,
+    ):
         """
         ---
         summary: Get instrument field probabilities for a skymap
@@ -5314,19 +5247,6 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
         tags:
           - localizations
           - instruments
-        parameters:
-          - in: query
-            name: localization_name
-            required: true
-            schema:
-              type: string
-            description: Localization map name
-          - in: query
-            name: integrated_probability
-            nullable: true
-            schema:
-              type: number
-            description: Cumulative integrated probability threshold
         responses:
           200:
             content:
@@ -5337,6 +5257,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(GcnEventInstrumentFieldGetQuery)
 
         dateobs = dateobs.strip()
         try:
@@ -5344,10 +5265,8 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
         except arrow.parser.ParserError as e:
             return self.error(f"Failed to parse dateobs: str({e})")
 
-        localization_name = self.get_query_argument("localization_name", None)
-        integrated_probability = self.get_query_argument(
-            "integrated_probability", 0.95, type=float
-        )
+        localization_name = query.localization_name
+        integrated_probability = query.integrated_probability
 
         async with self.AsyncSession() as session:
             stmt = Localization.select(session.user_or_token).where(

@@ -2230,7 +2230,7 @@ def test_download_formats_single_series(upload_data_token, photometric_series):
             params={"dataFormat": "foobar"},
             token=upload_data_token,
         )
-        assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')
+        assert_api_fail(status, data, 400, "dataFormat: Input should be")
 
 
 def test_download_formats_multiple_series(
@@ -2403,4 +2403,4 @@ def test_download_formats_multiple_series(
         params={"dataFormat": "foobar"},
         token=upload_data_token,
     )
-    assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')
+    assert_api_fail(status, data, 400, "dataFormat: Input should be")

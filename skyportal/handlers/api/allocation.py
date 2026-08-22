@@ -1,5 +1,6 @@
 import io
 import json
+from typing import ClassVar, Literal
 
 import astropy
 import matplotlib
@@ -9,6 +10,7 @@ import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -26,16 +28,47 @@ from ...models import (
     User,
 )
 from ...utils.parse import get_page_and_n_per_page
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 from .followup_request import MAX_FOLLOWUP_REQUESTS
 
 MAX_OBSERVATION_PLANS = 1000
 
 
+class AllocationObservationPlanGetQuery(BaseModel):
+    """Query parameters for listing an allocation's observation plans."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numPerPage: int = Field(
+        default=50,
+        le=MAX_OBSERVATION_PLANS,
+        description=(
+            "Number of observation plans to return per paginated request. "
+            f"Defaults to 50. Can be no larger than {MAX_OBSERVATION_PLANS}."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    sortBy: Literal["created_at", "modified", "status", "gcnevent_id"] = Field(
+        default="created_at",
+        description="The field to sort by. Defaults to created_at.",
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description="The sort order, either asc or desc. Defaults to asc.",
+    )
+
+
 class AllocationObservationPlanHandler(BaseHandler):
     @auth_or_token
-    @format_doc(MAX_OBSERVATION_PLANS=MAX_OBSERVATION_PLANS)
-    async def get(self, allocation_id: int):
+    async def get(
+        self,
+        allocation_id: int,
+        *,
+        query: AllocationObservationPlanGetQuery = None,
+    ):
         """
         ---
         summary: Get an allocation's observation plans
@@ -43,35 +76,6 @@ class AllocationObservationPlanHandler(BaseHandler):
         tags:
           - allocations
           - observation plans
-        parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of observation plans to return per paginated request. Defaults to 10. Can be no larger than {MAX_OBSERVATION_PLANS}.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
-          - in: query
-            name: sortBy
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Field to sort by. Can be one of: created_at, modified, status, gcnevent_id. Defaults to created_at.
-          - in: query
-            name: sortOrder
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Sort order. Can be one of: asc, desc. Defaults to asc.
-
         responses:
           200:
              content:
@@ -82,23 +86,16 @@ class AllocationObservationPlanHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(AllocationObservationPlanGetQuery)
         try:
             allocation_id = int(allocation_id)
         except (TypeError, ValueError):
             return self.error("Allocation ID must be an integer.")
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        n_per_page = self.get_query_argument("numPerPage", 50, type=int)
-        if page_number is None or n_per_page is None:
-            return self.error("Invalid pagination arguments")
-
-        sortBy = self.get_query_argument("sortBy", "created_at")
-        sortOrder = self.get_query_argument("sortOrder", "asc")
-
-        if sortBy not in ["created_at", "modified", "status", "gcnevent_id"]:
-            return self.error("Invalid sortBy value.")
-        if sortOrder not in ["asc", "desc"]:
-            return self.error("Invalid sortOrder value.")
+        page_number = query.pageNumber
+        n_per_page = query.numPerPage
+        sortBy = query.sortBy
+        sortOrder = query.sortOrder
 
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
@@ -167,10 +164,79 @@ class AllocationObservationPlanHandler(BaseHandler):
             return self.success(data=data)
 
 
+class AllocationGetQuery(BaseModel):
+    """Query parameters for retrieving allocations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"pageNumber", "numPerPage", "sortBy", "sortOrder"}
+    )
+
+    numPerPage: int = Field(
+        default=50,
+        description=(
+            "Number of followup requests to return per paginated request, when "
+            "retrieving a single allocation. Defaults to 50. Can be no larger "
+            f"than {MAX_FOLLOWUP_REQUESTS}."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    sortBy: Literal["created_at", "modified", "status", "obj"] = Field(
+        default="created_at",
+        description="The field to sort followup requests by. Defaults to created_at.",
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description="The sort order, either asc or desc. Defaults to asc.",
+    )
+    instrument_id: int | None = Field(
+        default=None,
+        description="Instrument ID to retrieve allocations for.",
+    )
+    apiType: Literal["api_classname", "api_classname_obsplan"] | None = Field(
+        default=None,
+        description="Restrict to allocations on instruments with this API class defined.",
+    )
+    apiImplements: (
+        Literal[
+            "update",
+            "delete",
+            "get",
+            "submit",
+            "send",
+            "remove",
+            "retrieve",
+            "queued",
+            "remove_queue",
+            "prepare_payload",
+            "send_skymap",
+            "queued_skymap",
+            "remove_skymap",
+            "retrieve_log",
+            "update_status",
+        ]
+        | None
+    ) = Field(
+        default=None,
+        description=(
+            "Restrict to allocations whose instrument API implements this "
+            "method. Requires apiType."
+        ),
+    )
+
+
 class AllocationHandler(BaseHandler):
     @auth_or_token
-    @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    async def get(self, allocation_id: int | None = None):
+    async def get(
+        self,
+        allocation_id: int | None = None,
+        *,
+        query: AllocationGetQuery = None,
+    ):
         """
         ---
         single:
@@ -178,20 +244,6 @@ class AllocationHandler(BaseHandler):
           description: Retrieve an allocation
           tags:
             - allocations
-          parameters:
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of followup requests to return per paginated request. Defaults to 10. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -217,32 +269,6 @@ class AllocationHandler(BaseHandler):
           description: Retrieve all allocations
           tags:
             - allocations
-          parameters:
-          - in: query
-            name: instrument_id
-            nullable: true
-            schema:
-              type: integer
-            description: Instrument ID to retrieve allocations for
-          - in: query
-            name: apiType
-            nullable: true
-            schema:
-              type: string
-              enum: [api_classname, api_classname_obsplan]
-            description: |
-              Restrict to allocations whose instrument has the given API type set
-          - in: query
-            name: apiImplements
-            nullable: true
-            schema:
-              type: string
-              enum: [update, delete, get, submit, send, remove, retrieve, queued,
-                remove_queue, prepare_payload, send_skymap, queued_skymap,
-                remove_skymap, retrieve_log, update_status]
-            description: |
-              Restrict to allocations whose instrument API implements the given
-              method. Requires apiType to be specified.
           responses:
             200:
               content:
@@ -253,6 +279,7 @@ class AllocationHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(AllocationGetQuery)
         async with self.AsyncSession() as session:
             if allocation_id is not None:
                 try:
@@ -260,22 +287,15 @@ class AllocationHandler(BaseHandler):
                 except (TypeError, ValueError):
                     return self.error("Allocation ID must be an integer.")
 
-                page_number = self.get_query_argument("pageNumber", 1, type=int)
-                n_per_page = self.get_query_argument("numPerPage", 50, type=int)
                 try:
                     page_number, n_per_page = get_page_and_n_per_page(
-                        page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+                        query.pageNumber, query.numPerPage, MAX_FOLLOWUP_REQUESTS
                     )
                 except ValueError as e:
                     return self.error(str(e))
 
-                sortBy = self.get_query_argument("sortBy", "created_at")
-                sortOrder = self.get_query_argument("sortOrder", "asc")
-
-                if sortBy not in ["created_at", "modified", "status", "obj"]:
-                    return self.error("Invalid sortBy value.")
-                if sortOrder not in ["asc", "desc"]:
-                    return self.error("Invalid sortOrder value.")
+                sortBy = query.sortBy
+                sortOrder = query.sortOrder
 
                 allocation = await session.scalar(
                     Allocation.select(self.current_user)
@@ -375,13 +395,13 @@ class AllocationHandler(BaseHandler):
                     ),
                 ],
             )
-            instrument_id = self.get_query_argument("instrument_id", None, type=int)
+            instrument_id = query.instrument_id
             if instrument_id is not None:
                 allocations_stmt = allocations_stmt.where(
                     Allocation.instrument_id == instrument_id
                 )
 
-            apitype = self.get_query_argument("apiType", None)
+            apitype = query.apiType
             if apitype is not None:
                 if apitype == "api_classname":
                     instruments_subquery = (
@@ -407,37 +427,12 @@ class AllocationHandler(BaseHandler):
                         instruments_subquery,
                         Allocation.instrument_id == instruments_subquery.c.id,
                     )
-                else:
-                    return self.error(
-                        f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
-                    )
 
             allocations_result = await session.scalars(allocations_stmt)
             allocations = allocations_result.unique().all()
 
-            apiImplements = self.get_query_argument("apiImplements", None)
+            apiImplements = query.apiImplements
             if apiImplements is not None:
-                if apiImplements not in [
-                    "update",
-                    "delete",
-                    "get",
-                    "submit",
-                    "send",
-                    "remove",
-                    "retrieve",
-                    "queued",
-                    "remove_queue",
-                    "prepare_payload",
-                    "send_skymap",
-                    "queued_skymap",
-                    "remove_skymap",
-                    "retrieve_log",
-                    "update_status",
-                ]:
-                    return self.error(
-                        f"apiImplements {apiImplements} not a valid argument"
-                    )
-
                 if apitype is None:
                     return self.error(
                         "apiImplements can only be checked if apitype is specified"
@@ -711,23 +706,26 @@ class AllocationHandler(BaseHandler):
             return self.success()
 
 
+class AllocationReportGetQuery(BaseModel):
+    """Query parameters for the allocation report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    output_format: Literal["pdf", "png"] = Field(
+        default="pdf",
+        description="Output format for analysis. Can be png or pdf.",
+    )
+
+
 class AllocationReportHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id: int):
+    async def get(self, instrument_id: int, *, query: AllocationReportGetQuery = None):
         """
         ---
         summary: Get allocation report
         description: Produce a report on allocations for an instrument
         tags:
           - allocations
-        parameters:
-          - in: query
-            name: output_format
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Output format for analysis. Can be png or pdf
         responses:
           200:
             content:
@@ -738,10 +736,8 @@ class AllocationReportHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        output_format = self.get_query_argument("output_format", "pdf")
-        if output_format not in ["pdf", "png"]:
-            return self.error("output_format must be png or pdf")
+        query = self.parse_query(AllocationReportGetQuery)
+        output_format = query.output_format
 
         async with self.AsyncSession() as session:
             allocations_result = await session.scalars(

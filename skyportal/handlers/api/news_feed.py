@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import load_only, selectinload
 
@@ -14,33 +15,39 @@ from ...models import (
     basic_user_display_info,
 )
 from ...utils.data_access import team_scoped_group_ids
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 
 MAX_NEWSFEED_ITEMS = 1000
 DEFAULT_NEWSFEED_ITEMS = 50
 
 
+class NewsFeedGetQuery(BaseModel):
+    """Query parameters for the news feed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numItems: int | None = Field(
+        default=None,
+        description=(
+            "Number of newsfeed items to return. "
+            f"Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}."
+        ),
+    )
+    teamID: int | None = Field(
+        default=None,
+        description="Scope the feed to the groups of this team, intersected with "
+        "the user's accessible groups.",
+    )
+
+
 class NewsFeedHandler(BaseHandler):
     @auth_or_token
-    @format_doc(
-        DEFAULT_NEWSFEED_ITEMS=DEFAULT_NEWSFEED_ITEMS,
-        MAX_NEWSFEED_ITEMS=MAX_NEWSFEED_ITEMS,
-    )
-    async def get(self):
+    async def get(self, *, query: NewsFeedGetQuery = None):
         """
         ---
         description: Retrieve summary of recent activity
         tags:
           - news_feed
-        parameters:
-          - in: query
-            name: numItems
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of newsfeed items to return.
-              Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}.
         responses:
           200:
             content:
@@ -67,8 +74,10 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
 
+        query = self.parse_query(NewsFeedGetQuery)
+
         preferences = getattr(self.current_user, "preferences", None) or {}
-        n_items_query = self.get_query_argument("numItems", None, type=int)
+        n_items_query = query.numItems
         n_items_feed = preferences.get("newsFeed", {}).get("numItems", None)
         if n_items_feed is not None:
             n_items_feed = int(n_items_feed)
@@ -129,7 +138,7 @@ class NewsFeedHandler(BaseHandler):
                 scoped_group_ids = await team_scoped_group_ids(
                     session,
                     self.current_user,
-                    self.get_query_argument("teamID", None),
+                    query.teamID,
                     user_accessible_group_ids,
                 )
             except ValueError as e:
@@ -138,22 +147,22 @@ class NewsFeedHandler(BaseHandler):
             async def fetch_newest(
                 model, include_bot_comments=False, include_ml_classifications=False
             ):
-                query = model.select(self.associated_user_object).options(
+                stmt = model.select(self.associated_user_object).options(
                     *loader_options.get(model, [])
                 )
                 if model == Photometry:
-                    query = query.where(
+                    stmt = stmt.where(
                         or_(
                             Photometry.followup_request_id.isnot(None),
                             Photometry.assignment_id.isnot(None),
                         )
                     )
                 elif model == Comment:
-                    query = query.where(Comment.channel.is_(None))
+                    stmt = stmt.where(Comment.channel.is_(None))
                     if not include_bot_comments:
-                        query = query.where(Comment.bot.is_(False))
+                        stmt = stmt.where(Comment.bot.is_(False))
                     if not self.associated_user_object.is_admin:
-                        query = query.where(
+                        stmt = stmt.where(
                             Comment.obj_id.in_(
                                 sa.select(Source.obj_id).where(
                                     Source.group_id.in_(user_accessible_group_ids),
@@ -163,9 +172,9 @@ class NewsFeedHandler(BaseHandler):
                         )
                 elif model == Classification:
                     if not include_ml_classifications:
-                        query = query.where(Classification.ml.is_(False))
+                        stmt = stmt.where(Classification.ml.is_(False))
                     if not self.associated_user_object.is_admin:
-                        query = query.where(
+                        stmt = stmt.where(
                             Classification.obj_id.in_(
                                 sa.select(Source.obj_id).where(
                                     Source.group_id.in_(user_accessible_group_ids),
@@ -174,7 +183,7 @@ class NewsFeedHandler(BaseHandler):
                             )
                         )
                 if scoped_group_ids is not None:
-                    query = query.where(
+                    stmt = stmt.where(
                         model.obj_id.in_(
                             sa.select(Source.obj_id).where(
                                 Source.group_id.in_(scoped_group_ids),
@@ -182,12 +191,12 @@ class NewsFeedHandler(BaseHandler):
                             )
                         )
                     )
-                query = (
-                    query.order_by(desc(model.created_at or model.saved_at))
+                stmt = (
+                    stmt.order_by(desc(model.created_at or model.saved_at))
                     .distinct(model.obj_id, model.created_at)
                     .limit(n_items)
                 )
-                fetch_result = await session.scalars(query)
+                fetch_result = await session.scalars(stmt)
                 newest = fetch_result.unique().all()
 
                 if model == Comment:

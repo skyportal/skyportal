@@ -1,7 +1,7 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import joinedload, undefer
 
 from baselayer.app.access import auth_or_token
@@ -15,7 +15,7 @@ from ....utils.data_access import (
     process_stream_ids_async,
     validate_photometry_options,
 )
-from ....utils.parse import get_page_and_n_per_page, str_to_bool
+from ....utils.parse import get_page_and_n_per_page
 from ...base import BaseHandler
 
 _, cfg = load_env()
@@ -27,6 +27,40 @@ is_configured = (
     and cfg.get("app.hermes.topic")
     and cfg.get("app.hermes.token")
 )
+
+
+class SharingServiceSubmissionGetQuery(BaseModel):
+    """Query parameters for retrieving sharing service submissions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"sharing_service_id"})
+
+    sharing_service_id: int = Field(
+        description=(
+            "The ID of the external sharing service to which the submissions belong"
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="The page number to retrieve, starting at 1",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description="The number of results per page, defaults to 100",
+    )
+    include_payload: bool = Field(
+        default=False,
+        description="Whether to include the payload in the response",
+    )
+    include_response: bool = Field(
+        default=False,
+        description="Whether to include the response in the response",
+    )
+    objectID: str | None = Field(
+        default=None,
+        description="The object ID of the submission",
+    )
 
 
 class SharingServiceSubmissionHandler(BaseHandler):
@@ -228,6 +262,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
         sharing_service_submission_id: Annotated[
             int | None, Field(description="The ID of the sharing service submission")
         ] = None,
+        *,
+        query: SharingServiceSubmissionGetQuery = None,
     ):
         """
         ---
@@ -236,13 +272,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             description: Retrieve a SharingServiceSubmission
             tags:
                 - sharing service submission
-            parameters:
-                - in: query
-                  name: sharing_service_id
-                  required: true
-                  schema:
-                    type: integer
-                  description: The ID of the external sharing service to which the submission belongs
             responses:
                 200:
                     content:
@@ -257,37 +286,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
             description: Retrieve all SharingServiceSubmissions
             tags:
                 - external sharing service
-            parameters:
-                - in: query
-                  name: pageNumber
-                  required: false
-                  schema:
-                    type: integer
-                  description: The page number to retrieve, starting at 1
-                - in: query
-                  name: numPerPage
-                  required: false
-                  schema:
-                    type: integer
-                  description: The number of results per page, defaults to 100
-                - in: query
-                  name: include_payload
-                  required: false
-                  schema:
-                    type: boolean
-                  description: Whether to include the payload in the response
-                - in: query
-                  name: include_response
-                  required: false
-                  schema:
-                    type: boolean
-                  description: Whether to include the response in the response
-                - in: query
-                  name: objectID
-                  required: false
-                  schema:
-                    type: string
-                  description: The object ID of the submission
             responses:
                 200:
                     content:
@@ -317,28 +315,14 @@ class SharingServiceSubmissionHandler(BaseHandler):
                         application/json:
                             schema: Error
         """
-        sharing_service_id = self.get_query_argument("sharing_service_id", None)
-        if sharing_service_id is None:
-            return self.error("Sharing service id is required")
+        query = self.parse_query(SharingServiceSubmissionGetQuery)
         try:
-            sharing_service_id = int(sharing_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
-        include_payload = str_to_bool(self.get_query_argument("include_payload", False))
-        include_response = str_to_bool(
-            self.get_query_argument("include_response", False)
-        )
-        page_number = self.get_query_argument("pageNumber", 1)
-        page_size = self.get_query_argument("numPerPage", 100)
-        try:
-            page_number, page_size = get_page_and_n_per_page(page_number, page_size)
+            page_number, page_size = get_page_and_n_per_page(
+                query.pageNumber, query.numPerPage
+            )
         except ValueError as e:
             return self.error(str(e))
-        obj_id = self.get_query_argument("objectID", None)
-        if obj_id is not None:
-            obj_id = obj_id.strip()
-            if not obj_id:
-                obj_id = None
+        obj_id = (query.objectID or "").strip() or None
 
         if sharing_service_submission_id is not None:
             try:
@@ -351,11 +335,13 @@ class SharingServiceSubmissionHandler(BaseHandler):
         async with self.AsyncSession() as session:
             sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token).where(
-                    SharingService.id == sharing_service_id
+                    SharingService.id == query.sharing_service_id
                 )
             )
             if sharing_service is None:
-                return self.error(f"Sharing service {sharing_service_id} not found")
+                return self.error(
+                    f"Sharing service {query.sharing_service_id} not found"
+                )
 
             if sharing_service_submission_id is not None:
                 submission = await session.scalar(
@@ -363,13 +349,13 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     .options(joinedload(SharingServiceSubmission.obj))
                     .where(
                         SharingServiceSubmission.sharing_service_id
-                        == sharing_service_id,
+                        == query.sharing_service_id,
                         SharingServiceSubmission.id == sharing_service_submission_id,
                     )
                 )
                 if submission is None:
                     return self.error(
-                        f"Submission {sharing_service_submission_id} not found for bot {sharing_service_id}"
+                        f"Submission {sharing_service_submission_id} not found for bot {query.sharing_service_id}"
                     )
                 submission_data = {
                     "tns_name": submission.obj.tns_name,
@@ -378,7 +364,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 return self.success(data=submission_data)
             else:
                 stmt = SharingServiceSubmission.select(session.user_or_token).where(
-                    SharingServiceSubmission.sharing_service_id == sharing_service_id
+                    SharingServiceSubmission.sharing_service_id
+                    == query.sharing_service_id
                 )
                 if obj_id is not None:
                     stmt = stmt.where(SharingServiceSubmission.obj_id == obj_id)
@@ -392,9 +379,9 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 stmt = stmt.order_by(SharingServiceSubmission.created_at.desc())
                 stmt = stmt.options(joinedload(SharingServiceSubmission.obj))
 
-                if include_payload:
+                if query.include_payload:
                     stmt = stmt.options(undefer(SharingServiceSubmission.tns_payload))
-                if include_response:
+                if query.include_response:
                     stmt = stmt.options(undefer(SharingServiceSubmission.response))
 
                 result = await session.scalars(

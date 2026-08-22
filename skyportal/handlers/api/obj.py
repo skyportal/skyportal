@@ -1,7 +1,10 @@
+from typing import Literal
+
 import dustmaps.sfd
 import numpy as np
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -78,60 +81,36 @@ class ObjHandler(BaseHandler):
             return self.success()
 
 
+class ObjPositionGetQuery(BaseModel):
+    """Query parameters for computing an Obj's photometry-based position."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_ids: list[int] | None = Field(
+        default=None,
+        description="Only use photometry from these instrument IDs.",
+    )
+    stream_ids: list[int] | None = Field(
+        default=None,
+        description="Only use photometry from these stream IDs.",
+    )
+    stream_only: bool = Field(
+        default=False,
+        description="If true, only use photometry that belongs to at least one stream. Ignored when `stream_ids` is given.",
+    )
+    snr_threshold: float = Field(
+        default=3.0,
+        description="Only use photometry with a signal-to-noise ratio above this threshold. Defaults to 3.0.",
+    )
+    method: Literal["snr2", "invvar"] = Field(
+        default="snr2",
+        description="Weighting method used to combine the photometry positions. Defaults to snr2.",
+    )
+
+
 class ObjPositionHandler(BaseHandler):
-    def validate_list_parameter(self, param, default=None, dtype="int"):
-        """Validate a list parameter.
-
-        Parameters
-        ----------
-        param : str, list, int
-            The parameter to validate.
-        default : list, optional
-            The default value to return if the parameter is None.
-        dtype : str, optional
-            The data type of the parameter. Must be one of "int", "float", "str", or "bool".
-
-        Returns
-        -------
-        list
-            The validated parameter.
-        """
-
-        operator = int
-        if dtype == "float":
-            operator = float
-        elif dtype == "str":
-            operator = str
-        elif dtype == "bool":
-            operator = bool
-        else:
-            raise ValueError(f"Invalid dtype: {dtype}")
-
-        if param is None:
-            return default
-        if isinstance(param, str):
-            try:
-                return [operator(id) for id in param.split(",")]
-            except ValueError:
-                return self.error(
-                    f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
-                )
-        elif isinstance(param, list | tuple):
-            try:
-                return [operator(id) for id in param]
-            except ValueError:
-                return self.error(
-                    f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
-                )
-        elif isinstance(param, int):
-            return [param]
-        else:
-            return self.error(
-                f"Invalid {param} parameter, must be a comma-separated list of {dtype}s"
-            )
-
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, obj_id: str, *, query: ObjPositionGetQuery = None):
         """
         ---
         summary: Retrieve photometry-based position of an Obj
@@ -161,31 +140,18 @@ class ObjPositionHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument_ids = self.get_query_argument("instrument_ids", None)
-        stream_ids = self.get_query_argument("stream_ids", None)
-        stream_only = self.get_query_argument("stream_only", False)
+        query = self.parse_query(ObjPositionGetQuery)
 
-        snr_threshold = self.get_query_argument("snr_threshold", 3.0, type=float)
-        method = self.get_query_argument("method", "snr2")
-
-        # VALIDATE INSTRUMENT IDS IF PROVIDED
-        if instrument_ids is not None:
-            instrument_ids = self.validate_list_parameter(instrument_ids, dtype="int")
-
-        # VALIDATE STREAM IDS IF PROVIDED
-        if stream_ids is not None:
-            stream_ids = self.validate_list_parameter(stream_ids, dtype="int")
+        instrument_ids = query.instrument_ids
+        stream_ids = query.stream_ids
+        stream_only = query.stream_only
+        snr_threshold = query.snr_threshold
+        method = query.method
 
         # VALIDATE SNR THRESHOLD
-        if snr_threshold is None or snr_threshold <= 0:
+        if snr_threshold <= 0:
             return self.error(
                 "Invalid snr_threshold parameter, must be a positive float"
-            )
-
-        # VALIDATE METHOD
-        if method not in ["snr2", "invvar"]:
-            return self.error(
-                'Invalid method parameter, must be one of "snr2" or "invvar"'
             )
 
         async with self.AsyncSession() as session:

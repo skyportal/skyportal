@@ -697,7 +697,7 @@ def test_filter_module_invalid_elements(lasair_broker_id, super_admin_token):
         token=super_admin_token,
     )
     assert status == 400
-    assert "must be 'schema' or one of" in data["message"]
+    assert "elements: Input should be 'schema'" in data["message"]
 
     status, data = api(
         "POST",
@@ -859,7 +859,7 @@ def test_broker_cone_search_missing_params(super_admin_token):
         "GET", f"brokers/{broker_id}/cone_search", token=super_admin_token
     )
     assert status == 400
-    assert "Missing required parameters" in data["message"]
+    assert "Invalid/missing parameters: ra: Field required" in data["message"]
 
 
 def test_boom_filter_activation_requires_validation(

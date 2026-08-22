@@ -11,7 +11,7 @@ import time
 import urllib
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, ClassVar, Literal
 
 import afterglowpy
 import arrow
@@ -46,7 +46,7 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
 from marshmallow.exceptions import ValidationError
 from matplotlib import animation, dates
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from simsurvey.models import AngularTimeSeriesSource
 from simsurvey.utils import model_tools
 from sncosmo import get_bandpass
@@ -96,7 +96,7 @@ from ...utils.earthquake import COUNTRIES_FILE
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 
 LocalizationId = Annotated[
     int, Field(description="ID of localization to generate observability plot for")
@@ -865,6 +865,53 @@ async def post_observation_plan_async(
     return observation_plan_request_id
 
 
+class ObservationPlanRequestGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"includePlannedObservations", "rubinFormat"}
+    )
+
+    includePlannedObservations: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated planned observations. Defaults to false.",
+    )
+    rubinFormat: bool = Field(
+        default=False,
+        description="Boolean indicating whether to format the response in a way that is compatible with Rubin",
+    )
+    dateobs: str | None = Field(
+        default=None,
+        description="GcnEvent dateobs to filter on",
+    )
+    instrumentID: int | None = Field(
+        default=None,
+        description="Instrument ID to filter on",
+    )
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate",
+    )
+    status: str | None = Field(
+        default=None,
+        description="String to match status of request against",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=f"Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+
+
 class ObservationPlanRequestHandler(BaseHandler):
     @auth_or_token
     async def post(self):
@@ -968,8 +1015,12 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"ids": plan_ids})
 
     @auth_or_token
-    @format_doc(MAX_OBSERVATION_PLAN_REQUESTS=MAX_OBSERVATION_PLAN_REQUESTS)
-    async def get(self, observation_plan_request_id: int | None = None):
+    async def get(
+        self,
+        observation_plan_request_id: int | None = None,
+        *,
+        query: ObservationPlanRequestGetQuery = None,
+    ):
         """
         ---
         single:
@@ -977,21 +1028,6 @@ class ObservationPlanRequestHandler(BaseHandler):
           description: Get an observation plan.
           tags:
             - observation plan requests
-          parameters:
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
-            - in: query
-              name: rubinFormat
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to format the response in a way that is compatible with Rubin
           responses:
             200:
               content:
@@ -1006,62 +1042,6 @@ class ObservationPlanRequestHandler(BaseHandler):
           description: Get all observation plans.
           tags:
             - observation plan requests
-          parameters:
-            - in: query
-              name: dateobs
-              nullable: true
-              schema:
-                type: string
-              description: GcnEvent dateobs to filter on
-            - in: query
-              name: instrumentID
-              nullable: true
-              schema:
-                type: integer
-              description: Instrument ID to filter on
-            - in: query
-              name: startDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at >= startDate
-            - in: query
-              name: endDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at <= endDate
-            - in: query
-              name: status
-              nullable: true
-              schema:
-                type: string
-              description: |
-                String to match status of request against
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
           responses:
             200:
               content:
@@ -1086,20 +1066,17 @@ class ObservationPlanRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        dateobs = self.get_query_argument("dateobs", None)
-        instrumentID = self.get_query_argument("instrumentID", None)
-        status = self.get_query_argument("status", None)
-        include_planned_observations = self.get_query_argument(
-            "includePlannedObservations", False
-        )
-        rubin_format = self.get_query_argument("rubinFormat", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        query = self.parse_query(ObservationPlanRequestGetQuery)
+
+        start_date = query.startDate
+        end_date = query.endDate
+        dateobs = query.dateobs
+        status = query.status
+        include_planned_observations = query.includePlannedObservations
+        rubin_format = query.rubinFormat
         try:
             page_number, n_per_page = get_page_and_n_per_page(
-                page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
+                query.pageNumber, query.numPerPage, MAX_OBSERVATION_PLAN_REQUESTS
             )
         except ValueError as e:
             return self.error(str(e))
@@ -1266,16 +1243,12 @@ class ObservationPlanRequestHandler(BaseHandler):
                     gcn_event_subquery,
                     ObservationPlanRequest.gcnevent_id == gcn_event_subquery.c.id,
                 )
-            if instrumentID:
+            if query.instrumentID is not None:
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
-                try:
-                    instrument_id_int = int(instrumentID)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid instrumentID: {instrumentID}")
                 allocation_query = Allocation.select(self.current_user).where(
-                    Allocation.instrument_id == instrument_id_int
+                    Allocation.instrument_id == query.instrumentID
                 )
                 allocation_subquery = allocation_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1612,9 +1585,20 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
 
+class ObservationPlanNameGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan names."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="The name of the Observation Plan",
+    )
+
+
 class ObservationPlanNameHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: ObservationPlanNameGetQuery = None):
         """
         ---
         multiple:
@@ -1644,13 +1628,6 @@ class ObservationPlanNameHandler(BaseHandler):
             description: Verify that an Observation Plan name exists
             tags:
               - observation plans
-            parameters:
-              - in: query
-                name: name
-                required: false
-                schema:
-                  type: string
-                description: The name of the Observation Plan
             responses:
               200:
                 content:
@@ -1663,7 +1640,8 @@ class ObservationPlanNameHandler(BaseHandler):
 
 
         """
-        name = self.get_query_argument("name", None)
+        query = self.parse_query(ObservationPlanNameGetQuery)
+        name = query.name
 
         async with self.AsyncSession() as session:
             if name:
@@ -2463,39 +2441,45 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanPlotGetQuery(BaseModel):
+    """Query parameters for the worldmap and observability plots."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAirmass: float = Field(
+        default=2.5,
+        description="Maximum airmass to consider. Defaults to 2.5.",
+    )
+    twilight: Literal["astronomical", "nautical", "civil"] = Field(
+        default="astronomical",
+        description="Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).",
+    )
+
+
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: LocalizationId):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
         twilight_dict = {"astronomical": -18, "nautical": -12, "civil": -6}
 
@@ -2614,37 +2598,28 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: LocalizationId):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
         try:
             localization_id_int = int(localization_id)
@@ -3327,95 +3302,74 @@ def observation_simsurvey_plot(
     }
 
 
+class ObservationPlanSimSurveyGetQuery(BaseModel):
+    """Query parameters for running a simsurvey efficiency analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numberInjections: int = Field(
+        default=1000,
+        description="Number of simulations to evaluate efficiency with. Defaults to 1000.",
+    )
+    numberDetections: int = Field(
+        default=1,
+        description="Number of detections required for detection. Defaults to 1.",
+    )
+    detectionThreshold: float = Field(
+        default=5.0,
+        description="Threshold (in sigmas) required for detection. Defaults to 5.",
+    )
+    minimumPhase: float = Field(
+        default=0.0,
+        description="Minimum phase (in days) post event time to consider detections. Defaults to 0.",
+    )
+    maximumPhase: float = Field(
+        default=3.0,
+        description="Maximum phase (in days) post event time to consider detections. Defaults to 3.",
+    )
+    modelName: str = Field(
+        default="kilonova",
+        description="Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.",
+    )
+    optionalInjectionParameters: str = Field(
+        default="{}",
+        description="JSON-encoded object of optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able to view the analyses. Defaults to all of requesting user's groups.",
+    )
+
+
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id: int):
+    async def get(
+        self,
+        observation_plan_request_id: int,
+        *,
+        query: ObservationPlanSimSurveyGetQuery = None,
+    ):
         """
         ---
         summary: Run a simsurvey analysis for an observation plan request
         description: Perform an efficiency analysis of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: query
-            name: numberInjections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of simulations to evaluate efficiency with. Defaults to 1000.
-          - in: query
-            name: numberDetections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of detections required for detection. Defaults to 1.
-          - in: query
-            name: detectionThreshold
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Threshold (in sigmas) required for detection. Defaults to 5.
-          - in: query
-            name: minimumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Minimum phase (in days) post event time to consider detections. Defaults to 0.
-          - in: query
-            name: maximumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum phase (in days) post event time to consider detections. Defaults to 3.
-          - in: query
-            name: model_name
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
-          - in: query
-            name: optionalInjectionParameters
-            type: object
-            additionalProperties:
-              type: array
-              items:
-                type: string
-                description: |
-                  Optional parameters to specify the injection type, along
-                  with a list of possible values (to be used in a dropdown UI)
-          - in: query
-            name: group_ids
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-              description: |
-                List of group IDs corresponding to which groups should be
-                able to view the analyses. Defaults to all of requesting user's
-                groups.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanSimSurveyGetQuery)
 
-        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
-        number_of_detections = int(self.get_query_argument("numberDetections", 1))
-        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
-        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
-        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        model_name = self.get_query_argument("modelName", "kilonova")
-        optional_injection_parameters = json.loads(
-            self.get_query_argument("optionalInjectionParameters", "{}")
-        )
+        number_of_injections = query.numberInjections
+        number_of_detections = query.numberDetections
+        detection_threshold = query.detectionThreshold
+        minimum_phase = query.minimumPhase
+        maximum_phase = query.maximumPhase
+        model_name = query.modelName
+        optional_injection_parameters = json.loads(query.optionalInjectionParameters)
 
         if model_name not in ["kilonova", "afterglow", "linear"]:
             return self.error(
@@ -3426,7 +3380,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             model_name, optional_injection_parameters
         )
 
-        group_ids = self.get_query_argument("group_ids", None)
+        group_ids = query.group_ids
 
         try:
             observation_plan_request_id_int = int(observation_plan_request_id)

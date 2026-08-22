@@ -1,9 +1,9 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -20,6 +20,27 @@ from ...models import (
 )
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
+
+
+class ShiftGetQuery(BaseModel):
+    """Query parameters for retrieving shifts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    group_id: int | None = Field(
+        default=None,
+        description="Filter shifts by group ID",
+    )
+    start_date_limit: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string. Return shifts that start after or at this datetime",
+    )
+    end_date_limit: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string. Return shifts that end after or at this datetime",
+    )
 
 
 class ShiftHandler(BaseHandler):
@@ -128,6 +149,8 @@ class ShiftHandler(BaseHandler):
         shift_id: Annotated[
             int | None, Field(description="ID of the shift to retrieve")
         ] = None,
+        *,
+        query: ShiftGetQuery = None,
     ):
         """
         ---
@@ -151,27 +174,6 @@ class ShiftHandler(BaseHandler):
           description: Retrieve all shifts, optionally filtered by group ID or date limits
           tags:
             - shifts
-          parameters:
-            - in: query
-              name: group_id
-              required: false
-              schema:
-                type: integer
-              description: Filter shifts by group ID
-            - in: query
-              name: start_date_limit
-              required: false
-              schema:
-                type: string
-                format: date-time
-              description: Return shifts that start after or at this datetime
-            - in: query
-              name: end_date_limit
-              required: false
-              schema:
-                type: string
-                format: date-time
-              description: Return shifts that end after or at this datetime
           responses:
             200:
               content:
@@ -182,6 +184,8 @@ class ShiftHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(ShiftGetQuery)
+
         async with self.AsyncSession() as session:
             try:
                 if shift_id is not None:
@@ -260,9 +264,9 @@ class ShiftHandler(BaseHandler):
                     }
                     return self.success(data)
                 else:
-                    group_id = self.get_query_argument("group_id", None, type=int)
-                    start_date_limit = self.get_query_argument("start_date_limit", None)
-                    end_date_limit = self.get_query_argument("end_date_limit", None)
+                    group_id = query.group_id
+                    start_date_limit = query.start_date_limit
+                    end_date_limit = query.end_date_limit
 
                     stmt = Shift.select(
                         session.user_or_token,
@@ -715,6 +719,27 @@ class ShiftUserHandler(BaseHandler):
             return self.success()
 
 
+class ShiftSummaryGetQuery(BaseModel):
+    """Query parameters for summarizing shift activity."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "shift.start_date >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "shift.start_date <= endDate"
+        ),
+    )
+
+
 class ShiftSummary(BaseHandler):
     """
     This handler has a get method that returns a summary
@@ -723,39 +748,25 @@ class ShiftSummary(BaseHandler):
     """
 
     @auth_or_token
-    async def get(self, shift_id: int | None = None):
+    async def get(
+        self, shift_id: int | None = None, *, query: ShiftSummaryGetQuery = None
+    ):
         """
         ---
         summary: Get a summary of a shift
         description: Get a summary of all the activity of shift users on skyportal for a given period
         tags:
           - shifts
-        parameters:
-          - in: query
-            name: startDate
-            required: false
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              shift.start_date >= startDate
-          - in: qyert
-            name: end_date
-            required: false
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              shift.start_date <=endDate
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ShiftSummaryGetQuery)
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
+        start_date = query.startDate
+        end_date = query.endDate
         if (start_date is None or end_date is None) and shift_id is None:
             return self.error("Please provide start_date and end_date, or shift_id")
 

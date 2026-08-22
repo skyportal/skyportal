@@ -1,7 +1,10 @@
+from typing import ClassVar
+
 import arrow
 import sqlalchemy as sa
 from arrow import ParserError
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -13,7 +16,36 @@ from ...models.schema import (
     MMADetectorSpectrumPost,
 )
 from ..base import BaseHandler
-from .spectrum import parse_id_list
+
+
+async def validate_accessible_ids(id_list, model_class, session):
+    """Accessibility half of spectrum.parse_id_list, for ID lists already
+    parsed by the query model. Raises AccessError on inaccessible IDs."""
+    if id_list is None:
+        return None
+
+    result = await session.scalars(model_class.select(session.user_or_token))
+    accessible_ids = {row.id for row in result.unique().all()}
+    for id in id_list:
+        if id not in accessible_ids:
+            raise AccessError(
+                f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
+                f"Not all {model_class.__name__} IDs are valid/accessible"
+            )
+    return id_list
+
+
+class MMADetectorGetQuery(BaseModel):
+    """Query parameters for listing MMA Detectors."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    name: str | None = Field(
+        default=None,
+        description="Filter by name",
+    )
 
 
 class MMADetectorHandler(BaseHandler):
@@ -76,7 +108,9 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    async def get(self, mmadetector_id: int | None = None):
+    async def get(
+        self, mmadetector_id: int | None = None, *, query: MMADetectorGetQuery = None
+    ):
         """
         ---
         single:
@@ -98,12 +132,6 @@ class MMADetectorHandler(BaseHandler):
           description: Retrieve all Multimessenger Astronomical Detectors (MMADetectors)
           tags:
             - mma detectors
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name
           responses:
             200:
               content:
@@ -114,6 +142,7 @@ class MMADetectorHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(MMADetectorGetQuery)
 
         async with self.AsyncSession() as session:
             if mmadetector_id is not None:
@@ -133,10 +162,9 @@ class MMADetectorHandler(BaseHandler):
                     )
                 return self.success(data=t)
 
-            det_name = self.get_query_argument("name", None)
             stmt = MMADetector.select(session.user_or_token)
-            if det_name is not None:
-                stmt = stmt.where(MMADetector.name.contains(det_name))
+            if query.name is not None:
+                stmt = stmt.where(MMADetector.name.contains(query.name))
 
             result = await session.scalars(stmt)
             data = result.all()
@@ -255,6 +283,37 @@ class MMADetectorHandler(BaseHandler):
             return self.success()
 
 
+class MMADetectorSpectrumGetQuery(BaseModel):
+    """Query parameters for listing MMA Detector spectra."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    observedBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra observed before this time."
+        ),
+    )
+    observedAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra observed after this time."
+        ),
+    )
+    detectorIDs: list[int] | None = Field(
+        default=None,
+        description="If provided, filter only spectra observed with one of these mmadetector IDs.",
+    )
+    groupIDs: list[int] | None = Field(
+        default=None,
+        description="If provided, filter only spectra saved to one of these group IDs.",
+    )
+
+
 class MMADetectorSpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -363,7 +422,12 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data={"id": spec.id})
 
     @auth_or_token
-    async def get(self, spectrum_id: int | None = None):
+    async def get(
+        self,
+        spectrum_id: int | None = None,
+        *,
+        query: MMADetectorSpectrumGetQuery = None,
+    ):
         """
         ---
         single:
@@ -385,41 +449,9 @@ class MMADetectorSpectrumHandler(BaseHandler):
           description: Retrieve multiple spectra with given criteria
           tags:
             - mma detector spectra
-          parameters:
-            - in: query
-              name: observedBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed before this time.
-            - in: query
-              name: observedAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed after this time.
-            - in: query
-              name: detectorIDs
-              nullable: true
-              type: list
-              items:
-                type: integer
-              description: |
-                If provided, filter only spectra observed with one of these mmadetector IDs.
-            - in: query
-              name: groupIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra saved to one of these group IDs.
         """
+
+        query = self.parse_query(MMADetectorSpectrumGetQuery)
 
         if spectrum_id is not None:
             try:
@@ -438,11 +470,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     )
                 return self.success(data=spectrum)
 
-        # multiple spectra
-        observed_before = self.get_query_argument("observedBefore", None)
-        observed_after = self.get_query_argument("observedAfter", None)
-        detector_ids = self.get_query_argument("detectorIDs", None)
-        group_ids = self.get_query_argument("groupIDs", None)
+        observed_before = query.observedBefore
+        observed_after = query.observedAfter
+        detector_ids = query.detectorIDs
+        group_ids = query.groupIDs
 
         # validate inputs
         try:
@@ -459,8 +490,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
-                group_ids = await parse_id_list(group_ids, Group, session)
+                detector_ids = await validate_accessible_ids(
+                    detector_ids, MMADetector, session
+                )
+                group_ids = await validate_accessible_ids(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
@@ -631,6 +664,40 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
 
+class MMADetectorTimeIntervalGetQuery(BaseModel):
+    """Query parameters for listing MMA Detector time intervals."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    observedBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only time intervals observed before this time."
+        ),
+    )
+    observedAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only time intervals observed after this time."
+        ),
+    )
+    detectorIDs: list[int] | None = Field(
+        default=None,
+        description=(
+            "If provided, filter only time intervals observed with one of these "
+            "mmadetector IDs."
+        ),
+    )
+    groupIDs: list[int] | None = Field(
+        default=None,
+        description="If provided, filter only time intervals saved to one of these group IDs.",
+    )
+
+
 class MMADetectorTimeIntervalHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -753,7 +820,12 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def get(self, time_interval_id: int | None = None):
+    async def get(
+        self,
+        time_interval_id: int | None = None,
+        *,
+        query: MMADetectorTimeIntervalGetQuery = None,
+    ):
         """
         ---
         single:
@@ -774,41 +846,9 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           description: Retrieve multiple time_intervals with given criteria
           tags:
             - mma detector time intervals
-          parameters:
-            - in: query
-              name: observedBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only time_interval observed before this time.
-            - in: query
-              name: observedAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only time_interval observed after this time.
-            - in: query
-              name: detectorIDs
-              nullable: true
-              type: list
-              items:
-                type: integer
-              description: |
-                If provided, filter only time_intervals observed with one of these mmadetector IDs.
-            - in: query
-              name: groupIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only time_interval saved to one of these group IDs.
         """
+        query = self.parse_query(MMADetectorTimeIntervalGetQuery)
+
         if time_interval_id is not None:
             try:
                 time_interval_id_int = int(time_interval_id)
@@ -839,11 +879,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 }
                 return self.success(data=data)
 
-        # multiple time_interval
-        observed_before = self.get_query_argument("observedBefore", None)
-        observed_after = self.get_query_argument("observedAfter", None)
-        detector_ids = self.get_query_argument("detectorIDs", None)
-        group_ids = self.get_query_argument("groupIDs", None)
+        observed_before = query.observedBefore
+        observed_after = query.observedAfter
+        detector_ids = query.detectorIDs
+        group_ids = query.groupIDs
 
         # validate inputs
         try:
@@ -860,8 +899,10 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
-                group_ids = await parse_id_list(group_ids, Group, session)
+                detector_ids = await validate_accessible_ids(
+                    detector_ids, MMADetector, session
+                )
+                group_ids = await validate_accessible_ids(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
