@@ -66,7 +66,8 @@ class MMADetector(Base):
     type = sa.Column(
         mma_detector_types,
         nullable=False,
-        doc="MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.",
+        doc="MMA detector type, one of gravitational wave, neutrino, gamma-ray "
+        "burst, or x-ray.",
     )
 
     lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")

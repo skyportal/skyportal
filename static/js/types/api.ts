@@ -8097,6 +8097,8 @@ export interface paths {
                     excludeNoticeContent?: boolean;
                     /** @description Comma-separated string of group IDs. If provided, only return events shared with those groups. */
                     groupIds?: string | null;
+                    /** @description Comma-separated string of `MMADetector` IDs. Returns events any of them contributed to. */
+                    mmadetectorIds?: number[] | null;
                 };
                 header?: never;
                 path?: never;
@@ -31940,11 +31942,13 @@ export interface components {
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
+            /** @description Other names GCN notices use for this detector (e.g. Fermi for FermiGBM). An event is linked when a tag matches the nickname or any alias. */
+            aliases?: string[];
             /**
-             * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
+             * @description MMA detector type, one of gravitational wave, neutrino, gamma-ray burst, or x-ray.
              * @enum {string}
              */
-            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
+            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
             /** @description Latitude in deg. */
             lat?: number | null;
             /** @description Longitude in deg. */
@@ -31976,11 +31980,13 @@ export interface components {
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
+            /** @description Other names GCN notices use for this detector (e.g. Fermi for FermiGBM). An event is linked when a tag matches the nickname or any alias. */
+            aliases?: string[];
             /**
-             * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
+             * @description MMA detector type, one of gravitational wave, neutrino, gamma-ray burst, or x-ray.
              * @enum {string}
              */
-            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
+            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
             /** @description Latitude in deg. */
             lat?: number | null;
             /** @description Longitude in deg. */
