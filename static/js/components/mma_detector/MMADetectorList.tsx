@@ -1,8 +1,11 @@
+import { useState } from "react";
+
 import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
 import Typography from "@mui/material/Typography";
 
 import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
+import MMADetectorEventsDialog from "./MMADetectorEventsDialog";
 
 interface MMADetectorListProps {
   isMobile?: boolean;
@@ -10,13 +13,16 @@ interface MMADetectorListProps {
 
 const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
   const { data: mmadetectorList } = useGetMMADetectorsQuery();
+  const [selected, setSelected] = useState<any>(null);
   return (
     <List>
       {(mmadetectorList ?? []).map((mmadetector: any) => (
-        <ListItem
+        <ListItemButton
           key={`${mmadetector.id}_info`}
           sx={{ flexDirection: "column", textAlign: "center" }}
           divider
+          onClick={() => setSelected(mmadetector)}
+          aria-label={`show gcn events for ${mmadetector.nickname}`}
         >
           <Typography
             variant={(isMobile ? "h7" : "h6") as any}
@@ -46,8 +52,14 @@ const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
               Elevation: {mmadetector.elevation}
             </Typography>
           )}
-        </ListItem>
+        </ListItemButton>
       ))}
+      {selected && (
+        <MMADetectorEventsDialog
+          mmadetector={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </List>
   );
 };

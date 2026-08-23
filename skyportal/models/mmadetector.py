@@ -1,4 +1,9 @@
-__all__ = ["MMADetector", "MMADetectorSpectrum", "MMADetectorTimeInterval"]
+__all__ = [
+    "GcnEventMMADetector",
+    "MMADetector",
+    "MMADetectorSpectrum",
+    "MMADetectorTimeInterval",
+]
 
 import numpy as np
 import sqlalchemy as sa
@@ -47,6 +52,15 @@ class MMADetector(Base):
     )
     nickname = sa.Column(
         sa.String, nullable=False, doc="Abbreviated facility name (e.g., H1)."
+    )
+
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default="{}",
+        doc="Other names GCN notices use for this detector (e.g. Fermi for "
+        "FermiGBM). An event is linked when a tag matches the nickname or any "
+        "alias.",
     )
 
     type = sa.Column(

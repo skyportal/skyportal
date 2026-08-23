@@ -778,6 +778,82 @@ def test_crossmatch_ingests_photometry_for_a_match(
     assert len(points) > 0, "the match was saved without any photometry"
 
 
+def test_annotation_records_how_deep_in_the_localization_a_match_is(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
+):
+    """The credible level is what ranks a scanning queue: a match at the centre
+    of the region is a far better counterpart than one that just scraped in."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    centre = _unique_id("XM_centre")
+    edge = _unique_id("XM_edge")
+    _stub_provider(
+        monkeypatch,
+        [
+            _alert(centre, ra, dec, event_jd + 0.5),
+            _alert(edge, ra, dec + ERROR * 0.9, event_jd + 0.5),
+        ],
+        {},
+        ra,
+        dec,
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    levels = {}
+    with models.DBSession() as session:
+        for obj_id in (centre, edge):
+            annotation = session.scalar(
+                sa.select(Annotation).where(
+                    Annotation.obj_id == obj_id,
+                    Annotation.origin == ANNOTATION_ORIGIN,
+                )
+            )
+            assert annotation is not None, f"{obj_id} was not annotated"
+            entry = next(iter(annotation.data.values()))
+            assert "credible_level" in entry, entry
+            levels[obj_id] = entry["credible_level"]
+
+    assert levels[centre] == 0.0
+    assert levels[centre] < levels[edge], levels
+    # Gaussian of sigma = the quoted error radius: 0.9 sigma encloses ~33%
+    assert levels[edge] == pytest.approx(1 - np.exp(-0.5 * 0.81), abs=1e-3)
+
+
+def test_filter_can_cut_on_credible_level(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
+):
+    """Filters re-cut the shared geometry: same containment, tighter threshold."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    centre = _unique_id("XM_deep")
+    edge = _unique_id("XM_shallow")
+    _stub_provider(
+        monkeypatch,
+        [
+            _alert(centre, ra, dec, event_jd + 0.5),
+            _alert(edge, ra, dec + ERROR * 0.9, event_jd + 0.5),
+        ],
+        {},
+        ra,
+        dec,
+    )
+
+    asyncio.run(run_cycle({"archival": False, "max_credible_level": 0.1}))
+
+    created = _objs_created([centre, edge])
+    assert centre in created, "the well-localized match was cut"
+    assert edge not in created, "a match outside the filter's credible cut was saved"
+
+
 def test_crossmatch_ingests_cutouts_for_a_match(
     broker,
     crossmatch_filter,

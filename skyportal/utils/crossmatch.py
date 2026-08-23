@@ -20,6 +20,7 @@ from astropy import units as u
 from healpix_alchemy.constants import HPX, PIXEL_AREA
 
 from baselayer.log import make_log
+from skyportal.utils.calculations import gaussian_sigmas_for
 
 log = make_log("crossmatch")
 
@@ -156,7 +157,12 @@ def search_cone(
     """
     cone = cone_from_localization_name(localization.localization_name)
     source = "localization_name"
-    if cone is None:
+    if cone is not None:
+        # The name carries 1 sigma, which holds only 39% of the probability.
+        ra, dec, sigma = cone
+        cone = (ra, dec, sigma * gaussian_sigmas_for(credible_level / 100.0))
+        source = f"localization_name(level={credible_level})"
+    else:
         cone = cone_from_contour(localization.contour, credible_level=credible_level)
         source = f"contour(level={credible_level})"
 
@@ -180,21 +186,20 @@ def search_cone(
     return ra, dec, radius
 
 
-async def contained_in_localization(
+async def credible_levels_in_localization(
     session, localization, positions, cumprob=DEFAULT_CUMPROB
 ):
-    """Indices of ``positions`` that fall inside a localization's credible region.
+    """``{index: credible_level}`` for the positions inside ``cumprob``.
+
+    The level is the smallest credible region containing the position: 0.05 is
+    the best-localized 5% of the probability, 0.88 barely made a 90% cut.
+    Containment is unchanged; this keeps how deep inside each match sits.
 
     ``positions`` is a sequence of (ra, dec) in degrees. Cone localizations are
-    resolved analytically; everything else is resolved against the stored
-    HEALPix tiles using the same cumulative-probability containment the
-    ``localizationDateobs`` source query uses, so the two agree on what "inside
-    the 95% region" means.
-
-    Returns a set of indices into ``positions``.
+    resolved analytically, everything else against the stored HEALPix tiles.
     """
     if not positions:
-        return set()
+        return {}
 
     cone = cone_from_localization_name(localization.localization_name)
     if cone is not None:
@@ -202,7 +207,17 @@ async def contained_in_localization(
         seps = great_circle_distance(
             ra0, dec0, [p[0] for p in positions], [p[1] for p in positions]
         )
-        return {i for i, sep in enumerate(np.atleast_1d(seps)) if sep <= radius}
+        if not radius:
+            return {i: 0.0 for i, sep in enumerate(np.atleast_1d(seps)) if sep <= 0}
+        # from_cone lays down a Gaussian of sigma = the error radius, so the
+        # enclosed probability at r is the Rayleigh CDF -- the same distribution
+        # the tiles carry, in closed form.
+        levels = 1.0 - np.exp(-0.5 * (np.atleast_1d(seps) / radius) ** 2)
+        return {
+            i: float(round(level, 6))
+            for i, level in enumerate(levels)
+            if level <= cumprob
+        }
 
     # Multi-order skymap: convert each position to a level-29 nested HEALPix
     # index and ask which credible-region tiles contain it. One round trip for
@@ -227,11 +242,12 @@ async def contained_in_localization(
                 WHERE localization_id = :localization_id
                   AND dateobs = :dateobs
             )
-            SELECT DISTINCT p.idx
+            SELECT p.idx, MIN(tiles.cum_prob)
             FROM unnest(CAST(:idxs AS bigint[]), CAST(:hpxs AS bigint[]))
                  AS p(idx, hpx)
             JOIN tiles ON tiles.healpix @> p.hpx
             WHERE tiles.cum_prob <= :cumprob
+            GROUP BY p.idx
             """
         ),
         {
@@ -243,4 +259,20 @@ async def contained_in_localization(
             "hpxs": [int(i) for i in np.atleast_1d(indices)],
         },
     )
-    return {row[0] for row in result}
+    return {row[0]: float(round(row[1], 6)) for row in result}
+
+
+async def contained_in_localization(
+    session, localization, positions, cumprob=DEFAULT_CUMPROB
+):
+    """Indices of ``positions`` that fall inside a localization's credible region.
+
+    Returns a set of indices into ``positions``. See
+    ``credible_levels_in_localization`` for the same containment with the
+    credible level of each match kept.
+    """
+    return set(
+        await credible_levels_in_localization(
+            session, localization, positions, cumprob=cumprob
+        )
+    )

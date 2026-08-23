@@ -215,6 +215,10 @@ mmadetector:
     =id: IceCube
   - name: Fermi Gamma-Ray Burst Monitor
     nickname: FermiGBM
+    aliases:
+      - Fermi
+      - Fermi-GBM
+      - GBM
     fixed_location: false
     type: gamma-ray-burst
     =id: FermiGBM
@@ -223,6 +227,16 @@ mmadetector:
     fixed_location: false
     type: gamma-ray-burst
     =id: SwiftGRB
+  # nickname matches the GCN tag EP notices carry, which is what links an event
+  # to its detector
+  - name: Einstein Probe
+    nickname: EP
+    aliases:
+      - Einstein Probe
+      - WXT
+    fixed_location: false
+    type: x-ray
+    =id: EinsteinProbe
 
 telescope:
   - name: Palomar 1.2m

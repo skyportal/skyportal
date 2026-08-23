@@ -1140,3 +1140,222 @@ def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
                 if row is not None:
                     session.delete(row)
             session.commit()
+
+
+def test_gcn_events_filtered_by_mmadetector(super_admin_token):
+    """The detector page links to the events a detector contributed to."""
+
+    def make_detector():
+        name = str(uuid.uuid4())
+        status, data = api(
+            "POST",
+            "mmadetector",
+            data={
+                "name": name,
+                "nickname": name,
+                "type": "gravitational-wave",
+                "fixed_location": False,
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        return name, data["data"]["id"]
+
+    def make_event(tag):
+        # a cone event is enough; the link comes from the tag matching a nickname
+        dateobs = (
+            Time.now() - timedelta(seconds=int(np.random.randint(10**5, 10**7)))
+        ).datetime.replace(microsecond=0)
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.1},
+                "tags": [tag],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        return dateobs.isoformat()
+
+    mine_name, mine_id = make_detector()
+    other_name, other_id = make_detector()
+    mine_dateobs = make_event(mine_name)
+    other_dateobs = make_event(other_name)
+
+    status, data = api(
+        "GET",
+        "gcn_event",
+        params={"mmadetectorIds": str(mine_id)},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    dateobs_list = [event["dateobs"] for event in data["data"]["events"]]
+    assert any(d.startswith(mine_dateobs) for d in dateobs_list), dateobs_list
+    assert not any(d.startswith(other_dateobs) for d in dateobs_list), (
+        "an event from another detector leaked into the filter"
+    )
+
+    # both detectors at once
+    status, data = api(
+        "GET",
+        "gcn_event",
+        params={"mmadetectorIds": f"{mine_id},{other_id}"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    dateobs_list = [event["dateobs"] for event in data["data"]["events"]]
+    assert any(d.startswith(mine_dateobs) for d in dateobs_list)
+    assert any(d.startswith(other_dateobs) for d in dateobs_list)
+
+
+def test_gcn_xml_links_mmadetectors(super_admin_token):
+    """The VOEvent path links detectors named by the notice's tags.
+
+    GW190425_initial.xml is tagged L1 and V1, so a detector nicknamed L1 must
+    come back attached to the event.
+    """
+    status, _ = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": f"LIGO Livingston {uuid.uuid4().hex[:6]}",
+            "nickname": "L1",
+            "type": "gravitational-wave",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status in (200, 400), "detector could not be created"
+
+    dateobs = "2019-04-25 08:18:05"
+    # the event is shared with test_gcn_GW, which re-posts it when absent, so
+    # dropping it here keeps this test independent of ordering
+    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+    datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+    status, data = api(
+        "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200, data
+    nicknames = [d["nickname"] for d in data["data"].get("detectors", [])]
+    assert "L1" in nicknames, f"the VOEvent path did not link L1: {nicknames}"
+
+
+def test_gcn_links_mmadetector_by_alias(super_admin_token):
+    """A notice naming a detector by an alias still links it."""
+    alias = f"XA{uuid.uuid4().hex[:6]}"
+    nickname = f"XN{uuid.uuid4().hex[:6]}"
+    status, data = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": nickname,
+            "nickname": nickname,
+            "aliases": [alias],
+            "type": "gamma-ray-burst",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**5, 10**7)))
+    ).datetime.replace(microsecond=0)
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": str(np.random.randint(10**8, 10**9)),
+            "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.1},
+            # the alias, never the nickname
+            "tags": [alias],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token
+    )
+    assert status == 200, data
+    assert nickname in [d["nickname"] for d in data["data"]["detectors"]]
+
+
+def test_gcn_tags_are_not_duplicated_by_repeat_notices(super_admin_token):
+    """Every notice re-emits the event's tags; they must be stored once."""
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**5, 10**7)))
+    ).datetime.replace(microsecond=0)
+    trigger_id = str(np.random.randint(10**8, 10**9))
+    payload = {
+        "dateobs": dateobs.isoformat(),
+        "trigger_id": trigger_id,
+        "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.1},
+        "tags": ["GRB", "TESTDUP"],
+    }
+
+    for _ in range(3):
+        status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
+        assert status == 200, data
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token
+    )
+    assert status == 200, data
+    tags = data["data"]["tags"]
+    assert tags.count("TESTDUP") == 1, tags
+
+
+def test_gcn_detector_links_are_additive(super_admin_token):
+    """A later notice naming one detector must not unlink the other."""
+    first = f"XF{uuid.uuid4().hex[:6]}"
+    second = f"XS{uuid.uuid4().hex[:6]}"
+    for nickname in (first, second):
+        status, data = api(
+            "POST",
+            "mmadetector",
+            data={
+                "name": nickname,
+                "nickname": nickname,
+                "type": "gravitational-wave",
+                "fixed_location": False,
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**5, 10**7)))
+    ).datetime.replace(microsecond=0)
+    trigger_id = str(np.random.randint(10**8, 10**9))
+    base = {
+        "dateobs": dateobs.isoformat(),
+        "trigger_id": trigger_id,
+        "skymap": {"ra": 42.0, "dec": 12.0, "error": 0.1},
+    }
+
+    status, data = api(
+        "POST", "gcn_event", data={**base, "tags": [first]}, token=super_admin_token
+    )
+    assert status == 200, data
+    status, data = api(
+        "POST", "gcn_event", data={**base, "tags": [second]}, token=super_admin_token
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}", token=super_admin_token
+    )
+    assert status == 200, data
+    nicknames = [d["nickname"] for d in data["data"]["detectors"]]
+    assert first in nicknames and second in nicknames, nicknames

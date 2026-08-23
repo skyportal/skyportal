@@ -59,7 +59,7 @@ from skyportal.models import (
 )
 from skyportal.utils.crossmatch import (
     DEFAULT_CUMPROB,
-    contained_in_localization,
+    credible_levels_in_localization,
     great_circle_distance,
     search_cone,
 )
@@ -75,6 +75,8 @@ DEFAULTS = {
     "max_radius_deg": 5.0,
     "credible_level": 90,
     "cumprob": DEFAULT_CUMPROB,
+    # Per-filter cut on a match's credible level. None keeps all of cumprob.
+    "max_credible_level": None,
     "max_alerts": 500,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
@@ -248,7 +250,14 @@ def _candidate(alert):
 
 
 def build_annotation_data(
-    event_jd, ra0, dec0, radius_deg, alert, archival=False, distance_at=None
+    event_jd,
+    ra0,
+    dec0,
+    radius_deg,
+    alert,
+    archival=False,
+    distance_at=None,
+    credible_level=None,
 ):
     """Event-relative and alert-quality values for one matched alert.
 
@@ -259,6 +268,9 @@ def build_annotation_data(
     jd = alert_jd(alert)
     if jd is not None and event_jd is not None:
         data["delta_t"] = round(jd - event_jd, 4)
+
+    if credible_level is not None:
+        data["credible_level"] = credible_level
 
     position = alert_position(alert)
     if position is not None:
@@ -473,10 +485,14 @@ async def process_event_filter(
     candidate out: a position already flaring last month is a variable, not a
     counterpart.
     """
+    cumprob = float(conf(config, "cumprob"))
     cone = search_cone(
         localization,
         max_radius_deg=float(conf(config, "max_radius_deg")),
-        credible_level=int(conf(config, "credible_level")),
+        # never query narrower than containment accepts
+        credible_level=max(
+            int(conf(config, "credible_level")), math.ceil(cumprob * 100)
+        ),
     )
     if cone is None:
         state.status = "skipped"
@@ -581,12 +597,25 @@ async def process_event_filter(
             f"no JD near {event.dateobs} (cannot place them in the event window)"
         )
 
-    inside = await contained_in_localization(
+    # Geometry once, at the widest region this filter accepts; the cuts below
+    # are arithmetic on the credible level it returns.
+    levels = await credible_levels_in_localization(
         session,
         localization,
         positions,
-        cumprob=float(conf(config, "cumprob")),
+        cumprob=cumprob,
     )
+
+    max_cl = conf(config, "max_credible_level")
+    if max_cl is not None:
+        dropped = {i: cl for i, cl in levels.items() if cl > float(max_cl)}
+        levels = {i: cl for i, cl in levels.items() if cl <= float(max_cl)}
+        if dropped:
+            log(
+                f"{filter_.name} via {broker.name}: {len(dropped)} match(es) inside "
+                f"the {conf(config, 'cumprob')} region but outside this filter's "
+                f"max_credible_level={max_cl}"
+            )
 
     group_ids = [g.id for g in event.groups]
     newest_jd = state.last_alert_jd
@@ -602,7 +631,7 @@ async def process_event_filter(
     user_id = user.id
     distance_at = distance_lookup(localization)
 
-    for index in sorted(inside):
+    for index in sorted(levels):
         alert = keep[index]
         object_id = alert_object_id(alert)
         try:
@@ -632,6 +661,7 @@ async def process_event_filter(
                     alert,
                     archival=archival,
                     distance_at=distance_at,
+                    credible_level=levels[index],
                 ),
             )
             await propose_association(session, user_id, object_id, event_dateobs)

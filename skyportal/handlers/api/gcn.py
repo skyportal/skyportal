@@ -64,6 +64,7 @@ from ...models import (
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
+    GcnEventMMADetector,
     GcnEventObj,
     GcnEventUser,
     GcnNotice,
@@ -322,6 +323,53 @@ async def post_gcn_source(
         return False
 
 
+async def detectors_from_tags(session, user, tag_texts):
+    """MMADetectors named by any of ``tag_texts``, by nickname or alias.
+
+    Notices do not agree on a detector's name -- GCN tags Fermi-GBM alerts
+    "Fermi" and Einstein Probe ones "Einstein Probe" -- so a nickname-only match
+    silently links nothing for those missions.
+    """
+    if not tag_texts:
+        return []
+    texts = list(set(tag_texts))
+    result = await session.scalars(
+        MMADetector.select(user).where(
+            sa.or_(
+                MMADetector.nickname.in_(texts),
+                *[MMADetector.aliases.any(text) for text in texts],
+            )
+        )
+    )
+    return result.unique().all()
+
+
+async def link_detectors_to_event(session, user, event, tag_texts):
+    """Attach the detectors named by ``tag_texts`` to an event.
+
+    Additive: a later notice naming fewer detectors must not drop the ones an
+    earlier one established. Takes the event rather than its id, which a newly
+    created one does not have until the flush below.
+    """
+    detectors = await detectors_from_tags(session, user, tag_texts)
+    if not detectors:
+        return []
+
+    await session.flush()
+    event_loaded = await session.scalar(
+        sa.select(GcnEvent)
+        .where(GcnEvent.id == event.id)
+        .options(selectinload(GcnEvent.detectors))
+    )
+    if event_loaded is None:
+        return []
+    existing = {d.id for d in event_loaded.detectors}
+    added = [d for d in detectors if d.id not in existing]
+    if added:
+        event_loaded.detectors = list(event_loaded.detectors) + added
+    return added
+
+
 async def post_gcnevent_from_xml(
     payload,
     user_id,
@@ -424,28 +472,27 @@ async def post_gcnevent_from_xml(
     await session.commit()
 
     tags_text = list(get_tags(root, notice_type)) + tags_list
+    # Every notice for an event re-emits its tags; only store the new ones.
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == dateobs)
+            )
+        ).all()
+    )
     tags = [
         GcnTag(
             dateobs=dateobs,
             text=text,
             sent_by_id=user_id,
         )
-        for text in tags_text
+        for text in dict.fromkeys(tags_text)
+        if text not in existing_tags
     ]
     session.add_all(tags)
     await session.commit()
 
-    mma_detectors_result = await session.scalars(
-        MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
-    )
-    mma_detectors = mma_detectors_result.all()
-    if len(mma_detectors) > 0:
-        event_to_update = await session.scalar(
-            GcnEvent.select(user)
-            .where(GcnEvent.dateobs == dateobs)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_to_update.detectors = mma_detectors
+    if await link_detectors_to_event(session, user, event, tags_text):
         await session.commit()
 
     gracedb_id = None
@@ -703,23 +750,10 @@ async def post_gcnevent_from_json(
         if text not in existing_tags
     ]
 
-    detectors = []
     for tag in tags:
         session.add(tag)
 
-        mma_detector = await session.scalar(
-            MMADetector.select(user).where(MMADetector.nickname == tag.text)
-        )
-        if mma_detector is not None:
-            detectors.append(mma_detector)
-    if detectors:
-        await session.flush()
-        event_loaded = await session.scalar(
-            sa.select(GcnEvent)
-            .where(GcnEvent.id == event.id)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_loaded.detectors = detectors
+    await link_detectors_to_event(session, user, event, tag_texts)
 
     # Store classification/astro/FAR properties (e.g. from an IGWN gwalert).
     if payload.get("properties"):
@@ -848,32 +882,27 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         )
         session.add(properties)
 
+    tag_texts = list(payload.get("tags", []))
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == event.dateobs)
+            )
+        ).all()
+    )
     tags = [
         GcnTag(
             dateobs=event.dateobs,
             text=text,
             sent_by_id=user.id,
         )
-        for text in payload.get("tags", [])
+        for text in dict.fromkeys(tag_texts)
+        if text not in existing_tags
     ]
-
-    detectors = []
     for tag in tags:
         session.add(tag)
 
-        mma_detector = await session.scalar(
-            MMADetector.select(user).where(MMADetector.nickname == tag.text)
-        )
-        if mma_detector is not None:
-            detectors.append(mma_detector)
-    if detectors:
-        await session.flush()
-        event_loaded = await session.scalar(
-            sa.select(GcnEvent)
-            .where(GcnEvent.id == event.id)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_loaded.detectors = detectors
+    await link_detectors_to_event(session, user, event, tag_texts)
     await session.commit()
 
     # From here on use the event's own dateobs, which differs from the payload's
@@ -1558,6 +1587,13 @@ class GcnEventGetQuery(BaseModel):
             "shared with those groups."
         ),
     )
+    mmadetectorIds: list[int] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of `MMADetector` IDs. Returns events any of "
+            "them contributed to."
+        ),
+    )
 
 
 class GcnEventHandler(BaseHandler):
@@ -1715,6 +1751,8 @@ class GcnEventHandler(BaseHandler):
         group_ids = query.groupIds
 
         localization_properties_filter = query.localizationPropertiesFilter
+
+        mmadetector_ids = query.mmadetectorIds
 
         if dateobs is not None:
             try:
@@ -1925,6 +1963,7 @@ class GcnEventHandler(BaseHandler):
                     localization_tag_remove=localization_tag_remove,
                     gcn_properties_filter=gcn_properties_filter,
                     localization_properties_filter=localization_properties_filter,
+                    mmadetector_ids=mmadetector_ids,
                 )
             except ValueError as e:
                 return self.error(str(e))
@@ -5488,6 +5527,7 @@ def apply_gcn_event_filters(
     localization_tag_remove=None,
     gcn_properties_filter=None,
     localization_properties_filter=None,
+    mmadetector_ids=None,
 ):
     """Apply GCN/localization tag and property filters to a GcnEvent select query.
 
@@ -5497,6 +5537,16 @@ def apply_gcn_event_filters(
     # The outer query already restricts to accessible events, and tags/localizations
     # are keyed by dateobs (1:1 with an event), so these filters use plain dateobs
     # IN/NOT IN rather than re-joining the group-access chain per tag subquery.
+    # Keyed on the event id rather than dateobs: the join table is the only one
+    # of these that references GcnEvent.id.
+    if mmadetector_ids:
+        query = query.where(
+            GcnEvent.id.in_(
+                sa.select(GcnEventMMADetector.gcnevent_id).where(
+                    GcnEventMMADetector.mmadetector_id.in_(mmadetector_ids)
+                )
+            )
+        )
     if gcn_tag_keep:
         query = query.where(
             GcnEvent.dateobs.in_(
