@@ -20,6 +20,22 @@ export interface User {
   [key: string]: unknown;
 }
 
+export interface PublicProfile {
+  id: number;
+  username: string;
+  first_name: string | null;
+  last_name: string | null;
+  gravatar_url: string;
+  is_bot: boolean;
+  created_at: string;
+  affiliations?: string[];
+  bio?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  roles?: string[];
+  groups?: string[];
+}
+
 export interface UsersResult {
   users: User[];
   totalMatches: number;
@@ -42,6 +58,10 @@ export const usersApi = skyportalApi.injectEndpoints({
         providesTags: ["User"],
       },
     ),
+    getUserPublicProfile: build.query<PublicProfile, number | string>({
+      query: (id) => `api/user/${id}/profile`,
+      providesTags: ["User"],
+    }),
     patchUser: build.mutation<
       unknown,
       { id: number | string; data: Record<string, any> }
@@ -59,5 +79,9 @@ export const usersApi = skyportalApi.injectEndpoints({
 // Websocket-driven invalidation: refresh users on FETCH_USERS.
 invalidateOnMessage("skyportal/FETCH_USERS", () => ["User"]);
 
-export const { useGetUsersQuery, useGetUserQuery, usePatchUserMutation } =
-  usersApi;
+export const {
+  useGetUsersQuery,
+  useGetUserQuery,
+  useGetUserPublicProfileQuery,
+  usePatchUserMutation,
+} = usersApi;

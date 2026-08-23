@@ -1,5 +1,8 @@
+import { ReactElement } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
+import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Badge from "@mui/material/Badge";
@@ -55,6 +58,7 @@ interface UserAvatarProps {
   username: string;
   gravatarUrl: string;
   isBot?: boolean;
+  userId?: number | string | null | undefined;
 }
 
 const UserAvatar = ({
@@ -64,6 +68,7 @@ const UserAvatar = ({
   username,
   gravatarUrl,
   isBot = false,
+  userId = null,
 }: UserAvatarProps) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
@@ -95,39 +100,56 @@ const UserAvatar = ({
     tooltipText = `[Bot] ${tooltipText}`;
   }
 
+  const linked = (avatar: ReactElement) =>
+    userId ? (
+      <Link
+        component={RouterLink}
+        to={`/user/${userId}`}
+        sx={{ display: "flex" }}
+      >
+        {avatar}
+      </Link>
+    ) : (
+      avatar
+    );
+
   if (isBot) {
     return (
       <Tooltip title={tooltipText} arrow placement="top-start">
-        <Badge
-          overlap="circular"
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-          badgeContent={
-            <SmartToyIcon fontSize="small" className={classes.badge} />
-          }
-        >
-          <Avatar
-            alt={backUpLetters}
-            src={`${gravatarUrl}&s=${size}`}
-            classes={{
-              root: classes.avatar,
-              img: classes.avatarImg,
-            }}
-          />
-        </Badge>
+        {linked(
+          <Badge
+            overlap="circular"
+            anchorOrigin={{ vertical: "top", horizontal: "right" }}
+            badgeContent={
+              <SmartToyIcon fontSize="small" className={classes.badge} />
+            }
+          >
+            <Avatar
+              alt={backUpLetters}
+              src={`${gravatarUrl}&s=${size}`}
+              classes={{
+                root: classes.avatar,
+                img: classes.avatarImg,
+              }}
+            />
+          </Badge>,
+        )}
       </Tooltip>
     );
   }
 
   return (
     <Tooltip title={tooltipText} arrow placement="top-start">
-      <Avatar
-        alt={backUpLetters}
-        src={`${gravatarUrl}&s=${size}`}
-        classes={{
-          root: classes.avatar,
-          img: classes.avatarImg,
-        }}
-      />
+      {linked(
+        <Avatar
+          alt={backUpLetters}
+          src={`${gravatarUrl}&s=${size}`}
+          classes={{
+            root: classes.avatar,
+            img: classes.avatarImg,
+          }}
+        />,
+      )}
     </Tooltip>
   );
 };

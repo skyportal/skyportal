@@ -9,12 +9,15 @@ import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
 import ThemeToggle from "./preferences/ThemeToggle";
 import Chip from "@mui/material/Chip";
 
-const getUserRealName = (firstName: any, lastName: any) => {
+export const getUserRealName = (firstName: any, lastName: any) => {
   // Korean names are generally written in last->first name order with no space in between
-  if (isAllKoreanCharacters(firstName) && isAllKoreanCharacters(lastName)) {
+  if (
+    isAllKoreanCharacters(firstName || "") &&
+    isAllKoreanCharacters(lastName || "")
+  ) {
     return `${lastName}${firstName}`;
   }
-  return `${firstName} ${lastName}`;
+  return [firstName, lastName].filter(Boolean).join(" ");
 };
 
 const UserProfileInfo = () => {

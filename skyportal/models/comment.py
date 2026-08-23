@@ -120,6 +120,7 @@ class CommentMixin:
         return {
             field: getattr(self.author, field)
             for field in (
+                "id",
                 "username",
                 "first_name",
                 "last_name",

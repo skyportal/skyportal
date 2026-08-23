@@ -313,3 +313,40 @@ def test_photometry_buttons_form(
         "filters": ["2massh"],
         "origins": ["Muphoten"],
     }
+
+
+def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    time.sleep(2)  # give it enough time to load the current profile
+
+    first_name = str(uuid.uuid4())
+    page.locator('//input[@name="firstName"]').first.fill(first_name)
+    affiliation = str(uuid.uuid4())
+    affiliations_entry = page.locator('//input[@name="affiliations"]').first
+    affiliations_entry.fill(affiliation)
+    affiliations_entry.press("Enter")
+    page.locator('//*[@id="updateProfileButton"]').first.click()
+
+    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    expect(
+        page.locator(
+            f'//*[@id="publicProfileRealname"][contains(text(), "{first_name}")]'
+        ).first
+    ).to_be_visible()
+    expect(page.get_by_text(affiliation).first).to_be_visible()
+
+    page.locator('//*[@data-testid="profile-settings-view"]').first.click()
+    open_preferences_panel(page, "public-profile")
+    page.locator('//input[@name="publicProfile_affiliations"]').first.click()
+    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    expect(page.get_by_text(affiliation)).to_have_count(0)
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/user/{user.id}")
+    expect(
+        page.locator(
+            f'//*[@id="publicProfileRealname"][contains(text(), "{first_name}")]'
+        ).first
+    ).to_be_visible()
+    expect(page.get_by_text(affiliation)).to_have_count(0)

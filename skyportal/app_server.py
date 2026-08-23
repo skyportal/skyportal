@@ -223,6 +223,7 @@ from skyportal.handlers.api import (
     UserACLHandler,
     UserHandler,
     UserObjListHandler,
+    UserPublicProfileHandler,
     UserRoleHandler,
     VizierQueryHandler,
     WeatherHandler,
@@ -637,6 +638,7 @@ skyportal_handlers = [
     (r"/api/sharing_service(/[0-9]+)?", SharingServiceHandler),
     #
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
+    (r"/api/user/([0-9]+)/profile", UserPublicProfileHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
     (r"/api/user(/[0-9]+)/roles(/.*)?", UserRoleHandler),
     (r"/api/user(/.*)?", UserHandler),

@@ -228,3 +228,52 @@ def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
     assert status == 200, data
     assert data["data"]["id"] == user.id
     assert data["data"]["oauth_uid"] == original_uid
+
+
+def test_public_profile(view_only_token, user, super_admin_token):
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={
+            "affiliations": ["Caltech"],
+            "bio": "An astronomer looking at transients",
+            "contact_email": "public_profile_test@skyportal.com",
+        },
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/profile", token=super_admin_token)
+    assert status == 200, data
+    profile = data["data"]
+    assert profile["id"] == user.id
+    assert profile["username"] == user.username
+    assert profile["affiliations"] == ["Caltech"]
+    assert profile["bio"].startswith("An astronomer")
+    assert "contact_email" not in profile
+
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={
+            "preferences": {
+                "publicProfile": {
+                    "affiliations": False,
+                    "contact_email": True,
+                    "roles": True,
+                }
+            }
+        },
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/profile", token=super_admin_token)
+    assert status == 200, data
+    profile = data["data"]
+    assert "affiliations" not in profile
+    assert profile["contact_email"] == "public_profile_test@skyportal.com"
+    assert profile["roles"] == sorted(role.id for role in user.roles)
+
+    status, data = api("GET", "user/99999999/profile", token=view_only_token)
+    assert status == 400, data

@@ -35,6 +35,16 @@ PATCH_PROTECTED_FIELDS = frozenset(
     {"id", "oauth_uid", "created_at", "modified", "expirationDate", "expiration_date"}
 )
 
+# Mirrored by SHARED_FIELDS in static/js/components/user/preferences/PublicProfilePreferences.tsx
+PUBLIC_PROFILE_FIELDS = {
+    "affiliations": True,
+    "bio": True,
+    "contact_email": False,
+    "contact_phone": False,
+    "roles": False,
+    "groups": False,
+}
+
 
 def set_default_role(user, session):
     """
@@ -723,3 +733,73 @@ class UserHandler(BaseHandler):
             await session.commit()
 
         return self.success()
+
+
+class UserPublicProfileHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, user_id: int):
+        """
+        ---
+        summary: Get a user's public profile
+        description: >
+            Retrieve the profile a user shares with others: their name and
+            avatar, plus the fields they chose to share in their settings.
+        tags:
+          - users
+        parameters:
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
+                User.select(session.user_or_token)
+                .options(selectinload(User.groups))
+                .where(User.id == user_id)
+            )
+            if user is None:
+                return self.error(f"Cannot find user with ID {user_id}.")
+
+            preferences = (user.preferences or {}).get("publicProfile") or {}
+            shared = {
+                field: bool(preferences.get(field, default))
+                for field, default in PUBLIC_PROFILE_FIELDS.items()
+            }
+            profile = {
+                "id": user.id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "gravatar_url": user.gravatar_url,
+                "is_bot": user.is_bot,
+                "created_at": user.created_at,
+            }
+            if shared["affiliations"]:
+                profile["affiliations"] = user.affiliations or []
+            if shared["bio"]:
+                profile["bio"] = user.bio
+            if shared["contact_email"]:
+                profile["contact_email"] = user.contact_email
+            if shared["contact_phone"]:
+                profile["contact_phone"] = (
+                    user.contact_phone.e164 if user.contact_phone else None
+                )
+            if shared["roles"]:
+                profile["roles"] = sorted(role.id for role in user.roles)
+            if shared["groups"]:
+                profile["groups"] = sorted(
+                    group.name for group in user.groups if not group.single_user_group
+                )
+
+            return self.success(data=profile)

@@ -245,6 +245,7 @@ from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
+    UserPublicProfileHandler,
     set_default_acls,
     set_default_group,
     set_default_role,

@@ -218,7 +218,7 @@ app:
     - path: "/brokers/:brokerId/filter/:fid"
       component: broker/BrokerFilterPage
     - path: "/user/:id"
-      component: user/UserInfo
+      component: user/PublicProfile
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
     - path: "/share_data/:id"
