@@ -89,7 +89,7 @@ def classify_thumbnail_grayscale(mapper, connection, target):
     # Only classify local files here (a fast disk read). Remote thumbnails are
     # left NULL and classified in the background by the thumbnail_queue service,
     # so no request handler blocks on a synchronous cutout-service fetch.
-    if target.file_uri is not None:
+    if target.file_uri is not None and target.is_grayscale is None:
         target.is_grayscale = image_is_grayscale(target.file_uri)
 
 
