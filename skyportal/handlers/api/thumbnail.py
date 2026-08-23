@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import os
+import re
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -19,6 +20,8 @@ from ...utils.thumbnail import image_is_grayscale
 from ..base import BaseHandler
 
 log = make_log("api/thumbnail")
+
+SURVEY_RE = re.compile(r"[A-Z0-9][A-Z0-9_-]{0,31}")
 
 
 class ThumbnailPostBody(BaseModel):
@@ -99,8 +102,10 @@ async def post_thumbnail(data, user_id, session):
 
     # BOOM emits title-case survey names ("Ztf"); normalize so "Ztf" and "ZTF"
     # can't both satisfy the (obj_id, type, survey) constraint as separate rows.
-    survey = data.get("survey")
-    survey = survey.strip().upper() if survey else None
+    survey = (data.get("survey") or "").strip().upper() or None
+    # survey lands in the file path below, so it must not contain separators.
+    if survey is not None and not SURVEY_RE.fullmatch(survey):
+        raise ValueError(f"Invalid survey: {data['survey']}")
     # File path is survey-keyed too: two surveys posting the same obj/type used
     # to share one filename, so the second write silently clobbered the first
     # and deleting either row deleted the file the surviving row still used.
