@@ -59,6 +59,8 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import OutburstPlot from "./OutburstPlot";
+import { OutburstPoint } from "./outburstTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -309,6 +311,8 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Solar-system object flag; enables the geometry-corrected "Outburst" tab.
+  is_roid?: boolean;
   // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
   // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
   modelFits?: ModelFit[];
@@ -327,6 +331,7 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  is_roid = false,
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const muiTheme = useTheme();
@@ -617,6 +622,33 @@ const PhotometryPlot = ({
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
+
+  // Solar-system objects (is_roid) get an extra "Outburst" tab (the
+  // geometry-corrected light-curve view). Points need per-point geometry
+  // (rh/delta/phase in photometry altdata, supplied by BOOM); the tab is empty
+  // until that exists.
+  const isOutburstTab = is_roid && tabIndex === 3;
+  const outburstPoints = useMemo<OutburstPoint[]>(
+    () =>
+      (mainPhotometry || [])
+        .filter(
+          (p: any) =>
+            p?.mag != null &&
+            p?.altdata?.rh != null &&
+            p?.altdata?.delta != null &&
+            p?.altdata?.phase != null,
+        )
+        .map((p: any) => ({
+          time: p.mjd,
+          mag: p.mag,
+          magerr: p.magerr ?? 0,
+          band: (p.filter || "").replace(/^ztf/i, "") || p.filter,
+          rh: p.altdata.rh,
+          delta: p.altdata.delta,
+          phase: p.altdata.phase,
+        })),
+    [mainPhotometry],
+  );
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -1878,13 +1910,17 @@ const PhotometryPlot = ({
         <Tab label="Mag" />
         <Tab label="Flux" />
         <Tab label="Period" />
+        {is_roid && <Tab label="Outburst" />}
       </Tabs>
+
+      {isOutburstTab && <OutburstPlot points={outburstPoints} />}
 
       <div
         style={{
           width: "100%",
           height: plotStyle?.height || "70vh",
           overflowX: "scroll",
+          display: isOutburstTab ? "none" : undefined,
         }}
       >
         <Plot
