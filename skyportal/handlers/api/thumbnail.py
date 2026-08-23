@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import utcnow
 from baselayer.log import make_log
 
 from ...models import Broker, Obj, Thumbnail, User
@@ -188,10 +189,12 @@ async def post_thumbnail(data, user_id, session):
                 )
                 .on_conflict_do_update(
                     index_elements=["obj_id", "type", "survey"],
+                    # ON CONFLICT ignores the column's onupdate, hence modified here.
                     set_={
                         "file_uri": file_uri,
                         "public_url": public_url,
                         "is_grayscale": is_grayscale,
+                        "modified": utcnow,
                     },
                 )
                 .returning(Thumbnail.id)
