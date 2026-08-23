@@ -48,6 +48,9 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         autoAnnotate?: boolean;
         autoFollowup?: boolean;
         autoSaveIgnoreGroupIds?: number[];
+        autoSaveSaverId?: number | null;
+        autoSaveComment?: string | null;
+        autoFollowupDefaultId?: number | null;
       }
     >({
       query: ({ filter_id, ...flags }) => ({

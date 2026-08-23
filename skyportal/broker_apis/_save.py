@@ -233,6 +233,7 @@ async def _ingest_object(
     from ..models import (
         Annotation,
         Candidate,
+        Comment,
         Filter,
         Group,
         GroupAnnotation,
@@ -240,10 +241,16 @@ async def _ingest_object(
         Obj,
         Source,
     )
+    from ..utils.data_access import (
+        any_group_auto_publishes,
+        auto_source_publishing_async,
+    )
     from ..utils.naive_datetime import utcnow_naive
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
+    saved_group_ids = []  # groups this call newly saves to (for auto-publish)
+    autosave_comments = []  # (group_id, text) to post after a filter auto-save
 
     # Ingestion criteria gate: drop the alert against filters whose extra criteria
     # it fails. If nothing survives and this isn't an interactive save (group_ids),
@@ -285,6 +292,7 @@ async def _ingest_object(
         if created:
             for g in groups:
                 session.add(Source(obj=obj, group=g, saved_by_id=user.id))
+                saved_group_ids.append(g.id)
 
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
@@ -316,7 +324,8 @@ async def _ingest_object(
             )
         ).all()
         for f in autosave_filters:
-            ignore_group_ids = (f.altdata or {}).get("autoSaveIgnoreGroupIds") or []
+            altdata = f.altdata or {}
+            ignore_group_ids = altdata.get("autoSaveIgnoreGroupIds") or []
             already = await session.scalar(
                 sa.select(Source).where(
                     Source.obj_id == object_id,
@@ -325,7 +334,13 @@ async def _ingest_object(
                 )
             )
             if already is None:
-                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=user.id))
+                # Attribute the save to a configured saver if set, else the bot.
+                saver_id = altdata.get("autoSaveSaverId") or user.id
+                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                saved_group_ids.append(f.group_id)
+                comment_text = (altdata.get("autoSaveComment") or "").strip()
+                if comment_text:
+                    autosave_comments.append((f.group_id, comment_text))
 
     # autoflush is off on skyportal's async session; flush so the new Obj (and any
     # Candidate rows) are visible to add_external_photometry's existence check.
@@ -350,6 +365,9 @@ async def _ingest_object(
             )
         ).all()
         for filt in filters:
+            # autoAnnotate defaults on; a filter can opt out of writing annotations.
+            if (filt.altdata or {}).get("autoAnnotate", True) is False:
+                continue
             group = filt.group
             # origin matches the legacy broker-plugin format so new annotations
             # group with the historical ones.
@@ -396,6 +414,44 @@ async def _ingest_object(
             await add_thumbnails(object_id, cutouts, survey, session, user_id=user.id)
         except Exception as e:
             log(f"Failed to add thumbnails for {object_id}: {e}")
+
+    # Post each filter's optional auto-save comment (mirrors Kowalski
+    # autosave.comment), scoped to the filter's group.
+    if autosave_comments:
+        groups_by_id = {
+            g.id: g
+            for g in (
+                await session.scalars(
+                    sa.select(Group).where(
+                        Group.id.in_({gid for gid, _ in autosave_comments})
+                    )
+                )
+            ).all()
+        }
+        for gid, text in autosave_comments:
+            g = groups_by_id.get(gid)
+            session.add(
+                Comment(
+                    text=text,
+                    obj_id=object_id,
+                    author=user,
+                    groups=[g] if g else [],
+                    bot=True,
+                )
+            )
+
+    # BOOM saves Sources via the ORM, bypassing post_source's auto-publish hook;
+    # fire it here so TNS/Hermes/Public-page auto-publishers react to new saves.
+    if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
+        publish_to = ["TNS", "Hermes", "Public page"]
+        for gid in saved_group_ids:
+            await auto_source_publishing_async(
+                session=session,
+                saver=user,
+                obj=obj,
+                group_id=gid,
+                publish_to=publish_to,
+            )
 
     await session.commit()
     return {"id": object_id}

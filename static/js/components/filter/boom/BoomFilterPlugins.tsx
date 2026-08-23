@@ -7,6 +7,7 @@ import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -22,6 +23,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { UnifiedBuilderProvider } from "../../../contexts/UnifiedBuilderContext";
 import FilterBuilderContent from "./FilterBuilderContent";
 import AnnotationBuilderContent from "./AnnotationBuilderContent";
+import BoomFilterFollowupConfig from "./BoomFilterFollowupConfig";
 
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
@@ -35,6 +37,8 @@ import {
   useValidateBoomFilterMutation,
 } from "../../../ducks/boom_filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
+import { useGetGroupQuery } from "../../../ducks/group";
+import { useDeleteDefaultFollowupRequestMutation } from "../../../ducks/default_followup_requests";
 import { useGetProfileQuery } from "../../../ducks/profile";
 
 interface BoomFilterPluginsProps {
@@ -171,6 +175,62 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
       filter_id: filter_v.id,
       autoSaveIgnoreGroupIds: ids,
     });
+    refetchFilterVersion();
+  };
+
+  // Auto-save attribution + comment. Members come from the filter's own group.
+  const saverId: number | "" = filter_v?.altdata?.autoSaveSaverId ?? "";
+  const { data: filterGroup } = useGetGroupQuery(filter_v?.group_id, {
+    skip: !autoSaveOn || !filter_v?.group_id,
+  });
+  const groupMembers: any[] = (filterGroup as any)?.users ?? [];
+  const handleSaverChange = async (id: number | "") => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveSaverId: id === "" ? null : id,
+    });
+    refetchFilterVersion();
+  };
+  const handleCommentBlur = async (text: string) => {
+    if ((filter_v?.altdata?.autoSaveComment ?? "") === text) return;
+    await updateFilterFlags({ filter_id: filter_v.id, autoSaveComment: text });
+    refetchFilterVersion();
+  };
+
+  // Auto-followup is backed by a skyportal DefaultFollowupRequest scoped to this
+  // filter's group; the flag reflects whether one is linked.
+  const autoFollowupDefaultId: number | null =
+    filter_v?.altdata?.autoFollowupDefaultId ?? null;
+  const [followupConfigOpen, setFollowupConfigOpen] = useState(false);
+  const [deleteDefaultFollowup] = useDeleteDefaultFollowupRequestMutation();
+  const handleAutoFollowupToggle = async (checked: boolean) => {
+    if (checked) {
+      // Reveal the config; the flag is set once a default request is created.
+      setFollowupConfigOpen(true);
+      return;
+    }
+    if (autoFollowupDefaultId) {
+      try {
+        await deleteDefaultFollowup(autoFollowupDefaultId).unwrap();
+      } catch {
+        // notification handled by baseQuery
+      }
+    }
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoFollowup: false,
+      autoFollowupDefaultId: null,
+    });
+    setFollowupConfigOpen(false);
+    refetchFilterVersion();
+  };
+  const handleFollowupLinked = async (id: number | null) => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoFollowup: id != null,
+      autoFollowupDefaultId: id,
+    });
+    if (id != null) setFollowupConfigOpen(false);
     refetchFilterVersion();
   };
 
@@ -343,8 +403,8 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
         control={
           <Switch
             size="small"
-            checked={autoFollowupOn}
-            onChange={(e) => handleFlagToggle("autoFollowup")(e.target.checked)}
+            checked={autoFollowupOn || followupConfigOpen}
+            onChange={(e) => handleAutoFollowupToggle(e.target.checked)}
           />
         }
         label="Auto-trigger follow-up"
@@ -375,6 +435,36 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
             ))}
           </Select>
         </FormControl>
+      )}
+      {autoSaveOn && (
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id={`saver-${filter_v.id}`}>Save as</InputLabel>
+          <Select
+            labelId={`saver-${filter_v.id}`}
+            label="Save as"
+            value={saverId}
+            onChange={(e) => handleSaverChange(e.target.value as number | "")}
+          >
+            <MenuItem value="">
+              <em>Bot (default)</em>
+            </MenuItem>
+            {groupMembers.map((u: any) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.username}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+      {autoSaveOn && (
+        <TextField
+          size="small"
+          sx={{ minWidth: 240 }}
+          label="Save comment"
+          key={`comment-${filter_v.id}-${filter_v?.altdata?.autoSaveComment ?? ""}`}
+          defaultValue={filter_v?.altdata?.autoSaveComment ?? ""}
+          onBlur={(e) => handleCommentBlur(e.target.value)}
+        />
       )}
     </Box>
   );
@@ -615,6 +705,16 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
               )}
               {filter_v?.fv && (
                 <div className={classes.infoLine}>{autoSaveControls}</div>
+              )}
+              {filter_v?.fv && (autoFollowupOn || followupConfigOpen) && (
+                <div className={classes.infoLine}>
+                  <BoomFilterFollowupConfig
+                    filterId={filter_v.id}
+                    groupId={filter_v.group_id}
+                    existingDefaultId={autoFollowupDefaultId}
+                    onLinked={handleFollowupLinked}
+                  />
+                </div>
               )}
               <div
                 style={{

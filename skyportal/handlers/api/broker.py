@@ -11,7 +11,7 @@ from baselayer.log import make_log
 
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
-from ...models import Broker, Filter, Stream, set_autosave
+from ...models import Broker, Filter, GroupUser, Stream, set_autosave
 from ..base import BaseHandler
 
 log = make_log("api/broker")
@@ -1250,7 +1250,7 @@ class BrokerFiltersHandler(BaseHandler):
                     new_fid = resp["active_fid"]
                     f.altdata = {
                         "boom": {"filter_id": resp["id"]},
-                        "autoAnnotate": False,
+                        "autoAnnotate": True,
                         "autoSave": False,
                         "autoFollowup": False,
                         "filters": [{"fid": new_fid, "version": data["filters"]}],
@@ -1374,6 +1374,42 @@ class BrokerFiltersHandler(BaseHandler):
                     f.altdata["autoSaveIgnoreGroupIds"] = [
                         int(g) for g in (data["autoSaveIgnoreGroupIds"] or [])
                     ]
+                    flag_modified(f, "altdata")
+                # Attribute auto-saves to a service user (must be in the group).
+                if "autoSaveSaverId" in data:
+                    saver_id = data["autoSaveSaverId"]
+                    if saver_id in (None, ""):
+                        f.altdata.pop("autoSaveSaverId", None)
+                    else:
+                        saver_id = int(saver_id)
+                        member = session.scalar(
+                            sa.select(GroupUser).where(
+                                GroupUser.user_id == saver_id,
+                                GroupUser.group_id == f.group_id,
+                            )
+                        )
+                        if member is None:
+                            return self.error(
+                                "autoSaveSaverId must be a member of the "
+                                "filter's group."
+                            )
+                        f.altdata["autoSaveSaverId"] = saver_id
+                    flag_modified(f, "altdata")
+                # Comment posted on each auto-save.
+                if "autoSaveComment" in data:
+                    comment = data["autoSaveComment"]
+                    if comment in (None, ""):
+                        f.altdata.pop("autoSaveComment", None)
+                    else:
+                        f.altdata["autoSaveComment"] = str(comment)
+                    flag_modified(f, "altdata")
+                # Links the filter to its auto-followup DefaultFollowupRequest.
+                if "autoFollowupDefaultId" in data:
+                    default_id = data["autoFollowupDefaultId"]
+                    if default_id in (None, ""):
+                        f.altdata.pop("autoFollowupDefaultId", None)
+                    else:
+                        f.altdata["autoFollowupDefaultId"] = int(default_id)
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error updating filter on {broker.name}: {e}")
