@@ -1369,6 +1369,12 @@ class BrokerFiltersHandler(BaseHandler):
                 # autoSave is the UI's name for the column ingestion reads.
                 if "autoSave" in data:
                     set_autosave(f, data["autoSave"])
+                # Groups whose members are not auto-saved (e.g. junk).
+                if "autoSaveIgnoreGroupIds" in data:
+                    f.altdata["autoSaveIgnoreGroupIds"] = [
+                        int(g) for g in (data["autoSaveIgnoreGroupIds"] or [])
+                    ]
+                    flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error updating filter on {broker.name}: {e}")
             session.commit()

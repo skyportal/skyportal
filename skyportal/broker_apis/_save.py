@@ -308,19 +308,20 @@ async def _ingest_object(
                     )
                 )
 
-        # Auto-save: a filter with `autosave` set also saves the passing object as
-        # a Source in the filter's group, so it skips manual scanning. Skip if
-        # already saved to that group.
+        # Auto-save the passing object to the filter's group. Skip if it's already
+        # an active Source there or in a filter `autoSaveIgnoreGroupIds` (junk).
         autosave_filters = (
             await session.scalars(
                 sa.select(Filter).where(Filter.id.in_(filter_ids), Filter.autosave)
             )
         ).all()
         for f in autosave_filters:
+            ignore_group_ids = (f.altdata or {}).get("autoSaveIgnoreGroupIds") or []
             already = await session.scalar(
                 sa.select(Source).where(
                     Source.obj_id == object_id,
-                    Source.group_id == f.group_id,
+                    Source.group_id.in_([f.group_id, *ignore_group_ids]),
+                    Source.active.is_(True),
                 )
             )
             if already is None:

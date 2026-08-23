@@ -31,6 +31,7 @@ import {
   useBoomFilterVersion,
   useEditBoomFilterVersionMutation,
   useUpdateBoomGroupFilterMutation,
+  useUpdateBoomFilterFlagsMutation,
   useValidateBoomFilterMutation,
 } from "../../../ducks/boom_filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
@@ -124,6 +125,7 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
     useBoomFilterVersion();
   const [editFilterVersion] = useEditBoomFilterVersionMutation();
   const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
+  const [updateFilterFlags] = useUpdateBoomFilterFlagsMutation();
   const [validateFilter] = useValidateBoomFilterMutation();
   const { data: profile } = useGetProfileQuery();
   const isAdmin = (profile?.permissions ?? []).includes("System admin");
@@ -149,6 +151,28 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   allGroups?.forEach((g: any) => {
     groupLookUp[g.id] = g;
   });
+
+  // Auto-actions run when an object passes: save to the filter's group (skipping
+  // objects already in an ignore/junk group), annotate, and/or trigger followup.
+  // Stored in the filter's altdata.
+  const autoSaveOn = !!filter_v?.altdata?.autoSave;
+  const autoAnnotateOn = !!filter_v?.altdata?.autoAnnotate;
+  const autoFollowupOn = !!filter_v?.altdata?.autoFollowup;
+  const ignoreGroupIds: number[] =
+    filter_v?.altdata?.autoSaveIgnoreGroupIds ?? [];
+  const handleFlagToggle =
+    (flag: "autoSave" | "autoAnnotate" | "autoFollowup") =>
+    async (checked: boolean) => {
+      await updateFilterFlags({ filter_id: filter_v.id, [flag]: checked });
+      refetchFilterVersion();
+    };
+  const handleIgnoreGroupsChange = async (ids: number[]) => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveIgnoreGroupIds: ids,
+    });
+    refetchFilterVersion();
+  };
 
   const [panelboomExpanded, setPanelboomExpanded] = useState<any>(true);
 
@@ -288,6 +312,70 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
           </Typography>
         </Box>
       ) : null}
+    </Box>
+  );
+
+  const autoSaveControls = (
+    <Box
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}
+    >
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoSaveOn}
+            onChange={(e) => handleFlagToggle("autoSave")(e.target.checked)}
+          />
+        }
+        label="Auto-save to group"
+      />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoAnnotateOn}
+            onChange={(e) => handleFlagToggle("autoAnnotate")(e.target.checked)}
+          />
+        }
+        label="Auto-annotate"
+      />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoFollowupOn}
+            onChange={(e) => handleFlagToggle("autoFollowup")(e.target.checked)}
+          />
+        }
+        label="Auto-trigger follow-up"
+      />
+      {autoSaveOn && (
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel id={`ignore-groups-${filter_v.id}`}>
+            Skip if already in
+          </InputLabel>
+          <Select
+            multiple
+            labelId={`ignore-groups-${filter_v.id}`}
+            label="Skip if already in"
+            value={ignoreGroupIds}
+            onChange={(e) =>
+              handleIgnoreGroupsChange(e.target.value as number[])
+            }
+            renderValue={(sel) =>
+              (sel as number[])
+                .map((id) => groupLookUp[id]?.name ?? id)
+                .join(", ")
+            }
+          >
+            {allGroups?.map((g: any) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
     </Box>
   );
 
@@ -524,6 +612,9 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
             <>
               {filter_v?.fv && (
                 <div className={classes.infoLine}>{activationControls}</div>
+              )}
+              {filter_v?.fv && (
+                <div className={classes.infoLine}>{autoSaveControls}</div>
               )}
               <div
                 style={{
