@@ -84,38 +84,30 @@ async def post_thumbnail(data, user_id, session):
         Async DB session for this transaction
     """
 
-    user = await session.scalar(sa.select(User).where(User.id == user_id))
+    obj_id, ttype = data["obj_id"], data["ttype"]
+    user = await session.get(User, user_id)
 
-    obj = await session.scalar(Obj.select(user).where(Obj.id == data["obj_id"]))
-
-    if obj is None:
-        raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
+    if await session.scalar(Obj.select(user).where(Obj.id == obj_id)) is None:
+        raise AttributeError(f"Invalid obj_id: {obj_id}")
 
     basedir = Path(os.path.dirname(__file__)) / ".." / ".."
-    obj_hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
+    obj_hash = hashlib.sha256(obj_id.encode("utf-8")).hexdigest()
 
-    # can someday make this a configurable parameter
     required_depth = 2
     subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
 
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
 
-    # BOOM emits title-case survey names ("Ztf"); normalize so "Ztf" and "ZTF"
-    # can't both satisfy the (obj_id, type, survey) constraint as separate rows.
+    # BOOM emits title-case names ("Ztf"), which the constraint reads as not "ZTF".
     survey = (data.get("survey") or "").strip().upper() or None
     # survey lands in the file path below, so it must not contain separators.
     if survey is not None and not SURVEY_RE.fullmatch(survey):
         raise ValueError(f"Invalid survey: {data['survey']}")
-    # File path is survey-keyed too: two surveys posting the same obj/type used
-    # to share one filename, so the second write silently clobbered the first
-    # and deleting either row deleted the file the surviving row still used.
-    survey_suffix = f"_{survey}" if survey else ""
-    filename = f"{data['obj_id']}_{data['ttype']}{survey_suffix}.png"
+    filename = f"{obj_id}_{ttype}{f'_{survey}' if survey else ''}.png"
     file_uri = os.path.abspath(basedir / f"static/thumbnails/{subfolders}/{filename}")
     public_url = f"/static/thumbnails/{subfolders}/{filename}"
-    if not os.path.exists(os.path.dirname(file_uri)):
-        Path(os.path.dirname(file_uri)).mkdir(parents=True)
+    os.makedirs(os.path.dirname(file_uri), exist_ok=True)
 
     file_bytes = base64.b64decode(data["data"])
     try:
@@ -139,49 +131,39 @@ async def post_thumbnail(data, user_id, session):
         is_grayscale = image_is_grayscale(file_uri)
 
         if survey is not None:
-            # Adopt a pre-survey-column legacy row instead of leaving it to be
-            # rendered as a second, same-survey tile alongside this insert.
-            # Adopt at most one: some objs carry several NULL-survey rows for
-            # the same type (e.g. test fixtures, or two concurrent no-survey
-            # posts), and updating all of them to the same survey at once
-            # would collide with each other under the unique constraint. Skip
-            # entirely if a same-survey row already exists, to avoid
-            # colliding with it instead.
-            legacy_id = await session.scalar(
-                sa.select(Thumbnail.id)
+            # Relabel one pre-survey row so it stops rendering as a second tile;
+            # one only, and never onto an existing survey, or the update collides.
+            legacy, sibling = sa.orm.aliased(Thumbnail), sa.orm.aliased(Thumbnail)
+            await session.execute(
+                sa.update(Thumbnail)
                 .where(
-                    Thumbnail.obj_id == data["obj_id"],
-                    Thumbnail.type == data["ttype"],
-                    Thumbnail.survey.is_(None),
-                )
-                .order_by(Thumbnail.id)
-                .limit(1)
-            )
-            if legacy_id is not None:
-                sibling = sa.orm.aliased(Thumbnail)
-                await session.execute(
-                    sa.update(Thumbnail)
+                    Thumbnail.id
+                    == sa.select(legacy.id)
                     .where(
-                        Thumbnail.id == legacy_id,
-                        ~sa.select(sibling.id)
-                        .where(
-                            sibling.obj_id == data["obj_id"],
-                            sibling.type == data["ttype"],
-                            sibling.survey == survey,
-                        )
-                        .exists(),
+                        legacy.obj_id == obj_id,
+                        legacy.type == ttype,
+                        legacy.survey.is_(None),
                     )
-                    .values(survey=survey)
+                    .order_by(legacy.id)
+                    .limit(1)
+                    .scalar_subquery(),
+                    ~sa.select(sibling.id)
+                    .where(
+                        sibling.obj_id == obj_id,
+                        sibling.type == ttype,
+                        sibling.survey == survey,
+                    )
+                    .exists(),
                 )
-            # INSERT .. ON CONFLICT DO UPDATE: a plain SELECT-then-write races a
-            # concurrent ingest of the same obj/type/survey, and the loser's
-            # IntegrityError at commit kills the whole ingest transaction, not
-            # just the thumbnail (see _save.py:399's final session.commit()).
+                .values(survey=survey)
+            )
+            # A SELECT-then-write loses to a concurrent ingest, and the resulting
+            # IntegrityError kills the whole ingest, not just this thumbnail.
             thumbnail_id = await session.scalar(
                 pg_insert(Thumbnail)
                 .values(
-                    obj_id=data["obj_id"],
-                    type=data["ttype"],
+                    obj_id=obj_id,
+                    type=ttype,
                     survey=survey,
                     file_uri=file_uri,
                     public_url=public_url,
@@ -200,18 +182,16 @@ async def post_thumbnail(data, user_id, session):
                 .returning(Thumbnail.id)
             )
         else:
-            # NULL never conflicts under the unique index (each NULL is
-            # distinct), so archival/legacy rows with no survey can't use the
-            # ON CONFLICT upsert above and fall back to an explicit lookup.
+            # Each NULL is distinct to the index, so ON CONFLICT never fires here.
             t = await session.scalar(
                 sa.select(Thumbnail).where(
-                    Thumbnail.obj_id == data["obj_id"],
-                    Thumbnail.type == data["ttype"],
+                    Thumbnail.obj_id == obj_id,
+                    Thumbnail.type == ttype,
                     Thumbnail.survey.is_(None),
                 )
             )
             if t is None:
-                t = Thumbnail(obj_id=data["obj_id"], type=data["ttype"], survey=None)
+                t = Thumbnail(obj_id=obj_id, type=ttype)
                 session.add(t)
             t.file_uri = file_uri
             t.public_url = public_url
@@ -247,7 +227,7 @@ class ThumbnailHandler(BaseHandler):
                     body.model_dump(), self.associated_user_object.id, session
                 )
             except Exception as e:
-                return self.error(f"Thumbnail failed to post: {str(e)}")
+                return self.error(f"Thumbnail failed to post: {e}")
             return self.success(data={"id": thumbnail_id})
 
     @auth_or_token
@@ -416,17 +396,15 @@ class ThumbnailPathHandler(BaseHandler):
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         async with self.AsyncSession() as session:
-            (
-                total_matches,
-                good_matches,
-                bad_matches,
-            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
+            total, good, bad = await count_thumbnails_in_folders(
+                session, types, good_like, bad_like
+            )
 
         return self.success(
             data={
-                "totalMatches": total_matches,
-                "inCorrectFolder": good_matches,
-                "inWrongFolder": bad_matches,
+                "totalMatches": total,
+                "inCorrectFolder": good,
+                "inWrongFolder": bad,
             }
         )
 
@@ -524,28 +502,27 @@ class ThumbnailPathHandler(BaseHandler):
 
         num_moved = 0
         async with self.AsyncSession() as session:
-            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-            stmt = stmt.where(
-                sa.or_(
-                    ~Thumbnail.file_uri.like(good_like),
-                    Thumbnail.file_uri.like(bad_like),
+            stmt = (
+                sa.select(Thumbnail)
+                .where(
+                    Thumbnail.type.in_(types),
+                    sa.or_(
+                        ~Thumbnail.file_uri.like(good_like),
+                        Thumbnail.file_uri.like(bad_like),
+                    ),
                 )
+                .offset((page_number - 1) * num_per_page)
+                .limit(num_per_page)
             )
-            stmt = stmt.offset((page_number - 1) * num_per_page)
-            stmt = stmt.limit(num_per_page)
-            result = await session.scalars(stmt)
-            thumbnails = result.unique().all()
-            for t in thumbnails:
+            for t in (await session.scalars(stmt)).unique().all():
                 if t.file_uri is None:
                     continue
 
-                if alert_available:
-                    ok = await check_thumbnail_file(
-                        t, self.associated_user_object.id, session
-                    )
-                    if not ok:
-                        # the delete is committed in check_thumbnail_file
-                        continue
+                # the delete is committed in check_thumbnail_file
+                if alert_available and not await check_thumbnail_file(
+                    t, self.associated_user_object.id, session
+                ):
+                    continue
                 obj_hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
                 subfolders = "/".join(
                     obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth)
@@ -585,24 +562,20 @@ class ThumbnailPathHandler(BaseHandler):
 
                 num_moved += 1
 
-            (
-                total_matches,
-                good_matches,
-                bad_matches,
-            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
+            total, good, bad = await count_thumbnails_in_folders(
+                session, types, good_like, bad_like
+            )
 
         return self.success(
             data={
-                "totalMatches": total_matches,
-                "inCorrectFolder": good_matches,
-                "inWrongFolder": bad_matches,
+                "totalMatches": total,
+                "inCorrectFolder": good,
+                "inWrongFolder": bad,
                 "numMoved": num_moved,
             }
         )
 
-    # TODO: add a POST that only checks each thumbnail
-    # for missing or empty files, outside of the context
-    # of moving them to the correct folder
+    # TODO: add a POST that only checks for missing or empty files
 
     @permissions(["System admin"])
     async def delete(self):
@@ -637,28 +610,21 @@ class ThumbnailPathHandler(BaseHandler):
 
 
 async def count_thumbnails_in_folders(session, types, good_like, bad_like):
-    """Async version: Count the number of thumbnails in the correct and incorrect folders."""
-    stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-    total_matches = await session.scalar(
-        sa.select(func.count()).select_from(stmt.subquery())
-    )
-    good_stmt = stmt.where(
+    """Count the thumbnails in the correct and incorrect folders."""
+    in_good_folder = sa.and_(
         Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
     )
-    good_matches = await session.scalar(
-        sa.select(func.count()).select_from(good_stmt.subquery())
+    in_bad_folder = sa.or_(
+        ~Thumbnail.file_uri.like(good_like), Thumbnail.file_uri.like(bad_like)
     )
-    bad_stmt = stmt.where(
-        sa.or_(
-            ~Thumbnail.file_uri.like(good_like),
-            Thumbnail.file_uri.like(bad_like),
-        )
+    counts = await session.execute(
+        sa.select(
+            func.count(),
+            func.count().filter(in_good_folder),
+            func.count().filter(in_bad_folder),
+        ).where(Thumbnail.type.in_(types))
     )
-    bad_matches = await session.scalar(
-        sa.select(func.count()).select_from(bad_stmt.subquery())
-    )
-
-    return total_matches, good_matches, bad_matches
+    return counts.one()
 
 
 async def recreate_thumbnails_from_broker(obj_id, user_id, session):
@@ -673,33 +639,31 @@ async def recreate_thumbnails_from_broker(obj_id, user_id, session):
     user = await session.get(User, user_id)
     if user is None:
         return False
-    # Providers fail closed on the stream scope: BOOM turns a missing
-    # `permissions` into an empty programid list, which matches no alert and
-    # returns nothing rather than raising, so the rebuild quietly does nothing.
+    # Providers fail closed on the stream scope: no permissions means no alert
+    # matches, and the rebuild silently does nothing instead of raising.
     permissions = await alert_permissions_async(user, session)
 
-    brokers = (
-        await session.scalars(
-            sa.select(Broker)
-            .where(Broker.active.is_(True))
-            .order_by(Broker.default_alert_search.desc(), Broker.id)
-        )
-    ).all()
+    brokers = await session.scalars(
+        sa.select(Broker)
+        .where(Broker.active.is_(True))
+        .order_by(Broker.default_alert_search.desc(), Broker.id)
+    )
 
     for broker in brokers:
         capabilities = broker.broker_class.implements()
-        if not (capabilities.get("get_alert") and capabilities.get("get_cutouts")):
+        if not capabilities.get("get_alert") or not capabilities.get("get_cutouts"):
             continue
         try:
-            data = broker.broker_class.get_alert(
-                broker, obj_id, session, permissions=permissions
+            data = (
+                broker.broker_class.get_alert(
+                    broker, obj_id, session, permissions=permissions
+                )
+                or {}
             )
-            candid = (data or {}).get("candid") or (
-                (data or {}).get("candidate") or {}
-            ).get("candid")
+            candid = data.get("candid") or (data.get("candidate") or {}).get("candid")
             if candid is None:
                 continue
-            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
+            survey = data.get("survey") or (broker.altdata or {}).get("survey")
             cutouts = broker.broker_class.get_cutouts(
                 broker, candid, session, survey=survey, permissions=permissions
             )
@@ -722,33 +686,28 @@ async def check_thumbnail_file(thumbnail, user_id, session):
     # need to import this here because alert.py might import this file
     from .alert import alert_available, post_alert
 
-    if (
-        not os.path.isfile(thumbnail.file_uri)
-        or os.stat(thumbnail.file_uri).st_size == 0
-    ):
-        obj_id = thumbnail.obj_id
-        try:
-            os.remove(thumbnail.file_uri)
-        except Exception:
-            pass
-        finally:
-            await session.delete(thumbnail)
-            await session.commit()
+    if os.path.isfile(thumbnail.file_uri) and os.stat(thumbnail.file_uri).st_size != 0:
+        return True
 
-        if alert_available:
-            # post_alert is overridden by Fritz; if it's been made async there,
-            # it should be awaited; the base stub is a no-op.
-            post_alert(
-                object_id=obj_id,
-                candid=None,
-                group_ids="all",
-                user_id=user_id,
-                session=session,
-                thumbnails_only=True,
-            )
-        else:
-            await recreate_thumbnails_from_broker(obj_id, user_id, session)
+    obj_id = thumbnail.obj_id
+    try:
+        os.remove(thumbnail.file_uri)
+    except OSError:
+        pass
+    await session.delete(thumbnail)
+    await session.commit()
 
-        return False
+    if alert_available:
+        # Fritz overrides this stub; await it there if it was made async.
+        post_alert(
+            object_id=obj_id,
+            candid=None,
+            group_ids="all",
+            user_id=user_id,
+            session=session,
+            thumbnails_only=True,
+        )
+    else:
+        await recreate_thumbnails_from_broker(obj_id, user_id, session)
 
-    return True
+    return False
