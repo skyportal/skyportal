@@ -31,7 +31,9 @@ def _post_event(token, dateobs, ra, dec, tag):
 
 
 @pytest.mark.flaky(reruns=3)
-def test_vet_an_associated_event(page, super_admin_user, super_admin_token):
+def test_vet_an_associated_event(
+    page, super_admin_user, super_admin_token, public_group
+):
     from baselayer.app import models
     from skyportal.models import GcnEventAssociation
 
@@ -57,6 +59,7 @@ def test_vet_an_associated_event(page, super_admin_user, super_admin_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "gravitational-wave",
             "detector_type_2": "gravitational-wave",
             "days": 1.0,

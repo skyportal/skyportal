@@ -7282,9 +7282,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get your association rules
-         * @description The cuts you apply to event-to-event associations, one per pair of
-         *     messengers.
+         * Get the association rules you can see
+         * @description The cuts your groups apply to event-to-event associations, one per
+         *     pair of messengers per group.
          */
         get: {
             parameters: {
@@ -26373,10 +26373,10 @@ export interface components {
             data?: components["schemas"]["GalaxyNoID"][];
         };
         GcnAssociationRule: {
-            /** @description The User whose rule this is. */
-            readonly user?: components["schemas"]["User"];
-            /** @description ID of the User whose rule this is. */
-            user_id: number;
+            /** @description The Group whose rule this is. */
+            readonly group?: components["schemas"]["Group"];
+            /** @description ID of the Group whose rule this is. */
+            group_id: number;
             /**
              * @description First messenger of the pair, sorted.
              * @enum {string}
@@ -26411,10 +26411,10 @@ export interface components {
             data?: components["schemas"]["GcnAssociationRule"][];
         };
         GcnAssociationRuleNoID: {
-            /** @description The User whose rule this is. */
-            readonly user?: components["schemas"]["User"];
-            /** @description ID of the User whose rule this is. */
-            user_id: number;
+            /** @description The Group whose rule this is. */
+            readonly group?: components["schemas"]["Group"];
+            /** @description ID of the Group whose rule this is. */
+            group_id: number;
             /**
              * @description First messenger of the pair, sorted.
              * @enum {string}
@@ -38641,9 +38641,14 @@ export interface components {
         };
         /**
          * GcnAssociationRuleBody
-         * @description One user's cut for a pair of messengers.
+         * @description One group's cut for a pair of messengers.
          */
         GcnAssociationRuleBody: {
+            /**
+             * Group Id
+             * @description ID of the group the rule belongs to.
+             */
+            group_id: number;
             /**
              * Detector Type 1
              * @description One of gravitational-wave, neutrino, gamma-ray-burst, x-ray.

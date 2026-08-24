@@ -1792,7 +1792,8 @@ gcn_event:
 # Association cuts are per user and gate the search: without one, no pairs are
 # looked for at all.
 gcn_association_rules:
-  - detector_type_1: x-ray
+  - group_id: =program_A
+    detector_type_1: x-ray
     detector_type_2: x-ray
     days: 1.0
     min_consistency: 0.5

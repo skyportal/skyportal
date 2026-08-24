@@ -27,6 +27,7 @@ from skyportal.models import (
     Candidate,
     Filter,
     GcnEventCrossmatchState,
+    Group,
     Instrument,
     Localization,
     Obj,
@@ -1068,12 +1069,13 @@ def test_association_pass_records_overlapping_events(super_admin_token, broker):
     from skyportal.models import GcnAssociationRule, GcnEventAssociation
     from skyportal.utils.gcn_crossmatch import associate_events
 
-    # the pass only runs for pairs someone has a rule for
+    # the pass only runs for pairs some group has a rule for
     with models.DBSession() as session:
+        group_id = session.scalar(sa.select(Group.id).order_by(Group.id).limit(1))
         if not session.scalar(sa.select(GcnAssociationRule)):
             session.add(
                 GcnAssociationRule(
-                    user_id=1,
+                    group_id=group_id,
                     detector_type_1="gravitational-wave",
                     detector_type_2="gravitational-wave",
                     days=1.0,
@@ -1124,12 +1126,13 @@ def test_association_pass_keeps_a_human_verdict(super_admin_token, broker):
     from skyportal.models import GcnAssociationRule, GcnEventAssociation
     from skyportal.utils.gcn_crossmatch import associate_events
 
-    # the pass only runs for pairs someone has a rule for
+    # the pass only runs for pairs some group has a rule for
     with models.DBSession() as session:
+        group_id = session.scalar(sa.select(Group.id).order_by(Group.id).limit(1))
         if not session.scalar(sa.select(GcnAssociationRule)):
             session.add(
                 GcnAssociationRule(
-                    user_id=1,
+                    group_id=group_id,
                     detector_type_1="gravitational-wave",
                     detector_type_2="gravitational-wave",
                     days=1.0,

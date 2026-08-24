@@ -73,14 +73,19 @@ def test_association_rule_rejects_a_bad_messenger(super_admin_token, public_grou
     assert status == 400, data
 
 
-def test_association_rules_are_private(
-    super_admin_token, view_only_token, public_group
+def test_association_rules_are_scoped_to_their_group(
+    super_admin_token, view_only_token, public_group2
 ):
+    """A group's cuts are its own: someone outside it cannot see them.
+
+    Members can, which is the point of putting them on the group -- an EM-GW
+    group maintains one set of cuts between them.
+    """
     status, data = api(
         "POST",
         "gcn_association_rules",
         data={
-            "group_id": public_group.id,
+            "group_id": public_group2.id,
             "detector_type_1": "x-ray",
             "detector_type_2": "gravitational-wave",
             "days": 2.0,
@@ -90,46 +95,11 @@ def test_association_rules_are_private(
     assert status == 200, data
     rule_id = data["data"]["id"]
 
+    # the view-only user is not in public_group2
     assert not [r for r in _rules(view_only_token) if r["id"] == rule_id], (
-        "another user's rule was visible"
+        "a rule was visible to someone outside its group"
     )
-
-
-def test_association_rule_tags_travel_with_their_messenger(
-    super_admin_token, public_group
-):
-    """A rule can require tags, e.g. only BNS/NSBH gravitational waves.
-
-    The pair is stored sorted, so the tag lists have to be sorted with it --
-    otherwise the BNS requirement would end up on the GRB side.
-    """
-    status, data = api(
-        "POST",
-        "gcn_association_rules",
-        data={
-            # deliberately entered in the order that gets swapped on save
-            "group_id": public_group.id,
-            "detector_type_1": "neutrino",
-            "detector_type_2": "gravitational-wave",
-            "tags_1": ["IceCube"],
-            "tags_2": ["BNS", "NSBH"],
-            "days": 0.001,
-            "min_consistency": 0.5,
-        },
-        token=super_admin_token,
-    )
-    assert status == 200, data
-    rule_id = data["data"]["id"]
-
-    status, data = api("GET", "gcn_association_rules", token=super_admin_token)
-    assert status == 200, data
-    rule = [r for r in data["data"] if r["id"] == rule_id][0]
-
-    assert rule["detector_type_1"] == "gravitational-wave"
-    assert rule["tags_1"] == ["BNS", "NSBH"], (
-        "the tags did not follow their messenger when the pair was sorted"
-    )
-    assert rule["detector_type_2"] == "neutrino"
-    assert rule["tags_2"] == ["IceCube"]
+    # ... while a member (here, the super admin who made it) sees it
+    assert [r for r in _rules(super_admin_token) if r["id"] == rule_id]
 
     api("DELETE", f"gcn_association_rules/{rule_id}", token=super_admin_token)

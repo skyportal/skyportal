@@ -1367,14 +1367,15 @@ def test_gcn_event_associations(super_admin_token):
     import threading
 
     from baselayer.app import models
-    from skyportal.models import GcnAssociationRule, User
+    from skyportal.models import GcnAssociationRule, Group, User
     from skyportal.utils.gcn_crossmatch import associate_events
 
     with models.DBSession() as session:
+        group_id = session.scalar(sa.select(Group.id).order_by(Group.id).limit(1))
         if not session.scalar(sa.select(GcnAssociationRule)):
             session.add(
                 GcnAssociationRule(
-                    user_id=1,
+                    group_id=group_id,
                     detector_type_1="gravitational-wave",
                     detector_type_2="gravitational-wave",
                     days=1.0,
@@ -1467,12 +1468,13 @@ def test_gcn_event_associations(super_admin_token):
     assert ruled and ruled[0]["status"] == "rejected", data["data"]
 
 
-def test_association_rules_cut_per_user(
-    super_admin_token, view_only_token, public_group
+def test_association_rules_cut_per_group(
+    super_admin_token, view_only_token, public_group, public_group2
 ):
-    """One user's tighter window hides a pair another user still sees.
+    """A group's tighter window hides a pair another group still sees.
 
-    The overlap is measured once for the pair; the cut is the reader's own.
+    The overlap is measured once for the pair; the cut belongs to the group
+    reading it.
     """
     import asyncio
     import threading
@@ -1495,7 +1497,8 @@ def test_association_rules_cut_per_user(
     )
     assert status == 200, data
 
-    # a generous rule, so the pass records the pair at all
+    # a generous rule on the group the view-only user belongs to, so the pass
+    # records the pair and that user can see it
     status, data = api(
         "POST",
         "gcn_association_rules",
@@ -1550,12 +1553,12 @@ def test_association_rules_cut_per_user(
 
     assert sees_it(view_only_token), "the rule's owner cannot see the pair"
 
-    # the admin now judges neutrino pairs on seconds
+    # a second group judges neutrino pairs on seconds
     status, data = api(
         "POST",
         "gcn_association_rules",
         data={
-            "group_id": public_group.id,
+            "group_id": public_group2.id,
             "detector_type_1": "neutrino",
             "detector_type_2": "neutrino",
             "days": 0.0001,
@@ -1565,8 +1568,7 @@ def test_association_rules_cut_per_user(
     )
     assert status == 200, data
 
-    assert not sees_it(super_admin_token), "the tighter rule was not applied"
-    assert sees_it(view_only_token), "one user's rule changed another's view"
+    assert sees_it(view_only_token), "another group's rule narrowed this one's view"
 
     with models.DBSession() as session:
         assert session.query(GcnAssociationRule).count() >= 2

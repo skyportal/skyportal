@@ -24,6 +24,10 @@ def test_association_rules_tab(page, super_admin_user, super_admin_token):
     page.get_by_role("tab", name="Association rules").click()
     expect(page.get_by_test_id("gcn-association-rules")).to_be_visible()
 
+    # a rule belongs to a group, so one has to be chosen
+    page.get_by_label("Group").click()
+    page.get_by_role("option").first.click()
+
     page.get_by_label("Within (days)").fill("0.0001")
     page.get_by_role("button", name="Add").click()
 
@@ -96,6 +100,9 @@ def test_association_rule_tags_from_the_page(page, super_admin_user, super_admin
     page.get_by_test_id("association-tags-1").locator("[role=combobox]").click()
     page.get_by_role("option", name="BNS", exact=True).click()
     page.keyboard.press("Escape")
+
+    page.get_by_label("Group").click()
+    page.get_by_role("option").first.click()
 
     page.get_by_label("Within (days)").fill("0.5")
     page.get_by_role("button", name="Add").click()
