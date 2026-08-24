@@ -473,7 +473,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 3,
             "numPerPage": 500,
         },
@@ -499,7 +498,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 2,
             "numPerPage": 500,
         },

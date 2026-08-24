@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Filter, set_autosave
+from ...models import Broker, Filter, set_autosave
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
 
@@ -53,6 +53,12 @@ class FilterPatchBody(BaseModel):
         default=None,
         description="ID of the Filter's Stream. Cannot be changed; accepted "
         "only if it matches the current value.",
+    )
+    broker_id: int | None = Field(
+        default=None,
+        description="ID of the Broker this Filter runs on. Can only be set "
+        "while the filter has none: moving a filter between brokers would "
+        "orphan whatever the first one holds for it.",
     )
     autosave: bool | None = Field(
         default=None,
@@ -180,6 +186,23 @@ class FilterHandler(BaseHandler):
                 body.stream_id is not None and body.stream_id != f.stream_id
             ):
                 return self.error("Cannot update group_id or stream_id.")
+
+            # A filter created without one cannot otherwise be attached to a
+            # broker at all, and without a broker it is never ingested.
+            if body.broker_id is not None and body.broker_id != f.broker_id:
+                if f.broker_id is not None:
+                    return self.error(
+                        "Cannot move a filter to a different broker; create a "
+                        "new filter instead."
+                    )
+                broker = await session.scalar(
+                    Broker.select(session.user_or_token).where(
+                        Broker.id == body.broker_id
+                    )
+                )
+                if broker is None:
+                    return self.error(f"No accessible broker {body.broker_id}.")
+                f.broker_id = body.broker_id
 
             # A renamed filter must be renamed on the broker too, or the two
             # names drift and the broker-side filter becomes unidentifiable.

@@ -37,8 +37,14 @@ THUMBNAIL_TYPES = [
 
 
 def decode_cutout(cutout_data, survey):
-    """Decode a raw cutout payload into (data_array, header). LSST cutouts are
-    uncompressed FITS; all others are gzip-compressed."""
+    """Decode a raw cutout payload into (data_array, header).
+
+    Whether the FITS is gzipped is a property of the payload, not of the
+    survey: ZTF alerts carry it compressed, LSST does not, and Lasair serves
+    ZTF cutouts uncompressed. Sniffing the gzip magic handles all three, where
+    keying on the survey silently failed for whichever provider disagreed with
+    the rule.
+    """
     if isinstance(cutout_data, list):
         cutout_data = bytes(cutout_data)
     elif isinstance(cutout_data, str):
@@ -50,13 +56,12 @@ def decode_cutout(cutout_data, survey):
             raise ValueError(
                 f"cutout is not valid base64 ({len(cutout_data)} chars)"
             ) from e
-    if survey.upper() == "LSST":
-        with fits.open(io.BytesIO(cutout_data), ignore_missing_simple=True) as hdu:
-            return np.array(hdu[0].data), dict(hdu[0].header)
-    with (
-        gzip.open(io.BytesIO(cutout_data), "rb") as f,
-        fits.open(io.BytesIO(f.read()), ignore_missing_simple=True) as hdu,
-    ):
+
+    if cutout_data[:2] == b"\x1f\x8b":  # gzip magic
+        with gzip.open(io.BytesIO(cutout_data), "rb") as f:
+            cutout_data = f.read()
+
+    with fits.open(io.BytesIO(cutout_data), ignore_missing_simple=True) as hdu:
         return np.array(hdu[0].data), dict(hdu[0].header)
 
 

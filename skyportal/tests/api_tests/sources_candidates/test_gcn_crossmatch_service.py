@@ -27,12 +27,14 @@ from skyportal.models import (
     Candidate,
     Filter,
     GcnEventCrossmatchState,
+    Group,
     Instrument,
     Localization,
     Obj,
     Photometry,
     Source,
     Thumbnail,
+    User,
 )
 from skyportal.tests import api
 from skyportal.tests.fixtures import (
@@ -778,6 +780,82 @@ def test_crossmatch_ingests_photometry_for_a_match(
     assert len(points) > 0, "the match was saved without any photometry"
 
 
+def test_annotation_records_how_deep_in_the_localization_a_match_is(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
+):
+    """The credible level is what ranks a scanning queue: a match at the centre
+    of the region is a far better counterpart than one that just scraped in."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    centre = _unique_id("XM_centre")
+    edge = _unique_id("XM_edge")
+    _stub_provider(
+        monkeypatch,
+        [
+            _alert(centre, ra, dec, event_jd + 0.5),
+            _alert(edge, ra, dec + ERROR * 0.9, event_jd + 0.5),
+        ],
+        {},
+        ra,
+        dec,
+    )
+
+    asyncio.run(run_cycle({"archival": False}))
+
+    levels = {}
+    with models.DBSession() as session:
+        for obj_id in (centre, edge):
+            annotation = session.scalar(
+                sa.select(Annotation).where(
+                    Annotation.obj_id == obj_id,
+                    Annotation.origin == ANNOTATION_ORIGIN,
+                )
+            )
+            assert annotation is not None, f"{obj_id} was not annotated"
+            entry = next(iter(annotation.data.values()))
+            assert "credible_level" in entry, entry
+            levels[obj_id] = entry["credible_level"]
+
+    assert levels[centre] == 0.0
+    assert levels[centre] < levels[edge], levels
+    # Gaussian of sigma = the quoted error radius: 0.9 sigma encloses ~33%
+    assert levels[edge] == pytest.approx(1 - np.exp(-0.5 * 0.81), abs=1e-3)
+
+
+def test_filter_can_cut_on_credible_level(
+    broker,
+    crossmatch_filter,
+    crossmatch_event,
+    monkeypatch,
+):
+    """Filters re-cut the shared geometry: same containment, tighter threshold."""
+    dateobs, _, ra, dec = crossmatch_event
+    event_jd = float(Time(dateobs).jd)
+
+    centre = _unique_id("XM_deep")
+    edge = _unique_id("XM_shallow")
+    _stub_provider(
+        monkeypatch,
+        [
+            _alert(centre, ra, dec, event_jd + 0.5),
+            _alert(edge, ra, dec + ERROR * 0.9, event_jd + 0.5),
+        ],
+        {},
+        ra,
+        dec,
+    )
+
+    asyncio.run(run_cycle({"archival": False, "max_credible_level": 0.1}))
+
+    created = _objs_created([centre, edge])
+    assert centre in created, "the well-localized match was cut"
+    assert edge not in created, "a match outside the filter's credible cut was saved"
+
+
 def test_crossmatch_ingests_cutouts_for_a_match(
     broker,
     crossmatch_filter,
@@ -969,3 +1047,125 @@ def test_crossmatch_searches_every_localization_of_an_event(
     created = _objs_created([obj_a, obj_b])
     assert obj_a in created, "the first localization was not searched"
     assert obj_b in created, "a second localization on the event was never searched"
+
+
+def _post_cone_event(token, dateobs, ra, dec, error=1.0):
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": str(np.random.randint(10**8, 10**9)),
+            "skymap": {"ra": ra, "dec": dec, "error": error},
+            "tags": ["TEST"],
+        },
+        token=token,
+    )
+    assert status == 200, data
+
+
+def test_association_pass_records_overlapping_events(super_admin_token, broker):
+    """Two events on the same patch of sky, close in time, become one pair."""
+    from skyportal.models import GcnAssociationRule, GcnEventAssociation
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    # the pass only runs for pairs some group has a rule for
+    with models.DBSession() as session:
+        group_id = session.scalar(sa.select(Group.id).order_by(Group.id).limit(1))
+        if not session.scalar(sa.select(GcnAssociationRule)):
+            session.add(
+                GcnAssociationRule(
+                    group_id=group_id,
+                    detector_type_1="gravitational-wave",
+                    detector_type_2="gravitational-wave",
+                    days=1.0,
+                    min_consistency=0.5,
+                )
+            )
+            session.commit()
+
+    ra, dec = _unique_position()
+    first = (utcnow_naive() - timedelta(hours=6)).replace(microsecond=0)
+    second = first + timedelta(hours=1)
+    far = first + timedelta(hours=2)
+
+    _post_cone_event(super_admin_token, first, ra, dec)
+    _post_cone_event(super_admin_token, second, ra, dec)
+    _post_cone_event(super_admin_token, far, (ra + 60.0) % 360.0, dec)
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            return await associate_events(session, user)
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(
+                GcnEventAssociation.dateobs_1 == first,
+                GcnEventAssociation.dateobs_2 == second,
+            )
+        )
+        assert pair is not None, "the overlapping pair was not recorded"
+        assert pair.overlap > 1.0, f"overlap must beat chance: {pair.overlap}"
+        assert pair.status == "pending", pair.status
+        assert pair.dt_days == pytest.approx(1 / 24, abs=1e-6)
+
+        disjoint = session.scalar(
+            sa.select(GcnEventAssociation).where(
+                GcnEventAssociation.dateobs_2 == far,
+            )
+        )
+        assert disjoint is None, "a disjoint localization was associated"
+
+
+def test_association_pass_keeps_a_human_verdict(super_admin_token, broker):
+    """A later cycle refreshes the numbers but must not undo a ruling."""
+    from skyportal.models import GcnAssociationRule, GcnEventAssociation
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    # the pass only runs for pairs some group has a rule for
+    with models.DBSession() as session:
+        group_id = session.scalar(sa.select(Group.id).order_by(Group.id).limit(1))
+        if not session.scalar(sa.select(GcnAssociationRule)):
+            session.add(
+                GcnAssociationRule(
+                    group_id=group_id,
+                    detector_type_1="gravitational-wave",
+                    detector_type_2="gravitational-wave",
+                    days=1.0,
+                    min_consistency=0.5,
+                )
+            )
+            session.commit()
+
+    ra, dec = _unique_position()
+    first = (utcnow_naive() - timedelta(hours=8)).replace(microsecond=0)
+    second = first + timedelta(hours=1)
+    _post_cone_event(super_admin_token, first, ra, dec)
+    _post_cone_event(super_admin_token, second, ra, dec)
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            return await associate_events(session, user)
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(GcnEventAssociation.dateobs_1 == first)
+        )
+        pair.status = "rejected"
+        session.commit()
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(GcnEventAssociation.dateobs_1 == first)
+        )
+        assert pair.status == "rejected", "the cycle overwrote a scanner's verdict"

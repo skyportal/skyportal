@@ -1,3 +1,4 @@
+from pydantic import BaseModel, ConfigDict, Field
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -12,9 +13,20 @@ from ...base import BaseHandler
 log = make_log("api/obj_tns")
 
 
+class ObjTNSGetQuery(BaseModel):
+    """Query parameters for retrieving TNS information for an object."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    radius: float = Field(
+        default=2.0,
+        description="Search radius, in arcsec, around the object. Defaults to 2.0.",
+    )
+
+
 class ObjTNSHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, obj_id: str, *, query: ObjTNSGetQuery = None):
         """
         ---
         summary: Get TNS info for an object
@@ -33,9 +45,9 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        radius = self.get_query_argument("radius", 2.0, type=float)
-        if radius is None:
-            return self.error("radius must be a number")
+        query = self.parse_query(ObjTNSGetQuery)
+
+        radius = query.radius
         if radius < 0:
             return self.error("radius must be non-negative")
 

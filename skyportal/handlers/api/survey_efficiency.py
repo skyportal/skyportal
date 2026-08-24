@@ -1,3 +1,6 @@
+from typing import ClassVar
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -11,9 +14,27 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class SurveyEfficiencyForObservationPlanGetQuery(BaseModel):
+    """Query parameters for listing observation plan efficiency analyses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    observation_plan_id: int | None = Field(
+        default=None,
+        description="EventObservationPlan ID to retrieve observation plan efficiency analyses for",
+    )
+
+
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id: int | None = None):
+    async def get(
+        self,
+        survey_efficiency_analysis_id: int | None = None,
+        *,
+        query: SurveyEfficiencyForObservationPlanGetQuery = None,
+    ):
         """
         ---
         single:
@@ -35,13 +56,6 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
             - allocations
           summary: Retrieve all observation plan efficiency analyses
           description: Retrieve all observation plan efficiency analyses
-          parameters:
-          - in: query
-            name: observation_plan_id
-            nullable: true
-            schema:
-              type: number
-            description: EventObservationPlan ID to retrieve observation plan efficiency analyses for
           responses:
             200:
               content:
@@ -52,6 +66,8 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(SurveyEfficiencyForObservationPlanGetQuery)
+
         async with self.AsyncSession() as session:
             if survey_efficiency_analysis_id is not None:
                 try:
@@ -77,21 +93,36 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
             stmt = SurveyEfficiencyForObservationPlan.select(
                 self.associated_user_object
             )
-            observation_plan_id = self.get_query_argument(
-                "observation_plan_id", None, type=int
-            )
-            if observation_plan_id is not None:
+            if query.observation_plan_id is not None:
                 stmt = stmt.where(
                     SurveyEfficiencyForObservationPlan.observation_plan_id
-                    == observation_plan_id
+                    == query.observation_plan_id
                 )
             result = await session.scalars(stmt)
             return self.success(data=result.all())
 
 
+class SurveyEfficiencyForObservationsGetQuery(BaseModel):
+    """Query parameters for listing observation efficiency analyses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    gcnevent_id: int | None = Field(
+        default=None,
+        description="GcnEvent ID to retrieve observation efficiency analyses for",
+    )
+
+
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id: int | None = None):
+    async def get(
+        self,
+        survey_efficiency_analysis_id: int | None = None,
+        *,
+        query: SurveyEfficiencyForObservationsGetQuery = None,
+    ):
         """
         ---
         single:
@@ -113,13 +144,6 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
             - allocations
           summary: Retrieve all observation efficiencies
           description: Retrieve all observation analyses
-          parameters:
-          - in: query
-            name: gcnevent_id
-            nullable: true
-            schema:
-              type: number
-            description: GcnEvent  ID to retrieve observation efficiency analyses for
           responses:
             200:
               content:
@@ -130,6 +154,7 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(SurveyEfficiencyForObservationsGetQuery)
 
         async with self.AsyncSession() as session:
             if survey_efficiency_analysis_id is not None:
@@ -154,10 +179,9 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
                 return self.success(data=survey_efficiency_analyses)
 
             stmt = SurveyEfficiencyForObservations.select(self.associated_user_object)
-            gcnevent_id = self.get_query_argument("gcnevent_id", None, type=int)
-            if gcnevent_id is not None:
+            if query.gcnevent_id is not None:
                 stmt = stmt.where(
-                    SurveyEfficiencyForObservations.gcnevent_id == gcnevent_id
+                    SurveyEfficiencyForObservations.gcnevent_id == query.gcnevent_id
                 )
             result = await session.scalars(stmt)
             return self.success(data=result.all())

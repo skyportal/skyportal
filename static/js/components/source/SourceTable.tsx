@@ -682,8 +682,7 @@ const SourceTable = ({
   const { data: sourcesingcn = EMPTY_ARRAY } = useGetSourcesInGcnQuery(
     {
       dateobs: gcnEvent?.dateobs as string,
-      localizationName: sourceInGcnFilter?.localizationName,
-      sourcesIdList: sources?.map((s: any) => s.id),
+      sourcesIDList: sources?.map((s: any) => s.id),
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );

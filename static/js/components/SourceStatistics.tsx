@@ -65,7 +65,7 @@ const SourceIdAutocomplete = ({
     (async () => {
       const resp: any = await dispatch(
         GET(
-          `/api/sources?sourceID=${encodeURIComponent(debounced)}&pageNumber=1&numPerPage=25&totalMatches=25&includeComments=false&removeNested=true`,
+          `/api/sources?sourceID=${encodeURIComponent(debounced)}&pageNumber=1&numPerPage=25&includeComments=false&removeNested=true`,
           "skyportal/FETCH_SOURCE_ID_AUTOCOMPLETE",
         ),
       );

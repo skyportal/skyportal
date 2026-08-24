@@ -90,6 +90,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/observing_run": { schema: "ObservingRun" as const, list: true },
   "GET /api/observing_run/{run_id}": { schema: "ObservingRunGetWithAssignments" as const, list: false },
   "GET /api/photometric_series": { schema: "PhotometricSeries" as const, list: true, wrapper: "series" as const },
+  "GET /api/photometric_series/{photometric_series_id}": { schema: "PhotometricSeries" as const, list: false },
   "GET /api/public_pages/release": { schema: "PublicRelease" as const, list: true },
   "GET /api/public_pages/source/{source_id}": { schema: "PublicSourcePage" as const, list: true },
   "GET /api/recurring_api": { schema: "RecurringAPI" as const, list: true },

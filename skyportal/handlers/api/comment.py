@@ -3,11 +3,11 @@ import os
 import string
 import time
 import unicodedata
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -181,6 +181,32 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
         return None
 
 
+class CommentGetQuery(BaseModel):
+    """Query parameters for retrieving comments."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    text: str | None = Field(
+        default=None,
+        description="Filter comments by partial text match.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for pagination.",
+    )
+    numPerPage: int = Field(
+        default=25,
+        description="Number of comments per page.",
+    )
+    channel: str | None = Field(
+        default=None,
+        description="Only return comments on this channel. Defaults to the "
+        "comments with no channel set.",
+    )
+
+
 class CommentHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -188,6 +214,8 @@ class CommentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId = None,
         comment_id: int | None = None,
+        *,
+        query: CommentGetQuery = None,
     ):
         """
         ---
@@ -210,25 +238,6 @@ class CommentHandler(BaseHandler):
           description: Retrieve all comments associated with specified resource
           tags:
             - comments
-          parameters:
-            - in: query
-              name: text
-              schema:
-                type: string
-              description: |
-                Filter comments by partial text match.
-            - in: query
-              name: pageNumber
-              schema:
-                type: integer
-              description: |
-                Page number for pagination.
-            - in: query
-              name: numPerPage
-              schema:
-                type: integer
-              description: |
-                Number of comments per page.
           responses:
             200:
               content:
@@ -240,12 +249,12 @@ class CommentHandler(BaseHandler):
                   schema: Error
         """
 
-        text = self.get_query_argument("text", None)
-        pageNumber = self.get_query_argument("pageNumber", 1, type=int)
-        numPerPage = self.get_query_argument("numPerPage", 25, type=int)
+        query = self.parse_query(CommentGetQuery)
+
+        text = query.text
         try:
             pageNumber, numPerPage = get_page_and_n_per_page(
-                pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
+                query.pageNumber, query.numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
             )
         except ValueError as e:
             return self.error(str(e))
@@ -277,7 +286,7 @@ class CommentHandler(BaseHandler):
                     session.user_or_token, options=[selectinload(table.author)]
                 )
                 if table is Comment:
-                    channel = self.get_query_argument("channel", None)
+                    channel = query.channel
                     stmt = stmt.where(
                         Comment.channel == channel
                         if channel
@@ -1258,6 +1267,27 @@ class CommentHandler(BaseHandler):
             return self.success()
 
 
+class CommentAttachmentGetQuery(BaseModel):
+    """Query parameters for retrieving a comment attachment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    download: bool = Field(
+        default=True,
+        description="If true, download the attachment; else return file data as text. True by default.",
+    )
+    preview: bool = Field(
+        default=False,
+        description="If true, return an attachment preview. False by default.",
+    )
+
+    @model_validator(mode="after")
+    def _preview_overrides_default_download(self):
+        if self.preview and "download" not in self.model_fields_set:
+            self.download = False
+        return self
+
+
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1265,6 +1295,8 @@ class CommentAttachmentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId,
         comment_id: int,
+        *,
+        query: CommentAttachmentGetQuery = None,
     ):
         """
         ---
@@ -1272,19 +1304,6 @@ class CommentAttachmentHandler(BaseHandler):
         description: Download comment attachment
         tags:
           - comments
-        parameters:
-          - in: query
-            name: download
-            nullable: True
-            schema:
-              type: boolean
-              description: If true, download the attachment; else return file data as text. True by default.
-          - in: query
-            name: preview
-            nullable: True
-            schema:
-              type: boolean
-              description: If true, return an attachment preview. False by default.
         responses:
           200:
             content:
@@ -1310,13 +1329,15 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
+        query = self.parse_query(CommentAttachmentGetQuery)
+
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-        download = self.get_query_argument("download", True)
-        preview = self.get_query_argument("preview", False)
+        download = query.download
+        preview = query.preview
 
         if download is True and preview is True:
             return self.error(

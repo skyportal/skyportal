@@ -30,6 +30,26 @@ def test_token_user_post_get_mmadetector(super_admin_token):
         assert data["data"][key] == post_data[key]
 
 
+def test_post_xray_mmadetector(super_admin_token):
+    """Einstein Probe is X-ray."""
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "nickname": name,
+        "type": "x-ray",
+        "fixed_location": False,
+    }
+
+    status, data = api("POST", "mmadetector", data=post_data, token=super_admin_token)
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"mmadetector/{data['data']['id']}", token=super_admin_token
+    )
+    assert status == 200, data
+    assert data["data"]["type"] == "x-ray"
+
+
 def test_fetch_mmadetector_by_name(super_admin_token):
     name = str(uuid.uuid4())
     post_data = {

@@ -160,6 +160,8 @@ export const TAG_TYPES = [
   "AnalysisService",
   "DefaultGcnTag",
   "Ephemeris",
+  "GcnAssociationRules",
+  "GcnEventAssociations",
   "GcnEvent",
   "LocalizationProperties",
   "RecentSource",

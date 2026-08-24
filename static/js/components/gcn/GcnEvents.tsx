@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
@@ -32,6 +34,7 @@ import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useIsReadOnly } from "../../ducks/profile";
 import Spinner from "../Spinner";
+import GcnAssociationRules from "./GcnAssociationRules";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
 import DefaultGcnTagPage from "./DefaultGcnTagPage";
@@ -139,6 +142,7 @@ const GcnEvents = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [sortModel, setSortModel] = useState<any[]>([]);
+  const [tab, setTab] = useState(0);
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
@@ -498,7 +502,18 @@ const GcnEvents = () => {
                 >
                   GCN Events
                 </Typography>
-                <Box sx={{ width: "100%" }}>
+                <Tabs
+                  value={tab}
+                  onChange={(_event, value) => setTab(value)}
+                  aria-label="gcn events tabs"
+                  sx={{ px: "0.75rem" }}
+                >
+                  <Tab label="Events" />
+                  <Tab label="Association rules" />
+                </Tabs>
+                <Box
+                  sx={{ width: "100%", display: tab === 0 ? "block" : "none" }}
+                >
                   <StyledDataGrid
                     autoHeight
                     rows={(gcnEvents as any).events || []}
@@ -520,6 +535,11 @@ const GcnEvents = () => {
                     showToolbar
                   />
                 </Box>
+                {tab === 1 && (
+                  <Box sx={{ width: "100%", p: "0.75rem" }}>
+                    <GcnAssociationRules />
+                  </Box>
+                )}
               </>
             ) : (
               <Spinner />
