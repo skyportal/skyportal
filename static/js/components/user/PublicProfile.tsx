@@ -34,6 +34,17 @@ const PublicProfile = ({ userId, route }: PublicProfileProps) => {
     </Typography>
   );
 
+  const chips = (values: string[]) => (
+    <Box
+      component="span"
+      sx={{ display: "inline-flex", flexWrap: "wrap", gap: 0.5 }}
+    >
+      {values.map((value) => (
+        <Chip key={value} label={value} size="small" />
+      ))}
+    </Box>
+  );
+
   return (
     <Paper>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -73,23 +84,12 @@ const PublicProfile = ({ userId, route }: PublicProfileProps) => {
             </Link>,
           )}
         {profile.contact_phone && field("Contact phone", profile.contact_phone)}
-        {!!profile.roles?.length && field("Roles", profile.roles.join(", "))}
         {field(
           "Member since",
           dayjs.utc(`${profile.created_at}Z`).format("MMMM D, YYYY"),
         )}
-        {!!profile.groups?.length &&
-          field(
-            "Groups",
-            <Box
-              component="span"
-              sx={{ display: "inline-flex", flexWrap: "wrap", gap: 0.5 }}
-            >
-              {profile.groups.map((group) => (
-                <Chip key={group} label={group} size="small" />
-              ))}
-            </Box>,
-          )}
+        {!!profile.roles?.length && field("Roles", chips(profile.roles))}
+        {!!profile.groups?.length && field("Groups", chips(profile.groups))}
       </Box>
     </Paper>
   );
