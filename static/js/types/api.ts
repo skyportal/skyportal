@@ -38165,6 +38165,12 @@ export interface components {
              */
             stream_id: number | null;
             /**
+             * Broker Id
+             * @description ID of the Broker this Filter runs on. Can only be set while the filter has none: moving a filter between brokers would orphan whatever the first one holds for it.
+             * @default null
+             */
+            broker_id: number | null;
+            /**
              * Autosave
              * @description Whether objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group.
              * @default null

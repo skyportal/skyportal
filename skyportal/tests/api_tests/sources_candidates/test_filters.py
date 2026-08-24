@@ -262,3 +262,68 @@ def test_set_autosave_keeps_broker_ui_mirror_in_step():
     set_autosave(h, True)
     assert h.autosave is True
     assert h.altdata is None
+
+
+def test_attach_a_broker_to_an_existing_filter(super_admin_token, public_filter):
+    """A filter created without a broker can be given one.
+
+    Without this the only repair is recreating the filter: POST takes broker_id
+    but PATCH used to reject it, and a filter with no broker is never ingested.
+    """
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"].get("broker_id") is None, "fixture already has a broker"
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "brokers",
+        data={
+            "name": name,
+            "broker_classname": "GENERICBROKER",
+            "altdata": {"base_url": "https://broker.test", "token": "secret"},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"broker_id": broker_id},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["broker_id"] == broker_id
+
+    # moving it again would orphan whatever the first broker holds for it
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"broker_id": broker_id + 1},
+        token=super_admin_token,
+    )
+    assert status == 400, data
+
+    # the same broker is a no-op, not an error
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"broker_id": broker_id},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+
+def test_attach_an_unknown_broker_to_a_filter(super_admin_token, public_filter2):
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter2.id}",
+        data={"broker_id": 10**7},
+        token=super_admin_token,
+    )
+    assert status == 400, data
