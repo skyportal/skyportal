@@ -56,6 +56,17 @@ export const filterApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Filters"],
     }),
+    updateFilterAltdata: build.mutation<
+      unknown,
+      { filter_id: number | string; altdata: Record<string, any> }
+    >({
+      query: ({ filter_id, altdata }) => ({
+        url: `api/filters/${filter_id}`,
+        method: "PATCH",
+        body: { altdata },
+      }),
+      invalidatesTags: ["Filters"],
+    }),
     updateFilterName: build.mutation<unknown, UpdateFilterNameArg>({
       query: ({ filter_id, name }) => ({
         url: `api/filters/${filter_id}`,
@@ -73,4 +84,5 @@ export const {
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
   useUpdateFilterNameMutation,
+  useUpdateFilterAltdataMutation,
 } = filterApi;

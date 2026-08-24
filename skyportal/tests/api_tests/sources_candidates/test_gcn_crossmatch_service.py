@@ -33,6 +33,7 @@ from skyportal.models import (
     Photometry,
     Source,
     Thumbnail,
+    User,
 )
 from skyportal.tests import api
 from skyportal.tests.fixtures import (
@@ -1045,3 +1046,123 @@ def test_crossmatch_searches_every_localization_of_an_event(
     created = _objs_created([obj_a, obj_b])
     assert obj_a in created, "the first localization was not searched"
     assert obj_b in created, "a second localization on the event was never searched"
+
+
+def _post_cone_event(token, dateobs, ra, dec, error=1.0):
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": str(np.random.randint(10**8, 10**9)),
+            "skymap": {"ra": ra, "dec": dec, "error": error},
+            "tags": ["TEST"],
+        },
+        token=token,
+    )
+    assert status == 200, data
+
+
+def test_association_pass_records_overlapping_events(super_admin_token, broker):
+    """Two events on the same patch of sky, close in time, become one pair."""
+    from skyportal.models import GcnAssociationRule, GcnEventAssociation
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    # the pass only runs for pairs someone has a rule for
+    with models.DBSession() as session:
+        if not session.scalar(sa.select(GcnAssociationRule)):
+            session.add(
+                GcnAssociationRule(
+                    user_id=1,
+                    detector_type_1="gravitational-wave",
+                    detector_type_2="gravitational-wave",
+                    days=1.0,
+                    min_consistency=0.5,
+                )
+            )
+            session.commit()
+
+    ra, dec = _unique_position()
+    first = (utcnow_naive() - timedelta(hours=6)).replace(microsecond=0)
+    second = first + timedelta(hours=1)
+    far = first + timedelta(hours=2)
+
+    _post_cone_event(super_admin_token, first, ra, dec)
+    _post_cone_event(super_admin_token, second, ra, dec)
+    _post_cone_event(super_admin_token, far, (ra + 60.0) % 360.0, dec)
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            return await associate_events(session, user)
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(
+                GcnEventAssociation.dateobs_1 == first,
+                GcnEventAssociation.dateobs_2 == second,
+            )
+        )
+        assert pair is not None, "the overlapping pair was not recorded"
+        assert pair.overlap > 1.0, f"overlap must beat chance: {pair.overlap}"
+        assert pair.status == "pending", pair.status
+        assert pair.dt_days == pytest.approx(1 / 24, abs=1e-6)
+
+        disjoint = session.scalar(
+            sa.select(GcnEventAssociation).where(
+                GcnEventAssociation.dateobs_2 == far,
+            )
+        )
+        assert disjoint is None, "a disjoint localization was associated"
+
+
+def test_association_pass_keeps_a_human_verdict(super_admin_token, broker):
+    """A later cycle refreshes the numbers but must not undo a ruling."""
+    from skyportal.models import GcnAssociationRule, GcnEventAssociation
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    # the pass only runs for pairs someone has a rule for
+    with models.DBSession() as session:
+        if not session.scalar(sa.select(GcnAssociationRule)):
+            session.add(
+                GcnAssociationRule(
+                    user_id=1,
+                    detector_type_1="gravitational-wave",
+                    detector_type_2="gravitational-wave",
+                    days=1.0,
+                    min_consistency=0.5,
+                )
+            )
+            session.commit()
+
+    ra, dec = _unique_position()
+    first = (utcnow_naive() - timedelta(hours=8)).replace(microsecond=0)
+    second = first + timedelta(hours=1)
+    _post_cone_event(super_admin_token, first, ra, dec)
+    _post_cone_event(super_admin_token, second, ra, dec)
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            return await associate_events(session, user)
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(GcnEventAssociation.dateobs_1 == first)
+        )
+        pair.status = "rejected"
+        session.commit()
+
+    asyncio.run(run())
+
+    with models.DBSession() as session:
+        pair = session.scalar(
+            sa.select(GcnEventAssociation).where(GcnEventAssociation.dateobs_1 == first)
+        )
+        assert pair.status == "rejected", "the cycle overwrote a scanner's verdict"

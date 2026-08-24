@@ -10,6 +10,7 @@ import operator  # noqa: F401
 import os
 import tempfile
 import traceback
+from datetime import timedelta
 from typing import Annotated, ClassVar
 from urllib.parse import urlparse, urlsplit
 
@@ -55,6 +56,7 @@ from baselayer.log import make_log
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.models.photometry import Photometry
 
+from ...enum_types import GCN_EVENT_OBJ_STATUSES
 from ...models import (
     Allocation,
     CatalogQuery,
@@ -63,7 +65,9 @@ from ...models import (
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     EventObservationPlan,
+    GcnAssociationRule,
     GcnEvent,
+    GcnEventAssociation,
     GcnEventMMADetector,
     GcnEventObj,
     GcnEventUser,
@@ -91,6 +95,7 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.crossmatch import skymap_overlap_integral
 from ...utils.gcn import (
     from_bytes,
     from_cone,
@@ -994,6 +999,323 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         )
 
     return dateobs, event.id
+
+
+class GcnEventAssociationsGetQuery(BaseModel):
+    """Query parameters for reading an event's associations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"minConsistency", "maxDays", "includeRejected"}
+    )
+
+    minConsistency: float | None = Field(
+        default=None,
+        description=(
+            "Minimum sky-map consistency, 0 to 1. Defaults to your rule for "
+            "this pair of messengers."
+        ),
+    )
+    maxDays: float | None = Field(
+        default=None,
+        description=(
+            "Maximum separation in days. Defaults to the configured window for "
+            "the detector pair: a neutrino-GW coincidence is judged on seconds, "
+            "a GRB-GW one on minutes."
+        ),
+    )
+    includeRejected: bool = Field(
+        default=False, description="Include associations already rejected."
+    )
+
+
+class GcnEventAssociationPatch(BaseModel):
+    """Body for ruling on an association."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(
+        description="One of pending, confirmed, ambiguous, rejected.",
+    )
+    explanation: str | None = Field(
+        default=None, description="Why it was confirmed or rejected."
+    )
+
+
+async def user_association_rules(session, user):
+    """A user's association cuts, as ``{(type_1, type_2): (days, min_overlap)}``."""
+    rules = (
+        await session.scalars(
+            GcnAssociationRule.select(user).where(GcnAssociationRule.user_id == user.id)
+        )
+    ).all()
+    return {
+        (rule.detector_type_1, rule.detector_type_2): (rule.days, rule.min_consistency)
+        for rule in rules
+    }
+
+
+def association_cuts(rules, detector_types_1, detector_types_2):
+    """(max_days, min_consistency) for a pair of events, or (None, None).
+
+    Which coincidences count is a science choice -- a neutrino arrives within
+    seconds of a GW, a GRB within minutes -- and it differs by group, so it is
+    only ever a user's own rule. A pair no rule covers is left uncut rather than
+    judged by a default nobody chose.
+    """
+    types_1, types_2 = set(detector_types_1 or []), set(detector_types_2 or [])
+    if not types_1 or not types_2 or not rules:
+        return None, None
+    for (type_1, type_2), cuts in rules.items():
+        if (type_1 in types_1 and type_2 in types_2) or (
+            type_2 in types_1 and type_1 in types_2
+        ):
+            return cuts
+    return None, None
+
+
+class GcnEventAssociationsHandler(BaseHandler):
+    @auth_or_token
+    async def get(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+        association_id: Annotated[
+            str | None, Field(description="Unused; the listing is per event")
+        ] = None,
+        *,
+        query: GcnEventAssociationsGetQuery = None,
+    ):
+        """
+        ---
+        summary: Events associated with this one
+        description: |
+          Other GCN events whose localization overlaps this one's, as found by
+          the crossmatch service, ranked by RAVEN's sky-map overlap integral.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(GcnEventAssociationsGetQuery)
+        try:
+            dateobs_parsed = arrow.get(dateobs.strip()).datetime.replace(tzinfo=None)
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            user = session.user_or_token
+            stmt = GcnEventAssociation.select(user).where(
+                sa.or_(
+                    GcnEventAssociation.dateobs_1 == dateobs_parsed,
+                    GcnEventAssociation.dateobs_2 == dateobs_parsed,
+                )
+            )
+            if not query.includeRejected:
+                stmt = stmt.where(GcnEventAssociation.status != "rejected")
+            associations = (await session.scalars(stmt)).unique().all()
+
+            mine = await session.scalar(
+                GcnEvent.select(user)
+                .options(selectinload(GcnEvent.detectors))
+                .where(GcnEvent.dateobs == dateobs_parsed)
+            )
+            if mine is None:
+                return self.error(f"No event {dateobs}", status=404)
+            my_types = [d.type for d in mine.detectors]
+            rules = await user_association_rules(session, self.associated_user_object)
+
+            out = []
+            for association in associations:
+                other_dateobs = (
+                    association.dateobs_2
+                    if association.dateobs_1 == dateobs_parsed
+                    else association.dateobs_1
+                )
+                other = await session.scalar(
+                    GcnEvent.select(user)
+                    .options(
+                        selectinload(GcnEvent.detectors), selectinload(GcnEvent._tags)
+                    )
+                    .where(GcnEvent.dateobs == other_dateobs)
+                )
+                if other is None:
+                    continue
+                max_days, min_consistency = association_cuts(
+                    rules, my_types, [d.type for d in other.detectors]
+                )
+                if query.maxDays is not None:
+                    max_days = float(query.maxDays)
+                if query.minConsistency is not None:
+                    min_consistency = float(query.minConsistency)
+                if max_days is not None and abs(association.dt_days) > max_days:
+                    continue
+                # An association recorded before consistency was measured has
+                # none; that is unknown, not zero, so it is shown rather than
+                # cut. The pass fills it in on the next sweep.
+                if (
+                    min_consistency is not None
+                    and association.consistency is not None
+                    and association.consistency < min_consistency
+                ):
+                    continue
+                out.append(
+                    {
+                        "id": association.id,
+                        "dateobs": other_dateobs,
+                        "trigger_id": other.trigger_id,
+                        "aliases": other.aliases,
+                        "tags": other.tags,
+                        "detectors": [d.nickname for d in other.detectors],
+                        "overlap": round(association.overlap, 4),
+                        "consistency": (
+                            None
+                            if association.consistency is None
+                            else round(association.consistency, 4)
+                        ),
+                        "dt_days": round(association.dt_days, 6),
+                        "status": association.status,
+                        "explanation": association.explanation,
+                    }
+                )
+
+            out.sort(key=lambda a: a["overlap"], reverse=True)
+            return self.success(data=out)
+
+    @permissions(["Upload data"])
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event"),
+        ],
+        association_id: Annotated[
+            str | None, Field(description="Unused; the search is per event")
+        ] = None,
+    ):
+        """
+        ---
+        summary: Search for associations now
+        description: |
+          Runs the sky-map overlap against every other event in range, rather
+          than waiting for the crossmatch service's next pass. Existing
+          associations keep their verdict.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        from ...utils.gcn_crossmatch import associate_events
+
+        async with self.AsyncSession() as session:
+            user = self.associated_user_object
+            session.user_or_token = user
+            try:
+                found = await associate_events(session, user)
+            except Exception as e:
+                await session.rollback()
+                return self.error(f"Could not search for associations: {e}")
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+            return self.success(data={"found": found})
+
+    @permissions(["Upload data"])
+    async def patch(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event"),
+        ],
+        association_id: Annotated[
+            int, Field(description="ID of the association being ruled on")
+        ],
+        *,
+        body: GcnEventAssociationPatch = None,
+    ):
+        """
+        ---
+        summary: Rule on an association
+        description: Confirm, reject, or mark ambiguous a pair of events.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: association_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(GcnEventAssociationPatch)
+        if body.status not in GCN_EVENT_OBJ_STATUSES:
+            return self.error(
+                f"status must be one of {', '.join(GCN_EVENT_OBJ_STATUSES)}"
+            )
+
+        async with self.AsyncSession() as session:
+            association = await session.scalar(
+                GcnEventAssociation.select(session.user_or_token, mode="update").where(
+                    GcnEventAssociation.id == int(association_id)
+                )
+            )
+            if association is None:
+                return self.error("Association not found", status=404)
+
+            association.status = body.status
+            association.explanation = body.explanation
+            association.confirmer_id = self.associated_user_object.id
+            await session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": str(association.dateobs_1)},
+            )
+            return self.success()
 
 
 class GcnEventAliasesHandler(BaseHandler):

@@ -1359,3 +1359,348 @@ def test_gcn_detector_links_are_additive(super_admin_token):
     assert status == 200, data
     nicknames = [d["nickname"] for d in data["data"]["detectors"]]
     assert first in nicknames and second in nicknames, nicknames
+
+
+def test_gcn_event_associations(super_admin_token):
+    """An event lists the associations the service recorded, and they can be ruled on."""
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.models import GcnAssociationRule, User
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    with models.DBSession() as session:
+        if not session.scalar(sa.select(GcnAssociationRule)):
+            session.add(
+                GcnAssociationRule(
+                    user_id=1,
+                    detector_type_1="gravitational-wave",
+                    detector_type_2="gravitational-wave",
+                    days=1.0,
+                    min_consistency=0.5,
+                )
+            )
+            session.commit()
+
+    ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
+    # inside the pass's max_event_age window, or nothing is associated
+    base = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    coincident = base + timedelta(hours=1)
+
+    def post(dateobs, ra, dec):
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": ra, "dec": dec, "error": 1.0},
+                "tags": ["TEST"],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    post(base, ra, dec)
+    post(coincident, ra, dec)
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            await associate_events(session, user)
+
+    # in its own thread: a Playwright test earlier in the session leaves an
+    # event loop running, and asyncio.run refuses to nest inside one
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+
+    status, data = api(
+        "GET", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+    )
+    assert status == 200, data
+    found = [a for a in data["data"] if a["dateobs"].startswith(coincident.isoformat())]
+    assert found, data["data"]
+    association = found[0]
+    assert association["overlap"] > 1.0
+    assert association["status"] == "pending"
+
+    # a tighter cut than this pair's separation hides it
+    status, data = api(
+        "GET",
+        f"gcn_event/{base.isoformat()}/associations",
+        params={"maxDays": 0.001},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert not [
+        a for a in data["data"] if a["dateobs"].startswith(coincident.isoformat())
+    ], "a pair outside the requested window was returned"
+
+    # rule on it, and it drops out of the default (non-rejected) listing
+    status, data = api(
+        "PATCH",
+        f"gcn_event/{base.isoformat()}/associations/{association['id']}",
+        data={"status": "rejected", "explanation": "unrelated"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+    )
+    assert status == 200, data
+    assert not [a for a in data["data"] if a["id"] == association["id"]]
+
+    status, data = api(
+        "GET",
+        f"gcn_event/{base.isoformat()}/associations",
+        params={"includeRejected": True},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    ruled = [a for a in data["data"] if a["id"] == association["id"]]
+    assert ruled and ruled[0]["status"] == "rejected", data["data"]
+
+
+def test_association_rules_cut_per_user(super_admin_token, view_only_token):
+    """One user's tighter window hides a pair another user still sees.
+
+    The overlap is measured once for the pair; the cut is the reader's own.
+    """
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.models import GcnAssociationRule, User
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    nickname = f"XN{uuid.uuid4().hex[:6]}"
+    status, data = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": nickname,
+            "nickname": nickname,
+            "type": "neutrino",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # a generous rule, so the pass records the pair at all
+    status, data = api(
+        "POST",
+        "gcn_association_rules",
+        data={
+            "detector_type_1": "neutrino",
+            "detector_type_2": "neutrino",
+            "days": 1.0,
+            "min_consistency": 0.5,
+        },
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
+    base = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    later = base + timedelta(hours=1)
+    for dateobs in (base, later):
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": ra, "dec": dec, "error": 1.0},
+                "tags": [nickname],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            await associate_events(session, user)
+
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+
+    def sees_it(token):
+        status, data = api(
+            "GET", f"gcn_event/{base.isoformat()}/associations", token=token
+        )
+        assert status == 200, data
+        return bool(
+            [a for a in data["data"] if a["dateobs"].startswith(later.isoformat())]
+        )
+
+    assert sees_it(view_only_token), "the rule's owner cannot see the pair"
+
+    # the admin now judges neutrino pairs on seconds
+    status, data = api(
+        "POST",
+        "gcn_association_rules",
+        data={
+            "detector_type_1": "neutrino",
+            "detector_type_2": "neutrino",
+            "days": 0.0001,
+            "min_consistency": 0.5,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    assert not sees_it(super_admin_token), "the tighter rule was not applied"
+    assert sees_it(view_only_token), "one user's rule changed another's view"
+
+    with models.DBSession() as session:
+        assert session.query(GcnAssociationRule).count() >= 2
+
+
+def test_search_for_associations_on_demand(super_admin_token):
+    """POSTing to the endpoint finds pairs without waiting for the service."""
+    nickname = f"XP{uuid.uuid4().hex[:6]}"
+    status, data = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": nickname,
+            "nickname": nickname,
+            "type": "x-ray",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "POST",
+        "gcn_association_rules",
+        data={
+            "detector_type_1": "x-ray",
+            "detector_type_2": "x-ray",
+            "days": 1.0,
+            "min_consistency": 0.5,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
+    base = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    partner = base + timedelta(minutes=40)
+    for dateobs, offset in ((base, 0.0), (partner, 0.01)):
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": ra + offset, "dec": dec + offset, "error": 0.05},
+                "tags": [nickname],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "POST", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+    )
+    assert status == 200, data
+    found = [a for a in data["data"] if a["dateobs"].startswith(partner.isoformat())]
+    assert found, data["data"]
+    assert found[0]["overlap"] > 1.0, found[0]
+
+
+def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token):
+    """A pair recorded before consistency existed must not be cut as disjoint.
+
+    NULL means not yet measured; scoring it 0 hid such rows behind every rule.
+    """
+    from baselayer.app import models
+    from skyportal.models import GcnEventAssociation
+
+    nickname = f"XU{uuid.uuid4().hex[:6]}"
+    status, data = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": nickname,
+            "nickname": nickname,
+            "type": "x-ray",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "POST",
+        "gcn_association_rules",
+        data={
+            "detector_type_1": "x-ray",
+            "detector_type_2": "x-ray",
+            "days": 1.0,
+            "min_consistency": 0.9,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
+    base = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    partner = base + timedelta(hours=1)
+    for dateobs in (base, partner):
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": ra, "dec": dec, "error": 1.0},
+                "tags": [nickname],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    with models.DBSession() as session:
+        session.add(
+            GcnEventAssociation(
+                dateobs_1=base,
+                dateobs_2=partner,
+                overlap=42.0,
+                consistency=None,
+                dt_days=1 / 24,
+                confirmer_id=1,
+            )
+        )
+        session.commit()
+
+    status, data = api(
+        "GET", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+    )
+    assert status == 200, data
+    found = [a for a in data["data"] if a["dateobs"].startswith(partner.isoformat())]
+    assert found, "an unmeasured association was cut by the consistency rule"
+    assert found[0]["consistency"] is None

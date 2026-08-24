@@ -49,7 +49,9 @@ from skyportal.models import (
     Broker,
     Candidate,
     Filter,
+    GcnAssociationRule,
     GcnEvent,
+    GcnEventAssociation,
     GcnEventCrossmatchState,
     GcnEventObj,
     Group,
@@ -62,6 +64,8 @@ from skyportal.utils.crossmatch import (
     credible_levels_in_localization,
     great_circle_distance,
     search_cone,
+    skymap_consistency,
+    skymap_overlap_integral,
 )
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -691,6 +695,93 @@ async def process_event_filter(
     return matched
 
 
+async def associate_events(session, user, config=None):
+    """Record pairs of GcnEvents whose localizations overlap.
+
+    The pair is the unit, not the event, so each is stored once ordered by
+    dateobs. Existing rows keep their verdict: a scanner's ruling must survive
+    the next cycle, and a later skymap only refreshes the numbers.
+    """
+    rules = (await session.scalars(sa.select(GcnAssociationRule))).all()
+    if not rules:
+        return 0  # nobody has said what counts as coincident yet
+    # record anything that could matter to someone; each user cuts it to their
+    # own rules when they read it
+    window = timedelta(days=max(rule.days for rule in rules))
+    min_consistency = min(rule.min_consistency for rule in rules)
+    cutoff = utcnow_naive() - timedelta(days=float(conf(config, "max_event_age")))
+
+    recent = (
+        (await session.scalars(sa.select(GcnEvent).where(GcnEvent.dateobs >= cutoff)))
+        .unique()
+        .all()
+    )
+    if len(recent) < 2:
+        return 0
+
+    dateobs_list = sorted(event.dateobs for event in recent)
+    found = 0
+    for index, dateobs in enumerate(dateobs_list):
+        localization = await newest_localization(session, user, dateobs)
+        if localization is None:
+            continue
+        for other in dateobs_list[index + 1 :]:
+            if other - dateobs > window:
+                break  # sorted, so everything later is further away
+            other_localization = await newest_localization(session, user, other)
+            if other_localization is None:
+                continue
+            try:
+                overlap = skymap_overlap_integral(localization, other_localization)
+            except Exception as e:
+                log(f"Could not overlap {dateobs} with {other}: {e}")
+                continue
+            if overlap <= 0:
+                continue
+            consistency = skymap_consistency(localization, other_localization)
+            if consistency < min_consistency:
+                continue
+            existing = await session.scalar(
+                sa.select(GcnEventAssociation).where(
+                    GcnEventAssociation.dateobs_1 == dateobs,
+                    GcnEventAssociation.dateobs_2 == other,
+                )
+            )
+            dt_days = (other - dateobs).total_seconds() / 86400.0
+            if existing is not None:
+                existing.overlap = overlap
+                existing.consistency = consistency
+                existing.dt_days = dt_days
+                continue
+            session.add(
+                GcnEventAssociation(
+                    dateobs_1=dateobs,
+                    dateobs_2=other,
+                    overlap=overlap,
+                    consistency=consistency,
+                    dt_days=dt_days,
+                    confirmer_id=user.id,
+                )
+            )
+            found += 1
+    await session.commit()
+    if found:
+        log(f"Recorded {found} new event association(s)")
+    return found
+
+
+async def newest_localization(session, user, dateobs):
+    """The most recent localization for an event, with its skymap loaded."""
+    return await session.scalar(
+        Localization.select(
+            user,
+            options=[undefer(Localization.uniq), undefer(Localization.probdensity)],
+        )
+        .where(Localization.dateobs == dateobs)
+        .order_by(Localization.created_at.desc())
+    )
+
+
 async def run_cycle(config=None, user_id=1):
     """One pass over every due (event, broker) pair."""
     max_age = float(conf(config, "max_event_age"))
@@ -880,6 +971,12 @@ async def run_cycle(config=None, user_id=1):
                                 f"{filter_.name} ({broker.name}): {message}"
                             )
                     await session.commit()
+
+        try:
+            await associate_events(session, user, config)
+        except Exception as e:
+            await session.rollback()
+            log(f"Event association pass failed: {e}")
 
     return total
 

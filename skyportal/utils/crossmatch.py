@@ -276,3 +276,96 @@ async def contained_in_localization(
             session, localization, positions, cumprob=cumprob
         )
     )
+
+
+def _uniq_ranges(uniq, probdensity):
+    """A multi-order map as sorted level-29 ranges: (start, end, probdensity).
+
+    UNIQ packs a level and a pixel index into one integer; expanding each cell
+    to the level-29 range it covers puts two maps of different resolutions on a
+    common axis without rasterizing either.
+    """
+    uniq = np.asarray(uniq, dtype=np.int64)
+    density = np.asarray(probdensity, dtype=float)
+    level = (np.log2(uniq / 4) / 2).astype(np.int64)
+    ipix = uniq - 4 * (4**level)
+    shift = 2 * (29 - level)
+    start = np.left_shift(ipix, shift)
+    end = np.left_shift(ipix + 1, shift)
+    order = np.argsort(start)
+    return start[order], end[order], density[order]
+
+
+def _density_on_segments(start, end, density, seg_start):
+    """The map's probdensity on each segment, 0 where the map has no cell."""
+    idx = np.searchsorted(start, seg_start, side="right") - 1
+    inside = (idx >= 0) & (end[np.clip(idx, 0, None)] > seg_start)
+    return np.where(inside, density[np.clip(idx, 0, None)], 0.0)
+
+
+def skymap_overlap_integral(loc1, loc2):
+    """RAVEN's sky-map overlap integral for two localizations.
+
+    ``I = 4 pi * integral(p1 * p2) dOmega``: 1 when the two maps are unrelated,
+    large when they agree, 0 when they are disjoint. Dimensionless, so it can be
+    compared across pairs, and it is the spatial term of the RAVEN joint FAR.
+
+    Both maps are expanded to level-29 ranges and integrated on the segments
+    where they overlap -- the cost follows the number of cells, not the
+    resolution, so a full-sky rasterization is never materialized.
+    """
+    a_start, a_end, a_density = _uniq_ranges(loc1.uniq, loc1.probdensity)
+    b_start, b_end, b_density = _uniq_ranges(loc2.uniq, loc2.probdensity)
+    if not len(a_start) or not len(b_start):
+        return 0.0
+
+    edges = np.union1d(
+        np.concatenate([a_start, a_end]), np.concatenate([b_start, b_end])
+    )
+    seg_start, seg_end = edges[:-1], edges[1:]
+
+    a = _density_on_segments(a_start, a_end, a_density, seg_start)
+    b = _density_on_segments(b_start, b_end, b_density, seg_start)
+
+    both = (a > 0) & (b > 0)
+    if not both.any():
+        return 0.0
+
+    area = (seg_end[both] - seg_start[both]).astype(float) * PIXEL_AREA
+    return float(4.0 * np.pi * np.sum(a[both] * b[both] * area))
+
+
+def skymap_consistency(loc1, loc2):
+    """How consistent two localizations are, on a 0-1 scale.
+
+    The overlap integral divided by the largest value it could take for these
+    two maps (Cauchy-Schwarz: ``integral(p1 p2) <= sqrt(integral(p1^2)
+    integral(p2^2))``), which is their correlation: 1 when they agree as well as
+    maps of these shapes can, 0 when disjoint.
+
+    The raw overlap cannot be read on its own -- its ceiling is roughly
+    4 pi / area, so 1e6 is unremarkable for an arcminute cone and unreachable
+    for a 1000 square degree skymap. Dividing that ceiling out is what makes one
+    threshold mean the same thing for every pair.
+    """
+    a_start, a_end, a_density = _uniq_ranges(loc1.uniq, loc1.probdensity)
+    b_start, b_end, b_density = _uniq_ranges(loc2.uniq, loc2.probdensity)
+    if not len(a_start) or not len(b_start):
+        return 0.0
+
+    edges = np.union1d(
+        np.concatenate([a_start, a_end]), np.concatenate([b_start, b_end])
+    )
+    seg_start, seg_end = edges[:-1], edges[1:]
+    area = (seg_end - seg_start).astype(float) * PIXEL_AREA
+
+    a = _density_on_segments(a_start, a_end, a_density, seg_start)
+    b = _density_on_segments(b_start, b_end, b_density, seg_start)
+
+    cross = float(np.sum(a * b * area))
+    if cross <= 0:
+        return 0.0
+    norm = np.sqrt(np.sum(a * a * area) * np.sum(b * b * area))
+    if norm <= 0:
+        return 0.0
+    return float(min(1.0, cross / norm))
