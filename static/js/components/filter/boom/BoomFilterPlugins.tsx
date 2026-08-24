@@ -196,6 +196,15 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
     await updateFilterFlags({ filter_id: filter_v.id, autoSaveComment: text });
     refetchFilterVersion();
   };
+  const handleIgnoreRadiusBlur = async (val: string) => {
+    const parsed = val.trim() === "" ? null : Number(val);
+    if ((filter_v?.altdata?.autoSaveIgnoreRadius ?? null) === parsed) return;
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveIgnoreRadius: parsed,
+    });
+    refetchFilterVersion();
+  };
 
   // Auto-followup is backed by a skyportal DefaultFollowupRequest scoped to this
   // filter's group; the flag reflects whether one is linked.
@@ -435,6 +444,19 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
             ))}
           </Select>
         </FormControl>
+      )}
+      {autoSaveOn && (
+        <TextField
+          size="small"
+          type="number"
+          sx={{ minWidth: 160 }}
+          label="Junk skip radius (arcsec)"
+          placeholder="2"
+          helperText="Default 2″; 0 = exact match only"
+          key={`ignore-radius-${filter_v.id}-${filter_v?.altdata?.autoSaveIgnoreRadius ?? ""}`}
+          defaultValue={filter_v?.altdata?.autoSaveIgnoreRadius ?? ""}
+          onBlur={(e) => handleIgnoreRadiusBlur(e.target.value)}
+        />
       )}
       {autoSaveOn && (
         <FormControl size="small" sx={{ minWidth: 180 }}>

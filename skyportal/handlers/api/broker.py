@@ -1375,6 +1375,15 @@ class BrokerFiltersHandler(BaseHandler):
                         int(g) for g in (data["autoSaveIgnoreGroupIds"] or [])
                     ]
                     flag_modified(f, "altdata")
+                # Also skip auto-save if a junk-group source lies within this many
+                # arcsec (positional dedup for AGN / high-PM duplicates).
+                if "autoSaveIgnoreRadius" in data:
+                    radius = data["autoSaveIgnoreRadius"]
+                    if radius in (None, ""):
+                        f.altdata.pop("autoSaveIgnoreRadius", None)
+                    else:
+                        f.altdata["autoSaveIgnoreRadius"] = float(radius)
+                    flag_modified(f, "altdata")
                 # Attribute auto-saves to a service user (must be in the group).
                 if "autoSaveSaverId" in data:
                     saver_id = data["autoSaveSaverId"]
