@@ -14,6 +14,7 @@ export interface GcnAssociationRule {
   detector_type_2: string;
   days: number;
   min_consistency: number;
+  group_id: number;
   tags_1: string[];
   tags_2: string[];
 }

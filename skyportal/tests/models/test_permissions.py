@@ -2142,8 +2142,8 @@ CASES = [
     ("super_admin_user", "public_gcn_event_association", "update", True),
     ("super_admin_user", "public_gcn_event_association", "delete", True),
     # --- GcnAssociationRule  (public_gcn_association_rule) ---
-    # A science cut belongs to the user who set it: nobody else may read or
-    # change it, since it decides what they are shown.
+    # A science cut belongs to a group, like the events themselves: members see
+    # and maintain it, outsiders cannot, and system admins bypass as always.
     ("user", "public_gcn_association_rule", "create", True),
     ("user", "public_gcn_association_rule", "read", True),
     ("user", "public_gcn_association_rule", "update", True),
@@ -2151,7 +2151,8 @@ CASES = [
     ("user_group2", "public_gcn_association_rule", "read", False),
     ("user_group2", "public_gcn_association_rule", "update", False),
     ("user_group2", "public_gcn_association_rule", "delete", False),
-    ("group_admin_user", "public_gcn_association_rule", "read", False),
+    ("group_admin_user", "public_gcn_association_rule", "read", True),
+    ("group_admin_user", "public_gcn_association_rule", "update", True),
     ("super_admin_user", "public_gcn_association_rule", "read", True),
     ("super_admin_user", "public_gcn_association_rule", "update", True),
     ("super_admin_user", "public_gcn_association_rule", "delete", True),

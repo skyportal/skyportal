@@ -6948,10 +6948,10 @@ def public_gcn_event_association(user):
 
 
 @pytest.fixture()
-def public_gcn_association_rule(user):
-    """One user's cut for a pair of messengers."""
+def public_gcn_association_rule(public_group):
+    """One group's cut for a pair of messengers."""
     rule = GcnAssociationRule(
-        user_id=user.id,
+        group_id=public_group.id,
         detector_type_1="gravitational-wave",
         detector_type_2="neutrino",
         days=0.0001,

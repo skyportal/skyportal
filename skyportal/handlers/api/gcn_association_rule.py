@@ -4,14 +4,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from baselayer.app.access import auth_or_token
 
 from ...enum_types import MMA_DETECTOR_TYPES
-from ...models import GcnAssociationRule
+from ...models import GcnAssociationRule, Group
 from ..base import BaseHandler
 
 
 class GcnAssociationRuleBody(BaseModel):
-    """One user's cut for a pair of messengers."""
+    """One group's cut for a pair of messengers."""
 
     model_config = ConfigDict(extra="forbid")
+
+    group_id: int = Field(description="ID of the group the rule belongs to.")
 
     detector_type_1: str = Field(
         description=f"One of {', '.join(MMA_DETECTOR_TYPES)}.",
@@ -44,10 +46,10 @@ class GcnAssociationRuleHandler(BaseHandler):
     async def get(self, rule_id=None):
         """
         ---
-        summary: Get your association rules
+        summary: Get the association rules you can see
         description: |
-          The cuts you apply to event-to-event associations, one per pair of
-          messengers.
+          The cuts your groups apply to event-to-event associations, one per
+          pair of messengers per group.
         tags:
           - gcn events
         responses:
@@ -57,10 +59,8 @@ class GcnAssociationRuleHandler(BaseHandler):
                 schema: Success
         """
         async with self.AsyncSession() as session:
-            user = self.associated_user_object
-            stmt = GcnAssociationRule.select(session.user_or_token).where(
-                GcnAssociationRule.user_id == user.id
-            )
+            # the policy is group membership, so no further scoping here
+            stmt = GcnAssociationRule.select(session.user_or_token)
             if rule_id is not None:
                 rule = await session.scalar(
                     stmt.where(GcnAssociationRule.id == int(rule_id))
@@ -118,17 +118,24 @@ class GcnAssociationRuleHandler(BaseHandler):
         (type_1, tags_1), (type_2, tags_2) = pairs
 
         async with self.AsyncSession() as session:
-            user = self.associated_user_object
+            group = await session.scalar(
+                Group.select(session.user_or_token).where(Group.id == body.group_id)
+            )
+            if group is None:
+                return self.error(
+                    "Group not found, or you are not a member of it", status=403
+                )
+
             rule = await session.scalar(
                 GcnAssociationRule.select(session.user_or_token, mode="update").where(
-                    GcnAssociationRule.user_id == user.id,
+                    GcnAssociationRule.group_id == body.group_id,
                     GcnAssociationRule.detector_type_1 == type_1,
                     GcnAssociationRule.detector_type_2 == type_2,
                 )
             )
             if rule is None:
                 rule = GcnAssociationRule(
-                    user_id=user.id,
+                    group_id=body.group_id,
                     detector_type_1=type_1,
                     detector_type_2=type_2,
                     tags_1=tags_1,
@@ -175,7 +182,6 @@ class GcnAssociationRuleHandler(BaseHandler):
             rule = await session.scalar(
                 GcnAssociationRule.select(session.user_or_token, mode="delete").where(
                     GcnAssociationRule.id == int(rule_id),
-                    GcnAssociationRule.user_id == self.associated_user_object.id,
                 )
             )
             if rule is None:

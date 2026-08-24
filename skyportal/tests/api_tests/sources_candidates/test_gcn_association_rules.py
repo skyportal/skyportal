@@ -9,11 +9,12 @@ def _rules(token):
     return data["data"]
 
 
-def test_association_rule_round_trip(super_admin_token):
+def test_association_rule_round_trip(super_admin_token, public_group):
     status, data = api(
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "neutrino",
             "detector_type_2": "gravitational-wave",
             "days": 0.0001,
@@ -38,6 +39,7 @@ def test_association_rule_round_trip(super_admin_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "gravitational-wave",
             "detector_type_2": "neutrino",
             "days": 0.5,
@@ -56,11 +58,12 @@ def test_association_rule_round_trip(super_admin_token):
     assert not [r for r in _rules(super_admin_token) if r["id"] == rule_id]
 
 
-def test_association_rule_rejects_a_bad_messenger(super_admin_token):
+def test_association_rule_rejects_a_bad_messenger(super_admin_token, public_group):
     status, data = api(
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "gravitational-wave",
             "detector_type_2": "gamma-rays-maybe",
             "days": 1.0,
@@ -70,11 +73,14 @@ def test_association_rule_rejects_a_bad_messenger(super_admin_token):
     assert status == 400, data
 
 
-def test_association_rules_are_private(super_admin_token, view_only_token):
+def test_association_rules_are_private(
+    super_admin_token, view_only_token, public_group
+):
     status, data = api(
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "x-ray",
             "detector_type_2": "gravitational-wave",
             "days": 2.0,
@@ -89,7 +95,9 @@ def test_association_rules_are_private(super_admin_token, view_only_token):
     )
 
 
-def test_association_rule_tags_travel_with_their_messenger(super_admin_token):
+def test_association_rule_tags_travel_with_their_messenger(
+    super_admin_token, public_group
+):
     """A rule can require tags, e.g. only BNS/NSBH gravitational waves.
 
     The pair is stored sorted, so the tag lists have to be sorted with it --
@@ -100,6 +108,7 @@ def test_association_rule_tags_travel_with_their_messenger(super_admin_token):
         "gcn_association_rules",
         data={
             # deliberately entered in the order that gets swapped on save
+            "group_id": public_group.id,
             "detector_type_1": "neutrino",
             "detector_type_2": "gravitational-wave",
             "tags_1": ["IceCube"],

@@ -1467,7 +1467,9 @@ def test_gcn_event_associations(super_admin_token):
     assert ruled and ruled[0]["status"] == "rejected", data["data"]
 
 
-def test_association_rules_cut_per_user(super_admin_token, view_only_token):
+def test_association_rules_cut_per_user(
+    super_admin_token, view_only_token, public_group
+):
     """One user's tighter window hides a pair another user still sees.
 
     The overlap is measured once for the pair; the cut is the reader's own.
@@ -1498,6 +1500,7 @@ def test_association_rules_cut_per_user(super_admin_token, view_only_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "neutrino",
             "detector_type_2": "neutrino",
             "days": 1.0,
@@ -1552,6 +1555,7 @@ def test_association_rules_cut_per_user(super_admin_token, view_only_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "neutrino",
             "detector_type_2": "neutrino",
             "days": 0.0001,
@@ -1568,7 +1572,7 @@ def test_association_rules_cut_per_user(super_admin_token, view_only_token):
         assert session.query(GcnAssociationRule).count() >= 2
 
 
-def test_search_for_associations_on_demand(super_admin_token):
+def test_search_for_associations_on_demand(super_admin_token, public_group):
     """POSTing to the endpoint finds pairs without waiting for the service."""
     nickname = f"XP{uuid.uuid4().hex[:6]}"
     status, data = api(
@@ -1588,6 +1592,7 @@ def test_search_for_associations_on_demand(super_admin_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "x-ray",
             "detector_type_2": "x-ray",
             "days": 1.0,
@@ -1630,7 +1635,7 @@ def test_search_for_associations_on_demand(super_admin_token):
     assert found[0]["overlap"] > 1.0, found[0]
 
 
-def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token):
+def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token, public_group):
     """A pair recorded before consistency existed must not be cut as disjoint.
 
     NULL means not yet measured; scoring it 0 hid such rows behind every rule.
@@ -1656,6 +1661,7 @@ def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "x-ray",
             "detector_type_2": "x-ray",
             "days": 1.0,
@@ -1706,7 +1712,9 @@ def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token):
     assert found[0]["consistency"] is None
 
 
-def test_association_rule_tags_narrow_which_pairs_count(super_admin_token):
+def test_association_rule_tags_narrow_which_pairs_count(
+    super_admin_token, public_group
+):
     """ "GW with GRB" can be narrowed to the GW events tagged BNS or NSBH."""
     import asyncio
     import threading
@@ -1735,6 +1743,7 @@ def test_association_rule_tags_narrow_which_pairs_count(super_admin_token):
         "POST",
         "gcn_association_rules",
         data={
+            "group_id": public_group.id,
             "detector_type_1": "gravitational-wave",
             "detector_type_2": "gamma-ray-burst",
             "tags_1": ["BNS", "NSBH"],

@@ -1043,22 +1043,15 @@ class GcnEventAssociationPatch(BaseModel):
     )
 
 
-async def user_association_rules(session, user):
-    """A user's association cuts, as ``{(type_1, type_2): (days, min_overlap)}``."""
-    rules = (
-        await session.scalars(
-            GcnAssociationRule.select(user).where(GcnAssociationRule.user_id == user.id)
-        )
-    ).all()
-    return {
-        (rule.detector_type_1, rule.detector_type_2): (
-            rule.days,
-            rule.min_consistency,
-            rule.tags_1,
-            rule.tags_2,
-        )
-        for rule in rules
-    }
+async def visible_association_rules(session, user):
+    """The association cuts this user can see, from every group they are in.
+
+    A pair is shown if any of those rules admits it, so being in a second group
+    can only widen what you see, never narrow it.
+    """
+    # a list, not a dict keyed by the pair: two groups may both have a rule for
+    # the same messengers, and the wider one must not be dropped
+    return (await session.scalars(GcnAssociationRule.select(user))).unique().all()
 
 
 # A rule covers this pair of messengers but its tag requirement was not met:
@@ -1090,14 +1083,17 @@ def association_cuts(rules, event_1, event_2):
         return not wanted or any(tag in (event.tags or []) for tag in wanted)
 
     covered = False
-    for (type_1, type_2), (days, min_consistency, tags_1, tags_2) in rules.items():
+    for rule in rules:
         # either event may be either side of the rule
         for first, second in ((event_1, event_2), (event_2, event_1)):
-            if type_1 not in types[id(first)] or type_2 not in types[id(second)]:
+            if (
+                rule.detector_type_1 not in types[id(first)]
+                or rule.detector_type_2 not in types[id(second)]
+            ):
                 continue
             covered = True
-            if tagged(first, tags_1) and tagged(second, tags_2):
-                return days, min_consistency
+            if tagged(first, rule.tags_1) and tagged(second, rule.tags_2):
+                return rule.days, rule.min_consistency
 
     return EXCLUDED_BY_RULE if covered else (None, None)
 
@@ -1166,7 +1162,9 @@ class GcnEventAssociationsHandler(BaseHandler):
             )
             if mine is None:
                 return self.error(f"No event {dateobs}", status=404)
-            rules = await user_association_rules(session, self.associated_user_object)
+            rules = await visible_association_rules(
+                session, self.associated_user_object
+            )
 
             out = []
             for association in associations:

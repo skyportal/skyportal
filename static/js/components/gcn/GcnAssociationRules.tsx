@@ -14,6 +14,7 @@ import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
 import GcnTagsSelect from "./GcnTagsSelect";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import {
   useDeleteGcnAssociationRuleMutation,
   useGetGcnAssociationRulesQuery,
@@ -38,6 +39,7 @@ const humanWindow = (days: number) => {
 
 const GcnAssociationRules = () => {
   const { data: rules } = useGetGcnAssociationRulesQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [saveRule] = useSaveGcnAssociationRuleMutation();
   const [deleteRule] = useDeleteGcnAssociationRuleMutation();
 
@@ -45,16 +47,18 @@ const GcnAssociationRules = () => {
   const [type2, setType2] = useState(MESSENGERS[1] as string);
   const [days, setDays] = useState("");
   const [minConsistency, setMinConsistency] = useState("0.5");
+  const [groupId, setGroupId] = useState<number | "">("");
   const [tags1, setTags1] = useState<string[]>([]);
   const [tags2, setTags2] = useState<string[]>([]);
 
   const handleAdd = async () => {
     const parsedDays = Number(days);
-    if (!parsedDays || parsedDays <= 0) return;
+    if (!parsedDays || parsedDays <= 0 || !groupId) return;
     await saveRule({
       detector_type_1: type1,
       detector_type_2: type2,
       days: parsedDays,
+      group_id: Number(groupId),
       min_consistency: Number(minConsistency) || 0.5,
       tags_1: tags1,
       tags_2: tags2,
@@ -67,13 +71,14 @@ const GcnAssociationRules = () => {
   return (
     <div>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-        Your cuts for which event pairs count as coincident. No rules means no
-        associations are searched for.
+        A group&apos;s cuts for which event pairs count as coincident. No rules
+        means no associations are searched for.
       </Typography>
 
       <Table size="small" data-testid="gcn-association-rules">
         <TableHead>
           <TableRow>
+            <TableCell>Group</TableCell>
             <TableCell>Messengers</TableCell>
             <TableCell>Within</TableCell>
             <TableCell>Min consistency</TableCell>
@@ -83,6 +88,10 @@ const GcnAssociationRules = () => {
         <TableBody>
           {(rules ?? []).map((rule) => (
             <TableRow key={rule.id} hover>
+              <TableCell>
+                {groups.find((group: any) => group.id === rule.group_id)
+                  ?.name ?? rule.group_id}
+              </TableCell>
               <TableCell>
                 {rule.detector_type_1}
                 {rule.tags_1?.length
@@ -105,7 +114,7 @@ const GcnAssociationRules = () => {
           ))}
           {!(rules ?? []).length && (
             <TableRow>
-              <TableCell colSpan={4}>
+              <TableCell colSpan={5}>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   No rules yet.
                 </Typography>
@@ -172,6 +181,20 @@ const GcnAssociationRules = () => {
             </div>
           </Stack>
         ))}
+        <TextField
+          select
+          size="small"
+          label="Group"
+          value={groupId}
+          onChange={(event) => setGroupId(Number(event.target.value))}
+          sx={{ minWidth: "10rem" }}
+        >
+          {groups.map((group: any) => (
+            <MenuItem key={group.id} value={group.id}>
+              {group.name}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           size="small"
           label="Within (days)"

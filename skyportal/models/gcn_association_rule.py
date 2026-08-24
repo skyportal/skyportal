@@ -3,9 +3,10 @@ __all__ = ["GcnAssociationRule"]
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import AccessibleIfUserMatches, Base
+from baselayer.app.models import Base
 
 from ..enum_types import mma_detector_types
+from .group import accessible_by_group_members
 
 
 class GcnAssociationRule(Base):
@@ -14,26 +15,29 @@ class GcnAssociationRule(Base):
     A neutrino arrives within seconds of a gravitational wave, a GRB within
     minutes, an X-ray counterpart over days, and groups disagree about where to
     draw each line. The overlap integral is objective and computed once; these
-    are the cuts a user applies to it, so they are owned by a user rather than
-    set site-wide.
+    are the cuts applied to it.
+
+    Owned by a group, like the events themselves: an EM-GW group cares about
+    gravitational-wave pairs and should see and maintain its own cuts, while
+    nobody outside it can change them.
 
     The messenger pair is stored in sorted order, so a rule is one row however
     it was entered.
     """
 
-    read = create = update = delete = AccessibleIfUserMatches("user")
+    read = create = update = delete = accessible_by_group_members
 
-    user_id = sa.Column(
-        sa.ForeignKey("users.id", ondelete="CASCADE"),
+    group_id = sa.Column(
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="ID of the User whose rule this is.",
+        doc="ID of the Group whose rule this is.",
     )
 
-    user = relationship(
-        "User",
-        foreign_keys="GcnAssociationRule.user_id",
-        doc="The User whose rule this is.",
+    group = relationship(
+        "Group",
+        foreign_keys="GcnAssociationRule.group_id",
+        doc="The Group whose rule this is.",
     )
 
     detector_type_1 = sa.Column(
@@ -84,9 +88,9 @@ class GcnAssociationRule(Base):
 
     __table_args__ = (
         sa.UniqueConstraint(
-            "user_id",
+            "group_id",
             "detector_type_1",
             "detector_type_2",
-            name="gcnassociationrules_user_pair_key",
+            name="gcnassociationrules_group_pair_key",
         ),
     )
