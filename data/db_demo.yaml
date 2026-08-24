@@ -215,6 +215,10 @@ mmadetector:
     =id: IceCube
   - name: Fermi Gamma-Ray Burst Monitor
     nickname: FermiGBM
+    aliases:
+      - Fermi
+      - Fermi-GBM
+      - GBM
     fixed_location: false
     type: gamma-ray-burst
     =id: FermiGBM
@@ -223,6 +227,16 @@ mmadetector:
     fixed_location: false
     type: gamma-ray-burst
     =id: SwiftGRB
+  # nickname matches the GCN tag EP notices carry, which is what links an event
+  # to its detector
+  - name: Einstein Probe
+    nickname: EP
+    aliases:
+      - Einstein Probe
+      - WXT
+    fixed_location: false
+    type: x-ray
+    =id: EinsteinProbe
 
 telescope:
   - name: Palomar 1.2m
@@ -1763,6 +1777,30 @@ gcn_event:
     tags:
       - Einstein Probe
       - X-ray
+
+  # A second EP trigger 40 minutes later, 1' from the first: close enough in
+  # time and sky for the two to be proposed as one physical event.
+  - dateobs: "2026-08-06T23:42:11"
+    skymap:
+      ra: 12.291
+      dec: 35.601
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
+
+# Association cuts are per user and gate the search: without one, no pairs are
+# looked for at all.
+gcn_association_rules:
+  - group_id: =program_A
+    detector_type_1: x-ray
+    detector_type_2: x-ray
+    days: 1.0
+    min_consistency: 0.5
+
+# Find the pair now rather than waiting for the crossmatch service's next pass.
+gcn_event/2026-08-06T23:02:28/associations:
+  - {}
 
 gcn_event/1/comments:
   - text: "This is a test comment"

@@ -13,13 +13,16 @@ import uuid
 from datetime import timedelta
 
 import numpy as np
+import pytest
 import sqlalchemy as sa
 
 from baselayer.app import models
 from skyportal.models import Localization
 from skyportal.tests import api
+from skyportal.utils.calculations import gaussian_sigmas_for
 from skyportal.utils.crossmatch import (
     contained_in_localization,
+    credible_levels_in_localization,
     search_cone,
 )
 from skyportal.utils.naive_datetime import utcnow_naive
@@ -75,22 +78,74 @@ def test_cone_containment_is_exact(super_admin_token, public_group2):
     localization = _localization(dateobs, name)
     assert localization is not None
 
-    # bounding cone comes straight back out of the name
-    assert search_cone(localization, max_radius_deg=5.0) == (ra, dec, error)
+    # The name carries 1 sigma; the search cone must cover the credible level
+    # being searched, not that sigma, or matches are dropped before containment
+    # ever sees them.
+    cone_ra, cone_dec, cone_radius = search_cone(
+        localization, max_radius_deg=5.0, credible_level=90
+    )
+    assert (cone_ra, cone_dec) == (ra, dec)
+    assert cone_radius == pytest.approx(error * gaussian_sigmas_for(0.9), rel=1e-6)
 
     positions = [
         (ra, dec),  # centre -> in
         (ra, dec + error * 0.5),  # comfortably inside
-        (ra, dec + error * 2),  # outside
+        (ra, dec + error * 2),  # 2 sigma: inside a 95% region
         (ra + 30.0, dec),  # far away
+    ]
+
+    async def run(cumprob):
+        async with models.async_plain_session_factory() as session:
+            return await contained_in_localization(
+                session, localization, positions, cumprob=cumprob
+            )
+
+    # cumprob is honoured rather than ignored: 2 sigma holds ~86% of the
+    # probability, so it is in at 95% and out at 50%.
+    assert asyncio.run(run(0.95)) == {0, 1, 2}
+    assert asyncio.run(run(0.5)) == {0, 1}
+
+
+def test_cone_credible_levels_rank_by_depth(super_admin_token, public_group2):
+    """A cone reports how deep inside each match sits, not just in/out.
+
+    ``from_cone`` lays down a Gaussian of sigma = the error radius, so the
+    enclosed probability at r is 1 - exp(-r^2 / 2 sigma^2). The centre is ~0,
+    and the quoted radius (1 sigma) encloses ~39%.
+    """
+    dateobs = _unique_dateobs()
+    ra, dec, error = 42.0, 12.0, 0.5
+    payload = {
+        "dateobs": dateobs.isoformat(),
+        "trigger_id": f"EP{uuid.uuid4().hex[:10]}",
+        "skymap": {"ra": ra, "dec": dec, "error": error},
+        "tags": ["EP"],
+        "group_ids": [public_group2.id],
+    }
+    status, data = api("POST", "gcn_event", data=payload, token=super_admin_token)
+    assert status == 200, data
+
+    localization = _localization(dateobs, f"{ra:.5f}_{dec:.5f}_{error:.5f}")
+    assert localization is not None
+
+    positions = [
+        (ra, dec),  # centre
+        (ra, dec + error * 0.5),  # half a sigma out
+        (ra, dec + error * 3),  # 3 sigma: outside even a 95% region
     ]
 
     async def run():
         async with models.async_plain_session_factory() as session:
-            return await contained_in_localization(session, localization, positions)
+            return await credible_levels_in_localization(
+                session, localization, positions, cumprob=0.95
+            )
 
-    inside = asyncio.run(run())
-    assert inside == {0, 1}, inside
+    levels = asyncio.run(run())
+
+    assert set(levels) == {0, 1}, levels
+    assert levels[0] == 0.0
+    assert levels[0] < levels[1], "the centre must rank ahead of an offset match"
+    assert levels[1] == pytest.approx(1 - np.exp(-0.125), abs=1e-4)
 
 
 def test_skymap_containment_uses_localization_tiles(super_admin_token, public_group2):

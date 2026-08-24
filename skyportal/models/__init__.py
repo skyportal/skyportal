@@ -17,6 +17,8 @@ from .filter import *
 from .followup_request import *
 from .galaxy import *
 from .gcn import *
+from .gcn_association_rule import *
+from .gcn_event_association import *
 from .gcn_event_obj import *
 from .group import *
 from .group_joins import *

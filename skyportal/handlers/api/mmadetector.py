@@ -227,6 +227,8 @@ class MMADetectorHandler(BaseHandler):
                 t.name = data["name"]
             if "nickname" in data:
                 t.nickname = data["nickname"]
+            if "aliases" in data:
+                t.aliases = data["aliases"]
             if "lat" in data:
                 if data["lat"] < -90 or data["lat"] > 90:
                     return self.error("Latitude must be between -90 and 90")

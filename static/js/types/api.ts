@@ -7139,6 +7139,251 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gcn_event/{dateobs}/associations/{association_id})?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Events associated with this one
+         * @description Other GCN events whose localization overlaps this one's, as found by
+         *     the crossmatch service, ranked by RAVEN's sky-map overlap integral.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Minimum sky-map consistency, 0 to 1. Defaults to your rule for this pair of messengers. */
+                    minConsistency?: number | null;
+                    /** @description Maximum separation in days. Defaults to the configured window for the detector pair: a neutrino-GW coincidence is judged on seconds, a GRB-GW one on minutes. */
+                    maxDays?: number | null;
+                    /** @description Include associations already rejected. */
+                    includeRejected?: boolean;
+                };
+                header?: never;
+                path: {
+                    /** @description The dateobs of the event, as an arrow parseable string */
+                    dateobs: string;
+                    /** @description Unused; the listing is per event */
+                    association_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Search for associations now
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Runs the sky-map overlap against every other event in range, rather
+         *     than waiting for the crossmatch service's next pass. Existing
+         *     associations keep their verdict.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description The dateobs of the event */
+                    dateobs: string;
+                    /** @description Unused; the search is per event */
+                    association_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rule on an association
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Confirm, reject, or mark ambiguous a pair of events.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description The dateobs of the event */
+                    dateobs: string;
+                    /** @description ID of the association being ruled on */
+                    association_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnEventAssociationPatch"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/gcn_association_rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the association rules you can see
+         * @description The cuts your groups apply to event-to-event associations, one per
+         *     pair of messengers per group.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rule_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create or update an association rule
+         * @description Sets your cut for one pair of messengers; posting the same pair again
+         *     replaces it.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rule_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnAssociationRuleBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Delete an association rule
+         * @description Removes one of your cuts.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rule_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gcn_event/{dateobs}/gracedb": {
         parameters: {
             query?: never;
@@ -8097,6 +8342,8 @@ export interface paths {
                     excludeNoticeContent?: boolean;
                     /** @description Comma-separated string of group IDs. If provided, only return events shared with those groups. */
                     groupIds?: string | null;
+                    /** @description Comma-separated string of `MMADetector` IDs. Returns events any of them contributed to. */
+                    mmadetectorIds?: number[] | null;
                 };
                 header?: never;
                 path?: never;
@@ -26125,6 +26372,80 @@ export interface components {
             message?: string;
             data?: components["schemas"]["GalaxyNoID"][];
         };
+        GcnAssociationRule: {
+            /** @description The Group whose rule this is. */
+            readonly group?: components["schemas"]["Group"];
+            /** @description ID of the Group whose rule this is. */
+            group_id: number;
+            /**
+             * @description First messenger of the pair, sorted.
+             * @enum {string}
+             */
+            detector_type_1: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /**
+             * @description Second messenger of the pair, sorted.
+             * @enum {string}
+             */
+            detector_type_2: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /** @description Tags the detector_type_1 event must carry at least one of, e.g. BNS or NSBH so only those GW events pair with GRBs. Empty means no restriction. Same 'any of' rule as a crossmatch filter's gcn_tags. */
+            tags_1?: string[];
+            /** @description Tags the detector_type_2 event must carry at least one of. Empty means no restriction. */
+            tags_2?: string[];
+            /** @description Widest separation in days for this pair to count as coincident. */
+            days: number;
+            /** @description Smallest sky-map consistency for this pair: how well the two localizations must agree, as a fraction of the most they could. The cut is on consistency rather than the raw overlap because the overlap's ceiling depends on the localization areas, so one threshold would mean different things for a cone and a wide skymap. */
+            min_consistency?: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnAssociationRule: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnAssociationRule"];
+        };
+        ArrayOfGcnAssociationRules: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnAssociationRule"][];
+        };
+        GcnAssociationRuleNoID: {
+            /** @description The Group whose rule this is. */
+            readonly group?: components["schemas"]["Group"];
+            /** @description ID of the Group whose rule this is. */
+            group_id: number;
+            /**
+             * @description First messenger of the pair, sorted.
+             * @enum {string}
+             */
+            detector_type_1: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /**
+             * @description Second messenger of the pair, sorted.
+             * @enum {string}
+             */
+            detector_type_2: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /** @description Tags the detector_type_1 event must carry at least one of, e.g. BNS or NSBH so only those GW events pair with GRBs. Empty means no restriction. Same 'any of' rule as a crossmatch filter's gcn_tags. */
+            tags_1?: string[];
+            /** @description Tags the detector_type_2 event must carry at least one of. Empty means no restriction. */
+            tags_2?: string[];
+            /** @description Widest separation in days for this pair to count as coincident. */
+            days: number;
+            /** @description Smallest sky-map consistency for this pair: how well the two localizations must agree, as a fraction of the most they could. The cut is on consistency rather than the raw overlap because the overlap's ceiling depends on the localization areas, so one threshold would mean different things for a cone and a wide skymap. */
+            min_consistency?: number;
+        };
+        SingleGcnAssociationRuleNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnAssociationRuleNoID"];
+        };
+        ArrayOfGcnAssociationRuleNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnAssociationRuleNoID"][];
+        };
         GcnEvent: {
             readonly groups?: components["schemas"]["Group"][];
             /** @description The user that saved this GcnEvent */
@@ -26184,6 +26505,98 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GcnEvent"][];
+        };
+        GcnEventAssociation: {
+            /** @description The earlier GcnEvent. */
+            readonly gcnevent_1?: components["schemas"]["GcnEvent"];
+            /** @description The later GcnEvent. */
+            readonly gcnevent_2?: components["schemas"]["GcnEvent"];
+            /** @description The User who last ruled on this association. */
+            readonly confirmer?: components["schemas"]["User"];
+            /**
+             * Format: date-time
+             * @description UTC timestamp of the earlier event.
+             */
+            dateobs_1: string;
+            /**
+             * Format: date-time
+             * @description UTC timestamp of the later event.
+             */
+            dateobs_2: string;
+            /** @description RAVEN sky-map overlap integral: 1 is what unrelated maps average, higher means the localizations agree more than chance. */
+            overlap: number;
+            /** @description Overlap as a fraction of the most these two maps could overlap (their correlation): 1 when they agree as well as localizations of these shapes can, 0 when disjoint. Comparable across pairs, which the raw overlap is not -- its ceiling is set by the localization areas. */
+            consistency?: number | null;
+            /** @description dateobs_2 - dateobs_1, in days. Always positive. */
+            dt_days: number;
+            /**
+             * @description Standing of this association: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
+             * @enum {string}
+             */
+            status?: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /** @description The ID of the User who last ruled on this association. */
+            confirmer_id: number;
+            /** @description Why this association was confirmed or rejected. */
+            explanation?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnEventAssociation: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAssociation"];
+        };
+        ArrayOfGcnEventAssociations: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAssociation"][];
+        };
+        GcnEventAssociationNoID: {
+            /** @description The earlier GcnEvent. */
+            readonly gcnevent_1?: components["schemas"]["GcnEvent"];
+            /** @description The later GcnEvent. */
+            readonly gcnevent_2?: components["schemas"]["GcnEvent"];
+            /** @description The User who last ruled on this association. */
+            readonly confirmer?: components["schemas"]["User"];
+            /**
+             * Format: date-time
+             * @description UTC timestamp of the earlier event.
+             */
+            dateobs_1: string;
+            /**
+             * Format: date-time
+             * @description UTC timestamp of the later event.
+             */
+            dateobs_2: string;
+            /** @description RAVEN sky-map overlap integral: 1 is what unrelated maps average, higher means the localizations agree more than chance. */
+            overlap: number;
+            /** @description Overlap as a fraction of the most these two maps could overlap (their correlation): 1 when they agree as well as localizations of these shapes can, 0 when disjoint. Comparable across pairs, which the raw overlap is not -- its ceiling is set by the localization areas. */
+            consistency?: number | null;
+            /** @description dateobs_2 - dateobs_1, in days. Always positive. */
+            dt_days: number;
+            /**
+             * @description Standing of this association: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
+             * @enum {string}
+             */
+            status?: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /** @description The ID of the User who last ruled on this association. */
+            confirmer_id: number;
+            /** @description Why this association was confirmed or rejected. */
+            explanation?: string | null;
+        };
+        SingleGcnEventAssociationNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAssociationNoID"];
+        };
+        ArrayOfGcnEventAssociationNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAssociationNoID"][];
         };
         GcnEventCrossmatchState: {
             /** @description The GcnEvent being crossmatched. */
@@ -31940,11 +32353,13 @@ export interface components {
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
+            /** @description Other names GCN notices use for this detector (e.g. Fermi for FermiGBM). An event is linked when a tag matches the nickname or any alias. */
+            aliases?: string[];
             /**
-             * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
+             * @description MMA detector type, one of gravitational wave, neutrino, gamma-ray burst, or x-ray.
              * @enum {string}
              */
-            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
+            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
             /** @description Latitude in deg. */
             lat?: number | null;
             /** @description Longitude in deg. */
@@ -31976,11 +32391,13 @@ export interface components {
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
+            /** @description Other names GCN notices use for this detector (e.g. Fermi for FermiGBM). An event is linked when a tag matches the nickname or any alias. */
+            aliases?: string[];
             /**
-             * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
+             * @description MMA detector type, one of gravitational wave, neutrino, gamma-ray burst, or x-ray.
              * @enum {string}
              */
-            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
+            type: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
             /** @description Latitude in deg. */
             lat?: number | null;
             /** @description Longitude in deg. */
@@ -38210,6 +38627,65 @@ export interface components {
             catalog_data: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * GcnEventAssociationPatch
+         * @description Body for ruling on an association.
+         */
+        GcnEventAssociationPatch: {
+            /**
+             * Status
+             * @description One of pending, confirmed, ambiguous, rejected.
+             */
+            status: string;
+            /**
+             * Explanation
+             * @description Why it was confirmed or rejected.
+             * @default null
+             */
+            explanation: string | null;
+        };
+        /**
+         * GcnAssociationRuleBody
+         * @description One group's cut for a pair of messengers.
+         */
+        GcnAssociationRuleBody: {
+            /**
+             * Group Id
+             * @description ID of the group the rule belongs to.
+             */
+            group_id: number;
+            /**
+             * Detector Type 1
+             * @description One of gravitational-wave, neutrino, gamma-ray-burst, x-ray.
+             */
+            detector_type_1: string;
+            /**
+             * Detector Type 2
+             * @description One of gravitational-wave, neutrino, gamma-ray-burst, x-ray.
+             */
+            detector_type_2: string;
+            /**
+             * Tags 1
+             * @description Tags the first messenger's event must carry at least one of (e.g. BNS, NSBH). Empty means no restriction.
+             */
+            tags_1?: string[];
+            /**
+             * Tags 2
+             * @description Tags the second messenger's event must carry at least one of. Empty means no restriction.
+             */
+            tags_2?: string[];
+            /**
+             * Days
+             * @description Widest separation in days for this pair to be coincident.
+             */
+            days: number;
+            /**
+             * Min Consistency
+             * @description Smallest sky-map consistency, 0 to 1: how well the two localizations must agree, as a fraction of the most they could.
+             * @default 0.5
+             */
+            min_consistency: number;
         };
         GcnEventTagPost: {
             /** @description UTC event timestamp */

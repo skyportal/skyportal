@@ -39,6 +39,7 @@ import GcnAdvocates from "./GcnAdvocates";
 import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
+import GcnEventAssociationSummary from "./GcnEventAssociationSummary";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
@@ -355,6 +356,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               // we want to show the title if the breakpoint is over md
               showTitle={!isMobile}
             />
+            <GcnEventAssociationSummary dateobs={dateobs} />
             <GcnAliases gcnEvent={gcnEvent} show_title />
             <GcnAdvocates gcnEvent={gcnEvent} show_title />
           </div>

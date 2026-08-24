@@ -10,6 +10,7 @@ import operator  # noqa: F401
 import os
 import tempfile
 import traceback
+from datetime import timedelta
 from typing import Annotated, ClassVar
 from urllib.parse import urlparse, urlsplit
 
@@ -55,6 +56,7 @@ from baselayer.log import make_log
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.models.photometry import Photometry
 
+from ...enum_types import GCN_EVENT_OBJ_STATUSES
 from ...models import (
     Allocation,
     CatalogQuery,
@@ -63,7 +65,10 @@ from ...models import (
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     EventObservationPlan,
+    GcnAssociationRule,
     GcnEvent,
+    GcnEventAssociation,
+    GcnEventMMADetector,
     GcnEventObj,
     GcnEventUser,
     GcnNotice,
@@ -90,6 +95,7 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.crossmatch import skymap_overlap_integral
 from ...utils.gcn import (
     from_bytes,
     from_cone,
@@ -322,6 +328,53 @@ async def post_gcn_source(
         return False
 
 
+async def detectors_from_tags(session, user, tag_texts):
+    """MMADetectors named by any of ``tag_texts``, by nickname or alias.
+
+    Notices do not agree on a detector's name -- GCN tags Fermi-GBM alerts
+    "Fermi" and Einstein Probe ones "Einstein Probe" -- so a nickname-only match
+    silently links nothing for those missions.
+    """
+    if not tag_texts:
+        return []
+    texts = list(set(tag_texts))
+    result = await session.scalars(
+        MMADetector.select(user).where(
+            sa.or_(
+                MMADetector.nickname.in_(texts),
+                *[MMADetector.aliases.any(text) for text in texts],
+            )
+        )
+    )
+    return result.unique().all()
+
+
+async def link_detectors_to_event(session, user, event, tag_texts):
+    """Attach the detectors named by ``tag_texts`` to an event.
+
+    Additive: a later notice naming fewer detectors must not drop the ones an
+    earlier one established. Takes the event rather than its id, which a newly
+    created one does not have until the flush below.
+    """
+    detectors = await detectors_from_tags(session, user, tag_texts)
+    if not detectors:
+        return []
+
+    await session.flush()
+    event_loaded = await session.scalar(
+        sa.select(GcnEvent)
+        .where(GcnEvent.id == event.id)
+        .options(selectinload(GcnEvent.detectors))
+    )
+    if event_loaded is None:
+        return []
+    existing = {d.id for d in event_loaded.detectors}
+    added = [d for d in detectors if d.id not in existing]
+    if added:
+        event_loaded.detectors = list(event_loaded.detectors) + added
+    return added
+
+
 async def post_gcnevent_from_xml(
     payload,
     user_id,
@@ -424,28 +477,27 @@ async def post_gcnevent_from_xml(
     await session.commit()
 
     tags_text = list(get_tags(root, notice_type)) + tags_list
+    # Every notice for an event re-emits its tags; only store the new ones.
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == dateobs)
+            )
+        ).all()
+    )
     tags = [
         GcnTag(
             dateobs=dateobs,
             text=text,
             sent_by_id=user_id,
         )
-        for text in tags_text
+        for text in dict.fromkeys(tags_text)
+        if text not in existing_tags
     ]
     session.add_all(tags)
     await session.commit()
 
-    mma_detectors_result = await session.scalars(
-        MMADetector.select(user).where(MMADetector.nickname.in_(tags_text))
-    )
-    mma_detectors = mma_detectors_result.all()
-    if len(mma_detectors) > 0:
-        event_to_update = await session.scalar(
-            GcnEvent.select(user)
-            .where(GcnEvent.dateobs == dateobs)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_to_update.detectors = mma_detectors
+    if await link_detectors_to_event(session, user, event, tags_text):
         await session.commit()
 
     gracedb_id = None
@@ -703,23 +755,10 @@ async def post_gcnevent_from_json(
         if text not in existing_tags
     ]
 
-    detectors = []
     for tag in tags:
         session.add(tag)
 
-        mma_detector = await session.scalar(
-            MMADetector.select(user).where(MMADetector.nickname == tag.text)
-        )
-        if mma_detector is not None:
-            detectors.append(mma_detector)
-    if detectors:
-        await session.flush()
-        event_loaded = await session.scalar(
-            sa.select(GcnEvent)
-            .where(GcnEvent.id == event.id)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_loaded.detectors = detectors
+    await link_detectors_to_event(session, user, event, tag_texts)
 
     # Store classification/astro/FAR properties (e.g. from an IGWN gwalert).
     if payload.get("properties"):
@@ -848,32 +887,27 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         )
         session.add(properties)
 
+    tag_texts = list(payload.get("tags", []))
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == event.dateobs)
+            )
+        ).all()
+    )
     tags = [
         GcnTag(
             dateobs=event.dateobs,
             text=text,
             sent_by_id=user.id,
         )
-        for text in payload.get("tags", [])
+        for text in dict.fromkeys(tag_texts)
+        if text not in existing_tags
     ]
-
-    detectors = []
     for tag in tags:
         session.add(tag)
 
-        mma_detector = await session.scalar(
-            MMADetector.select(user).where(MMADetector.nickname == tag.text)
-        )
-        if mma_detector is not None:
-            detectors.append(mma_detector)
-    if detectors:
-        await session.flush()
-        event_loaded = await session.scalar(
-            sa.select(GcnEvent)
-            .where(GcnEvent.id == event.id)
-            .options(selectinload(GcnEvent.detectors))
-        )
-        event_loaded.detectors = detectors
+    await link_detectors_to_event(session, user, event, tag_texts)
     await session.commit()
 
     # From here on use the event's own dateobs, which differs from the payload's
@@ -965,6 +999,349 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         )
 
     return dateobs, event.id
+
+
+class GcnEventAssociationsGetQuery(BaseModel):
+    """Query parameters for reading an event's associations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"minConsistency", "maxDays", "includeRejected"}
+    )
+
+    minConsistency: float | None = Field(
+        default=None,
+        description=(
+            "Minimum sky-map consistency, 0 to 1. Defaults to your rule for "
+            "this pair of messengers."
+        ),
+    )
+    maxDays: float | None = Field(
+        default=None,
+        description=(
+            "Maximum separation in days. Defaults to the configured window for "
+            "the detector pair: a neutrino-GW coincidence is judged on seconds, "
+            "a GRB-GW one on minutes."
+        ),
+    )
+    includeRejected: bool = Field(
+        default=False, description="Include associations already rejected."
+    )
+
+
+class GcnEventAssociationPatch(BaseModel):
+    """Body for ruling on an association."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(
+        description="One of pending, confirmed, ambiguous, rejected.",
+    )
+    explanation: str | None = Field(
+        default=None, description="Why it was confirmed or rejected."
+    )
+
+
+async def visible_association_rules(session, user):
+    """The association cuts this user can see, from every group they are in.
+
+    A pair is shown if any of those rules admits it, so being in a second group
+    can only widen what you see, never narrow it.
+    """
+    # a list, not a dict keyed by the pair: two groups may both have a rule for
+    # the same messengers, and the wider one must not be dropped
+    return (await session.scalars(GcnAssociationRule.select(user))).unique().all()
+
+
+# A rule covers this pair of messengers but its tag requirement was not met:
+# different from no rule at all, which leaves a pair uncut.
+EXCLUDED_BY_RULE = object()
+
+
+def association_cuts(rules, event_1, event_2):
+    """(max_days, min_consistency), (None, None), or ``EXCLUDED_BY_RULE``.
+
+    Which coincidences count is a science choice -- a neutrino arrives within
+    seconds of a GW, a GRB within minutes -- and it differs by group, so it is
+    only ever a user's own rule. A pair no rule mentions is left uncut rather
+    than judged by a default nobody chose.
+
+    A rule may also require tags, so "GW with GRB" can be narrowed to the GW
+    events tagged BNS or NSBH; the same "any of" rule as a crossmatch filter's
+    gcn_tags, where an empty list is no restriction. Failing that requirement
+    excludes the pair -- the point of asking for it.
+    """
+    types = {
+        id(event): {d.type for d in (event.detectors or [])}
+        for event in (event_1, event_2)
+    }
+    if not types[id(event_1)] or not types[id(event_2)] or not rules:
+        return None, None
+
+    def tagged(event, wanted):
+        return not wanted or any(tag in (event.tags or []) for tag in wanted)
+
+    covered = False
+    for rule in rules:
+        # either event may be either side of the rule
+        for first, second in ((event_1, event_2), (event_2, event_1)):
+            if (
+                rule.detector_type_1 not in types[id(first)]
+                or rule.detector_type_2 not in types[id(second)]
+            ):
+                continue
+            covered = True
+            if tagged(first, rule.tags_1) and tagged(second, rule.tags_2):
+                return rule.days, rule.min_consistency
+
+    return EXCLUDED_BY_RULE if covered else (None, None)
+
+
+class GcnEventAssociationsHandler(BaseHandler):
+    @auth_or_token
+    async def get(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+        association_id: Annotated[
+            str | None, Field(description="Unused; the listing is per event")
+        ] = None,
+        *,
+        query: GcnEventAssociationsGetQuery = None,
+    ):
+        """
+        ---
+        summary: Events associated with this one
+        description: |
+          Other GCN events whose localization overlaps this one's, as found by
+          the crossmatch service, ranked by RAVEN's sky-map overlap integral.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(GcnEventAssociationsGetQuery)
+        try:
+            dateobs_parsed = arrow.get(dateobs.strip()).datetime.replace(tzinfo=None)
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            user = session.user_or_token
+            stmt = GcnEventAssociation.select(user).where(
+                sa.or_(
+                    GcnEventAssociation.dateobs_1 == dateobs_parsed,
+                    GcnEventAssociation.dateobs_2 == dateobs_parsed,
+                )
+            )
+            if not query.includeRejected:
+                stmt = stmt.where(GcnEventAssociation.status != "rejected")
+            associations = (await session.scalars(stmt)).unique().all()
+
+            mine = await session.scalar(
+                GcnEvent.select(user)
+                # tags as well as detectors: the rules read both
+                .options(selectinload(GcnEvent.detectors), selectinload(GcnEvent._tags))
+                .where(GcnEvent.dateobs == dateobs_parsed)
+            )
+            if mine is None:
+                return self.error(f"No event {dateobs}", status=404)
+            rules = await visible_association_rules(
+                session, self.associated_user_object
+            )
+
+            out = []
+            for association in associations:
+                other_dateobs = (
+                    association.dateobs_2
+                    if association.dateobs_1 == dateobs_parsed
+                    else association.dateobs_1
+                )
+                other = await session.scalar(
+                    GcnEvent.select(user)
+                    .options(
+                        selectinload(GcnEvent.detectors), selectinload(GcnEvent._tags)
+                    )
+                    .where(GcnEvent.dateobs == other_dateobs)
+                )
+                if other is None:
+                    continue
+                cuts = association_cuts(rules, mine, other)
+                if cuts is EXCLUDED_BY_RULE:
+                    continue
+                max_days, min_consistency = cuts
+                if query.maxDays is not None:
+                    max_days = float(query.maxDays)
+                if query.minConsistency is not None:
+                    min_consistency = float(query.minConsistency)
+                if max_days is not None and abs(association.dt_days) > max_days:
+                    continue
+                # An association recorded before consistency was measured has
+                # none; that is unknown, not zero, so it is shown rather than
+                # cut. The pass fills it in on the next sweep.
+                if (
+                    min_consistency is not None
+                    and association.consistency is not None
+                    and association.consistency < min_consistency
+                ):
+                    continue
+                out.append(
+                    {
+                        "id": association.id,
+                        "dateobs": other_dateobs,
+                        "trigger_id": other.trigger_id,
+                        "aliases": other.aliases,
+                        "tags": other.tags,
+                        "detectors": [d.nickname for d in other.detectors],
+                        "overlap": round(association.overlap, 4),
+                        "consistency": (
+                            None
+                            if association.consistency is None
+                            else round(association.consistency, 4)
+                        ),
+                        "dt_days": round(association.dt_days, 6),
+                        "status": association.status,
+                        "explanation": association.explanation,
+                    }
+                )
+
+            out.sort(key=lambda a: a["overlap"], reverse=True)
+            return self.success(data=out)
+
+    @permissions(["Upload data"])
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event"),
+        ],
+        association_id: Annotated[
+            str | None, Field(description="Unused; the search is per event")
+        ] = None,
+    ):
+        """
+        ---
+        summary: Search for associations now
+        description: |
+          Runs the sky-map overlap against every other event in range, rather
+          than waiting for the crossmatch service's next pass. Existing
+          associations keep their verdict.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        from ...utils.gcn_crossmatch import associate_events
+
+        async with self.AsyncSession() as session:
+            user = self.associated_user_object
+            session.user_or_token = user
+            try:
+                found = await associate_events(session, user)
+            except Exception as e:
+                await session.rollback()
+                return self.error(f"Could not search for associations: {e}")
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+            return self.success(data={"found": found})
+
+    @permissions(["Upload data"])
+    async def patch(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event"),
+        ],
+        association_id: Annotated[
+            int, Field(description="ID of the association being ruled on")
+        ],
+        *,
+        body: GcnEventAssociationPatch = None,
+    ):
+        """
+        ---
+        summary: Rule on an association
+        description: Confirm, reject, or mark ambiguous a pair of events.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: association_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(GcnEventAssociationPatch)
+        if body.status not in GCN_EVENT_OBJ_STATUSES:
+            return self.error(
+                f"status must be one of {', '.join(GCN_EVENT_OBJ_STATUSES)}"
+            )
+
+        async with self.AsyncSession() as session:
+            association = await session.scalar(
+                GcnEventAssociation.select(session.user_or_token, mode="update").where(
+                    GcnEventAssociation.id == int(association_id)
+                )
+            )
+            if association is None:
+                return self.error("Association not found", status=404)
+
+            association.status = body.status
+            association.explanation = body.explanation
+            association.confirmer_id = self.associated_user_object.id
+            await session.commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": str(association.dateobs_1)},
+            )
+            return self.success()
 
 
 class GcnEventAliasesHandler(BaseHandler):
@@ -1150,8 +1527,31 @@ class GcnEventTagsHandler(BaseHandler):
                 schema: Error
         """
 
+        # Optional: only the tags events of one messenger have actually carried,
+        # so a rule about gravitational waves is offered BNS and NSBH rather than
+        # every tag in the database.
+        detector_type = self.get_query_argument("detectorType", None)
+
         async with self.AsyncSession() as session:
-            result = await session.scalars(sa.select(GcnTag.text).distinct())
+            stmt = sa.select(GcnTag.text).distinct()
+            if detector_type is not None:
+                stmt = stmt.where(
+                    GcnTag.dateobs.in_(
+                        sa.select(GcnEvent.dateobs)
+                        .join(
+                            GcnEventMMADetector,
+                            GcnEventMMADetector.gcnevent_id == GcnEvent.id,
+                        )
+                        .join(
+                            MMADetector,
+                            sa.and_(
+                                MMADetector.id == GcnEventMMADetector.mmadetector_id,
+                                MMADetector.type == detector_type,
+                            ),
+                        )
+                    )
+                )
+            result = await session.scalars(stmt)
             tags = result.unique().all()
             return self.success(data=tags)
 
@@ -1558,6 +1958,13 @@ class GcnEventGetQuery(BaseModel):
             "shared with those groups."
         ),
     )
+    mmadetectorIds: list[int] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of `MMADetector` IDs. Returns events any of "
+            "them contributed to."
+        ),
+    )
 
 
 class GcnEventHandler(BaseHandler):
@@ -1715,6 +2122,8 @@ class GcnEventHandler(BaseHandler):
         group_ids = query.groupIds
 
         localization_properties_filter = query.localizationPropertiesFilter
+
+        mmadetector_ids = query.mmadetectorIds
 
         if dateobs is not None:
             try:
@@ -1925,6 +2334,7 @@ class GcnEventHandler(BaseHandler):
                     localization_tag_remove=localization_tag_remove,
                     gcn_properties_filter=gcn_properties_filter,
                     localization_properties_filter=localization_properties_filter,
+                    mmadetector_ids=mmadetector_ids,
                 )
             except ValueError as e:
                 return self.error(str(e))
@@ -5488,6 +5898,7 @@ def apply_gcn_event_filters(
     localization_tag_remove=None,
     gcn_properties_filter=None,
     localization_properties_filter=None,
+    mmadetector_ids=None,
 ):
     """Apply GCN/localization tag and property filters to a GcnEvent select query.
 
@@ -5497,6 +5908,16 @@ def apply_gcn_event_filters(
     # The outer query already restricts to accessible events, and tags/localizations
     # are keyed by dateobs (1:1 with an event), so these filters use plain dateobs
     # IN/NOT IN rather than re-joining the group-access chain per tag subquery.
+    # Keyed on the event id rather than dateobs: the join table is the only one
+    # of these that references GcnEvent.id.
+    if mmadetector_ids:
+        query = query.where(
+            GcnEvent.id.in_(
+                sa.select(GcnEventMMADetector.gcnevent_id).where(
+                    GcnEventMMADetector.mmadetector_id.in_(mmadetector_ids)
+                )
+            )
+        )
     if gcn_tag_keep:
         query = query.where(
             GcnEvent.dateobs.in_(
