@@ -12,6 +12,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.io import fits
 from geojson import Feature, Point
+from pydantic import BaseModel, ConfigDict, Field
 from scipy.integrate import quad
 from scipy.stats import norm
 from sqlalchemy import func, nulls_last
@@ -453,6 +454,104 @@ def get_galaxies(
     return query_results
 
 
+class GalaxyCatalogGetQuery(BaseModel):
+    """Query parameters for retrieving galaxies."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(
+        default=None,
+        description="Filter by catalog name (exact match)",
+    )
+    ra: str | None = Field(
+        default=None,
+        description="RA for spatial filtering (in decimal degrees)",
+    )
+    dec: str | None = Field(
+        default=None,
+        description="Declination for spatial filtering (in decimal degrees)",
+    )
+    radius: str | None = Field(
+        default=None,
+        description="Radius for spatial filtering if ra & dec are provided (in decimal degrees)",
+    )
+    galaxyName: str | None = Field(
+        default=None,
+        description="Portion of name to filter on",
+    )
+    minDistance: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a distance of at least this value",
+    )
+    maxDistance: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a distance of at most this value",
+    )
+    minRedshift: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a redshift of at least this value",
+    )
+    maxRedshift: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a redshift of at most this value",
+    )
+    minMstar: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a stellar mass of at least this value",
+    )
+    maxMstar: float | None = Field(
+        default=None,
+        description="If provided, return only galaxies with a stellar mass of at most this value",
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description="Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).",
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description="Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.",
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include galaxies",
+    )
+    includeGeoJSON: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated GeoJSON. Defaults to false.",
+    )
+    numPerPage: int = Field(
+        default=1000,
+        description=f"Number of galaxies to return per paginated request. Defaults to 1000. Can be no larger than {MAX_GALAXIES}.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    catalogNamesOnly: bool = Field(
+        default=False,
+        description="Boolean indicating whether to just return catalog names. Defaults to false.",
+    )
+    returnProbability: bool = Field(
+        default=False,
+        description="Boolean indicating whether to return probability density. Defaults to false.",
+    )
+    sortBy: str | None = Field(
+        default=None,
+        description=(
+            "Column to sort by. Can be one of the following: "
+            "distmpc, redshift, name, mstar, prob, mstar_prob_weighted, sfr_fuv, magb, magk. "
+            "Defaults to no sorting unless a localization and catalog are provided, then defaults to mstar_prob_weighted."
+        ),
+    )
+    sortOrder: str | None = Field(
+        default=None,
+        description=(
+            "Sort order. Can be one of the following: asc, desc. "
+            "Defaults to None unless a localization and catalog are provided, then defaults to desc."
+        ),
+    )
+
+
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
     async def post(self):
@@ -559,160 +658,15 @@ class GalaxyCatalogHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_GALAXIES=MAX_GALAXIES)
-    async def get(self, catalog_name: str = None):
+    async def get(
+        self, catalog_name: str = None, *, query: GalaxyCatalogGetQuery = None
+    ):
         """
         ---
           summary: Retrieve multiple galaxies
           description: Retrieve all galaxies
           tags:
             - galaxies
-          parameters:
-            - in: query
-              name: catalog_name
-              schema:
-                type: string
-              description: Filter by catalog name (exact match)
-            - in: query
-              name: ra
-              nullable: true
-              schema:
-                type: number
-              description: RA for spatial filtering (in decimal degrees)
-            - in: query
-              name: dec
-              nullable: true
-              schema:
-                type: number
-              description: Declination for spatial filtering (in decimal degrees)
-            - in: query
-              name: radius
-              nullable: true
-              schema:
-                type: number
-              description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
-            - in: query
-              name: galaxyName
-              nullable: true
-              schema:
-                type: string
-              description: Portion of name to filter on
-            - in: query
-              name: minDistance
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a distance of at least this value
-            - in: query
-              name: maxDistance
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a distance of at most this value
-            - in: query
-              name: minRedshift
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a redshift of at least this value
-            - in: query
-              name: maxRedshift
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a redshift of at most this value
-            - in: query
-              name: minMstar
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a stellar mass of at least
-                this value
-            - in: query
-              name: maxMstar
-              nullable: true
-              schema:
-                type: number
-              description: |
-                If provided, return only galaxies with a stellar mass of at most
-                this value
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include galaxies
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of galaxies to return per paginated request.
-                Defaults to 100. Can be no larger than {MAX_GALAXIES}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
-            - in: query
-              name: catalogNamesOnly
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to just return catalog names. Defaults to
-                false.
-            - in: query
-              name: returnProbability
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to return probability density.
-                Defaults to false.
-            - in: query
-              name: sortBy
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Column to sort by. Can be one of the following:
-                distmpc, redshift, name, mstar, prob, mstar_prob_weighted, sfr_fuv, magb, magk.
-                Defaults to no sorting unless a localization and catalog are provided, then defaults to mstar_prob_weighted.
-            - in: query
-              name: sortOrder
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Sort order. Can be one of the following: asc, desc.
-                Defaults to None unless a localization and catalog are provided, then defaults to desc.
           responses:
             200:
               content:
@@ -746,15 +700,11 @@ class GalaxyCatalogHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(GalaxyCatalogGetQuery)
 
-        catalog_name = self.get_query_argument("catalog_name", None)
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
-        galaxy_name = self.get_query_argument(
-            "galaxyName", None
-        )  # Partial name to match
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        if query.catalog_name is not None:
+            catalog_name = query.catalog_name
+        localization_dateobs = query.localizationDateobs
         if localization_dateobs is not None:
             # psycopg3 requires a real datetime when comparing against a
             # DateTime column; coerce here so the sync helper's WHERE
@@ -765,36 +715,11 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(
                     f"Invalid localizationDateobs: {localization_dateobs}"
                 )
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument(
-            "localizationCumprob", 0.95, type=float
-        )
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
-        min_redshift = self.get_query_argument("minRedshift", None)
-        max_redshift = self.get_query_argument("maxRedshift", None)
-        min_distance = self.get_query_argument("minDistance", None)
-        max_distance = self.get_query_argument("maxDistance", None)
-        min_mstar = self.get_query_argument("minMstar", None)
-        max_mstar = self.get_query_argument("maxMstar", None)
-        return_probability = self.get_query_argument("returnProbability", False)
-        sort_by = self.get_query_argument("sortBy", None)
-        sort_order = self.get_query_argument("sortOrder", None)
-
-        page_number = self.get_query_argument("pageNumber", 1)
-        try:
-            page_number = int(page_number)
-        except ValueError as e:
-            return self.error(f"pageNumber fails: {e}")
-
-        num_per_page = self.get_query_argument("numPerPage", 1000)
-        try:
-            num_per_page = int(num_per_page)
-        except ValueError as e:
-            return self.error(f"numPerPage fails: {e}")
+        sort_by = query.sortBy
+        sort_order = query.sortOrder
 
         if (
-            localization_name is not None
+            query.localizationName is not None
             and localization_dateobs is not None
             and catalog_name is not None
         ):
@@ -809,26 +734,26 @@ class GalaxyCatalogHandler(BaseHandler):
                 data = get_galaxies(
                     session,
                     catalog_name=catalog_name,
-                    galaxy_name=galaxy_name,
-                    ra=ra,
-                    dec=dec,
-                    radius=radius,
-                    min_redshift=min_redshift,
-                    max_redshift=max_redshift,
-                    min_distance=min_distance,
-                    max_distance=max_distance,
-                    min_mstar=min_mstar,
-                    max_mstar=max_mstar,
+                    galaxy_name=query.galaxyName,
+                    ra=query.ra,
+                    dec=query.dec,
+                    radius=query.radius,
+                    min_redshift=query.minRedshift,
+                    max_redshift=query.maxRedshift,
+                    min_distance=query.minDistance,
+                    max_distance=query.maxDistance,
+                    min_mstar=query.minMstar,
+                    max_mstar=query.maxMstar,
                     localization_dateobs=localization_dateobs,
-                    localization_name=localization_name,
-                    localization_cumprob=localization_cumprob,
-                    includeGeoJSON=includeGeoJSON,
-                    catalog_names_only=catalog_names_only,
-                    return_probability=return_probability,
+                    localization_name=query.localizationName,
+                    localization_cumprob=query.localizationCumprob,
+                    includeGeoJSON=query.includeGeoJSON,
+                    catalog_names_only=query.catalogNamesOnly,
+                    return_probability=query.returnProbability,
                     sort_by=sort_by,
                     sort_order=sort_order,
-                    page_number=page_number,
-                    num_per_page=num_per_page,
+                    page_number=query.pageNumber,
+                    num_per_page=query.numPerPage,
                 )
                 return self.success(data)
             except Exception as e:

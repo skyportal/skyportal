@@ -150,8 +150,7 @@ const ConfirmSourceInGCN = ({
 
   const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery({
     dateobs,
-    localizationName: localization_name,
-    sourcesIdList: sources_id_list,
+    sourcesIDList: sources_id_list,
   });
   const [submitSourceInGcn] = useSubmitSourceInGcnMutation();
   const [patchSourceInGcn] = usePatchSourceInGcnMutation();

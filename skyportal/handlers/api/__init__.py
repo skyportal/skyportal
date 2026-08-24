@@ -84,6 +84,7 @@ from .galaxy import (
 from .gcn import (
     DefaultGcnTagHandler,
     GcnEventAliasesHandler,
+    GcnEventAssociationsHandler,
     GcnEventCatalogQueryHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
@@ -104,6 +105,7 @@ from .gcn import (
     LocalizationTagsHandler,
     ObjGcnEventHandler,
 )
+from .gcn_association_rule import GcnAssociationRuleHandler  # noqa: F401
 from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
 from .gcn_event_obj import (
     GcnEventObjHandler,

@@ -6,14 +6,19 @@ interface GcnTagsSelectProps {
   title?: string;
   selectedGcnTags: string[];
   setSelectedGcnTags: (...args: any[]) => void;
+  /** Offer only the tags events of this messenger have carried. */
+  detectorType?: string;
 }
 
 const GcnTagsSelect = ({
   title = "Gcn Tags",
   selectedGcnTags,
   setSelectedGcnTags,
+  detectorType,
 }: GcnTagsSelectProps) => {
-  const { data: gcnTagsData } = useGetGcnTagsQuery();
+  const { data: gcnTagsData } = useGetGcnTagsQuery(
+    detectorType ? { detectorType } : undefined,
+  );
   const gcnTags = [...(gcnTagsData || [])].sort();
 
   if (!gcnTags?.length) return null;

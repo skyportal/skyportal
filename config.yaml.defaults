@@ -1134,6 +1134,7 @@ gcn_crossmatch:
   #       delta_t_after: 7.0
   #
   # The values here are the defaults every such filter inherits.
+
   #
   # Annotations inherit the event's groups, so a restricted event's matches stay
   # as restricted as the event itself.

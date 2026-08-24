@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import arrow
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -100,6 +101,15 @@ async def get_sources_by_objs_in_range(
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
         return []
+
+
+class ScanReportGetQuery(BaseModel):
+    """Query parameters for listing candidate scanning reports."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numPerPage: int = Field(default=10, ge=1, description="Number of items to return")
+    page: int = Field(default=1, ge=1, description="Page number to return")
 
 
 class ScanReportHandler(BaseHandler):
@@ -309,23 +319,12 @@ class ScanReportHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: ScanReportGetQuery = None):
         """
         ---
         summary: Retrieve multiple scanning reports
         tags:
           - report
-        parameters:
-          - in: query
-            name: numPerPage
-            schema:
-              type: integer
-            description: Number of items to return
-          - in: query
-            name: page
-            schema:
-              type: integer
-            description: Page number to return
         responses:
           200:
             content:
@@ -353,8 +352,9 @@ class ScanReportHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        rows = self.get_query_argument("numPerPage", 10, type=int) or 10
-        page = self.get_query_argument("page", 1, type=int) or 1
+        query = self.parse_query(ScanReportGetQuery)
+        rows = query.numPerPage
+        page = query.page
 
         async with self.AsyncSession() as session:
             base_stmt = ScanReport.select(session.user_or_token, mode="read")

@@ -20,33 +20,27 @@ class Thumbnail(Base):
 
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read")
 
-    # created_at is never queried on this table; skip the dead index.
     index_created_at = False
 
     __table_args__ = (
-        # Composite for the thumbnail-service anti-join (obj_id = ? AND type IN
-        # (...)) — makes the EXISTS an index-only scan. Leading obj_id also serves
-        # plain obj_id lookups, so ix_thumbnails_obj_id can be dropped once this is
-        # verified live.
         sa.Index("ix_thumbnails_obj_id_type", "obj_id", "type"),
+        # NULLs stay exempt, so sdss/ps1 keep several rows per obj.
+        sa.UniqueConstraint(
+            "obj_id", "type", "survey", name="thumbnails_obj_id_type_survey_key"
+        ),
     )
 
-    # TODO delete file after deleting row
     type = sa.Column(
         thumbnail_types, doc="Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)"
     )
     file_uri = sa.Column(
         sa.String(),
         nullable=True,
-        index=False,
-        unique=False,
         doc="Path of the Thumbnail on the machine running SkyPortal.",
     )
     public_url = sa.Column(
         sa.String(),
         nullable=True,
-        index=False,
-        unique=False,
         doc="Publically accessible URL of the thumbnail.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
@@ -78,18 +72,15 @@ class Thumbnail(Base):
 
 @event.listens_for(Thumbnail, "before_insert")
 def classify_thumbnail_grayscale(mapper, connection, target):
-    # Only classify local files here (a fast disk read). Remote thumbnails are
-    # left NULL and classified in the background by the thumbnail_queue service,
-    # so no request handler blocks on a synchronous cutout-service fetch.
-    if target.file_uri is not None:
+    # Remote thumbnails are left to the thumbnail_queue service, off the request path.
+    if target.file_uri is not None and target.is_grayscale is None:
         target.is_grayscale = image_is_grayscale(target.file_uri)
 
 
-# Also see the similar event listener on Obj
 @event.listens_for(Thumbnail, "after_delete")
 def delete_thumbnail_from_disk(mapper, connection, target):
     if target.file_uri is not None:
         try:
             os.remove(target.file_uri)
-        except (FileNotFoundError, OSError) as e:
+        except OSError as e:
             log(f"Error deleting thumbnail file {target.file_uri}: {e}")

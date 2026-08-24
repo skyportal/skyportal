@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { buildQueryString, filterOutEmptyValues } from "../API";
+import { buildQueryString, filterOutEmptyValues, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -40,6 +40,96 @@ export interface SourcesResult {
   queryID?: string | null;
   [key: string]: any;
 }
+
+const QUERY_KEYS = [
+  "TNSname",
+  "alias",
+  "annotationsFilter",
+  "annotationsFilterAfter",
+  "annotationsFilterBefore",
+  "annotationsFilterOrigin",
+  "classifications",
+  "classifications_simul",
+  "classified",
+  "commentsFilter",
+  "commentsFilterAfter",
+  "commentsFilterAuthor",
+  "commentsFilterBefore",
+  "createdOrModifiedAfter",
+  "currentUserLabeller",
+  "dec",
+  "deduplicatePhotometry",
+  "endDate",
+  "excludeForcedPhotometry",
+  "followupRequestStatus",
+  "group_ids",
+  "hasBeenLabelled",
+  "hasFollowupRequest",
+  "hasNoSpectrum",
+  "hasNoTNSname",
+  "hasNotBeenLabelled",
+  "hasSpectrum",
+  "hasSpectrumAfter",
+  "hasSpectrumBefore",
+  "hasTNSname",
+  "includeAnalyses",
+  "includeAssociatedObjs",
+  "includeCandidates",
+  "includeColorMagnitude",
+  "includeCommentExists",
+  "includeComments",
+  "includeDetectionStats",
+  "includeGCNCrossmatches",
+  "includeGCNNotes",
+  "includeGeoJSON",
+  "includeHosts",
+  "includeLabellers",
+  "includePeriodExists",
+  "includePhotometry",
+  "includePhotometryExists",
+  "includeRequested",
+  "includeSourcesInGcn",
+  "includeSpectrumExists",
+  "includeSuperObjs",
+  "includeTags",
+  "includeThumbnails",
+  "listName",
+  "localizationCumprob",
+  "localizationDateobs",
+  "localizationName",
+  "localizationRejectSources",
+  "maxLatestMagnitude",
+  "maxPeakMagnitude",
+  "maxRedshift",
+  "minLatestMagnitude",
+  "minPeakMagnitude",
+  "minRedshift",
+  "nonclassifications",
+  "numPerPage",
+  "numberDetections",
+  "origin",
+  "pageNumber",
+  "pendingOnly",
+  "queryID",
+  "ra",
+  "radius",
+  "rejectedSourceIDs",
+  "removeNested",
+  "requireDetections",
+  "saveSummary",
+  "savedAfter",
+  "savedBefore",
+  "savedByCurrentUser",
+  "simbadClass",
+  "sortBy",
+  "sortOrder",
+  "sourceID",
+  "spatialCatalogEntryName",
+  "spatialCatalogName",
+  "startDate",
+  "unclassified",
+  "useCache",
+] as const;
 
 const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   const params = { ...filterParams };
@@ -94,7 +184,7 @@ const withQueryCache = (params: FilterParams): FilterParams => {
 /** Build a `/api/sources?...` URL from a filterParams object. */
 const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
   const filtered = filterOutEmptyValues(
-    withQueryCache(params),
+    pickParams(withQueryCache(params), QUERY_KEYS),
     true,
     removeFalse,
   );
@@ -142,7 +232,6 @@ export const sourcesApi = skyportalApi.injectEndpoints({
           params["endDate"] ??= dayjs(dateobs)
             .add(7, "day")
             .format("YYYY-MM-DD HH:mm:ss");
-          params["includeLocalizationStatus"] ??= true;
         }
         params["includeSourcesInGcn"] = true;
         params["includeGeoJSON"] = true;

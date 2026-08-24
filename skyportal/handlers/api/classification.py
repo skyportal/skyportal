@@ -1,9 +1,9 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +22,6 @@ from ...models import (
     Taxonomy,
     User,
 )
-from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -165,9 +164,49 @@ async def post_classification(data, user_id, session):
     return classification.id
 
 
+class ClassificationGetQuery(BaseModel):
+    """Query parameters for retrieving classifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeTaxonomy"})
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "filter by created_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "filter by created_at <= endDate"
+        ),
+    )
+    includeTaxonomy: bool = Field(
+        default=False,
+        description="Return associated taxonomy.",
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_CLASSIFICATIONS_PER_PAGE,
+        description="Number of sources to return per paginated request. Defaults to 100. Max 500.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+
+
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, classification_id: int | None = None):
+    async def get(
+        self,
+        classification_id: int | None = None,
+        *,
+        query: ClassificationGetQuery = None,
+    ):
         """
         ---
         single:
@@ -175,14 +214,6 @@ class ClassificationHandler(BaseHandler):
           description: Retrieve a classification
           tags:
             - classifications
-          parameters:
-            - in: query
-              name: includeTaxonomy
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Return associated taxonomy.
           responses:
             200:
               content:
@@ -197,43 +228,6 @@ class ClassificationHandler(BaseHandler):
           description: Retrieve all classifications
           tags:
             - classifications
-          parameters:
-          - in: query
-            name: startDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              created_at >= startDate
-          - in: query
-            name: endDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              created_at <= endDate
-          - in: query
-            name: includeTaxonomy
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Return associated taxonomy.
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to return per paginated request. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -258,20 +252,14 @@ class ClassificationHandler(BaseHandler):
                   schema: Error
 
         """
+        query = self.parse_query(ClassificationGetQuery)
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        n_per_page = self.get_query_argument(
-            "numPerPage", DEFAULT_CLASSIFICATIONS_PER_PAGE, type=int
-        )
-        if page_number is None or n_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        n_per_page = min(n_per_page, MAX_CLASSIFICATIONS_PER_PAGE)
+        page_number = query.pageNumber
+        n_per_page = min(query.numPerPage, MAX_CLASSIFICATIONS_PER_PAGE)
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        include_taxonomy = self.get_query_argument("includeTaxonomy", False)
+        start_date = query.startDate
+        end_date = query.endDate
+        include_taxonomy = query.includeTaxonomy
 
         async with self.AsyncSession() as session:
             if classification_id is not None:
@@ -616,9 +604,24 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
 
+class ObjClassificationGetQuery(BaseModel):
+    """Query parameters for retrieving an object's classifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    includeSuperObjs: bool = Field(
+        default=False,
+        description=(
+            "If true and the obj is linked to other objs via a SuperObj "
+            "(meta-object), return the union of classifications across all "
+            "linked objs. Each entry carries its obj_id for provenance."
+        ),
+    )
+
+
 class ObjClassificationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, obj_id: str, *, query: ObjClassificationGetQuery = None):
         """
         ---
         summary: Get an object's classifications
@@ -626,16 +629,6 @@ class ObjClassificationHandler(BaseHandler):
         tags:
           - classifications
           - sources
-        parameters:
-          - in: query
-            name: includeSuperObjs
-            required: false
-            schema:
-              type: boolean
-            description: |
-              If true and the obj is linked to other objs via a SuperObj
-              (meta-object), return the union of classifications across all
-              linked objs. Each entry carries its obj_id for provenance.
         responses:
           200:
             content:
@@ -646,9 +639,8 @@ class ObjClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        include_super_objs = str_to_bool(
-            self.get_query_argument("includeSuperObjs", "false"), default=False
-        )
+        query = self.parse_query(ObjClassificationGetQuery)
+        include_super_objs = query.includeSuperObjs
 
         async with self.AsyncSession() as session:
             # Meta-object aggregation: expand to every obj linked through a
@@ -773,32 +765,36 @@ class ObjClassificationHandler(BaseHandler):
             return self.success()
 
 
+class ObjClassificationQueryGetQuery(BaseModel):
+    """Query parameters for finding sources with classifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01) for when the "
+            "classification was made. If provided, filter by created_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01) for when the "
+            "classification was made. If provided, filter by created_at <= endDate"
+        ),
+    )
+
+
 class ObjClassificationQueryHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: ObjClassificationQueryGetQuery = None):
         """
         ---
         summary: Find sources with classifications
         description: find the sources with classifications
         tags:
           - sources
-        parameters:
-        - in: query
-          name: startDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
-            created_at >= startDate
-        - in: query
-          name: endDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by
-            created_at <= endDate
         responses:
             200:
               content:
@@ -819,9 +815,10 @@ class ObjClassificationQueryHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(ObjClassificationQueryGetQuery)
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
+        start_date = query.startDate
+        end_date = query.endDate
 
         async with self.AsyncSession() as session:
             classifications = Classification.select(session.user_or_token)

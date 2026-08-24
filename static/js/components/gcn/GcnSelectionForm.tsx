@@ -16,6 +16,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { useTheme } from "@mui/material/styles";
 import Tab from "@mui/material/Tab";
+
+import GcnEventAssociations from "./GcnEventAssociations";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
@@ -242,8 +244,7 @@ const GcnEventSourcesPage = ({
     try {
       const sourcesInGcn = await fetchSourcesInGcn({
         dateobs,
-        localizationName,
-        sourcesIdList: sourceAll.map((source) => source.id),
+        sourcesIDList: sourceAll.map((source) => source.id),
       }).unwrap();
       sourceAll.forEach((source) => {
         const match = sourcesInGcn.find(
@@ -781,10 +782,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     };
 
     const fetchGalaxies = async () => {
-      formData.numPerPage = 100;
       await fetchGcnEventGalaxies({
         dateobs: gcnEvent?.dateobs,
-        filterParams: formData,
+        filterParams: { ...formData, numPerPage: 100 },
       });
     };
 
@@ -1033,6 +1033,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           <Tab label="Skymap" sx={{ display: { sm: "block", md: "none" } }} />
           <Tab label="Query Form" />
           <Tab label="Sources" />
+          <Tab label="Associated Events" />
           <Tab label="Galaxies" />
           <Tab label="Observations" />
         </Tabs>
@@ -1257,6 +1258,12 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         )}
 
         {tabIndex === 3 && (
+          <Box sx={{ p: "0.5rem" }}>
+            <GcnEventAssociations dateobs={dateobs} />
+          </Box>
+        )}
+
+        {tabIndex === 4 && (
           <div>
             {gcnEventGalaxies?.galaxies ? (
               <div>
@@ -1279,7 +1286,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           </div>
         )}
 
-        {tabIndex === 4 && (
+        {tabIndex === 5 && (
           <div>
             {gcnEventObservations?.observations ? (
               <div>

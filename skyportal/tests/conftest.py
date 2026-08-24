@@ -49,7 +49,9 @@ from skyportal.models import (
     FollowupRequestUser,
     Galaxy,
     GalaxyCatalog,
+    GcnAssociationRule,
     GcnEvent,
+    GcnEventAssociation,
     GcnEventCrossmatchState,
     GcnEventObj,
     GcnEventUser,
@@ -6895,6 +6897,78 @@ def public_source_interest(public_source, user_no_groups):
     )
     if obj is not None:
         DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_event_association(user):
+    """Two events proposed as one physical event."""
+    first = utcnow_naive().replace(microsecond=0)
+    second = first + timedelta(hours=1)
+
+    events = []
+    for dateobs in (first, second):
+        event = GcnEvent(
+            dateobs=dateobs,
+            sent_by_id=user.id,
+            trigger_id=str(uuid.uuid4())[:20],
+            groups=user.groups,
+        )
+        DBSession.add(event)
+        events.append(event)
+    DBSession.commit()
+
+    association = GcnEventAssociation(
+        dateobs_1=first,
+        dateobs_2=second,
+        overlap=42.0,
+        consistency=0.9,
+        dt_days=1 / 24,
+        confirmer_id=user.id,
+    )
+    DBSession.add(association)
+    DBSession.commit()
+    association_id = association.id
+    dateobs_list = [event.dateobs for event in events]
+
+    yield association
+
+    row = DBSession().scalar(
+        sa.select(GcnEventAssociation).where(GcnEventAssociation.id == association_id)
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+    for dateobs in dateobs_list:
+        event = DBSession().scalar(
+            sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+        )
+        if event is not None:
+            DBSession().delete(event)
+    DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_association_rule(public_group):
+    """One group's cut for a pair of messengers."""
+    rule = GcnAssociationRule(
+        group_id=public_group.id,
+        detector_type_1="gravitational-wave",
+        detector_type_2="neutrino",
+        days=0.0001,
+        min_consistency=0.5,
+    )
+    DBSession.add(rule)
+    DBSession.commit()
+    rule_id = rule.id
+
+    yield rule
+
+    row = DBSession().scalar(
+        sa.select(GcnAssociationRule).where(GcnAssociationRule.id == rule_id)
+    )
+    if row is not None:
+        DBSession().delete(row)
         DBSession().commit()
 
 

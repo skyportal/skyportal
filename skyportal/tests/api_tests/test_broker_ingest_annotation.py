@@ -162,3 +162,49 @@ def test_broker_ingest_leaves_another_authors_annotation_alone(
     annotation = fetch_annotation(obj_id, public_filter)
     assert annotation.data == {"posted_by": "user"}
     assert annotation.author_id == user.id
+
+
+def _save_to_group(obj_id, group, user):
+    """Pre-create the object and an active Source in `group` (e.g. a junk group)."""
+    DBSession().add(Obj(id=obj_id, ra=10.0, dec=20.0))
+    DBSession().flush()
+    DBSession().add(
+        Source(obj_id=obj_id, group_id=group.id, saved_by_id=user.id, active=True)
+    )
+    DBSession().commit()
+
+
+def test_broker_ingest_autosave_skips_ignored_group(
+    super_admin_user, public_filter, public_group2, ztf_instrument, obj_id
+):
+    """autosave skips an object already actively saved to one of the filter's
+    `autoSaveIgnoreGroupIds` (e.g. a junk group)."""
+    _save_to_group(obj_id, public_group2, super_admin_user)
+    public_filter.autosave = True
+    public_filter.altdata = {"autoSaveIgnoreGroupIds": [public_group2.id]}
+    DBSession().add(public_filter)
+    DBSession().commit()
+
+    ingest(obj_id, super_admin_user.id, public_filter.id, {})
+
+    assert fetch_source(obj_id, public_filter) is None, (
+        "object in an ignored group should not be auto-saved to the filter group"
+    )
+
+
+def test_broker_ingest_autosave_ignore_is_group_specific(
+    super_admin_user, public_filter, public_group2, ztf_instrument, obj_id
+):
+    """An object saved to a group that is NOT in `autoSaveIgnoreGroupIds` is
+    still auto-saved."""
+    _save_to_group(obj_id, public_group2, super_admin_user)
+    public_filter.autosave = True
+    public_filter.altdata = {"autoSaveIgnoreGroupIds": []}  # junk group not ignored
+    DBSession().add(public_filter)
+    DBSession().commit()
+
+    ingest(obj_id, super_admin_user.id, public_filter.id, {})
+
+    assert fetch_source(obj_id, public_filter) is not None, (
+        "object should be auto-saved when not in an ignored group"
+    )
