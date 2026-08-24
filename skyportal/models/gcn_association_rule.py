@@ -48,6 +48,23 @@ class GcnAssociationRule(Base):
         doc="Second messenger of the pair, sorted.",
     )
 
+    tags_1 = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default="{}",
+        doc="Tags the detector_type_1 event must carry at least one of, e.g. "
+        "BNS or NSBH so only those GW events pair with GRBs. Empty means no "
+        "restriction. Same 'any of' rule as a crossmatch filter's gcn_tags.",
+    )
+
+    tags_2 = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default="{}",
+        doc="Tags the detector_type_2 event must carry at least one of. Empty "
+        "means no restriction.",
+    )
+
     days = sa.Column(
         sa.Float,
         nullable=False,

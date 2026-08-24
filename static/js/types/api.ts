@@ -26387,6 +26387,10 @@ export interface components {
              * @enum {string}
              */
             detector_type_2: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /** @description Tags the detector_type_1 event must carry at least one of, e.g. BNS or NSBH so only those GW events pair with GRBs. Empty means no restriction. Same 'any of' rule as a crossmatch filter's gcn_tags. */
+            tags_1?: string[];
+            /** @description Tags the detector_type_2 event must carry at least one of. Empty means no restriction. */
+            tags_2?: string[];
             /** @description Widest separation in days for this pair to count as coincident. */
             days: number;
             /** @description Smallest sky-map consistency for this pair: how well the two localizations must agree, as a fraction of the most they could. The cut is on consistency rather than the raw overlap because the overlap's ceiling depends on the localization areas, so one threshold would mean different things for a cone and a wide skymap. */
@@ -26421,6 +26425,10 @@ export interface components {
              * @enum {string}
              */
             detector_type_2: "gravitational-wave" | "neutrino" | "gamma-ray-burst" | "x-ray";
+            /** @description Tags the detector_type_1 event must carry at least one of, e.g. BNS or NSBH so only those GW events pair with GRBs. Empty means no restriction. Same 'any of' rule as a crossmatch filter's gcn_tags. */
+            tags_1?: string[];
+            /** @description Tags the detector_type_2 event must carry at least one of. Empty means no restriction. */
+            tags_2?: string[];
             /** @description Widest separation in days for this pair to count as coincident. */
             days: number;
             /** @description Smallest sky-map consistency for this pair: how well the two localizations must agree, as a fraction of the most they could. The cut is on consistency rather than the raw overlap because the overlap's ceiling depends on the localization areas, so one threshold would mean different things for a cone and a wide skymap. */
@@ -38646,6 +38654,16 @@ export interface components {
              * @description One of gravitational-wave, neutrino, gamma-ray-burst, x-ray.
              */
             detector_type_2: string;
+            /**
+             * Tags 1
+             * @description Tags the first messenger's event must carry at least one of (e.g. BNS, NSBH). Empty means no restriction.
+             */
+            tags_1?: string[];
+            /**
+             * Tags 2
+             * @description Tags the second messenger's event must carry at least one of. Empty means no restriction.
+             */
+            tags_2?: string[];
             /**
              * Days
              * @description Widest separation in days for this pair to be coincident.

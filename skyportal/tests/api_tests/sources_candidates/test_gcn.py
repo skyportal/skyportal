@@ -1704,3 +1704,147 @@ def test_unmeasured_consistency_is_not_treated_as_zero(super_admin_token):
     found = [a for a in data["data"] if a["dateobs"].startswith(partner.isoformat())]
     assert found, "an unmeasured association was cut by the consistency rule"
     assert found[0]["consistency"] is None
+
+
+def test_association_rule_tags_narrow_which_pairs_count(super_admin_token):
+    """ "GW with GRB" can be narrowed to the GW events tagged BNS or NSBH."""
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.models import User
+    from skyportal.utils.gcn_crossmatch import associate_events
+
+    gw = f"XW{uuid.uuid4().hex[:6]}"
+    grb = f"XB{uuid.uuid4().hex[:6]}"
+    for nickname, kind in ((gw, "gravitational-wave"), (grb, "gamma-ray-burst")):
+        status, data = api(
+            "POST",
+            "mmadetector",
+            data={
+                "name": nickname,
+                "nickname": nickname,
+                "type": kind,
+                "fixed_location": False,
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "POST",
+        "gcn_association_rules",
+        data={
+            "detector_type_1": "gravitational-wave",
+            "detector_type_2": "gamma-ray-burst",
+            "tags_1": ["BNS", "NSBH"],
+            "days": 1.0,
+            "min_consistency": 0.1,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    ra, dec = float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 20))
+    base = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    partner = base + timedelta(hours=1)
+
+    def post(dateobs, tags):
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": ra, "dec": dec, "error": 1.0},
+                "tags": tags,
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    # a BBH gravitational wave: the rule wants BNS or NSBH
+    post(base, [gw, "BBH"])
+    post(partner, [grb, "GRB"])
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            await associate_events(session, user)
+
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+
+    def visible():
+        status, data = api(
+            "GET", f"gcn_event/{base.isoformat()}/associations", token=super_admin_token
+        )
+        assert status == 200, data
+        return [a for a in data["data"] if a["dateobs"].startswith(partner.isoformat())]
+
+    assert not visible(), "a BBH event matched a rule asking for BNS or NSBH"
+
+    # tag it BNS and the same pair now qualifies
+    from skyportal.models import GcnTag
+
+    with models.DBSession() as session:
+        session.add(GcnTag(dateobs=base, text="BNS", sent_by_id=1))
+        session.commit()
+
+    assert visible(), "the pair did not qualify once the GW was tagged BNS"
+
+
+def test_gcn_tags_can_be_filtered_by_messenger(super_admin_token):
+    """The rule form offers a messenger's own tags, not every tag in the database."""
+    gw = f"XT{uuid.uuid4().hex[:6]}"
+    status, data = api(
+        "POST",
+        "mmadetector",
+        data={
+            "name": gw,
+            "nickname": gw,
+            "type": "gravitational-wave",
+            "fixed_location": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    gw_tag = f"BNSISH{uuid.uuid4().hex[:6]}"
+    other_tag = f"XRAYISH{uuid.uuid4().hex[:6]}"
+    for tags in ([gw, gw_tag], [other_tag]):
+        dateobs = (
+            Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+        ).datetime.replace(microsecond=0)
+        status, data = api(
+            "POST",
+            "gcn_event",
+            data={
+                "dateobs": dateobs.isoformat(),
+                "trigger_id": str(np.random.randint(10**8, 10**9)),
+                "skymap": {"ra": 42.0, "dec": 12.0, "error": 1.0},
+                "tags": tags,
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    status, data = api("GET", "gcn_event/tags", token=super_admin_token)
+    assert status == 200, data
+    assert gw_tag in data["data"] and other_tag in data["data"], "unfiltered list"
+
+    status, data = api(
+        "GET",
+        "gcn_event/tags",
+        params={"detectorType": "gravitational-wave"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert gw_tag in data["data"], data["data"]
+    assert other_tag not in data["data"], (
+        "a tag from an event of another messenger was offered"
+    )

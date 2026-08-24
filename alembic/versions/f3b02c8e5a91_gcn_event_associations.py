@@ -11,6 +11,7 @@ Create Date: 2026-08-23 16:30:00.000000
 """
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -40,7 +41,9 @@ def upgrade():
         sa.Column("dt_days", sa.Float(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum(
+            # the type is already there from the GcnEventObj migration;
+            # create_type is a postgresql-dialect flag, sa.Enum ignores it
+            postgresql.ENUM(
                 "pending",
                 "confirmed",
                 "ambiguous",

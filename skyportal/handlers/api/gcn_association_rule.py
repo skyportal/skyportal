@@ -19,6 +19,16 @@ class GcnAssociationRuleBody(BaseModel):
     detector_type_2: str = Field(
         description=f"One of {', '.join(MMA_DETECTOR_TYPES)}.",
     )
+    tags_1: list[str] = Field(
+        default_factory=list,
+        description="Tags the first messenger's event must carry at least one "
+        "of (e.g. BNS, NSBH). Empty means no restriction.",
+    )
+    tags_2: list[str] = Field(
+        default_factory=list,
+        description="Tags the second messenger's event must carry at least one "
+        "of. Empty means no restriction.",
+    )
     days: float = Field(
         description="Widest separation in days for this pair to be coincident."
     )
@@ -96,8 +106,16 @@ class GcnAssociationRuleHandler(BaseHandler):
         if not 0.0 <= body.min_consistency <= 1.0:
             return self.error("min_consistency must be between 0 and 1")
 
-        # stored sorted, so a rule is one row however it was entered
-        type_1, type_2 = sorted([body.detector_type_1, body.detector_type_2])
+        # stored sorted, so a rule is one row however it was entered; the tag
+        # lists travel with their messenger
+        pairs = sorted(
+            [
+                (body.detector_type_1, list(body.tags_1)),
+                (body.detector_type_2, list(body.tags_2)),
+            ],
+            key=lambda pair: pair[0],
+        )
+        (type_1, tags_1), (type_2, tags_2) = pairs
 
         async with self.AsyncSession() as session:
             user = self.associated_user_object
@@ -113,11 +131,15 @@ class GcnAssociationRuleHandler(BaseHandler):
                     user_id=user.id,
                     detector_type_1=type_1,
                     detector_type_2=type_2,
+                    tags_1=tags_1,
+                    tags_2=tags_2,
                     days=body.days,
                     min_consistency=body.min_consistency,
                 )
                 session.add(rule)
             else:
+                rule.tags_1 = tags_1
+                rule.tags_2 = tags_2
                 rule.days = body.days
                 rule.min_consistency = body.min_consistency
             await session.commit()

@@ -1051,28 +1051,55 @@ async def user_association_rules(session, user):
         )
     ).all()
     return {
-        (rule.detector_type_1, rule.detector_type_2): (rule.days, rule.min_consistency)
+        (rule.detector_type_1, rule.detector_type_2): (
+            rule.days,
+            rule.min_consistency,
+            rule.tags_1,
+            rule.tags_2,
+        )
         for rule in rules
     }
 
 
-def association_cuts(rules, detector_types_1, detector_types_2):
-    """(max_days, min_consistency) for a pair of events, or (None, None).
+# A rule covers this pair of messengers but its tag requirement was not met:
+# different from no rule at all, which leaves a pair uncut.
+EXCLUDED_BY_RULE = object()
+
+
+def association_cuts(rules, event_1, event_2):
+    """(max_days, min_consistency), (None, None), or ``EXCLUDED_BY_RULE``.
 
     Which coincidences count is a science choice -- a neutrino arrives within
     seconds of a GW, a GRB within minutes -- and it differs by group, so it is
-    only ever a user's own rule. A pair no rule covers is left uncut rather than
-    judged by a default nobody chose.
+    only ever a user's own rule. A pair no rule mentions is left uncut rather
+    than judged by a default nobody chose.
+
+    A rule may also require tags, so "GW with GRB" can be narrowed to the GW
+    events tagged BNS or NSBH; the same "any of" rule as a crossmatch filter's
+    gcn_tags, where an empty list is no restriction. Failing that requirement
+    excludes the pair -- the point of asking for it.
     """
-    types_1, types_2 = set(detector_types_1 or []), set(detector_types_2 or [])
-    if not types_1 or not types_2 or not rules:
+    types = {
+        id(event): {d.type for d in (event.detectors or [])}
+        for event in (event_1, event_2)
+    }
+    if not types[id(event_1)] or not types[id(event_2)] or not rules:
         return None, None
-    for (type_1, type_2), cuts in rules.items():
-        if (type_1 in types_1 and type_2 in types_2) or (
-            type_2 in types_1 and type_1 in types_2
-        ):
-            return cuts
-    return None, None
+
+    def tagged(event, wanted):
+        return not wanted or any(tag in (event.tags or []) for tag in wanted)
+
+    covered = False
+    for (type_1, type_2), (days, min_consistency, tags_1, tags_2) in rules.items():
+        # either event may be either side of the rule
+        for first, second in ((event_1, event_2), (event_2, event_1)):
+            if type_1 not in types[id(first)] or type_2 not in types[id(second)]:
+                continue
+            covered = True
+            if tagged(first, tags_1) and tagged(second, tags_2):
+                return days, min_consistency
+
+    return EXCLUDED_BY_RULE if covered else (None, None)
 
 
 class GcnEventAssociationsHandler(BaseHandler):
@@ -1133,12 +1160,12 @@ class GcnEventAssociationsHandler(BaseHandler):
 
             mine = await session.scalar(
                 GcnEvent.select(user)
-                .options(selectinload(GcnEvent.detectors))
+                # tags as well as detectors: the rules read both
+                .options(selectinload(GcnEvent.detectors), selectinload(GcnEvent._tags))
                 .where(GcnEvent.dateobs == dateobs_parsed)
             )
             if mine is None:
                 return self.error(f"No event {dateobs}", status=404)
-            my_types = [d.type for d in mine.detectors]
             rules = await user_association_rules(session, self.associated_user_object)
 
             out = []
@@ -1157,9 +1184,10 @@ class GcnEventAssociationsHandler(BaseHandler):
                 )
                 if other is None:
                     continue
-                max_days, min_consistency = association_cuts(
-                    rules, my_types, [d.type for d in other.detectors]
-                )
+                cuts = association_cuts(rules, mine, other)
+                if cuts is EXCLUDED_BY_RULE:
+                    continue
+                max_days, min_consistency = cuts
                 if query.maxDays is not None:
                     max_days = float(query.maxDays)
                 if query.minConsistency is not None:
@@ -1501,8 +1529,31 @@ class GcnEventTagsHandler(BaseHandler):
                 schema: Error
         """
 
+        # Optional: only the tags events of one messenger have actually carried,
+        # so a rule about gravitational waves is offered BNS and NSBH rather than
+        # every tag in the database.
+        detector_type = self.get_query_argument("detectorType", None)
+
         async with self.AsyncSession() as session:
-            result = await session.scalars(sa.select(GcnTag.text).distinct())
+            stmt = sa.select(GcnTag.text).distinct()
+            if detector_type is not None:
+                stmt = stmt.where(
+                    GcnTag.dateobs.in_(
+                        sa.select(GcnEvent.dateobs)
+                        .join(
+                            GcnEventMMADetector,
+                            GcnEventMMADetector.gcnevent_id == GcnEvent.id,
+                        )
+                        .join(
+                            MMADetector,
+                            sa.and_(
+                                MMADetector.id == GcnEventMMADetector.mmadetector_id,
+                                MMADetector.type == detector_type,
+                            ),
+                        )
+                    )
+                )
+            result = await session.scalars(stmt)
             tags = result.unique().all()
             return self.success(data=tags)
 

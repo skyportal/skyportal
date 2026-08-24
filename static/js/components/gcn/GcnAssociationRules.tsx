@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
+import GcnTagsSelect from "./GcnTagsSelect";
 import {
   useDeleteGcnAssociationRuleMutation,
   useGetGcnAssociationRulesQuery,
@@ -44,6 +45,8 @@ const GcnAssociationRules = () => {
   const [type2, setType2] = useState(MESSENGERS[1] as string);
   const [days, setDays] = useState("");
   const [minConsistency, setMinConsistency] = useState("0.5");
+  const [tags1, setTags1] = useState<string[]>([]);
+  const [tags2, setTags2] = useState<string[]>([]);
 
   const handleAdd = async () => {
     const parsedDays = Number(days);
@@ -53,8 +56,12 @@ const GcnAssociationRules = () => {
       detector_type_2: type2,
       days: parsedDays,
       min_consistency: Number(minConsistency) || 0.5,
+      tags_1: tags1,
+      tags_2: tags2,
     });
     setDays("");
+    setTags1([]);
+    setTags2([]);
   };
 
   return (
@@ -77,7 +84,11 @@ const GcnAssociationRules = () => {
           {(rules ?? []).map((rule) => (
             <TableRow key={rule.id} hover>
               <TableCell>
-                {rule.detector_type_1} × {rule.detector_type_2}
+                {rule.detector_type_1}
+                {rule.tags_1?.length
+                  ? ` (${rule.tags_1.join(", ")})`
+                  : ""} × {rule.detector_type_2}
+                {rule.tags_2?.length ? ` (${rule.tags_2.join(", ")})` : ""}
               </TableCell>
               <TableCell>{humanWindow(rule.days)}</TableCell>
               <TableCell>{rule.min_consistency}</TableCell>
@@ -104,35 +115,63 @@ const GcnAssociationRules = () => {
         </TableBody>
       </Table>
 
-      <Stack direction="row" spacing={1} sx={{ mt: 2, alignItems: "center" }}>
-        <TextField
-          select
-          size="small"
-          label="Messenger"
-          value={type1}
-          onChange={(event) => setType1(event.target.value)}
-          sx={{ minWidth: "12rem" }}
-        >
-          {MESSENGERS.map((messenger) => (
-            <MenuItem key={messenger} value={messenger}>
-              {messenger}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Messenger"
-          value={type2}
-          onChange={(event) => setType2(event.target.value)}
-          sx={{ minWidth: "12rem" }}
-        >
-          {MESSENGERS.map((messenger) => (
-            <MenuItem key={messenger} value={messenger}>
-              {messenger}
-            </MenuItem>
-          ))}
-        </TextField>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mt: 2, alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
+      >
+        {[
+          {
+            label: "First messenger",
+            testid: "association-tags-1",
+            type: type1,
+            setType: setType1,
+            tags: tags1,
+            setTags: setTags1,
+          },
+          {
+            label: "Second messenger",
+            testid: "association-tags-2",
+            type: type2,
+            setType: setType2,
+            tags: tags2,
+            setTags: setTags2,
+          },
+        ].map((side) => (
+          <Stack
+            key={side.label}
+            spacing={1}
+            sx={{ minWidth: "13rem", maxWidth: "15rem" }}
+          >
+            <TextField
+              select
+              size="small"
+              label={side.label}
+              value={side.type}
+              onChange={(event) => {
+                side.setType(event.target.value);
+                // the tags offered are this messenger's, so drop the old ones
+                side.setTags([]);
+              }}
+            >
+              {MESSENGERS.map((messenger) => (
+                <MenuItem key={messenger} value={messenger}>
+                  {messenger}
+                </MenuItem>
+              ))}
+            </TextField>
+            {/* SelectWithChips labels are not associated with their input,
+                so the picker is addressed by test id rather than by label */}
+            <div data-testid={side.testid}>
+              <GcnTagsSelect
+                title="Only events tagged"
+                selectedGcnTags={side.tags}
+                setSelectedGcnTags={side.setTags}
+                detectorType={side.type}
+              />
+            </div>
+          </Stack>
+        ))}
         <TextField
           size="small"
           label="Within (days)"

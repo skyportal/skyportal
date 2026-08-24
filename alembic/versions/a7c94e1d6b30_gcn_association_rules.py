@@ -9,6 +9,7 @@ Create Date: 2026-08-23 16:45:00.000000
 """
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -17,7 +18,9 @@ down_revision = "f3b02c8e5a91"
 branch_labels = None
 depends_on = None
 
-MESSENGER = sa.Enum(
+# the type already exists (see the x-ray migration); create_type is a
+# postgresql-dialect flag that sa.Enum silently ignores
+MESSENGER = postgresql.ENUM(
     "gravitational-wave",
     "neutrino",
     "gamma-ray-burst",
@@ -40,6 +43,8 @@ def upgrade():
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("detector_type_1", MESSENGER, nullable=False),
         sa.Column("detector_type_2", MESSENGER, nullable=False),
+        sa.Column("tags_1", sa.ARRAY(sa.String()), server_default="{}", nullable=False),
+        sa.Column("tags_2", sa.ARRAY(sa.String()), server_default="{}", nullable=False),
         sa.Column("days", sa.Float(), nullable=False),
         sa.Column("min_consistency", sa.Float(), server_default="0.5", nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
