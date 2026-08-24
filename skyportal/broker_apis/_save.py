@@ -129,6 +129,12 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
         raise ValueError(f"No zeropoint configured for survey '{survey}'.")
 
     photometry_data: dict = {}
+    # Photometry is unique on (obj, instrument, origin, mjd, filter), and one
+    # epoch can appear in more than one of these arrays (Lasair repeats
+    # detections across prv_candidates and fp_hists). Postgres cannot resolve
+    # duplicates that arrive in the same INSERT -- ON CONFLICT raises instead --
+    # so the whole object's photometry would be lost. Keep the first of each.
+    seen: set = set()
     for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
         for phot in data.get(array_name) or []:
             jd, band = phot.get("jd"), phot.get("band")
@@ -160,6 +166,11 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
+
+            epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
+            if epoch in seen:
+                continue
+            seen.add(epoch)
             if key not in photometry_data:
                 stream_ids = programid2streamid.get(key)
                 if not stream_ids:
@@ -385,7 +396,16 @@ async def _ingest_object(
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
             # Bulk ingestion must not inherit the sitewide default-share; keep
             # ingested photometry scoped to the object's stream/user groups.
-            await add_external_photometry(pd, user, session, apply_default_share=False)
+            try:
+                await add_external_photometry(
+                    pd, user, session, apply_default_share=False
+                )
+            except Exception as e:
+                # Leaving a failed statement uncommitted poisons the session:
+                # everything after it raises MissingGreenlet instead of its own
+                # error, so the thumbnails and the candidate go too.
+                await session.rollback()
+                log(f"Failed to add photometry for {object_id}: {e}")
 
     # Best-effort science/template/difference thumbnails if the provider gave us
     # the cutouts.
