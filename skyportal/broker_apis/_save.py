@@ -21,6 +21,11 @@ _DEFAULT_MIN_SNR = 5.0
 # sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
 _MAG_SNR_CONST = 1.0857362
 
+# Default cone radius (arcsec) for the positional junk-group auto-save skip when a
+# filter sets ignore-groups but no explicit `autoSaveIgnoreRadius`. Set 0 to skip
+# only on an exact obj match.
+_DEFAULT_IGNORE_RADIUS_ARCSEC = 2.0
+
 
 def _point_snr(p):
     """S/N of a photometry point, handling both flux-space (psfFlux/psfFluxErr,
@@ -234,6 +239,7 @@ async def _ingest_object(
         Maps a skyportal Filter id to the annotation data its pipeline produced,
         written as a filter annotation (origin ``"{group}:{filter}"``) on the obj.
     """
+    import conesearch_alchemy as ca
     import sqlalchemy as sa
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from sqlalchemy.orm import joinedload
@@ -244,17 +250,26 @@ async def _ingest_object(
     from ..models import (
         Annotation,
         Candidate,
+        Comment,
         Filter,
         Group,
         GroupAnnotation,
         Instrument,
         Obj,
         Source,
+        User,
+    )
+    from ..utils.data_access import (
+        any_group_auto_publishes,
+        auto_source_publishing_async,
     )
     from ..utils.naive_datetime import utcnow_naive
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
+    saved_group_ids = []  # groups this call newly saves to (for auto-publish)
+    autosave_comments = []  # (group_id, text, saver_id) to post after auto-save
+    group_saver_id = {}  # group_id -> user id the auto-actions run under
 
     # Ingestion criteria gate: drop the alert against filters whose extra criteria
     # it fails. If nothing survives and this isn't an interactive save (group_ids),
@@ -296,6 +311,7 @@ async def _ingest_object(
         if created:
             for g in groups:
                 session.add(Source(obj=obj, group=g, saved_by_id=user.id))
+                saved_group_ids.append(g.id)
 
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
@@ -320,23 +336,56 @@ async def _ingest_object(
                 )
 
         # Auto-save the passing object to the filter's group. Skip if it's already
-        # an active Source there or in a filter `autoSaveIgnoreGroupIds` (junk).
+        # an active Source there or in a filter `autoSaveIgnoreGroupIds` (junk) --
+        # by exact obj, and, when `autoSaveIgnoreRadius` (arcsec) is set, also by
+        # position, so a junk duplicate (AGN / high-PM star with a new id) blocks it.
         autosave_filters = (
             await session.scalars(
                 sa.select(Filter).where(Filter.id.in_(filter_ids), Filter.autosave)
             )
         ).all()
         for f in autosave_filters:
-            ignore_group_ids = (f.altdata or {}).get("autoSaveIgnoreGroupIds") or []
-            already = await session.scalar(
-                sa.select(Source).where(
+            altdata = f.altdata or {}
+            ignore_group_ids = altdata.get("autoSaveIgnoreGroupIds") or []
+            ignore_radius = altdata.get("autoSaveIgnoreRadius")
+            if ignore_radius is None:
+                ignore_radius = _DEFAULT_IGNORE_RADIUS_ARCSEC
+            skip_conditions = [
+                sa.and_(
                     Source.obj_id == object_id,
                     Source.group_id.in_([f.group_id, *ignore_group_ids]),
-                    Source.active.is_(True),
                 )
+            ]
+            if (
+                ignore_group_ids
+                and ignore_radius
+                and obj.ra is not None
+                and obj.dec is not None
+            ):
+                skip_conditions.append(
+                    sa.and_(
+                        Source.group_id.in_(ignore_group_ids),
+                        Obj.within(
+                            ca.Point(ra=obj.ra, dec=obj.dec),
+                            float(ignore_radius) / 3600.0,
+                        ),
+                    )
+                )
+            already = await session.scalar(
+                sa.select(Source.id)
+                .join(Obj, Obj.id == Source.obj_id)
+                .where(Source.active.is_(True), sa.or_(*skip_conditions))
             )
             if already is None:
-                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=user.id))
+                # Attribute the save (and the comment/TNS actions below) to a
+                # configured user if set, else the bot.
+                saver_id = altdata.get("autoSaveSaverId") or user.id
+                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                saved_group_ids.append(f.group_id)
+                group_saver_id[f.group_id] = saver_id
+                comment_text = (altdata.get("autoSaveComment") or "").strip()
+                if comment_text:
+                    autosave_comments.append((f.group_id, comment_text, saver_id))
 
     # autoflush is off on skyportal's async session; flush so the new Obj (and any
     # Candidate rows) are visible to add_external_photometry's existence check.
@@ -361,6 +410,9 @@ async def _ingest_object(
             )
         ).all()
         for filt in filters:
+            # autoAnnotate defaults on; a filter can opt out of writing annotations.
+            if (filt.altdata or {}).get("autoAnnotate", True) is False:
+                continue
             group = filt.group
             # origin matches the legacy broker-plugin format so new annotations
             # group with the historical ones.
@@ -416,6 +468,55 @@ async def _ingest_object(
             await add_thumbnails(object_id, cutouts, survey, session, user_id=user.id)
         except Exception as e:
             log(f"Failed to add thumbnails for {object_id}: {e}")
+
+    # Resolve the users the auto-actions run under (a configured saver, else the
+    # bot) so the comment author and the TNS submitter match the saver -- e.g. so
+    # TNS author lists come out right.
+    actor_ids = {sid for sid in group_saver_id.values() if sid != user.id}
+    user_by_id = {user.id: user}
+    if actor_ids:
+        for u in (
+            await session.scalars(sa.select(User).where(User.id.in_(actor_ids)))
+        ).all():
+            user_by_id[u.id] = u
+
+    # Post each filter's optional auto-save comment (mirrors Kowalski
+    # autosave.comment), scoped to the filter's group, authored by the saver.
+    if autosave_comments:
+        groups_by_id = {
+            g.id: g
+            for g in (
+                await session.scalars(
+                    sa.select(Group).where(
+                        Group.id.in_({gid for gid, _, _ in autosave_comments})
+                    )
+                )
+            ).all()
+        }
+        for gid, text, saver_id in autosave_comments:
+            g = groups_by_id.get(gid)
+            session.add(
+                Comment(
+                    text=text,
+                    obj_id=object_id,
+                    author=user_by_id.get(saver_id, user),
+                    groups=[g] if g else [],
+                    bot=True,
+                )
+            )
+
+    # BOOM saves Sources via the ORM, bypassing post_source's auto-publish hook;
+    # fire it here so TNS/Hermes/Public-page auto-publishers react to new saves.
+    if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
+        publish_to = ["TNS", "Hermes", "Public page"]
+        for gid in saved_group_ids:
+            await auto_source_publishing_async(
+                session=session,
+                saver=user_by_id.get(group_saver_id.get(gid), user),
+                obj=obj,
+                group_id=gid,
+                publish_to=publish_to,
+            )
 
     await session.commit()
     return {"id": object_id}

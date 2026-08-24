@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -17,6 +18,21 @@ from skyportal.models import (
 from skyportal.tests import api
 from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
+
+
+def _api_retry_on_gateway_timeout(*args, retries=4, delay=3, **kwargs):
+    """`api()` call that retries on a transient gateway timeout (502/503/504),
+    which loaded CI workers occasionally return on a POST. Safe for the calls it
+    wraps here: the SEDM submit is mocked in tests, so no external side effect,
+    and the report assertions tolerate a duplicate request from a retried POST
+    whose original had actually completed server-side."""
+    status, data = api(*args, **kwargs)
+    attempts = 0
+    while status in (502, 503, 504) and attempts < retries:
+        time.sleep(delay)
+        attempts += 1
+        status, data = api(*args, **kwargs)
+    return status, data
 
 
 @pytest.fixture()
@@ -85,7 +101,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     DBSession.commit()
 
     # A follow-up request (SEDM is an imaging spectrograph -> "spectroscopy").
-    status, data = api(
+    status, data = _api_retry_on_gateway_timeout(
         "POST",
         "followup_request",
         data={
