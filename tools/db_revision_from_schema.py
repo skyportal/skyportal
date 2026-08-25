@@ -181,6 +181,8 @@ def read_schema(connection):
 def main():
     env, cfg = load_env()
     engine = init_db(**{**cfg["database"], "pooler": None})
+    # the configuration decides this, so say which database was read
+    print(f"Database: {cfg['database']['database']} on {cfg['database']['host']}\n")
 
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
     history = [
