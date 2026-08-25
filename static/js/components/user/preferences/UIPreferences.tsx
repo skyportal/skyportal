@@ -20,6 +20,10 @@ const TOGGLES = [
     label: "Show AI Source Summaries on Source page",
     hidden: (prefs: any) => prefs?.hideSourceSummary === true,
   },
+  {
+    key: "hideDataFromDiscovery",
+    label: "Hide my data: never tell others it exists, or let them ask for it",
+  },
 ];
 
 const UIPreferences = () => {

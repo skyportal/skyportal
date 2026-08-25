@@ -59,6 +59,15 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  RequestSpectrumDialog,
+  UNSHARED_SPECTRUM,
+  unsharedSpectrumTraces,
+} from "./UnsharedSpectrumMarkers";
+import {
+  SpectrumAvailability,
+  useGetDataAvailabilityQuery,
+} from "../../ducks/dataAccessRequests";
 import OutburstPlot from "./OutburstPlot";
 import { OutburstPoint } from "./outburstTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
@@ -1804,6 +1813,15 @@ const PhotometryPlot = ({
     setTabIndex(newValue);
   };
 
+  // Spectra on this source that the viewer cannot open: marked like the others,
+  // in a colour that says so, and clickable to ask the owner for them.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(obj_id, {
+    skip: !obj_id,
+  });
+  const unsharedSpectra = dataAvailability?.spectra ?? [];
+  const [spectrumToRequest, setSpectrumToRequest] =
+    useState<SpectrumAvailability | null>(null);
+
   const yMarkers: any[] = [];
   if (photStats) {
     yMarkers.push(
@@ -1882,6 +1900,17 @@ const PhotometryPlot = ({
               hovertemplate: hovertext,
             };
           }),
+        )
+        .concat(
+          unsharedSpectrumTraces(
+            unsharedSpectra,
+            yMarkers,
+            {
+              available: muiTheme.palette.warning.main,
+              requested: muiTheme.palette.text.disabled,
+            },
+            muiTheme.palette.background.paper,
+          ),
         )
     : [];
 
@@ -1986,6 +2015,20 @@ const PhotometryPlot = ({
             ],
           }}
           useResizeHandler
+          onClick={(event: any) => {
+            const point = (event?.points || []).find(
+              (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
+            );
+            if (!point) return;
+            const spectrumId = Array.isArray(point.customdata)
+              ? point.customdata[0]
+              : point.customdata;
+            setSpectrumToRequest(
+              unsharedSpectra.find(
+                (spectrum) => spectrum.id === spectrumId,
+              ) as SpectrumAvailability,
+            );
+          }}
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e: any) => {
             // e contains a curveNumber (index of the trace clicked in the legend)
@@ -2038,6 +2081,11 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      <RequestSpectrumDialog
+        objId={obj_id}
+        spectrum={spectrumToRequest}
+        onClose={() => setSpectrumToRequest(null)}
+      />
       {effectiveModelFits.length > 0 && (
         <div
           style={{
