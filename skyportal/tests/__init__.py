@@ -1,4 +1,5 @@
 import os
+import time
 import urllib.parse
 
 import requests
@@ -119,3 +120,74 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
     if expected_status is not None:
         if status != expected_status:
             raise Exception(f"Expected status {expected_status}, got {status}")
+
+
+def retry_until(check, timeout=60, interval=1):
+    """Call `check` until it stops raising AssertionError, then return its result.
+
+    Polls on a short interval instead of sleeping a fixed amount, so a test only
+    waits as long as the background work actually takes.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            return check()
+        except AssertionError:
+            if time.time() >= deadline:
+                raise
+            time.sleep(interval)
+
+
+def wait_for_gcn_event(dateobs, token, timeout=120):
+    """Poll until the GCN event for `dateobs` has finished processing.
+
+    GCN event/localization ingestion (HEALPix skymaps) is slow under CI load, so
+    callers must wait for it with a generous timeout rather than racing it.
+    Returns the event data, or raises if it never finishes.
+    """
+    for _ in range(timeout // 2):
+        status, data = api("GET", f"gcn_event/{dateobs}", token=token)
+        if status == 200 and data.get("status") == "success":
+            return data["data"]
+        time.sleep(2)
+    raise AssertionError(f"GCN event {dateobs} did not process within {timeout}s")
+
+
+def wait_for_localization(dateobs, localization_name, token, timeout=240):
+    """Poll until the localization `dateobs`/`localization_name` has processed.
+
+    Returns the localization data (including its `id` and `flat_2d`), or raises.
+    """
+    for _ in range(timeout // 2):
+        status, data = api(
+            "GET",
+            f"localization/{dateobs}/name/{localization_name}",
+            token=token,
+            params={"include2DMap": True},
+        )
+        if status == 200 and data.get("status") == "success":
+            return data["data"]
+        time.sleep(2)
+    raise AssertionError(
+        f"Localization {localization_name} for {dateobs} did not process "
+        f"within {timeout}s"
+    )
+
+
+def expect_vega_plot(scope, count=None):
+    """Assert Vega drew marks inside `scope`, not just mounted a container.
+
+    Locators are CSS: XPath name tests do not match namespaced SVG elements.
+    """
+    from playwright.sync_api import expect
+
+    plots = scope.locator("svg.marks")
+    expect(plots.first).to_be_visible()
+    if count is not None:
+        expect(plots).to_have_count(count)
+    expect(scope.locator("svg.marks [class*='mark-']")).not_to_have_count(0)
+
+
+def open_preferences_panel(page, slug):
+    """Open a preferences panel, e.g. "notifications"."""
+    page.locator(f'//*[@data-testid="{slug}-panel"]').first.click()

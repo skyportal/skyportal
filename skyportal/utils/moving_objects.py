@@ -16,6 +16,7 @@ from skyportal.models import (
     InstrumentFieldTile,
 )
 from skyportal.utils.calculations import (
+    airmass_from_altitude,
     dms_to_deg,
     get_airmass,
     great_circle_distance_vec,
@@ -49,6 +50,177 @@ COLUMN_NAMES = [
 ]
 
 
+# JPL Scout, for objects still on the MPC's NEO Confirmation Page. These have no
+# Horizons entry, so `get_ephemeris` cannot be used for them.
+SCOUT_URL = "https://ssd-api.jpl.nasa.gov/scout.api"
+SCOUT_API_VERSION = "1.3"
+# The Scout API silently truncates ephemeris output beyond this many records.
+SCOUT_MAX_EPHEM_RECORDS = 500
+
+
+def get_scout_ephemeris(
+    tdes: str,
+    start_date: datetime,
+    end_date: datetime,
+    observer: Observer,
+    obscode: str,
+    step_minutes: int = 5,
+    airmass_limit: float = 2,
+    moon_distance_limit: float = 30,
+    sun_altitude_limit: float = -18,
+):
+    """
+    Get the ephemeris of an unconfirmed NEOCP object from JPL Scout.
+
+    Mirrors `get_ephemeris`, but sourced from Scout rather than Horizons and
+    keyed on the NEOCP temporary designation and an MPC observatory code.
+
+    Parameters
+    ----------
+    tdes : str
+        The NEOCP temporary designation, e.g. 'A11CmCW'.
+    start_date : datetime
+        The start date of the ephemeris.
+    end_date : datetime
+        The end date of the ephemeris.
+    observer : Observer
+        The observer location, used for the Sun altitude constraint.
+    obscode : str
+        MPC observatory code of the site, e.g. 'X05' for Rubin.
+    step_minutes : int, optional
+        Ephemeris step size in minutes.
+    airmass_limit : float, optional
+        Reject pointings above this airmass
+    moon_distance_limit : float, optional
+        Reject pointings closer than this distance to the moon, in degrees
+    sun_altitude_limit : float, optional
+        Reject pointings when the sun is above this altitude, in degrees
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns time, ra, dec, vmag, rate, sigma_pos (positional uncertainty
+        in arcmin), and time_diff.
+    """
+    if step_minutes <= 0:
+        raise ValueError("step_minutes must be positive")
+
+    duration_minutes = (end_date - start_date).total_seconds() / 60
+    n_records = int(duration_minutes // step_minutes) + 1
+    if n_records > SCOUT_MAX_EPHEM_RECORDS:
+        raise ValueError(
+            f"Requested {n_records} ephemeris records, but the Scout API returns at "
+            f"most {SCOUT_MAX_EPHEM_RECORDS}. Shorten the window or coarsen the step."
+        )
+
+    start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
+
+    cache_key = f"scout_{tdes}_{start_str}_{end_str}_{obscode}_{step_minutes}"
+    cached_data = cache[cache_key]
+    data = None
+    if cached_data is not None:
+        try:
+            data = np.load(cached_data, allow_pickle=True).item()
+        except Exception as e:
+            log(f"Failed to load cached data: {e}")
+
+    if data is None:
+        params = {
+            "tdes": tdes,
+            "obs-code": obscode,
+            "eph-start": start_str,
+            "eph-stop": end_str,
+            "eph-step": f"{step_minutes}m",
+        }
+        try:
+            response = requests.get(SCOUT_URL, params=params, timeout=60)
+        except Exception as e:
+            raise ValueError(f"Failed to query JPL Scout API: {e}")
+        if response.status_code != 200:
+            raise ValueError(f"Failed to query JPL Scout API: {response.text}")
+
+        data = response.json()
+        # SSSC filter criteria doc v0.2 section 2.4 requires an alert on a
+        # signature change, since the field semantics may have shifted.
+        version = (data.get("signature") or {}).get("version")
+        if version != SCOUT_API_VERSION:
+            log(
+                f"ALERT: JPL Scout API signature version is {version}, expected "
+                f"{SCOUT_API_VERSION}. Ephemeris parsing may be incorrect."
+            )
+        cache[cache_key] = dict_to_bytes(data)
+
+    eph = data.get("eph")
+    if not eph:
+        raise ValueError(f"No Scout ephemeris returned for '{tdes}'")
+
+    rows = []
+    for entry in eph:
+        median = entry.get("median") or {}
+        if median.get("ra") is None or median.get("dec") is None:
+            continue
+        rows.append(
+            {
+                "time": entry.get("time"),
+                "ra": float(median["ra"]),
+                "dec": float(median["dec"]),
+                "altitude": float(median["el"]) if median.get("el") else np.nan,
+                "moon_distance": float(median["moon"])
+                if median.get("moon")
+                else np.nan,
+                "vmag": float(median["vmag"]) if median.get("vmag") else np.nan,
+                "rate": float(median["rate"]) if median.get("rate") else np.nan,
+                "sigma_pos": float(entry["sigma-pos"])
+                if entry.get("sigma-pos") is not None
+                else np.nan,
+            }
+        )
+
+    if not rows:
+        raise ValueError(f"Scout returned no usable ephemeris rows for '{tdes}'")
+
+    df = pd.DataFrame(rows)
+    df["time"] = pd.to_datetime(df["time"])
+    df = df.sort_values("time")
+
+    df = df[airmass_from_altitude(df["altitude"].to_numpy()) < airmass_limit]
+    df = df[df["moon_distance"] >= moon_distance_limit]
+
+    if len(df) > 0:
+        times = Time(df["time"])
+        sun_alt = (
+            get_body("sun", times, observer.location)
+            .transform_to(AltAz(obstime=times, location=observer.location))
+            .alt.deg
+        )
+        df = df.iloc[np.where(np.atleast_1d(sun_alt) < sun_altitude_limit)[0]]
+
+    df = df.drop(columns=["altitude"])
+    df["time_diff"] = df["time"].diff()
+
+    return df.reset_index(drop=True)
+
+
+def longest_observable_window(df: pd.DataFrame, step_minutes: int = 5):
+    """
+    Length in minutes of the longest unbroken run of observable rows.
+
+    Implements the duration half of SSSC filter criteria doc v0.2 section 2.2
+    ("airmass < 2 for more than 30 minutes"); the airmass cut itself is applied
+    upstream by `get_scout_ephemeris`.
+    """
+    if len(df) == 0:
+        return 0.0
+
+    step = pd.Timedelta(minutes=step_minutes)
+    # A gap larger than one step means the rows in between failed a constraint.
+    breaks = (df["time"].diff() > step).cumsum()
+    longest = df.groupby(breaks).size().max()
+
+    return float((longest - 1) * step_minutes)
+
+
 def find_jplhorizon_obj(obj_name: str):
     """
     Find the object with the given name in the JPL Horizons database.
@@ -65,7 +237,7 @@ def find_jplhorizon_obj(obj_name: str):
     """
     url = urllib.parse.urljoin(BASE_URL, f"/api/horizons_support.api")
     try:
-        response = requests.get(url, params={"sstr": obj_name})
+        response = requests.get(url, params={"sstr": obj_name}, timeout=60)
     except Exception as e:
         raise ValueError(f"Failed to query JPL Horizons API: {e}")
     if response.status_code != 200:
@@ -161,7 +333,7 @@ def get_ephemeris(
             "CSV_FORMAT": "'YES'",
         }
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=60)
         except Exception as e:
             raise ValueError(f"Failed to query JPL Horizons API: {e}")
         if response.status_code != 200:
@@ -185,7 +357,12 @@ def get_ephemeris(
             "mag_ap",
         ]
     )
-    data = data.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    # Strip whitespace from string columns. Use is_string_dtype (not
+    # `== "object"`) so this also catches pandas >= 3.0's default `str` dtype,
+    # otherwise leading spaces survive and break the to_datetime parse below.
+    data = data.apply(
+        lambda x: x.str.strip() if pd.api.types.is_string_dtype(x.dtype) else x
+    )
     data = data.replace("n.a.", np.nan)
 
     data["time"] = pd.to_datetime(data["time"], format="%Y-%b-%d %H:%M")

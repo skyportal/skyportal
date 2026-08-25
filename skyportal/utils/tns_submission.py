@@ -245,15 +245,24 @@ def build_tns_report(
     return {"at_report": {"0": at_report}}
 
 
-def send_tns_report(submission_request, sharing_service, report):
+def send_tns_report(
+    obj_id, tns_bot_id, tns_bot_name, api_key, testing, sharing_service_id, report
+):
     """Build and send an AT report to TNS.
+
+    Takes plain values (not ORM objects) so the caller can release its DB
+    connection before this slow, retrying HTTP call.
 
     Parameters
     ----------
-    submission_request : `~skyportal.models.SubmissionRequest`
-        The submission request to send to TNS.
-    sharing_service : `~skyportal.models.SharingService`
-        The sharing service to use for the submission.
+    obj_id : str
+        The object being reported.
+    tns_bot_id, tns_bot_name, api_key : str
+        TNS bot credentials from the sharing service.
+    testing : bool
+        Whether the sharing service is in testing mode (skip real submission).
+    sharing_service_id : int
+        The sharing service id, for logging.
     report : dict
         The AT report to send to TNS.
 
@@ -266,21 +275,18 @@ def send_tns_report(submission_request, sharing_service, report):
     serialized_response : str or None
         The serialized response from the TNS API if the submission was successful, otherwise None.
     """
-    tns_headers = get_tns_headers(
-        sharing_service.tns_bot_id, sharing_service.tns_bot_name
-    )
-    obj_id = submission_request.obj_id
+    tns_headers = get_tns_headers(tns_bot_id, tns_bot_name)
     data = {
-        "api_key": sharing_service.tns_altdata["api_key"],
+        "api_key": api_key,
         "data": json.dumps(report),
     }
 
     submission_id = None
     serialized_response = None
 
-    if sharing_service.testing:
+    if testing:
         log(
-            f"Sharing service {sharing_service.id} is in testing mode, skipping TNS submission for {obj_id}."
+            f"Sharing service {sharing_service_id} is in testing mode, skipping TNS submission for {obj_id}."
         )
         return "Testing mode, not submitted", None, None
 
@@ -288,7 +294,7 @@ def send_tns_report(submission_request, sharing_service, report):
     max_retries = 24
     retry_delay = 10
     r = None
-    exceeded_rate_message = f"Exceeded TNS API rate limit when submitting {obj_id} with sharing service {sharing_service.id}"
+    exceeded_rate_message = f"Exceeded TNS API rate limit when submitting {obj_id} with sharing service {sharing_service_id}"
     for attempt in range(max_retries):
         r = requests.post(get_tns_url("report"), headers=tns_headers, data=data)
         if r.status_code != 429:
@@ -302,15 +308,15 @@ def send_tns_report(submission_request, sharing_service, report):
     if r.status_code == 200:
         submission_id = r.json()["data"]["report_id"]
         log(
-            f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for sharing service {sharing_service.id}"
+            f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for sharing service {sharing_service_id}"
         )
         status = "submitted"
     elif r.status_code == 401:
-        status = f"Error: Unauthorized to submit {obj_id} to TNS with sharing service {sharing_service.id}, credentials may be invalid"
+        status = f"Error: Unauthorized to submit {obj_id} to TNS with sharing service {sharing_service_id}, credentials may be invalid"
     elif r.status_code == 429:
         status = f"Error: {exceeded_rate_message}, and exceeded number of retries ({max_retries})"
     else:
-        status = f"Error: Failed to submit {obj_id} to TNS with sharing service {sharing_service.id}: {r.content}"
+        status = f"Error: Failed to submit {obj_id} to TNS with sharing service {sharing_service_id}: {r.content}"
 
     if isinstance(r, requests.models.Response):
         # we store the request's TNS response in the database for bookkeeping and debugging
@@ -331,6 +337,10 @@ def submit_to_tns(
     session,
 ):
     notif_type = "info"
+    # Snapshot ids up front: the flow push below also runs on early-error paths,
+    # and these ORM attrs expire once we commit before the HTTP call.
+    sharing_service_id = sharing_service.id
+    user_id = submission_request.user_id
     try:
         if not TNS_URL:
             raise ValueError(
@@ -380,9 +390,23 @@ def submit_to_tns(
         )
         submission_request.tns_payload = json.dumps(tns_report)
 
-        # submit the report to TNS
+        # Snapshot what the HTTP call needs, then commit so the DB connection is
+        # released before the slow, retrying TNS submission (no idle-in-txn).
+        tns_bot_id = sharing_service.tns_bot_id
+        tns_bot_name = sharing_service.tns_bot_name
+        api_key = sharing_service.tns_altdata["api_key"]
+        testing = sharing_service.testing
+        session.commit()
+
+        # submit the report to TNS (no DB transaction open)
         status, submission_id, serialized_response = send_tns_report(
-            submission_request, sharing_service, tns_report
+            obj_id,
+            tns_bot_id,
+            tns_bot_name,
+            api_key,
+            testing,
+            sharing_service_id,
+            tns_report,
         )
         submission_request.tns_submission_id = submission_id
         submission_request.tns_response = serialized_response
@@ -390,11 +414,9 @@ def submit_to_tns(
         notif_text = status
         if status in ["submitted", "Testing mode, not submitted"]:
             if status == "Testing mode, not submitted":
-                notif_text = f"Successfully created TNS report for {submission_request.obj_id} (testing mode, not submitted)."
+                notif_text = f"Successfully created TNS report for {obj_id} (testing mode, not submitted)."
             else:
-                notif_text = (
-                    f"Successfully submitted {submission_request.obj_id} to TNS."
-                )
+                notif_text = f"Successfully submitted {obj_id} to TNS."
             if warning:
                 status += f"(warning: {warning})"
                 notif_text += f"(warning: {warning})"
@@ -415,10 +437,10 @@ def submit_to_tns(
         flow.push(
             "*",
             "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
-            payload={"sharing_service_id": sharing_service.id},
+            payload={"sharing_service_id": sharing_service_id},
         )
         flow.push(
-            user_id=submission_request.user_id,
+            user_id=user_id,
             action_type="baselayer/SHOW_NOTIFICATION",
             payload={
                 "note": notif_text,

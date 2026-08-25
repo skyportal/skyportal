@@ -1,14 +1,16 @@
 import functools
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+import aiohttp
 import astroplan
 import astropy.units as u
 import numpy as np
-import requests
+import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -16,6 +18,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import get_next_valid_observing_time
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -50,6 +53,23 @@ filters_value = {
 tarot_proxy_endpoint = cfg.get("app.tarot_proxy_endpoint")
 
 
+async def decode_response(response):
+    """Decode a TAROT response body.
+
+    TAROT replies in Latin-1 without declaring it, so aiohttp's `.text()` tries
+    UTF-8 and raises on any accent. Latin-1 maps every byte, so this can't fail.
+    """
+    body = await response.read()
+    for encoding in (response.charset, "utf-8", "latin-1"):
+        if encoding is None:
+            continue
+        try:
+            return body.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return body.decode("utf-8", errors="replace")
+
+
 def get_header(altdata):
     return {
         "Authorization": f"token {altdata['proxy_token']}",
@@ -60,18 +80,18 @@ def get_header(altdata):
 
 def catch_timeout_and_no_endpoint(func):
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         if tarot_proxy_endpoint is None:
             raise ValueError("TAROT proxy endpoint not configured")
         try:
-            return func(*args, **kwargs)
-        except requests.exceptions.Timeout:
+            return await func(*args, **kwargs)
+        except (TimeoutError, aiohttp.ServerTimeoutError):
             raise ValueError("Unable to reach the TAROT server")
 
     return wrapper
 
 
-def get_observing_time(session, request):
+async def get_observing_time(session, request):
     """Get the next valid observing time for the request range and instrument.
 
     Parameters
@@ -88,7 +108,7 @@ def get_observing_time(session, request):
     """
     from ..models import Telescope
 
-    telescope = session.scalar(
+    telescope = await session.scalar(
         Telescope.select(session.user_or_token, mode="read").where(
             Telescope.id == request.instrument.telescope_id
         )
@@ -172,7 +192,7 @@ def check_payload(payload, station_name):
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
 
-    if payload["end_date"] < str(datetime.utcnow()):
+    if payload["end_date"] < str(utcnow_naive()):
         raise ValueError("end_date must be in the future.")
 
     if payload["observation_preference"] not in [
@@ -334,7 +354,7 @@ def check_altdata(altdata):
     return altdata
 
 
-def login_to_tarot(request, session, altdata):
+async def login_to_tarot(request, session, altdata):
     """Login to TAROT and return the hash user.
 
     Parameters
@@ -359,38 +379,44 @@ def login_to_tarot(request, session, altdata):
         "Submit": "Entry",
     }
 
-    login_response = requests.post(
-        f"{tarot_proxy_endpoint}/manage/manage/login.php",
-        data=data,
-        headers=get_header(altdata),
-        timeout=7.0,
-    )
+    url = f"{tarot_proxy_endpoint}/manage/manage/login.php"
+    headers = get_header(altdata)
+
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            url,
+            data=data,
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=7.0),
+        ) as login_response:
+            login_text = await decode_response(login_response)
+            login_status = login_response.status
 
     error = None
-    if login_response.status_code == 500 and "timeout" in login_response.text:
+    if login_status == 500 and "timeout" in login_text:
         error = "impossible to connect to TAROT, timeout error."
-    if login_response.status_code == 401:
-        if "Authentication required" in login_response.text:
+    if login_status == 401:
+        if "Authentication required" in login_text:
             error = "unauthorized access to tarot. Update tarot credentials of this allocation."
         else:
             error = (
                 "unauthorized access to Icare. Update Icare token of this allocation."
             )
-    elif login_response.status_code == 200 and "hashuser" in login_response.text:
-        hash_user = login_response.text.split("hashuser=")[1][:20]
+    elif login_status == 200 and "hashuser" in login_text:
+        hash_user = login_text.split("hashuser=")[1][:20]
         if hash_user is not None and len(hash_user) == 20:
             return hash_user
         else:
             error = "tarot hashuser not found in login response"
 
     transaction = FacilityTransaction(
-        request=http.serialize_requests_request(login_response.request),
-        response=http.serialize_requests_response(login_response),
+        request=http.serialize_aiohttp_request("POST", url, headers, data),
+        response=await http.serialize_aiohttp_response(login_response, login_text),
         followup_request=request,
         initiator_id=request.last_modified_by_id,
     )
     session.add(transaction)
-    raise ValueError(error if error else f"unexpected error trying to login to TAROT")
+    raise ValueError(error if error else "unexpected error trying to login to TAROT")
 
 
 class TAROTAPI(FollowUpAPI):
@@ -398,7 +424,7 @@ class TAROTAPI(FollowUpAPI):
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to TAROT.
         For TAROT, this means adding a new scene to a request already created.
         One scene is created for each group of 6 or less exposure_count * filter.
@@ -410,13 +436,26 @@ class TAROTAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest, Obj
+
+        # Reload with the lazy chains this method (and helpers it calls) walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photstats),
+            )
+        )
 
         altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
         check_payload(request.payload, specific_config["station_name"])
 
-        hash_user = login_to_tarot(request, session, altdata)
+        hash_user = await login_to_tarot(request, session, altdata)
 
         # Add station latency delay: some sites take longer to ingest scenes into their DB.
         delay = station_dict[specific_config["station_name"]]["delay"]
@@ -424,7 +463,7 @@ class TAROTAPI(FollowUpAPI):
         if request.payload["start_date"] < minimum_observing_time:
             request.payload["start_date"] = minimum_observing_time.iso
 
-        observing_time = get_observing_time(session, request)
+        observing_time = await get_observing_time(session, request)
         observation_string = create_request_string(
             request.obj,
             request.payload,
@@ -444,18 +483,24 @@ class TAROTAPI(FollowUpAPI):
             "Submit": "Ok for quick depot",
         }
 
-        response = requests.post(
-            f"{tarot_proxy_endpoint}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}",
-            data=payload,
-            headers=get_header(altdata),
-            timeout=7.0,
-        )
+        url = f"{tarot_proxy_endpoint}/manage/manage/depot/depot-defaultshort.res.php?hashuser={hash_user}&idreq={altdata['request_id']}"
+        headers = get_header(altdata)
 
-        if "New Scene Inserted" not in response.text:
-            error_response = f"rejected: status code = {response.status_code}. "
-            if response.status_code == 200:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                url,
+                data=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=7.0),
+            ) as response:
+                response_text = await decode_response(response)
+                response_status = response.status
+
+        if "New Scene Inserted" not in response_text:
+            error_response = f"rejected: status code = {response_status}. "
+            if response_status == 200:
                 error_response += "Scene not Inserted" + (
-                    " - Hashuser not valid" if "secu_erreur" in response.text else ""
+                    " - Hashuser not valid" if "secu_erreur" in response_text else ""
                 )
             request.status = error_response
         else:
@@ -463,14 +508,14 @@ class TAROTAPI(FollowUpAPI):
             request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: use retrieve to check status"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request),
-            response=http.serialize_requests_response(response),
+            request=http.serialize_aiohttp_request("POST", url, headers, payload),
+            response=await http.serialize_aiohttp_response(response, response_text),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         try:
             flow = Flow()
@@ -489,7 +534,7 @@ class TAROTAPI(FollowUpAPI):
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def get(request, session, **kwargs):
+    async def get(request, session, **kwargs):
         """Get the status of a follow-up request from TAROT.
 
         Parameters
@@ -499,7 +544,21 @@ class TAROTAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         altdata = check_altdata(request.allocation.altdata)
         specific_config = check_specific_config(request)
@@ -521,16 +580,21 @@ class TAROTAPI(FollowUpAPI):
         nb_observation = None
         if not request.status.startswith("submitted: planified"):
             # if the request is not planified, check the status of the request
-            response = requests.get(
-                f"{tarot_proxy_endpoint}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt",
-                headers=get_header(altdata),
-                timeout=7.0,
-            )
+            url = f"{tarot_proxy_endpoint}/rejected{station_dict[specific_config['station_name']]['status_url']}.txt"
+            headers = get_header(altdata)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
+                ) as response:
+                    response_text = await decode_response(response)
+                    response_status = response.status
 
-            if response.status_code != 200:
+            if response_status != 200:
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(response.request),
-                    response=http.serialize_requests_response(response),
+                    request=http.serialize_aiohttp_request("GET", url, headers),
+                    response=await http.serialize_aiohttp_response(
+                        response, response_text
+                    ),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -538,7 +602,7 @@ class TAROTAPI(FollowUpAPI):
                 raise ValueError("Error trying to get the status of the request")
 
             pattern = rf"\b\d*{re.escape(manager_scene_id)}\d*\b.*?{request.obj.id}.*?\((\d+)\)"
-            match_status = re.search(pattern, response.text)
+            match_status = re.search(pattern, response_text)
 
             # To check the request status, an identifier is retrieved from each scene on TAROT manager,
             # Each identifier corresponds to a different status, as shown below:
@@ -552,9 +616,9 @@ class TAROTAPI(FollowUpAPI):
             }
 
             if not match_status or not match_status.groups():
-                if observing_time > datetime.utcnow() + timedelta(days=1):
+                if observing_time > utcnow_naive() + timedelta(days=1):
                     request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
-                elif observing_time >= datetime.utcnow():
+                elif observing_time >= utcnow_naive():
                     # If the status is not found, it means the tarot server is not yet aware of the request
                     return
                 # if observing time is in the past, we pass here and will check the observation status in a future step
@@ -565,15 +629,20 @@ class TAROTAPI(FollowUpAPI):
 
         if "submitted: planified" in request.status:
             # try to retrieve the time of the planified request from the sequenced file
-            response_sequenced = requests.get(
-                f"{tarot_proxy_endpoint}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt",
-                headers=get_header(altdata),
-                timeout=7.0,
-            )
-            if response_sequenced.status_code != 200:
+            url = f"{tarot_proxy_endpoint}/sequenced{station_dict[specific_config['station_name']]['status_url']}.txt"
+            headers = get_header(altdata)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
+                ) as response_sequenced:
+                    response_sequenced_text = await decode_response(response_sequenced)
+                    response_sequenced_status = response_sequenced.status
+            if response_sequenced_status != 200:
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(response_sequenced.request),
-                    response=http.serialize_requests_response(response_sequenced),
+                    request=http.serialize_aiohttp_request("GET", url, headers),
+                    response=await http.serialize_aiohttp_response(
+                        response_sequenced, response_sequenced_text
+                    ),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -584,7 +653,7 @@ class TAROTAPI(FollowUpAPI):
 
             try:
                 pattern = rf".*{re.escape(manager_scene_id)}.*?{request.obj.id}"
-                sequenced_info = re.search(pattern, response_sequenced.text)
+                sequenced_info = re.search(pattern, response_sequenced_text)
                 # Regex to capture date and time in the format "YYYY-MM-DDTHH:MM:SS.SSS"
                 pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}"
                 # Extract the second date and time which is the real beginning of the observation
@@ -596,31 +665,36 @@ class TAROTAPI(FollowUpAPI):
 
         if (
             not request.status.startswith("rejected")
-            and observing_time < datetime.utcnow()
+            and observing_time < utcnow_naive()
         ):
             # check if the scene has been observed
-            response_observation = requests.get(
-                f"{tarot_proxy_endpoint}/{specific_config['station_name'].lower()}/",
-                headers=get_header(altdata),
-                timeout=7.0,
-            )
+            url = f"{tarot_proxy_endpoint}/{specific_config['station_name'].lower()}/"
+            headers = get_header(altdata)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=7.0)
+                ) as response_observation:
+                    response_observation_text = await decode_response(
+                        response_observation
+                    )
+                    response_observation_status = response_observation.status
 
-            if response_observation.status_code != 200:
+            if response_observation_status != 200:
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(
-                        response_observation.request
+                    request=http.serialize_aiohttp_request("GET", url, headers),
+                    response=await http.serialize_aiohttp_response(
+                        response_observation, response_observation_text
                     ),
-                    response=http.serialize_requests_response(response_observation),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
                 session.add(transaction)
                 raise ValueError("Observation log currently unavailable on TAROT")
 
-            if manager_scene_id in response_observation.text:
-                nb_observation = response_observation.text.count(manager_scene_id)
-                request.status = f"complete"
-            elif observing_time + timedelta(hours=3) < datetime.utcnow():
+            if manager_scene_id in response_observation_text:
+                nb_observation = response_observation_text.count(manager_scene_id)
+                request.status = "complete"
+            elif observing_time + timedelta(hours=3) < utcnow_naive():
                 previous_status = (
                     "planified"
                     if request.status.startswith("planified")
@@ -628,7 +702,7 @@ class TAROTAPI(FollowUpAPI):
                 )
                 request.status = f"rejected: {previous_status} but observation failed due to a TAROT error"
 
-        session.commit()
+        await session.commit()
 
         try:
             flow = Flow()
@@ -656,7 +730,7 @@ class TAROTAPI(FollowUpAPI):
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from TAROT queue.
 
         Parameters
@@ -667,7 +741,19 @@ class TAROTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FollowupRequest
+        from ..models import FacilityTransaction, FollowupRequest, Obj
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photstats),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -676,10 +762,10 @@ class TAROTAPI(FollowUpAPI):
 
         # this happens for failed submissions, just go ahead and delete
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             insert_scene_ids = re.findall(
                 r"insert_id\s*=\s*(\d+)",
@@ -687,32 +773,40 @@ class TAROTAPI(FollowUpAPI):
             )
             if insert_scene_ids:
                 altdata = check_altdata(request.allocation.altdata)
-                hash_user = login_to_tarot(request, session, altdata)
+                hash_user = await login_to_tarot(request, session, altdata)
                 data = {"check[]": insert_scene_ids, "remove": "Remove Scenes"}
 
-                response = requests.post(
-                    f"{tarot_proxy_endpoint}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}",
-                    data=data,
-                    headers=get_header(altdata),
-                    timeout=7.0,
-                )
-                if response.status_code != 200:
-                    is_error_on_delete = response.content
+                url = f"{tarot_proxy_endpoint}/manage/manage/liste_scene.php?hashuser={hash_user}&idreq={altdata['request_id']}"
+                headers = get_header(altdata)
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(
+                        url,
+                        data=data,
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=7.0),
+                    ) as response:
+                        response_text = await decode_response(response)
+                        response_status = response.status
+
+                if response_status != 200:
+                    is_error_on_delete = response_text
                 else:
                     for scene_id in insert_scene_ids:
-                        if f"Scene '{scene_id}' removed" not in response.text:
-                            is_error_on_delete = response.content
+                        if f"Scene '{scene_id}' removed" not in response_text:
+                            is_error_on_delete = response_text
                             break
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(response.request),
-                    response=http.serialize_requests_response(response),
+                    request=http.serialize_aiohttp_request("POST", url, headers, data),
+                    response=await http.serialize_aiohttp_response(
+                        response, response_text
+                    ),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
 
                 session.add(transaction)
-                session.commit()
+                await session.commit()
 
             request.status = (
                 "deleted"
@@ -772,15 +866,13 @@ class TAROTAPI(FollowUpAPI):
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()).replace("T", ""),
+                    "default": str(utcnow_naive()).replace("T", ""),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
-                    "default": str(datetime.utcnow() + timedelta(days=7)).replace(
-                        "T", ""
-                    ),
+                    "default": str(utcnow_naive() + timedelta(days=7)).replace("T", ""),
                 },
                 "observation_preference": {
                     "type": "string",

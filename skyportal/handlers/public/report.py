@@ -24,7 +24,7 @@ ALLOWED_REPORT_TYPES = ["gcn"]
 
 
 class ReportHandler(BaseHandler):
-    def get(self, report_type, report_id=None, option=None):
+    def get(self, report_type: str, report_id: int | None = None, option: str = None):
         """
         ---
         summary: Get GCN event public reports

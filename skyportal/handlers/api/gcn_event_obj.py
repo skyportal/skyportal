@@ -1,0 +1,623 @@
+from typing import Annotated, ClassVar
+
+from marshmallow import Schema, fields, validates_schema
+from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload
+
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
+from ...enum_types import GCN_EVENT_OBJ_STATUSES
+from ...models import (
+    GcnEvent,
+    GcnEventObj,
+    Localization,
+)
+from ...utils.naive_datetime import UTCTZnaiveDateTime
+from ..base import BaseHandler
+
+Dateobs = Annotated[
+    str, Field(description="The dateobs of the event, as an arrow parseable string")
+]
+
+log = make_log("api/gcn_event_obj")
+
+
+class Validator(Schema):
+    method = fields.Str(required=True)
+    dateobs = UTCTZnaiveDateTime(required=True)
+    source_id = fields.String()
+    start_date = UTCTZnaiveDateTime(required=False, load_default=None)
+    end_date = UTCTZnaiveDateTime(required=False, load_default=None)
+    status = fields.Str(
+        required=False,
+        validate=lambda v: v in GCN_EVENT_OBJ_STATUSES,
+    )
+    explanation = fields.String(required=False)
+    notes = fields.String(required=False)
+    localization_name = fields.String()
+    localization_cumprob = fields.Float()
+    sources_id_list = fields.String()
+
+    @validates_schema
+    def validate_requires(self, data, **kwargs):
+        if "method" not in data:
+            raise ValidationError("method is required")
+        if data["method"] not in ["POST", "GET", "PATCH", "DELETE"]:
+            raise ValidationError("method must be one of POST, GET, PATCH or DELETE")
+        if data["method"] == "GET":
+            if "sources_id_list" not in data:
+                raise ValidationError("Missing required fields")
+            if data["sources_id_list"] is None:
+                raise ValidationError("Missing required fields")
+        if data["method"] == "POST":
+            if (
+                "start_date" not in data
+                or "end_date" not in data
+                or "localization_name" not in data
+                or "localization_cumprob" not in data
+            ):
+                raise ValidationError("Missing required fields")
+            if (
+                data["start_date"] is None
+                or data["end_date"] is None
+                or data["localization_name"] is None
+                or data["localization_cumprob"] is None
+            ):
+                raise ValidationError("Missing required fields")
+        if (
+            data["method"] == "PATCH"
+            or data["method"] == "DELETE"
+            or data["method"] == "POST"
+        ):
+            if "source_id" not in data:
+                raise ValidationError("Missing required fields")
+            if data["source_id"] is None:
+                raise ValidationError("Missing required fields")
+
+
+class SourcesConfirmedInGCNGetQuery(BaseModel):
+    """Query parameters for retrieving sources confirmed/rejected in a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    sourcesIDList: str = Field(
+        default="",
+        description="A comma-separated list of source_id's to retrieve. "
+        "If not provided, all sources confirmed or rejected in GCN will be returned.",
+    )
+
+
+class GcnEventObjHandler(BaseHandler):
+    @auth_or_token
+    async def get(
+        self,
+        dateobs: Dateobs,
+        source_id: Annotated[
+            str, Field(description="The source_id of the source to retrieve")
+        ] = None,
+        *,
+        query: SourcesConfirmedInGCNGetQuery = None,
+    ):
+        """
+        ---
+        single:
+          tags:
+            - gcn events
+            - sources
+          summary: Retrieve a source confirmed/rejected in a GCN
+          description: Retrieve a source that has been confirmed or rejected in a GCN
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/GcnEventObj'
+            400:
+              content:
+                application/json:
+                  schema: Error
+
+        multiple:
+          tags:
+            - gcn events
+            - sources
+          summary: Retrieve sources confirmed/rejected in a GCN
+          description: Retrieve sources that have been confirmed/rejected in a GCN
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/GcnEventObj'
+
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
+        query = self.parse_query(SourcesConfirmedInGCNGetQuery)
+
+        sources_id_list = query.sourcesIDList
+        if source_id is not None:
+            sources_id_list = source_id
+        validator_instance = Validator()
+        params_to_be_validated = {
+            "method": "GET",
+            "sources_id_list": sources_id_list,
+            "dateobs": dateobs,
+        }
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f"Error parsing query params: {e.args[0]}.")
+        dateobs = validated["dateobs"]
+        sources_id_list = validated["sources_id_list"]
+
+        if sources_id_list != "":
+            try:
+                sources_id_list = [sid.strip() for sid in sources_id_list.split(",")]
+            except ValueError:
+                return self.error(
+                    "some of the sourceIDs in the sourcesIDList are not valid strings"
+                )
+
+        async with self.AsyncSession() as session:
+            try:
+                gcn_event = await session.scalar(
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.dateobs == dateobs
+                    )
+                )
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
+
+                if len(sources_id_list) == 0:
+                    stmt = GcnEventObj.select(session.user_or_token).where(
+                        GcnEventObj.dateobs == dateobs
+                    )
+                else:
+                    stmt = GcnEventObj.select(session.user_or_token).where(
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id.in_(sources_id_list),
+                    )
+                result = await session.scalars(stmt)
+                sources_in_gcn = result.all()
+            except Exception as e:
+                return self.error(str(e))
+
+        return self.success(data=sources_in_gcn)
+
+    @permissions(["Upload data"])
+    async def post(self, dateobs: Dateobs, source_id: str = None):
+        """
+        ---
+        summary: Confirm or reject a source in a gcn
+        description: Confirm or reject a source in a gcn
+        tags:
+          - gcn events
+          - sources
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  localization_name:
+                    type: string
+                    description: The name of the localization of the event
+                  localization_cumprob:
+                    type: string
+                    description: The cumprob of the localization of the event
+                  source_id:
+                    type: string
+                    description: The source_id of the source to confirm or reject
+                  status:
+                    type: string
+                    enum: [pending, confirmed, ambiguous, rejected]
+                    description: Standing of the source against the event.
+                  start_date:
+                    type: string
+                    description: Choose sources with a first detection after start_date, as an arrow parseable string
+                  end_date:
+                    type: string
+                    description: Choose sources with a last detection before end_date, as an arrow parseable string
+                required:
+                  - localization_name
+                  - localization_cumprob
+                  - source_id
+                  - status
+                  - start_date
+                  - end_date
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: The id of the gcn_event_obj
+          400:
+            content:
+              application/json:
+                schema: Error
+
+        """
+        data = self.get_json()
+
+        localization_name = data.get("localization_name")
+        localization_cumprob = data.get("localization_cumprob")
+        source_id = data.get("source_id")
+        status = data.get("status")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        validator_instance = Validator()
+        params_to_be_validated = {
+            "method": "POST",
+            "source_id": source_id,
+            "dateobs": dateobs,
+            "start_date": start_date,
+            "end_date": end_date,
+            "localization_name": localization_name,
+            "localization_cumprob": localization_cumprob,
+        }
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f"Error parsing query params: {e.args[0]}.")
+
+        source_id = validated["source_id"]
+        dateobs = validated["dateobs"]
+        start_date = validated["start_date"]
+        end_date = validated["end_date"]
+        localization_name = validated["localization_name"]
+        localization_cumprob = validated["localization_cumprob"]
+
+        source_in_gcn_id = None
+        obj_internal_key = None
+
+        async with self.AsyncSession() as session:
+            try:
+                localization = await session.scalar(
+                    Localization.select(session.user_or_token).where(
+                        Localization.localization_name == localization_name,
+                        Localization.dateobs == dateobs,
+                    )
+                )
+                if not localization:
+                    return self.error("Localization not found")
+
+                source_in_gcn = await session.scalar(
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
+                    .where(
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id == source_id,
+                    )
+                )
+                if source_in_gcn:
+                    if (
+                        source_in_gcn.status == status
+                        and source_in_gcn.explanation == explanation
+                        and source_in_gcn.notes == notes
+                    ):
+                        return self.error(
+                            "Source is already confirmed/rejected in this localization with the same explanation and notes"
+                        )
+                    source_in_gcn.status = status
+                    source_in_gcn.confirmer_id = self.associated_user_object.id
+                    if explanation is not None:
+                        source_in_gcn.explanation = explanation
+                    if notes is not None:
+                        source_in_gcn.notes = notes
+                    await session.commit()
+                    source_in_gcn_id = source_in_gcn.id
+                    obj_internal_key = source_in_gcn.obj.internal_key
+                else:
+                    source_in_gcn = GcnEventObj(
+                        obj_id=source_id,
+                        dateobs=dateobs,
+                        status=status,
+                        confirmer_id=self.associated_user_object.id,
+                    )
+                    if explanation is not None:
+                        source_in_gcn.explanation = explanation
+                    if notes is not None:
+                        source_in_gcn.notes = notes
+                    session.add(source_in_gcn)
+                    await session.commit()
+                    source_in_gcn_id = source_in_gcn.id
+                    # reload to pick up the obj relationship
+                    source_in_gcn = await session.scalar(
+                        GcnEventObj.select(session.user_or_token)
+                        .options(selectinload(GcnEventObj.obj))
+                        .where(GcnEventObj.id == source_in_gcn_id)
+                    )
+                    obj_internal_key = source_in_gcn.obj.internal_key
+            except Exception as e:
+                await session.rollback()
+                return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
+
+        return self.success(data={"id": source_in_gcn_id})
+
+    @permissions(["Upload data"])
+    async def patch(self, dateobs: str, source_id: str):
+        """
+        ---
+        summary: Update the confirmed/rejected status of a source in a GCN
+        description: Update the confirmed or rejected status of a source in a GCN
+        tags:
+          - gcn events
+          - sources
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, confirmed, ambiguous, rejected]
+                    description: Standing of the source against the event.
+                required:
+                  - status
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: The id of the modified gcn_event_obj
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        status = data.get("status")
+        explanation = data.get("explanation")
+        notes = data.get("notes")
+
+        validator_instance = Validator()
+        params_to_be_validated = {
+            "method": "PATCH",
+            "source_id": source_id,
+            "dateobs": dateobs,
+        }
+        if explanation is not None:
+            params_to_be_validated["explanation"] = explanation
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f"Error parsing query params: {e.args[0]}.")
+
+        source_id = validated["source_id"].strip()
+        dateobs = validated["dateobs"]
+
+        source_in_gcn_id = None
+        obj_internal_key = None
+
+        async with self.AsyncSession() as session:
+            try:
+                gcn_event = await session.scalar(
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.dateobs == dateobs
+                    )
+                )
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
+
+                source_in_gcn = await session.scalar(
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
+                    .where(
+                        GcnEventObj.dateobs == dateobs,
+                        GcnEventObj.obj_id == source_id,
+                    )
+                )
+                if not source_in_gcn:
+                    return self.error(
+                        "Source is not confirmed/rejected in this GCN event"
+                    )
+                source_in_gcn.status = status
+                source_in_gcn.confirmer_id = self.associated_user_object.id
+                if explanation is not None:
+                    source_in_gcn.explanation = explanation
+                if notes is not None:
+                    source_in_gcn.notes = notes
+                await session.commit()
+                source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
+            except Exception as e:
+                await session.rollback()
+                return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
+
+        return self.success(data={"id": source_in_gcn_id})
+
+    @permissions(["Upload data"])
+    async def delete(self, dateobs: str, source_id: str):
+        """
+        ---
+        summary: Remove the confirmed/rejected status of a source in a GCN
+        description: |
+          Deletes the confirmed or rejected status of source in a GCN.
+          Its status can be considered as 'undefined'.
+        tags:
+          - gcn events
+          - sources
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: The id of the deleted gcn_event_obj
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        validator_instance = Validator()
+        params_to_be_validated = {
+            "method": "DELETE",
+            "source_id": source_id,
+            "dateobs": dateobs,
+        }
+        try:
+            validated = validator_instance.load(params_to_be_validated)
+        except ValidationError as e:
+            return self.error(f"Error parsing query params: {e.args[0]}.")
+
+        source_id = validated["source_id"].strip()
+        dateobs = validated["dateobs"]
+
+        source_in_gcn_id = None
+        obj_internal_key = None
+
+        async with self.AsyncSession() as session:
+            try:
+                gcn_event = await session.scalar(
+                    GcnEvent.select(session.user_or_token).where(
+                        GcnEvent.dateobs == dateobs
+                    )
+                )
+                if not gcn_event:
+                    return self.error(f"GCN event not found for dateobs: {dateobs}")
+                source_in_gcn = await session.scalar(
+                    GcnEventObj.select(session.user_or_token)
+                    .options(selectinload(GcnEventObj.obj))
+                    .where(
+                        GcnEventObj.obj_id == source_id,
+                        GcnEventObj.dateobs == dateobs,
+                    )
+                )
+                if not source_in_gcn:
+                    return self.error(
+                        "Source is not confirmed or rejected in this GCN event"
+                    )
+                source_in_gcn_id = source_in_gcn.id
+                obj_internal_key = source_in_gcn.obj.internal_key
+                await session.delete(source_in_gcn)
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                return self.error(str(e))
+
+        if obj_internal_key is not None:
+            flow = Flow()
+            flow.push(
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_internal_key}
+            )
+        return self.success(data={"id": source_in_gcn_id})
+
+
+class GCNsAssociatedWithSourceHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, source_id: str):
+        """
+        ---
+        summary: Get GCNs associated with a source
+        description: Get the GCNs associated with a source (GCNs for which the source has been confirmed)
+        tags:
+          - gcn events
+          - sources
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            gcns:
+                              type: array
+                              items:
+                                type: string
+                                description: GCNs dateobs
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if not isinstance(source_id, str):
+            return self.error("source_id must be a string")
+
+        source_id = source_id.strip()
+
+        async with self.AsyncSession() as session:
+            try:
+                result = await session.scalars(
+                    GcnEventObj.select(session.user_or_token)
+                    .where(
+                        GcnEventObj.obj_id == source_id,
+                        GcnEventObj.status == "confirmed",
+                    )
+                    .distinct()
+                )
+                gcn_event_objs = result.all()
+                gcns = list({row.dateobs for row in gcn_event_objs})
+            except Exception as e:
+                return self.error(str(e))
+        return self.success(data={"gcns": gcns})

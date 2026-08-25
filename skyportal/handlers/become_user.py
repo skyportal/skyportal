@@ -1,9 +1,9 @@
-from ..models import User
+from ..models import DBSession, User
 from .base import BaseHandler
 
 
 class BecomeUserHandler(BaseHandler):
-    def get(self, new_user_id=None):
+    def get(self, new_user_id: str | None = None):
         if not (
             self.cfg["server.auth.debug_login"]
             or {"System admin", "Become user"}.intersection(
@@ -12,7 +12,7 @@ class BecomeUserHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions")
 
-        user = User.query.get(new_user_id)
+        user = DBSession().get(User, new_user_id)
         if user is None:
             return self.error("Invalid user ID.")
 

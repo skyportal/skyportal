@@ -1,11 +1,13 @@
 import datetime
 
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ...models import Telescope, Weather
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import get_url
 from ..base import BaseHandler
 
@@ -13,12 +15,22 @@ _, cfg = load_env()
 weather_refresh = cfg.get("weather.refresh_time")
 openweather_api_key = cfg.get("weather.openweather_api_key")
 
-default_prefs = {"telescopeID": 1}
+
+class WeatherGetQuery(BaseModel):
+    """Query parameters for retrieving weather at a telescope site."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    telescope_id: int | None = Field(
+        default=None,
+        description="ID of the telescope to report weather for. If not given, "
+        "the telescope saved in the user's preferences is used.",
+    )
 
 
 class WeatherHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self, *, query: WeatherGetQuery = None):
         """
         ---
         summary: Get weather info at telescope site
@@ -26,12 +38,6 @@ class WeatherHandler(BaseHandler):
                      or telescope specified by `telescope_id` parameter
         tags:
           - telescopes
-        parameters:
-            - in: query
-              name: telescope_id
-              required: false
-              schema:
-                type: integer
         responses:
           200:
             content:
@@ -51,6 +57,11 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: |
                                  Datetime (UTC) when the weather was fetched
+                            weather_fetch_at:
+                              type: string
+                              description: |
+                                 Datetime (UTC) when the API call was made,
+                                 even if no data was returned
                             weather_link:
                               type: string
                               description: URL for more weather info
@@ -66,34 +77,55 @@ class WeatherHandler(BaseHandler):
                             message:
                               type: string
                               description: Weather fetching error message
+          400:
+            content:
+              application/json:
+                schema: Error
         """
-        with self.Session() as session:
-            user_prefs = getattr(self.associated_user_object, "preferences", None) or {}
-            weather_prefs = user_prefs.get("weather", {})
-            weather_prefs = {**default_prefs, **weather_prefs}
+        query = self.parse_query(WeatherGetQuery)
 
-            try:
-                default_telescope_id = int(weather_prefs["telescopeID"])
-            except (TypeError, ValueError):
-                return self.error(
-                    f"telescope ID ({weather_prefs['telescopeID']}) "
-                    f"given in preferences is not a valid ID (integer)."
-                )
-
+        telescope_id = query.telescope_id
+        async with self.AsyncSession() as session:
             # use the query telescope ID otherwise fall back to preferences id
-            telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
+            if telescope_id is None:
+                user_prefs = (
+                    getattr(self.associated_user_object, "preferences", None) or {}
+                )
+                pref_id = user_prefs.get("weather", {}).get("telescopeID")
+                if pref_id is not None:
+                    try:
+                        telescope_id = int(pref_id)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            f"telescope ID ({pref_id}) "
+                            f"given in preferences is not a valid ID (integer)."
+                        )
 
-            telescope = session.scalars(
-                Telescope.select(self.current_user).where(Telescope.id == telescope_id)
-            ).first()
-            if telescope is None:
-                return self.error(
-                    f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+            if telescope_id is not None:
+                telescope = await session.scalar(
+                    Telescope.select(self.current_user).where(
+                        Telescope.id == telescope_id
+                    )
+                )
+            else:
+                # no ID requested and no preference: use the first accessible telescope
+                telescope = await session.scalar(
+                    Telescope.select(self.current_user).order_by(Telescope.id)
                 )
 
-            weather = session.scalars(
-                sa.select(Weather).where(Weather.telescope_id == telescope_id)
-            ).first()
+            if telescope is None:
+                if telescope_id is not None:
+                    return self.error(
+                        f"telescope with ID {telescope_id} not found or not accessible."
+                    )
+                else:
+                    # if no ID requested, no preference and no telescopes accessible,
+                    # respond gracefully so the widget can show "no weather information" instead of an error
+                    return self.success(data={"weather": None})
+
+            weather = await session.scalar(
+                sa.select(Weather).where(Weather.telescope_id == telescope.id)
+            )
             if weather is None:
                 weather = Weather(telescope=telescope)
                 session.add(weather)
@@ -103,7 +135,7 @@ class WeatherHandler(BaseHandler):
             if refresh and weather.retrieved_at is not None:
                 if (
                     weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                    >= datetime.datetime.utcnow()
+                    >= utcnow_naive()
                 ):
                     # it is too soon to refresh
                     refresh = False
@@ -120,12 +152,12 @@ class WeatherHandler(BaseHandler):
                     if response.status_code == 200:
                         data = response.json()
                         weather.weather_info = data
-                        weather.retrieved_at = datetime.datetime.utcnow()
-                        session.commit()
+                        weather.retrieved_at = utcnow_naive()
+                        await session.commit()
                     else:
                         message = response.text
 
-                session.commit()
+                await session.commit()
 
             return self.success(
                 data={
@@ -133,7 +165,7 @@ class WeatherHandler(BaseHandler):
                     # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
                     # Timestamp indicating when the API call was made, even if no data was returned
-                    "weather_fetch_at": datetime.datetime.utcnow(),
+                    "weather_fetch_at": utcnow_naive(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

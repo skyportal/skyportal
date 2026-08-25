@@ -58,7 +58,7 @@ class WINTERAPI(FollowUpAPI):
         return prepare_payload(payload, FILTER_DEFAULTS, existing_payload)
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from WINTER queue.
 
         Parameters
@@ -68,10 +68,10 @@ class WINTERAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-        delete_request(request, session, **kwargs)
+        await delete_request(request, session, **kwargs)
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to WINTER.
 
         Parameters
@@ -81,7 +81,7 @@ class WINTERAPI(FollowUpAPI):
         session: sqlalchemy.Session
             Database session for this transaction
         """
-        submit_request(request, session, CAMERA, log, **kwargs)
+        await submit_request(request, session, CAMERA, log, **kwargs)
 
     form_json_schema = build_form_json_schema(FILTER_DEFAULTS)
 

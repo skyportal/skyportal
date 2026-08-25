@@ -1,0 +1,417 @@
+import React, {useEffect, useRef} from "react";
+import { Link, useLocation } from "react-router-dom";
+
+import Typography from "@mui/material/Typography";
+import Drawer from "@mui/material/Drawer";
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import { makeStyles } from "tss-react/mui";
+import Collapse from '@mui/material/Collapse';
+import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import MenuIcon from "@mui/icons-material/Menu";
+import AlertsIcon from "@mui/icons-material/NotificationsActive";
+
+{% for group in app.sidebar -%}
+  {% if not group.name.startswith('main') and group.icon %}
+    import {{ group.icon }}Icon from "@mui/icons-material/{{ group.icon }}";
+  {% endif %}
+  {% for subitem in group.subitems -%}
+    import {{ subitem.icon }}Icon from "@mui/icons-material/{{ subitem.icon }}";
+  {%- endfor %}
+{%- endfor %}
+
+import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import * as Actions from "../../ducks/sidebar";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetBrokersQuery } from "../../ducks/brokers";
+
+import HeaderContent from "./HeaderContent";
+import hydrate from "../../actions";
+
+const drawerWidth = 220;
+const miniDrawerWidth = 65;
+
+const useStyles = makeStyles()((theme) => ({
+  root: {
+    display: 'flex',
+    padding: 0,
+    margin: 0,
+  },
+  appBar: {
+    position: "fixed",
+    zIndex: 150,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    height: "fit-content",
+    background: theme.palette.primary.dark,
+    padding: 0,
+    margin: 0,
+  },
+  appBarShift: {
+    width: `calc(100% - ${drawerWidth}px)`,
+    marginLeft: drawerWidth,
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  drawer: {
+    maxWidth: drawerWidth,
+    flexShrink: 0,
+  },
+  drawerPaper: {
+    zIndex: 140,
+    width: miniDrawerWidth,
+    overflowX: 'hidden',
+    background: theme.palette.primary.light,
+    fontSize: "1.2em",
+    padding: 0,
+    transition: theme.transitions.create('width', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+  },
+  drawerPaperExpanded: {
+    width: drawerWidth,
+    transition: theme.transitions.create('width', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  toolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: "1.5rem",
+    paddingRight: 0,
+    [theme.breakpoints.up("md")]: {
+      paddingRight: "1rem",
+    },
+  },
+  drawerHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    // necessary for content to be below app bar
+    ...theme.mixins.toolbar,
+    paddingTop: "3em",
+  },
+  link: {
+    color: theme.palette.info.main,
+    textDecoration: "none",
+  },
+  bold: {
+    color: theme.palette.info.main,
+    fontWeight: "bold"
+  },
+  icon: {
+    color: theme.palette.info.main,
+  },
+  linkText: {
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    transition: theme.transitions.create('opacity', {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  },
+  minimized: {
+    opacity: 0,
+  }
+} as any));
+
+interface SidebarLinkTextProps {
+  route?: string;
+  title: string;
+  open: boolean;
+}
+
+const SidebarLinkText = ({ route, title, open }: SidebarLinkTextProps) => {
+  const { classes, cx } = useStyles() as any;
+  const currentRoute = useLocation().pathname;
+
+  return (
+    <ListItemText
+      primary={
+        <Typography className={currentRoute === route ? classes.bold : undefined}>
+          {title}
+        </Typography>
+      }
+      className={cx(classes.linkText, !open && classes.minimized)}
+    />
+  );
+};
+
+
+const SidebarAndHeader = () => {
+  const { classes, cx } = useStyles() as any;
+  const dispatch = useAppDispatch();
+  const open = useAppSelector((state) => (state as any).sidebar.open);
+  const { data: currentUser } = useGetProfileQuery();
+  const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
+  const { data: brokers } = useGetBrokersQuery(undefined, {
+    skip: !currentUser || currentUser.is_anonymous === true,
+  });
+  const alertBroker = (brokers || []).find(
+    (b) => b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
+  );
+  {% for group in app.sidebar -%}
+    {% if not group.name.startswith('main') %}
+      const [{{ group.name }}Open, set{{ group.name }}Open] = React.useState(false);
+    {% endif %}
+  {%- endfor %}
+  const [temporaryOpen, setTemporaryOpen] = React.useState(false);
+
+  const timerRef = useRef<any>(null);
+  const TIMEOUT = 200;
+
+  function mouseEnter() {
+    if (!temporaryOpen && !open && !isSmall) {
+      timerRef.current = setTimeout(() => {
+        setTemporaryOpen(true);
+      }, TIMEOUT);
+    }
+  }
+
+  function mouseLeave() {
+    clearTimeout(timerRef.current);
+    setTemporaryOpen(false);
+    {% for group in app.sidebar -%}
+      {% if not group.name.startswith('main') %}
+        set{{ group.name }}Open(false);
+      {% endif %}
+    {%- endfor %}
+  }
+
+  const handleToggleSidebarOpen = () => {
+    if (open) {
+      {% for group in app.sidebar -%}
+        {% if not group.name.startswith('main') %}
+          set{{ group.name }}Open(false);
+        {% endif %}
+      {%- endfor %}
+    }
+    dispatch(Actions.toggleSidebar());
+  };
+
+  useEffect(() => {
+    if (isSmall && open) {
+      dispatch(Actions.setSidebar(false));
+      setTemporaryOpen(false);
+    }
+  }, [isSmall, dispatch]);
+
+  const drawerType = isSmall ? "temporary" : "permanent";
+
+  const hydrateIfDashboardClicked = (url: string) => {
+    clearTimeout(timerRef.current);
+    if (url === "/") {
+      dispatch(hydrate());
+    }
+  };
+
+  {% macro add_items_to_menu(group) -%}
+    {% for item in group.subitems -%}
+    {% if item.url == '/brokers' %}
+    {alertBroker && (
+    <Link to={"/brokers/" + alertBroker.id} className={classes.link}>
+      <ListItem
+        {...({ name: "sidebarAlertsButton" } as any)}
+        data-testid="tour-nav-alerts"
+        disablePadding
+        sx={{ "{{ display: 'block' }}" }}
+      >
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: 2,
+                justifyContent: 'center',
+              }}" }}
+            >
+              <AlertsIcon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route={"/brokers/" + alertBroker.id}
+              title="Alerts"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
+      </ListItem>
+    </Link>
+    )}
+    {% endif %}
+    {% if item.permissions or not item.anonymous_ok %}
+      {(
+      {% if item.permissions %}
+      (
+      {% for permission in item.permissions %}
+        currentUser?.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) &&
+      {% endif %}
+      {% if not item.anonymous_ok %}
+      !currentUser?.is_anonymous &&
+      {% endif %}
+      true) && (
+    {% endif %}
+    {% if item.url.startswith('http') -%}
+    <a href="{{ item.url }}" className={classes.link}>
+    {% else %}
+    <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
+    {%- endif %}
+      <ListItem
+        {...({ name: "sidebar{{ item.name }}Button" } as any)}
+        {%- if item.url == '/sources' %}
+        data-testid="tour-nav-sources"
+        {%- elif item.url == '/candidates' %}
+        data-testid="tour-nav-candidates"
+        {%- elif item.url == '/groups' %}
+        data-testid="tour-nav-groups"
+        {%- elif item.url == '/gcn_events' %}
+        data-testid="tour-nav-gcn"
+        {%- elif item.url == '/brokers' %}
+        data-testid="tour-nav-brokers"
+        {%- endif %}
+        disablePadding
+        sx={{ "{{ display: 'block' }}" }}
+      >
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              px: 2.5,
+            }}"}}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: 2,
+                justifyContent: 'center',
+              }}" }}
+            >
+              <{{ item.icon }}Icon className={classes.icon} />
+            </ListItemIcon>
+            <SidebarLinkText
+              route="{{ item.url }}"
+              title="{{ item.name }}"
+              open={open || temporaryOpen}
+            />
+        </ListItemButton>
+      </ListItem>
+    {% if item.url.startswith('http') -%}
+    </a>
+    {% else %}
+    </Link>
+    {%- endif %}
+    {% if item.permissions or not item.anonymous_ok %}
+    )}
+    {% endif %}
+    {%- endfor %}
+  {%- endmacro %}
+
+  {% macro make_foldable_menu(group) -%}
+    {% if group.permissions %}
+      {(
+      {% for permission in group.permissions %}
+        currentUser?.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) && (
+    {% endif %}
+    <>
+      <ListItem {...({ name: "sidebar{{ group.name }}Button" } as any)} disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
+        <ListItemButton
+            sx={{"{{
+              minHeight: 48,
+              px: 2.5,
+            }}"}}
+            onClick={() => set{{ group.name }}Open(!{{ group.name }}Open)}
+          >
+            <ListItemIcon
+              sx={{ "{{
+                minWidth: 0,
+                mr: 2,
+                justifyContent: 'center',
+              }}" }}
+            >
+              {(!(open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : <{{ group.icon }}Icon className={classes.icon} />}
+            </ListItemIcon>
+            <SidebarLinkText
+              title="{{ group.name }}"
+              open={open || temporaryOpen}
+            />
+              {((open || temporaryOpen) && {{ group.name }}Open) ? <ExpandLess /> : null}
+              {(!{{ group.name }}Open && (open || temporaryOpen)) ? <ExpandMore /> : null}
+        </ListItemButton>
+      </ListItem>
+      <Collapse in={ {{group.name }}Open} timeout="auto" unmountOnExit>
+        <Divider />
+        <List component="div" disablePadding>
+          {{ add_items_to_menu(group) }}
+        </List>
+        <Divider />
+      </Collapse>
+    </>
+    {% if group.permissions %}
+    )}
+    {% endif %}
+  {%- endmacro %}
+
+  return (
+    <>
+      <AppBar
+        className={classes.appBar}
+      >
+        <Toolbar className={classes.toolbar}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            onClick={handleToggleSidebarOpen}
+            edge="start"
+            className={(classes as any).menuButton}
+          >
+            <MenuIcon />
+          </IconButton>
+          <HeaderContent />
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        className={classes.drawer}
+        data-testid="tour-sidebar"
+        variant={drawerType}
+        anchor="left"
+        open={open || temporaryOpen}
+        onClose={isSmall ? handleToggleSidebarOpen : undefined}
+        classes={{ "{{ paper: cx(classes.drawerPaper, (open || temporaryOpen) && classes.drawerPaperExpanded) }}" }}
+        slotProps={{ "{{ paper: { onMouseEnter: mouseEnter, onMouseLeave: mouseLeave } }}" }}
+      >
+        {!isSmall && <div className={classes.drawerHeader} />}
+        <List>
+        {% for group in app.sidebar -%}
+          {% if group.name.startswith('main') %}
+            {{ add_items_to_menu(group) }}
+          {% else %}
+            {{ make_foldable_menu(group) }}
+          {% endif %}
+        {%- endfor %}
+        </List>
+      </Drawer>
+    </>
+  );
+};
+
+export default SidebarAndHeader;

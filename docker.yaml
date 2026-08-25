@@ -10,3 +10,16 @@ server:
 
 ports:
     app: 5000 # External port
+
+app:
+    # Short-circuit the live SEDM follow-up endpoint
+    # (http://minar.caltech.edu/add_fritz, inherited from
+    # config.yaml.defaults) so the in-container demo-data load doesn't make
+    # the data_loader hang on a network request that the container can't
+    # actually complete. The SEDMAPI._sedm_post helper returns a stub
+    # "accepted" response when this is empty.
+    sedm_endpoint:
+    # Likewise short-circuit the live PS1 cutout scrape
+    # (http://ps1images.stsci.edu/cgi-bin/ps1cutouts). Obj.panstarrs_url
+    # falls back to "currently_unavailable.png" without hitting the network.
+    ps1_cutout_url:

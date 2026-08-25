@@ -15,6 +15,21 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 
+def record_mode_for(cache):
+    """Static recordings are hand-maintained, so never contact the real server:
+    vcr only skips the connection when the cassette is write-protected."""
+    return "none" if cache == get_cache_file_static() else "new_episodes"
+
+
+def redirect_host(uri):
+    """Real host for a test route, longest match first (`/too` also matches
+    `/too/winter`, and the last match in config order would otherwise win)."""
+    matches = [r for r in cfg["test_server.redirects"] if re.match(r, uri)]
+    if not matches:
+        return None
+    return cfg["test_server.redirects"][max(matches, key=len)]
+
+
 def get_cache_file_static():
     """
     Helper function to get the path to the VCR cache file for requests
@@ -121,6 +136,28 @@ def lt_request_matcher(r1, r2):
         and r1_request_mode == r2_request_mode
         and r1_device == r2_device
     )
+
+
+def gemini_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the Gemini API are
+    equivalent. Match on method and the /too path only, ignoring query params so
+    a request with a blank/absent noteTitle still matches the recording.
+    """
+    from urllib.parse import urlparse
+
+    assert r1.method == r2.method and urlparse(r1.uri).path == urlparse(r2.uri).path
+
+
+def winter_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the WINTER/SPRING API
+    are equivalent. Match on method and the /too/<camera> path only, ignoring
+    query params (so the submit_trigger flag value doesn't affect matching).
+    """
+    from urllib.parse import urlparse
+
+    assert r1.method == r2.method and urlparse(r1.uri).path == urlparse(r2.uri).path
 
 
 def lco_request_matcher(r1, r2):
@@ -296,13 +333,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -381,13 +415,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -461,13 +492,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
         else:
             cache = get_cache_file()
 
-        with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
+        with my_vcr.use_cassette(cache, record_mode=record_mode_for(cache)) as cass:
             base_route = self.request.uri.split("?")[0]
 
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, base_route):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(base_route)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -535,6 +563,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             ".*/node_agent2/node_agent/.*",
             ".*/forcedphot/queue/.*",
             ".*/api/v1/pointings/.*",
+            ".*/too(\\?.*)?$",
+            ".*/too/(winter|spring)(\\?.*)?$",
         ]
         is_soap_action = "Soapaction" in self.request.headers
         if any(re.match(pat, self.request.uri) for pat in cached_urls):
@@ -556,16 +586,19 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["treasuremap"]
         elif "/toop/submit_json.php" in self.request.uri:
             match_on = ["swift"]
+        elif self.request.uri.startswith("/too/winter") or self.request.uri.startswith(
+            "/too/spring"
+        ):
+            match_on = ["winter"]
+        elif self.request.uri.startswith("/too?") or self.request.uri == "/too":
+            match_on = ["gemini"]
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -647,6 +680,8 @@ if __name__ == "__main__":
     my_vcr.register_matcher("atlas", atlas_request_matcher)
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
+    my_vcr.register_matcher("gemini", gemini_request_matcher)
+    my_vcr.register_matcher("winter", winter_request_matcher)
     my_vcr.register_matcher("ps1", ps1_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)

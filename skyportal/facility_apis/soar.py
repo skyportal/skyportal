@@ -1,13 +1,16 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -203,6 +206,11 @@ class SOAR_GHTS_Request:
             "GHTS_R_2100_5000A_1x2_slit1p0": 0.5,
         }
 
+        # accept both shapes: modes used to be a single string
+        instrument_modes = request.payload["instrument_mode"]
+        if isinstance(instrument_modes, str):
+            instrument_modes = [instrument_modes]
+
         configurations = [
             {
                 "type": "SPECTRUM",
@@ -215,7 +223,7 @@ class SOAR_GHTS_Request:
                     {
                         "exposure_time": exp_time,
                         "exposure_count": exp_count,
-                        "mode": request.payload["instrument_mode"],
+                        "mode": instrument_mode,
                         "rotator_mode": "SKY",
                         "extra_params": {
                             "offset_ra": 0,
@@ -224,6 +232,7 @@ class SOAR_GHTS_Request:
                         },
                         "optical_elements": {},
                     }
+                    for instrument_mode in instrument_modes
                 ],
             },
         ]
@@ -235,10 +244,8 @@ class SOAR_GHTS_Request:
                     "instrument_configs": [
                         {
                             "exposure_count": 3,
-                            "exposure_time": arc_exposure_time[
-                                request.payload["instrument_mode"]
-                            ],
-                            "mode": request.payload["instrument_mode"],
+                            "exposure_time": arc_exposure_time[instrument_mode],
+                            "mode": instrument_mode,
                             "rotator_mode": "SKY",
                             "extra_params": {
                                 "offset_ra": 0,
@@ -247,6 +254,7 @@ class SOAR_GHTS_Request:
                             },
                             "optical_elements": {},
                         }
+                        for instrument_mode in instrument_modes
                     ],
                     "acquisition_config": {"mode": "OFF", "extra_params": {}},
                     "guiding_config": {},
@@ -392,7 +400,7 @@ class SOARAPI(FollowUpAPI):
     """An interface to SOAR operations."""
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from SOAR queue (all instruments).
 
         Parameters
@@ -403,16 +411,31 @@ class SOARAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FollowupRequest
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             altdata = request.allocation.altdata
 
@@ -425,18 +448,24 @@ class SOARAPI(FollowUpAPI):
             if "id" in content:
                 uid = content["id"]
 
-                r = requests.post(
-                    f"{requestpath}{uid}/cancel/",
-                    headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-                )
+                url = f"{requestpath}{uid}/cancel/"
+                headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-                r.raise_for_status()
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, headers=headers) as r:
+                        content = await r.text()
+                        status = r.status
+
+                if status >= 400:
+                    raise ValueError(
+                        f"Error cancelling request: status {status}: {content}"
+                    )
 
                 request.status = "deleted"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request("POST", url, headers),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
@@ -444,10 +473,10 @@ class SOARAPI(FollowUpAPI):
                 session.add(transaction)
 
             else:
-                session.query(FollowupRequest).filter(
-                    FollowupRequest.id == request.id
-                ).delete()
-                session.commit()
+                await session.execute(
+                    sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+                )
+                await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -484,7 +513,7 @@ class SOARGHTSIMAGERAPI(SOARAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SOAR's GHTS REDCAM IMAGER.
 
         Parameters
@@ -495,7 +524,21 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains the payload builder and this method walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        # Returns the same identity-mapped object, so status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -504,26 +547,28 @@ class SOARGHTSIMAGERAPI(SOARAPI):
         soarreq = SOAR_GHTS_IMAGER_Request(request)
         requestgroup = soarreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        url = requestpath
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-        if r.status_code == 201:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(url, headers=headers, json=requestgroup) as r:
+                content = await r.text()
+                status = r.status
+
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", url, headers, requestgroup),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -565,13 +610,13 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -652,7 +697,7 @@ class SOARGHTSAPI(SOARAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SOAR's GHTS.
 
         Parameters
@@ -663,7 +708,21 @@ class SOARGHTSAPI(SOARAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains the payload builder and this method walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        # Returns the same identity-mapped object, so status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -672,26 +731,28 @@ class SOARGHTSAPI(SOARAPI):
         soarreq = SOAR_GHTS_Request(request)
         requestgroup = soarreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        url = requestpath
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-        if r.status_code == 201:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(url, headers=headers, json=requestgroup) as r:
+                content = await r.text()
+                status = r.status
+
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", url, headers, requestgroup),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -737,13 +798,13 @@ class SOARGHTSAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -776,12 +837,17 @@ class SOARGHTSAPI(SOARAPI):
                                 "enum": ["SOAR_GHTS_BLUECAM"],
                             },
                             "instrument_mode": {
-                                "type": "string",
-                                "enum": [
-                                    "GHTS_B_400m1_2x2",
-                                ],
-                                "default": "GHTS_B_400m1_2x2",
-                                "title": "Instrument Mode",
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "GHTS_B_400m1_2x2",
+                                    ],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                                "default": ["GHTS_B_400m1_2x2"],
+                                "title": "Instrument Mode(s)",
                             },
                         }
                     },
@@ -791,16 +857,21 @@ class SOARGHTSAPI(SOARAPI):
                                 "enum": ["SOAR_GHTS_REDCAM"],
                             },
                             "instrument_mode": {
-                                "type": "string",
-                                "enum": [
-                                    "GHTS_R_400m2_2x2",
-                                    "GHTS_R_2100_6507A_1x2_slit0p45",
-                                    "GHTS_R_400m1_2x2",
-                                    "GHTS_R_1200_CaNIR_1x2_slit0p8",
-                                    "GHTS_R_2100_5000A_1x2_slit1p0",
-                                ],
-                                "default": "GHTS_R_400m1_2x2",
-                                "title": "Instrument Mode",
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "GHTS_R_400m2_2x2",
+                                        "GHTS_R_2100_6507A_1x2_slit0p45",
+                                        "GHTS_R_400m1_2x2",
+                                        "GHTS_R_1200_CaNIR_1x2_slit0p8",
+                                        "GHTS_R_2100_5000A_1x2_slit1p0",
+                                    ],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                                "default": ["GHTS_R_400m1_2x2"],
+                                "title": "Instrument Mode(s)",
                             },
                         }
                     },
@@ -816,7 +887,7 @@ class SOARGHTSAPI(SOARAPI):
         ],
     }
 
-    ui_json_schema = {}
+    ui_json_schema = {"instrument_mode": {"ui:widget": "checkboxes"}}
 
 
 class SOARTSPECAPI(SOARAPI):
@@ -824,7 +895,7 @@ class SOARTSPECAPI(SOARAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SOAR's TripleSpec.
 
         Parameters
@@ -835,7 +906,21 @@ class SOARTSPECAPI(SOARAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains the payload builder and this method walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        # Returns the same identity-mapped object, so status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -844,26 +929,28 @@ class SOARTSPECAPI(SOARAPI):
         soarreq = SOAR_TripleSpec_Request(request)
         requestgroup = soarreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        url = requestpath
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
 
-        if r.status_code == 201:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(url, headers=headers, json=requestgroup) as r:
+                content = await r.text()
+                status = r.status
+
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", url, headers, requestgroup),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -911,13 +998,13 @@ class SOARTSPECAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

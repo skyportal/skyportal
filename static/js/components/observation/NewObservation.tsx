@@ -1,0 +1,75 @@
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+import { dataUriToBuffer } from "data-uri-to-buffer";
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useUploadObservationsMutation } from "../../ducks/observations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+
+interface NewObservationProps {
+  onClose?: (() => void) | null;
+}
+
+const NewObservation = ({ onClose = null }: NewObservationProps) => {
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const dispatch = useAppDispatch();
+  const [uploadObservations] = useUploadObservationsMutation();
+
+  const handleSubmit = async ({ formData }: { formData: any }) => {
+    const parsed = dataUriToBuffer(formData.file);
+    const ascii = new TextDecoder().decode(parsed.buffer);
+    const payload = {
+      observationData: ascii,
+      instrumentID: formData.instrument_id,
+    };
+    try {
+      await uploadObservations(payload).unwrap();
+      dispatch(showNotification("Observation saved"));
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    } catch {
+      // error notification handled by the baseQuery
+    }
+  };
+
+  const observationFormSchema = {
+    type: "object",
+    properties: {
+      file: {
+        type: "string",
+        format: "data-url",
+        title: "Observation file",
+        description: "Observation file",
+      },
+      instrument_id: {
+        type: "integer",
+        oneOf: instrumentList.map((instrument: any) => ({
+          enum: [instrument.id],
+          title: `${
+            telescopeList.find(
+              (telescope: any) => telescope.id === instrument.telescope_id,
+            )?.["name"]
+          } / ${instrument.name}`,
+        })),
+        title: "Instrument",
+        default: instrumentList[0]?.id,
+      },
+    },
+    required: ["file", "instrument_id"],
+  };
+
+  return (
+    <Form
+      schema={observationFormSchema as any}
+      validator={validator}
+      onSubmit={handleSubmit as any}
+    />
+  );
+};
+
+export default NewObservation;

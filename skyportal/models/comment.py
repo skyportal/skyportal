@@ -182,6 +182,20 @@ class Comment(Base, CommentMixin):
         doc="The Comment's Obj.",
     )
 
+    channel = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="Conversation the comment belongs to, NULL for the main thread.",
+    )
+
+    system = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether the comment was posted by the app rather than typed by its author.",
+    )
+
 
 class CommentOnSpectrum(Base, CommentMixin):
     __tablename__ = "comments_on_spectra"

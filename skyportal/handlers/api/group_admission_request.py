@@ -1,3 +1,9 @@
+from typing import ClassVar, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload
+
+from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 
@@ -5,9 +11,52 @@ from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotific
 from ..base import BaseHandler
 
 
+class GroupAdmissionRequestGetQuery(BaseModel):
+    """Query parameters for listing group admission requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    groupID: int | None = Field(
+        default=None,
+        description="ID of group for which admission requests are desired",
+    )
+
+
+class GroupAdmissionRequestPostBody(BaseModel):
+    """Request body for creating a group admission request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupID: int = Field(description="ID of the group to request admission to")
+    userID: int = Field(description="ID of the user requesting admission")
+
+
+class GroupAdmissionRequestPostResponse(BaseModel):
+    """Data payload returned when creating a group admission request."""
+
+    id: int = Field(description="New group admission request ID")
+
+
+class GroupAdmissionRequestPatchBody(BaseModel):
+    """Request body for updating a group admission request's status."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["pending", "accepted", "declined"] = Field(
+        description="One of either 'accepted', 'declined', or 'pending'."
+    )
+
+
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
-    def get(self, admission_request_id=None):
+    async def get(
+        self,
+        admission_request_id: int | None = None,
+        *,
+        query: GroupAdmissionRequestGetQuery = None,
+    ):
         """
         ---
         single:
@@ -16,12 +65,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
           tags:
             - groups
             - users
-          parameters:
-            - in: path
-              name: admission_request_id
-              required: false
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -37,13 +80,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
           tags:
             - groups
             - users
-          parameters:
-          - in: query
-            name: groupID
-            nullable: true
-            schema:
-              type: integer
-            description: ID of group for which admission requests are desired
           responses:
             200:
               content:
@@ -54,31 +90,33 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        group_id = self.get_query_argument("groupID", None)
+        query = self.parse_query(GroupAdmissionRequestGetQuery)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if admission_request_id is not None:
-                admission_request = session.scalars(
-                    GroupAdmissionRequest.select(session.user_or_token).where(
-                        GroupAdmissionRequest.id == admission_request_id
-                    )
-                ).first()
+                admission_request = await session.scalar(
+                    GroupAdmissionRequest.select(session.user_or_token)
+                    .options(selectinload(GroupAdmissionRequest.user))
+                    .where(GroupAdmissionRequest.id == admission_request_id)
+                )
                 if admission_request is None:
                     return self.error(
                         f"Could not find an admission request with the ID: {admission_request_id}."
                     )
-                group = session.scalars(
+                group = await session.scalar(
                     Group.select(session.user_or_token).where(
                         Group.id == admission_request.group_id
                     )
-                ).first()
+                )
                 if group is None:
                     return self.error("Invalid group ID")
-                admins = session.scalars(
+                admins_result = await session.scalars(
                     GroupUser.select(session.user_or_token)
+                    .options(selectinload(GroupUser.user))
                     .where(GroupUser.group_id == admission_request.group_id)
                     .where(GroupUser.admin.is_(True))
-                ).all()
+                )
+                admins = admins_result.all()
                 admin_ids = [admin.user.id for admin in admins]
 
                 if (admission_request.user.id != self.current_user.created_by.id) and (
@@ -95,10 +133,13 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 response_data["user"] = admission_request.user
                 return self.success(data=response_data)
 
-            q = GroupAdmissionRequest.select(session.user_or_token)
-            if group_id is not None:
-                q = q.where(GroupAdmissionRequest.group_id == group_id)
-            admission_requests = session.scalars(q).unique().all()
+            q = GroupAdmissionRequest.select(session.user_or_token).options(
+                selectinload(GroupAdmissionRequest.user)
+            )
+            if query.groupID is not None:
+                q = q.where(GroupAdmissionRequest.group_id == query.groupID)
+            req_result = await session.scalars(q)
+            admission_requests = req_result.unique().all()
             response_data = [
                 {**admission_request.to_dict(), "user": admission_request.user}
                 for admission_request in admission_requests
@@ -106,7 +147,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data=response_data)
 
     @auth_or_token
-    def post(self):
+    async def post(
+        self, *, body: GroupAdmissionRequestPostBody = None
+    ) -> GroupAdmissionRequestPostResponse:
         """
         ---
         summary: Create a group admission request
@@ -114,60 +157,24 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groupID:
-                    type: integer
-                  userID:
-                    type: integer
-                required:
-                  - groupID
-                  - userID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New group admission request ID
         """
-        data = self.get_json()
-        user_id = data.get("userID")
-        group_id = data.get("groupID")
-        if user_id is None:
-            return self.error("Missing required parameter `userID`")
-        if group_id is None:
-            return self.error("Missing required parameter `groupID`")
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            return self.error("Invalid `userID` parameter; unable to parse to int")
-        try:
-            group_id = int(group_id)
-        except ValueError:
-            return self.error("Invalid `groupID` parameter; unable to parse to int")
+        body = self.parse_body(GroupAdmissionRequestPostBody)
+        user_id = body.userID
+        group_id = body.groupID
 
-        with self.Session() as session:
-            group = session.scalars(
-                Group.select(session.user_or_token).where(Group.id == group_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            group = await session.scalar(
+                Group.select(session.user_or_token)
+                .options(selectinload(Group.streams))
+                .where(Group.id == group_id)
+            )
             if group is None or group.single_user_group:
                 return self.error("Invalid group ID")
-            requesting_user = session.scalars(
-                User.select(session.user_or_token).where(User.id == user_id)
-            ).first()
+            requesting_user = await session.scalar(
+                User.select(session.user_or_token)
+                .options(selectinload(User.streams))
+                .where(User.id == user_id)
+            )
             if requesting_user is None:
                 return self.error("Invalid user ID")
 
@@ -183,21 +190,24 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     )
 
             # Ensure user is not already a member of target group
-            gu = session.scalars(
+            gu = await session.scalar(
                 GroupUser.select(session.user_or_token)
                 .where(GroupUser.group_id == group_id)
                 .where(GroupUser.user_id == user_id)
-            ).first()
+            )
             if gu is not None:
                 return self.error(
                     f"User {user_id} is already a member of group {group_id}"
                 )
             # Ensure user has sufficient stream access for target group
-            if group.streams:
+            if group.streams and "System admin" not in requesting_user.permissions:
+                accessible_stream_ids = {
+                    stream.id for stream in requesting_user.streams
+                }
                 missing_streams = [
                     stream
                     for stream in group.streams
-                    if stream not in requesting_user.accessible_streams
+                    if stream.id not in accessible_stream_ids
                 ]
                 if missing_streams:
                     stream_names = ", ".join(
@@ -207,24 +217,52 @@ class GroupAdmissionRequestHandler(BaseHandler):
                         f"User {user_id} does not have access to the following streams: {stream_names},"
                         f"required to be added to group {group_id}."
                     )
+            auto_accept = bool(group.auto_accept_requests)
             admission_request = GroupAdmissionRequest(
-                user_id=user_id, group_id=group_id, status="pending"
+                user_id=user_id,
+                group_id=group_id,
+                status="accepted" if auto_accept else "pending",
             )
             session.add(admission_request)
 
             try:
-                session.commit()
+                await session.commit()
             except AccessError as e:
                 return self.error(
                     "Insufficient permissions: group admission requests cannot be made "
                     f"on behalf of others. (Original exception: {e})"
                 )
 
+            if auto_accept:
+                # The group accepts requests automatically. Adding a GroupUser
+                # normally requires group-admin access, so grant membership here
+                # as a system action via an unverified session.
+                async with (
+                    baselayer_models.async_plain_session_factory() as plain_session
+                ):
+                    plain_session.add(
+                        GroupUser(group_id=group_id, user_id=user_id, admin=False)
+                    )
+                    plain_session.add(
+                        UserNotification(
+                            user_id=user_id,
+                            text=f"You've been added to group *{group.name}*",
+                            url=f"/group/{group_id}",
+                        )
+                    )
+                    await plain_session.commit()
+                self.push_all(
+                    action="skyportal/REFRESH_GROUP", payload={"group_id": group_id}
+                )
+                self.flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS", {})
+
             self.push(action="skyportal/FETCH_USER_PROFILE")
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
-    def patch(self, admission_request_id):
+    async def patch(
+        self, admission_request_id: int, *, body: GroupAdmissionRequestPatchBody = None
+    ):
         """
         ---
         summary: Update a group admission request status
@@ -232,44 +270,28 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: admission_request_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: One of either 'accepted', 'declined', or 'pending'.
-                required:
-                  - status
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        status = data.get("status")
-        if status is None:
-            return self.error("Missing required parameter `status`")
-        if status not in ["pending", "accepted", "declined"]:
-            return self.error(
-                "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
-            )
+        body = self.parse_body(GroupAdmissionRequestPatchBody)
+        status = body.status
 
-        with self.Session() as session:
-            admission_request = session.scalars(
-                GroupAdmissionRequest.select(
-                    session.user_or_token, mode="update"
-                ).where(GroupAdmissionRequest.id == admission_request_id)
-            ).first()
+        try:
+            admission_request_id = int(admission_request_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid admission_request_id: {admission_request_id}")
+        async with self.AsyncSession() as session:
+            admission_request = await session.scalar(
+                GroupAdmissionRequest.select(session.user_or_token, mode="update")
+                .options(
+                    selectinload(GroupAdmissionRequest.user),
+                    selectinload(GroupAdmissionRequest.group),
+                )
+                .where(GroupAdmissionRequest.id == admission_request_id)
+            )
             if admission_request is None:
                 return self.error(
                     "Insufficient permissions: group admission request status can "
@@ -285,14 +307,14 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 )
             )
 
-            session.commit()
+            await session.commit()
             self.flow.push(
                 admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {}
             )
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, admission_request_id):
+    async def delete(self, admission_request_id: int):
         """
         ---
         summary: Delete a group admission request
@@ -300,12 +322,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        parameters:
-          - in: path
-            name: admission_request_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -313,18 +329,22 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            admission_request = session.scalars(
+        try:
+            admission_request_id = int(admission_request_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid admission_request_id: {admission_request_id}")
+        async with self.AsyncSession() as session:
+            admission_request = await session.scalar(
                 GroupAdmissionRequest.select(
                     session.user_or_token, mode="delete"
                 ).where(GroupAdmissionRequest.id == admission_request_id)
-            ).first()
+            )
             if admission_request is None:
                 return self.error(
                     "Insufficient permissions: only the requester can delete a "
                     "group admission request."
                 )
-            session.delete(admission_request)
-            session.commit()
+            await session.delete(admission_request)
+            await session.commit()
             self.push(action="skyportal/FETCH_USER_PROFILE")
             return self.success()

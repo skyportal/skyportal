@@ -1,92 +1,149 @@
+from typing import ClassVar
+
 from astropy.time import Time
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Telescope
+from ...models import Allocation, AllocationUser, Instrument, Telescope
 from ..base import BaseHandler
 
 
+class TelescopePostBody(BaseModel):
+    """Request body for creating a telescope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(
+        description="Unabbreviated facility name (e.g., Palomar 200-inch "
+        "Hale Telescope)."
+    )
+    nickname: str = Field(description="Abbreviated facility name (e.g., P200).")
+    diameter: float = Field(description="Diameter in meters.")
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    skycam_link: str | None = Field(
+        default=None, description="Link to the telescope's sky camera."
+    )
+    weather_link: str | None = Field(
+        default=None, description="Link to the preferred weather site."
+    )
+    robotic: bool = Field(default=False, description="Is this telescope robotic?")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this telescope have a fixed location (lon, lat, "
+        "elev)? Defaults to true.",
+    )
+
+
+class TelescopePostResponse(BaseModel):
+    """Data payload returned when creating a telescope."""
+
+    id: int = Field(description="New telescope ID")
+
+
+class TelescopePutBody(BaseModel):
+    """Request body for updating a telescope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="Unabbreviated facility name (e.g., Palomar 200-inch "
+        "Hale Telescope).",
+    )
+    nickname: str | None = Field(
+        default=None, description="Abbreviated facility name (e.g., P200)."
+    )
+    diameter: float | None = Field(default=None, description="Diameter in meters.")
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    skycam_link: str | None = Field(
+        default=None, description="Link to the telescope's sky camera."
+    )
+    weather_link: str | None = Field(
+        default=None, description="Link to the preferred weather site."
+    )
+    robotic: bool | None = Field(default=None, description="Is this telescope robotic?")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+
+
+class TelescopeGetQuery(BaseModel):
+    """Query parameters for retrieving telescopes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    name: str | None = Field(
+        default=None,
+        description="Filter by name (exact match)",
+    )
+    latitudeMin: float | None = Field(
+        default=None,
+        description="Filter by latitude >= latitudeMin",
+    )
+    latitudeMax: float | None = Field(
+        default=None,
+        description="Filter by latitude <= latitudeMax",
+    )
+    longitudeMin: float | None = Field(
+        default=None,
+        description="Filter by longitude >= longitudeMin",
+    )
+    longitudeMax: float | None = Field(
+        default=None,
+        description="Filter by longitude <= longitudeMax",
+    )
+
+
 class TelescopeHandler(BaseHandler):
-    @permissions(["Manage telescopes"])
-    def post(self):
+    @auth_or_token
+    async def post(self, *, body: TelescopePostBody = None) -> TelescopePostResponse:
         """
         ---
         summary: Create a telescope
         description: Create telescopes
         tags:
           - telescopes
-        requestBody:
-          content:
-            application/json:
-              schema: TelescopeNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New telescope ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(TelescopePostBody)
 
-        with self.Session() as session:
-            schema = Telescope.__schema__()
+        async with self.AsyncSession() as session:
             # check if the telescope has a fixed location
-            if "fixed_location" in data:
-                if data["fixed_location"]:
-                    if (
-                        "lat" not in data
-                        or "lon" not in data
-                        or "elevation" not in data
-                    ):
-                        return self.error(
-                            "Missing latitude, longitude, or elevation; required if the telescope is fixed"
-                        )
-                    elif (
-                        not isinstance(data["lat"], int | float)
-                        or not isinstance(data["lon"], int | float)
-                        or not isinstance(data["elevation"], int | float)
-                    ):
-                        return self.error(
-                            "Latitude, longitude, and elevation must all be numbers"
-                        )
-                    elif (
-                        data["lat"] < -90
-                        or data["lat"] > 90
-                        or data["lon"] < -180
-                        or data["lon"] > 180
-                        or data["elevation"] < 0
-                    ):
-                        return self.error(
-                            "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
-                        )
-            try:
-                telescope = schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            if body.fixed_location:
+                if body.lat is None or body.lon is None or body.elevation is None:
+                    return self.error(
+                        "Missing latitude, longitude, or elevation; required if the telescope is fixed"
+                    )
+                elif (
+                    body.lat < -90
+                    or body.lat > 90
+                    or body.lon < -180
+                    or body.lon > 180
+                    or body.elevation < 0
+                ):
+                    return self.error(
+                        "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
+                    )
+            telescope = Telescope(**body.model_dump(exclude_unset=True))
             session.add(telescope)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
+            self.push_notification("Telescope created successfully")
             return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    def get(self, telescope_id=None):
+    async def get(
+        self, telescope_id: int | None = None, *, query: TelescopeGetQuery = None
+    ):
         """
         ---
         single:
@@ -94,12 +151,6 @@ class TelescopeHandler(BaseHandler):
           description: Retrieve a telescope
           tags:
             - telescopes
-          parameters:
-            - in: path
-              name: telescope_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -114,32 +165,6 @@ class TelescopeHandler(BaseHandler):
           description: Retrieve all telescopes
           tags:
             - telescopes
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: latitudeMin
-              schema:
-                type: number
-              description: Filter by latitude >= latitudeMin
-            - in: query
-              name: latitudeMax
-              schema:
-                type: number
-              description: Filter by latitude <= latitudeMax
-            - in: query
-              name: longitudeMin
-              schema:
-                type: number
-              description: Filter by longitude >= longitudeMin
-            - in: query
-              name: longitudeMax
-              schema:
-                type: number
-              description: Filter by longitude <= longitudeMax
           responses:
             200:
               content:
@@ -150,20 +175,20 @@ class TelescopeHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(TelescopeGetQuery)
 
-        tel_name = self.get_query_argument("name", None)
-        latitude_min = self.get_query_argument("latitudeMin", None)
-        latitude_max = self.get_query_argument("latitudeMax", None)
-        longitude_min = self.get_query_argument("longitudeMin", None)
-        longitude_max = self.get_query_argument("longitudeMax", None)
-
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if telescope_id is not None:
-                t = session.scalars(
-                    Telescope.select(session.user_or_token).where(
-                        Telescope.id == int(telescope_id)
+                single_result = await session.scalars(
+                    Telescope.select(session.user_or_token)
+                    .options(
+                        selectinload(Telescope.instruments).selectinload(
+                            Instrument.allocations
+                        )
                     )
-                ).first()
+                    .where(Telescope.id == int(telescope_id))
+                )
+                t = single_result.first()
                 if t is None:
                     return self.error(
                         f"Could not load telescope with ID {telescope_id}"
@@ -182,19 +207,25 @@ class TelescopeHandler(BaseHandler):
                 }
                 return self.success(data=data)
 
-            stmt = Telescope.select(session.user_or_token)
-            if tel_name is not None:
-                stmt = stmt.where(Telescope.name == tel_name)
-            if latitude_min is not None:
-                stmt = stmt.where(Telescope.lat >= latitude_min)
-            if latitude_max is not None:
-                stmt = stmt.where(Telescope.lat <= latitude_max)
-            if longitude_min is not None:
-                stmt = stmt.where(Telescope.lon >= longitude_min)
-            if longitude_max is not None:
-                stmt = stmt.where(Telescope.lon <= longitude_max)
+            stmt = Telescope.select(session.user_or_token).options(
+                selectinload(Telescope.instruments)
+                .selectinload(Instrument.allocations)
+                .selectinload(Allocation.allocation_users)
+                .selectinload(AllocationUser.user)
+            )
+            if query.name is not None:
+                stmt = stmt.where(Telescope.name == query.name)
+            if query.latitudeMin is not None:
+                stmt = stmt.where(Telescope.lat >= query.latitudeMin)
+            if query.latitudeMax is not None:
+                stmt = stmt.where(Telescope.lat <= query.latitudeMax)
+            if query.longitudeMin is not None:
+                stmt = stmt.where(Telescope.lon >= query.longitudeMin)
+            if query.longitudeMax is not None:
+                stmt = stmt.where(Telescope.lon <= query.longitudeMax)
 
-            data = session.scalars(stmt).all()
+            list_result = await session.scalars(stmt)
+            data = list_result.all()
             telescopes = []
             for telescope in data:
                 if telescope is None:
@@ -222,23 +253,13 @@ class TelescopeHandler(BaseHandler):
             return self.success(data=telescopes)
 
     @permissions(["Manage telescopes"])
-    def put(self, telescope_id):
+    async def put(self, telescope_id: int, *, body: TelescopePutBody = None):
         """
         ---
         summary: Update a telescope
         description: Update telescope
         tags:
           - telescopes
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: TelescopeNoID
         responses:
           200:
             content:
@@ -249,69 +270,45 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(TelescopePutBody)
 
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            telescope = await session.scalar(
                 Telescope.select(session.user_or_token, mode="update").where(
                     Telescope.id == int(telescope_id)
                 )
-            ).first()
-            if t is None:
+            )
+            if telescope is None:
                 return self.error("Invalid telescope ID.")
-            data = self.get_json()
-            data["id"] = int(telescope_id)
 
-            schema = Telescope.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            changed = []
+            for key in body.model_fields_set:
+                value = getattr(body, key)
+                if getattr(telescope, key) != value:
+                    setattr(telescope, key, value)
+                    changed.append(key)
 
-            if "name" in data:
-                t.name = data["name"]
-            if "nickname" in data:
-                t.nickname = data["nickname"]
-            if "elevation" in data:
-                t.elevation = data["elevation"]
-            if "lat" in data:
-                t.lat = data["lat"]
-            if "lon" in data:
-                t.lon = data["lon"]
-            if "diameter" in data:
-                t.diameter = data["diameter"]
-            if "robotic" in data:
-                t.robotic = data["robotic"]
-            if "fixed_location" in data:
-                t.fixed_location = data["fixed_location"]
-            if "skycam_link" in data:
-                t.skycam_link = data["skycam_link"]
-            if "weather_link" in data:
-                t.weather_link = data["weather_link"]
+            if not changed:
+                self.push_notification("Nothing to update")
+                return self.success()
 
-            session.commit()
+            await session.commit()
 
-            if any(k in data for k in ["lat", "lon", "elevation"]):
-                t.current_time(refresh=True)
+            if any(k in changed for k in ("lat", "lon", "elevation")):
+                telescope.current_time(refresh=True)
 
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
+            self.push_notification("Telescope updated successfully")
             return self.success()
 
-    @permissions(["Delete telescope"])
-    def delete(self, telescope_id):
+    @permissions(["Manage telescopes"])
+    async def delete(self, telescope_id: int):
         """
         ---
         summary: Delete a telescope
         description: Delete a telescope
         tags:
           - telescopes
-        parameters:
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -323,15 +320,16 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            del_result = await session.scalars(
                 Telescope.select(session.user_or_token, mode="delete").where(
                     Telescope.id == int(telescope_id)
                 )
-            ).first()
+            )
+            t = del_result.first()
             if t is None:
                 return self.error("Invalid telescope ID.")
-            session.delete(t)
-            session.commit()
+            await session.delete(t)
+            await session.commit()
             self.push_all(action="skyportal/REFRESH_TELESCOPES")
             return self.success()

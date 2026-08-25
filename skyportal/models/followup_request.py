@@ -45,11 +45,15 @@ EQ_OP = getattr(operator, "eq")
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
 
     instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
+        DBSession()
+        .scalars(
+            Instrument.select(user_or_token).where(
+                Instrument.listener_classname.isnot(None)
+            )
+        )
         .all()
     )
 
@@ -65,11 +69,10 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
     ]
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Allocation)
         .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
+        .where(Instrument.id.in_(accessible_instrument_ids))
     )
 
 
@@ -127,6 +130,59 @@ class DefaultFollowupRequest(Base):
         psql.JSONB,
         nullable=False,
         doc="Source filter for default follow-up request.",
+    )
+
+    constraints = sa.Column(
+        psql.JSONB,
+        nullable=True,
+        doc=(
+            "Trigger constraints applied before auto-submitting this default "
+            "follow-up request, mirroring the constraints accepted by the manual "
+            "follow-up request API (e.g. not_if_duplicates, not_if_classified, "
+            "not_if_spectra_exist, source_group_ids, radius, ...). Null means no "
+            "constraints (always submit)."
+        ),
+    )
+
+    priority_order = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Whether higher priority values mean higher ('asc') or lower ('desc') "
+            "observing priority. Used to decide whether an incoming auto-trigger "
+            "should bump an existing request's priority. Defaults to 'asc' when null."
+        ),
+    )
+
+    validity_days = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc=(
+            "Number of days the auto-submitted request should remain valid; sets "
+            "the request's end_date to start_date + validity_days. Defaults to 7 "
+            "when null. Ignored for urgency-based instruments (which do not use "
+            "start/end dates)."
+        ),
+    )
+
+    comment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Optional comment posted to the source when a follow-up request is "
+            "auto-submitted from this default request. The request priority is "
+            "appended to it."
+        ),
+    )
+
+    implements_update = sa.Column(
+        sa.Boolean,
+        nullable=True,
+        doc=(
+            "Operator override: if false, an existing matching request is never "
+            "updated (priority-bumped) by this default request even if the "
+            "instrument API supports updates. Defaults to true when null."
+        ),
     )
 
 
@@ -380,8 +436,14 @@ def add_followup(mapper, connection, target):
             print(f"Unknown target class name: {target_class_name}")
             return
 
-        default_followup_requests = session.scalars(requests_query).all()
-        if len(default_followup_requests) == 0:
+        # Pass IDs (not session-bound ORM objects) across the run_async thread
+        # boundary; the background task re-queries them in its own session.
+        # Otherwise their lazy-loaded relationships (e.g. Filter) end up
+        # attached to two sessions ("already attached to session ...").
+        default_followup_request_ids = [
+            d.id for d in session.scalars(requests_query).all()
+        ]
+        if len(default_followup_request_ids) == 0:
             return
 
         from skyportal.handlers.api.followup_request import (
@@ -392,6 +454,6 @@ def add_followup(mapper, connection, target):
         run_async(
             post_default_followup_requests,
             target_data["obj_id"],
-            default_followup_requests,
+            default_followup_request_ids,
             user_id,
         )

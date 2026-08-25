@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 from copy import copy
+from typing import ClassVar, Literal
 
 import arrow
 import astropy.units as u
@@ -13,9 +14,11 @@ import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload  # noqa: F401
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import Values, bindparam, column, text
 from sqlalchemy.sql.expression import case, cast, func
 from sqlalchemy.types import Boolean, Float, Integer, String
@@ -39,6 +42,7 @@ from ....models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjTag,
     ObjToSuperObj,
     Photometry,
     PhotStat,
@@ -48,13 +52,14 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.calculations import great_circle_distance
-from ....utils.parse import get_page_and_n_per_page
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_ids_async,
+)
+from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
-from .candidate_filter import (
-    get_subquery_for_saved_status,
-    get_user_accessible_group_and_filter_ids,
-)
+from .candidate_filter import SAVED_STATUSES, get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
@@ -150,23 +155,22 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
-def fetch_obj_data(model, options, obj_id, session):
-    return (
-        session.scalars(
-            model.select(session.user_or_token, options=options).where(
-                model.obj_id == obj_id
-            )
+async def fetch_obj_data(model, options, obj_id, session):
+    """Async fetch of all rows of ``model`` for ``obj_id``."""
+    result = await session.scalars(
+        model.select(session.user_or_token, options=options).where(
+            model.obj_id == obj_id
         )
-        .unique()
-        .all()
     )
+    return result.unique().all()
 
 
-def include_requested_obj_data(
-    obj_id, candidate, get_query_argument, session, include_phot_annotations
+async def include_requested_obj_data(
+    obj_id, candidate, query, session, include_phot_annotations
 ):
-    """
-    Add object data to the candidate dictionary based on the query parameters
+    """Add object data to the candidate dictionary based on the query
+    parameters. Async equivalent of the previous sync version — uses
+    ``selectinload`` to avoid lazy loads on the merged objects.
 
     Parameters
     ----------
@@ -174,10 +178,9 @@ def include_requested_obj_data(
         The object ID
     candidate : dict
         The candidate dictionary
-    get_query_argument : func
-        The function to get query arguments
-    session : `baselayer.app.models.Session`
-        Database session
+    query : `CandidateGetQuery`
+        The parsed query parameters
+    session : ``sqlalchemy.ext.asyncio.AsyncSession``
     include_phot_annotations : bool
         Whether to include photometry annotations
 
@@ -186,12 +189,12 @@ def include_requested_obj_data(
     dict
         The updated candidate dictionary
     """
-    if get_query_argument("includePhotometry", False):
-        phot_options = [joinedload(Photometry.instrument)]
+    if query.includePhotometry:
+        phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
-            phot_options.append(joinedload(Photometry.annotations))
-            candidate["photometry"] = fetch_obj_data(
+            phot_options.append(selectinload(Photometry.annotations))
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
             candidate["photometry"] = [
@@ -204,45 +207,48 @@ def include_requested_obj_data(
                 for phot in candidate["photometry"]
             ]
         else:
-            candidate["photometry"] = fetch_obj_data(
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
 
-    if get_query_argument("includeSpectra", False):
-        candidate["spectra"] = fetch_obj_data(
-            Spectrum, [joinedload(Spectrum.instrument)], obj_id, session
+    if query.includeSpectra:
+        candidate["spectra"] = await fetch_obj_data(
+            Spectrum, [selectinload(Spectrum.instrument)], obj_id, session
         )
 
-    if get_query_argument("includeComments", False):
+    if query.includeComments:
         candidate["comments"] = sorted(
-            fetch_obj_data(Comment, [joinedload(Comment.author)], obj_id, session),
+            await fetch_obj_data(
+                Comment, [selectinload(Comment.author)], obj_id, session
+            ),
             key=lambda x: x.created_at,
             reverse=True,
         )
-    if get_query_argument("includeFollowupRequests", False):
-        candidate["followup_requests"] = fetch_obj_data(
+    if query.includeFollowupRequests:
+        candidate["followup_requests"] = await fetch_obj_data(
             FollowupRequest,
             [
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.instrument
                 ),
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.group,
                 ),
-                joinedload(FollowupRequest.requester),
+                selectinload(FollowupRequest.requester),
             ],
             obj_id,
             session,
         )
 
-    if get_query_argument("includeAssociatedObjs", True):
-        # For each associated obj, we include the same info as for duplicates (obj_id, ra, dec, separation),
-        # but we also include the super_obj_id (and name) through which it is associated to the current obj
-        super_objs = session.scalars(
-            sa.select(SuperObj).where(
-                ObjToSuperObj.obj_id == obj_id,
-            )
-        ).all()
+    if query.includeAssociatedObjs:
+        # For each associated obj, we include the same info as for duplicates
+        # (obj_id, ra, dec, separation), plus super_obj_{id,name}.
+        super_objs_result = await session.scalars(
+            sa.select(SuperObj)
+            .options(selectinload(SuperObj.objs))
+            .where(SuperObj.objs.any(Obj.id == obj_id))
+        )
+        super_objs = super_objs_result.unique().all()
         associated_objs = []
         for super_obj in super_objs:
             super_obj_id = super_obj.id
@@ -268,7 +274,9 @@ def include_requested_obj_data(
         )
 
     candidate["annotations"] = sorted(
-        fetch_obj_data(Annotation, [], obj_id, session),
+        await fetch_obj_data(
+            Annotation, [selectinload(Annotation.groups)], obj_id, session
+        ),
         key=lambda x: x.origin,
     )
     return candidate
@@ -288,9 +296,298 @@ def add_computed_fields(candidate_info, obj):
     candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
 
 
+class CandidateGetQuery(BaseModel):
+    """Query parameters for retrieving a single candidate or querying candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeAlerts"})
+
+    numPerPage: int = Field(
+        default=25,
+        description=(
+            "Number of candidates to return per paginated request. Defaults to 25. "
+            "Capped at 500."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    autosave: bool = Field(
+        default=False,
+        description="Automatically save candidates passing query.",
+    )
+    autosaveGroupIds: list[int] | None = Field(
+        default=None,
+        description="Group ID(s) to save candidates to.",
+    )
+    savedStatus: Literal[*SAVED_STATUSES] = Field(
+        default="all",
+        description=(
+            "String indicating the saved status to filter candidate results for. "
+            "Must be one of the enumerated values."
+        ),
+    )
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at <= endDate"
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups if filterIDs is not provided."
+        ),
+    )
+    filterIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups' filters if groupIDs is not provided."
+        ),
+    )
+    sortByAnnotationOrigin: str | None = Field(
+        default=None,
+        description="The origin of the Annotation to sort by",
+    )
+    sortByAnnotationKey: str | None = Field(
+        default=None,
+        description="The key of the Annotation data value to sort by",
+    )
+    sortByAnnotationOrder: str | None = Field(
+        default=None,
+        description=(
+            'The sort order for annotations - either "asc" or "desc". '
+            'Defaults to "asc".'
+        ),
+    )
+    annotationFilterList: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of JSON objects representing annotation filters. "
+            "Filter objects are expected to have keys { origin, key, value } for "
+            "non-numeric value types, or { origin, key, min, max } for numeric values."
+        ),
+    )
+    includePhotometry: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated photometry. "
+            "Defaults to false."
+        ),
+    )
+    includeSpectra: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated spectra. "
+            "Defaults to false."
+        ),
+    )
+    includeComments: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated comments. "
+            "Defaults to false."
+        ),
+    )
+    includeFollowupRequests: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated follow-up requests. "
+            "Defaults to false."
+        ),
+    )
+    includeAssociatedObjs: bool = Field(
+        default=True,
+        description=(
+            "Boolean indicating whether to include associated objects (objects "
+            "grouped under the same super-object). Defaults to true."
+        ),
+    )
+    includeAlerts: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated alerts. "
+            "Defaults to false."
+        ),
+    )
+    classifications: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter for candidates "
+            "matching that/those classification(s)."
+        ),
+    )
+    classificationsReject: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter OUT candidates "
+            "matching with any of those classification(s)."
+        ),
+    )
+    minRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at least this value"
+        ),
+    )
+    maxRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at most this value"
+        ),
+    )
+    listName: str | None = Field(
+        default=None,
+        description=(
+            'Get only candidates saved to the querying user\'s list, e.g., "favorites".'
+        ),
+    )
+    listNameReject: str | None = Field(
+        default=None,
+        description=(
+            "Get only candidates that ARE NOT saved to the querying user's list, "
+            'e.g., "rejected_candidates".'
+        ),
+    )
+    photometryAnnotationsFilter: list[str] | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of "annotation: value: operator" triplet(s) to '
+            "filter for sources matching that/those photometry annotation(s), "
+            'i.e. "drb: 0.5: lt"'
+        ),
+    )
+    photometryAnnotationsFilterOrigin: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of origins. Only photometry annotations from "
+            "these origins are used when filtering with the "
+            "photometryAnnotationsFilter."
+        ),
+    )
+    photometryAnnotationsFilterBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations before this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations after this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterMinCount: int = Field(
+        default=1,
+        description=(
+            "Only return sources that have at least this number of photometry "
+            "annotations passing the photometry annotations filtering criteria. "
+            "Defaults to 1."
+        ),
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each "
+            "localization is associated with a specific GCNEvent by the date the "
+            "event happened, and this date is used as a unique identifier. It can "
+            "be therefore found as Localization.dateobs, queried from the "
+            "/api/localization endpoint or dateobs in the GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. Can be found in "
+            "Localization.localization_name queried from /api/localization "
+            "endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include sources",
+    )
+    firstDetectionAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were first detected after this UTC datetime."
+        ),
+    )
+    lastDetectionBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were last detected before this UTC datetime."
+        ),
+    )
+    numberDetections: int | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have been detected at least this many times."
+        ),
+    )
+    requireDetections: bool = Field(
+        default=True,
+        description=(
+            "Require firstDetectionAfter, lastDetectionBefore, and "
+            "numberDetections to be set when querying candidates in a "
+            "localization. Defaults to True."
+        ),
+    )
+    excludeForcedPhotometry: bool = Field(
+        default=False,
+        description=(
+            "If true, ignore forced photometry when applying firstDetectionAfter, "
+            "lastDetectionBefore, and numberDetections. Defaults to False."
+        ),
+    )
+    nameOnly: bool = Field(
+        default=False,
+        description=(
+            "Intended for frontend use only: if true (and objID is provided), "
+            "return only candidate obj IDs matching the partial name in objID."
+        ),
+    )
+    objID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: partial object ID used by the "
+            "nameOnly autocomplete query."
+        ),
+    )
+    queryID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: ID of a cached candidates query, "
+            "used when paginating."
+        ),
+    )
+    annotationExcludeOrigin: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+    annotationExcludeOutdatedDate: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
-    def head(self, obj_id=None):
+    async def head(self, obj_id=None):
         """
         ---
         single:
@@ -298,12 +595,6 @@ class CandidateHandler(BaseHandler):
           description: Check if a Candidate exists
           tags:
             - candidates
-          parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
           responses:
             200:
               content:
@@ -314,7 +605,7 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query_params = [bindparam("objID", value=obj_id, type_=sa.String)]
             stmt = "SELECT id FROM candidates WHERE obj_id = :objID"
             if not self.associated_user_object.is_admin:
@@ -323,13 +614,11 @@ class CandidateHandler(BaseHandler):
                         "userID", value=self.associated_user_object.id, type_=sa.Integer
                     )
                 )
-                # inner join between filters and group_users (on group_id) to get filters accessible by user
                 stmt += " AND filter_id IN (SELECT DISTINCT(filters.id) FROM filters INNER JOIN group_users ON filters.group_id = group_users.group_id WHERE group_users.user_id = :userID)"
             stmt += " LIMIT 1"
 
             stmt = text(stmt).bindparams(*query_params).columns(id=sa.Integer)
-            connection = session.connection()
-            result = connection.execute(stmt)
+            result = await session.execute(stmt)
             if result.fetchone():
                 return self.success()
             return self.error(
@@ -337,7 +626,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id: str = None, *, query: CandidateGetQuery = None):
         """
         ---
         single:
@@ -345,33 +634,6 @@ class CandidateHandler(BaseHandler):
           description: Retrieve a candidate
           tags:
             - candidates
-          parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
-            - in: query
-              name: includeComments
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated comments. Defaults to false.
-            - in: query
-              name: includeFollowupRequests
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated follow-up requests. Defaults to false.
-            - in: query
-              name: includeAlerts
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated alerts. Defaults to false.
           responses:
             200:
               content:
@@ -386,286 +648,6 @@ class CandidateHandler(BaseHandler):
           description: Retrieve all candidates
           tags:
             - candidates
-          parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of candidates to return per paginated request. Defaults to 25.
-              Capped at 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
-          - in: query
-            name: autosave
-            nullable: true
-            schema:
-                type: boolean
-            description: Automatically save candidates passing query.
-          - in: query
-            name: autosaveGroupIds
-            nullable: true
-            schema:
-                type: boolean
-            description: Group ID(s) to save candidates to.
-          - in: query
-            name: savedStatus
-            nullable: true
-            schema:
-                type: string
-                enum: [all, savedToAllSelected, savedToAnySelected, savedToAnyAccessible, notSavedToAnyAccessible, notSavedToAnySelected, notSavedToAllSelected]
-            description: |
-                String indicating the saved status to filter candidate results for. Must be one of the enumerated values.
-          - in: query
-            name: startDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              Candidate.passed_at >= startDate
-          - in: query
-            name: endDate
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              Candidate.passed_at <= endDate
-          - in: query
-            name: groupIDs
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of user's
-              groups if filterIDs is not provided.
-          - in: query
-            name: filterIDs
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
-              groups' filters if groupIDs is not provided.
-          - in: query
-            name: sortByAnnotationOrigin
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The origin of the Annotation to sort by
-          - in: query
-            name: sortByAnnotationKey
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The key of the Annotation data value to sort by
-          - in: query
-            name: sortByAnnotationOrder
-            nullable: true
-            schema:
-              type: string
-            description: |
-              The sort order for annotations - either "asc" or "desc".
-              Defaults to "asc".
-          - in: query
-            name: annotationFilterList
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of JSON objects representing annotation filters.
-              Filter objects are expected to have keys { origin, key, value } for
-              non-numeric value types, or { origin, key, min, max } for numeric values.
-          - in: query
-            name: includePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated photometry. Defaults to
-              false.
-          - in: query
-            name: includeSpectra
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated spectra. Defaults to false.
-          - in: query
-            name: includeComments
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated comments. Defaults to false.
-          - in: query
-            name: classifications
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of classification(s) to filter for candidates matching
-              that/those classification(s).
-          - in: query
-            name: classificationsReject
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-                Comma-separated string of classification(s) to filter OUT candidates matching
-                with any of those classification(s).
-          - in: query
-            name: minRedshift
-            nullable: true
-            schema:
-              type: number
-            description: |
-              If provided, return only candidates with a redshift of at least this value
-          - in: query
-            name: maxRedshift
-            nullable: true
-            schema:
-              type: number
-            description: |
-              If provided, return only candidates with a redshift of at most this value
-          - in: query
-            name: listName
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Get only candidates saved to the querying user's list, e.g., "favorites".
-          - in: query
-            name: listNameReject
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates".
-          - in: query
-            name: photometryAnnotationsFilter
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: string
-            explode: false
-            style: simple
-            description: |
-              Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
-              that/those photometry annotation(s), i.e. "drb: 0.5: lt"
-          - in: query
-            name: photometryAnnotationsFilterOrigin
-            nullable: true
-            schema:
-              type: string
-            description: Comma separated string of origins. Only photometry annotations from these origins are used when filtering with the photometryAnnotationsFilter.
-          - in: query
-            name: photometryAnnotationsFilterBefore
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have photometry annotations before this UTC datetime.
-          - in: query
-            name: photometryAnnotationsFilterAfter
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have photometry annotations after this UTC datetime.
-          - in: query
-            name: photometryAnnotationsFilterMinCount
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Only return sources that have at least this number of photometry annotations passing the photometry annotations filtering criteria. Defaults to 1.
-          - in: query
-            name: localizationDateobs
-            schema:
-              type: string
-            description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-          - in: query
-            name: localizationName
-            schema:
-              type: string
-            description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-          - in: query
-            name: localizationCumprob
-            schema:
-              type: number
-            description: |
-              Cumulative probability up to which to include sources
-          - in: query
-            name: firstDetectionAfter
-            schema:
-              type: string
-            description: |
-              Only return sources that were first detected after this UTC datetime.
-          - in: query
-            name: lastDetectionBefore
-            schema:
-              type: string
-            description: |
-              Only return sources that were last detected before this UTC datetime.
-          - in: query
-            name: numberDetections
-            schema:
-              type: integer
-            description: |
-              Only return sources that have been detected at least this many times.
-          - in: query
-            name: requireDetections
-            schema:
-              type: boolean
-            description: |
-              Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True.
-          - in: query
-            name: excludeForcedPhotometry
-            schema:
-              type: boolean
-            description: |
-              If true, ignore forced photometry when applying firstDetectionAfter, lastDetectionBefore, and numberDetections. Defaults to False.
-
           responses:
             200:
               content:
@@ -699,29 +681,37 @@ class CandidateHandler(BaseHandler):
                   schema: Error
         """
 
+        query = self.parse_query(CandidateGetQuery)
+
         start = time.time()
 
-        include_alerts = self.get_query_argument("includeAlerts", False)
+        include_alerts = query.includeAlerts
 
         if obj_id is not None:
-            with self.Session() as session:
-                query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
+            async with self.AsyncSession() as session:
+                query_options = [
+                    selectinload(Obj.thumbnails),
+                    selectinload(Obj.photstats),
+                ]
 
-                c = session.scalars(
+                c = await session.scalar(
                     Obj.select(session.user_or_token, options=query_options).where(
                         Obj.id == obj_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error("Invalid ID")
                 candidate_info = recursive_to_dict(c)
+                # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
+                candidate_info["internal_key"] = c.internal_key
 
                 if include_alerts:
-                    accessible_candidates = session.scalars(
+                    accessible_candidates_result = await session.scalars(
                         Candidate.select(session.user_or_token).where(
                             Candidate.obj_id == obj_id
                         )
-                    ).all()
+                    )
+                    accessible_candidates = accessible_candidates_result.unique().all()
                     filter_ids = [cand.filter_id for cand in accessible_candidates]
 
                     passing_alerts = [
@@ -735,10 +725,10 @@ class CandidateHandler(BaseHandler):
                     candidate_info["filter_ids"] = filter_ids
                     candidate_info["passing_alerts"] = passing_alerts
 
-                candidate_info = include_requested_obj_data(
+                candidate_info = await include_requested_obj_data(
                     obj_id,
                     candidate_info,
-                    self.get_query_argument,
+                    query,
                     session,
                     include_phot_annotations=True,
                 )
@@ -746,8 +736,10 @@ class CandidateHandler(BaseHandler):
                 stmt = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_id
                 )
-                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                candidate_info["is_source"] = session.execute(count_stmt).scalar()
+                count_stmt = sa.select(func.count()).select_from(
+                    stmt.distinct().subquery()
+                )
+                candidate_info["is_source"] = await session.scalar(count_stmt)
                 if candidate_info["is_source"]:
                     source_subquery = (
                         Source.select(session.user_or_token)
@@ -755,23 +747,19 @@ class CandidateHandler(BaseHandler):
                         .where(Source.active.is_(True))
                         .subquery()
                     )
-                    candidate_info["saved_groups"] = (
-                        session.scalars(
-                            Group.select(session.user_or_token).join(
-                                source_subquery, Group.id == source_subquery.c.group_id
-                            )
+                    saved_groups_result = await session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
                         )
-                        .unique()
-                        .all()
+                    )
+                    candidate_info["saved_groups"] = saved_groups_result.unique().all()
+                    classifications_result = await session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj_id
+                        )
                     )
                     candidate_info["classifications"] = (
-                        session.scalars(
-                            Classification.select(session.user_or_token).where(
-                                Classification.obj_id == obj_id
-                            )
-                        )
-                        .unique()
-                        .all()
+                        classifications_result.unique().all()
                     )
                 add_computed_fields(candidate_info, c)
                 candidate_info = recursive_to_dict(candidate_info)
@@ -786,52 +774,96 @@ class CandidateHandler(BaseHandler):
 
                 return self.success(data=candidate_info)
 
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 25)
+        page_number = query.pageNumber
+        n_per_page = query.numPerPage
+
+        # Lightweight autocomplete for the toolbar quick-search: return candidate
+        # obj_ids matching a partial name, skipping the heavy scanning-page query.
+        name_only = query.nameOnly
+        obj_id_partial = query.objID
+        if name_only and obj_id_partial:
+            async with self.AsyncSession() as session:
+                group_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                matches = await session.scalars(
+                    sa.select(Candidate.obj_id)
+                    .join(Filter, Filter.id == Candidate.filter_id)
+                    .where(
+                        Candidate.obj_id.ilike(f"{obj_id_partial}%"),
+                        Filter.group_id.in_(group_ids),
+                    )
+                    .distinct()
+                    .order_by(Candidate.obj_id)
+                    .limit(int(n_per_page))
+                )
+                return self.success(
+                    data={"candidates": [{"id": oid} for oid in matches.all()]}
+                )
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
-        query_id = self.get_query_argument("queryID", None)
-        saved_status = self.get_query_argument("savedStatus", "all")
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        group_ids = self.get_query_argument("groupIDs", None)
-        filter_ids = self.get_query_argument("filterIDs", None)
-        sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
-        annotation_filter_list = self.get_query_argument("annotationFilterList", None)
-        classifications = self.get_query_argument("classifications", None)
-        classifications_reject = self.get_query_argument("classificationsReject", None)
-        min_redshift = self.get_query_argument("minRedshift", None)
-        max_redshift = self.get_query_argument("maxRedshift", None)
-        list_name = self.get_query_argument("listName", None)
-        list_name_reject = self.get_query_argument("listNameReject", None)
-        autosave = self.get_query_argument("autosave", False)
-        autosave_group_ids = self.get_query_argument("autosaveGroupIds", None)
-        photometry_annotations_filter = self.get_query_argument(
-            "photometryAnnotationsFilter", None
-        )
-        photometry_annotations_filter_origin = self.get_query_argument(
-            "photometryAnnotationsFilterOrigin", None
-        )
-        photometry_annotations_filter_after = self.get_query_argument(
-            "photometryAnnotationsFilterAfter", None
-        )
-        photometry_annotations_filter_before = self.get_query_argument(
-            "photometryAnnotationsFilterBefore", None
-        )
-        photometry_annotations_filter_min_count = self.get_query_argument(
-            "photometryAnnotationsFilterMinCount", 1
+        query_id = query.queryID
+        saved_status = query.savedStatus
+        start_date = query.startDate
+        end_date = query.endDate
+        group_ids = query.groupIDs
+        filter_ids = query.filterIDs
+        sort_by_origin = query.sortByAnnotationOrigin
+        annotation_filter_list = query.annotationFilterList
+        classifications = query.classifications
+        classifications_reject = query.classificationsReject
+        min_redshift = query.minRedshift
+        max_redshift = query.maxRedshift
+        list_name = query.listName
+        list_name_reject = query.listNameReject
+        autosave = query.autosave
+        autosave_group_ids = query.autosaveGroupIds
+        photometry_annotations_filter = query.photometryAnnotationsFilter
+        photometry_annotations_filter_origin = query.photometryAnnotationsFilterOrigin
+        photometry_annotations_filter_after = query.photometryAnnotationsFilterAfter
+        photometry_annotations_filter_before = query.photometryAnnotationsFilterBefore
+        # Parse to naive datetimes so the query compares against the timestamp
+        # column rather than a string (Postgres has no timestamp >= text op).
+        if photometry_annotations_filter_after is not None:
+            try:
+                photometry_annotations_filter_after = arrow.get(
+                    photometry_annotations_filter_after
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterAfter: "
+                    f"{photometry_annotations_filter_after}"
+                )
+        if photometry_annotations_filter_before is not None:
+            try:
+                photometry_annotations_filter_before = arrow.get(
+                    photometry_annotations_filter_before
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterBefore: "
+                    f"{photometry_annotations_filter_before}"
+                )
+        photometry_annotations_filter_min_count = (
+            query.photometryAnnotationsFilterMinCount
         )
 
-        first_detected_date = self.get_query_argument("firstDetectionAfter", None)
-        last_detected_date = self.get_query_argument("lastDetectionBefore", None)
-        number_of_detections = self.get_query_argument("numberDetections", None)
-        require_detections = self.get_query_argument("requireDetections", True)
-        exclude_forced_photometry = self.get_query_argument(
-            "excludeForcedPhotometry", False
-        )
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        first_detected_date = query.firstDetectionAfter
+        last_detected_date = query.lastDetectionBefore
+        number_of_detections = query.numberDetections
+        require_detections = query.requireDetections
+        exclude_forced_photometry = query.excludeForcedPhotometry
+        localization_dateobs = query.localizationDateobs
+        localization_name = query.localizationName
+        localization_cumprob = query.localizationCumprob
+
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
 
         if (localization_dateobs or localization_name) and require_detections:
             if (
@@ -866,10 +898,10 @@ class CandidateHandler(BaseHandler):
         except ValueError as e:
             return self.error(str(e))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
             # that the user has access to
-            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+            group_ids, filter_ids = await accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,
@@ -883,23 +915,19 @@ class CandidateHandler(BaseHandler):
             candidate_query = sa.select(Candidate).where(
                 Candidate.filter_id.in_(filter_ids)
             )
-            if start_date and start_date.strip().lower() not in {
-                "",
-                "null",
-                "undefined",
-            }:
-                try:
-                    start_date = arrow.get(start_date).datetime
-                except Exception as e:
-                    return self.error(f"Invalid startDate value: {e}")
+            try:
+                start_date = parse_optional_date(start_date)
+            except Exception as e:
+                return self.error(f"Invalid startDate value: {e}")
+            try:
+                end_date = parse_optional_date(end_date)
+            except Exception as e:
+                return self.error(f"Invalid endDate value: {e}")
+            if start_date:
                 candidate_query = candidate_query.where(
                     Candidate.passed_at >= start_date
                 )
-            if end_date and end_date.strip().lower() not in {"", "null", "undefined"}:
-                try:
-                    end_date = arrow.get(end_date).datetime
-                except Exception as e:
-                    return self.error(f"Invalid endDate value: {e}")
+            if end_date:
                 candidate_query = candidate_query.where(Candidate.passed_at <= end_date)
             candidate_subquery = candidate_query.subquery()
             # We'll join in the nested data for Obj (like photometry) later
@@ -909,25 +937,11 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None or annotation_filter_list is not None:
                 q = q.outerjoin(Annotation)
 
-            if isinstance(classifications, str):
-                if "," in classifications:
-                    classifications = [c.strip() for c in classifications.split(",")]
-                else:
-                    classifications = [classifications]
+            if classifications:
                 q = q.join(Classification).where(
                     Classification.classification.in_(classifications)
                 )
-            elif classifications is not None:
-                return self.error(
-                    "Invalid classifications value -- must provide at least one string value"
-                )
-            if isinstance(classifications_reject, str):
-                if "," in classifications_reject:
-                    classifications_reject = [
-                        c.strip() for c in classifications_reject.split(",")
-                    ]
-                else:
-                    classifications_reject = [classifications_reject]
+            if classifications_reject:
                 # here we want to keep candidates that:
                 #   1. have no classification
                 #   2. do not have one of the classifications_reject as a classification
@@ -944,10 +958,6 @@ class CandidateHandler(BaseHandler):
                     classifications_reject_subquery,
                     Obj.id == classifications_reject_subquery.c.obj_id,
                 ).where(classifications_reject_subquery.c.obj_id.is_(None))
-            elif classifications_reject is not None:
-                return self.error(
-                    "Invalid classificationsReject value -- must provide at least one string value"
-                )
 
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
@@ -956,13 +966,8 @@ class CandidateHandler(BaseHandler):
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
             q = get_subquery_for_saved_status(
-                session, q, saved_status, group_ids, session.user_or_token
+                q, saved_status, group_ids, session.user_or_token
             )
-
-            if q is None:
-                return self.error(
-                    f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
-                )
 
             if min_redshift is not None:
                 try:
@@ -981,9 +986,7 @@ class CandidateHandler(BaseHandler):
                     )
                 q = q.where(Obj.redshift <= max_redshift)
 
-            if self.get_query_argument(
-                "annotationExcludeOrigin", None
-            ) or self.get_query_argument("annotationExcludeOutdatedDate", None):
+            if query.annotationExcludeOrigin or query.annotationExcludeOutdatedDate:
                 return self.error(
                     "annotationExcludeOrigin and annotationExcludeOutdatedDate parameters are no longer supported"
                 )
@@ -1083,8 +1086,8 @@ class CandidateHandler(BaseHandler):
                         )
 
             if sort_by_origin is not None:
-                sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
-                sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
+                sort_by_key = query.sortByAnnotationKey
+                sort_by_order = query.sortByAnnotationOrder
                 # Define a custom sort order to have annotations from the correct origin first, all others afterward
                 origin_sort_order = case(
                     (Annotation.origin == sort_by_origin, 1),
@@ -1105,24 +1108,13 @@ class CandidateHandler(BaseHandler):
                 ]
 
             if photometry_annotations_filter is not None:
-                if isinstance(photometry_annotations_filter, str):
-                    photometry_annotations_filter = [
-                        c.strip() for c in photometry_annotations_filter.split(",")
-                    ]
-                else:
-                    return self.error(
-                        "Invalid annotationsFilter value -- must provide at least one string value"
-                    )
+                photometry_annotations_filter = [
+                    item.strip() for item in photometry_annotations_filter
+                ]
             if photometry_annotations_filter_origin is not None:
-                if isinstance(photometry_annotations_filter_origin, str):
-                    photometry_annotations_filter_origin = [
-                        c.strip()
-                        for c in photometry_annotations_filter_origin.split(",")
-                    ]
-                else:
-                    return self.error(
-                        "Invalid annotationsFilterOrigin value -- must provide at least one string value"
-                    )
+                photometry_annotations_filter_origin = [
+                    item.strip() for item in photometry_annotations_filter_origin
+                ]
 
             if (
                 photometry_annotations_filter_origin is not None
@@ -1246,18 +1238,18 @@ class CandidateHandler(BaseHandler):
                     )
             if localization_dateobs is not None:
                 if localization_name is None:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .order_by(Localization.created_at.desc())
-                    ).first()
+                    )
                 else:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .where(Localization.localization_name == localization_name)
                         .order_by(Localization.modified.desc())
-                    ).first()
+                    )
                 if localization is None:
                     if localization_name is not None:
                         return self.error(
@@ -1283,15 +1275,12 @@ class CandidateHandler(BaseHandler):
                         "def", LocalizationTile
                     )
                 else:
-                    # check that there is actually a localizationTile with the given localization_id in the partition
-                    # if not, use the default partition
-                    if not (
-                        session.scalars(
-                            localizationtilescls.select(session.user_or_token).where(
-                                localizationtilescls.localization_id == localization.id
-                            )
-                        ).first()
-                    ):
+                    existing_tile = await session.scalar(
+                        localizationtilescls.select(session.user_or_token).where(
+                            localizationtilescls.localization_id == localization.id
+                        )
+                    )
+                    if not existing_tile:
                         localizationtilescls = LocalizationTile.partitions.get(
                             "def", LocalizationTile
                         )
@@ -1320,12 +1309,13 @@ class CandidateHandler(BaseHandler):
                     )
                 ).scalar_subquery()
 
-                tile_ids = session.scalars(
+                tile_ids_result = await session.scalars(
                     sa.select(localizationtilescls.id).where(
                         localizationtilescls.localization_id == localization.id,
                         localizationtilescls.probdensity >= min_probdensity,
                     )
-                ).all()
+                )
+                tile_ids = tile_ids_result.all()
 
                 tiles_subquery = (
                     sa.select(Obj.id)
@@ -1341,7 +1331,7 @@ class CandidateHandler(BaseHandler):
                 )
 
             try:
-                query_results = grab_query_results(
+                query_results = await grab_query_results(
                     session,
                     q,
                     page_number,
@@ -1357,23 +1347,21 @@ class CandidateHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
 
-            matching_source_ids = (
-                session.scalars(
-                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
-                        Source.obj_id.in_(
-                            [obj.id for (obj,) in query_results["candidates"]]
-                        )
+            matching_source_ids_result = await session.scalars(
+                Source.select(session.user_or_token, columns=[Source.obj_id]).where(
+                    Source.obj_id.in_(
+                        [obj.id for (obj,) in query_results["candidates"]]
                     )
                 )
-                .unique()
-                .all()
             )
+            matching_source_ids = matching_source_ids_result.unique().all()
             candidate_list = []
             if autosave:
-                from ..source import post_source
+                from ..source import post_source_async
 
             for (obj,) in query_results["candidates"]:
-                with session.no_autoflush:
+                # AsyncSession.no_autoflush is a property; use the proxy.
+                with session.sync_session.no_autoflush:
                     obj.is_source = obj.id in matching_source_ids
                     if obj.is_source:
                         source_subquery = (
@@ -1382,47 +1370,58 @@ class CandidateHandler(BaseHandler):
                             .where(Source.active.is_(True))
                             .subquery()
                         )
-                        obj.saved_groups = session.scalars(
+                        saved_groups_result = await session.scalars(
                             Group.select(session.user_or_token).join(
                                 source_subquery, Group.id == source_subquery.c.group_id
                             )
-                        ).all()
-                        obj.classifications = (
-                            session.scalars(
-                                Classification.select(self.current_user).where(
-                                    Classification.obj_id == obj.id
-                                )
-                            )
-                            .unique()
-                            .all()
                         )
-                    obj.passing_group_ids = [
-                        f.group_id
-                        for f in session.scalars(
-                            Filter.select(session.user_or_token).where(
-                                Filter.id.in_(
-                                    session.scalars(
-                                        Candidate.select(
-                                            session.user_or_token,
-                                            columns=[Candidate.filter_id],
-                                        ).where(Candidate.obj_id == obj.id)
-                                    ).all()
-                                )
+                        obj.saved_groups = saved_groups_result.unique().all()
+                        classifications_result = await session.scalars(
+                            Classification.select(self.current_user).where(
+                                Classification.obj_id == obj.id
                             )
-                        ).all()
-                    ]
+                        )
+                        # Direct assignment would lazy-load the existing
+                        # `Obj.classifications` collection before replace,
+                        # which trips MissingGreenlet under async. Use
+                        # set_committed_value to set it without trigger.
+                        set_committed_value(
+                            obj,
+                            "classifications",
+                            classifications_result.unique().all(),
+                        )
+                    candidate_filter_ids_result = await session.scalars(
+                        Candidate.select(
+                            session.user_or_token,
+                            columns=[Candidate.filter_id],
+                        ).where(Candidate.obj_id == obj.id)
+                    )
+                    candidate_filter_ids = candidate_filter_ids_result.all()
+                    passing_filters_result = await session.scalars(
+                        Filter.select(session.user_or_token).where(
+                            Filter.id.in_(candidate_filter_ids)
+                        )
+                    )
+                    passing_filters = passing_filters_result.all()
+                    obj.passing_group_ids = [f.group_id for f in passing_filters]
                     if autosave:
                         source = {
                             "id": obj.id,
                             "group_ids": autosave_group_ids,
                         }
-                        post_source(source, self.associated_user_object.id, session)
+                        await post_source_async(
+                            source,
+                            self.associated_user_object.id,
+                            session,
+                        )
 
                     candidate_list.append(recursive_to_dict(obj))
-                    candidate_list[-1] = include_requested_obj_data(
+                    # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
+                    candidate_list[-1]["internal_key"] = obj.internal_key
+                    candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
-                        self.get_query_argument,
+                        query,
                         session,
                         include_phot_annotations=False,
                     )
@@ -1441,6 +1440,23 @@ class CandidateHandler(BaseHandler):
                     )
                     add_computed_fields(candidate_list[-1], obj)
 
+            # Attach each candidate's object tags (shown as chips on the scanning
+            # card), in one query keyed by obj_id to avoid an N+1.
+            candidate_obj_ids = [c["id"] for c in candidate_list]
+            if candidate_obj_ids:
+                tags_result = await session.scalars(
+                    ObjTag.select(session.user_or_token)
+                    .options(selectinload(ObjTag.objtagoption))
+                    .where(ObjTag.obj_id.in_(candidate_obj_ids))
+                )
+                tags_by_obj = {}
+                for tag in tags_result.all():
+                    tags_by_obj.setdefault(tag.obj_id, []).append(
+                        {**tag.to_dict(), "name": tag.objtagoption.name}
+                    )
+                for candidate in candidate_list:
+                    candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
 
@@ -1455,7 +1471,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create new candidate(s)
@@ -1506,10 +1522,17 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
-            obj = session.scalars(
+        if data.get("id") is None:
+            return self.error("Missing required parameter: `id`.")
+        # Obj.id is a string column, but survey ids are often numeric (e.g. LSST
+        # diaObject ids) and arrive as JSON numbers; comparing those against a
+        # varchar column errors out in Postgres, so normalize once up front.
+        data["id"] = str(data["id"])
+
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
-            ).first()
+            )
             obj_already_exists = obj is not None
             schema = Obj.__schema__()
 
@@ -1539,78 +1562,127 @@ class CandidateHandler(BaseHandler):
                     return self.error(
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
-                session.add(obj)
+                # Set derived columns while obj is transient so they go into the
+                # INSERT; reading them after the flush can sync-lazy-load an
+                # expired attribute and raise MissingGreenlet.
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
+                try:
+                    # Concurrent posts of the same new obj race here: the loser
+                    # rolls back to the savepoint and reuses the committed row.
+                    async with session.begin_nested():
+                        session.add(obj)
+                        await session.flush()
+                except IntegrityError:
+                    obj = await session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == data["id"])
+                    )
+                    if obj is None:
+                        return self.error(
+                            f"Failed to create object {data['id']}: it already exists but is not accessible"
+                        )
+                    obj_already_exists = True
 
-            filters = session.scalars(
+            filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
-            ).all()
+            )
+            filters = filters_result.unique().all()
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
-            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-            update_healpix_if_relevant(data, obj)
+            # Existing obj (found up front, or created concurrently): it is fully
+            # loaded, so applying the updates here can't lazy-load.
+            if obj_already_exists:
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
 
-            candidates = [
-                Candidate(
-                    obj=obj,
-                    filter=filter,
+            # Capture obj.id BEFORE the commit attempt so that we can still
+            # build an error message after a rollback (which detaches obj).
+            obj_id_str = obj.id
+
+            # Re-posting an existing candidate (same obj/filter/passed_at) is
+            # idempotent: reuse the committed row instead of 400-ing on the unique
+            # index. Per-filter savepoints so one duplicate doesn't roll back the
+            # genuinely-new candidates in the same request.
+            candidates = []
+            for filter in filters:
+                candidate = Candidate(
+                    obj_id=obj_id_str,
+                    filter_id=filter.id,
                     passing_alert_id=passing_alert_id,
                     passed_at=passed_at,
                     uploader_id=self.associated_user_object.id,
                 )
-                for filter in filters
-            ]
-            session.add_all(candidates)
-            try:
-                session.commit()
-                ids = [c.id for c in candidates]
-            except IntegrityError as e:
-                session.rollback()
-                return self.error(
-                    f"Failed to post candidate for object {obj.id}: {e.args[0]}"
-                )
+                try:
+                    async with session.begin_nested():
+                        session.add(candidate)
+                        await session.flush()
+                    candidates.append(candidate)
+                except IntegrityError as e:
+                    # Only the (obj/filter/passed_at) unique index is idempotent;
+                    # surface any other integrity failure instead of silently
+                    # dropping the candidate and returning a false success.
+                    if "candidates_main_index" not in str(e.orig):
+                        await session.rollback()
+                        return self.error(
+                            f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
+                        )
+                    existing = await session.scalar(
+                        Candidate.select(session.user_or_token).where(
+                            Candidate.obj_id == obj_id_str,
+                            Candidate.filter_id == filter.id,
+                            Candidate.passed_at == passed_at,
+                        )
+                    )
+                    if existing is None:
+                        return self.error(
+                            f"Candidate for object {obj_id_str} already exists but is not accessible"
+                        )
+                    candidates.append(existing)
+            await session.commit()
+            ids = [c.id for c in candidates]
 
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    def delete(self, obj_id, filter_id):
+    async def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
         description: Delete candidate(s)
         tags:
           - candidates
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-          - in: path
-            name: filter_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
 
-        with self.Session() as session:
-            cands_to_delete = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 Candidate.select(session.user_or_token, mode="delete")
                 .where(Candidate.obj_id == obj_id)
                 .where(Candidate.filter_id == filter_id)
-            ).all()
+            )
+            cands_to_delete = result.all()
             if not cands_to_delete:
                 return self.error(
                     "Invalid (obj_id, filter_id) pairing - no matching candidates"
                 )
             for cand in cands_to_delete:
-                session.delete(cand)
-            session.commit()
+                await session.delete(cand)
+            await session.commit()
             return self.success()
 
 
@@ -1639,7 +1711,7 @@ def get_obj_id_values(obj_ids):
     return values_table
 
 
-def grab_query_results(
+async def grab_query_results(
     session,
     q,
     page,
@@ -1656,44 +1728,17 @@ def grab_query_results(
     If there are no matching Objs, an empty list [] is returned instead.
     include_detection_stats is added to the pagination query directly here.
     """
-    # The query will return multiple rows per candidate object if it has multiple
-    # annotations associated with it, with rows appearing at the end of the query
-    # for any annotations with origins not equal to the one being sorted on (if applicable).
-    # We want to essentially grab only the candidate objects as they first appear
-    # in the query results, and ignore these other irrelevant annotation entries.
-
-    # Add a "row_num" column to the desired query that explicitly encodes the ordering
-    # of the query results - remember that these query rows are essentially
-    # (Obj, Annotation) tuples, so the earliest row numbers for a given Obj is
-    # the one we want to adhere to (and the later ones are annotation records for
-    # the candidate that are not being sorted/filtered on right now)
-    #
-    # The row number must be preserved like this in order to remember the desired
-    # ordering info even while using the passed in query as a subquery to select
-    # from. This is because subqueries provide a set of results to query from,
-    # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
     full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()
-    # Using the PostgreSQL DISTINCT ON keyword, we grab the candidate Obj ids
-    # in the order that they first appear in the query (per the row_num values)
-    # NOTE: It is probably possible to grab the full Obj records here instead of
-    # just the ID values, but querying "full_query" here means we lost the original
-    # ORM mappings, so we would have to explicitly re-label the columns here.
-    # It is much more straightforward to just get an ordered list of Obj ID
-    # values here and get the corresponding n_items_per_page full Obj objects
-    # at the end, I think, for minimal additional overhead.
     ids_with_row_nums = (
         sa.select(full_query.c.id, full_query.c.row_num)
         .distinct(full_query.c.id)
         .order_by(full_query.c.id, full_query.c.row_num)
         .subquery()
     )
-    # Grouping and getting the first distinct obj_id above messed up the order
-    # in the query set, so re-order by the row_num we used to remember the
-    # original ordering
     ordered_ids = sa.select(
         ids_with_row_nums.c.id,
     ).order_by(ids_with_row_nums.c.row_num)
@@ -1704,9 +1749,9 @@ def grab_query_results(
             if cache_filename is not None:
                 all_ids = np.load(cache_filename)
             else:
-                # Cache expired/removed/non-existent; create new cache file
                 query_id = str(uuid.uuid4())
-                all_ids = session.scalars(ordered_ids).unique().all()
+                all_result = await session.scalars(ordered_ids)
+                all_ids = all_result.unique().all()
                 cache[query_id] = array_to_bytes(all_ids)
             total_matches = len(all_ids)
             obj_ids_in_page = all_ids[
@@ -1714,23 +1759,21 @@ def grab_query_results(
             ]
             info["queryID"] = query_id
         else:
-            count_stmt = sa.select(func.count()).select_from(ordered_ids)
-            total_matches = session.execute(count_stmt).scalar()
-            obj_ids_in_page = (
-                session.scalars(
-                    ordered_ids.limit(n_items_per_page).offset(
-                        (page - 1) * n_items_per_page
-                    )
+            count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+            total_matches = await session.scalar(count_stmt)
+            page_result = await session.scalars(
+                ordered_ids.limit(n_items_per_page).offset(
+                    (page - 1) * n_items_per_page
                 )
-                .unique()
-                .all()
             )
+            obj_ids_in_page = page_result.unique().all()
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
-        count_stmt = sa.select(func.count()).select_from(ordered_ids)
-        total_matches = session.execute(count_stmt).scalar()
-        obj_ids_in_page = session.execute(ordered_ids).unique().all()
+        count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+        total_matches = await session.scalar(count_stmt)
+        page_result = await session.execute(ordered_ids)
+        obj_ids_in_page = page_result.unique().all()
 
     info["totalMatches"] = total_matches
 
@@ -1754,26 +1797,144 @@ def grab_query_results(
 
     options = []
     if include_thumbnails:
-        options.append(joinedload(Obj.thumbnails))
+        options.append(selectinload(Obj.thumbnails))
     if include_detection_stats:
-        options.append(joinedload(Obj.photstats))
+        options.append(selectinload(Obj.photstats))
 
     items = []
     if len(obj_ids_in_page) > 0:
-        # If there are no values, the VALUES statement above will cause a syntax error,
-        # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
-        items = (
-            session.execute(
-                sa.select(Obj)
-                .options(*options)
-                .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                .order_by(obj_ids_values.c.ordering)
-            )
-            .unique()
-            .all()
+        items_result = await session.execute(
+            sa.select(Obj)
+            .options(*options)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
         )
+        items = items_result.unique().all()
 
     info[items_name] = items
     return info
+
+
+class BulkDeleteCandidatesHandler(BaseHandler):
+    @permissions(["System admin"])
+    def post(self):
+        """
+        ---
+        summary: Bulk-delete old, unsaved candidates
+        description: |
+          Delete objects that appear as candidates, are not currently saved as
+          an active source in any group, and whose most recent candidate
+          `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+          to its candidates, photometry, annotations, thumbnails, etc. System
+          admin only. Intended to be driven periodically via the Recurring API.
+        tags:
+          - candidates
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maxAgeMonths:
+                    type: integer
+                    description: |
+                      Delete objects whose most recent candidate `passed_at` is
+                      older than this many months. Defaults to 6.
+                  batchSize:
+                    type: integer
+                    description: |
+                      Maximum number of objects to delete in this call (deleted
+                      oldest-first). Defaults to 1000.
+                  dryRun:
+                    type: boolean
+                    description: |
+                      If true, only report how many objects would be deleted,
+                      without deleting anything. Defaults to false.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            deleted:
+                              type: integer
+                              description: Number of objects deleted in this call.
+                            remaining:
+                              type: integer
+                              description: Number of matching objects still to delete.
+                            dryRun:
+                              type: boolean
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+
+        try:
+            max_age_months = int(data.get("maxAgeMonths", 6))
+        except (TypeError, ValueError):
+            return self.error("maxAgeMonths must be an integer.")
+        try:
+            batch_size = int(data.get("batchSize", 1000))
+        except (TypeError, ValueError):
+            return self.error("batchSize must be an integer.")
+        dry_run = bool(data.get("dryRun", False))
+
+        if max_age_months < 1:
+            return self.error("maxAgeMonths must be a positive integer.")
+        if not (1 <= batch_size <= 10000):
+            return self.error("batchSize must be between 1 and 10000.")
+
+        cutoff = arrow.utcnow().shift(months=-max_age_months).naive
+
+        # Objects that are candidates, are not currently saved as an active
+        # source anywhere, and have no candidate activity at/after the cutoff
+        # (i.e. their most recent passed_at is older than maxAgeMonths).
+        criteria = sa.and_(
+            Obj.id.in_(sa.select(Candidate.obj_id)),
+            Obj.id.notin_(sa.select(Source.obj_id).where(Source.active.is_(True))),
+            Obj.id.notin_(
+                sa.select(Candidate.obj_id).where(Candidate.passed_at >= cutoff)
+            ),
+        )
+
+        with self.Session() as session:
+            count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
+
+            if dry_run:
+                total = int(session.scalar(count_stmt) or 0)
+                return self.success(
+                    data={"deleted": 0, "remaining": total, "dryRun": True}
+                )
+
+            objs = session.scalars(
+                sa.select(Obj)
+                .where(criteria)
+                .order_by(Obj.created_at)
+                .limit(batch_size)
+            ).all()
+
+            # Per-row delete so ORM cascades and the Obj `before_delete` event
+            # (on-disk thumbnail cleanup) fire, rather than a bulk DELETE.
+            n = len(objs)
+            for obj in objs:
+                session.delete(obj)
+            session.commit()
+
+            remaining = int(session.scalar(count_stmt) or 0)
+            log(
+                f"Bulk-deleted {n} unsaved candidate object(s) older than "
+                f"{max_age_months} months; {remaining} remaining."
+            )
+            return self.success(
+                data={"deleted": n, "remaining": remaining, "dryRun": False}
+            )

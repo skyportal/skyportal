@@ -1,0 +1,225 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+
+import Box from "@mui/material/Box";
+import { makeStyles } from "tss-react/mui";
+import IconButton from "@mui/material/IconButton";
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import Tooltip from "@mui/material/Tooltip";
+import useMediaQuery from "@mui/material/useMediaQuery";
+
+import ProfileDropdown from "../ProfileDropdown";
+import Logo from "../Logo";
+import Notifications from "../Notifications";
+import Notes from "../Notes";
+import TeamSwitcher from "../team/TeamSwitcher";
+import hydrate from "../../actions";
+import { useAppDispatch } from "../../types/hooks";
+
+import QuickSearchBar from "../QuickSearchBar";
+import {alpha} from "@mui/material/styles";
+
+const useStyles = makeStyles()((theme) => ({
+  topBannerContent: {
+    width: "100%",
+    position: "relative",
+    paddingLeft: "1rem",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  titleLink: {
+    display: "inline-flex",
+    flexDirection: "row",
+    alignItems: "center",
+    textDecoration: "none",
+  },
+  actions: {
+    display: "inline-flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "1rem",
+    paddingRight: "1rem",
+  },
+  mobileSearch: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.5rem",
+    background: theme.palette.primary.dark,
+    "& .MuiAutocomplete-root": {
+      flexGrow: 1,
+    },
+  },
+  title: {
+    margin: "0 0 0 0.5rem",
+    color: "white",
+    fontSize: "160%",
+    fontWeight: "bold",
+    verticalAlign: "middle",
+    display: "none",
+    [theme.breakpoints.up("sm")]: {
+      display: "block",
+    },
+  },
+  logos: {
+    display: "inline-flex",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: "0.4rem",
+  },
+  logoContainer: {
+    height: "100%",
+    borderRight: "1px solid white",
+    paddingLeft: "0.4rem",
+    paddingRight: "0.4rem",
+    "&:last-of-type": {
+      borderRight: "none",
+      paddingRight: "0",
+    },
+    "& > div": {
+      "& > img": {
+        maxHeight: "40px",
+      },
+    },
+  },
+  date: {
+    fontSize: "0.9rem",
+    fontWeight: "bold",
+    background: alpha(theme.palette.primary.light, 0.4),
+    padding: "0.3rem 0.6rem",
+    borderRadius: "0.5rem",
+  },
+}));
+
+const HeaderContent = () => {
+  const { classes } = useStyles();
+  const dispatch = useAppDispatch();
+
+  const isDesktop = useMediaQuery((theme: any) => theme.breakpoints.up("md"));
+  const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [openSearch, setOpenSearch] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const [searchTop, setSearchTop] = useState(0);
+
+  const handleRefresh = () => {
+    dispatch(hydrate());
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 3000);
+  };
+
+  useEffect(() => {
+    if (isDesktop) {
+      setOpenSearch(false);
+    }
+  }, [isDesktop]);
+
+  useEffect(() => {
+    if (openSearch && bannerRef.current) {
+      setSearchTop(bannerRef.current.getBoundingClientRect().bottom);
+    }
+  }, [openSearch]);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+
+    const updateNow = () => setNow(new Date());
+    const delay = (60 - new Date().getSeconds()) * 1000; // the number of seconds to wait until the next minute
+
+    updateNow();
+    let interval: any;
+    const timeout = setTimeout(() => {
+      updateNow(); // after the delay, update now
+      interval = setInterval(updateNow, 60000); // then set an interval to update every minute
+    }, delay);
+
+    return () => { // cleanup
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [isDesktop]);
+
+  return (
+    <div className={classes.topBannerContent} ref={bannerRef}>
+      <Tooltip title={downSm ? "{{ app.title }}" : ""}>
+        <Link onClick={() => dispatch(hydrate())} to="/" className={classes.titleLink}>
+          <div className={classes.logos}>
+            {%- for logo in app.logos %}
+            <div className={classes.logoContainer}>
+              <Logo src="{{ logo.src }}" altText="{{ logo.alt_text }}" />
+            </div>
+            {%- endfor %}
+          </div>
+          <p className={classes.title}>
+            {{ app.title }}
+          </p>
+        </Link>
+      </Tooltip>
+      <Box className={classes.date} sx={{"{{ display: { xs: 'none', lg: 'inline-flex' } }}"}}>
+        {now.toLocaleString('en-US', {
+          timeZone: 'UTC',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })} UTC
+      </Box>
+      <div className={classes.actions}>
+        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
+          <QuickSearchBar />
+        </Box>
+        <Box sx={{"{{ display: { xs: 'block', md: 'none' } }}"}}>
+          <IconButton
+            onClick={() => setOpenSearch(!openSearch)}
+            size="large"
+            style={{"{{padding: 0, margin: 0}}"}}
+          >
+            <SearchIcon fontSize="large" style={{"{{color: '#457b9d'}}"}}/>
+          </IconButton>
+        </Box>
+        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
+          <Tooltip title="Refresh basic data">
+            <IconButton
+              onClick={() => handleRefresh()}
+              data-testid="refreshButton"
+              size="large"
+              style={{"{{padding: 0, margin: 0}}"}}
+              disabled={refreshing}
+            >
+              <RefreshIcon fontSize="large" style={{"{{color: refreshing ? 'grey' : '#457b9d'}}"}}/>
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <TeamSwitcher />
+        <Notifications />
+        <Notes />
+        <ProfileDropdown />
+      </div>
+      <Box
+        className={classes.mobileSearch}
+        style={{"{{ top: searchTop }}"}}
+        sx={{"{{ display: { xs: openSearch ? 'flex' : 'none', md: 'none' } }}"}}
+      >
+        <QuickSearchBar />
+        <IconButton
+          onClick={() => setOpenSearch(false)}
+          size="large"
+        >
+          <CloseIcon style={{"{{color: 'white', padding: 0}}"}}/>
+        </IconButton>
+      </Box>
+    </div>
+)};
+
+export default HeaderContent;

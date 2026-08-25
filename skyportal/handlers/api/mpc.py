@@ -1,4 +1,3 @@
-import asyncio
 import re
 import urllib
 
@@ -33,19 +32,13 @@ mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 class ObjMPCHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Crossmatch an object with MPC
         description: Retrieve an object's status from Minor Planet Center
         tags:
           - objs
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         requestBody:
           content:
             application/json:
@@ -63,12 +56,12 @@ class ObjMPCHandler(BaseHandler):
                       Time to check MPC for.
                       Defaults to current time.
                   limiting_magnitude:
-                    type: float
+                    type: number
                     description: |
                       Limiting magnitude down which to search.
                       Defaults to 24.0.
                   search_radius:
-                    type: float
+                    type: number
                     description: |
                       Search radius for MPC [in arcmin].
                       Defaults to 1 arcminute.
@@ -108,10 +101,10 @@ class ObjMPCHandler(BaseHandler):
 
         obscode = data.get("obscode", "500")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
@@ -154,17 +147,27 @@ class ObjMPCHandler(BaseHandler):
             url = f"{mpcheck_url}?{urllib.parse.urlencode(params)}"
             url = url.replace("%2B", "+")
 
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
                 lambda: query_mpc(obj_id, self.associated_user_object.id, url),
             )
 
             return self.success()
+
+
+# Row: "<designation>  <RA hh mm ss.s>  <Dec ±dd mm ss>  ...".
+_MPC_ROW = re.compile(
+    r"^(?P<desig>.+?)\s+\d{2} \d{2} \d{2}\.\d\s+[-+]\d{2} \d{2} \d{2}\b"
+)
+
+
+def _parse_mpc_designation(pre_text):
+    """First minor-planet designation in an MPChecker <pre> block, or None."""
+    for line in pre_text.splitlines():
+        match = _MPC_ROW.match(line)
+        if match:
+            return match.group("desig").strip()
+    return None
 
 
 def query_mpc(obj_id, user_id, url):
@@ -185,23 +188,27 @@ def query_mpc(obj_id, user_id, url):
     log(f"Querying MPC for {obj_id}: {url}")
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
 
         obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
 
         requests_session = requests.Session()
         response = requests_session.get(url)
 
-        if re.findall("The following objects,.*", response.text):
-            responseSplit = response.text.split("(1)")[-1].split(" ")
-            mpc_name = list(filter(None, responseSplit))[0]
+        # Matches are the data rows inside <pre>; empty <pre> means none.
+        pre = re.search(r"<pre>(.*?)</pre>", response.text, re.DOTALL)
+        mpc_name = _parse_mpc_designation(pre.group(1)) if pre else None
 
+        if mpc_name is not None:
             log(f"{obj_id}: identified MPC name {mpc_name}")
-
             obj.is_roid = True
             obj.mpc_name = mpc_name
+            number = re.match(r"\((\d+)\)", mpc_name)
+            alias = f"SSO {number.group(1)}" if number else mpc_name
+            if alias not in (obj.alias or []):
+                obj.alias = (obj.alias or []) + [alias]
             session.commit()
-        elif re.findall("No known minor planets,.*", response.text):
+        elif pre is not None:
             log(f"{obj_id}: No known minor planets")
             obj.is_roid = False
             session.commit()
@@ -213,6 +220,12 @@ def query_mpc(obj_id, user_id, url):
             "*",
             "skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
+        )
+        # Also refresh the scanning-page card in place, if shown.
+        flow.push(
+            "*",
+            "skyportal/REFRESH_CANDIDATE",
+            payload={"id": obj.internal_key},
         )
 
     except Exception as e:

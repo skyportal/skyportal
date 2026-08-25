@@ -1,4 +1,3 @@
-import datetime
 import io
 import math
 import os
@@ -34,6 +33,7 @@ from baselayer.log import make_log
 
 from .. import __version__
 from .cache import Cache, dict_to_bytes
+from .naive_datetime import utcnow_naive
 from .tap_services.gaia import GaiaQuery
 
 log = make_log("finder-chart")
@@ -139,6 +139,15 @@ irsa = {
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
 
+# A small metadata lookup, but it blocks one of the app's few worker threads,
+# so fail fast when IRSA hangs rather than stalling every request behind it.
+IRSA_SEARCH_TIMEOUT = (6.05, 5.0)
+
+
+class ZTFRefUnavailable(Exception):
+    """IRSA was unreachable or errored -- transient, so it must not be cached
+    the way a genuine "no reference image here" answer is."""
+
 
 starlist_formats = {
     "Keck": {
@@ -190,8 +199,9 @@ def memcache(f):
 
 
 def get_url(*args, **kwargs):
-    # Connect and read timeouts
-    kwargs["timeout"] = (6.05, 20)
+    # Connect and read timeouts. setdefault, not assignment: callers fetching
+    # something small on the request path need a shorter one than an image pull.
+    kwargs.setdefault("timeout", (6.05, 20))
     try:
         return requests.get(*args, **kwargs)
     except requests.exceptions.RequestException:
@@ -268,7 +278,7 @@ def get_ps1_cds_url(ra, dec, imsize, *args, **kwargs):
 
 
 @memcache
-def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
+def _ztfref_url_and_epoch(ra, dec, imsize):
     """
     From:
     https://gist.github.com/dmitryduev/634bd2b21a77e2b1de89e0bfd39d14b9
@@ -284,27 +294,50 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
         Declination (J2000) of the source
     imsize : float
         Requested image size (on a size) in arcmin
-    *args : optional
-        Extra args (not needed here)
-    **kwargs : optional
-        Extra kwargs (not needed here)
 
     Returns
     -------
-    str
-        the URL to download the ZTF image
+    tuple
+        (url, epoch) -- an empty url means IRSA has no reference image here.
 
+    Raises
+    ------
+    ZTFRefUnavailable
+        IRSA was unreachable or errored. Raised rather than returned so joblib
+        does not cache an outage as a permanent "no reference image".
     """
+
+    def _ret(url, meta=None):
+        # Also return the ref coadd midpoint epoch (Time, or None) so PM can be
+        # carried forward from the reference epoch.
+        try:
+            start = Time(
+                pd.to_datetime(meta.loc[0, "startobsdate"]).tz_convert(None).isoformat()
+            )
+            end = Time(
+                pd.to_datetime(meta.loc[0, "endobsdate"]).tz_convert(None).isoformat()
+            )
+            epoch = start + (end - start) / 2
+        except Exception:
+            epoch = None
+        return url, epoch
+
     imsize_deg = imsize / 60
 
     url_ref_meta = os.path.join(
         irsa["url_search"], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
-    r = get_url(url_ref_meta)
+    r = get_url(url_ref_meta, timeout=IRSA_SEARCH_TIMEOUT)
     if r is None:
-        return ""
+        raise ZTFRefUnavailable(f"no response from IRSA for {ra} {dec}")
+    if r.status_code != 200:
+        raise ZTFRefUnavailable(f"IRSA returned {r.status_code} for {ra} {dec}")
     s = r.content
-    c = pd.read_csv(io.StringIO(s.decode("utf-8")))
+    try:
+        c = pd.read_csv(io.StringIO(s.decode("utf-8")))
+    except Exception as e:
+        # An error page rather than the CSV we asked for.
+        raise ZTFRefUnavailable(f"unparseable IRSA response for {ra} {dec}: {e}")
 
     try:
         field = f"{c.loc[0, 'field']:06d}"
@@ -313,7 +346,7 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
         ccd = f"{c.loc[0, 'ccdid']:02d}"
     except KeyError:
         log(f"Note: ZTF does not have a reference image at the position {ra} {dec}")
-        return ""
+        return _ret("")
 
     path_ursa_ref = os.path.join(
         irsa["url_data"],
@@ -325,7 +358,18 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
         f"q{quad}",
         f"ztf_{field}_{filt}_c{ccd}_q{quad}_refimg.fits",
     )
-    return path_ursa_ref
+    return _ret(path_ursa_ref, c)
+
+
+def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
+    """URL of the ZTF reference image covering this position, or "" if there is
+    none (including when IRSA is down -- callers treat ZTFref as optional)."""
+    try:
+        url, epoch = _ztfref_url_and_epoch(ra, dec, imsize)
+    except ZTFRefUnavailable as e:
+        log(f"ZTF reference lookup unavailable: {e}")
+        url, epoch = "", None
+    return (url, epoch) if return_epoch else url
 
 
 def ngps_defaults(mag, magfilter):
@@ -333,7 +377,7 @@ def ngps_defaults(mag, magfilter):
         mag = f"{mag:<0.02f}"
     except (TypeError, ValueError):
         pass
-    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5"
+    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5,1"
 
 
 # helper dict for seaching for FITS images from various surveys
@@ -411,8 +455,8 @@ def get_astrometry_backup_from_ztf(
 
     """
     # get the ZTF catalog data and make it look like a Gaia Query result
-    ztf_astrometry = get_ztfcatalog(ra, dec, as_astropy_table=True)
-    if len(ztf_astrometry) == 0:
+    ztf_astrometry, _ = get_ztfcatalog(ra, dec, as_astropy_table=True)
+    if ztf_astrometry is None or not len(ztf_astrometry):
         return ztf_astrometry
 
     ztf_astrometry.rename_column("sourceid", "source_id")
@@ -481,10 +525,11 @@ def get_ztfcatalog(
     """
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
-    refurl = get_ztfref_url(ra, dec, imsize=5)
+    # Also returns ztfref_epoch (Time, or None): the ref coadd midpoint epoch.
+    refurl, ztfref_epoch = get_ztfref_url(ra, dec, imsize=5, return_epoch=True)
     if refurl is None or refurl == "":
         log("Empty ZTF reference image URL. Returning empty table.")
-        return Table()
+        return Table(), ztfref_epoch
 
     # the catalog data is in the same directory as the reference images
     caturl = refurl.replace("_refimg.fits", "_refpsfcat.fits")
@@ -497,7 +542,7 @@ def get_ztfcatalog(
     else:
         response = get_url(caturl, stream=True, allow_redirects=True)
         if response is None or response.status_code != 200:
-            return None
+            return None, ztfref_epoch
         else:
             with fits.open(io.BytesIO(response.content)) as hdu:
                 buf = io.BytesIO()
@@ -515,12 +560,12 @@ def get_ztfcatalog(
         except KeyError:
             magzp = 25.0
         ztftable["mag"] += magzp
-        return ztftable
+        return ztftable, ztfref_epoch
     try:
         catalog = SkyCoord.guess_from_table(ztftable)
-        return catalog
+        return catalog, ztfref_epoch
     except ValueError:
-        return Table()
+        return Table(), ztfref_epoch
 
 
 @warningfilter(action="ignore", category=RuntimeWarning)
@@ -648,6 +693,7 @@ def get_formatted_standards_list(
     magnitude_range=(np.inf, -np.inf),
     show_first_line=False,
     return_dataframe=False,
+    obstime=None,
 ):
     """Returns a list of standard stars in the preferred starlist format.
 
@@ -705,6 +751,35 @@ def get_formatted_standards_list(
         return result
 
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
+    # Where a Gaia DR3 match exists, emit its position (epoch 2016) propagated to
+    # the obstime with its PM (sub-arcsec); otherwise fall back to the listed
+    # catalog position unchanged.
+    if {"gaia_ra", "gaia_dec", "pmra", "pmdec"}.issubset(df.columns):
+        obstime_t = Time(obstime) if obstime else Time(utcnow_naive().isoformat())
+        gra = df["gaia_ra"].to_numpy(dtype=float)
+        has_gaia = np.isfinite(gra)
+        ra_base = np.where(has_gaia, gra, tab.ra.deg)
+        dec_base = np.where(has_gaia, df["gaia_dec"].to_numpy(dtype=float), tab.dec.deg)
+        base_epoch = np.where(has_gaia, 2016.0, df["epoch"].to_numpy(dtype=float))
+        pmra = np.nan_to_num(df["pmra"].to_numpy(dtype=float))
+        pmdec = np.nan_to_num(df["pmdec"].to_numpy(dtype=float))
+        plx = (
+            df["parallax"].to_numpy(dtype=float)
+            if "parallax" in df.columns
+            else np.full(len(df), np.nan)
+        )
+        # distance (kpc) = 1/parallax(mas); fixed fallback when parallax missing.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            dist_kpc = np.where(plx > 0, np.minimum(np.abs(1.0 / plx), 10.0), 10.0)
+        tab = SkyCoord(
+            ra=ra_base * u.deg,
+            dec=dec_base * u.deg,
+            pm_ra_cosdec=pmra * u.mas / u.yr,
+            pm_dec=pmdec * u.mas / u.yr,
+            distance=dist_kpc * u.kpc,
+            obstime=Time(base_epoch, format="jyear"),
+            frame="icrs",
+        ).apply_space_motion(new_obstime=obstime_t)
     df["ra_float"] = tab.ra.value
     df["dec_float"] = tab.dec.value
     df["skycoord"] = [x[1:] for x in format_hmsdms(tab, coord_sep, col_sep)]
@@ -871,7 +946,7 @@ def get_nearby_offset_stars(
         raise Exception("Number of offsets queries needed exceeds what is allowed")
 
     if not obstime:
-        source_obstime = Time(datetime.datetime.utcnow().isoformat())
+        source_obstime = Time(utcnow_naive().isoformat())
     else:
         # TODO: check the obstime format
         source_obstime = Time(obstime)
@@ -901,6 +976,9 @@ def get_nearby_offset_stars(
                     CIRCLE('ICRS', {source_ra}, {source_dec},
                            {radius_degrees}))
                 """
+    # gaia_available is False when the Gaia TAP query fails: PM can't be applied
+    # (the ZTFref backup carries no PM), so callers can flag it to the user.
+    gaia_available = True
     default_return = (
         [],
         query_string.replace("\n", " "),
@@ -916,6 +994,7 @@ def get_nearby_offset_stars(
         except Exception as e:
             log(f"Error querying Gaia: {e}. Falling back to ZTFref or empty result.")
             r = None
+            gaia_available = False
 
     # ...otherwise fall back to ZTFref public sources or return
     # a tuple of no offset stars
@@ -924,9 +1003,9 @@ def get_nearby_offset_stars(
             r = get_astrometry_backup_from_ztf(source_ra, source_dec)
             use_ztfref = True
         else:
-            return default_return
+            return (*default_return, gaia_available)
     if r is None or len(r) == 0:
-        return default_return
+        return (*default_return, gaia_available)
 
     # we need to filter here to get around the new Gaia archive slowdown
     # when SQL filtering on different columns
@@ -964,7 +1043,7 @@ def get_nearby_offset_stars(
 
     catalog = SkyCoord.guess_from_table(r)
     if use_ztfref:
-        ztfcatalog = get_ztfcatalog(source_ra, source_dec)
+        ztfcatalog, ztfref_epoch = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None or len(ztfcatalog) == 0:
             log(
                 "Warning: Could not find the ZTF reference catalog"
@@ -1015,19 +1094,32 @@ def get_nearby_offset_stars(
                     idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
 
                     if ztfdist < 0.5 * u.arcsec:
-                        cprime = SkyCoord(
-                            ra=ztfcatalog[idx].ra.value,
-                            dec=ztfcatalog[idx].dec.value,
-                            unit=(u.degree, u.degree),
-                            frame="icrs",
-                            obstime=source_obstime,
-                        )
+                        # ZTF position carried forward by Gaia PM from the ref
+                        # epoch (static fallback if the ref epoch is unknown).
+                        if ztfref_epoch is not None:
+                            cprime = SkyCoord(
+                                ra=ztfcatalog[idx].ra.value,
+                                dec=ztfcatalog[idx].dec.value,
+                                unit=(u.degree, u.degree),
+                                frame="icrs",
+                                pm_ra_cosdec=source["pmra"] * u.mas / u.yr,
+                                pm_dec=source["pmdec"] * u.mas / u.yr,
+                                distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
+                                obstime=ztfref_epoch,
+                            ).apply_space_motion(new_obstime=source_obstime)
+                        else:
+                            cprime = SkyCoord(
+                                ra=ztfcatalog[idx].ra.value,
+                                dec=ztfcatalog[idx].dec.value,
+                                unit=(u.degree, u.degree),
+                                frame="icrs",
+                                obstime=source_obstime,
+                            )
 
                         dra, ddec = cprime.spherical_offsets_to(center)
                         pa = cprime.position_angle(center).degree
-                        # use the RA, DEC from ZTF here
-                        source["ra"] = ztfcatalog[idx].ra.value
-                        source["dec"] = ztfcatalog[idx].dec.value
+                        source["ra"] = cprime.ra.value
+                        source["dec"] = cprime.dec.value
                         good_list.append(
                             (
                                 source["dist"],
@@ -1245,6 +1337,7 @@ def get_nearby_offset_stars(
         queries_issued,
         len(star_list) - 1,
         use_ztfref,
+        gaia_available,
     )
 
 
@@ -1424,7 +1517,7 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
-    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
+    obstime = offset_star_kwargs.get("obstime", utcnow_naive().isoformat())
     if use_cache:
         cache_key = get_finding_chart_cache_key(
             source_ra,
@@ -1559,7 +1652,7 @@ def get_finding_chart(
             vmin = percents[0]
             vmax = percents[1]
             interval = ZScaleInterval(
-                nsamples=int(0.1 * (im.shape[0] * im.shape[1])),
+                n_samples=int(0.1 * (im.shape[0] * im.shape[1])),
                 contrast=zscale_contrast,
                 krej=zscale_krej,
             )
@@ -1612,7 +1705,7 @@ def get_finding_chart(
         fontweight="bold",
     )
 
-    star_list, _, _, _, used_ztfref = get_nearby_offset_stars(
+    star_list, _, _, _, used_ztfref, _ = get_nearby_offset_stars(
         source_ra, source_dec, source_name, **offset_star_kwargs
     )
 
@@ -1627,7 +1720,7 @@ def get_finding_chart(
     first_line = None
     if offset_star_kwargs.get("starlist_type", "Keck") == "P200-NGPS":
         # add a first line with the column names for P200-NGPS (csv format)
-        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME"
+        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME,NEXP"
 
     ncolors = len(star_list)
     if star_list[0]["str"].startswith("!Data"):

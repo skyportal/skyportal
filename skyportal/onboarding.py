@@ -2,6 +2,7 @@ import datetime
 
 import sqlalchemy as sa
 
+from baselayer.app.auth_backends import backend_trusts_email, default_auth_backend
 from baselayer.app.env import load_env
 from skyportal.handlers.api import (
     set_default_acls,
@@ -23,11 +24,83 @@ env, cfg = load_env()
 USER_FIELDS = ["username", "email"]
 
 
+def _email_is_verified(backend, details, response):
+    """Whether the provider vouches for the address it just handed us.
+
+    An unverified address must never attach a sign-in to an existing account:
+    anyone who can claim `alice@example.org` at a sloppy provider would inherit
+    Alice's groups and streams.
+    """
+    if response and response.get("email_verified") in (True, "true", "True"):
+        return True
+    return backend_trusts_email(backend.name)
+
+
+def resolve_user(strategy, backend, uid, details, response=None):
+    """Find the account this sign-in belongs to, and the association it came
+    through; (None, None) when there is no account to sign in to.
+
+    Joins on (provider, subject) — never on the email alone, which is not
+    unique across providers and can be reassigned. Falls back to linking a
+    provider-verified email to an existing account.
+    """
+    session = DBSession()
+    storage = strategy.storage
+    provider, email = backend.name, details.get("email")
+
+    social = storage.user.get_social_auth(provider, uid)
+    if social is not None:
+        return social.user, social
+
+    # Associations predating subject-keyed uids hold the email instead; re-key
+    # them in place, so existing users are not handed brand-new accounts.
+    if email:
+        legacy = storage.user.get_social_auth(provider, email)
+        if legacy is not None:
+            legacy.uid = uid
+            legacy.user.oauth_uid = uid
+            return legacy.user, legacy
+
+    if provider == default_auth_backend():
+        # Users with no association carry only User.oauth_uid, which could only
+        # have come from the single backend configured at the time — an email
+        # for a provider that keyed on one, otherwise the subject itself.
+        candidates = [value for value in (uid, email) if value]
+        legacy_user = session.scalar(
+            sa.select(User).where(User.oauth_uid.in_(candidates))
+        )
+        if legacy_user is not None:
+            legacy_user.oauth_uid = uid
+            return legacy_user, None
+
+    if email and _email_is_verified(backend, details, response):
+        return session.scalar(sa.select(User).where(User.contact_email == email)), None
+
+    return None, None
+
+
+def matched_user(user, social):
+    """Pipeline result for a sign-in that landed on an existing account.
+
+    The association goes back with it: `social_user` ran before the account was
+    matched, and re-keying one is not visible to a fresh lookup until the
+    session flushes, so `associate_user` would otherwise create a second
+    association and collide on (provider, uid).
+    """
+    result = {"is_new": False, "user": user}
+    if social is not None:
+        result["social"] = social
+    return result
+
+
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
+    session = DBSession()
 
     try:
-        existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
+        existing_user, existing_social = resolve_user(
+            strategy, backend, uid, details, kwargs.get("response")
+        )
 
         if cfg["invitations.enabled"]:
             if existing_user is None and invite_token is None:
@@ -35,7 +108,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Missing invite token. A valid invite token is required."
                 )
             elif existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(existing_user, existing_social)
 
             try:
                 n_days = int(cfg["invitations.days_until_expiry"])
@@ -44,7 +117,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
                 )
 
-            invitation = DBSession().scalar(
+            invitation = session.scalar(
                 sa.select(Invitation).where(Invitation.token == invite_token)
             )
 
@@ -61,7 +134,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Invite token has already been used."
                 )
 
-            check_username = DBSession().scalar(
+            check_username = session.scalar(
                 sa.select(User).where(User.username == details["username"])
             )
             if check_username is not None:
@@ -76,14 +149,14 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 expiration_date=invitation.user_expiration_date,
             )
             user.roles.append(invitation.role)
-            DBSession().add(user)
-            DBSession().flush()
-            set_default_acls(user, DBSession())
-            DBSession().commit()
+            session.add(user)
+            session.flush()
+            set_default_acls(user, session)
+            session.commit()
             return {"is_new": True, "user": user}
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
-                return {"is_new": False, "user": existing_user}
+                return matched_user(existing_user, existing_social)
 
             if user is not None:  # Matching user already exists
                 return {"is_new": False, "user": user}
@@ -94,29 +167,56 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 for name in backend.setting("USER_FIELDS", USER_FIELDS)
             }
             user = strategy.create_user(**fields, oauth_uid=uid)
-            set_default_role(user, DBSession())
-            set_default_acls(user, DBSession())
-            set_default_group(user, DBSession())
-            DBSession().commit()
+            set_default_role(user, session)
+            set_default_acls(user, session)
+            set_default_group(user, session)
+            session.commit()
             return {"is_new": True, "user": user}
     except Exception as e:
-        DBSession().rollback()
+        session.rollback()
         raise e
+
+
+def get_unique_username(base_username):
+    """Generate a unique username by appending a number if needed."""
+    session = DBSession()
+    existing = set(
+        session.scalars(
+            sa.select(User.username).where(
+                sa.cast(User.username, sa.String).like(f"{base_username}%")
+            )
+        ).all()
+    )
+    if base_username not in existing:
+        return base_username
+    counter = 1
+    while f"{base_username}{counter}" in existing:
+        counter += 1
+    return f"{base_username}{counter}"
 
 
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     if "username" not in backend.setting("USER_FIELDS", USER_FIELDS):
         raise Exception("PSA configuration error: `username` not properly captured.")
     storage = strategy.storage
+    session = DBSession()
 
-    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
+    existing_user, _ = resolve_user(
+        strategy, backend, uid, details, kwargs.get("response")
+    )
 
     if not user and existing_user is None:
         email_as_username = strategy.setting("USERNAME_IS_FULL_EMAIL", False)
         if email_as_username and details.get("email"):
             username = details["email"]
         else:
-            username = details["username"]
+            first_name = details.get("first_name", "")
+            last_name = details.get("last_name", "")
+            if first_name and last_name:
+                base_username = (first_name[0] + last_name).lower()
+                username = get_unique_username(base_username)
+            else:
+                username = details.get("username") or details.get("email")
 
     elif existing_user is not None:
         return {"username": existing_user.username}
@@ -129,7 +229,8 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     if not cfg["invitations.enabled"]:
         return
 
-    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
+    session = DBSession()
+    existing_user = user
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
@@ -139,7 +240,9 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     elif existing_user is not None and invite_token is None:
         return
 
-    invitation = Invitation.query.filter(Invitation.token == invite_token).first()
+    invitation = session.scalars(
+        sa.select(Invitation).where(Invitation.token == invite_token)
+    ).first()
     if invitation is None:
         raise Exception(
             "Authentication Error: Invalid invite token. A valid invite token is required."
@@ -160,32 +263,58 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
         )
 
-    # Add user to specified streams
-    for stream_id in stream_ids:
-        DBSession().add(StreamUser(stream_id=stream_id, user_id=user.id))
-
-    # Add user to specified groups
-    for group_id, admin, can_save in zip(
-        group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
-    ):
-        DBSession().add(
-            GroupUser(
-                user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
-            )
+    # Memberships the user already has: re-using an invitation for a group or
+    # stream they are already in must not violate the uniqueness constraints.
+    existing_stream_ids = set(
+        session.scalars(
+            sa.select(StreamUser.stream_id).where(StreamUser.user_id == user.id)
         )
-
-    # Add user to sitewide public group
-    public_group = (
-        DBSession()
-        .scalars(sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"]))
-        .first()
+    )
+    existing_group_ids = set(
+        session.scalars(
+            sa.select(GroupUser.group_id).where(GroupUser.user_id == user.id)
+        )
     )
 
-    if public_group is not None and public_group not in invitation.groups:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+    # Add user to specified streams
+    for stream_id in stream_ids:
+        if stream_id not in existing_stream_ids:
+            session.add(StreamUser(stream_id=stream_id, user_id=user.id))
+
+    # Add user to specified groups
+    # strict: a short array would silently drop the trailing groups.
+    for group_id, admin, can_save, can_share_photometry in zip(
+        group_ids,
+        invitation.admin_for_groups,
+        invitation.can_save_to_groups,
+        invitation.can_share_photometry_for_groups,
+        strict=True,
+    ):
+        if group_id not in existing_group_ids:
+            session.add(
+                GroupUser(
+                    user_id=user.id,
+                    group_id=group_id,
+                    admin=admin,
+                    can_save=can_save,
+                    can_share_photometry=can_share_photometry,
+                )
+            )
+
+    # Add user to sitewide public group
+    public_group = session.scalars(
+        sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"])
+    ).first()
+
+    if (
+        public_group is not None
+        and public_group not in invitation.groups
+        and public_group.id not in existing_group_ids
+    ):
+        session.add(GroupUser(group_id=public_group.id, user_id=user.id))
 
     invitation.used = True
-    DBSession().commit()
+    session.commit()
 
 
 def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
@@ -193,7 +322,8 @@ def user_details(strategy, details, backend, uid, user=None, *args, **kwargs):
     if not user:
         return
 
-    existing_user = DBSession().scalar(sa.select(User).where(User.oauth_uid == uid))
+    session = DBSession()
+    existing_user = user
 
     if not (
         existing_user.contact_email is None

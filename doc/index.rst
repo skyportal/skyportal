@@ -88,6 +88,7 @@ User Guide
    api
    dev
    deploy
+   observability
    versioning
    data_loader
    contributing
@@ -101,11 +102,13 @@ User Guide
    slack
    followup
    mma
+   gcn_crossmatch
    period
    spatial_catalog
    advanced_usage
    photometric_series
    analysis
+   external_services
    extensions
    pages
    thumbnails

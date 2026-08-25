@@ -1,10 +1,12 @@
 import datetime
 import json
 
+import aiohttp
 import lxml
 import requests
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -14,12 +16,14 @@ from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
+from .naive_datetime import utcnow_naive
+
 env, cfg = load_env()
 
 app_url = get_app_base_url()
 
 ALERT_THUMB_TYPES = ["new", "ref", "sub"]
-ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1"]
+ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1", "sm", "hst", "chandra", "jwst"]
 ALLOWED_THUMBNAIL_TYPES = [
     *ALERT_THUMB_TYPES,
     *ARCHIVE_THUMB_TYPES,
@@ -33,7 +37,7 @@ if SLACK_BASE_URL.endswith("/"):
 
 SLACK_URL = f"{SLACK_URL}/services"
 
-SLACK_MICROSERVICE_URL = f"http://127.0.0.1:{cfg['slack.microservice_port']}"
+SLACK_MICROSERVICE_URL = f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
 
 email_enabled = False
 if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
@@ -58,7 +62,7 @@ def gcn_notification_content(target, session):
         localization = localizations[-1]
         tags = [tag.text for tag in localization.tags]
 
-    time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
+    time_since_dateobs = utcnow_naive() - gcn_event.dateobs
     # remove the microseconds from the timedelta
     time_since_dateobs = time_since_dateobs - datetime.timedelta(
         microseconds=time_since_dateobs.microseconds
@@ -262,6 +266,31 @@ def gcn_email_notification(target, data=None, new_tag=False):
     )
 
 
+def mention_email_notification(target, data=None):
+    if data is None:
+        raise ValueError("No data provided for mention notification")
+
+    author_username = data["author_username"]
+    comment_text = data["comment_text"]
+    source_name = data["source_name"]
+
+    subject = (
+        f"{cfg['app.title']} - {author_username} mentioned you"
+        f" in a comment on this source {source_name}"
+    )
+    body = (
+        "<!DOCTYPE html><html><head>"
+        "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
+        "</head><body>"
+        f"<p>{author_username} mentioned you in this comment: "
+        f"<blockquote style='border-left:4px solid #ccc;margin:0;padding:0 1em;color:#666'>"
+        f"{comment_text}</blockquote></p>"
+        f"<p>Link to the source: <a href='{app_url}{target['url']}'>{source_name}</a></p>"
+        "</body></html>"
+    )
+    return subject, body
+
+
 def source_notification_content(target, target_type="classification"):
     # get the most recent classification for this source that has the same classification as the notification
     if target_type == "classification":
@@ -462,7 +491,7 @@ def source_email_notification(target, data=None):
 
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
-        f"http://127.0.0.1:{cfg['ports.notification_queue']}"
+        f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"
     )
     try:
         resp = requests.post(
@@ -488,7 +517,27 @@ def post_notification(request_body, timeout=2):
         return True
 
 
-def followup_request_notification_content(target, session):
+async def followup_request_notification_content(target, session):
+    from skyportal.models import Allocation, Comment, FollowupRequest, Instrument, Obj
+
+    # Reload with the deep lazy graph this function walks eager-loaded, since
+    # async sessions raise on implicit lazy loads.
+    target = await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == target.id)
+        .options(
+            selectinload(FollowupRequest.allocation)
+            .selectinload(Allocation.instrument)
+            .selectinload(Instrument.telescope),
+            selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
+            selectinload(FollowupRequest.requester),
+            selectinload(FollowupRequest.obj).selectinload(Obj.thumbnails),
+            selectinload(FollowupRequest.obj)
+            .selectinload(Obj.comments)
+            .selectinload(Comment.author),
+        )
+    )
+
     include_comments = False
     if target.allocation.altdata.get("include_comments", False) in [
         True,
@@ -556,7 +605,7 @@ def followup_request_notification_content(target, session):
     # deduplicate by type, keeping the latest one (create_at) for each type
     # sort by date, most recent first
     thumbnails = sorted(thumbnails, key=lambda t: t.created_at, reverse=True)
-    thumbnails_by_type = {t: None for t in ALLOWED_THUMBNAIL_TYPES}
+    thumbnails_by_type = dict.fromkeys(ALLOWED_THUMBNAIL_TYPES)
     for thumbnail in thumbnails:
         if thumbnails_by_type[thumbnail.type] is None:
             thumbnails_by_type[thumbnail.type] = thumbnail
@@ -808,7 +857,7 @@ def followup_request_email_notification(data):
     )
 
 
-def request_notify_by_slack(request, session, is_update=None):
+async def request_notify_by_slack(request, session, is_update=None):
     altdata = request.allocation.altdata
 
     if not isinstance(altdata, dict):
@@ -819,7 +868,7 @@ def request_notify_by_slack(request, session, is_update=None):
     ):
         raise ValueError("Missing required keys in allocation altdata.")
 
-    content = followup_request_notification_content(request, session)
+    content = await followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
         content["request"]["new"] = not is_update
     blocks = followup_request_slack_notification(content)
@@ -832,15 +881,17 @@ def request_notify_by_slack(request, session, is_update=None):
         }
     )
 
-    r = requests.post(
-        SLACK_MICROSERVICE_URL,
-        data=data,
-        headers={"Content-Type": "application/json"},
-    )
-    r.raise_for_status()
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            SLACK_MICROSERVICE_URL,
+            data=data,
+            headers={"Content-Type": "application/json"},
+        ) as r:
+            if r.status >= 400:
+                raise ValueError(f"Error posting to Slack: status {r.status}")
 
 
-def request_notify_by_email(request, session, is_update=None):
+async def request_notify_by_email(request, session, is_update=None):
     # if not email_enabled:
     #     raise RuntimeError('Email notifications are not enabled.')
 
@@ -852,7 +903,7 @@ def request_notify_by_email(request, session, is_update=None):
     if "email" not in altdata:
         raise ValueError("Missing required key in allocation altdata.")
 
-    content = followup_request_notification_content(request, session)
+    content = await followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
         content["request"]["new"] = not is_update
     subject, body = followup_request_email_notification(content)

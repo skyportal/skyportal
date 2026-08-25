@@ -25,6 +25,7 @@ from baselayer.app.models import (
     join_model,
 )
 
+from ..utils.naive_datetime import utcnow_naive
 from .followup_request import updatable_by_token_with_listener_acl
 from .group import Group
 
@@ -286,6 +287,7 @@ class EventObservationPlan(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -297,14 +299,14 @@ class EventObservationPlan(Base):
     validity_window_start = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         doc="Start of validity window",
     )
 
     validity_window_end = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.now() + timedelta(1),
+        default=lambda: utcnow_naive() + timedelta(days=1),
         doc="End of validity window",
     )
 
@@ -398,6 +400,7 @@ class PlannedObservation(Base):
     instrument = relationship("Instrument")
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,

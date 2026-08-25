@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import numpy as np
 import sqlalchemy as sa
+from pydantic import Field
 
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession
@@ -8,6 +11,13 @@ from ...models.public_pages.public_release import PublicRelease
 from ...models.public_pages.public_source_page import PublicSourcePage
 from ...utils.cache import Cache
 from ..base import BaseHandler
+
+SourceId = Annotated[
+    str, Field(description="The ID of the source for which to display the public page")
+]
+VersionHash = Annotated[
+    str, Field(description="The hash of the source data used to identify the version")
+]
 
 env, cfg = load_env()
 
@@ -37,7 +47,7 @@ def get_version(session, release_name, source_id, version_hash):
 
 
 class SourcePageHandler(BaseHandler):
-    def get(self, source_id=None, version_hash=None):
+    def get(self, source_id: SourceId = None, version_hash: VersionHash = None):
         """
         ---
         single:
@@ -46,19 +56,6 @@ class SourcePageHandler(BaseHandler):
             tags:
               - public
               - sources
-            parameters:
-                - in: path
-                  name: source_id
-                  required: true
-                  schema:
-                    type: string
-                  description: The ID of the source for which to display the public page
-                - in: path
-                  name: version_hash
-                  required: true
-                  schema:
-                    type: string
-                  description: The hash of the source data used to identify the version
             responses:
                 200:
                   content:
@@ -138,7 +135,14 @@ class SourcePageHandler(BaseHandler):
 
 
 class ReleaseSourcePageHandler(BaseHandler):
-    def get(self, release_name, source_id, version_hash):
+    def get(
+        self,
+        release_name: Annotated[
+            str, Field(description="The link name of the public release to display")
+        ],
+        source_id: SourceId,
+        version_hash: VersionHash,
+    ):
         """
         ---
         summary: Display the public page for a source in a specific release
@@ -146,25 +150,6 @@ class ReleaseSourcePageHandler(BaseHandler):
         tags:
             - public
             - sources
-        parameters:
-            - in: path
-              name: release_name
-              required: true
-              schema:
-                type: string
-              description: The link name of the public release to display
-            - in: path
-              name: source_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the source for which to display the public page
-            - in: path
-              name: version_hash
-              required: true
-              schema:
-                type: string
-              description: The hash of the source data used to identify the version
         responses:
             200:
               content:

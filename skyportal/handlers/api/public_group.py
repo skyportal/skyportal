@@ -9,7 +9,7 @@ env, cfg = load_env()
 
 class PublicGroupHandler(BaseHandler):
     @auth_or_token
-    def get(self, group_id=None):
+    async def get(self, group_id: int | None = None):
         """
         ---
         single:
@@ -23,12 +23,12 @@ class PublicGroupHandler(BaseHandler):
                 application/json:
                   schema: SingleGroup
         """
-        with self.Session() as session:
-            pg = session.scalars(
+        async with self.AsyncSession() as session:
+            pg = await session.scalar(
                 Group.select(session.user_or_token).where(
                     Group.name == cfg["misc.public_group_name"]
                 )
-            ).first()
+            )
             if pg is None:
                 return self.error("Public group does not exist")
             return self.success(data=pg)

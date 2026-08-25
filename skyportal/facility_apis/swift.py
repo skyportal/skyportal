@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import functools
 import json
@@ -5,13 +6,13 @@ import os
 import tarfile
 import tempfile
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+import aiohttp
 import pandas as pd
-import requests
 import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_mode
 from swifttools.xrt_prods import XRTProductRequest
 from tornado.ioloop import IOLoop
@@ -21,6 +22,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
@@ -59,7 +61,7 @@ class UVOTXRTMMAAPI(MMAAPI):
     """An interface to Swift MMA operations."""
 
     @staticmethod
-    def retrieve(allocation, start_date, end_date):
+    async def retrieve(allocation, start_date, end_date):
         """Retrieve executed observations by Swift.
 
         Parameters
@@ -411,7 +413,7 @@ class UVOTXRTAPI(FollowUpAPI):
     """An interface to Swift operations."""
 
     @staticmethod
-    def get(request, session, **kwargs):
+    async def get(request, session, **kwargs):
         """Get an analysis request result from Swift.
 
         Parameters
@@ -422,13 +424,24 @@ class UVOTXRTAPI(FollowUpAPI):
             Database session to use for photometry
         """
 
-        from ..models import Comment, FollowupRequest, Group
+        from ..models import Allocation, Comment, FollowupRequest, Group
 
-        req = (
-            session.query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+                selectinload(FollowupRequest.transactions),
+            )
         )
+        req = request
 
         altdata = request.allocation.altdata
 
@@ -446,15 +459,21 @@ class UVOTXRTAPI(FollowUpAPI):
             swiftreq.requestgroup._retData["URL"] = content["URL"]
             swiftreq.requestgroup._retData["jobPars"] = content["jobPars"]
 
-            if not swiftreq.requestgroup.complete:
+            # swifttools does its own blocking HTTP; run off the event loop.
+            complete = await asyncio.to_thread(lambda: swiftreq.requestgroup.complete)
+            if not complete:
                 raise ValueError("Result not yet available. Please try again later.")
             else:
                 group_ids = [g.id for g in request.requester.accessible_groups]
-                groups = session.scalars(
-                    Group.select(request.requester).where(Group.id.in_(group_ids))
+                groups = (
+                    await session.scalars(
+                        Group.select(request.requester).where(Group.id.in_(group_ids))
+                    )
                 ).all()
                 with tempfile.TemporaryDirectory() as tmpdirname:
-                    retDict = swiftreq.requestgroup.downloadProducts(tmpdirname)
+                    retDict = await asyncio.to_thread(
+                        swiftreq.requestgroup.downloadProducts, tmpdirname
+                    )
                     for key in retDict:
                         filename = retDict[key]
                         attachment_name = filename.split("/")[-1]
@@ -471,9 +490,10 @@ class UVOTXRTAPI(FollowUpAPI):
                         )
                         session.add(comment)
                     req.status = "Result posted as comment"
-                    session.commit()
+                    await session.commit()
         elif request.payload["request_type"] == "XRT/UVOT/BAT Data":
-            swiftreq = UVOTXRTBATDataRequest(request)
+            # swifttools ObsQuery does blocking HTTP; run off the event loop.
+            swiftreq = await asyncio.to_thread(UVOTXRTBATDataRequest, request)
 
             download_obs = functools.partial(
                 download_observations,
@@ -499,7 +519,7 @@ class UVOTXRTAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to Swift's UVOT/XRT
 
         Parameters
@@ -510,26 +530,50 @@ class UVOTXRTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains the payload builders, notifications and
+        # this method walk eager-loaded, since async sessions raise on implicit
+        # lazy loads. Returns the same identity-mapped object, so status
+        # mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError("Missing allocation information.")
 
         if request.payload["request_type"] == "XRT/UVOT ToO":
-            swiftreq = UVOTXRTRequest(request)
-            swiftreq.requestgroup.validate()
 
-            r = requests.post(
-                url=API_URL, verify=True, data={"jwt": swiftreq.requestgroup.jwt}
-            )
+            def _build_jwt():
+                # swifttools validate()/jwt do blocking HTTP; build off-thread.
+                swiftreq = UVOTXRTRequest(request)
+                swiftreq.requestgroup.validate()
+                return swiftreq.requestgroup.jwt
 
-            if r.status_code == 200:
+            jwt = await asyncio.to_thread(_build_jwt)
+
+            payload = {"jwt": jwt}
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(API_URL, data=payload) as r:
+                    content = await r.text()
+                    status = r.status
+
+            if status == 200:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.content}"
+                request.status = f"rejected: {content}"
                 log(
-                    f"Failed to submit Swift request for {request.id} (obj {request.obj.id}): {r.content}"
+                    f"Failed to submit Swift request for {request.id} (obj {request.obj.id}): {content}"
                 )
                 try:
                     flow = Flow()
@@ -537,7 +581,7 @@ class UVOTXRTAPI(FollowUpAPI):
                         request.last_modified_by_id,
                         "baselayer/SHOW_NOTIFICATION",
                         payload={
-                            "note": f"Failed to submit Swift request: {r.content}",
+                            "note": f"Failed to submit Swift request: {content}",
                             "type": "error",
                         },
                     )
@@ -545,8 +589,8 @@ class UVOTXRTAPI(FollowUpAPI):
                     log(f"Failed to send notification: {e}")
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", API_URL, None, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -555,10 +599,15 @@ class UVOTXRTAPI(FollowUpAPI):
 
         elif request.payload["request_type"] == "XRT API":
             swiftreq = XRTAPIRequest(request)
-            r = requests.post(url=XRT_URL, json=swiftreq.requestgroup.getJSONDict())
-            returnedData = json.loads(r.text)
-            if r.status_code != 200:
-                request.status = f"rejected: {r.reason}"
+            payload = swiftreq.requestgroup.getJSONDict()
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(XRT_URL, json=payload) as r:
+                    content = await r.text()
+                    status = r.status
+                    reason = r.reason
+            returnedData = json.loads(content)
+            if status != 200:
+                request.status = f"rejected: {reason}"
             else:
                 if returnedData["OK"] == 0:
                     request.status = (
@@ -568,8 +617,8 @@ class UVOTXRTAPI(FollowUpAPI):
                     request.status = "submitted"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", XRT_URL, None, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -577,7 +626,8 @@ class UVOTXRTAPI(FollowUpAPI):
             session.add(transaction)
 
         elif request.payload["request_type"] == "XRT/UVOT/BAT Data":
-            swiftreq = UVOTXRTBATDataRequest(request)
+            # swifttools ObsQuery does blocking HTTP; run off the event loop.
+            swiftreq = await asyncio.to_thread(UVOTXRTBATDataRequest, request)
             request.status = f"Number of observations: {len(swiftreq.requestgroup)}"
         else:
             raise ValueError("Invalid request type.")
@@ -603,7 +653,7 @@ class UVOTXRTAPI(FollowUpAPI):
             if notification_type == "slack":
                 from ..utils.notifications import request_notify_by_slack
 
-                request_notify_by_slack(
+                await request_notify_by_slack(
                     request,
                     session,
                     is_update=False,
@@ -611,7 +661,7 @@ class UVOTXRTAPI(FollowUpAPI):
             elif notification_type == "email":
                 from ..utils.notifications import request_notify_by_email
 
-                request_notify_by_email(
+                await request_notify_by_email(
                     request,
                     session,
                     is_update=False,
@@ -641,14 +691,14 @@ class UVOTXRTAPI(FollowUpAPI):
                             "start_date": {
                                 "type": "string",
                                 "default": str(
-                                    datetime.utcnow() - timedelta(days=365)
+                                    utcnow_naive() - timedelta(days=365)
                                 ).replace("T", ""),
                                 "title": "Start Date (UT)",
                             },
                             "end_date": {
                                 "type": "string",
                                 "title": "End Date (UT)",
-                                "default": str(datetime.utcnow()).replace("T", ""),
+                                "default": str(utcnow_naive()).replace("T", ""),
                             },
                             "XRT": {
                                 "title": "Do you want XRT data?",
@@ -688,7 +738,7 @@ class UVOTXRTAPI(FollowUpAPI):
                             "T0": {
                                 "type": "string",
                                 "title": "Date (UT)",
-                                "default": str(datetime.utcnow()).replace("T", ""),
+                                "default": str(utcnow_naive()).replace("T", ""),
                             },
                             "poserr": {
                                 "title": "Position Error [arcmin]",

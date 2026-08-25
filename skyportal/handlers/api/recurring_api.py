@@ -2,6 +2,7 @@ import json
 
 import arrow
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -21,92 +22,65 @@ ALLOWED_RECURRING_API_METHODS = ["POST", "GET"]
 MAX_RETRIES = 10
 
 
+class RecurringAPIPostBody(BaseModel):
+    """Request body for creating a recurring API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: str = Field(description="Endpoint of the API call.")
+    method: str = Field(description="HTTP method of the API call.")
+    next_call: str = Field(description="Time of the next API call.")
+    call_delay: float = Field(description="Delay until next API call in days.")
+    payload: str = Field(description="JSON string with the payload of the API call.")
+    number_of_retries: int | None = Field(
+        default=None,
+        le=MAX_RETRIES,
+        description="Number of retries before service is deactivated.",
+    )
+
+
+class RecurringAPIPostResponse(BaseModel):
+    """Data payload returned when creating a recurring API."""
+
+    id: int = Field(description="New RecurringAPI ID")
+
+
 class RecurringAPIHandler(BaseHandler):
     """Handler for recurring APIs."""
 
     @permissions(["Manage Recurring APIs"])
-    def post(self):
+    async def post(
+        self, *, body: RecurringAPIPostBody = None
+    ) -> RecurringAPIPostResponse:
         """
         ---
         summary: Create a new Recurring API
         description: POST a new Recurring APIs.
         tags:
           - recurring apis
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  endpoint:
-                    type: string
-                    description: Endpoint of the API call.
-                  method:
-                    type: string
-                    description: HTTP method of the API call.
-                  next_call:
-                    type: datetime
-                    description: Time of the next API call.
-                  call_delay:
-                    type: number
-                    description: Delay until next API call in days.
-                  number_of_retries:
-                    type: integer
-                    description: Number of retries before service is deactivated.
-                  payload:
-                    type: object
-                    description: Payload of the API call.
-                required:
-                  - endpoint
-                  - method
-                  - next_call
-                  - call_delay
-                  - payload
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New RecurringAPI ID
         """
-        data = self.get_json()
+        body = self.parse_body(RecurringAPIPostBody)
+        data = body.model_dump(exclude_none=True)
 
         try:
             data["next_call"] = str(
-                arrow.get(data.get("next_call")).datetime.replace(tzinfo=None)
+                arrow.get(body.next_call).datetime.replace(tzinfo=None)
             )
         except arrow.ParserError:
+            return self.error(f"Invalid input for parameter next_call:{body.next_call}")
+
+        data["method"] = body.method.upper()
+        if data["method"] not in ALLOWED_RECURRING_API_METHODS:
             return self.error(
-                f"Invalid input for parameter next_call:{data.get('next_call')}"
+                f"method must be in {','.join(ALLOWED_RECURRING_API_METHODS)}"
             )
 
-        if "method" in data:
-            data["method"] = data["method"].upper()
-            if not data["method"] in ALLOWED_RECURRING_API_METHODS:
-                return self.error(
-                    'method must be in {",".join(ALLOWED_RECURRING_API_METHODS)}'
-                )
+        try:
+            json.loads(body.payload)
+        except json.JSONDecodeError:
+            return self.error("payload must be a valid JSON string")
 
-        if "number_of_retries" in data:
-            if data["number_of_retries"] > MAX_RETRIES:
-                return self.error(f"number_of_retries must be <= {MAX_RETRIES}")
-
-        if "payload" in data:
-            try:
-                json.loads(data["payload"])
-            except json.JSONDecodeError:
-                return self.error("payload must be a valid JSON string")
-
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = RecurringAPI.__schema__()
             try:
                 recurring_api = schema.load(data)
@@ -116,13 +90,13 @@ class RecurringAPIHandler(BaseHandler):
                 )
             recurring_api.owner_id = self.associated_user_object.id
             session.add(recurring_api)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
-    def get(self, recurring_api_id=None):
+    async def get(self, recurring_api_id: int | None = None):
         """
         ---
         single:
@@ -130,12 +104,6 @@ class RecurringAPIHandler(BaseHandler):
           description: Retrieve an Recurring API by id
           tags:
             - recurring apis
-          parameters:
-            - in: path
-              name: recurring_api_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -160,13 +128,18 @@ class RecurringAPIHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        if recurring_api_id is not None:
+            try:
+                recurring_api_id = int(recurring_api_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
+        async with self.AsyncSession() as session:
             if recurring_api_id is not None:
-                s = session.scalars(
+                s = await session.scalar(
                     RecurringAPI.select(session.user_or_token).where(
                         RecurringAPI.id == recurring_api_id
                     )
-                ).first()
+                )
                 if s is None:
                     return self.error("Cannot access this Recurring API.", status=403)
 
@@ -174,9 +147,10 @@ class RecurringAPIHandler(BaseHandler):
                 return self.success(data=recurring_api_dict)
 
             # retrieve multiple services
-            recurring_apis = session.scalars(
+            list_result = await session.scalars(
                 RecurringAPI.select(session.user_or_token)
-            ).all()
+            )
+            recurring_apis = list_result.all()
 
             ret_array = []
             for a in recurring_apis:
@@ -192,19 +166,13 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Recurring APIs"])
-    def delete(self, recurring_api_id):
+    async def delete(self, recurring_api_id: int):
         """
         ---
         summary: Delete a Recurring API
         description: Delete an Recurring API.
         tags:
           - recurring apis
-        parameters:
-          - in: path
-            name: recurring_api_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -212,16 +180,16 @@ class RecurringAPIHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            recurring_api = session.scalars(
+        async with self.AsyncSession() as session:
+            recurring_api = await session.scalar(
                 RecurringAPI.select(session.user_or_token, mode="delete").where(
                     RecurringAPI.id == recurring_api_id
                 )
-            ).first()
+            )
             if recurring_api is None:
                 return self.error("Cannot delete this Recurring API.", status=403)
-            session.delete(recurring_api)
-            session.commit()
+            await session.delete(recurring_api)
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success()

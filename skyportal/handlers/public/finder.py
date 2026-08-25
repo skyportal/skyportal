@@ -16,7 +16,7 @@ log = make_log("api/source")
 
 class CachedSourceFinderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, cache_key=None):
+    async def get(self, cache_key: str = None):
         """
         ---
         summary: Retrieve a cached finding chart
@@ -25,12 +25,6 @@ class CachedSourceFinderHandler(BaseHandler):
           - sources
           - finding chart
           - public
-        parameters:
-          - in: path
-            name: cache_key
-            required: true
-            schema:
-              type: string
         responses:
           200:
             description: A PDF/PNG finding chart file

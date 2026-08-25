@@ -1,0 +1,1108 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+
+import requests
+from pymongo import MongoClient
+
+from baselayer.app.env import load_env
+from baselayer.log import make_log
+
+from ..utils.survey import survey_from_object_id
+from .interface import BrokerAPI, normalize_module_streams
+
+log = make_log("broker/boom")
+
+_, cfg = load_env()
+
+DEFAULT_SURVEY = "ZTF"
+DEFAULT_TIMEOUT = 30  # seconds
+# Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
+# the default; give the slow endpoints their own budget.
+VALIDATE_TIMEOUT = 180  # seconds
+RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
+NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
+
+# token cache keyed by (base_url, username): (token, expiry). Providers are
+# stateless, so the short-lived bearer token is cached at module scope.
+_TOKENS: dict = {}
+
+# One MongoClient per store URI (the client pools connections internally).
+_MONGO_CLIENTS: dict = {}
+
+
+def _base_url(altdata):
+    protocol = altdata.get("protocol", "https")
+    host = altdata.get("host")
+    if not host:
+        raise ValueError("Broker altdata is missing 'host'.")
+    port = altdata.get("port")
+    suffix = f":{port}" if port and int(port) not in (80, 443) else ""
+    return f"{protocol}://{host}{suffix}"
+
+
+def _get_token(altdata, force=False):
+    base_url = _base_url(altdata)
+    username = altdata.get("username")
+    password = altdata.get("password")
+    if not username or not password:
+        raise ValueError("Broker altdata must include 'username' and 'password'.")
+    key = (base_url, username)
+    cached = _TOKENS.get(key)
+    if not force and cached and datetime.now(UTC) < cached[1]:
+        return cached[0]
+    response = requests.post(
+        f"{base_url}/auth",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={"username": username, "password": password},
+        timeout=DEFAULT_TIMEOUT,
+    )
+    response.raise_for_status()
+    data = response.json()
+    token = data["access_token"]
+    expiry = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
+    _TOKENS[key] = (token, expiry)
+    return token
+
+
+def _request(broker, method, path, *, params=None, json=None, timeout=DEFAULT_TIMEOUT):
+    """Authenticated BOOM request; refreshes the token once on a 401."""
+    altdata = broker.altdata or {}
+    base_url = _base_url(altdata)
+    url = f"{base_url}/{path.lstrip('/')}"
+    for attempt in range(2):
+        token = _get_token(altdata, force=(attempt == 1))
+        response = requests.request(
+            method,
+            url,
+            params=params,
+            json=json,
+            headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
+            timeout=timeout,
+        )
+        if response.status_code != 401:
+            break
+    response.raise_for_status()
+    payload = response.json()
+    return payload.get("data", payload) if isinstance(payload, dict) else payload
+
+
+def _survey(broker, kwargs, object_id=None):
+    return (
+        kwargs.get("survey")
+        or survey_from_object_id(
+            object_id or kwargs.get("objectId"), BOOMBROKER.surveys
+        )
+        or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+    )
+
+
+def _object_id_clause(object_id):
+    """Mongo clause matching an objectId stored as text or, for LSST, as an int64."""
+    text = str(object_id)
+    return {"$in": [text, int(text)]} if text.isdigit() else text
+
+
+# BOOM rejects a filter test whose window is wider than this ("JD window for
+# filter test cannot exceed 7.0 JD").
+MAX_TEST_WINDOW_DAYS = 7.0
+
+# ... and one whose pipeline does not end in a $project carrying objectId
+# ("the last stage must be a $project stage that includes objectId").
+DEFAULT_PROJECT_STAGE = {
+    "$project": {"objectId": 1, "candid": 1, "candidate": 1, "coordinates": 1}
+}
+
+
+def _ensure_project_stage(pipeline):
+    """Append BOOM's required terminal $project unless the caller wrote one."""
+    # BOOM stores pipelines as JSON strings; parse so list() doesn't split the
+    # string into single characters and send BOOM a garbage pipeline.
+    if isinstance(pipeline, str):
+        pipeline = json.loads(pipeline or "[]")
+    stages = list(pipeline or [])
+    if stages and "$project" in stages[-1]:
+        return stages
+    return [*stages, DEFAULT_PROJECT_STAGE]
+
+
+def _top_n(docs, sort_by, sort_order, limit):
+    """The first ``limit`` docs by ``sort_by``, as the broker would have ordered
+    them had the window not been split."""
+
+    def key(doc):
+        value = doc
+        for part in str(sort_by).split("."):
+            value = (value or {}).get(part) if isinstance(value, dict) else None
+        return (value is None, value if value is not None else 0)
+
+    ordered = sorted(docs, key=key, reverse=str(sort_order).lower() != "ascending")
+    return ordered[: int(limit)] if limit else ordered
+
+
+def _jd_windows(start_jd, end_jd, max_days):
+    """Split [start_jd, end_jd] into consecutive spans of at most max_days.
+
+    Truncating instead would silently drop most of the requested epoch range.
+    """
+    if start_jd is None or end_jd is None or max_days <= 0:
+        return [(start_jd, end_jd)]
+    if end_jd - start_jd <= max_days:
+        return [(start_jd, end_jd)]
+    windows, lo = [], start_jd
+    while lo < end_jd:
+        hi = min(lo + max_days, end_jd)
+        windows.append((lo, hi))
+        lo = hi
+    return windows
+
+
+def _programids(kwargs, survey):
+    """The programids the requester may see for ``survey``.
+
+    ``permissions`` is injected by the handler from the user's streams; ``None``
+    means unrestricted (system admin). A missing key grants nothing, so a caller
+    that forgets to pass a scope will get no results.
+    """
+    permissions = kwargs.get("permissions", {})
+    if permissions is None:
+        return None
+    return list(permissions.get(survey) or [])
+
+
+NO_PROGRAMID_SURVEYS = {"LSST"}
+DENY_ALL = {"_id": {"$in": []}}
+
+
+def _scope_filter(kwargs, survey):
+    """Mongo clause restricting a query to the requester's accessible programids."""
+    programids = _programids(kwargs, survey)
+    if programids is None:
+        return {}
+    if survey in NO_PROGRAMID_SURVEYS:
+        return {} if programids else DENY_ALL
+    return {"candidate.programid": {"$in": programids}}
+
+
+def _epoch_filter(kwargs):
+    """Mongo clause restricting a query to an alert-JD window.
+
+    Callers crossmatching against a transient event (e.g. the GCN crossmatch
+    service) care only about alerts near the event in time. Without this the
+    cone search returns every alert ever recorded at that position, which for a
+    well-observed field is both large and wrong.
+
+    ``jd_start``/``jd_end`` are optional and either bound may be given alone.
+    """
+    jd_start, jd_end = kwargs.get("jd_start"), kwargs.get("jd_end")
+    bounds = {}
+    if jd_start is not None:
+        bounds["$gte"] = float(jd_start)
+    if jd_end is not None:
+        bounds["$lte"] = float(jd_end)
+    return {"candidate.jd": bounds} if bounds else {}
+
+
+def _scope_history(record, programids):
+    """Drop history points outside the requester's programids: an alert the user
+    may see can still carry partnership-only ``prv_candidates``/``fp_hists``.
+    """
+    if programids is None or not isinstance(record, dict):
+        return record
+    allowed = set(programids)
+    for key in ("prv_candidates", "prv_nondetections", "fp_hists"):
+        points = record.get(key)
+        if isinstance(points, list):
+            record[key] = [p for p in points if p.get("programid", 1) in allowed]
+    return record
+
+
+def _record_survey(record):
+    """The survey of a BOOM Kafka record, uppercased: BOOM emits title-case names
+    ("Ztf") but skyportal keys instruments/zeropoints/streams on the upper form,
+    so a verbatim name drops every alert (`Instrument 'Ztf' not found`)."""
+    return (record.get("survey") or DEFAULT_SURVEY).upper()
+
+
+def _modules_db(broker):
+    """The MongoDB database holding BOOM's user-created filter modules.
+
+    Resolved from the broker's altdata, falling back to the global
+    ``boom.filter_modules`` config. Returns ``None`` when unconfigured so reads
+    degrade to empty lists rather than raising.
+    """
+    altdata = broker.altdata or {}
+    conf = cfg.get("boom.filter_modules") or {}
+    uri = altdata.get("filter_modules_mongodb_uri") or conf.get("mongodb_uri")
+    database = altdata.get("filter_modules_database") or conf.get("database")
+    if not uri or not database:
+        log(
+            f"BOOM broker {broker.id}: no filter-module store configured "
+            "(boom.filter_modules.mongodb_uri/database)."
+        )
+        return None
+    client = _MONGO_CLIENTS.get(uri)
+    if client is None:
+        client = _MONGO_CLIENTS[uri] = MongoClient(uri)
+    return client[database]
+
+
+# BOOM's Kafka alert sentinel for "no value" in flux fields.
+_BOOM_SENTINEL = -99999.0
+
+
+def _boom_photometry_to_prv(photometry):
+    """BOOM native ``photometry[]`` (flux in nJy) -> standard ``prv_candidates``
+    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+    prv = []
+    for p in photometry or []:
+        flux_err = p.get("flux_err")
+        if flux_err is None or flux_err == _BOOM_SENTINEL:
+            continue
+        flux = p.get("flux")
+        if flux == _BOOM_SENTINEL:
+            flux = None
+        prv.append(
+            {
+                "jd": p.get("jd"),
+                "band": p.get("band"),
+                "psfFlux": flux,  # nJy; the shared save scales by 1e-9 to Jy
+                "psfFluxErr": flux_err,
+                "ra": p.get("ra"),
+                "dec": p.get("dec"),
+                "programid": p.get("programid", 1),
+            }
+        )
+    return prv
+
+
+# Asteroids stay well under this; the cap is only a runaway guard.
+_SSO_HISTORY_LIMIT = 10000
+
+
+def _fetch_sso_history(broker, survey, designation):
+    """Every detection of one moving object, gathered from BOOM by MPC
+    designation.
+
+    A moving object's detections each land under a different position-keyed
+    ``objectId``, so its light curve has to be gathered by the designation the
+    survey stamps on the detection. Queries the indexed raw field
+    (``candidate.ssnamenr``); the stored candidate already carries the same
+    ``psfFlux`` the Kafka path does, so the points flow through the shared save
+    transform unchanged. ZTF only for now — LSST designations live on the aux
+    collection and are not yet populated upstream. Returns [] on any failure so
+    a backfill hiccup never drops the triggering alert.
+    """
+    if survey != "ZTF":
+        return []
+    try:
+        docs = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": "ZTF_alerts",
+                "filter": {"candidate.ssnamenr": str(designation)},
+                "projection": {
+                    f"candidate.{k}": 1
+                    for k in (
+                        "jd",
+                        "band",
+                        "psfFlux",
+                        "psfFluxErr",
+                        "ra",
+                        "dec",
+                        "programid",
+                        "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                    )
+                },
+                "sort": {"candidate.jd": 1},
+                "limit": _SSO_HISTORY_LIMIT,
+            },
+        )
+    except Exception as e:
+        log(f"SSO history fetch failed for {designation}: {e}")
+        return []
+
+    # Overlapping ZTF fields can report the same epoch twice; dedupe on
+    # (jd, band, programid) so the photometry insert doesn't hit its own
+    # uniqueness constraint mid-batch.
+    prv, seen = [], set()
+    for doc in docs or []:
+        c = doc.get("candidate") or {}
+        if c.get("jd") is None or c.get("band") is None or c.get("psfFluxErr") is None:
+            continue
+        key = (c.get("jd"), c.get("band"), c.get("programid", 1))
+        if key in seen:
+            continue
+        seen.add(key)
+        prv.append(
+            {
+                "jd": c.get("jd"),
+                "band": c.get("band"),
+                "psfFlux": c.get("psfFlux"),
+                "psfFluxErr": c.get("psfFluxErr"),
+                "ra": c.get("ra"),
+                "dec": c.get("dec"),
+                "programid": c.get("programid", 1),
+                "ssmagnr": c.get("ssmagnr"),
+            }
+        )
+    return prv
+
+
+def _normalize_boom_alert(record):
+    """Convert a BOOM Kafka Avro alert (native ``photometry[]`` with flux in nJy)
+    into the standard alert shape (``candidate`` + ``prv_candidates`` with
+    ``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+    return {
+        "objectId": record.get("objectId"),
+        "candid": record.get("candid"),
+        # The alert's own epoch, which identifies its detection within `prv`.
+        "jd": record.get("jd"),
+        "properties": record.get("properties"),
+        "candidate": {
+            "ra": record.get("ra"),
+            "dec": record.get("dec"),
+            "drb": record.get("drb"),
+        },
+        "prv_candidates": _boom_photometry_to_prv(record.get("photometry")),
+    }
+
+
+async def _ingest_survey_matches(
+    broker, record, main_obj_id, main_survey, session, user
+):
+    """Ingest BOOM's cross-survey matches for a passing alert: create each
+    counterpart Obj + its photometry (and, on first sight, its cutout thumbnails)
+    and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
+    (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
+    alert has a counterpart in another survey."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import associate_super_obj, save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    matches = record.get("survey_matches") or {}
+    if not isinstance(matches, dict):
+        return
+    associated = set()
+    for match_survey, match in matches.items():
+        if not isinstance(match, dict):
+            continue
+        match_survey = str(match_survey).upper()
+        match_obj_id = match.get("objectId")
+        if match_survey == main_survey or not match_obj_id:
+            continue
+        match_obj_id = str(match_obj_id)
+        is_new = (
+            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
+        ) is None
+        match_data = {
+            "objectId": match_obj_id,
+            "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
+            "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
+        }
+        try:
+            await save_object_photometry(match_data, match_survey, session, user)
+            associated.add(match_obj_id)
+        except Exception as e:
+            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
+            continue
+        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
+        if is_new and broker is not None:
+            try:
+                cutouts = _request(
+                    broker,
+                    "GET",
+                    f"surveys/{match_survey}/cutouts",
+                    params={"objectId": match_obj_id},
+                )
+                if isinstance(cutouts, dict):
+                    await add_thumbnails(
+                        match_obj_id, cutouts, match_survey, session, user_id=user.id
+                    )
+            except Exception as e:
+                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
+    if associated:
+        await associate_super_obj(session, main_obj_id, associated)
+        await session.commit()
+
+
+# Collections that belong to surveys/alerts, not reference catalogs.
+_SURVEY_CATALOG_PREFIXES = ("ZTF_", "LSST_", "PTF_", "PGIR_", "WNTR_")
+_CATALOGS_TTL = timedelta(hours=1)
+# base_url -> (catalog_names, expiry); the reference-catalog list is stable, so
+# cache it to avoid hitting /catalogs on every cross-match.
+_CATALOGS_CACHE: dict = {}
+
+
+def _reference_catalogs(broker):
+    """BOOM's non-survey (reference) catalog names, cached per host with a TTL."""
+    base_url = _base_url(broker.altdata or {})
+    cached = _CATALOGS_CACHE.get(base_url)
+    if cached and datetime.now(UTC) < cached[1]:
+        return cached[0]
+    catalogs = _request(broker, "GET", "catalogs") or []
+    names = [
+        str(c["name"])
+        for c in catalogs
+        if isinstance(c, dict)
+        and c.get("name")
+        and not str(c["name"]).startswith(_SURVEY_CATALOG_PREFIXES)
+    ]
+    _CATALOGS_CACHE[base_url] = (names, datetime.now(UTC) + _CATALOGS_TTL)
+    return names
+
+
+def _cone_search_catalog(broker, catalog, ra, dec, radius, unit):
+    """Cone-search one BOOM catalog; returns ``(catalog, [normalized sources])``."""
+    try:
+        data = _request(
+            broker,
+            "POST",
+            "queries/cone_search",
+            json={
+                "catalog_name": catalog,
+                "object_coordinates": {"query": [ra, dec]},
+                "radius": radius,
+                "unit": unit,
+                "max_time_ms": 5000,
+            },
+        )
+    except Exception as e:
+        log(f"cone_search against {catalog} failed: {e}")
+        return catalog, []
+    results = (data or {}).get("query", []) if isinstance(data, dict) else []
+    for source in results:
+        source["_id"] = str(source.get("_id", ""))
+        coords = (
+            source.get("coordinates", {})
+            .get("radec_geojson", {})
+            .get("coordinates", [])
+        )
+        if len(coords) == 2:
+            # BOOM stores GeoJSON longitude in [-180, 180]; shift back to RA.
+            source["ra"] = coords[0] + 180
+            source["dec"] = coords[1]
+    return catalog, results
+
+
+class BOOMBROKER(BrokerAPI):
+    """The BOOM broker (kaboom.caltech.edu, ZTF/LSST alerts).
+
+    Talks to BOOM's REST API: username/password -> bearer token (``/auth``),
+    Mongo-style ``/queries/find`` and ``/queries/cone_search``,
+    ``/queries/pipeline`` for the full object, and ``/surveys/{survey}/cutouts``.
+    Configure a ``Broker`` with ``altdata = {"protocol", "host", "port",
+    "username", "password", "survey"}``.
+    """
+
+    parallel_ingestion = True  # shared Kafka consumer group
+
+    surveys = ["ZTF", "LSST"]
+    filter_kind = "pipeline"
+    # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
+    cross_match_catalogs = True
+    filter_pipeline = "mongo"
+
+    form_json_schema_config = {
+        "type": "object",
+        "required": ["host"],
+        "properties": {
+            "protocol": {
+                "type": "string",
+                "title": "Protocol",
+                "default": "https",
+                "description": "http or https.",
+            },
+            "host": {
+                "type": "string",
+                "title": "API host (e.g. api.kaboom.caltech.edu)",
+                "description": "Hostname of the BOOM API.",
+            },
+            "port": {
+                "type": "integer",
+                "title": "Port",
+                "default": 443,
+                "description": "BOOM API port.",
+            },
+            "username": {"type": "string", "title": "Username"},
+            "password": {"type": "string", "title": "Password"},
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF", "LSST"],
+                "default": DEFAULT_SURVEY,
+                "title": "Survey",
+                "description": "Survey this connection serves.",
+            },
+        },
+    }
+
+    ui_json_schema = {"password": {"ui:widget": "password"}}
+
+    @staticmethod
+    def validate_config(altdata):
+        if not (altdata or {}).get("host"):
+            raise ValueError("Broker altdata must include 'host'.")
+
+    @staticmethod
+    def test_connection(broker):
+        _get_token(broker.altdata or {}, force=True)
+
+    @staticmethod
+    def query_alerts(broker, session, **kwargs):
+        object_id = kwargs.get("objectId")
+        survey = _survey(broker, kwargs, object_id)
+        catalog = f"{survey}_alerts"
+        ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
+        scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
+
+        if object_id:
+            return _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": catalog,
+                    "filter": {"objectId": _object_id_clause(object_id), **scope},
+                    "projection": NO_CUTOUT_PROJECTION,
+                    "max_time_ms": 10000,
+                },
+            )
+        if ra is not None and dec is not None and radius is not None:
+            unit = RADIUS_UNIT_MAP.get(
+                str(kwargs.get("radius_units") or "arcsec"), "Arcseconds"
+            )
+            result = _request(
+                broker,
+                "POST",
+                "queries/cone_search",
+                json={
+                    "catalog_name": catalog,
+                    "filter": scope,
+                    "object_coordinates": {"query": [float(ra), float(dec)]},
+                    "radius": float(radius),
+                    "unit": unit,
+                    "max_time_ms": 10000,
+                },
+            )
+            return result.get("query", []) if isinstance(result, dict) else result
+        raise ValueError("Provide objectId, or ra+dec+radius.")
+
+    @staticmethod
+    def get_alert(broker, alert_id, session, **kwargs):
+        # Full object: brightest alert joined with its aux history.
+        survey = _survey(broker, kwargs, alert_id)
+        catalog = f"{survey}_alerts"
+        programids = _programids(kwargs, survey)
+        pipeline = [
+            {
+                "$match": {
+                    "objectId": _object_id_clause(alert_id),
+                    **_scope_filter(kwargs, survey),
+                }
+            },
+            {"$sort": {"candidate.magpsf": 1}},
+            {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
+            {"$replaceRoot": {"newRoot": "$data"}},
+            {
+                "$lookup": {
+                    "from": f"{catalog}_aux",
+                    "localField": "objectId",
+                    "foreignField": "_id",
+                    "as": "aux",
+                }
+            },
+            {"$unwind": {"path": "$aux", "preserveNullAndEmptyArrays": True}},
+            {
+                "$project": {
+                    "_id": 1,
+                    "objectId": 1,
+                    "candid": 1,
+                    "candidate": 1,
+                    "prv_candidates": "$aux.prv_candidates",
+                    "prv_nondetections": "$aux.prv_nondetections",
+                    "fp_hists": "$aux.fp_hists",
+                }
+            },
+        ]
+        data = _request(
+            broker,
+            "POST",
+            "queries/pipeline",
+            json={"catalog_name": catalog, "pipeline": pipeline, "max_time_ms": 30000},
+        )
+        record = data[0] if isinstance(data, list) and data else data
+        return _scope_history(record, programids)
+
+    @staticmethod
+    def get_cutouts(broker, alert_id, session, **kwargs):
+        survey = _survey(broker, kwargs)
+        scope = _scope_filter(kwargs, survey)
+        if scope:
+            try:
+                candid = int(alert_id)
+            except (TypeError, ValueError):
+                candid = alert_id
+            visible = _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts",
+                    "filter": {"_id": candid, **scope},
+                    "projection": {"_id": 1},
+                    "limit": 1,
+                },
+            )
+            if not visible:
+                raise ValueError(f"No accessible alert with candid {alert_id}")
+        return _request(
+            broker,
+            "GET",
+            f"surveys/{survey}/cutouts",
+            params={"candid": alert_id},
+        )
+
+    @staticmethod
+    def cone_search(broker, ra, dec, radius, session, **kwargs):
+        """Cross-match a position against BOOM's reference catalogs (Gaia, PS1,
+        AllWISE, ...). Returns ``{catalog_name: [sources]}`` for catalogs with a
+        hit; each catalog is searched concurrently."""
+        unit = RADIUS_UNIT_MAP.get(str(kwargs.get("radius_units") or "arcsec"))
+        if unit is None:
+            raise ValueError("radius_units must be one of 'deg', 'arcmin', 'arcsec'.")
+        catalogs = _reference_catalogs(broker)
+        results = {}
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for catalog, sources in pool.map(
+                lambda c: _cone_search_catalog(broker, c, ra, dec, radius, unit),
+                catalogs,
+            ):
+                if sources:
+                    results[catalog] = sources
+        return results
+
+    @staticmethod
+    async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
+        """Consume BOOM's Kafka filter-result streams (Avro) and register each
+        alert as a Candidate under the skyportal Filters mapped to the BOOM filter
+        ids it passed (``Filter.altdata['boom']['filter_id']``), falling back to
+        ``broker.altdata['filter_ids']``. Kafka config in ``broker.altdata['kafka']``.
+        """
+        import asyncio
+
+        import sqlalchemy as sa
+
+        from baselayer.app.models import async_plain_session_factory
+
+        from ..models import Filter
+        from ..utils.sso_ingest import sso_filter_targets
+
+        altdata = broker.altdata or {}
+        kafka = altdata.get("kafka") or {}
+        default_filter_ids = altdata.get("filter_ids") or []
+        topics = kafka.get("topics") or ["ZTF_alerts_results", "LSST_alerts_results"]
+        # kafka_consumer_config prefers altdata's group_id; match it so the log
+        # and the actual Kafka group agree.
+        group_id = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
+
+        # Map BOOM filter ids -> skyportal Filter ids once at startup (shared,
+        # read-only across the consumers below).
+        async with async_plain_session_factory() as session:
+            boom_map = {}
+            filters = (await session.scalars(sa.select(Filter))).all()
+            for f in filters:
+                boom = (f.altdata or {}).get("boom")
+                if boom and boom.get("filter_id") is not None:
+                    boom_map[boom["filter_id"]] = f.id
+            # Filters marked `altdata['sso']` route their alerts to the
+            # solar-system ingest instead of the sidereal one.
+            sso_targets = sso_filter_targets(filters)
+
+        # N consumers sharing one group id; Kafka rebalances partitions across
+        # them. Defaults to 1.
+        num_consumers = max(1, int(kafka.get("num_consumers", 1)))
+        log(
+            f"BOOM ingestion (broker {broker.id}): {num_consumers} consumer(s) "
+            f"in group {group_id}, topics {topics}"
+        )
+        # TaskGroup so one consumer crashing cancels its siblings, not orphans them.
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(
+                    BOOMBROKER._consume_stream(
+                        broker,
+                        kafka,
+                        topics,
+                        group_id,
+                        boom_map,
+                        sso_targets,
+                        default_filter_ids,
+                        stop,
+                        max_messages,
+                    )
+                )
+                for _ in range(num_consumers)
+            ]
+        total = sum(t.result() for t in tasks)
+        log(f"BOOM ingestion (broker {broker.id}): consumed {total} alerts")
+        return total
+
+    @staticmethod
+    async def _consume_stream(
+        broker,
+        kafka,
+        topics,
+        group_id,
+        boom_map,
+        sso_targets,
+        default_filter_ids,
+        stop,
+        max_messages,
+    ):
+        """One Kafka consumer's poll/ingest loop. Consumers sharing ``group_id``
+        have Kafka rebalance the topic partitions across them."""
+        import asyncio
+
+        import sqlalchemy as sa
+        from confluent_kafka import Consumer, KafkaError
+
+        from baselayer.app.models import async_plain_session_factory
+
+        from ..models import User
+        from ..utils.sso_ingest import (
+            extract_designation,
+            ingest_sso_alert,
+            sidereal_filter_ids,
+            sso_routing_for,
+        )
+        from ._kafka import kafka_consumer_config, read_avro
+        from ._save import save_object_as_candidate
+
+        consumer = Consumer(kafka_consumer_config(kafka, group_id))
+        consumer.subscribe(topics)
+        count = 0
+        try:
+            while not (stop is not None and stop.is_set()):
+                # poll is blocking; offload so one loop can host several consumers.
+                msg = await asyncio.to_thread(consumer.poll, 2.0)
+                if msg is None:
+                    continue
+                if msg.error():
+                    if msg.error().code() != KafkaError._PARTITION_EOF:
+                        log(f"Kafka error: {msg.error()}")
+                    continue
+                record = read_avro(msg.value())
+                if record is None:
+                    continue
+
+                survey = _record_survey(record)
+                data = _normalize_boom_alert(record)
+                # Route to the skyportal Filters mapped to the passing BOOM filters.
+                passed = [
+                    boom_map[f["filter_id"]]
+                    for f in (record.get("filters") or [])
+                    if f.get("filter_id") in boom_map
+                ]
+                filter_ids = passed or default_filter_ids
+
+                # Carry each passing filter's annotations (a JSON string from BOOM)
+                # through to the ingest so it becomes a filter annotation on the obj.
+                annotations_by_filter_id = {}
+                for f in record.get("filters") or []:
+                    fid = boom_map.get(f.get("filter_id"))
+                    if fid is None:
+                        continue
+                    ann = f.get("annotations")
+                    if isinstance(ann, str):
+                        try:
+                            ann = json.loads(ann)
+                        except (json.JSONDecodeError, TypeError):
+                            ann = None
+                    if isinstance(ann, dict) and ann:
+                        annotations_by_filter_id[fid] = ann
+                cutouts = {
+                    k: record[k]
+                    for k in ("cutoutScience", "cutoutTemplate", "cutoutDifference")
+                    if record.get(k) is not None
+                } or None
+                sso_filter_ids, sso_group_ids = sso_routing_for(filter_ids, sso_targets)
+                designation = (
+                    extract_designation(data, annotations_by_filter_id)
+                    if sso_filter_ids
+                    else None
+                )
+                # SSO-routed filters never take the sidereal path: a moving object
+                # keyed by sky position yields fixed-position photometry and single-
+                # point sources. Without a designation there is no identity to
+                # ingest, so those alerts are dropped rather than polluting the SSO
+                # group. Non-SSO filters the alert also passed still ingest normally.
+                sidereal_ids = sidereal_filter_ids(filter_ids, sso_filter_ids)
+                try:
+                    async with async_plain_session_factory() as session:
+                        user = await session.scalar(sa.select(User).where(User.id == 1))
+                        if designation:
+                            await ingest_sso_alert(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                designation,
+                                sso_group_ids,
+                                filter_ids=sso_filter_ids,
+                                passing_alert_id=record.get("candid"),
+                                annotations_by_filter_id=annotations_by_filter_id,
+                                # sync _request offloaded so it can't block the loop.
+                                fetch_history=lambda s, d: asyncio.to_thread(
+                                    _fetch_sso_history, broker, s, d
+                                ),
+                            )
+                        elif sidereal_ids:
+                            await save_object_as_candidate(
+                                data,
+                                survey,
+                                session,
+                                user,
+                                sidereal_ids,
+                                passing_alert_id=record.get("candid"),
+                                cutouts=cutouts,
+                                annotations_by_filter_id=annotations_by_filter_id,
+                            )
+                            # Only associate cross-survey matches when the primary was
+                            # ingested as a candidate, so we don't create orphan
+                            # counterpart objs for alerts nobody is scanning. Moving
+                            # objects are matched by designation, not position.
+                            if record.get("survey_matches"):
+                                await _ingest_survey_matches(
+                                    broker,
+                                    record,
+                                    data["objectId"],
+                                    survey,
+                                    session,
+                                    user,
+                                )
+                except Exception as e:
+                    log(f"Error ingesting alert {record.get('objectId')}: {e}")
+                count += 1
+                if max_messages is not None and count >= max_messages:
+                    break
+        finally:
+            consumer.close()
+        log(f"BOOM ingestion (broker {broker.id}): consumed {count} alerts")
+        return count
+
+    # ------------------------------------------------------------------ #
+    # Filters (BOOM aggregation-pipeline "filters", versioned server-side).
+    # These forward to BOOM's REST API via broker.altdata; the generic
+    # /api/brokers/{id}/filters handler owns the skyportal Filter row.
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def filter_modules(broker, session, **kwargs):
+        """Filter-building vocabulary for a survey. ``elements`` selects what to
+        fetch: "schema" (default) returns BOOM's alert schema (fields/types) over
+        REST; the user-created modules (variables/listVariables/switchCases/
+        blocks) come from BOOM's own MongoDB store. With ``name``, returns the
+        single matching module (or ``None``) instead of the list."""
+        elements = kwargs.get("elements", "schema")
+        if elements == "schema":
+            survey = _survey(broker, kwargs)
+            return {"schema": _request(broker, "GET", f"filters/schemas/{survey}")}
+        name = kwargs.get("name")
+        db = _modules_db(broker)
+        if db is None:
+            return {elements: None if name else []}
+        # Strip the raw ObjectId: it is not JSON-serializable.
+        if name:
+            return {elements: db[elements].find_one({"name": name}, {"_id": 0})}
+        return {elements: list(db[elements].find({}, {"_id": 0}))}
+
+    @staticmethod
+    def write_filter_module(broker, session, name, elements, payload, insert):
+        """Upsert a custom filter module into BOOM's MongoDB store."""
+        db = _modules_db(broker)
+        if db is None:
+            raise ValueError("No filter-module store is configured for this broker.")
+        payload = normalize_module_streams(payload)
+        now = datetime.now(UTC)
+        if insert:
+            db[elements].update_one(
+                {"name": name},
+                {
+                    "$set": {"name": name, **payload, "updated_at": now},
+                    "$setOnInsert": {"created_at": now},
+                },
+                upsert=True,
+            )
+        elif db[elements].find_one({"name": name}, {"_id": 0}) is None:
+            raise ValueError(f"No {elements} named '{name}'.")
+        else:
+            db[elements].update_one(
+                {"name": name}, {"$set": {**payload, "updated_at": now}}
+            )
+
+    @staticmethod
+    def get_filters(broker, session, **kwargs):
+        """Fetch a BOOM filter's versions/active state by BOOM filter id."""
+        return _request(broker, "GET", f"filters/{kwargs['boom_filter_id']}")
+
+    @staticmethod
+    def create_filter(broker, session, **kwargs):
+        """Create a filter on BOOM, or add a version to an existing one (when
+        ``boom_filter_id`` is given). Returns BOOM's response data (``id`` +
+        ``active_fid`` for a new filter, ``fid`` for a new version)."""
+        pipeline = kwargs["pipeline"]
+        boom_filter_id = kwargs.get("boom_filter_id")
+        if boom_filter_id is None:
+            return _request(
+                broker,
+                "POST",
+                "filters",
+                json={
+                    "name": kwargs["name"],
+                    "pipeline": pipeline,
+                    "survey": kwargs["survey"],
+                    "permissions": kwargs["permissions"],
+                },
+            )
+        return _request(
+            broker,
+            "POST",
+            f"filters/{boom_filter_id}/versions",
+            json={"pipeline": pipeline},
+        )
+
+    @staticmethod
+    def update_filter(broker, session, **kwargs):
+        """Activate a version (``active``/``active_fid``) or rename (``name``) on
+        BOOM. ``skip_validation`` tells BOOM to skip its inline activation check
+        (skyportal gates instead)."""
+        payload = {
+            k: kwargs[k]
+            for k in ("active", "active_fid", "skip_validation", "name")
+            if k in kwargs
+        }
+        return _request(
+            broker, "PATCH", f"filters/{kwargs['boom_filter_id']}", json=payload
+        )
+
+    @staticmethod
+    def validate_filter(broker, session, **kwargs):
+        """Run BOOM's activation validation for a version without changing state;
+        returns ``{fid, passed, message?}``."""
+        params = {"fid": kwargs["fid"]} if kwargs.get("fid") else None
+        return _request(
+            broker,
+            "POST",
+            f"filters/{kwargs['boom_filter_id']}/validate",
+            params=params,
+            timeout=VALIDATE_TIMEOUT,
+        )
+
+    @staticmethod
+    def delete_filter(broker, session, **kwargs):
+        """Best-effort delete on BOOM; the skyportal Filter row is removed by the
+        caller (BOOM cascades its own versions)."""
+        boom_filter_id = kwargs.get("boom_filter_id")
+        if boom_filter_id is not None:
+            try:
+                _request(broker, "DELETE", f"filters/{boom_filter_id}")
+            except Exception as e:
+                log(f"BOOM filter {boom_filter_id} delete failed: {e}")
+        return {"status": "ok"}
+
+    @staticmethod
+    def test_filter(broker, session, **kwargs):
+        """Preview a pipeline against BOOM: a count, or sorted/paginated results
+        when ``sort_by`` is given (mirrors BOOM's /filters/test[/count]).
+
+        The builder UI sends ``selectedCollection`` (e.g. "ZTF_alerts") + a
+        ``filter_id`` rather than an explicit survey; derive the survey from the
+        collection and the programids from the filter's stream, capped by what
+        the requester's own streams grant."""
+        survey = kwargs.get("survey")
+        if survey is None and kwargs.get("selectedCollection"):
+            survey = str(kwargs["selectedCollection"]).split("_")[0]
+        survey = survey or _survey(broker, kwargs)
+
+        programids = _programids(kwargs, survey)
+        if kwargs.get("filter_id") is not None:
+            import sqlalchemy as sa
+            from sqlalchemy.orm import joinedload
+
+            from ..models import Filter
+
+            f = session.scalar(
+                sa.select(Filter)
+                .options(joinedload(Filter.stream))
+                .where(Filter.id == int(kwargs["filter_id"]))
+            )
+            if f is not None and f.stream and isinstance(f.stream.altdata, dict):
+                selector = f.stream.altdata.get("selector") or []
+                programids = (
+                    list(selector)
+                    if programids is None
+                    else sorted(set(selector) & set(programids))
+                )
+
+        if programids is None:
+            # BOOM rejects an empty permissions map, so an unrestricted user
+            # needs every programid the instance's streams grant spelled out.
+            import sqlalchemy as sa
+
+            from ..models import Stream
+            from .interface import survey_permissions
+
+            programids = survey_permissions(
+                session.scalars(sa.select(Stream)).all()
+            ).get(survey)
+
+        payload = {
+            "survey": survey,
+            "pipeline": _ensure_project_stage(kwargs["pipeline"]),
+            "permissions": {survey: programids} if programids is not None else {},
+            "start_jd": kwargs.get("start_jd"),
+            "end_jd": kwargs.get("end_jd"),
+        }
+        if kwargs.get("sort_by"):
+            payload.update(
+                {
+                    "sort_by": kwargs["sort_by"],
+                    "sort_order": kwargs.get("sort_order", "Descending"),
+                    "limit": kwargs.get("limit", 50),
+                }
+            )
+            # BOOM caps a filter test at MAX_TEST_WINDOW_DAYS, so a wider window
+            # is walked in slices here rather than pushed onto every caller.
+            results = []
+            res = None
+            sort_order = kwargs.get("sort_order", "Descending")
+            limit = kwargs.get("limit", 50)
+            window_args = (
+                payload["start_jd"],
+                payload["end_jd"],
+                MAX_TEST_WINDOW_DAYS,
+            )
+            for start_jd, end_jd in _jd_windows(*window_args):
+                res = _request(
+                    broker,
+                    "POST",
+                    "filters/test",
+                    json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                )
+                if isinstance(res, dict) and isinstance(res.get("results"), list):
+                    # stringify Mongo _id so large ids survive JS number precision.
+                    results.extend(
+                        {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
+                    )
+            if isinstance(res, dict):
+                # limit is per request, so a sliced window would otherwise return
+                # slices x limit rows: re-sort the union and honour it once.
+                if len(_jd_windows(*window_args)) > 1:
+                    results = _top_n(results, payload["sort_by"], sort_order, limit)
+                return {**res, "results": results}
+            return res
+        return _request(broker, "POST", "filters/test/count", json=payload)

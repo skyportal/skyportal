@@ -5,7 +5,6 @@ import os
 import tempfile
 import traceback
 
-import arviz as az
 import joblib
 import matplotlib
 import numpy as np
@@ -184,20 +183,13 @@ def run_sn_model(data_dict):
             local_temp_files.append(f.name)
 
             # make some draws from the posterior (simulating what we'd expect
-            # with an MCMC analysis)
+            # with an MCMC analysis) and store them as {param: [values]}, the
+            # posterior_samples format the frontend corner plot expects (as
+            # produced by the fiesta fits).
             post = rng.multivariate_normal(result.parameters, result.covariance, 10000)
-            post = post[np.newaxis, :]
-            # create an inference dataset
-            inference = az.convert_to_inference_data(
-                {x: post[:, :, i] for i, x in enumerate(result.param_names)}
-            )
-            f = tempfile.NamedTemporaryFile(
-                suffix=".nc", prefix="inferencedata_", delete=False
-            )
-            f.close()
-            inference.to_netcdf(f.name)
-            inference_data = base64.b64encode(open(f.name, "rb").read())
-            local_temp_files.append(f.name)
+            posterior_samples = {
+                name: post[:, i].tolist() for i, name in enumerate(result.param_names)
+            }
 
             result.update({"source": source, "fix_z": fix_z})
 
@@ -210,7 +202,7 @@ def run_sn_model(data_dict):
             local_temp_files.append(f.name)
 
             analysis_results = {
-                "inference_data": {"format": "netcdf4", "data": inference_data},
+                "posterior_samples": posterior_samples,
                 "plots": [{"format": "png", "data": plot_data}],
                 "results": {"format": "joblib", "data": result_data},
             }

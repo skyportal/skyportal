@@ -95,8 +95,10 @@ General:
 
 DB preparation:
 
-- db_init : Create database
-- db_clear : Drop and re-create DB
+- db_init : Create the databases if they don't exist yet
+- db_clear : Drop and re-create the databases, wiping all data
+
+Neither creates the tables: `make run` does it on startup.
 
 Launching:
 
@@ -117,6 +119,6 @@ Development:
 
 ## Code formatting / linters
 
-To set up `pre-commit` for automatically reformatting Python and JavaScript changes, run `pip install pre-commit && pre-commit install`.
+To set up `pre-commit` for automatically reformatting Python and JavaScript changes, make sure you have installed the dev dependencies (`uv sync --inexact --group dev`, see [Developer notes](dev)) and then run `uv run pre-commit install`.
 
 `pre-commit` is run each time a new change is committed. If an error can be fixed automatically (such as a spacing issue), the tool does that automatically, and you can re-attempt the commit. Otherwise, you may have to make the change manually.

@@ -1,0 +1,70 @@
+interactions:
+- request:
+    body: ''
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '40'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.33.0
+    method: POST
+    uri: https://api.kaboom.caltech.edu/auth
+  response:
+    body:
+      string: '{"access_token": "REDACTED", "token_type": "Bearer", "expires_in":
+        604800}'
+    headers:
+      Cache-Control:
+      - no-store
+      Content-Length:
+      - '249'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 16:26:13 GMT
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"catalog_name": "ZTF_alerts", "object_coordinates": {"query": [280.0,
+      -5.0]}, "radius": 5.0, "unit": "Arcseconds", "max_time_ms": 10000}'
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '137'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.0
+    method: POST
+    uri: https://api.kaboom.caltech.edu/queries/cone_search
+  response:
+    body:
+      string: '{"message":"Cone Search on ZTF_alerts completed","data":{"query":[]}}'
+    headers:
+      Content-Length:
+      - '69'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 16:26:13 GMT
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -93,6 +93,28 @@ You would need to pass the `--config=config.yaml` flag when calling any `make` c
 
 **Note: Elements of the configuration used to customize the frontend need to be set in the configuration file used to build the image (`docker.yaml`), as they are used to build the web application's bundle which only happens once at build time, and will not take effect if changed at runtime.**
 
+## Connection pooling
+
+Each app process and microservice opens its own SQLAlchemy pool, so a busy async deployment can exhaust Postgres `max_connections`. A transaction-mode pooler (pgbouncer or pgcat) between SkyPortal and Postgres multiplexes all of these onto a small, bounded backend pool.
+
+Enable it in `config.yaml`:
+
+```yaml
+database:
+  host: localhost
+  port: 5432        # real Postgres
+  pooler:
+    enabled: true
+    host: localhost
+    port: 6432      # pooler
+    pool_mode: transaction
+    default_pool_size: 25
+```
+
+When enabled, the app and services connect to the pooler instead of Postgres directly (setup and migrations still connect directly). The bundled `pgbouncer` service starts automatically; alternatively point `pooler.host`/`pooler.port` at an externally managed pgbouncer/pgcat. The design is pooler-agnostic — SkyPortal only needs the pooler's host/port.
+
+Because transaction pooling hands out a different backend connection per transaction, SkyPortal disables psycopg3 server-side prepared statements when the pooler is enabled. The bundled pgbouncer `auth_type` defaults to `md5` (or `trust` without a password); adjust `services/pgbouncer/pgbouncer.ini.template` to match your Postgres auth (e.g. `scram-sha-256` or `auth_query`).
+
 ## Handling problems
 
 You can see which containers are running with `docker-compose ps`.

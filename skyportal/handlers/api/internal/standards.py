@@ -1,8 +1,11 @@
 import ast
 
+from dateutil.parser import isoparse
+
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
+from ....utils.naive_datetime import utcnow_naive
 from ....utils.offset import get_formatted_standards_list
 from ...base import BaseHandler
 
@@ -11,7 +14,7 @@ _, cfg = load_env()
 
 class StandardsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Get standard stars with specified formatting
@@ -36,7 +39,7 @@ class StandardsHandler(BaseHandler):
           nullable: True
           required: false
           schema:
-            type: list
+            type: array
           description: |
             lowest and highest dec to return, e.g. "(-10,30)"
         - in: query
@@ -44,7 +47,7 @@ class StandardsHandler(BaseHandler):
           required: false
           nullable: True
           schema:
-            type: list
+            type: array
           description: |
             lowest and highest ra to return (or wrapped range)
             e.g. "(125,320)" or "(300,10)"
@@ -90,6 +93,11 @@ class StandardsHandler(BaseHandler):
         dec_filter_range_str = self.get_query_argument("dec_filter_range", "[-90, 90]")
         ra_filter_range_str = self.get_query_argument("ra_filter_range", "[0, 360]")
         show_first_line = self.get_query_argument("show_first_line", False)
+        obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
+        try:
+            isoparse(obstime)
+        except (ValueError, TypeError):
+            return self.error("obstime is not valid isoformat")
 
         if standard_type not in cfg["standard_stars"]:
             return self.error(
@@ -134,6 +142,7 @@ class StandardsHandler(BaseHandler):
             dec_filter_range=tuple(dec_filter_range),
             ra_filter_range=tuple(ra_filter_range),
             show_first_line=show_first_line,
+            obstime=obstime,
         )
 
         return self.success(data=data)

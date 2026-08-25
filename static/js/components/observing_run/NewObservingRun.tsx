@@ -1,0 +1,101 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+import Typography from "@mui/material/Typography";
+import { showNotification } from "baselayer/components/Notifications";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+import { useAppDispatch } from "../../types/hooks";
+import Paper from "../Paper";
+import { useSubmitObservingRunMutation } from "../../ducks/observingRun";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+
+dayjs.extend(utc);
+
+const NewObservingRun = () => {
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const dispatch = useAppDispatch();
+  const [submitObservingRun] = useSubmitObservingRunMutation();
+
+  const handleSubmit = async ({ formData }: { formData: any }) => {
+    if (formData.group_id === -1) {
+      delete formData.group_id;
+    }
+    try {
+      await submitObservingRun(formData).unwrap();
+      dispatch(showNotification("Observing run saved"));
+    } catch {
+      // error notification handled by the base query
+    }
+  };
+
+  const observingRunFormSchema = {
+    type: "object",
+    properties: {
+      pi: {
+        type: "string",
+        title: "PI",
+      },
+      calendar_date: {
+        type: "string",
+        format: "date",
+        title: "Calendar Date",
+        default: dayjs().utc().format("YYYY-MM-DD"),
+      },
+      duration: {
+        type: "number",
+        title: "Number of nights",
+        default: 1,
+      },
+      observers: {
+        type: "string",
+        title: "Observers",
+      },
+      instrument_id: {
+        type: "integer",
+        oneOf: instrumentList.map((instrument: any) => ({
+          enum: [instrument.id],
+          title: `${
+            telescopeList.find(
+              (telescope: any) => telescope.id === instrument.telescope_id,
+            )?.["name"]
+          } / ${instrument.name}`,
+        })),
+        title: "Instrument",
+        default: instrumentList[0]?.id,
+      },
+      group_id: {
+        type: "integer",
+        oneOf: [{ enum: [-1], title: "No group" }].concat(
+          groups.map((group: any) => ({
+            enum: [group.id],
+            title: group.name,
+          })),
+        ),
+        default: -1,
+        title: "Group",
+      },
+    },
+    required: ["pi", "calendar_date", "instrument_id"],
+  };
+
+  return (
+    <Paper>
+      <Typography variant="h6">Add a New Observing Run</Typography>
+      <Form
+        schema={observingRunFormSchema as any}
+        validator={validator}
+        onSubmit={handleSubmit as any}
+      />
+    </Paper>
+  );
+};
+
+export default NewObservingRun;

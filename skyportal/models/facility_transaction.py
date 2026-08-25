@@ -1,19 +1,19 @@
 __all__ = ["FacilityTransaction", "FacilityTransactionRequest"]
 
-from datetime import datetime
-
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
 
+from ..utils.naive_datetime import utcnow_naive
+
 
 class FacilityTransaction(Base):
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         index=True,
         doc="UTC time this FacilityTransaction was created.",
     )
@@ -66,7 +66,7 @@ class FacilityTransactionRequest(Base):
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         index=True,
         doc="UTC time this FacilityTransactionRequest was created.",
     )
@@ -74,7 +74,7 @@ class FacilityTransactionRequest(Base):
     last_query = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         index=True,
         doc="UTC time this FacilityTransactionRequest was last queried.",
     )

@@ -1,11 +1,14 @@
+import asyncio
 import time
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import arrow
+import sqlalchemy as sa
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from lxml import etree
+from sqlalchemy.orm import selectinload
 from suds import Client
 
 from baselayer.app.env import load_env
@@ -13,6 +16,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -352,7 +356,7 @@ class LTAPI(FollowUpAPI):
     """An interface to LT operations."""
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from LT queue (all instruments).
 
         Parameters
@@ -363,7 +367,20 @@ class LTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -403,11 +420,15 @@ class LTAPI(FollowUpAPI):
         etree.SubElement(contact, "Communication")
         cancel = etree.tostring(cancel_payload, encoding="unicode", pretty_print=True)
 
-        client = Client(url=url, headers=headers)
-        # Send cancel_payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(cancel).replace(
-            'encoding="ISO-8859-1"', ""
-        )
+        # suds does blocking SOAP/WSDL IO over its own client; run off the event loop.
+        def _send_rtml():
+            client = Client(url=url, headers=headers)
+            # remove the encoding tag which causes issue with lxml parsing
+            return client.service.handle_rtml(cancel).replace(
+                'encoding="ISO-8859-1"', ""
+            )
+
+        response = await asyncio.to_thread(_send_rtml)
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get("mode")
         if mode in ["confirm", "reject"]:
@@ -463,7 +484,7 @@ class IOOAPI(LTAPI):
     """An interface to LT IOO operations."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LT's IOO.
 
         Parameters
@@ -474,7 +495,19 @@ class IOOAPI(LTAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -487,14 +520,19 @@ class IOOAPI(LTAPI):
             "Password": altdata["password"],
         }
         url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
-        client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
         )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ""
-        )
+
+        # suds does blocking SOAP/WSDL IO over its own client; run off the event loop.
+        def _send_rtml():
+            client = Client(url=url, headers=headers)
+            # remove the encoding tag which causes issue with lxml parsing
+            return client.service.handle_rtml(full_payload).replace(
+                'encoding="ISO-8859-1"', ""
+            )
+
+        response = await asyncio.to_thread(_send_rtml)
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get("mode")
 
@@ -564,13 +602,13 @@ class IOOAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -616,7 +654,7 @@ class IOIAPI(LTAPI):
     """An interface to LT IOI operations."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LT's IOI.
 
         Parameters
@@ -627,7 +665,19 @@ class IOIAPI(LTAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -640,14 +690,19 @@ class IOIAPI(LTAPI):
             "Password": altdata["password"],
         }
         url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
-        client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
         )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ""
-        )
+
+        # suds does blocking SOAP/WSDL IO over its own client; run off the event loop.
+        def _send_rtml():
+            client = Client(url=url, headers=headers)
+            # remove the encoding tag which causes issue with lxml parsing
+            return client.service.handle_rtml(full_payload).replace(
+                'encoding="ISO-8859-1"', ""
+            )
+
+        response = await asyncio.to_thread(_send_rtml)
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get("mode")
 
@@ -717,13 +772,13 @@ class IOIAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -769,7 +824,7 @@ class SPRATAPI(LTAPI):
     """An interface to LT SPRAT operations."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LT's SPRAT.
 
         Parameters
@@ -780,7 +835,19 @@ class SPRATAPI(LTAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -794,14 +861,19 @@ class SPRATAPI(LTAPI):
             "Password": altdata["password"],
         }
         url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
-        client = Client(url=url, headers=headers)
         full_payload = etree.tostring(
             observation_payload, encoding="unicode", pretty_print=True
         )
-        # Send payload, and receive response string, removing the encoding tag which causes issue with lxml parsing
-        response = client.service.handle_rtml(full_payload).replace(
-            'encoding="ISO-8859-1"', ""
-        )
+
+        # suds does blocking SOAP/WSDL IO over its own client; run off the event loop.
+        def _send_rtml():
+            client = Client(url=url, headers=headers)
+            # remove the encoding tag which causes issue with lxml parsing
+            return client.service.handle_rtml(full_payload).replace(
+                'encoding="ISO-8859-1"', ""
+            )
+
+        response = await asyncio.to_thread(_send_rtml)
         response_rtml = etree.fromstring(response)
         mode = response_rtml.get("mode")
 
@@ -869,13 +941,13 @@ class SPRATAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
