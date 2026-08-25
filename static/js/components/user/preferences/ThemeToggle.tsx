@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 
 import {
   DARK_SCHEMES,
@@ -76,19 +76,11 @@ const ThemeToggle = () => {
               fontSize: "0.8125rem",
               fontWeight: "bold",
               whiteSpace: "nowrap",
-              boxShadow: selected
-                ? `0 0 0 2px ${alpha(theme.palette.primary.main, 0.6)}`
-                : "none",
               transition: theme.transitions.create(
-                ["min-width", "padding", "box-shadow"],
+                ["min-width", "padding", "border-color"],
                 { duration: theme.transitions.duration.short },
               ),
-              "&:hover": {
-                boxShadow: `0 0 0 2px ${alpha(
-                  theme.palette.primary.main,
-                  selected ? 0.6 : 0.3,
-                )}`,
-              },
+              "&:hover": { borderColor: "text.secondary" },
             }}
           >
             {selected && label}

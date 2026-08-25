@@ -48,7 +48,7 @@ const useStyles = makeStyles()((theme) => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
     marginTop: "2.5em", // top bar height
-    "& a:not(.MuiLink-root)": {
+    "& a:not(.MuiLink-root):not(.MuiButtonBase-root)": {
       textDecoration: "none",
       color: "gray",
       fontWeight: "bold",

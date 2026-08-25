@@ -58,7 +58,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
           component={RouterLink}
           to="/profile"
           data-testid="profile-settings-view"
-          sx={{ mb: 2 }}
+          sx={{ mb: 0.5 }}
         >
           <ArrowBackIcon fontSize="small" sx={{ mr: 0.5 }} />
           settings
@@ -103,12 +103,12 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
             )}
           {profile.contact_phone &&
             field("Contact phone", profile.contact_phone)}
+          {!!profile.roles?.length && field("Roles", chips(profile.roles))}
+          {!!profile.groups?.length && field("Groups", chips(profile.groups))}
           {field(
             "Member since",
             dayjs.utc(`${profile.created_at}Z`).format("MMMM D, YYYY"),
           )}
-          {!!profile.roles?.length && field("Roles", chips(profile.roles))}
-          {!!profile.groups?.length && field("Groups", chips(profile.groups))}
         </Box>
       </Paper>
     </>
