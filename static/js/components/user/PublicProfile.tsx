@@ -73,6 +73,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
             username={profile.username}
             gravatarUrl={profile.gravatar_url}
             isBot={profile.is_bot}
+            noTooltip
           />
           <div>
             <Typography variant="h5" id="publicProfileRealname">

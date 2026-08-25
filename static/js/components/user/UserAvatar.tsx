@@ -59,6 +59,7 @@ interface UserAvatarProps {
   gravatarUrl: string;
   isBot?: boolean;
   userId?: number | string | null | undefined;
+  noTooltip?: boolean;
 }
 
 const UserAvatar = ({
@@ -69,6 +70,7 @@ const UserAvatar = ({
   gravatarUrl,
   isBot = false,
   userId = null,
+  noTooltip = false,
 }: UserAvatarProps) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
@@ -113,43 +115,38 @@ const UserAvatar = ({
       avatar
     );
 
-  if (isBot) {
-    return (
-      <Tooltip title={tooltipText} arrow placement="top-start">
-        {linked(
-          <Badge
-            overlap="circular"
-            anchorOrigin={{ vertical: "top", horizontal: "right" }}
-            badgeContent={
-              <SmartToyIcon fontSize="small" className={classes.badge} />
-            }
-          >
-            <Avatar
-              alt={backUpLetters}
-              src={`${gravatarUrl}&s=${size}`}
-              classes={{
-                root: classes.avatar,
-                img: classes.avatarImg,
-              }}
-            />
-          </Badge>,
-        )}
-      </Tooltip>
-    );
-  }
+  const avatar = (
+    <Avatar
+      alt={backUpLetters}
+      src={`${gravatarUrl}&s=${size}`}
+      classes={{
+        root: classes.avatar,
+        img: classes.avatarImg,
+      }}
+    />
+  );
+
+  const content = linked(
+    isBot ? (
+      <Badge
+        overlap="circular"
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        badgeContent={
+          <SmartToyIcon fontSize="small" className={classes.badge} />
+        }
+      >
+        {avatar}
+      </Badge>
+    ) : (
+      avatar
+    ),
+  );
+
+  if (noTooltip) return content;
 
   return (
     <Tooltip title={tooltipText} arrow placement="top-start">
-      {linked(
-        <Avatar
-          alt={backUpLetters}
-          src={`${gravatarUrl}&s=${size}`}
-          classes={{
-            root: classes.avatar,
-            img: classes.avatarImg,
-          }}
-        />,
-      )}
+      {content}
     </Tooltip>
   );
 };

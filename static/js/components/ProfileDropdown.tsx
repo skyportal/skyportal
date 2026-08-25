@@ -118,6 +118,7 @@ const ProfileDropdown = () => {
             lastName={profile.last_name}
             username={profile.username}
             gravatarUrl={profile.gravatar_url}
+            noTooltip
           />
         </Box>
         <Box

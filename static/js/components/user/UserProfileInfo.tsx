@@ -284,6 +284,7 @@ const UserProfileInfo = () => {
               username={profile.username}
               gravatarUrl={profile.gravatar_url}
               isBot={profile?.is_bot || false}
+              noTooltip
             />
             {editing ? (
               <Box
