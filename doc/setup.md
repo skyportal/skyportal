@@ -281,6 +281,52 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
 
+## Updating an existing checkout
+
+Pulling new code is not enough on its own: the Python environment, the
+submodules, the Javascript bundle and the database schema all move with it, and
+skipping one of them fails in a way that does not name the step you missed. With
+the app stopped:
+
+```
+make stop                                  # or Ctrl-C the running app
+git pull                                   # or: git checkout v1.2.3
+git submodule update --init --recursive    # baselayer and friends move too
+uv sync                                    # Python dependencies
+make db_migrate                            # apply pending migrations
+make run                                   # reinstalls JS deps, rebuilds the bundle
+```
+
+`make run` installs Javascript dependencies and rebuilds the bundle itself, so
+there is no separate step for them -- but it only happens at startup. Pulling new
+front-end code under a *running* app leaves the old bundle being served, and the
+browser may also be holding a cached copy: restart the app and hard-refresh
+(<kbd>Shift</kbd>-reload) if the page disagrees with the code.
+
+`make db_migrate` runs `alembic upgrade head` for you, with `PYTHONPATH` and the
+config flag already set. To run alembic directly you have to supply both, from
+an activated environment:
+
+```
+source .venv/bin/activate
+PYTHONPATH=. alembic -x config=config.yaml heads
+```
+
+A bare `alembic heads` fails with `ModuleNotFoundError: No module named
+'baselayer'`, because alembic's environment imports the app.
+
+### What each skipped step looks like
+
+| symptom | missed step |
+| --- | --- |
+| `psycopg.errors.UndefinedColumn`, missing columns/tables | `make db_migrate` |
+| `Cannot find module '../broker/BrokerAlerts'`, or `ajv.opts is undefined` | `bun install` and a rebuild — the bundle is stale |
+| `ModuleNotFoundError: No module named 'baselayer'` | `git submodule update --init --recursive`, or `PYTHONPATH=.` |
+| `alembic` reports multiple heads | see [Database migrations](migrations) |
+
+The first is worth stressing: a schema mismatch surfaces as ordinary-looking API
+errors in the browser, not as a message about migrations.
+
 ## Troubleshooting
 
 If you have trouble running `uv sync` and see an error link to `python-ligo-lw`:

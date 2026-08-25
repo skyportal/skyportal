@@ -1,5 +1,9 @@
 # Database migrations
 
+Upgrading a source install is more than applying migrations; see
+[Updating an existing checkout](setup) for the full sequence. `make db_migrate`
+applies pending migrations with `PYTHONPATH` and the config flag already set.
+
 ## Setting up
 
 If you are planning to use database migrations, you need to let
@@ -37,3 +41,23 @@ out the branch with pending migration scripts, and run the following to upgrade:
 ```
 PYTHONPATH=. alembic -x config=config.yaml upgrade head
 ```
+
+## Multiple heads
+
+Alembic refuses to upgrade when a branch adds a migration alongside one that
+landed on main, since it cannot tell which order they belong in:
+
+```
+PYTHONPATH=. alembic -x config=config.yaml heads
+```
+
+If that prints more than one revision, either re-point your migration's
+`down_revision` at main's head (tidiest while the migration is unreleased and
+nobody has applied it), or merge the two:
+
+```
+PYTHONPATH=. alembic -x config=config.yaml merge -m "merge heads" <rev1> <rev2>
+```
+
+The `Test SkyPortal migrations` CI job runs the chain from an empty database, so
+it catches a divergence before it reaches anyone else.
