@@ -283,49 +283,40 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 
 ## Updating an existing checkout
 
-Pulling new code is not enough on its own: the Python environment, the
-submodules, the Javascript bundle and the database schema all move with it, and
-skipping one of them fails in a way that does not name the step you missed. With
-the app stopped:
+New code usually needs more than `git pull`: the submodules, the Python
+environment, the Javascript bundle and the database schema all move with it.
 
-```
-make stop                                  # or Ctrl-C the running app
-git pull                                   # or: git checkout v1.2.3
-git submodule update --init --recursive    # baselayer and friends move too
-uv sync                                    # Python dependencies
-make db_migrate                            # apply pending migrations
-make run                                   # reinstalls JS deps, rebuilds the bundle
-```
-
-`make run` installs Javascript dependencies and rebuilds the bundle itself, so
-there is no separate step for them -- but it only happens at startup. Pulling new
-front-end code under a *running* app leaves the old bundle being served, and the
-browser may also be holding a cached copy: restart the app and hard-refresh
-(<kbd>Shift</kbd>-reload) if the page disagrees with the code.
+0. Stop the app with `make stop`.
+1. Get the new code with `git pull` (or `git checkout v1.2.3` for a release).
+2. Update the submodules with `git submodule update --init --recursive`.
+3. Update the Python environment with `uv sync`.
+4. Apply any pending database migrations with `make db_migrate`.
+5. Start the app again with `make run`, which reinstalls the Javascript
+   dependencies and rebuilds the bundle.
 
 `make db_migrate` runs `alembic upgrade head` for you, with `PYTHONPATH` and the
-config flag already set. To run alembic directly you have to supply both, from
-an activated environment:
+config flag already set. To run alembic yourself, activate the environment and
+supply both:
 
 ```
 source .venv/bin/activate
 PYTHONPATH=. alembic -x config=config.yaml heads
 ```
 
-A bare `alembic heads` fails with `ModuleNotFoundError: No module named
-'baselayer'`, because alembic's environment imports the app.
+Without them alembic reports `ModuleNotFoundError: No module named 'baselayer'`,
+because its environment imports the app.
 
-### What each skipped step looks like
+A skipped step rarely names itself in the resulting error:
 
-| symptom | missed step |
-| --- | --- |
-| `psycopg.errors.UndefinedColumn`, missing columns/tables | `make db_migrate` |
-| `Cannot find module '../broker/BrokerAlerts'`, or `ajv.opts is undefined` | `bun install` and a rebuild — the bundle is stale |
-| `ModuleNotFoundError: No module named 'baselayer'` | `git submodule update --init --recursive`, or `PYTHONPATH=.` |
-| `alembic` reports multiple heads | see [Database migrations](migrations) |
-
-The first is worth stressing: a schema mismatch surfaces as ordinary-looking API
-errors in the browser, not as a message about migrations.
+* Missing columns or tables (`psycopg.errors.UndefinedColumn`) mean the
+  migrations have not been applied. Run `make db_migrate`.
+* `Cannot find module '../broker/BrokerAlerts'` or `ajv.opts is undefined` mean
+  the Javascript bundle is stale. It is rebuilt only when the app starts, so
+  restart the app, then reload the browser with Shift held down (it may be
+  caching the old bundle too).
+* `ModuleNotFoundError: No module named 'baselayer'` means the submodules were
+  not updated, or `PYTHONPATH=.` was not set.
+* If alembic reports more than one head, see [Database migrations](migrations).
 
 ## Troubleshooting
 

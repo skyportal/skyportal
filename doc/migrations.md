@@ -1,8 +1,8 @@
 # Database migrations
 
-Upgrading a source install is more than applying migrations; see
-[Updating an existing checkout](setup) for the full sequence. `make db_migrate`
-applies pending migrations with `PYTHONPATH` and the config flag already set.
+Applying migrations is one step of upgrading an existing checkout; see
+[Updating an existing checkout](setup) for the others. `make db_migrate` applies
+pending migrations with `PYTHONPATH` and the config flag already set.
 
 ## Setting up
 
@@ -45,15 +45,16 @@ PYTHONPATH=. alembic -x config=config.yaml upgrade head
 ## Multiple heads
 
 Alembic refuses to upgrade when a branch adds a migration alongside one that
-landed on main, since it cannot tell which order they belong in:
+landed on main, because it cannot tell which order the two belong in. To see
+them:
 
 ```
 PYTHONPATH=. alembic -x config=config.yaml heads
 ```
 
-If that prints more than one revision, either re-point your migration's
-`down_revision` at main's head (tidiest while the migration is unreleased and
-nobody has applied it), or merge the two:
+If that prints more than one revision, you can either point your migration's
+`down_revision` at main's head (the tidiest option while the migration is
+unreleased and nobody has applied it), or merge the two:
 
 ```
 PYTHONPATH=. alembic -x config=config.yaml merge -m "merge heads" <rev1> <rev2>
