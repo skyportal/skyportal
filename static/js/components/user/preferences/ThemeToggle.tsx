@@ -20,14 +20,12 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 
-// Each swatch is painted with the background/text of the mode it selects, so
-// the group doubles as a preview.
 const MODES = [
   { value: "light", label: "White", color: LIGHT_BACKGROUND, text: "#1d1d1d" },
   ...Object.entries(DARK_SCHEMES).map(([value, scheme]) => ({
     value,
     label: scheme.label,
-    color: scheme.default,
+    color: scheme.paper,
     text: scheme.text,
   })),
 ];
@@ -116,7 +114,7 @@ const ThemeToggle = () => {
               overflow: "hidden",
               whiteSpace: "nowrap",
               fontWeight: "bold",
-              opacity: selected ? 1 : 0.6,
+              opacity: selected ? 1 : 0.9,
               transition: theme.transitions.create(
                 ["width", "opacity", "filter"],
                 { duration: theme.transitions.duration.short },
