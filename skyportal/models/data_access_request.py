@@ -57,6 +57,10 @@ class DataAccessRequest(Base):
     when it is made.
     """
 
+    # Base would derive "dataaccessrequests"; spell it out as the other
+    # multi-word tables do.
+    __tablename__ = "data_access_requests"
+
     read = CustomUserAccessControl(_visible_to_parties)
     create = AccessibleIfUserMatches("requester")
     update = CustomUserAccessControl(_grantable_by)
