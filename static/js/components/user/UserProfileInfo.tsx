@@ -40,6 +40,9 @@ dayjs.extend(utc);
 
 const filter = createFilterOptions<any>();
 
+const AVATAR_SIZE = 128;
+const FIELDS_WIDTH = "30rem";
+
 export const getUserRealName = (firstName: any, lastName: any) => {
   // Korean names are generally written in last->first name order with no space in between
   if (
@@ -154,7 +157,7 @@ const UserProfileInfo = () => {
     props?: any,
     test?: { type: string; id: string },
   ) => (
-    <Box sx={{ display: "flex", gap: 1 }}>
+    <Box sx={{ display: "flex", gap: 1, width: "100%", minWidth: 0 }}>
       <TextField
         {...register(name, rules)}
         name={name}
@@ -162,6 +165,7 @@ const UserProfileInfo = () => {
         label={label}
         size="small"
         fullWidth
+        sx={{ maxWidth: `calc(${AVATAR_SIZE}px + 16px + ${FIELDS_WIDTH})` }}
         error={!!errors[name]}
         helperText={rules?.required && errors[name] ? "Required" : ""}
         {...props}
@@ -193,7 +197,7 @@ const UserProfileInfo = () => {
             }}
           >
             <UserAvatar
-              size={128}
+              size={AVATAR_SIZE}
               firstName={profile.first_name}
               lastName={profile.last_name}
               username={profile.username}
@@ -208,7 +212,7 @@ const UserProfileInfo = () => {
                   gap: 1.5,
                   flexGrow: 1,
                   width: "100%",
-                  maxWidth: "30rem",
+                  maxWidth: FIELDS_WIDTH,
                 }}
               >
                 <Box
@@ -396,35 +400,33 @@ const UserProfileInfo = () => {
                 </Button>
               </Box>
             ) : (
-              <>
-                <Button
-                  secondary
-                  size="small"
-                  endIcon={<EditIcon fontSize="small" />}
-                  onClick={() => setEditing(true)}
-                  id="editProfileButton"
-                  data-testid="tour-profile-details"
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Edit
-                </Button>
-                <Link
-                  component={RouterLink}
-                  to={`/user/${profile.id}`}
-                  data-testid="profile-public-view"
-                  variant="body2"
-                  sx={{
-                    alignSelf: "flex-start",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                  }}
-                >
-                  View public profile
-                  <OpenInNewIcon fontSize="inherit" />
-                </Link>
-              </>
+              <Button
+                secondary
+                size="small"
+                endIcon={<EditIcon fontSize="small" />}
+                onClick={() => setEditing(true)}
+                id="editProfileButton"
+                data-testid="tour-profile-details"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Edit
+              </Button>
             )}
+            <Link
+              component={RouterLink}
+              to={`/user/${profile.id}`}
+              data-testid="profile-public-view"
+              variant="body2"
+              sx={{
+                alignSelf: "flex-start",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
+              View public profile
+              <OpenInNewIcon fontSize="inherit" />
+            </Link>
           </Box>
         </form>
       </CardContent>
