@@ -4,7 +4,6 @@ import { useGetProfileQuery } from "../../ducks/profile";
 import JoinableStreamsList from "./JoinableStreamsList";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
-import UpdateProfileForm from "./UpdateProfileForm";
 import UserPreferences from "./preferences/UserPreferences";
 import UserProfileInfo from "./UserProfileInfo";
 
@@ -22,7 +21,6 @@ const Profile = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <UserProfileInfo />
-      <UpdateProfileForm />
       <UserPreferences />
       <JoinableStreamsList />
       <NewTokenForm availableAcls={profile?.permissions} />

@@ -29,6 +29,8 @@ def test_add_and_see_realname_in_user_profile(page, user):
     page.goto("/profile")
     time.sleep(2)  # give it enough time to load the current profile
 
+    page.locator('//*[@id="editProfileButton"]').first.click()
+
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
     last_name = str(uuid.uuid4())
@@ -47,6 +49,8 @@ def test_add_and_see_affiliations_in_user_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     affiliations_entry = page.locator('//input[@name="affiliations"]').first
     affiliation_1 = str(uuid.uuid4())
@@ -69,6 +73,8 @@ def test_add_data_to_user_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
@@ -94,6 +100,8 @@ def test_insufficient_name_entry_in_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     page.locator('//input[@name="firstName"]').first.fill("")
     last_name = str(uuid.uuid4())
@@ -319,6 +327,8 @@ def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(2)  # give it enough time to load the current profile
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
