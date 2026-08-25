@@ -18,21 +18,9 @@ import PhotometryButtonsForm from "./PhotometryButtonsForm";
 import SpectroscopyButtonsForm from "./SpectroscopyButtonsForm";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 import QuickSaveSourcePreferences from "./QuickSaveSourcePreferences";
-import PublicProfilePreferences from "./PublicProfilePreferences";
 import Box from "@mui/material/Box";
 
 const PREFERENCE_PANELS = [
-  {
-    title: "Public profile",
-    sections: [
-      {
-        title: "Shared information",
-        popupText:
-          "Your name, username and avatar are always visible to other users on your public profile page. Pick here the additional information you want to share with them.",
-        content: <PublicProfilePreferences />,
-      },
-    ],
-  },
   {
     title: "Notifications",
     testId: "tour-profile-notifications",
