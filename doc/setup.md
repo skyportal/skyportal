@@ -308,14 +308,13 @@ because its environment imports the app.
 
 A skipped step rarely names itself in the resulting error:
 
-* Missing columns or tables (`psycopg.errors.UndefinedColumn`) mean the
-  migrations have not been applied. Run `make db_migrate`.
-* `Cannot find module '../broker/BrokerAlerts'` or `ajv.opts is undefined` mean
-  the Javascript bundle is stale. It is rebuilt only when the app starts, so
-  restart the app, then reload the browser with Shift held down (it may be
-  caching the old bundle too).
-* `ModuleNotFoundError: No module named 'baselayer'` means the submodules were
-  not updated, or `PYTHONPATH=.` was not set.
+* Database errors about missing columns or tables mean the migrations have not
+  been applied. Run `make db_migrate`.
+* Front-end errors about a module that cannot be found, or that disagree with
+  the code you have checked out, mean the Javascript bundle is stale. It is
+  rebuilt only when the app starts, so restart the app, then reload the browser
+  with Shift held down, since it may be caching the old bundle too.
+* An import error for `baselayer` means the submodules were not updated.
 * If alembic reports more than one head, see [Database migrations](migrations).
 
 ## Troubleshooting
