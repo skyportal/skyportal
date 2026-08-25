@@ -18,6 +18,12 @@ Import the module and read the attribute when it is needed:
 
     async with baselayer_models.async_plain_session_factory() as session:
         ...
+
+The tests are exempt, and deliberately so. `skyportal/tests/fixtures.py` points
+init_db at the test database, but every service calls init_db at import against
+the main one, so a test that imports a service rebinds the attribute part way
+through the run. A test that binds the name first keeps the test database it was
+given, which is what it wants.
 """
 
 import ast
@@ -30,6 +36,7 @@ RUNTIME_GLOBALS = frozenset(
 )
 
 PACKAGE = Path(__file__).resolve().parents[2]
+TESTS = PACKAGE / "tests"
 
 
 def module_level_imports(path):
@@ -49,6 +56,7 @@ def test_runtime_globals_are_not_imported_by_name():
     offenders = [
         f"  {path.relative_to(PACKAGE.parent)}:{line} imports {name}"
         for path in sorted(PACKAGE.rglob("*.py"))
+        if TESTS not in path.parents
         for line, name in module_level_imports(path)
     ]
     assert not offenders, (
