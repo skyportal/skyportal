@@ -7,6 +7,7 @@ import utc from "dayjs/plugin/utc";
 import {
   useGetProfileQuery,
   useUpdateBasicUserInfoMutation,
+  useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useTestNotificationsMutation } from "../../ducks/userNotifications";
@@ -21,6 +22,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
@@ -29,6 +31,8 @@ import Typography from "@mui/material/Typography";
 import EditIcon from "@mui/icons-material/Edit";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
 import ThemeToggle from "./preferences/ThemeToggle";
@@ -42,6 +46,16 @@ const filter = createFilterOptions<any>();
 
 const AVATAR_SIZE = 128;
 const FIELDS_WIDTH = "30rem";
+const CARD_FIELDS_WIDTH = `calc(${AVATAR_SIZE}px + 16px + ${FIELDS_WIDTH})`;
+
+const PUBLIC_FIELDS: Record<string, boolean> = {
+  affiliations: true,
+  bio: true,
+  contact_email: false,
+  contact_phone: false,
+  roles: false,
+  groups: false,
+};
 
 export const getUserRealName = (firstName: any, lastName: any) => {
   // Korean names are generally written in last->first name order with no space in between
@@ -59,6 +73,7 @@ const UserProfileInfo = () => {
   const groups = useGetGroupsQuery().data?.user;
   const dispatch = useAppDispatch();
   const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [testNotifications] = useTestNotificationsMutation();
   const [editing, setEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +155,64 @@ const UserProfileInfo = () => {
     </Box>
   );
 
+  const alwaysShowPublicIcons =
+    profile.preferences?.alwaysShowPublicIcons ?? true;
+
+  const publicEye = (key: string) => {
+    const shared =
+      profile.preferences?.publicProfile?.[key] ?? PUBLIC_FIELDS[key];
+    return (
+      <Tooltip
+        placement="right"
+        title={
+          shared
+            ? "Shown on your public profile"
+            : "Hidden from your public profile"
+        }
+      >
+        <IconButton
+          size="small"
+          aria-label={`Toggle ${key} on public profile`}
+          data-testid={`public-toggle-${key}`}
+          onClick={() =>
+            updateUserPreferences({ publicProfile: { [key]: !shared } })
+          }
+          sx={{ p: 0, color: "text.secondary" }}
+        >
+          {shared ? (
+            <VisibilityIcon fontSize="small" />
+          ) : (
+            <VisibilityOffIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
+    );
+  };
+
+  const publicRow = (key: string, node: any) =>
+    editing ? (
+      node
+    ) : (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          width: "fit-content",
+          gap: 0.5,
+          ...(!alwaysShowPublicIcons && {
+            "& .MuiIconButton-root": { opacity: 0 },
+            "&:hover .MuiIconButton-root": { opacity: 1 },
+            "@media (hover: none)": {
+              "& .MuiIconButton-root": { opacity: 1 },
+            },
+          }),
+        }}
+      >
+        {node}
+        {publicEye(key)}
+      </Box>
+    );
+
   const helpIcon = (title: string) => (
     <Tooltip title={title}>
       <HelpOutlineOutlinedIcon
@@ -157,7 +230,15 @@ const UserProfileInfo = () => {
     props?: any,
     test?: { type: string; id: string },
   ) => (
-    <Box sx={{ display: "flex", gap: 1, width: "100%", minWidth: 0 }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        width: "100%",
+        minWidth: 0,
+      }}
+    >
       <TextField
         {...register(name, rules)}
         name={name}
@@ -165,7 +246,7 @@ const UserProfileInfo = () => {
         label={label}
         size="small"
         fullWidth
-        sx={{ maxWidth: `calc(${AVATAR_SIZE}px + 16px + ${FIELDS_WIDTH})` }}
+        sx={{ maxWidth: CARD_FIELDS_WIDTH }}
         error={!!errors[name]}
         helperText={rules?.required && errors[name] ? "Required" : ""}
         {...props}
@@ -276,11 +357,13 @@ const UserProfileInfo = () => {
                 <Typography variant="subtitle1" color="textSecondary">
                   @{profile.username}
                 </Typography>
-                {!!profile.affiliations?.length && (
-                  <Typography variant="body2" id="userAffiliations">
-                    <em>{profile.affiliations.join(", ")}</em>
-                  </Typography>
-                )}
+                {!!profile.affiliations?.length &&
+                  publicRow(
+                    "affiliations",
+                    <Typography variant="body2" id="userAffiliations">
+                      <em>{profile.affiliations.join(", ")}</em>
+                    </Typography>,
+                  )}
               </div>
             )}
             <Box
@@ -305,10 +388,12 @@ const UserProfileInfo = () => {
                     slotProps: { htmlInput: { maxLength: 1000 } },
                   },
                 )
-              : profile.bio && (
+              : profile.bio &&
+                publicRow(
+                  "bio",
                   <Typography variant="body2" color="textSecondary">
                     {profile.bio}
-                  </Typography>
+                  </Typography>,
                 )}
             {editing
               ? input(
@@ -320,11 +405,14 @@ const UserProfileInfo = () => {
                   { type: "email", id: "testEmailButton" },
                 )
               : profile.contact_email &&
-                field(
-                  "Contact email",
-                  <Link href={`mailto:${profile.contact_email}`}>
-                    {profile.contact_email}
-                  </Link>,
+                publicRow(
+                  "contact_email",
+                  field(
+                    "Contact email",
+                    <Link href={`mailto:${profile.contact_email}`}>
+                      {profile.contact_email}
+                    </Link>,
+                  ),
                 )}
             {editing
               ? input(
@@ -336,13 +424,18 @@ const UserProfileInfo = () => {
                   { type: "SMS", id: "testSMSButton" },
                 )
               : profile.contact_phone &&
-                field("Contact phone", profile.contact_phone)}
+                publicRow(
+                  "contact_phone",
+                  field("Contact phone", profile.contact_phone),
+                )}
+            {!!profile.roles?.length &&
+              publicRow("roles", field("Roles", chips(profile.roles)))}
+            {!!groupNames.length &&
+              publicRow("groups", field("Groups", chips(groupNames)))}
             {field(
               "Member since",
               dayjs.utc(`${profile.created_at}Z`).format("MMMM D, YYYY"),
             )}
-            {!!profile.roles?.length && field("Roles", chips(profile.roles))}
-            {!!groupNames.length && field("Groups", chips(groupNames))}
             {!!profile.acls?.length &&
               field(
                 <>
@@ -369,9 +462,11 @@ const UserProfileInfo = () => {
                 render={({ field: { onChange, value } }) => (
                   <FormControlLabel
                     label="Is this a bot account (used only from the API)?"
+                    slotProps={{ typography: { variant: "body2" } }}
                     control={
                       <Switch
                         id="is_bot_id"
+                        size="small"
                         checked={!!value}
                         onChange={(e) => onChange(e.target.checked)}
                       />
@@ -380,53 +475,70 @@ const UserProfileInfo = () => {
                 )}
               />
             )}
-            {editing ? (
-              <Box sx={{ display: "flex", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {editing ? (
+                <>
+                  <Button
+                    primary
+                    type="submit"
+                    id="updateProfileButton"
+                    disabled={isSubmitting}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    secondary
+                    onClick={() => {
+                      reset();
+                      setEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
                 <Button
-                  primary
-                  type="submit"
-                  id="updateProfileButton"
-                  disabled={isSubmitting}
+                  secondary
+                  endIcon={<EditIcon fontSize="small" />}
+                  onClick={() => setEditing(true)}
+                  id="editProfileButton"
+                  data-testid="tour-profile-details"
                 >
-                  Save
+                  Edit
                 </Button>
-                <Button
-                  onClick={() => {
-                    reset();
-                    setEditing(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Box>
-            ) : (
+              )}
               <Button
                 secondary
-                size="small"
-                endIcon={<EditIcon fontSize="small" />}
-                onClick={() => setEditing(true)}
-                id="editProfileButton"
-                data-testid="tour-profile-details"
-                sx={{ alignSelf: "flex-start" }}
+                component={RouterLink}
+                to={`/user/${profile.id}`}
+                data-testid="profile-public-view"
+                endIcon={<OpenInNewIcon fontSize="small" />}
               >
-                Edit
+                View public profile
               </Button>
-            )}
-            <Link
-              component={RouterLink}
-              to={`/user/${profile.id}`}
-              data-testid="profile-public-view"
-              variant="body2"
-              sx={{
-                alignSelf: "flex-start",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-              }}
-            >
-              View public profile
-              <OpenInNewIcon fontSize="inherit" />
-            </Link>
+              {!editing && (
+                <FormControlLabel
+                  label="Always show visibility icons"
+                  sx={{
+                    ml: "auto",
+                    mr: 0,
+                    "@media (hover: none)": { display: "none" },
+                  }}
+                  slotProps={{ typography: { variant: "body2" } }}
+                  control={
+                    <Switch
+                      size="small"
+                      checked={alwaysShowPublicIcons}
+                      onChange={(e) =>
+                        updateUserPreferences({
+                          alwaysShowPublicIcons: e.target.checked,
+                        })
+                      }
+                    />
+                  }
+                />
+              )}
+            </Box>
           </Box>
         </form>
       </CardContent>
