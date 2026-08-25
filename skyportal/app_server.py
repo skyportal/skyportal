@@ -123,6 +123,7 @@ from skyportal.handlers.api import (
     MMADetectorTimeIntervalHandler,
     MovingObjectFollowupHandler,
     NewsFeedHandler,
+    ObjAcknowledgmentHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
     ObjColorMagHandler,
@@ -553,6 +554,10 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
+    (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/acknowledgment",
+        ObjAcknowledgmentHandler,
+    ),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
         SourceObservabilityPlotHandler,

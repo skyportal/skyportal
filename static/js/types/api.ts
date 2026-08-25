@@ -17119,6 +17119,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/acknowledgment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve the acknowledgment block for an Obj
+         * @description Build the citation text for a source from what it actually used: the
+         *     instance, the filters and brokers that selected it, the facilities
+         *     that supplied its photometry and spectra, and the programs it was
+         *     observed under. Returns the assembled paragraph and the components it
+         *     was built from, so a caller can drop anything unused.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filters not to cite. Omit to cite every one detected. */
+                    exclude_filter_ids?: number[] | null;
+                    /** @description Instruments not to cite. Omit to cite every one detected. */
+                    exclude_instrument_ids?: number[] | null;
+                    /** @description Allocations not to cite. Omit to cite every one detected. */
+                    exclude_allocation_ids?: number[] | null;
+                };
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description The assembled acknowledgment paragraph */
+                                text?: string;
+                                /** @description The parts the text was built from */
+                                components?: Record<string, never>;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{obj_id}/observability": {
         parameters: {
             query?: never;
@@ -28827,6 +28893,8 @@ export interface components {
             type: "imager" | "spectrograph" | "imaging spectrograph";
             /** @description The spectral band covered by the instrument (e.g., Optical, IR). */
             band?: string | null;
+            /** @description Sentence to cite this instrument with, used to build a source's acknowledgment block. Falls back to the instrument name when unset. */
+            acknowledgment?: string | null;
             /** @description The ID of the Telescope that hosts the Instrument. */
             telescope_id: number;
             /** @description List of filters on the instrument (if any). */
@@ -29098,6 +29166,8 @@ export interface components {
             type: "imager" | "spectrograph" | "imaging spectrograph";
             /** @description The spectral band covered by the instrument (e.g., Optical, IR). */
             band?: string | null;
+            /** @description Sentence to cite this instrument with, used to build a source's acknowledgment block. Falls back to the instrument name when unset. */
+            acknowledgment?: string | null;
             /** @description The ID of the Telescope that hosts the Instrument. */
             telescope_id: number;
             /** @description List of filters on the instrument (if any). */
@@ -37759,6 +37829,8 @@ export interface components {
             robotic?: boolean;
             /** @description Does this telescope have a fixed location (lon, lat, elev)? */
             fixed_location?: boolean;
+            /** @description Sentence to cite this telescope with, used to build a source's acknowledgment block. Falls back to the telescope name when unset. */
+            acknowledgment?: string | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -37798,6 +37870,8 @@ export interface components {
             robotic?: boolean;
             /** @description Does this telescope have a fixed location (lon, lat, elev)? */
             fixed_location?: boolean;
+            /** @description Sentence to cite this telescope with, used to build a source's acknowledgment block. Falls back to the telescope name when unset. */
+            acknowledgment?: string | null;
         };
         SingleTelescopeNoID: {
             /** @enum {string} */
@@ -39675,6 +39749,12 @@ export interface components {
              * @default null
              */
             fixed_location: boolean | null;
+            /**
+             * Acknowledgment
+             * @description Sentence papers should cite this telescope with, used to build a source's acknowledgment block.
+             * @default null
+             */
+            acknowledgment: string | null;
         };
         /**
          * TelescopePostResponse
@@ -39752,6 +39832,12 @@ export interface components {
              * @default null
              */
             fixed_location: boolean | null;
+            /**
+             * Acknowledgment
+             * @description Sentence papers should cite this telescope with, used to build a source's acknowledgment block.
+             * @default null
+             */
+            acknowledgment: string | null;
         };
         /**
          * ThumbnailPostBody
