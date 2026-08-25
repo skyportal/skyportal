@@ -8,7 +8,7 @@ import uuid
 import pytest
 import sqlalchemy as sa
 
-from baselayer.app.models import async_plain_session_factory
+from baselayer.app import models as baselayer_models
 from skyportal.models import DBSession, Obj, Thumbnail
 from skyportal.tests import api, assert_api
 
@@ -36,7 +36,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     # most-recent unprocessed obj and a busy test suite keeps pushing newer
     # objs to the front of the line. Call the same method synchronously.
     async def _backfill_thumbnails():
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
             await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
 
@@ -112,7 +112,7 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     assert status == 200
 
     async def _fetch_backfill_fetch():
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
             # most-recent-missing query must surface it.
             obj, err = await fetch_obj(session)
@@ -153,7 +153,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
     assert status == 200
 
     async def _values():
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             return (
                 (
                     await session.execute(
@@ -172,7 +172,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
         # *uncommitted* row: a live thumbnail_queue service only sees committed
         # rows, so it can't have classified it first (which races a check of
         # the committed table).
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             probe = Thumbnail(
                 obj_id=obj_id,
                 public_url="https://example.invalid/thumb.png",
@@ -183,7 +183,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
             assert probe.is_grayscale is None
             await session.rollback()
 
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             obj = await session.get(Obj, obj_id)
             await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
 
@@ -196,7 +196,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
         values = []
         for _ in range(50):
             await tq.classify_pending_grayscale(
-                session_factory=async_plain_session_factory
+                session_factory=baselayer_models.async_plain_session_factory
             )
             values = await _values()
             if values and all(v is not None for v in values):
