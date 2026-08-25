@@ -131,8 +131,7 @@ const GcnEvents = () => {
   const isReadOnly = useIsReadOnly();
 
   const gcn_tags_classes = useGetConfigQuery().data?.["gcnTagsClasses"] as
-    | Record<string, string>
-    | undefined;
+    Record<string, string> | undefined;
 
   const [openNew, setOpenNew] = useState(false);
   const [showAllLocalizations, setShowAllLocalizations] = useState<any>(false);
