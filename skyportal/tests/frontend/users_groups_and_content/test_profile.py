@@ -347,8 +347,8 @@ def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
     expect(page.get_by_text(affiliation).first).to_be_visible()
 
     page.locator('//*[@data-testid="profile-settings-view"]').first.click()
-    open_preferences_panel(page, "public-profile")
-    page.locator('//input[@name="publicProfile_affiliations"]').first.click()
+    page.locator('//*[@id="userAffiliations"]').first.hover()
+    page.locator('//*[@data-testid="public-toggle-affiliations"]').first.click()
     page.locator('//*[@data-testid="profile-public-view"]').first.click()
     expect(page.get_by_text(affiliation)).to_have_count(0)
 

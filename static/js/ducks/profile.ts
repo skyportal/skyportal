@@ -72,6 +72,7 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { preferences },
       }),
+      invalidatesTags: ["PublicProfile"],
       // Optimistically merge the new preferences into the cached profile instead
       // of invalidating "Profile": that blanket refetch re-renders the ~89
       // components reading the profile on every settings change, which churns
@@ -99,7 +100,7 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: formData,
       }),
-      invalidatesTags: ["Profile"],
+      invalidatesTags: ["Profile", "PublicProfile"],
     }),
     createToken: build.mutation<unknown, any>({
       query: (form_data) => ({

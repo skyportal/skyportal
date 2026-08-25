@@ -60,7 +60,7 @@ export const usersApi = skyportalApi.injectEndpoints({
     ),
     getUserPublicProfile: build.query<PublicProfile, number | string>({
       query: (id) => `api/user/${id}/profile`,
-      providesTags: ["User"],
+      providesTags: ["User", "PublicProfile"],
     }),
     patchUser: build.mutation<
       unknown,
