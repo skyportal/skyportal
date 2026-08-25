@@ -125,7 +125,6 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
             <Chip
               size="small"
               label={alias}
-              key={alias}
               clickable
               onClick={() => {
                 window.open(

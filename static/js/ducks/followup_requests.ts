@@ -105,6 +105,9 @@ export const downloadAllocationReport = (instrumentId: number | string) =>
 invalidateOnMessage("skyportal/REFRESH_FOLLOWUP_REQUESTS", () => [
   "FollowupRequest",
 ]);
+invalidateOnMessage("skyportal/REFRESH_FOLLOWUP_REQUEST", (payload) =>
+  payload?.followup_request_id ? ["FollowupRequest", "Allocation"] : null,
+);
 
 export const {
   useGetFollowupRequestsQuery,

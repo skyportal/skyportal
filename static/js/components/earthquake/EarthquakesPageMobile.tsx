@@ -37,9 +37,7 @@ export function earthquakeTitle(earthquake: any) {
       </div>
     );
   }
-
-  const result = `${earthquake?.nickname}`;
-  return result;
+  return earthquake?.nickname;
 }
 
 export function earthquakeInfo(earthquake: any) {
@@ -56,11 +54,7 @@ export function earthquakeInfo(earthquake: any) {
     ...(earthquake?.lon ? [`Longitude: ${earthquake.lon}`] : []),
     ...(earthquake?.elevation ? [`Elevation: ${earthquake.elevation}`] : []),
   ];
-
-  // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
-
-  return result;
+  return `( ${array.join(" / ")} )`;
 }
 
 interface EarthquakeListProps {

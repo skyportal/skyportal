@@ -26,7 +26,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { Box } from "@mui/material";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import FormHelperText from "@mui/material/FormHelperText";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import Paper from "@mui/material/Paper";
@@ -315,7 +314,7 @@ const GroupFiltersStreams = ({
                 rules={{ validate: isStreamIdInStreams }}
                 render={({ field: { onChange, value } }) => (
                   <Select
-                    label="Select stream"
+                    label="Alert stream"
                     labelId="alert-stream-select-required-label"
                     onChange={onChange}
                     value={value}
@@ -332,7 +331,6 @@ const GroupFiltersStreams = ({
                   </Select>
                 )}
               />
-              <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>
           <DialogActions>

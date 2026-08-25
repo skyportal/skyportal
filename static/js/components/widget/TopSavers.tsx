@@ -285,7 +285,6 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                 onClick={(e: any) => setAnchorEl(e.currentTarget)}
                 size="small"
                 endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                data-testid="topSavers_timespanButton"
               >
                 {currentTimespan.label}
               </Button>
@@ -305,7 +304,6 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                   <MenuItem
                     className={styles.timespanMenuItem}
                     key={timespan.label}
-                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
                     onClick={() => {
                       switchTimespan(timespan);
                       setAnchorEl(null);

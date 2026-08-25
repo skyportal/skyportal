@@ -142,6 +142,7 @@ const Notes = () => {
           horizontal: "center",
         }}
         disableScrollLock
+        elevation={2}
       >
         <div className={classes.root}>
           <List className={classes.list}>

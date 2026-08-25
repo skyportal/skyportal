@@ -215,7 +215,7 @@ const TaxonomyTable = ({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={detailsDialogOpen && taxonomyToViewEditDelete}
+        open={detailsDialogOpen && !!taxonomyToViewEditDelete}
         onClose={closeDetailsDialog}
         maxWidth="lg"
       >
@@ -246,7 +246,7 @@ const TaxonomyTable = ({
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteTaxonomy}
-        dialogOpen={deleteDialogOpen && taxonomyToViewEditDelete}
+        dialogOpen={deleteDialogOpen && !!taxonomyToViewEditDelete}
         closeDialog={closeDeleteDialog}
         resourceName="taxonomy"
       />

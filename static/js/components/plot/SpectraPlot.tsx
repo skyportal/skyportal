@@ -1019,7 +1019,6 @@ const SpectraPlot = ({
               style={{ backgroundColor: line.color }}
             />
             <Button
-              key={line.wavelength}
               onClick={(e: any) => {
                 e.stopPropagation();
                 e.preventDefault();

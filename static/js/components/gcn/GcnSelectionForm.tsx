@@ -1191,7 +1191,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   primary
                   type="submit"
                   sx={{ my: "1rem" }}
-                  async
                   loading={isSubmitting}
                 >
                   Submit

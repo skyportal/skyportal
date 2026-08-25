@@ -95,9 +95,22 @@ const UserAvatar = ({
     tooltipText = `[Bot] ${tooltipText}`;
   }
 
-  if (isBot) {
-    return (
-      <Tooltip title={tooltipText} arrow placement="top-start">
+  const avatar = (
+    <Avatar
+      alt={backUpLetters}
+      src={`${gravatarUrl}&s=${size}`}
+      classes={{
+        root: classes.avatar,
+        img: classes.avatarImg,
+      }}
+    />
+  );
+
+  return (
+    <Tooltip title={tooltipText} arrow placement="top-start">
+      {!isBot ? (
+        avatar
+      ) : (
         <Badge
           overlap="circular"
           anchorOrigin={{ vertical: "top", horizontal: "right" }}
@@ -105,29 +118,9 @@ const UserAvatar = ({
             <SmartToyIcon fontSize="small" className={classes.badge} />
           }
         >
-          <Avatar
-            alt={backUpLetters}
-            src={`${gravatarUrl}&s=${size}`}
-            classes={{
-              root: classes.avatar,
-              img: classes.avatarImg,
-            }}
-          />
+          {avatar}
         </Badge>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Tooltip title={tooltipText} arrow placement="top-start">
-      <Avatar
-        alt={backUpLetters}
-        src={`${gravatarUrl}&s=${size}`}
-        classes={{
-          root: classes.avatar,
-          img: classes.avatarImg,
-        }}
-      />
+      )}
     </Tooltip>
   );
 };

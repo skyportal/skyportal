@@ -11,6 +11,7 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useRequestAPIObservationsMutation } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -30,12 +31,7 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
   const dispatch = useAppDispatch();
   const [requestAPIObservations] = useRequestAPIObservationsMutation();
 
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs()
-    .subtract(3, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = utcString(dayjs());
 
   if (
     !allGroups ||
@@ -111,13 +107,13 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
         type: "string",
         format: "date-time",
         title: "Start Date (Local Time)",
-        default: defaultStartDate,
+        default: utcString(dayjs().subtract(3, "day")),
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date (Local Time)",
-        default: defaultEndDate,
+        default: nowDate,
       },
       allocation_id: {
         type: "integer",

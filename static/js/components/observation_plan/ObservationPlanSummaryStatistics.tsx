@@ -37,8 +37,11 @@ interface ObservationPlanSummaryStatisticsProps {
 const ObservationPlanSummaryStatistics = ({
   observationplanRequest,
 }: ObservationPlanSummaryStatisticsProps) => {
+  if (!observationplanRequest?.observation_plans?.length)
+    return "No observation plans available.";
+
   const summaryStatistics =
-    observationplanRequest?.observation_plans?.[0]?.statistics;
+    observationplanRequest.observation_plans[0]?.statistics;
 
   if (
     !["complete", "submitted to telescope queue"].includes(

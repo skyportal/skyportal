@@ -24,6 +24,7 @@ import {
 } from "../../ducks/source";
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
+import { renderStatus } from "../../utils/renderStatus";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -332,6 +333,7 @@ const FollowupRequestLists = ({
       headerName: "Status",
       minWidth: 250,
       flex: 1,
+      renderCell: (params: any) => renderStatus(params.row),
     });
 
     columns.push({

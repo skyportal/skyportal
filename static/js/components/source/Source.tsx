@@ -127,10 +127,7 @@ export const useSourceStyles = makeStyles()((theme) => ({
     lineHeight: "1em",
     fontSize: "200%",
     fontWeight: "900",
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
+    color: theme.palette.primary.main,
     display: "inline-block",
     padding: 0,
     margin: 0,
@@ -1024,20 +1021,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     component="a"
                     href={`/api/sources/${source.id}/finder`}
                     download="finder-chart"
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElFindingChart(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    target="_blank"
+                    href={`/source/${source.id}/finder`}
+                    onClick={() => setAnchorElFindingChart(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
@@ -1080,20 +1074,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     href={`/api/sources/${source.id}/observability`}
                     download={`observabilityChartRequest-${source.id}`}
                     data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
                     onClick={() => setAnchorElObservability(null)}
                   >
                     PDF
                   </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
+                  <MenuItem
+                    component="a"
+                    href={`/observability/${source.id}`}
+                    target="_blank"
+                    onClick={() => setAnchorElObservability(null)}
+                  >
+                    Interactive
                   </MenuItem>
                 </Menu>
               </div>
@@ -1451,7 +1442,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     </Link>
                   )}
                   {source?.photometry_exists && (
-                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                    <Link to={`/source/${source.id}/periodogram`}>
                       <Button secondary>Periodogram Analysis</Button>
                     </Link>
                   )}

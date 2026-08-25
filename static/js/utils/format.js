@@ -46,3 +46,5 @@ export const userLabel = (
     last_name,
   )}${usernameLabel}${emailLabel}${affiliationsLabel}`;
 };
+
+export const utcString = (date) => date.utc().format("YYYY-MM-DDTHH:mm:ssZ");

@@ -30,6 +30,7 @@ import {
   useGetFollowupRequestsQuery,
   useLazyGetFollowupRequestsQuery,
 } from "../../ducks/followup_requests";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -51,14 +52,8 @@ const FollowupRequestPage = () => {
     currentUser?.permissions?.includes("Manage allocations") ||
     false;
 
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = utcString(dayjs().subtract(1, "day"));
+  const defaultEndDate = utcString(dayjs().add(1, "day"));
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,

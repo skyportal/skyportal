@@ -9,16 +9,13 @@ import utc from "dayjs/plugin/utc";
 import { useAppDispatch } from "../types/hooks";
 import { useSubmitRecurringAPIMutation } from "../ducks/recurring_apis";
 import { useGetConfigQuery } from "../ducks/config";
+import { utcString } from "../utils/format";
 
 dayjs.extend(utc);
 
 const NewRecurringAPI = () => {
   const dispatch = useAppDispatch();
   const [submitRecurringAPI] = useSubmitRecurringAPIMutation();
-  const defaultDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
   const allowedRecurringAPIMethods = (useGetConfigQuery().data as any)
     ?.allowedRecurringAPIMethods;
 
@@ -56,7 +53,7 @@ const NewRecurringAPI = () => {
         type: "string",
         format: "date-time",
         title: "Date",
-        default: defaultDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       call_delay: {
         type: "number",

@@ -17,6 +17,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useGetShiftsSummaryQuery } from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
 import { useFetchGcnEventSourcesQuery } from "../../ducks/sources";
+import { utcString } from "../../utils/format";
 
 export interface ShiftSummaryArgs {
   shiftID?: number | string;
@@ -88,15 +89,6 @@ const ShiftSummary = ({
     { skip: summaryArgs == null },
   );
 
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
   const shiftFormSchema = {
     type: "object",
     properties: {
@@ -104,13 +96,13 @@ const ShiftSummary = ({
         type: "string",
         format: "date-time",
         title: "Start Date (Local Time)",
-        default: defaultStartDate,
+        default: utcString(dayjs().subtract(1, "day")),
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date (Local Time)",
-        default: defaultEndDate,
+        default: utcString(dayjs().add(1, "day")),
       },
     },
   };

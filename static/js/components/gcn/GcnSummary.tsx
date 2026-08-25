@@ -39,6 +39,7 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import Button from "../Button";
 import GcnSummaryTable from "./GcnSummaryTable";
+import FormControl from "@mui/material/FormControl";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -96,13 +97,6 @@ const useStyles = (makeStyles() as any)((theme: any) => ({
     justifyContent: "space-around",
     alignItems: "center",
     marginBottom: "1rem",
-  },
-  select: {
-    width: "100%",
-  },
-  listItem: {
-    whiteSpace: "normal",
-    maxWidth: "30vw",
   },
 }));
 
@@ -440,28 +434,26 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                   />
-                  <div>
+                  <FormControl>
                     <InputLabel id="localizationSelectLabel">
                       Localization Name
                     </InputLabel>
                     <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
                       labelId="localizationSelectLabel"
+                      label="Localization Name"
                       value={localizationName || ""}
                       onChange={(e) => setLocalizationName(e.target.value)}
-                      name="gcnSummaryLocalizationSelect"
-                      className={classes.select}
                     >
                       {gcnEvent?.localizations?.map((localization: any) => (
                         <MenuItem
                           value={localization.localization_name}
                           key={localization.localization_name}
                         >
-                          {`${localization.localization_name}`}
+                          {localization.localization_name}
                         </MenuItem>
                       ))}
                     </Select>
-                  </div>
+                  </FormControl>
                   <TextField
                     id="localizationCumprob"
                     label="Localization Cumulative Probability"
@@ -534,29 +526,27 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                       label="Photometry in Window (only between start and end dates)"
                     />
                   </div>
-                  <div>
-                    <InputLabel id="acknowledgmentSelectLabel">
-                      Acknowledgement
+                  <FormControl fullWidth>
+                    <InputLabel id="gcnSummaryacknowledgment">
+                      Acknowledgment
                     </InputLabel>
                     <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
-                      labelId="acknowledgmentSelectLabel"
+                      label="Acknowledgment"
+                      labelId="gcnSummaryacknowledgment"
                       value={selectedAcknowledgement || ""}
                       onChange={(e) => onAcknowledgementSelectChange(e)}
-                      name="gcnSummaryAcknowledgementSelect"
-                      className={classes.select}
                     >
                       {acknowledgmentOptions?.map((acknowledgment: any) => (
                         <MenuItem
                           value={acknowledgment}
                           key={acknowledgment}
-                          className={classes.listItem}
+                          sx={{ maxWidth: "100%" }}
                         >
-                          {`${acknowledgment}`}
+                          {acknowledgment}
                         </MenuItem>
                       ))}
                     </Select>
-                  </div>
+                  </FormControl>
                   <div className={classes.buttons}>
                     <LoadingButton
                       onClick={() => handleSubmitGcnSummary()}

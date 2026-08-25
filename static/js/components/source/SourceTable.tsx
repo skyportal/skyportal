@@ -303,66 +303,54 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
     isGroupAdmin;
 
   return (
-    <div>
-      <Tooltip
-        key={`${source.id}`}
-        placement="top-end"
-        disableFocusListener
-        disableTouchListener
-        title={
-          <>
-            <br />
-            <b>All Classifications:</b>
-            <br />
-            <Button
-              key={source.id}
-              id="delete_classifications"
-              classes={{
-                root: classes.classificationDelete,
-                disabled: classes.classificationDeleteDisabled,
-              }}
-              onClick={() => openDialog()}
-              disabled={!permission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteClassifications}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="classifications"
-            />
-            <div>
-              <Button
-                key={source.id}
-                id="down_vote"
-                onClick={() => addVotes(downvoteValue)}
-              >
-                <ThumbDown color={downvoteColor} />
-              </Button>
-            </div>
-            <div>
-              <Button
-                key={source.id}
-                id="up_vote"
-                onClick={() => addVotes(upvoteValue)}
-              >
-                <ThumbUp color={upvoteColor} />
-              </Button>
-            </div>
-          </>
-        }
-      >
-        <div>
-          <ShowClassification
-            classifications={source.classifications}
-            taxonomyList={taxonomyList}
-            shortened
-            fontSize="0.95rem"
+    <Tooltip
+      placement="top-end"
+      disableFocusListener
+      disableTouchListener
+      title={
+        <>
+          <br />
+          <b>All Classifications:</b>
+          <br />
+          <Button
+            id="delete_classifications"
+            classes={{
+              root: classes.classificationDelete,
+              disabled: classes.classificationDeleteDisabled,
+            }}
+            onClick={() => openDialog()}
+            disabled={!permission}
+          >
+            <DeleteIcon />
+          </Button>
+          <ConfirmDeletionDialog
+            deleteFunction={deleteClassifications}
+            dialogOpen={dialogOpen}
+            closeDialog={closeDialog}
+            resourceName="classifications"
           />
-        </div>
-      </Tooltip>
-    </div>
+          <div>
+            <Button onClick={() => addVotes(downvoteValue)}>
+              <ThumbDown color={downvoteColor} />
+            </Button>
+          </div>
+          <div>
+            <Button onClick={() => addVotes(upvoteValue)}>
+              <ThumbUp color={upvoteColor} />
+            </Button>
+          </div>
+        </>
+      }
+    >
+      <div>
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+          shortened
+          fontSize="0.95rem"
+        />
+      </div>
+    </Tooltip>
   );
 });
 RenderShowClassification.displayName = "RenderShowClassification";
@@ -402,28 +390,25 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
   };
 
   return (
-    <div>
-      <FormControlLabel
-        key={source.id}
-        control={
-          <Controller
-            render={() => (
-              <Checkbox
-                onChange={(event) => {
-                  checkBox(event);
-                  labelledSource(event.target.checked);
-                }}
-                checked={checked}
-                data-testid={`labellingCheckBox${source.id}`}
-              />
-            )}
-            name={`labellingCheckBox${source.id}`}
-            control={control}
-          />
-        }
-        label={`Labelled By:  ${labellerUsernames.join(",")}`}
-      />
-    </div>
+    <FormControlLabel
+      control={
+        <Controller
+          render={() => (
+            <Checkbox
+              onChange={(event) => {
+                checkBox(event);
+                labelledSource(event.target.checked);
+              }}
+              checked={checked}
+              data-testid={`labellingCheckBox${source.id}`}
+            />
+          )}
+          name={`labellingCheckBox${source.id}`}
+          control={control}
+        />
+      }
+      label={`Labelled By:  ${labellerUsernames.join(",")}`}
+    />
   );
 });
 RenderShowLabelling.displayName = "RenderShowLabelling";
@@ -933,7 +918,6 @@ const SourceTable = ({
       return (
         <Link
           to={`/source/${objid}`}
-          key={`${objid}_objid`}
           data-testid={`${objid}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -948,7 +932,6 @@ const SourceTable = ({
       if (source.tns_name) {
         return (
           <a
-            key={source.tns_name}
             href={`https://www.wis-tns.org/object/${
               source.tns_name.trim().includes(" ")
                 ? source.tns_name.split(" ")[1]
@@ -958,7 +941,7 @@ const SourceTable = ({
             rel="noopener noreferrer"
             style={{ whiteSpace: "nowrap" }}
           >
-            {`${source.tns_name} `}
+            {source.tns_name}
           </a>
         );
       }
@@ -971,54 +954,25 @@ const SourceTable = ({
         const alias_str = Array.isArray(alias)
           ? alias.map((name: any) => <div key={name}> {name} </div>)
           : alias;
-        return (
-          <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-            {alias_str}
-          </Link>
-        );
+        return <Link to={`/source/${objid}`}>{alias_str}</Link>;
       }
       return null;
     };
 
     const renderOrigin = (params: any) => {
       const { id: objid, origin } = params.row;
-      return (
-        <Link to={`/source/${objid}`} key={`${objid}_origin`}>
-          {origin}
-        </Link>
-      );
+      return <Link to={`/source/${objid}`}>{origin}</Link>;
     };
 
-    const renderRA = (params: any) => (
-      <div key={`${params.row.id}_ra`}>{params.row.ra?.toFixed(6)}</div>
-    );
-    const renderRASex = (params: any) => (
-      <div key={`${params.row.id}_ra_sex`}>{ra_to_hours(params.row.ra)}</div>
-    );
-    const renderDec = (params: any) => (
-      <div key={`${params.row.id}_dec`}>{params.row.dec?.toFixed(6)}</div>
-    );
-    const renderDecSex = (params: any) => (
-      <div key={`${params.row.id}_dec_sex`}>{dec_to_dms(params.row.dec)}</div>
-    );
-    const renderGalLon = (params: any) => (
-      <div key={`${params.row.id}_gal_lon`}>
-        {params.row.gal_lon?.toFixed(6)}
-      </div>
-    );
-    const renderGalLat = (params: any) => (
-      <div key={`${params.row.id}_gal_lat`}>
-        {params.row.gal_lat?.toFixed(6)}
-      </div>
-    );
-    const renderHost = (params: any) => (
-      <div key={`${params.row.id}_host`}>{params.row.host?.name}</div>
-    );
-    const renderHostOffset = (params: any) => (
-      <div key={`${params.row.id}_host_offset`}>
-        {params.row.host_offset?.toFixed(3)}
-      </div>
-    );
+    const renderRA = (params: any) => params.row.ra?.toFixed(6);
+    const renderRASex = (params: any) => ra_to_hours(params.row.ra);
+    const renderDec = (params: any) => params.row.dec?.toFixed(6);
+    const renderDecSex = (params: any) => dec_to_dms(params.row.dec);
+    const renderGalLon = (params: any) => params.row.gal_lon?.toFixed(6);
+    const renderGalLat = (params: any) => params.row.gal_lat?.toFixed(6);
+    const renderHost = (params: any) => params.row.host?.name;
+    const renderHostOffset = (params: any) =>
+      params.row.host_offset?.toFixed(3);
 
     const renderClassification = (params: any) => (
       <Suspense
@@ -1068,12 +1022,11 @@ const SourceTable = ({
     const renderGroups = (params: any) => {
       const source = params.row;
       return (
-        <div key={`${source.id}_groups`} className={classes.groupChips}>
+        <div className={classes.groupChips}>
           {(getGroups(source) || []).map((group: any) => (
             <div key={group.name}>
               <Chip
                 label={group.name.substring(0, 15)}
-                key={group.id}
                 size="small"
                 onClick={() => navigate(`/group/${group.id}`)}
               />
@@ -1084,17 +1037,14 @@ const SourceTable = ({
       );
     };
 
-    const renderDateSaved = (params: any) => (
-      <div key={`${params.row.id}_date_saved`}>
-        {getDate(params.row)?.substring(0, 19)}
-      </div>
-    );
+    const renderDateSaved = (params: any) =>
+      getDate(params.row)?.substring(0, 19);
 
     const renderFinderButton = (params: any) => (
-      <IconButton size="small" key={`${params.row.id}_actions`}>
-        <a href={`/api/sources/${params.row.id}/finder`}>
+      <IconButton size="small">
+        <Link to={`/source/${params.row.id}/finder`}>
           <PictureAsPdfIcon />
-        </a>
+        </Link>
       </IconButton>
     );
 
@@ -1175,7 +1125,7 @@ const SourceTable = ({
         };
       });
       return (
-        <div key={`${source.id}_tags`} className={classes.groupChips}>
+        <div className={classes.groupChips}>
           {tagsWithColors.map((tag: any) => (
             <Chip
               key={tag.id}

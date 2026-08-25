@@ -30,6 +30,7 @@ import {
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -73,14 +74,8 @@ const FollowupRequestSelectionForm = ({
     useGetFollowupRequestsQuery(fetchParams);
   const followupRequestList = followupRequestsData?.followup_requests;
 
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = utcString(dayjs().subtract(1, "day"));
+  const defaultEndDate = utcString(dayjs().add(1, "day"));
 
   const [isSubmittingFilter, setIsSubmittingFilter] = useState(false);
   const [filterFormData, setFilterFormData] = useState<any>({

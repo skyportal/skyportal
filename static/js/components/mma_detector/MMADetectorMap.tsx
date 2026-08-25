@@ -1,25 +1,5 @@
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
-
-import world_map from "../../../images/maps/world-110m.json";
-
-const width = 700;
-const height = 475;
-
-function CustomZoomableGroup({ children, ...restProps }: any) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
+import { Marker } from "react-simple-maps";
+import { CustomMap } from "../CustomMap";
 
 function mmadetectorlabel(nestedMMADetector: any) {
   return nestedMMADetector.mmadetectors
@@ -99,37 +79,21 @@ const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {
   }
 
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position: any) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }: any) =>
-                geographies.map((geo: any) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedMMADetectors.map(
-              (nestedMMADetector) =>
-                nestedMMADetector.lon &&
-                nestedMMADetector.lat && (
-                  <MMADetectorMarker
-                    key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
-                    nestedMMADetector={nestedMMADetector}
-                    position={position}
-                  />
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+    <CustomMap>
+      {(position: any) =>
+        nestedMMADetectors.map(
+          (nestedMMADetector) =>
+            nestedMMADetector.lon &&
+            nestedMMADetector.lat && (
+              <MMADetectorMarker
+                key={`${nestedMMADetector.lon},${nestedMMADetector.lat}`}
+                nestedMMADetector={nestedMMADetector}
+                position={position}
+              />
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 

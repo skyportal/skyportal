@@ -31,6 +31,7 @@ import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { components } from "../types/api";
 import type { RouteData } from "../types/routeSchemaMap";
+import { utcString } from "../utils/format";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -47,14 +48,10 @@ const withQueuedObservationDefaults = (
 ): FilterParams => {
   const params = { ...filterParams };
   if (!Object.keys(params).includes("startDate")) {
-    params["startDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    params["startDate"] = utcString(dayjs());
   }
   if (!Object.keys(params).includes("endDate")) {
-    params["endDate"] = dayjs()
-      .utc()
-      .add(7, "day")
-      .utc()
-      .format("YYYY-MM-DDTHH:mm:ssZ");
+    params["endDate"] = utcString(dayjs().add(7, "day"));
   }
   params["observationStatus"] = "queued";
   return params;

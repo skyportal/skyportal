@@ -1,26 +1,6 @@
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  useZoomPan,
-} from "react-simple-maps";
+import { Marker } from "react-simple-maps";
 import CircularProgress from "@mui/material/CircularProgress";
-
-import world_map from "../../../images/maps/world-110m.json";
-
-const width = 700;
-const height = 475;
-
-function CustomZoomableGroup({ children, ...restProps }: any) {
-  const { mapRef, transformString, position } = useZoomPan(restProps);
-  return (
-    <g ref={mapRef}>
-      <rect width={width} height={height} fill="transparent" />
-      <g transform={transformString}>{children(position)}</g>
-    </g>
-  );
-}
+import { CustomMap } from "../CustomMap";
 
 function earthquakelabel(nestedEarthquake: any) {
   return nestedEarthquake.earthquakes
@@ -136,38 +116,22 @@ const EarthquakeMap = ({
   }
 
   return (
-    <ComposableMap width={width} height={height}>
-      <CustomZoomableGroup center={[0, 0]}>
-        {(position: any) => (
-          <>
-            <Geographies geography={world_map}>
-              {({ geographies }: any) =>
-                geographies.map((geo: any) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#EAEAEC"
-                    stroke="#D6D6DA"
-                  />
-                ))
-              }
-            </Geographies>
-            {nestedEarthquakes.map(
-              (nestedEarthquake) =>
-                nestedEarthquake.lon &&
-                nestedEarthquake.lat && (
-                  <EarthquakeMarker
-                    key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
-                    nestedEarthquake={nestedEarthquake}
-                    position={position}
-                    onSelect={onSelectEarthquakes}
-                  />
-                ),
-            )}
-          </>
-        )}
-      </CustomZoomableGroup>
-    </ComposableMap>
+    <CustomMap>
+      {(position: any) =>
+        nestedEarthquakes.map(
+          (nestedEarthquake) =>
+            nestedEarthquake.lon &&
+            nestedEarthquake.lat && (
+              <EarthquakeMarker
+                key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
+                nestedEarthquake={nestedEarthquake}
+                position={position}
+                onSelect={onSelectEarthquakes}
+              />
+            ),
+        )
+      }
+    </CustomMap>
   );
 };
 

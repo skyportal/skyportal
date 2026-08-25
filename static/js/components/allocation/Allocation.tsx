@@ -45,6 +45,7 @@ import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPla
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
 import Spinner from "../Spinner";
+import { renderStatus } from "../../utils/renderStatus";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
@@ -258,7 +259,13 @@ const AllocationObservationPlansTable = ({
         row.localization?.localization_name,
     },
     { field: "created_at", headerName: "Created at", flex: 1, minWidth: 150 },
-    { field: "status", headerName: "Status", flex: 1, minWidth: 110 },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 110,
+      renderCell: (params: any) => renderStatus(params.row),
+    },
     {
       field: "payload",
       headerName: "Payload",
@@ -483,6 +490,7 @@ const AllocationSummaryTable = ({
       headerName: "Status",
       flex: 1,
       minWidth: 110,
+      renderCell: (params: any) => renderStatus(params.row),
     },
     {
       field: "ra",

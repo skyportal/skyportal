@@ -247,18 +247,18 @@ const FindingChart = () => {
                     className={classes.form}
                   >
                     <FormControl>
-                      <InputLabel id="ImageSourceSelect">
+                      <InputLabel id="ImageSourceSelectLabel">
                         Primary Image Source
                       </InputLabel>
                       <p className={classes.labels} />
                       <Controller
-                        {...({ labelid: "ImageSourceSelectLabel" } as any)}
                         name="imagesource"
                         control={control}
                         defaultValue={params.imagesource}
                         render={({ field: { onChange, value } }) => (
                           <Select
                             labelId="ImageSourceSelectLabel"
+                            label="Primary Image Source"
                             value={value}
                             onChange={onChange}
                             style={{ minWidth: "100%" }}
@@ -272,18 +272,18 @@ const FindingChart = () => {
                       />
                     </FormControl>
                     <FormControl>
-                      <InputLabel id="PositionLabel">
+                      <InputLabel id="PositionSelectLabel">
                         Offset Position Origin
                       </InputLabel>
                       <p className={classes.labels} />
                       <Controller
-                        {...({ labelid: "PositionLabel" } as any)}
                         name="positionsource"
                         control={control}
                         defaultValue={params.positionsource}
                         render={({ field: { onChange, value } }) => (
                           <Select
                             labelId="PositionSelectLabel"
+                            label="Offset Position Origin"
                             value={value}
                             onChange={onChange}
                             style={{ minWidth: "100%" }}
@@ -295,16 +295,16 @@ const FindingChart = () => {
                       />
                     </FormControl>
                     <FormControl>
-                      <InputLabel id="FacilityLabel">Facility</InputLabel>
+                      <InputLabel id="FacilitySelectLabel">Facility</InputLabel>
                       <p className={classes.labels} />
                       <Controller
-                        {...({ labelid: "FacilityLabel" } as any)}
                         name="facility"
                         control={control}
                         defaultValue={params.facility}
                         render={({ field: { onChange, value } }) => (
                           <Select
                             labelId="FacilitySelectLabel"
+                            label="Facility"
                             value={value}
                             onChange={onChange}
                             style={{ minWidth: "100%" }}

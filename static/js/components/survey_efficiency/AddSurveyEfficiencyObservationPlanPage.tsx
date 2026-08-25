@@ -20,6 +20,7 @@ interface AddSurveyEfficiencyObservationPlanPageProps {
   observationplanRequest: {
     id?: number;
     status?: string;
+    observation_plans?: any[];
     [key: string]: any;
   };
 }
@@ -75,23 +76,22 @@ const AddSurveyEfficiencyObservationPlanPage = ({
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}
+        disabled={!observationplanRequest.observation_plans?.length}
       >
         SimSurvey Analysis
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>SimSurvey Analysis</DialogTitle>
         <DialogContent>
-          <div>
-            <SurveyEfficiencyForm
-              gcnevent={gcnevent}
-              observationplanRequest={observationplanRequest}
+          <SurveyEfficiencyForm
+            gcnevent={gcnevent}
+            observationplanRequest={observationplanRequest}
+          />
+          {surveyEfficiencyAnalysisList?.length > 0 && (
+            <SurveyEfficiencyObservationPlanLists
+              survey_efficiency_analyses={surveyEfficiencyAnalysisList}
             />
-            {surveyEfficiencyAnalysisList?.length > 0 && (
-              <SurveyEfficiencyObservationPlanLists
-                survey_efficiency_analyses={surveyEfficiencyAnalysisList}
-              />
-            )}
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

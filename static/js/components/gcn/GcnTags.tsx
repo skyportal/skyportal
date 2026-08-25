@@ -163,7 +163,6 @@ const GcnTags = ({
                 className={(styles as any)[tag]}
                 size="small"
                 label={tag}
-                key={tag}
                 component="a"
                 clickable
                 target="_blank"
@@ -200,7 +199,7 @@ const GcnTags = ({
                   backgroundColor:
                     gcn_tags_classes && tag in gcn_tags_classes
                       ? gcn_tags_classes[tag]
-                      : "#999999",
+                      : "secondary.dark",
                 }}
               />
             )}
@@ -216,7 +215,7 @@ const GcnTags = ({
               backgroundColor:
                 gcn_tags_classes && tag in gcn_tags_classes
                   ? gcn_tags_classes[tag]
-                  : "#999999",
+                  : "secondary.dark",
             }}
           />
         ))}

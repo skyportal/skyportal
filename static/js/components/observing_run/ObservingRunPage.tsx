@@ -33,6 +33,7 @@ import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
@@ -88,10 +89,7 @@ const ObservingRunList = ({
   >(null);
   const [displayAll, setDisplayAll] = useState(false);
 
-  const nowDate = dayjs()
-    .utc()
-    .subtract(1.5, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = utcString(dayjs().subtract(1.5, "day"));
   const dt_month = dayjs.duration(1, "month");
 
   let observingRunsToShow: any[] = [];

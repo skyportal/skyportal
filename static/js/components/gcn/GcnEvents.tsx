@@ -26,7 +26,6 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
@@ -49,13 +48,6 @@ const useStyles = makeStyles()((theme) => ({
     "& > div": {
       margin: "0.25rem",
     },
-  },
-  gcnEventLink: {
-    padding: 0,
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
   },
   list: {
     listStyleType: "none",
@@ -269,7 +261,7 @@ const GcnEvents = () => {
           backgroundColor:
             gcn_tags_classes && tag in gcn_tags_classes
               ? gcn_tags_classes[tag]
-              : "#999999",
+              : "secondary.dark",
         }}
       />
     ));
@@ -359,9 +351,7 @@ const GcnEvents = () => {
   };
 
   const renderDateObs = (params: any) => (
-    <Link to={`/gcn_events/${params.row?.dateobs}`}>
-      <Button className={classes.gcnEventLink}>{params.row?.dateobs}</Button>
-    </Link>
+    <Link to={`/gcn_events/${params.row?.dateobs}`}>{params.row?.dateobs}</Link>
   );
 
   const renderAliases = (params: any) =>

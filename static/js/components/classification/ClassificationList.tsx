@@ -95,7 +95,6 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
   const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
     (groupUser: any) => groupUser.user_id === userProfile?.id,
   )[0];
-  // const acls = useGetProfileQuery().data?.acls;
   let { classifications } = obj;
   const [hideML, setHideML] = useState(false);
 

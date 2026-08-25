@@ -119,7 +119,7 @@ def test_profile_dropdown(page, user):
         page.locator("//p[contains(@data-testid, 'username')]").first
     ).to_be_visible()
     expect(
-        page.locator("//a[contains(@data-testid, 'signOutButton')]").first
+        page.locator("//li[contains(@data-testid, 'signOutButton')]").first
     ).to_be_visible()
 
 

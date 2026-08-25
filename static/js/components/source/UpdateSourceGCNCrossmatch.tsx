@@ -20,6 +20,7 @@ import GcnTagsSelect from "../gcn/GcnTagsSelect";
 import GcnPropertiesSelect from "../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -91,12 +92,10 @@ const UpdateSourceGCNCrossmatch = ({
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState<any[]>([]);
 
-  const defaultStartDate = firstDet
-    ? firstDet.subtract(2, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
-    : dayjs().subtract(3, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = firstDet
-    ? firstDet.add(5, "day").utc().format("YYYY-MM-DDTHH:mm:ssZ")
-    : dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = utcString(
+    firstDet ? firstDet.subtract(2, "day") : dayjs().subtract(3, "day"),
+  );
+  const defaultEndDate = utcString(firstDet ? firstDet.add(5, "day") : dayjs());
 
   // Controlled form data: keep edits in React state so re-renders (e.g. from the
   // tag/property selectors) don't reset the date fields to their defaults.

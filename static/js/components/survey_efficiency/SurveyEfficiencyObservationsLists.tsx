@@ -217,7 +217,6 @@ const SurveyEfficiencyObservationsLists = ({
                   }}
                   size="small"
                   type="submit"
-                  data-testid={`deleteRequest_${analysis.id}`}
                 >
                   Delete
                 </Button>

@@ -150,12 +150,7 @@ const ValidityRangeSelect = ({
           onClick={handleOpen}
           IconComponent={ArrowDropDown}
         ></Select>
-        <Typography
-          variant="body2"
-          sx={{
-            color: "text.secondary.dark",
-          }}
-        >
+        <Typography variant="body2" color="textSecondary">
           Define time ranges to control when this allocation can be used. It
           will not be available outside these ranges. (Local timezone)
         </Typography>

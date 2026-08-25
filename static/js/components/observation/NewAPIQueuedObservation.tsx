@@ -11,6 +11,7 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useLazyRequestAPIQueuedObservationsQuery } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { utcString } from "../../utils/format";
 
 dayjs.extend(utc);
 
@@ -33,12 +34,7 @@ const NewAPIQueuedObservation = ({
   const [requestAPIQueuedObservations] =
     useLazyRequestAPIQueuedObservationsQuery();
 
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
+  const nowDate = utcString(dayjs());
 
   if (
     !allGroups ||
@@ -115,13 +111,13 @@ const NewAPIQueuedObservation = ({
         type: "string",
         format: "date-time",
         title: "Start Date (Local Time)",
-        default: defaultStartDate,
+        default: nowDate,
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date (Local Time)",
-        default: defaultEndDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       allocation_id: {
         type: "integer",

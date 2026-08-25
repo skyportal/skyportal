@@ -18,6 +18,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceGroupsMutation } from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
+import Typography from "@mui/material/Typography";
 
 const useStyles = makeStyles()(() => ({
   iconButton: {
@@ -226,10 +227,10 @@ const EditSourceGroups = ({
                   <b>Unsave</b> source from selected groups:
                 </div>
                 <div>
-                  <em>
+                  <Typography variant="caption" color="textSecondary">
                     Warning: This will unsave the source from selected groups
                     for all group members
-                  </em>
+                  </Typography>
                 </div>
                 <div>
                   {savedGroups.map((savedGroup, idx) =>

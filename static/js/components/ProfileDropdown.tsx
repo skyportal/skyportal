@@ -164,34 +164,26 @@ const ProfileDropdown = () => {
             </a>
           </Box>
         ) : (
-          <>
-            <MenuList className={classes.popoverMenu}>
-              <Link
-                to="/profile"
-                role="link"
-                className={classes.nodecor}
-                onClick={handleClose}
-              >
-                <MenuItem className={classes.centerContent}>Profile</MenuItem>
-              </Link>
-            </MenuList>
-
-            <Box
-              className={classes.signOutMargin}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-              }}
+          <MenuList className={classes.popoverMenu}>
+            <MenuItem
+              component={Link}
+              to="/profile"
+              role="link"
+              onClick={handleClose}
+              className={classes.centerContent}
             >
-              <a
-                href="/logout"
-                className={classes.nodecor}
-                data-testid="signOutButton"
-              >
-                <Button>Sign out</Button>
-              </a>
-            </Box>
-          </>
+              Profile
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                window.location.href = "/logout";
+              }}
+              className={classes.centerContent}
+              data-testid="signOutButton"
+            >
+              Sign out
+            </MenuItem>
+          </MenuList>
         )}
       </Popover>
     </>

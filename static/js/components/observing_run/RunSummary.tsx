@@ -47,25 +47,9 @@ import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import Box from "@mui/material/Box";
+import { renderStatus } from "../../utils/renderStatus";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
-
-function getStatusColors(status: string) {
-  // if it starts with success, green
-  if (status.startsWith("complete")) {
-    return ["black", "MediumAquaMarine"];
-  }
-  // if any of these strings are present, yellow
-  if (status.includes("not observed")) {
-    return ["black", "Orange"];
-  }
-  // if it starts with error, red
-  if (status.startsWith("error")) {
-    return ["white", "Crimson"];
-  }
-  // else grey
-  return ["black", "LightGrey"];
-}
 
 interface SimpleMenuProps {
   assignment: any;
@@ -311,30 +295,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Status",
       flex: 1,
       minWidth: 120,
-      renderCell: (params: any) => {
-        const { id, status } = params.row;
-        if (!status) {
-          return null;
-        }
-        const colors = getStatusColors(status);
-        return (
-          <Typography
-            variant="body2"
-            style={{
-              backgroundColor: colors[1],
-              color: colors[0],
-              padding: "0.25rem 0.75rem 0.25rem 0.75rem",
-              borderRadius: "1rem",
-              maxWidth: "fit-content",
-              // don't allow line breaks unless the status contains "error"
-              whiteSpace: status.includes("error") ? "normal" : "nowrap",
-            }}
-            {...({ name: `${id}_status` } as any)}
-          >
-            {status}
-          </Typography>
-        );
-      },
+      renderCell: (params: any) => renderStatus(params.row),
     },
     {
       field: "created_at",

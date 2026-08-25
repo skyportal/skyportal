@@ -23,6 +23,7 @@ import { buildQueryString as toQueryString, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
+import { utcString } from "../utils/format";
 
 // Extras returned alongside the wrapper that RouteData does not encode.
 type ObservationListResponse = RouteData<"GET /api/observation"> & {
@@ -66,14 +67,10 @@ const buildQueryString = (filterParams: FilterParams): string => {
 const withObservationDefaults = (filterParams: FilterParams): FilterParams => {
   const params = pickParams(filterParams, QUERY_KEYS);
   if (!Object.keys(params).includes("startDate")) {
-    params["startDate"] = dayjs()
-      .utc()
-      .subtract(3650, "day")
-      .utc()
-      .format("YYYY-MM-DDTHH:mm:ssZ");
+    params["startDate"] = utcString(dayjs().subtract(3650, "day"));
   }
   if (!Object.keys(params).includes("endDate")) {
-    params["endDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    params["endDate"] = utcString(dayjs());
   }
   if (!Object.keys(params).includes("numPerPage")) {
     params["numPerPage"] = 10;

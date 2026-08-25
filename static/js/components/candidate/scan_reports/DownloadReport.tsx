@@ -7,7 +7,7 @@ import { useAppDispatch } from "../../../types/hooks";
 interface DownloadReportProps {
   report: {
     id: number;
-    username: string;
+    author: string;
     created_at: string;
     [key: string]: any;
   };
@@ -19,7 +19,7 @@ const DownloadReport = ({ report }: DownloadReportProps) => {
   const downloadReport = (reportItems: any[]) => {
     const reportData = {
       report_id: report.id,
-      created_by: report.username,
+      created_by: report.author,
       created_at: report.created_at,
       number_of_items: reportItems.length,
       items: reportItems.map(

@@ -30,6 +30,7 @@ import {
   useSubmitReminderMutation,
   useDeleteReminderMutation,
 } from "../ducks/reminders";
+import { utcString } from "../utils/format";
 
 dayjs.extend(utc);
 
@@ -84,10 +85,6 @@ const NewReminder = ({
 }: NewReminderProps) => {
   const dispatch = useAppDispatch();
   const [submitReminder] = useSubmitReminderMutation();
-  const defaultDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     if (resourceStartDate) {
@@ -130,9 +127,7 @@ const NewReminder = ({
       errors.text = "Reminder text is required";
     }
     if (!resourceStartDate) {
-      if (
-        dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ") > formData.next_reminder
-      ) {
+      if (utcString(dayjs()) > formData.next_reminder) {
         errors.next_reminder.addError(
           "Next reminder date can't be in the past",
         );
@@ -204,7 +199,7 @@ const NewReminder = ({
         type: "string",
         format: "date-time",
         title: "Date",
-        default: defaultDate,
+        default: utcString(dayjs().add(1, "day")),
       },
       number_of_reminders: {
         type: "integer",

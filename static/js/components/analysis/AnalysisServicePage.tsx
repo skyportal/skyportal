@@ -11,7 +11,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import AutoModeIcon from "@mui/icons-material/AutoMode";
@@ -35,17 +34,6 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     whiteSpace: "pre-line",
   },
-  paperContent: {
-    padding: "1rem",
-  },
-  analysisServiceDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
   analysisServiceManage: {
     display: "flex",
     flexDirection: "row",
@@ -53,45 +41,6 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
   },
 }));
-
-export function analysisServiceTitle(analysisService: any) {
-  if (!analysisService?.display_name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const result = `${analysisService?.display_name}`;
-
-  return result;
-}
-
-export function analysisServiceInfo(analysisService: any) {
-  if (!analysisService?.url) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const share_groups: any[] = [];
-  analysisService.groups.forEach((share_group: any) => {
-    share_groups.push(share_group.name);
-  });
-
-  let result = `Description: ${analysisService.description} / URL: ${analysisService.url}`;
-
-  if (share_groups.length > 0) {
-    result += "\r\n(";
-    result += `Default Share Groups: ${share_groups.join(", ")}`;
-    result += ")";
-  }
-
-  return result;
-}
 
 interface AnalysisServiceListProps {
   analysisServices: any[];

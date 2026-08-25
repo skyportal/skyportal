@@ -359,7 +359,6 @@ const PhotometryTable = ({
                   onClick={() => setDeleteDialogOpen(phot.id)}
                   size="small"
                   type="submit"
-                  data-testid={`deleteRequest_${phot.id}`}
                   {...({ primary: true } as any)}
                 >
                   <DeleteIcon />
