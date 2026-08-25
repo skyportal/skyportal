@@ -283,8 +283,8 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 
 ## Updating an existing checkout
 
-New code usually needs more than `git pull`: the submodules, the Python
-environment, the Javascript bundle and the database schema all move with it.
+New code usually needs more than `git pull`, since the submodules, the Python
+environment, the Javascript bundle and the database schema all change with it.
 
 0. Stop the app with `make stop`.
 1. Get the new code with `git pull` (or `git checkout v1.2.3` for a release).
@@ -294,9 +294,9 @@ environment, the Javascript bundle and the database schema all move with it.
 5. Start the app again with `make run`, which reinstalls the Javascript
    dependencies and rebuilds the bundle.
 
-`make db_migrate` runs `alembic upgrade head` for you, with `PYTHONPATH` and the
-config flag already set. To run alembic yourself, activate the environment and
-supply both:
+`make db_migrate` runs `alembic upgrade head`, with `PYTHONPATH` and the config
+flag already set. To run alembic directly, activate the environment and supply
+both:
 
 ```
 source .venv/bin/activate
@@ -304,17 +304,19 @@ PYTHONPATH=. alembic -x config=config.yaml heads
 ```
 
 Without them alembic reports `ModuleNotFoundError: No module named 'baselayer'`,
-because its environment imports the app.
+since its environment imports the app.
 
-A skipped step rarely names itself in the resulting error:
+The resulting errors do not usually name the step that was skipped:
 
 * Database errors about missing columns or tables mean the migrations have not
   been applied. Run `make db_migrate`.
-* Front-end errors about a module that cannot be found, or that disagree with
+* Front-end errors about a module that cannot be found, or that do not match
   the code you have checked out, mean the Javascript bundle is stale. It is
-  rebuilt only when the app starts, so restart the app, then reload the browser
-  with Shift held down, since it may be caching the old bundle too.
-* An import error for `baselayer` means the submodules were not updated.
+  rebuilt when the app starts, so restart the app. Then reload the browser with
+  Shift held down, in case it has cached the old bundle.
+* An import error for `baselayer` when running a tool directly usually means it
+  was run without `PYTHONPATH=.`, or outside the environment, rather than the
+  submodules being missing. The `make` targets set both.
 * If alembic reports more than one head, see [Database migrations](migrations).
 
 ## Troubleshooting
