@@ -2827,6 +2827,20 @@ class DefaultFollowupRequestHandler(BaseHandler):
         data = self.get_json()
 
         async with self.AsyncSession() as session:
+            if data.get("default_followup_name"):
+                existing = await session.scalar(
+                    DefaultFollowupRequest.select(session.user_or_token).where(
+                        DefaultFollowupRequest.default_followup_name
+                        == data["default_followup_name"]
+                    )
+                )
+                if existing is not None:
+                    return self.error(
+                        f"A default follow-up request called "
+                        f"{data['default_followup_name']} already exists. That "
+                        f"name must be unique."
+                    )
+
             target_group_ids = data.pop("target_group_ids", [])
             stmt = Group.select(session.user_or_token).where(
                 Group.id.in_(target_group_ids)
@@ -2928,7 +2942,17 @@ class DefaultFollowupRequestHandler(BaseHandler):
             default_followup_request.target_groups = target_groups
 
             session.add(default_followup_request)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                # Two posts racing past the check above still meet the unique
+                # constraint here.
+                await session.rollback()
+                return self.error(
+                    f"A default follow-up request called "
+                    f"{data['default_followup_name']} already exists. That name "
+                    f"must be unique."
+                )
 
             self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
             return self.success(data={"id": default_followup_request.id})
