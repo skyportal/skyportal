@@ -9,17 +9,36 @@ are changing the database schema yourself.
 
 ## Setting up
 
-If you are planning to use database migrations, you need to let
-Alembic know the current state of the database.
+Alembic needs to know which revision your database is already at. Recording it
+is called stamping, and it updates only alembic's own bookkeeping, without
+changing the schema.
 
-Presuming you've just started off by running `make load_demo_data`
-on the latest main branch commit (this should happen on a vanilla main branch,
-i.e. without any of your changes to the database schema),
-tell Alembic that you are on the latest database schema:
+Stamp a database only if its schema already matches the models, such as one you
+have just created by running `make load_demo_data` on the latest main branch
+commit (this should happen on a vanilla main branch, i.e. without any of your
+changes to the database schema):
 
 ```
 PYTHONPATH=. alembic -x config=config.yaml stamp head
 ```
+
+Do not stamp a database that is behind the models, and in particular do not
+stamp one to clear a `Multiple head revisions are present` error. Alembic will
+treat every pending migration as applied, `make db_migrate` will then have
+nothing left to do, and the app will fail on the columns and tables those
+migrations were meant to add.
+
+If that has already happened, the recorded revision can be worked out again from
+the schema itself:
+
+```
+PYTHONPATH=. python tools/db_revision_from_schema.py
+```
+
+It compares the tables and columns each migration creates against the ones the
+database has, and reports the revision it actually matches. With `--stamp` it
+sets alembic_version back to that revision, so `make db_migrate` can replay the
+migrations that were skipped, leaving the data in place.
 
 ## Generate migration script
 
@@ -88,5 +107,7 @@ unreleased and nobody has applied it), or merge the two:
 PYTHONPATH=. alembic -x config=config.yaml merge -m "merge heads" <rev1> <rev2>
 ```
 
-The `Test SkyPortal migrations` CI job runs the migrations from an empty
-database, and will report a divergence before it reaches anyone else.
+The `Test SkyPortal migrations` CI job builds a database from the models on main,
+applies the branch's migrations to it, and compares the result against a database
+built from the models on the branch, so it will report a divergence before it
+reaches anyone else.

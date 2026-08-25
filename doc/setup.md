@@ -309,7 +309,9 @@ since its environment imports the app.
 The resulting errors do not usually name the step that was skipped:
 
 * Database errors about missing columns or tables mean the migrations have not
-  been applied. Run `make db_migrate`.
+  been applied. Run `make db_migrate`. If it reports nothing to do, the recorded
+  revision is ahead of the schema, which
+  [Database migrations](migrations) covers.
 * Front-end errors about a module that cannot be found, or that do not match
   the code you have checked out, mean the Javascript bundle is stale. It is
   rebuilt when the app starts, so restart the app. Then reload the browser with
