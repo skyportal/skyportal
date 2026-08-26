@@ -2389,6 +2389,31 @@ class MMADetectorSpectrumPost(_Schema):
     )
 
 
+class FilterListItem(_Schema):
+    """One filter as returned by the filter list.
+
+    The list leaves out altdata, which holds the whole broker definition and
+    runs to tens of kilobytes per filter. GET on a single filter returns it.
+    """
+
+    id = fields.Integer(metadata={"description": "Filter ID."})
+    name = fields.String(metadata={"description": "Filter name."})
+    group_id = fields.Integer(metadata={"description": "ID of the Filter's Group."})
+    stream_id = fields.Integer(metadata={"description": "ID of the Filter's Stream."})
+    broker_id = fields.Integer(
+        allow_none=True,
+        metadata={"description": "ID of the Broker this Filter runs on, if any."},
+    )
+    autosave = fields.Boolean(
+        metadata={
+            "description": "Whether objects passing this filter are auto-saved as "
+            "Sources to the Filter's Group."
+        }
+    )
+    created_at = fields.DateTime()
+    modified = fields.DateTime()
+
+
 class GroupIDList(_Schema):
     group_ids = fields.List(fields.Integer, required=True)
 
@@ -2758,5 +2783,6 @@ ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 SpectrumHead = SpectrumHead()
+FilterListItem = FilterListItem()
 GroupIDList = GroupIDList()
 ObjAnalysisDetail = ObjAnalysisDetail()

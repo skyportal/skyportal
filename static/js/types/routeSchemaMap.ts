@@ -51,7 +51,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/earthquake": { schema: "EarthquakeEvent" as const, list: true, wrapper: "events" as const },
   "GET /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "GET /api/earthquake/{event_id}": { schema: "EarthquakeEvent" as const, list: false },
-  "GET /api/filters": { schema: "Filter" as const, list: true },
+  "GET /api/filters": { schema: "FilterListItem" as const, list: true },
   "GET /api/filters/{filter_id}": { schema: "Filter" as const, list: false },
   "GET /api/followup_request": { schema: "FollowupRequest" as const, list: true, wrapper: "followup_requests" as const },
   "GET /api/followup_request/{followup_request_id}": { schema: "FollowupRequest" as const, list: false },
