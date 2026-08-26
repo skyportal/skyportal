@@ -213,10 +213,20 @@ const SurveyEfficiencyForm = ({
         // Error notification is handled by the base query.
       }
     } else {
+      // The observation-plan endpoint takes its dates and localization from
+      // the plan itself and rejects the form's copies of them.
+      const {
+        startDate: _startDate,
+        endDate: _endDate,
+        localizationDateobs: _localizationDateobs,
+        localizationName: _localizationName,
+        localizationCumprob: _localizationCumprob,
+        ...planData
+      } = formData;
       try {
         await submitSurveyEfficiencyObservationPlan({
           id: observationplanRequest.id!,
-          data: formData,
+          data: planData,
         }).unwrap();
       } catch {
         // Error notification is handled by the base query.

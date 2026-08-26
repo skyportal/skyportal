@@ -1,4 +1,5 @@
 import base64
+import time
 
 import requests
 
@@ -167,15 +168,37 @@ def _endpoint(broker):
     return (broker.altdata or {}).get("endpoint", DEFAULT_ENDPOINT)
 
 
+# Lasair rate-limits per account, and ingestion fetches one object at a time, so
+# a busy filter walks straight into 429s. Wait and retry rather than dropping the
+# object: the alternative is a cycle that silently ingests a fraction of what it
+# matched.
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_PAUSE = 10.0
+
+
 def _request(broker, method, data):
     """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
     a ``Authorization: Token`` header (what the ``lasair`` client does, so no
-    dependency). Returns the parsed JSON."""
+    dependency). Returns the parsed JSON.
+
+    Retries on 429, honouring ``Retry-After`` when Lasair sends one.
+    """
     url = _endpoint(broker).rstrip("/") + "/" + method + "/"
     headers = {"Authorization": f"Token {_token(broker)}"}
-    response = requests.post(url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT)
-    response.raise_for_status()
-    return response.json()
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        response = requests.post(
+            url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT
+        )
+        if response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+            response.raise_for_status()
+            return response.json()
+        try:
+            pause = float(response.headers.get("Retry-After", RATE_LIMIT_PAUSE))
+        except (TypeError, ValueError):
+            pause = RATE_LIMIT_PAUSE
+        log(f"Lasair rate-limited ({method}); waiting {pause:.0f}s")
+        time.sleep(min(pause, 60.0))
+    raise RuntimeError("unreachable")
 
 
 def _object(broker, object_id):
@@ -497,8 +520,23 @@ class LASAIRBROKER(BrokerAPI):
             return queries + legacy_queries
 
         count = 0
+        # A broker with nothing to poll otherwise looks identical to a broken
+        # one: the loop just sleeps. Say so once, and again if it recurs.
+        warned_no_queries = False
         while not _stopped():
-            for query in await _collect_queries():
+            queries = await _collect_queries()
+            if not queries:
+                if not warned_no_queries:
+                    log(
+                        f"Lasair broker {broker.id} has no queries to poll: attach "
+                        "a filter to it with a saved Lasair query (selected/tables), "
+                        "or set 'queries' in the broker's altdata."
+                    )
+                    warned_no_queries = True
+            else:
+                warned_no_queries = False
+
+            for query in queries:
                 selected = (
                     query.get("fields")
                     or "objects.objectId, objects.ramean, objects.decmean"

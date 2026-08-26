@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
@@ -9,6 +9,19 @@ from baselayer.app.custom_exceptions import AccessError
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
+
+
+class GroupAdmissionRequestGetQuery(BaseModel):
+    """Query parameters for listing group admission requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    groupID: int | None = Field(
+        default=None,
+        description="ID of group for which admission requests are desired",
+    )
 
 
 class GroupAdmissionRequestPostBody(BaseModel):
@@ -38,7 +51,12 @@ class GroupAdmissionRequestPatchBody(BaseModel):
 
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
-    async def get(self, admission_request_id: int | None = None):
+    async def get(
+        self,
+        admission_request_id: int | None = None,
+        *,
+        query: GroupAdmissionRequestGetQuery = None,
+    ):
         """
         ---
         single:
@@ -62,13 +80,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
           tags:
             - groups
             - users
-          parameters:
-          - in: query
-            name: groupID
-            nullable: true
-            schema:
-              type: integer
-            description: ID of group for which admission requests are desired
           responses:
             200:
               content:
@@ -79,7 +90,8 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        group_id = self.get_query_argument("groupID", None, type=int)
+        query = self.parse_query(GroupAdmissionRequestGetQuery)
+
         async with self.AsyncSession() as session:
             if admission_request_id is not None:
                 admission_request = await session.scalar(
@@ -124,8 +136,8 @@ class GroupAdmissionRequestHandler(BaseHandler):
             q = GroupAdmissionRequest.select(session.user_or_token).options(
                 selectinload(GroupAdmissionRequest.user)
             )
-            if group_id is not None:
-                q = q.where(GroupAdmissionRequest.group_id == group_id)
+            if query.groupID is not None:
+                q = q.where(GroupAdmissionRequest.group_id == query.groupID)
             req_result = await session.scalars(q)
             admission_requests = req_result.unique().all()
             response_data = [

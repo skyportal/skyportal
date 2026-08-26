@@ -2,6 +2,7 @@ import astroplan
 import astropy_healpix as ahp
 import numpy as np
 import pandas as pd
+import scipy.stats
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
@@ -16,6 +17,16 @@ RGE = np.array(
         [-0.867666136, -0.198076390, +0.455983795],
     ]
 )
+
+
+def gaussian_sigmas_for(probability):
+    """Sigmas enclosing ``probability`` of a 2D Gaussian.
+
+    1 sigma holds 39% of it, 90% needs 2.15. Converts between a quoted error
+    radius and the radius of a credible region, in either direction.
+    """
+    probability = min(max(float(probability), 0.0), 0.999999)
+    return float(scipy.stats.chi(df=2).ppf(probability))
 
 
 def radec_str2deg(_ra_str, _dec_str):

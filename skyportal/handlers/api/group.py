@@ -1,5 +1,8 @@
+from typing import ClassVar
+
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 
@@ -71,9 +74,30 @@ async def _user_is_system_admin(user_id, session):
 log = make_log("api/group")
 
 
+class GroupGetQuery(BaseModel):
+    """Query parameters for retrieving groups."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeGroupUsers"})
+
+    name: str | None = Field(
+        default=None,
+        description="Fetch by name (exact match)",
+    )
+    includeGroupUsers: bool = Field(
+        default=True,
+        description="Boolean indicating whether to include group users. Defaults to true.",
+    )
+    includeSingleUserGroups: bool = Field(
+        default=False,
+        description="Bool indicating whether to include single user groups. Defaults to false.",
+    )
+
+
 class GroupHandler(BaseHandler):
     @auth_or_token
-    async def get(self, group_id: int | None = None):
+    async def get(self, group_id: int | None = None, *, query: GroupGetQuery = None):
         """
         ---
         single:
@@ -81,14 +105,6 @@ class GroupHandler(BaseHandler):
           description: Retrieve a group
           tags:
             - groups
-          parameters:
-            - in: query
-              name: includeGroupUsers
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include group users. Defaults to true.
           responses:
             200:
               content:
@@ -117,19 +133,6 @@ class GroupHandler(BaseHandler):
           description: Retrieve all groups
           tags:
             - groups
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Fetch by name (exact match)
-            - in: query
-              name: includeSingleUserGroups
-              schema:
-                type: boolean
-              description: |
-                Bool indicating whether to include single user groups.
-                Defaults to false.
           responses:
             200:
               content:
@@ -167,6 +170,7 @@ class GroupHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(GroupGetQuery)
 
         if group_id is not None:
             try:
@@ -186,7 +190,6 @@ class GroupHandler(BaseHandler):
                 )
                 if group is None:
                     return self.error(f"Cannot find Group with id {group_id}")
-                include_group_users = self.get_query_argument("includeGroupUsers", True)
 
                 # Do not include User.groups to avoid circular reference
                 users = (
@@ -205,7 +208,7 @@ class GroupHandler(BaseHandler):
                         }
                         for gu in group.group_users
                     ]
-                    if include_group_users
+                    if query.includeGroupUsers
                     else None
                 )
 
@@ -228,16 +231,11 @@ class GroupHandler(BaseHandler):
 
                 return self.success(data=group)
 
-            group_name = self.get_query_argument("name", None)
-            if group_name is not None:
+            if query.name is not None:
                 result = await session.scalars(
-                    Group.select(session.user_or_token).where(Group.name == group_name)
+                    Group.select(session.user_or_token).where(Group.name == query.name)
                 )
                 return self.success(data=result.unique().all())
-
-            include_single_user_groups = self.get_query_argument(
-                "includeSingleUserGroups", False
-            )
 
             user_id = self.associated_user_object.id
 
@@ -275,7 +273,7 @@ class GroupHandler(BaseHandler):
             all_groups_query = Group.select(session.user_or_token).options(
                 selectinload(Group.streams)
             )
-            if not include_single_user_groups:
+            if not query.includeSingleUserGroups:
                 all_groups_query = all_groups_query.where(
                     Group.single_user_group.is_(False)
                 )

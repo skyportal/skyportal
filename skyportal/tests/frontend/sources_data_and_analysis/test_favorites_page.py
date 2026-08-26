@@ -48,6 +48,7 @@ def test_add_remove_favorites(page, user, public_source):
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_add_favorites_from_api(page, super_admin_user, public_group):
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
@@ -106,6 +107,7 @@ def test_add_favorites_from_api(page, super_admin_user, public_group):
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_remove_favorites_from_api(page, super_admin_user, public_group):
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())

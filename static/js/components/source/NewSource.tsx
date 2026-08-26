@@ -16,7 +16,7 @@ import {
   useCheckSourceMutation,
   useSaveSourceMutation,
 } from "../../ducks/source";
-import { dms_to_dec, hours_to_ra } from "../../units";
+import { dec_to_deg, ra_to_deg } from "../../units";
 
 dayjs.extend(utc);
 
@@ -36,12 +36,8 @@ const NewSource = ({ onClose = () => ({}) }: NewSourceProps) => {
     const dataToSend: any = {
       ...formData,
       group_ids: selectedGroupIds,
-      ra: formData?.ra?.includes(":")
-        ? hours_to_ra(formData.ra)
-        : parseFloat(formData.ra),
-      dec: formData?.dec?.includes(":")
-        ? dms_to_dec(formData.dec)
-        : parseFloat(formData.dec),
+      ra: ra_to_deg(formData?.ra ?? ""),
+      dec: dec_to_deg(formData?.dec ?? ""),
     };
     try {
       const data: any = await checkSource({
@@ -73,11 +69,11 @@ const NewSource = ({ onClose = () => ({}) }: NewSourceProps) => {
     } else if (!selectedGroupIds?.length) {
       errors.__errors.push("Select at least one group.");
     }
-    const raDeg = ra.includes(":") ? hours_to_ra(ra) : parseFloat(ra);
+    const raDeg = ra_to_deg(ra);
     if (raDeg < 0 || raDeg >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
-    const decDeg = dec.includes(":") ? dms_to_dec(dec) : parseFloat(dec);
+    const decDeg = dec_to_deg(dec);
     if (decDeg < -90 || decDeg > 90) {
       errors.dec.addError("-90 <= Declination <= 90, please fix.");
     }

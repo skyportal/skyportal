@@ -509,3 +509,34 @@ def test_auto_followup_request_flushes_before_submit(
             DBSession().delete(followup_request)
         DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
         DBSession().commit()
+
+
+def test_default_followup_request_rejects_a_duplicate_name(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    """A repeated name is a rejected request, not an uncaught IntegrityError.
+
+    The name is unique in the database, so a second POST used to surface as a
+    500 with a traceback rather than telling the user the name was taken.
+    """
+    request_data = _default_followup_payload(public_group, public_group_sedm_allocation)
+
+    status, data = api(
+        "POST", "default_followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 200, data
+    default_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "default_followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 400, data
+    assert "already exists" in data["message"], data["message"]
+
+    # the first one is untouched, and the name is still usable elsewhere
+    status, data = api(
+        "GET", f"default_followup_request/{default_id}", token=super_admin_token
+    )
+    assert status == 200, data
+
+    api("DELETE", f"default_followup_request/{default_id}", token=super_admin_token)

@@ -70,7 +70,7 @@ export const spectraApi = skyportalApi.injectEndpoints({
       query: ({ id, normalization = null }) =>
         `/api/sources/${id}/spectra${
           normalization
-            ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
+            ? `?normalization=${normalization}&sortBy=observed_at&sortOrder=asc`
             : ""
         }`,
       transformResponse: (data: { spectra?: Spectrum[] }) =>

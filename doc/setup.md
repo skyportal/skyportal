@@ -281,6 +281,46 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
 
+## Updating an existing checkout
+
+New code usually needs more than `git pull`, since the submodules, the Python
+environment, the Javascript bundle and the database schema all change with it.
+
+0. Stop the app with `make stop`.
+1. Get the new code with `git pull` (or `git checkout v1.2.3` for a release).
+2. Update the submodules with `git submodule update --init --recursive`.
+3. Update the Python environment with `uv sync`.
+4. Apply any pending database migrations with `make db_migrate`.
+5. Start the app again with `make run`, which reinstalls the Javascript
+   dependencies and rebuilds the bundle.
+
+`make db_migrate` runs `alembic upgrade head`, with `PYTHONPATH` and the config
+flag already set. To run alembic directly, activate the environment and supply
+both:
+
+```
+source .venv/bin/activate
+PYTHONPATH=. alembic -x config=config.yaml heads
+```
+
+Without them alembic reports `ModuleNotFoundError: No module named 'baselayer'`,
+since its environment imports the app.
+
+The resulting errors do not usually name the step that was skipped:
+
+* Database errors about missing columns or tables mean the migrations have not
+  been applied. Run `make db_migrate`. If it reports nothing to do, the recorded
+  revision is ahead of the schema, which
+  [Database migrations](migrations) covers.
+* Front-end errors about a module that cannot be found, or that do not match
+  the code you have checked out, mean the Javascript bundle is stale. It is
+  rebuilt when the app starts, so restart the app. Then reload the browser with
+  Shift held down, in case it has cached the old bundle.
+* An import error for `baselayer` when running a tool directly usually means it
+  was run without `PYTHONPATH=.`, or outside the environment, rather than the
+  submodules being missing. The `make` targets set both.
+* If alembic reports more than one head, see [Database migrations](migrations).
+
 ## Troubleshooting
 
 If you have trouble running `uv sync` and see an error link to `python-ligo-lw`:

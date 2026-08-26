@@ -59,6 +59,17 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  RequestSpectrumDialog,
+  UNSHARED_SPECTRUM,
+  unsharedSpectrumTraces,
+} from "./UnsharedSpectrumMarkers";
+import {
+  SpectrumAvailability,
+  useGetDataAvailabilityQuery,
+} from "../../ducks/dataAccessRequests";
+import OutburstPlot from "./OutburstPlot";
+import { OutburstPoint } from "./outburstTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -309,6 +320,8 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Solar-system object flag; enables the geometry-corrected "Outburst" tab.
+  is_roid?: boolean;
   // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
   // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
   modelFits?: ModelFit[];
@@ -327,6 +340,7 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  is_roid = false,
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const muiTheme = useTheme();
@@ -617,6 +631,33 @@ const PhotometryPlot = ({
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
+
+  // Solar-system objects (is_roid) get an extra "Outburst" tab (the
+  // geometry-corrected light-curve view). Points need per-point geometry
+  // (rh/delta/phase in photometry altdata, supplied by BOOM); the tab is empty
+  // until that exists.
+  const isOutburstTab = is_roid && tabIndex === 3;
+  const outburstPoints = useMemo<OutburstPoint[]>(
+    () =>
+      (mainPhotometry || [])
+        .filter(
+          (p: any) =>
+            p?.mag != null &&
+            p?.altdata?.rh != null &&
+            p?.altdata?.delta != null &&
+            p?.altdata?.phase != null,
+        )
+        .map((p: any) => ({
+          time: p.mjd,
+          mag: p.mag,
+          magerr: p.magerr ?? 0,
+          band: (p.filter || "").replace(/^ztf/i, "") || p.filter,
+          rh: p.altdata.rh,
+          delta: p.altdata.delta,
+          phase: p.altdata.phase,
+        })),
+    [mainPhotometry],
+  );
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -1553,12 +1594,10 @@ const PhotometryPlot = ({
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
-          if (
-            !(
-              newTrace.name &&
-              ["detections", "upperLimits"].includes(newTrace.dataType)
-            )
-          ) {
+          if (!(
+            newTrace.name &&
+            ["detections", "upperLimits"].includes(newTrace.dataType)
+          )) {
             return newTrace;
           }
           if (
@@ -1774,6 +1813,15 @@ const PhotometryPlot = ({
     setTabIndex(newValue);
   };
 
+  // Spectra on this source that the viewer cannot open: marked like the others,
+  // in a colour that says so, and clickable to ask the owner for them.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(obj_id, {
+    skip: !obj_id,
+  });
+  const unsharedSpectra = dataAvailability?.spectra ?? [];
+  const [spectrumToRequest, setSpectrumToRequest] =
+    useState<SpectrumAvailability | null>(null);
+
   const yMarkers: any[] = [];
   if (photStats) {
     yMarkers.push(
@@ -1853,6 +1901,17 @@ const PhotometryPlot = ({
             };
           }),
         )
+        .concat(
+          unsharedSpectrumTraces(
+            unsharedSpectra,
+            yMarkers,
+            {
+              available: muiTheme.palette.warning.main,
+              requested: muiTheme.palette.text.disabled,
+            },
+            muiTheme.palette.background.paper,
+          ),
+        )
     : [];
 
   if (!(photometry && config && photStats)) {
@@ -1878,13 +1937,17 @@ const PhotometryPlot = ({
         <Tab label="Mag" />
         <Tab label="Flux" />
         <Tab label="Period" />
+        {is_roid && <Tab label="Outburst" />}
       </Tabs>
+
+      {isOutburstTab && <OutburstPlot points={outburstPoints} />}
 
       <div
         style={{
           width: "100%",
           height: plotStyle?.height || "70vh",
           overflowX: "scroll",
+          display: isOutburstTab ? "none" : undefined,
         }}
       >
         <Plot
@@ -1952,6 +2015,20 @@ const PhotometryPlot = ({
             ],
           }}
           useResizeHandler
+          onClick={(event: any) => {
+            const point = (event?.points || []).find(
+              (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
+            );
+            if (!point) return;
+            const spectrumId = Array.isArray(point.customdata)
+              ? point.customdata[0]
+              : point.customdata;
+            setSpectrumToRequest(
+              unsharedSpectra.find(
+                (spectrum) => spectrum.id === spectrumId,
+              ) as SpectrumAvailability,
+            );
+          }}
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e: any) => {
             // e contains a curveNumber (index of the trace clicked in the legend)
@@ -2004,6 +2081,11 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      <RequestSpectrumDialog
+        objId={obj_id}
+        spectrum={spectrumToRequest}
+        onClose={() => setSpectrumToRequest(null)}
+      />
       {effectiveModelFits.length > 0 && (
         <div
           style={{

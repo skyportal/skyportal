@@ -160,6 +160,8 @@ export const TAG_TYPES = [
   "AnalysisService",
   "DefaultGcnTag",
   "Ephemeris",
+  "GcnAssociationRules",
+  "GcnEventAssociations",
   "GcnEvent",
   "LocalizationProperties",
   "RecentSource",
@@ -223,6 +225,8 @@ export const TAG_TYPES = [
   "Localizations",
   "Spectra",
   "UserManagement",
+  "DataAvailability",
+  "DataAccessRequest",
 ] as const;
 
 export const skyportalApi = createApi({

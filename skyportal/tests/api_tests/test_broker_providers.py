@@ -1058,3 +1058,151 @@ def test_boom_filter_test_scopes_unrestricted_users(public_stream):
     assert captured["json"]["permissions"] == {"ZTF": [1, 2]}, (
         "unrestricted user must still be given an explicit programid scope"
     )
+
+
+def test_build_photometry_groups_drops_repeated_epochs():
+    """One epoch can arrive in more than one array; it must be written once.
+
+    Photometry is unique on (obj, instrument, origin, mjd, filter), and Postgres
+    refuses an INSERT that carries duplicates within a single statement rather
+    than resolving them -- so a repeat used to cost the object all of its
+    photometry, not just the extra row.
+    """
+    point = {
+        "jd": 2459000.5,
+        "band": "g",
+        "magpsf": 19.0,
+        "sigmapsf": 0.1,
+        "programid": 1,
+    }
+    data = {
+        # Lasair repeats detections between these two
+        "prv_candidates": [point, dict(point)],
+        "fp_hists": [dict(point), {**point, "jd": 2459001.5}],
+    }
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    g = groups[("ZTF", 1)]
+
+    assert g["mjd"] == [59000.0, 59001.0], "a repeated epoch was written twice"
+    assert len(g["filter"]) == len(g["mjd"]) == len(g["flux"])
+
+
+def test_build_photometry_groups_keeps_same_epoch_in_other_bands():
+    """Only (mjd, filter) together identify an epoch: g and r at one time stay."""
+    base = {"jd": 2459000.5, "magpsf": 19.0, "sigmapsf": 0.1, "programid": 1}
+    data = {"prv_candidates": [{**base, "band": "g"}, {**base, "band": "r"}]}
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    assert groups[("ZTF", 1)]["filter"] == ["ztfg", "ztfr"]
+
+
+def test_lasair_request_retries_on_rate_limit(monkeypatch):
+    """Lasair rate-limits per account; a 429 must be waited out, not dropped."""
+    import types
+
+    from skyportal.broker_apis import lasair
+
+    calls = {"n": 0, "slept": []}
+
+    class Response:
+        def __init__(self, status_code, headers=None):
+            self.status_code = status_code
+            self.headers = headers or {}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
+
+        def json(self):
+            return [{"objectId": "ZTF1"}]
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        calls["n"] += 1
+        # rate-limited once, with Lasair telling us how long to wait
+        if calls["n"] == 1:
+            return Response(429, {"Retry-After": "2"})
+        return Response(200)
+
+    monkeypatch.setattr(lasair.requests, "post", fake_post)
+    monkeypatch.setattr(lasair.time, "sleep", lambda s: calls["slept"].append(s))
+
+    broker = types.SimpleNamespace(
+        altdata={"endpoint": "https://lasair.test/api", "token": "secret"}
+    )
+    assert lasair._request(broker, "object", {"objectId": "ZTF1"}) == [
+        {"objectId": "ZTF1"}
+    ]
+    assert calls["n"] == 2, "the request was not retried"
+    assert calls["slept"] == [2.0], "Retry-After was ignored"
+
+
+def test_lasair_request_gives_up_after_repeated_rate_limits(monkeypatch):
+    """Retrying forever would stall the whole ingestion cycle."""
+    import types
+
+    from skyportal.broker_apis import lasair
+
+    class Response:
+        status_code = 429
+        headers: dict = {}
+
+        def raise_for_status(self):
+            raise RuntimeError("HTTP 429")
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr(lasair.requests, "post", lambda *a, **k: Response())
+    monkeypatch.setattr(lasair.time, "sleep", lambda s: None)
+
+    broker = types.SimpleNamespace(
+        altdata={"endpoint": "https://lasair.test/api", "token": "secret"}
+    )
+    with pytest.raises(RuntimeError):
+        lasair._request(broker, "object", {"objectId": "ZTF1"})
+
+
+def _fits_bytes(value=7.0):
+    """A minimal FITS image, uncompressed."""
+    import io
+
+    import numpy as np
+    from astropy.io import fits
+
+    buff = io.BytesIO()
+    fits.PrimaryHDU(np.full((4, 4), value, dtype=np.float32)).writeto(buff)
+    return buff.getvalue()
+
+
+def test_decode_cutout_accepts_gzipped_and_plain_fits():
+    """Compression is a property of the payload, not of the survey.
+
+    ZTF alerts carry gzipped FITS, LSST does not, and Lasair serves ZTF cutouts
+    uncompressed -- which used to fail with "Not a gzipped file (b'SI')",
+    leaving Lasair-only objects with no thumbnails at all.
+    """
+    import base64
+    import gzip
+
+    from skyportal.broker_apis._thumbnails import decode_cutout
+
+    plain = _fits_bytes()
+    gzipped = gzip.compress(plain)
+
+    for label, payload in (("gzipped", gzipped), ("plain", plain)):
+        data, header = decode_cutout(payload, "ZTF")
+        assert data.shape == (4, 4), label
+        assert data[0][0] == 7.0, label
+        assert header["NAXIS"] == 2, label
+
+    # base64 of either, which is how providers usually send them
+    for label, payload in (("gzipped", gzipped), ("plain", plain)):
+        data, _ = decode_cutout(base64.b64encode(payload).decode(), "LSST")
+        assert data[0][0] == 7.0, f"base64 {label}"
+
+
+def test_decode_cutout_rejects_a_url_placeholder():
+    """A provider sending a URL instead of image bytes should say so clearly."""
+    from skyportal.broker_apis._thumbnails import decode_cutout
+
+    with pytest.raises(ValueError, match="not valid base64"):
+        decode_cutout("https://example.test/cutout.fits", "ZTF")

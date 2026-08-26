@@ -1,3 +1,6 @@
+import arrow
+
+
 def get_list_typed(text, dtype, error_msg=None):
     """
     Convert a comma-separated string to a list of the specified type.
@@ -118,6 +121,16 @@ def is_null(value):
     if isinstance(value, str):
         value = value.strip().lower()
     return value in [None, "", "none", "nan", "null"]
+
+
+def parse_optional_date(value):
+    """Parse an arrow-parseable date, or None when the client sent a placeholder.
+
+    Raises whatever ``arrow.get`` raises on an unparseable value.
+    """
+    if value is None or value.strip().lower() in ("", "null", "undefined"):
+        return None
+    return arrow.get(value).datetime
 
 
 def safe_round(number, precision):

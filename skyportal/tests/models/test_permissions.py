@@ -143,6 +143,7 @@ FIXTURE_MODEL = {
     "public_gcn_tag": "GcnTag",
     "public_gcnevent": "GcnEvent",
     "public_gcnevent_user": "GcnEventUser",
+    "public_data_access_request": "DataAccessRequest",
     "public_group_admission_request": "GroupAdmissionRequest",
     "public_group_analysis_service": "GroupAnalysisService",
     "public_default_survey_efficiency_request": "DefaultSurveyEfficiencyRequest",
@@ -179,6 +180,8 @@ FIXTURE_MODEL = {
     "public_source_label": "SourceLabel",
     "public_source_view": "SourceView",
     "public_gcn_event_obj": "GcnEventObj",
+    "public_gcn_event_association": "GcnEventAssociation",
+    "public_gcn_association_rule": "GcnAssociationRule",
     "public_spatial_catalog": "SpatialCatalog",
     "public_stream_invitation": "StreamInvitation",
     "public_stream_sharing_service": "StreamSharingService",
@@ -1501,6 +1504,24 @@ CASES = [
     ("super_admin_user", "public_gcnevent_user", "read", True),
     ("super_admin_user", "public_gcnevent_user", "update", True),
     ("super_admin_user", "public_gcnevent_user", "delete", True),
+    # --- DataAccessRequest  (public_data_access_request) ---
+    # `user` asked, `user_group2` owns the data, public_group holds it.
+    ("user", "public_data_access_request", "create", True),
+    ("user", "public_data_access_request", "read", True),
+    ("user", "public_data_access_request", "update", False),
+    ("user", "public_data_access_request", "delete", True),
+    ("user_group2", "public_data_access_request", "create", False),
+    ("user_group2", "public_data_access_request", "read", True),
+    ("user_group2", "public_data_access_request", "update", True),
+    ("user_group2", "public_data_access_request", "delete", False),
+    ("group_admin_user", "public_data_access_request", "create", False),
+    ("group_admin_user", "public_data_access_request", "read", True),
+    ("group_admin_user", "public_data_access_request", "update", True),
+    ("group_admin_user", "public_data_access_request", "delete", False),
+    ("super_admin_user", "public_data_access_request", "create", True),
+    ("super_admin_user", "public_data_access_request", "read", True),
+    ("super_admin_user", "public_data_access_request", "update", True),
+    ("super_admin_user", "public_data_access_request", "delete", True),
     # --- GroupAdmissionRequest  (public_group_admission_request)  [probed] ---
     ("user", "public_group_admission_request", "create", True),
     ("user", "public_group_admission_request", "read", True),
@@ -2126,6 +2147,34 @@ CASES = [
     ("super_admin_user", "public_source_view", "read", True),
     ("super_admin_user", "public_source_view", "update", True),
     ("super_admin_user", "public_source_view", "delete", True),
+    # --- GcnEventAssociation  (public_gcn_event_association) ---
+    # Follows read access to the earlier event, like GcnEventObj: anyone who can
+    # see the events is in a position to judge whether they are one event.
+    ("user", "public_gcn_event_association", "create", True),
+    ("user", "public_gcn_event_association", "read", True),
+    ("user", "public_gcn_event_association", "update", True),
+    ("user", "public_gcn_event_association", "delete", True),
+    ("user_group2", "public_gcn_event_association", "read", True),
+    ("group_admin_user", "public_gcn_event_association", "read", True),
+    ("super_admin_user", "public_gcn_event_association", "create", True),
+    ("super_admin_user", "public_gcn_event_association", "read", True),
+    ("super_admin_user", "public_gcn_event_association", "update", True),
+    ("super_admin_user", "public_gcn_event_association", "delete", True),
+    # --- GcnAssociationRule  (public_gcn_association_rule) ---
+    # A science cut belongs to a group, like the events themselves: members see
+    # and maintain it, outsiders cannot, and system admins bypass as always.
+    ("user", "public_gcn_association_rule", "create", True),
+    ("user", "public_gcn_association_rule", "read", True),
+    ("user", "public_gcn_association_rule", "update", True),
+    ("user", "public_gcn_association_rule", "delete", True),
+    ("user_group2", "public_gcn_association_rule", "read", False),
+    ("user_group2", "public_gcn_association_rule", "update", False),
+    ("user_group2", "public_gcn_association_rule", "delete", False),
+    ("group_admin_user", "public_gcn_association_rule", "read", True),
+    ("group_admin_user", "public_gcn_association_rule", "update", True),
+    ("super_admin_user", "public_gcn_association_rule", "read", True),
+    ("super_admin_user", "public_gcn_association_rule", "update", True),
+    ("super_admin_user", "public_gcn_association_rule", "delete", True),
     # --- GcnEventObj  (public_gcn_event_obj) ---
     # Vetting follows read access to the event and obj, not an ACL: anyone who
     # can see both is allowed to judge the association.
