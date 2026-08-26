@@ -64,6 +64,9 @@ RUN bash -c "\
     mkdir -p /skyportal/static/thumbnails && \
     chown -R skyportal.skyportal /skyportal/static/thumbnails && \
     \
+    mkdir -p /skyportal/cache && \
+    chown -R skyportal.skyportal /skyportal/cache && \
+    \
     mkdir -p /skyportal/persistentdata/analysis && \
     chown -R skyportal.skyportal /skyportal/persistentdata/analysis && \
     \

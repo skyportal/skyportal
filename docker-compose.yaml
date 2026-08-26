@@ -10,6 +10,7 @@ services:
       # cf. https://stackoverflow.com/a/35222815
       - thumbnails:/skyportal/static/thumbnails:z
       - persistentdata:/skyportal/persistentdata:z
+      - cache:/skyportal/cache:z
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -67,3 +68,4 @@ volumes:
   valkeydata:
   thumbnails:
   persistentdata:
+  cache:
