@@ -5,13 +5,13 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
+import SearchableSelect from "../SearchableSelect";
 
 import { AlertFilter, OPERATORS } from "./alertFields";
 
@@ -47,17 +47,14 @@ const BrokerAlertFilters = ({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
           {filters.map((filter, index) => (
             <Box key={index} sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              <Autocomplete
-                size="small"
+              <SearchableSelect
+                label="Field"
                 sx={{ minWidth: 260 }}
                 options={fields}
                 value={filter.field || null}
                 onChange={(_event, value) =>
                   update(index, { field: value ?? "" })
                 }
-                renderInput={(params) => (
-                  <TextField {...params} label="Field" />
-                )}
               />
               <TextField
                 select

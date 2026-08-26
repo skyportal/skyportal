@@ -6,10 +6,9 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
-import Autocomplete from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import TextField from "@mui/material/TextField";
+import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -140,22 +139,16 @@ const AddEntitiesDialog = ({
             rules={{ validate: (value: any) => value.length >= 1 }}
             defaultValue={[]}
             render={({ field: { onChange, value } }) => (
-              <Autocomplete
+              <SearchableSelect
                 multiple
+                label={`Select ${kind}`}
                 value={value}
                 onChange={(_e, data) => onChange(data)}
                 options={options}
                 getOptionLabel={(entity: any) => entity.name}
                 filterSelectedOptions
+                error={error}
                 data-testid={`addInvitation${kind}Select`}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    error={error}
-                    variant="outlined"
-                    label={`Select ${kind}`}
-                  />
-                )}
               />
             )}
           />

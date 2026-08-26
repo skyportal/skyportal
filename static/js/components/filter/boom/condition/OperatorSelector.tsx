@@ -9,8 +9,7 @@ import {
   getFieldType,
 } from "../../../../utils/conditionHelpers";
 import { useConditionContext } from "../../../../hooks/useContexts";
-import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
+import SearchableSelect from "../../../SearchableSelect";
 import { styled, lighten, darken } from "@mui/system";
 import { useFilterSchema } from "../../../../ducks/boom_filter_modules";
 
@@ -56,8 +55,8 @@ const AutocompleteOperators = ({
   }));
 
   return (
-    <Autocomplete
-      size="small"
+    <SearchableSelect
+      label="Operator"
       options={options}
       groupBy={(option: any) => option.group}
       getOptionLabel={(option: any) => option.label}
@@ -69,10 +68,9 @@ const AutocompleteOperators = ({
         },
       }}
       value={options.find((opt: any) => opt.value === value) || null}
-      onChange={(_: any, newValue: any) =>
+      onChange={(_, newValue: any) =>
         onChange && onChange(newValue ? newValue.value : "")
       }
-      renderInput={(params: any) => <TextField {...params} label="Operator" />}
       renderOption={(props: any, option: any) => {
         const { key, ...otherProps } = props;
         return (

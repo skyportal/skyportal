@@ -13,7 +13,8 @@ import Close from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { grey } from "@mui/material/colors";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 
 import Button from "../Button";
 
@@ -226,8 +227,9 @@ const PhotometryValidation = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
+                        <SearchableSelect
                           id="explanation"
+                          label="Explanation"
                           freeSolo
                           disableClearable
                           filterOptions={(options, params) => {
@@ -239,8 +241,7 @@ const PhotometryValidation = ({
 
                             return filtered;
                           }}
-                          // eslint-disable-next-line no-shadow
-                          onChange={(_e, value) => onChange(value)}
+                          onChange={(_e, newValue) => onChange(newValue)}
                           options={defaultExplanations}
                           value={value}
                           renderOption={(props, option) => (
@@ -251,15 +252,9 @@ const PhotometryValidation = ({
                               {option}
                             </Typography>
                           )}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Explanation"
-                              variant="outlined"
-                              fullWidth
-                              onChange={(e) => onChange(e.target.value)}
-                            />
-                          )}
+                          textFieldProps={{
+                            onChange: (e: any) => onChange(e.target.value),
+                          }}
                         />
                       )}
                       name="explanation"
