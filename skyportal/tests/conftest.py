@@ -30,6 +30,7 @@ from skyportal.models import (
     CommentOnGCN,
     CommentOnShift,
     CommentOnSpectrum,
+    DataAccessRequest,
     DBSession,
     DefaultAnalysis,
     DefaultFollowupRequest,
@@ -3917,6 +3918,42 @@ def public_group_admission_request(public_group, user):
             sa.select(GroupAdmissionRequest).filter(
                 GroupAdmissionRequest.id == request_id
             )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_data_access_request(
+    public_group, user, user_group2, ztf_camera, public_source
+):
+    """`user` asking `user_group2` for photometry they hold on a source.
+
+    `owner_group_ids` names public_group, so its admins are the third party who
+    can answer it.
+    """
+    request = DataAccessRequest(
+        requester_id=user.id,
+        owner_id=user_group2.id,
+        obj_id=public_source.id,
+        data_type="photometry",
+        instrument_id=ztf_camera.id,
+        filter="ztfg",
+        owner_group_ids=[public_group.id],
+        status="pending",
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(DataAccessRequest).filter(DataAccessRequest.id == request_id)
         )
         .scalars()
         .first()
