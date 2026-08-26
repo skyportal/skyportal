@@ -37,7 +37,7 @@ PATCH_PROTECTED_FIELDS = frozenset(
     {"id", "oauth_uid", "created_at", "modified", "expirationDate", "expiration_date"}
 )
 
-# Mirrored by SHARED_FIELDS in static/js/components/user/preferences/PublicProfilePreferences.tsx
+# Mirrored by PUBLIC_FIELDS in static/js/components/user/UserProfileInfo.tsx
 PUBLIC_PROFILE_FIELDS = {
     "affiliations": True,
     "bio": True,

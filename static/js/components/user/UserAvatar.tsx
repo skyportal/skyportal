@@ -51,6 +51,20 @@ const getInitials = (firstName: string | null, lastName: string | null) => {
   return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 };
 
+export const getUserRealName = (
+  firstName?: string | null,
+  lastName?: string | null,
+) => {
+  // Korean names are generally written in last->first name order with no space in between
+  if (
+    isAllKoreanCharacters(firstName || "") &&
+    isAllKoreanCharacters(lastName || "")
+  ) {
+    return `${lastName}${firstName}`;
+  }
+  return [firstName, lastName].filter(Boolean).join(" ");
+};
+
 interface UserAvatarProps {
   size: number;
   firstName?: string | null;

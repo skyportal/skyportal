@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Link as RouterLink } from "react-router-dom";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 
 import {
   useGetProfileQuery,
@@ -34,13 +32,11 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
-import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
+import UserAvatar, { getUserRealName } from "./UserAvatar";
 import ThemeToggle from "./preferences/ThemeToggle";
 import Button from "../Button";
-import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
-
-dayjs.extend(utc);
+import { chips, field, memberSince } from "./ProfileFields";
 
 const filter = createFilterOptions<any>();
 
@@ -57,16 +53,14 @@ const PUBLIC_FIELDS: Record<string, boolean> = {
   groups: false,
 };
 
-export const getUserRealName = (firstName: any, lastName: any) => {
-  // Korean names are generally written in last->first name order with no space in between
-  if (
-    isAllKoreanCharacters(firstName || "") &&
-    isAllKoreanCharacters(lastName || "")
-  ) {
-    return `${lastName}${firstName}`;
-  }
-  return [firstName, lastName].filter(Boolean).join(" ");
-};
+const helpIcon = (title: string) => (
+  <Tooltip title={title}>
+    <HelpOutlineOutlinedIcon
+      fontSize="small"
+      sx={{ verticalAlign: "text-bottom", mx: 0.3 }}
+    />
+  </Tooltip>
+);
 
 const UserProfileInfo = () => {
   const profile = useGetProfileQuery().data as any;
@@ -76,17 +70,16 @@ const UserProfileInfo = () => {
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [testNotifications] = useTestNotificationsMutation();
   const [editing, setEditing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(
-    new URL(window.location as any).searchParams.get("newUser") === "true",
+    new URLSearchParams(window.location.search).get("newUser") === "true",
   );
   const {
     handleSubmit,
     register,
     reset,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm();
 
   useEffect(() => {
@@ -110,7 +103,6 @@ const UserProfileInfo = () => {
     .sort();
 
   const onSubmit = async (values: any) => {
-    setIsSubmitting(true);
     try {
       await updateBasicUserInfo({
         formData: {
@@ -129,7 +121,6 @@ const UserProfileInfo = () => {
     } catch {
       // error notification handled by the API layer
     }
-    setIsSubmitting(false);
   };
 
   const handleTest = async (notification_type: string) => {
@@ -137,23 +128,6 @@ const UserProfileInfo = () => {
     await testNotifications({ notification_type });
     setTesting(null);
   };
-
-  const field = (label: any, value: any) => (
-    <Typography variant="body2">
-      <b>{label}:</b> {value}
-    </Typography>
-  );
-
-  const chips = (values: string[]) => (
-    <Box
-      component="span"
-      sx={{ display: "inline-flex", flexWrap: "wrap", gap: 0.5 }}
-    >
-      {values.map((value) => (
-        <Chip key={value} label={value} size="small" />
-      ))}
-    </Box>
-  );
 
   const alwaysShowPublicIcons =
     profile.preferences?.alwaysShowPublicIcons ?? true;
@@ -212,15 +186,6 @@ const UserProfileInfo = () => {
         {publicEye(key)}
       </Box>
     );
-
-  const helpIcon = (title: string) => (
-    <Tooltip title={title}>
-      <HelpOutlineOutlinedIcon
-        fontSize="small"
-        sx={{ verticalAlign: "text-bottom", mx: 0.3 }}
-      />
-    </Tooltip>
-  );
 
   const input = (
     name: string,
@@ -283,7 +248,7 @@ const UserProfileInfo = () => {
               lastName={profile.last_name}
               username={profile.username}
               gravatarUrl={profile.gravatar_url}
-              isBot={profile?.is_bot || false}
+              isBot={profile.is_bot}
               noTooltip
             />
             {editing ? (
@@ -351,7 +316,7 @@ const UserProfileInfo = () => {
                 />
               </Box>
             ) : (
-              <div>
+              <Box>
                 <Typography variant="h5" id="userRealname">
                   {getUserRealName(profile.first_name, profile.last_name)}
                 </Typography>
@@ -365,7 +330,7 @@ const UserProfileInfo = () => {
                       <em>{profile.affiliations.join(", ")}</em>
                     </Typography>,
                   )}
-              </div>
+              </Box>
             )}
             <Box
               sx={{
@@ -433,10 +398,7 @@ const UserProfileInfo = () => {
               publicRow("roles", field("Roles", chips(profile.roles)))}
             {!!groupNames.length &&
               publicRow("groups", field("Groups", chips(groupNames)))}
-            {field(
-              "Member since",
-              dayjs.utc(`${profile.created_at}Z`).format("MMMM D, YYYY"),
-            )}
+            {field("Member since", memberSince(profile.created_at))}
             {!!profile.acls?.length &&
               field(
                 <>
