@@ -106,4 +106,40 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "public-profiles",
+    path: /^\/$/,
+    announcedAt: "2026-08-26",
+    steps: [
+      {
+        target: '[data-testid="avatar"]',
+        title: "New public profiles",
+        content:
+          "Every user now has a profile that others can open from their " +
+          "avatar or username anywhere in the app. Set yours up from here.",
+      },
+    ],
+  },
+  {
+    id: "public-profile-settings",
+    path: /^\/profile\/?$/,
+    announcedAt: "2026-08-26",
+    steps: [
+      {
+        // The eyes are per-field, so match whichever one comes first.
+        target: '[data-testid^="public-toggle-"]',
+        title: "Choose what you share",
+        content:
+          "The eye next to a field tells you whether it is on your public " +
+          "profile. Click it to show or hide that field.",
+      },
+      {
+        target: '[data-testid="profile-public-view"]',
+        title: "See your public profile",
+        content:
+          "This opens the page others see when they click your name, with " +
+          "only the fields you chose to share.",
+      },
+    ],
+  },
 ];

@@ -4,6 +4,7 @@ import React from "react";
 
 import {
   createTheme,
+  lighten,
   StyledEngineProvider,
   ThemeProvider,
 } from "@mui/material/styles";
@@ -138,6 +139,17 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
       labelFontSize: 15,
     },
     components: {
+      MuiLink: {
+        defaultProps: {
+          color: dark ? lighten(primaryColor, 0.5) : undefined,
+          underline: "none",
+        },
+        styleOverrides: {
+          root: {
+            fontWeight: "bold",
+          },
+        },
+      },
       MuiButton: {
         defaultProps: {
           disableElevation: true,

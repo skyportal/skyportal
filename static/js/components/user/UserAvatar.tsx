@@ -1,5 +1,8 @@
+import { ReactElement } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
+import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Badge from "@mui/material/Badge";
@@ -48,6 +51,20 @@ const getInitials = (firstName: string | null, lastName: string | null) => {
   return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
 };
 
+export const getUserRealName = (
+  firstName?: string | null,
+  lastName?: string | null,
+) => {
+  // Korean names are generally written in last->first name order with no space in between
+  if (
+    isAllKoreanCharacters(firstName || "") &&
+    isAllKoreanCharacters(lastName || "")
+  ) {
+    return `${lastName}${firstName}`;
+  }
+  return [firstName, lastName].filter(Boolean).join(" ");
+};
+
 interface UserAvatarProps {
   size: number;
   firstName?: string | null;
@@ -55,6 +72,8 @@ interface UserAvatarProps {
   username: string;
   gravatarUrl: string;
   isBot?: boolean;
+  userId?: number | string | null | undefined;
+  noTooltip?: boolean;
 }
 
 const UserAvatar = ({
@@ -64,6 +83,8 @@ const UserAvatar = ({
   username,
   gravatarUrl,
   isBot = false,
+  userId = null,
+  noTooltip = false,
 }: UserAvatarProps) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
@@ -95,39 +116,51 @@ const UserAvatar = ({
     tooltipText = `[Bot] ${tooltipText}`;
   }
 
-  if (isBot) {
-    return (
-      <Tooltip title={tooltipText} arrow placement="top-start">
-        <Badge
-          overlap="circular"
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-          badgeContent={
-            <SmartToyIcon fontSize="small" className={classes.badge} />
-          }
-        >
-          <Avatar
-            alt={backUpLetters}
-            src={`${gravatarUrl}&s=${size}`}
-            classes={{
-              root: classes.avatar,
-              img: classes.avatarImg,
-            }}
-          />
-        </Badge>
-      </Tooltip>
+  const linked = (avatar: ReactElement) =>
+    userId ? (
+      <Link
+        component={RouterLink}
+        to={`/user/${userId}`}
+        sx={{ display: "flex" }}
+      >
+        {avatar}
+      </Link>
+    ) : (
+      avatar
     );
-  }
+
+  const avatar = (
+    <Avatar
+      alt={backUpLetters}
+      src={`${gravatarUrl}&s=${size}`}
+      classes={{
+        root: classes.avatar,
+        img: classes.avatarImg,
+      }}
+    />
+  );
+
+  const content = linked(
+    isBot ? (
+      <Badge
+        overlap="circular"
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        badgeContent={
+          <SmartToyIcon fontSize="small" className={classes.badge} />
+        }
+      >
+        {avatar}
+      </Badge>
+    ) : (
+      avatar
+    ),
+  );
+
+  if (noTooltip) return content;
 
   return (
     <Tooltip title={tooltipText} arrow placement="top-start">
-      <Avatar
-        alt={backUpLetters}
-        src={`${gravatarUrl}&s=${size}`}
-        classes={{
-          root: classes.avatar,
-          img: classes.avatarImg,
-        }}
-      />
+      {content}
     </Tooltip>
   );
 };

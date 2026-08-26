@@ -146,6 +146,7 @@ export const TAG_TYPES = [
   "SourceCounts",
   "TopSaver",
   "PublicSourcePage",
+  "PublicProfile",
   "DefaultFollowupRequest",
   "DefaultAnalysis",
   "Galaxy",

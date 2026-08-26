@@ -83,7 +83,7 @@ def parse_gitlog(gitlog):
     commit_url_base = gitlog["commit_url_base"]
     name = gitlog.get("name", None)
 
-    timechars = "[0-9\\-:\\+]"
+    timechars = "[0-9\\-:\\+Z]"
     timestamp_re = f"(?P<time>{timechars}+T{timechars}+)"
     sha_re = "(?P<sha>[0-9a-f]{7,12})"
     email_re = "(?P<email>\\S*@\\S*?)"

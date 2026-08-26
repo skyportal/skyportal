@@ -2,6 +2,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMobile } from "react-device-detect";
+import { Link as RouterLink } from "react-router-dom";
 
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
@@ -221,6 +222,7 @@ const Comment = ({
       <div className={styles["commentUserAvatar"]}>
         <UserAvatar
           size={24}
+          userId={author["id"]}
           firstName={author["first_name"]}
           lastName={author["last_name"]}
           username={author["username"]}
@@ -238,6 +240,15 @@ const Comment = ({
                     <SmartToyIcon fontSize="inherit" />
                     Bot message ({author["username"]})
                   </>
+                ) : author["id"] ? (
+                  <Link
+                    component={RouterLink}
+                    to={`/user/${author["id"]}`}
+                    underline="hover"
+                    sx={{ color: "inherit" }}
+                  >
+                    {author["username"]}
+                  </Link>
                 ) : (
                   author["username"]
                 )}
