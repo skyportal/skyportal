@@ -33,11 +33,11 @@ from skyportal.models import (
     cosmo,
 )
 
-from ...utils.cache import Cache, array_to_bytes
+from ...utils.cache import Cache, array_to_bytes, cache_folder
 from ...utils.calculations import radec2lb
 
 _, cfg = load_env()
-cache_dir = "cache/sources_queries"
+cache_dir = f"{cache_folder}/sources_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_source_query_cache"] * 60,

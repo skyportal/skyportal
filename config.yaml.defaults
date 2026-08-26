@@ -1244,6 +1244,8 @@ analysis_services:
 
 
 
+# Root for on-disk caches; everything under it is regenerable and safe to delete.
+cache_folder: cache
 comments_folder: persistentdata/comments
 localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series

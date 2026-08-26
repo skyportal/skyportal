@@ -9,7 +9,7 @@ from baselayer.app.models import DBSession
 
 from ...models.public_pages.public_release import PublicRelease
 from ...models.public_pages.public_source_page import PublicSourcePage
-from ...utils.cache import Cache
+from ...utils.cache import Cache, cache_folder
 from ..base import BaseHandler
 
 SourceId = Annotated[
@@ -21,7 +21,7 @@ VersionHash = Annotated[
 
 env, cfg = load_env()
 
-cache_dir = "cache/public_pages/sources"
+cache_dir = f"{cache_folder}/public_pages/sources"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_public_source_pages_cache"] * 60,
