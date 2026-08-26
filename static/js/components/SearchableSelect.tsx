@@ -6,15 +6,27 @@ import Autocomplete, {
 import CircularProgress from "@mui/material/CircularProgress";
 import TextField, { TextFieldProps } from "@mui/material/TextField";
 
-// Stripped on both sides: MUI only trims the input, never its inner spaces.
+// Token-wise match, so "j smith" finds "J. Smith", with a spaceless fallback
+// so "ztfbts" still finds "ZTF BTS".
 const makeDefaultFilter = (labelFor: (option: any) => string) => {
-  const stripSpaces = (text: string) => text.replace(/\s+/g, "");
-  const filter = createFilterOptions<any>({
-    matchFrom: "any",
-    stringify: (option: any) => stripSpaces(labelFor(option)),
+  const byToken = createFilterOptions<any>({ stringify: labelFor });
+  const spaceless = createFilterOptions<any>({
+    stringify: (option: any) => labelFor(option).replace(/\s+/g, ""),
   });
-  return (options: any[], state: any) =>
-    filter(options, { ...state, inputValue: stripSpaces(state.inputValue) });
+  return (options: any[], state: any) => {
+    const tokens = state.inputValue.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      return options;
+    }
+    const matched = tokens.reduce(
+      (remaining: any[], token: string) =>
+        byToken(remaining, { ...state, inputValue: token }),
+      options,
+    );
+    return matched.length > 0
+      ? matched
+      : spaceless(options, { ...state, inputValue: tokens.join("") });
+  };
 };
 
 export type SearchableSelectProps = Omit<
