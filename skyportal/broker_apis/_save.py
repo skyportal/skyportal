@@ -189,6 +189,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                     "magsys": [],
                     "ra": [],
                     "dec": [],
+                    # SSO geometry per point (rh/delta/phase) for the outburst
+                    # statistic; populated from phot["sso"] when BOOM stamped it,
+                    # else left null. Pruned below if nothing was stamped.
+                    "altdata": {"rh": [], "delta": [], "phase": []},
                     **{col: [] for col in columns},
                 }
             pd = photometry_data[key]
@@ -200,8 +204,22 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))
+            # Per-point so re-sends (update-mode upsert) stay idempotent: each
+            # point always carries its own geometry, never a null that would wipe
+            # a neighbour's. Contract names: helio_dist->rh, topo_dist->delta.
+            psso = phot.get("sso") or {}
+            pd["altdata"]["rh"].append(psso.get("helio_dist"))
+            pd["altdata"]["delta"].append(psso.get("topo_dist"))
+            pd["altdata"]["phase"].append(psso.get("phase_angle"))
             for col, value in columns.items():
                 pd.setdefault(col, []).append(value)
+
+    # Drop the geometry block for groups where nothing was stamped (all non-SSO
+    # points), so the update-mode upsert never writes null altdata over other rows.
+    for pd in photometry_data.values():
+        ad = pd.get("altdata")
+        if ad and not any(v is not None for arr in ad.values() for v in arr):
+            del pd["altdata"]
 
     return photometry_data
 

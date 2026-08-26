@@ -366,6 +366,11 @@ async def ingest_sso_alert(
     # The triggering detection's ephemeris mag lives on the alert candidate.
     if detection and detection.get("ssmagnr") is None:
         detection["ssmagnr"] = cand.get("ssmagnr")
+    # Its SSO geometry (rh/delta/phase) lives on the alert's properties.sso;
+    # history points carry their own (from _fetch_sso_history).
+    sso_geom = (data.get("properties") or {}).get("sso")
+    if detection is not None and detection.get("sso") is None and sso_geom:
+        detection["sso"] = sso_geom
     points = [detection] if detection else []
     if is_new and fetch_history is not None:
         history = await fetch_history(survey, designation)
