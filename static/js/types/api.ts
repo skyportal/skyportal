@@ -4675,7 +4675,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Only return filters belonging to this Group. */
+                    group_id?: number | null;
+                    /** @description Only return filters reading from this Stream. */
+                    stream_id?: number | null;
+                };
                 header?: never;
                 path: {
                     filter_id: number;
@@ -4779,11 +4784,18 @@ export interface paths {
         };
         /**
          * Get all filters
-         * @description Retrieve all filters
+         * @description Retrieve all filters, optionally restricted to one group or stream.
+         *     Each filter is returned without its altdata, which holds the whole
+         *     broker definition; GET on a single filter returns that.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Only return filters belonging to this Group. */
+                    group_id?: number | null;
+                    /** @description Only return filters reading from this Stream. */
+                    stream_id?: number | null;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4795,7 +4807,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfFilters"];
+                        "application/json": components["schemas"]["ArrayOfFilterListItems"];
                     };
                 };
                 400: {
@@ -26341,6 +26353,36 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["Filter"][];
+        };
+        FilterListItem: {
+            /** @description Filter ID. */
+            id?: number;
+            /** @description Filter name. */
+            name?: string;
+            /** @description ID of the Filter's Group. */
+            group_id?: number;
+            /** @description ID of the Filter's Stream. */
+            stream_id?: number;
+            /** @description ID of the Broker this Filter runs on, if any. */
+            broker_id?: number | null;
+            /** @description Whether objects passing this filter are auto-saved as Sources to the Filter's Group. */
+            autosave?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            modified?: string;
+        };
+        SingleFilterListItem: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FilterListItem"];
+        };
+        ArrayOfFilterListItems: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FilterListItem"][];
         };
         FilterNoID: {
             /** @description The Filter's Stream. */
