@@ -75,7 +75,6 @@ from skyportal.utils.observation_plan import (
 
 from ...models import (
     Allocation,
-    DBSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
@@ -90,6 +89,7 @@ from ...models import (
     SurveyEfficiencyForObservations,
     Telescope,
     User,
+    get_db_engine,
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
@@ -2972,7 +2972,7 @@ def observation_simsurvey(
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         localization = session.scalars(

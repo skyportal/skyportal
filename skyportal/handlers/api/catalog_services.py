@@ -24,7 +24,6 @@ from ...models import (
     Allocation,
     CatalogQuery,
     Comment,
-    DBSession,
     Group,
     Instrument,
     Localization,
@@ -33,6 +32,7 @@ from ...models import (
     Telescope,
     User,
     UserNotification,
+    get_db_engine,
 )
 from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_fink
@@ -138,7 +138,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     obj_ids = []
 
@@ -397,7 +397,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     obj_ids = []
 
@@ -638,7 +638,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     obj_ids = []
 
@@ -863,7 +863,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     obj_ids = []
 

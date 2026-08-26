@@ -99,14 +99,14 @@ def commit_photometry(
         Session to use for database transactions. If None, a new session will be created.
     """
 
-    from ..models import DBSession, FollowupRequest, Instrument
+    from ..models import FollowupRequest, Instrument, get_db_engine
 
     if parent_session is None:
         Session = scoped_session(sessionmaker())
         if Session.registry.has():
             session = Session()
         else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            session = Session(bind=get_db_engine())
     else:
         session = parent_session
 

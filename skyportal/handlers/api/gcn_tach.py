@@ -14,7 +14,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import DBSession, GcnEvent, User
+from ...models import GcnEvent, User, get_db_engine
 from ..base import BaseHandler
 
 Session = scoped_session(sessionmaker())
@@ -220,7 +220,7 @@ def post_aliases(dateobs, tach_id, user_id):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         flow = Flow()

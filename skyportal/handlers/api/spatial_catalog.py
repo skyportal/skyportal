@@ -14,10 +14,10 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
-    DBSession,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
+    get_db_engine,
 )
 from ...utils.gcn import (
     from_cone,
@@ -39,7 +39,7 @@ def add_catalog(catalog_id, catalog_data):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         entries = []
@@ -126,7 +126,7 @@ def delete_catalog(catalog_id):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         catalog = session.scalar(

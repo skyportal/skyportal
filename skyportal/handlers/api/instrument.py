@@ -40,6 +40,7 @@ from ...models import (
     LocalizationTile,
     Photometry,
     Telescope,
+    get_db_engine,
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes
@@ -1115,7 +1116,7 @@ def add_tiles(
         if Session.registry.has():
             session = Session()
         else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+            session = Session(bind=get_db_engine())
 
     try:
         if references is not None:

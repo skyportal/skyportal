@@ -30,6 +30,7 @@ from ...models import (
     Localization,
     LocalizationTile,
     Obj,
+    get_db_engine,
 )
 from ...utils.asynchronous import run_async
 from ...utils.naive_datetime import utcnow_naive
@@ -816,7 +817,7 @@ def add_galaxies(catalog_metadata, catalog_data):
     if Session.registry.has():
         session = Session()
     else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+        session = Session(bind=get_db_engine())
 
     try:
         # check if the catalog already exists. If not, create it
