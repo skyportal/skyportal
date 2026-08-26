@@ -48,6 +48,49 @@ PUBLIC_PROFILE_FIELDS = {
 }
 
 
+def shared_profile_fields(user):
+    """The public profile fields this user chose to share, defaults applied."""
+    preferences = (user.preferences or {}).get("publicProfile") or {}
+    return {
+        field: bool(preferences.get(field, default))
+        for field, default in PUBLIC_PROFILE_FIELDS.items()
+    }
+
+
+def public_user_info(user):
+    """Everything a user shares with others: identity, plus their opt-in fields.
+
+    Single source of truth for what leaves the API about someone else, so the
+    visibility toggles in the profile settings can't be bypassed by reading a
+    different user endpoint.
+    """
+    shared = shared_profile_fields(user)
+    info = {
+        "id": user.id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "gravatar_url": user.gravatar_url,
+        "is_bot": user.is_bot,
+        "created_at": user.created_at,
+    }
+    if shared["affiliations"]:
+        info["affiliations"] = user.affiliations or []
+    if shared["bio"]:
+        info["bio"] = user.bio
+    if shared["contact_email"]:
+        info["contact_email"] = user.contact_email
+    if shared["contact_phone"]:
+        info["contact_phone"] = user.contact_phone.e164 if user.contact_phone else None
+    if shared["roles"]:
+        info["roles"] = sorted(role.id for role in user.roles)
+    if shared["groups"]:
+        info["groups"] = sorted(
+            group.name for group in user.groups if not group.single_user_group
+        )
+    return info
+
+
 def set_default_role(user, session):
     """
     Set the default role for a user.
@@ -311,13 +354,23 @@ class UserGetQuery(BaseModel):
 
 
 class UserHandler(BaseHandler):
+    def can_manage_users(self):
+        return "Manage users" in self.current_user.permissions
+
+    def can_manage_user(self, user_id):
+        """Whether the requester may see a user's record beyond its public profile."""
+        return self.can_manage_users() or self.associated_user_object.id == user_id
+
     @auth_or_token
     async def get(self, user_id: int | None = None, *, query: UserGetQuery = None):
         """
         ---
         single:
           summary: Get a user
-          description: Retrieve a user
+          description: >
+            Retrieve a user. Without the Manage users ACL, only the user's own
+            record is returned in full; other users are reduced to the profile
+            they chose to share.
           tags:
             - users
           responses:
@@ -331,7 +384,9 @@ class UserHandler(BaseHandler):
                   schema: Error
         multiple:
           summary: Get all users
-          description: Retrieve all users
+          description: >
+            Retrieve all users. Without the Manage users ACL, contact details
+            not shared on a user's public profile are omitted.
           tags:
             - users
           responses:
@@ -373,6 +428,10 @@ class UserHandler(BaseHandler):
                 )
                 if user is None:
                     return self.error(f"Cannot find user with ID {user_id}.")
+
+                if not self.can_manage_user(user_id):
+                    return self.success(data=public_user_info(user))
+
                 user_info = user.to_dict()
 
                 # return the phone number so it can be serialized
@@ -407,6 +466,11 @@ class UserHandler(BaseHandler):
             if query.username is not None:
                 stmt = stmt.where(User.username.contains(query.username))
             if query.email is not None:
+                # else a redacted contact_email stays guessable one substring at a time
+                if not self.can_manage_users():
+                    return self.error(
+                        "Filtering users by email requires the Manage users ACL."
+                    )
                 stmt = stmt.where(User.contact_email.contains(query.email))
             if query.role is not None:
                 stmt = stmt.join(UserRole).join(Role).where(Role.id == query.role)
@@ -470,6 +534,12 @@ class UserHandler(BaseHandler):
                     return_values[-1]["contact_phone"] = user.contact_phone.e164
                 return_values[-1]["contact_email"] = user.contact_email
                 return_values[-1]["gravatar_url"] = user.gravatar_url
+                if not self.can_manage_user(user.id):
+                    shared = shared_profile_fields(user)
+                    return_values[-1].pop("oauth_uid", None)
+                    for f in ("affiliations", "bio", "contact_email", "contact_phone"):
+                        if not shared[f]:
+                            return_values[-1].pop(f, None)
                 # Only Sys admins can see other users' group memberships for all groups and stream access
                 # if not sys admin, restrict to only the groups the current user is a member of
                 if self.current_user.is_system_admin:
@@ -728,42 +798,9 @@ class UserPublicProfileHandler(BaseHandler):
         """
         async with self.AsyncSession() as session:
             user = await session.scalar(
-                User.select(session.user_or_token)
-                .options(selectinload(User.groups))
-                .where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == user_id)
             )
             if user is None:
                 return self.error(f"Cannot find user with ID {user_id}.")
 
-            preferences = (user.preferences or {}).get("publicProfile") or {}
-            shared = {
-                field: bool(preferences.get(field, default))
-                for field, default in PUBLIC_PROFILE_FIELDS.items()
-            }
-            profile = {
-                "id": user.id,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "gravatar_url": user.gravatar_url,
-                "is_bot": user.is_bot,
-                "created_at": user.created_at,
-            }
-            if shared["affiliations"]:
-                profile["affiliations"] = user.affiliations or []
-            if shared["bio"]:
-                profile["bio"] = user.bio
-            if shared["contact_email"]:
-                profile["contact_email"] = user.contact_email
-            if shared["contact_phone"]:
-                profile["contact_phone"] = (
-                    user.contact_phone.e164 if user.contact_phone else None
-                )
-            if shared["roles"]:
-                profile["roles"] = sorted(role.id for role in user.roles)
-            if shared["groups"]:
-                profile["groups"] = sorted(
-                    group.name for group in user.groups if not group.single_user_group
-                )
-
-            return self.success(data=profile)
+            return self.success(data=public_user_info(user))
