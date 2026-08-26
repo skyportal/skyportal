@@ -11,7 +11,7 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useTestNotificationsMutation } from "../../ducks/userNotifications";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Dialog from "@mui/material/Dialog";
@@ -35,6 +35,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import UserAvatar, { getUserRealName } from "./UserAvatar";
 import ThemeToggle from "./preferences/ThemeToggle";
 import Button from "../Button";
+import SearchableSelect from "../SearchableSelect";
 import Link from "@mui/material/Link";
 import { chips, field, memberSince } from "./ProfileFields";
 
@@ -200,10 +201,9 @@ const UserProfileInfo = () => {
   const input = (
     name: string,
     label: string,
-    id: string,
     rules?: any,
     props?: any,
-    test?: { type: string; id: string },
+    test?: string,
   ) => (
     <Box
       sx={{
@@ -217,7 +217,6 @@ const UserProfileInfo = () => {
       <TextField
         {...register(name, rules)}
         name={name}
-        id={id}
         label={label}
         size="small"
         fullWidth
@@ -227,12 +226,7 @@ const UserProfileInfo = () => {
         {...props}
       />
       {test && (
-        <Button
-          secondary
-          id={test.id}
-          onClick={onTest(test.type)}
-          disabled={testing === test.type}
-        >
+        <Button secondary onClick={onTest(test)} disabled={testing === test}>
           Test
         </Button>
       )}
@@ -278,26 +272,26 @@ const UserProfileInfo = () => {
                     gap: 1.5,
                   }}
                 >
-                  {input("firstName", "First name", "firstName_id", {
-                    required: true,
-                  })}
-                  {input("lastName", "Last name", "lastName_id")}
+                  {input(
+                    "firstName",
+                    "First name",
+                    { required: true },
+                    { id: "firstName_id" },
+                  )}
+                  {input("lastName", "Last name")}
                 </Box>
-                {input(
-                  "username",
-                  "Username (normalized upon save)",
-                  "usernameInput",
-                  { required: true },
-                )}
+                {input("username", "Username (normalized upon save)", {
+                  required: true,
+                })}
                 <Controller
                   name="affiliations"
                   control={control}
                   defaultValue={profile.affiliations ?? []}
                   render={({ field: { onChange, value } }) => (
-                    <Autocomplete
+                    <SearchableSelect
                       multiple
                       freeSolo
-                      size="small"
+                      label="Affiliations"
                       onChange={(_e, data) => onChange(data)}
                       value={value ?? []}
                       options={profile.affiliations ?? []}
@@ -312,14 +306,7 @@ const UserProfileInfo = () => {
                         }
                         return filtered;
                       }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          name="affiliations"
-                          id="affilations_id"
-                          label="Affiliations"
-                        />
-                      )}
+                      textFieldProps={{ name: "affiliations" }}
                     />
                   )}
                 />
@@ -353,16 +340,10 @@ const UserProfileInfo = () => {
           </Box>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 2 }}>
             {editing
-              ? input(
-                  "bio",
-                  "Bio (min 10, max 1000 chars)",
-                  "bio_id",
-                  undefined,
-                  {
-                    multiline: true,
-                    slotProps: { htmlInput: { maxLength: 1000 } },
-                  },
-                )
+              ? input("bio", "Bio (min 10, max 1000 chars)", undefined, {
+                  multiline: true,
+                  slotProps: { htmlInput: { maxLength: 1000 } },
+                })
               : profile.bio &&
                 publicRow(
                   "bio",
@@ -374,10 +355,9 @@ const UserProfileInfo = () => {
               ? input(
                   "email",
                   "Preferred contact email",
-                  "email_id",
                   { pattern: /^\S+@\S+$/i },
                   { type: "email" },
-                  { type: "email", id: "testEmailButton" },
+                  "email",
                 )
               : profile.contact_email &&
                 publicRow(
@@ -393,10 +373,9 @@ const UserProfileInfo = () => {
               ? input(
                   "phone",
                   "Contact phone (include country code)",
-                  "phone_id",
                   { maxLength: 16 },
                   { type: "tel" },
-                  { type: "SMS", id: "testSMSButton" },
+                  "SMS",
                 )
               : profile.contact_phone &&
                 publicRow(
@@ -437,7 +416,6 @@ const UserProfileInfo = () => {
                     slotProps={{ typography: { variant: "body2" } }}
                     control={
                       <Switch
-                        id="is_bot_id"
                         size="small"
                         checked={!!value}
                         onChange={(e) => onChange(e.target.checked)}
