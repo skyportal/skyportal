@@ -90,6 +90,11 @@ db_clear_test: ## Drop and recreate only the test database.
 db_clear_test:
 	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
 
+db_clear: ## Delete all data from the database, and the on-disk data tied to it.
+db_clear:
+	@$(PYTHON) tools/clear_data.py $(FLAGS)
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_clear
+
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
 db_migrate:
