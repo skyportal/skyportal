@@ -40,7 +40,7 @@ def _survey(broker, kwargs=None):
 
 def _normalize_object(obj, object_id):
     """Reshape a Lasair object into the standard alert shape the rest of the
-    stack consumes: ``{objectId, candidate, prv_candidates}``."""
+    stack consumes: ``{objectId, candidate, prv_candidates, annotations}``."""
     object_data = obj.get("objectData") or {}
     candidates = obj.get("candidates") or []
     detections = [c for c in candidates if c.get("magpsf") is not None]
@@ -56,6 +56,30 @@ def _normalize_object(obj, object_id):
         }
         for c in detections
     ]
+    # Extract annotations from external annotators (e.g. NEEDLE_LSST).
+    # Lasair places them in lasairData.annotations when lasair_added=True.
+    lasair_data = obj.get("lasairData") or {}
+    raw_annotations = lasair_data.get("annotations") or obj.get("annotations") or []
+    annotations = []
+    for ann in raw_annotations:
+        topic = ann.get("topic")
+        if not topic:
+            continue
+        entry = {"topic": topic}
+        for key in ("classification", "explanation", "url"):
+            if ann.get(key):
+                entry[key] = ann[key]
+        classdict = ann.get("classdict") or ann.get("classjson")
+        if classdict:
+            if isinstance(classdict, str):
+                try:
+                    import json as _json
+
+                    classdict = _json.loads(classdict)
+                except Exception:
+                    pass
+            entry["classdict"] = classdict
+        annotations.append(entry)
     return {
         "objectId": obj.get("objectId") or object_id,
         "candidate": {
@@ -67,6 +91,7 @@ def _normalize_object(obj, object_id):
             "band": _band(latest),
         },
         "prv_candidates": prv_candidates,
+        "annotations": annotations,
     }
 
 
@@ -180,6 +205,48 @@ def _query(broker, selected, tables, conditions, limit=1000):
             "limit": limit,
         },
     )
+
+
+async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotations):
+    """Upsert Lasair annotator annotations onto ``obj_id``, scoped to the groups
+    of the ingesting filters. Origin is ``"lasair:{topic}"``."""
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from baselayer.app.models import utcnow
+
+    from ..models import Annotation, Filter, GroupAnnotation
+
+    filters = (
+        await session.scalars(sa.select(Filter).where(Filter.id.in_(filter_ids)))
+    ).all()
+    group_ids = list({f.group_id for f in filters if f.group_id})
+    if not group_ids:
+        return
+
+    for ann in annotations:
+        topic = ann.get("topic")
+        if not topic:
+            continue
+        origin = f"lasair:{topic}"
+        ann_data = {k: v for k, v in ann.items() if k != "topic"}
+        annotation_id = await session.scalar(
+            pg_insert(Annotation)
+            .values(obj_id=obj_id, origin=origin, data=ann_data, author_id=user.id)
+            .on_conflict_do_update(
+                index_elements=["obj_id", "origin"],
+                set_={"data": ann_data, "modified": utcnow},
+                where=Annotation.author_id == user.id,
+            )
+            .returning(Annotation.id)
+        )
+        if annotation_id is not None:
+            for gid in group_ids:
+                await session.execute(
+                    pg_insert(GroupAnnotation)
+                    .values(group_id=gid, annotation_id=annotation_id)
+                    .on_conflict_do_nothing()
+                )
 
 
 class LASAIRBROKER(BrokerAPI):
@@ -481,6 +548,13 @@ class LASAIRBROKER(BrokerAPI):
                                 ),
                                 cutouts=cutouts or None,
                             )
+                            # _ingest_object committed; save annotator data next.
+                            lasair_annotations = data.get("annotations") or []
+                            if lasair_annotations:
+                                await _save_annotator_annotations(
+                                    session, user, oid, filter_ids, lasair_annotations
+                                )
+                                await session.commit()
                     except Exception as e:
                         log(f"Error ingesting Lasair object {oid}: {e}")
                     count += 1
