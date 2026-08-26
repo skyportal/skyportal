@@ -83,6 +83,7 @@ const UserProfileInfo = () => {
   } = useForm();
 
   useEffect(() => {
+    if (editing) return;
     reset({
       username: profile?.username,
       firstName: profile?.first_name,
@@ -93,7 +94,7 @@ const UserProfileInfo = () => {
       bio: profile?.bio,
       is_bot: profile?.is_bot,
     });
-  }, [reset, profile]);
+  }, [reset, profile, editing]);
 
   if (!profile) return <div data-testid="tour-profile-info" />;
 
@@ -102,20 +103,23 @@ const UserProfileInfo = () => {
     .map((group) => group.name)
     .sort();
 
+  const saveProfile = (values: any) =>
+    updateBasicUserInfo({
+      formData: {
+        username: values.username,
+        first_name: values.firstName,
+        last_name: values.lastName,
+        affiliations: values.affiliations,
+        contact_email: values.email,
+        contact_phone: values.phone,
+        bio: values.bio,
+        is_bot: values.is_bot,
+      },
+    }).unwrap();
+
   const onSubmit = async (values: any) => {
     try {
-      await updateBasicUserInfo({
-        formData: {
-          username: values.username,
-          first_name: values.firstName,
-          last_name: values.lastName,
-          affiliations: values.affiliations,
-          contact_email: values.email,
-          contact_phone: values.phone,
-          bio: values.bio,
-          is_bot: values.is_bot,
-        },
-      }).unwrap();
+      await saveProfile(values);
       dispatch(showNotification("Profile data saved"));
       setEditing(false);
     } catch {
@@ -123,11 +127,17 @@ const UserProfileInfo = () => {
     }
   };
 
-  const handleTest = async (notification_type: string) => {
-    setTesting(notification_type);
-    await testNotifications({ notification_type });
-    setTesting(null);
-  };
+  const onTest = (notification_type: string) =>
+    handleSubmit(async (values) => {
+      setTesting(notification_type);
+      try {
+        await saveProfile(values);
+        await testNotifications({ notification_type });
+      } catch {
+        // error notification handled by the API layer
+      }
+      setTesting(null);
+    });
 
   const alwaysShowPublicIcons =
     profile.preferences?.alwaysShowPublicIcons ?? true;
@@ -219,9 +229,8 @@ const UserProfileInfo = () => {
       {test && (
         <Button
           secondary
-          type="submit"
           id={test.id}
-          onClick={() => handleTest(test.type)}
+          onClick={onTest(test.type)}
           disabled={testing === test.type}
         >
           Test
