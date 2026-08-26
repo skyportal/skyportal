@@ -50,7 +50,7 @@ from ....models import (
     Spectrum,
     SuperObj,
 )
-from ....utils.cache import Cache, array_to_bytes
+from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
 from ....utils.data_access import (
     accessible_group_and_filter_ids,
@@ -64,7 +64,7 @@ from .candidate_filter import SAVED_STATUSES, get_subquery_for_saved_status
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
 _, cfg = load_env()
-cache_dir = "cache/candidates_queries"
+cache_dir = f"{cache_folder}/candidates_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,

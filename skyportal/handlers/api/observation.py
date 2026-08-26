@@ -50,7 +50,7 @@ from ...models import (
     Telescope,
 )
 from ...models.schema import ObservationExternalAPIHandlerPost
-from ...utils.cache import Cache
+from ...utils.cache import Cache, cache_folder
 from ...utils.observation_plan import combine_healpix_tuples
 from ...utils.parse import str_to_bool
 from ...utils.simsurvey import (
@@ -77,7 +77,7 @@ log = make_log("api/observation")
 
 Session = scoped_session(sessionmaker())
 
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),

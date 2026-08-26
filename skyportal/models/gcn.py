@@ -47,7 +47,7 @@ from baselayer.app.models import (
     safe_aliased,
 )
 
-from ..utils.cache import Cache, dict_to_bytes
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from .allocation import Allocation, AllocationUser
 from .group import accessible_by_group_members, accessible_by_groups_members
 from .localization import Localization
@@ -58,7 +58,7 @@ host = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
     f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
 )
 
-cache_dir = "cache/public_pages/reports"
+cache_dir = f"{cache_folder}/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,

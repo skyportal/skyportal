@@ -21,13 +21,13 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
-from ..utils.cache import Cache, dict_to_bytes
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 
 env, cfg = load_env()
 
 log = make_log("model/telescope")
 
-cache_dir = "cache/telescopes_time_info"
+cache_dir = f"{cache_folder}/telescopes_time_info"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=1000,  # large number of telescopes, as we don't want to constrain by age

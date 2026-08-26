@@ -96,7 +96,7 @@ General:
 DB preparation:
 
 - db_init : Create the databases if they don't exist yet
-- db_clear : Drop and re-create the databases, wiping all data
+- db_clear : Drop and re-create the databases, wiping all data, and permanently delete the associated data on disk (cache, thumbnails, comment attachments, localizations, photometric series, analysis products). Asks for confirmation.
 
 Neither creates the tables: `make run` does it on startup.
 

@@ -24,9 +24,9 @@ from skyportal.utils.calculations import (
     radec_to_healpix,
 )
 
-from .cache import Cache, dict_to_bytes
+from .cache import Cache, cache_folder, dict_to_bytes
 
-cache_dir = "cache/moving_object_ephemeris"
+cache_dir = f"{cache_folder}/moving_object_ephemeris"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=100,
