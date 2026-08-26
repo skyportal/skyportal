@@ -24,7 +24,7 @@ help: baselayer/Makefile
 	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
 	@echo Please choose one of the following make targets:
-	@$(PYTHON) baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
+	@$(PYTHON) baselayer/tools/makefile_to_help.py "Baselayer":baselayer/Makefile "SkyPortal":Makefile
 	@echo
 
 baselayer/Makefile:
@@ -90,7 +90,7 @@ db_clear_test: ## Drop and recreate only the test database.
 db_clear_test:
 	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
 
-db_clear: ## Delete all data from the database, and the on-disk data tied to it.
+db_clear: ## Drop and recreate all the databases, and delete the on-disk data tied to them.
 db_clear:
 	@$(PYTHON) tools/clear_data.py $(FLAGS)
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_clear
