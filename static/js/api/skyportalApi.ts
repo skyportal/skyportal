@@ -226,6 +226,8 @@ export const TAG_TYPES = [
   "Localizations",
   "Spectra",
   "UserManagement",
+  "DataAvailability",
+  "DataAccessRequest",
 ] as const;
 
 export const skyportalApi = createApi({

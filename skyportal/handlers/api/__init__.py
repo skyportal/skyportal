@@ -54,6 +54,10 @@ from .color_mag import ObjColorMagHandler
 from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
+from .data_access_request import (
+    DataAccessRequestHandler,
+    DataAvailabilityHandler,
+)
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,

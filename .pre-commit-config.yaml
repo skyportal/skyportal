@@ -22,7 +22,7 @@ repos:
         exclude: baselayer|node_modules|doc|data|bun\.lock|static/js/types/api\.ts|static/js/types/routeSchemaMap\.ts|^(.*_template\.html)$
         args: [--prose-wrap=preserve]
         additional_dependencies:
-          - prettier@3.8.3
+          - prettier@3.9.6
   - repo: local
     hooks:
       - id: ESLint

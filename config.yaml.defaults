@@ -197,6 +197,8 @@ app:
       anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
+    - path: "/data_access_requests"
+      component: DataAccessRequestsPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
@@ -356,6 +358,10 @@ app:
         - name: Analysis Requests
           icon: Analytics
           url: /analysis_requests
+
+        - name: Data Requests
+          icon: LockOpen
+          url: /data_access_requests
 
         - name: Shifts
           icon: SubwayRounded

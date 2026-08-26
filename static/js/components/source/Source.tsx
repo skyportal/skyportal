@@ -67,6 +67,9 @@ import CommentPanel, {
   useCommentPanel,
 } from "../comment/CommentPanel";
 import SourceInterests from "./SourceInterests";
+import RequestDataAccess from "./RequestDataAccess";
+import UnsharedSpectra from "./UnsharedSpectra";
+import { useGetDataAvailabilityQuery } from "../../ducks/dataAccessRequests";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -241,6 +244,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (g: any) => !g.single_user_group,
   );
   const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
+  // Spectra exist that the viewer cannot open: "no spectrum exists" would be
+  // the wrong thing to say, and there is something to ask for.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(source.id, {
+    skip: !source.id,
+  });
+  const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
@@ -1137,6 +1146,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
                 />
               )}
+              {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
             </div>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
@@ -1484,7 +1494,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <Grid container id="spectroscopy-container">
                 <div className={classes.plotContainer}>
                   {!source.spectrum_exists &&
-                    (!spectra || spectra?.length === 0) && (
+                    (!spectra || spectra?.length === 0) &&
+                    unsharedSpectraCount === 0 && (
                       <div style={{ marginLeft: "1rem" }}>
                         {" "}
                         No spectrum exists{" "}
@@ -1512,6 +1523,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       />
                     </Suspense>
                   )}
+                  {!isReadOnly && <UnsharedSpectra sourceID={source.id} />}
                 </div>
                 <div className={classes.buttonContainer}>
                   {!isReadOnly && (

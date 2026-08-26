@@ -15010,6 +15010,184 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data_access_request/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a data access request
+         * @description Retrieve a single data access request
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only requests on this object */
+                    objId?: string | null;
+                    /** @description Only requests with this status */
+                    status?: string | null;
+                    /** @description 'incoming' for requests to answer, 'outgoing' for requests made by the calling user. Both when omitted. */
+                    direction?: string | null;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description Number of requests to return per paginated request. Defaults to 25. Max 500. */
+                    numPerPage?: number;
+                };
+                header?: never;
+                path: {
+                    request_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a data access request
+         * @description Withdraw a request you made
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    request_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Answer a data access request
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Accept or decline a request for data you own. Accepting shares the requested dataset with a group the requester belongs to, defaulting to their single user group.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    request_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DataAccessRequestPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/data_access_request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get data access requests
+         * @description Retrieve the data access requests the calling user made, or that they are in a position to answer.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only requests on this object */
+                    objId?: string | null;
+                    /** @description Only requests with this status */
+                    status?: string | null;
+                    /** @description 'incoming' for requests to answer, 'outgoing' for requests made by the calling user. Both when omitted. */
+                    direction?: string | null;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                    /** @description Number of requests to return per paginated request. Defaults to 25. Max 500. */
+                    numPerPage?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Ask for data on a source
+         * @description Ask the owners of photometry or spectra on a source to share it. One request is created per dataset asked for; datasets already visible to the calling user, or already the subject of a pending request, are skipped.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DataAccessRequestPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sharing": {
         parameters: {
             query?: never;
@@ -16635,6 +16813,46 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{obj_id}/data_availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve what data exists on a source but is not visible
+         * @description Retrieve metadata describing the photometry and spectra attached to a source that the calling user cannot read: who owns it, which instrument and filter it was taken with, when, and how much of it there is. No fluxes, magnitudes or spectra are returned; this is the description of data that can then be asked for.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -24933,6 +25151,122 @@ export interface components {
             message?: string;
             data?: components["schemas"]["CronJobRunNoID"][];
         };
+        DataAccessRequest: {
+            /** @description The User asking for the data. */
+            readonly requester?: components["schemas"]["User"];
+            /** @description The User who owns the data being asked for. */
+            readonly owner?: components["schemas"]["User"];
+            /** @description The Obj the data is attached to. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description Instrument of the requested photometry. */
+            readonly instrument?: components["schemas"]["Instrument"];
+            /** @description The requested spectrum. */
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            /** @description The User who answered the request. */
+            readonly responded_by?: components["schemas"]["User"];
+            /** @description Group the data was shared into on acceptance. */
+            readonly granted_group?: components["schemas"]["Group"];
+            /** @description ID of the User asking for the data. */
+            requester_id: number;
+            /** @description ID of the User who owns the data being asked for. */
+            owner_id: number;
+            /** @description ID of the Obj the data is attached to. */
+            obj_id: string;
+            /**
+             * @description Which kind of data is being asked for.
+             * @enum {string}
+             */
+            data_type: "photometry" | "spectrum";
+            /** @description Instrument of the requested photometry; null for a spectrum. */
+            instrument_id?: number | null;
+            /** @description Bandpass of the requested photometry; null for a spectrum. */
+            filter?: string | null;
+            /** @description The requested spectrum; null for photometry. */
+            spectrum_id?: number | null;
+            /** @description Groups holding the data when the request was made. Snapshotted so that the set of people who can answer it does not shift as the data is shared onward. */
+            owner_group_ids?: number[];
+            /**
+             * @description Whether the request has been answered, and how.
+             * @enum {string}
+             */
+            status?: "pending" | "accepted" | "declined";
+            /** @description What the requester said when asking. */
+            message?: string | null;
+            /** @description ID of the User who answered the request. */
+            responded_by_id?: number | null;
+            /** @description Group the data was shared into on acceptance. */
+            granted_group_id?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDataAccessRequest: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DataAccessRequest"];
+        };
+        ArrayOfDataAccessRequests: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DataAccessRequest"][];
+        };
+        DataAccessRequestNoID: {
+            /** @description The User asking for the data. */
+            readonly requester?: components["schemas"]["User"];
+            /** @description The User who owns the data being asked for. */
+            readonly owner?: components["schemas"]["User"];
+            /** @description The Obj the data is attached to. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description Instrument of the requested photometry. */
+            readonly instrument?: components["schemas"]["Instrument"];
+            /** @description The requested spectrum. */
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            /** @description The User who answered the request. */
+            readonly responded_by?: components["schemas"]["User"];
+            /** @description Group the data was shared into on acceptance. */
+            readonly granted_group?: components["schemas"]["Group"];
+            /** @description ID of the User asking for the data. */
+            requester_id: number;
+            /** @description ID of the Obj the data is attached to. */
+            obj_id: string;
+            /**
+             * @description Which kind of data is being asked for.
+             * @enum {string}
+             */
+            data_type: "photometry" | "spectrum";
+            /** @description Instrument of the requested photometry; null for a spectrum. */
+            instrument_id?: number | null;
+            /** @description Bandpass of the requested photometry; null for a spectrum. */
+            filter?: string | null;
+            /** @description The requested spectrum; null for photometry. */
+            spectrum_id?: number | null;
+            /** @description Groups holding the data when the request was made. Snapshotted so that the set of people who can answer it does not shift as the data is shared onward. */
+            owner_group_ids?: number[];
+            /**
+             * @description Whether the request has been answered, and how.
+             * @enum {string}
+             */
+            status?: "pending" | "accepted" | "declined";
+            /** @description What the requester said when asking. */
+            message?: string | null;
+            /** @description ID of the User who answered the request. */
+            responded_by_id?: number | null;
+            /** @description Group the data was shared into on acceptance. */
+            granted_group_id?: number | null;
+        };
+        SingleDataAccessRequestNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DataAccessRequestNoID"];
+        };
+        ArrayOfDataAccessRequestNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DataAccessRequestNoID"][];
+        };
         DefaultAnalysis: {
             /** @description Analysis Service associated with this analysis. */
             readonly analysis_service?: components["schemas"]["AnalysisService"];
@@ -27333,6 +27667,8 @@ export interface components {
             private?: boolean;
             /** @description Boolean indicating whether requests to join the group are automatically accepted. */
             auto_accept_requests?: boolean;
+            /** @description Whether non-members may be told that the group's photometry and spectra exist, and so ask for them. Data held only by groups with this off is never advertised. */
+            discoverable_data?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             /** @description Unique object identifier. */
@@ -28021,6 +28357,8 @@ export interface components {
             private?: boolean;
             /** @description Boolean indicating whether requests to join the group are automatically accepted. */
             auto_accept_requests?: boolean;
+            /** @description Whether non-members may be told that the group's photometry and spectra exist, and so ask for them. Data held only by groups with this off is never advertised. */
+            discoverable_data?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             readonly obj_tags?: components["schemas"]["ObjTag"][];
@@ -39098,6 +39436,71 @@ export interface components {
              * @default null
              */
             group_ids: number[] | null;
+        };
+        /**
+         * PhotometryDataset
+         * @description One owner's photometry on an object in a single instrument/filter.
+         */
+        PhotometryDataset: {
+            /**
+             * Ownerid
+             * @description ID of the User who owns the photometry
+             */
+            ownerID: number;
+            /**
+             * Instrumentid
+             * @description ID of the instrument it was taken with
+             */
+            instrumentID: number;
+            /**
+             * Filter
+             * @description Bandpass the photometry was taken in
+             */
+            filter: string;
+        };
+        /**
+         * DataAccessRequestPostBody
+         * @description Request body for asking an owner for data on an object.
+         */
+        DataAccessRequestPostBody: {
+            /**
+             * Objid
+             * @description ID of the object the data is attached to
+             */
+            objId: string;
+            /**
+             * Photometry
+             * @description Photometry datasets being asked for, as returned by the data availability endpoint.
+             */
+            photometry?: components["schemas"]["PhotometryDataset"][];
+            /**
+             * Spectrumids
+             * @description IDs of the spectra being asked for
+             */
+            spectrumIDs?: number[];
+            /**
+             * Message
+             * @description Note to the owner explaining the request
+             * @default null
+             */
+            message: string | null;
+        };
+        /**
+         * DataAccessRequestPatchBody
+         * @description Request body for answering a request.
+         */
+        DataAccessRequestPatchBody: {
+            /**
+             * Status
+             * @description Either 'accepted' or 'declined'
+             */
+            status: string;
+            /**
+             * Groupid
+             * @description Group to share the data into when accepting. Defaults to the requester's single user group.
+             * @default null
+             */
+            groupID: number | null;
         };
         /**
          * SharingPostBody

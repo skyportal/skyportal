@@ -91,8 +91,7 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
   const groupUsers: any[] | undefined = undefined;
   const { data: config } = useGetConfigQuery() as { data: any };
   const classifications_classes = config?.["classificationsClasses"] as
-    | Record<string, Record<string, string>>
-    | undefined;
+    Record<string, Record<string, string>> | undefined;
   const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
     (groupUser: any) => groupUser.user_id === userProfile?.id,
   )[0];
