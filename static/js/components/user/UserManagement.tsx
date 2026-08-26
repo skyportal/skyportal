@@ -3,8 +3,8 @@ import { Controller, useForm } from "react-hook-form";
 
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
+import { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
@@ -155,22 +155,16 @@ const AddEntitiesDialog = ({
           rules={{ validate: (value: any) => value.length >= 1 }}
           defaultValue={[]}
           render={({ field: { onChange, value } }) => (
-            <Autocomplete
+            <SearchableSelect
               multiple
+              label={label}
               value={value}
               onChange={(_e, data) => onChange(data)}
               options={options}
               getOptionLabel={getOptionLabel}
               filterSelectedOptions
+              error={invalid}
               data-testid={selectTestId}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  error={invalid}
-                  variant="outlined"
-                  label={label}
-                />
-              )}
             />
           )}
         />
@@ -685,9 +679,10 @@ const UserManagement = () => {
               control={control}
               defaultValue={clickedUser?.affiliations}
               render={({ field: { onChange, value } }) => (
-                <Autocomplete
+                <SearchableSelect
                   multiple
                   freeSolo
+                  label="Select Affiliations"
                   value={value}
                   onChange={(_e, data) => onChange(data)}
                   options={clickedUser?.affiliations ?? []}
@@ -701,14 +696,9 @@ const UserManagement = () => {
                   }}
                   getOptionLabel={(affiliation: any) => affiliation}
                   data-testid="addUserAffiliationsSelect"
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label="Select Affiliations"
-                      data-testid="addUserAffiliationsTextField"
-                    />
-                  )}
+                  textFieldProps={{
+                    "data-testid": "addUserAffiliationsTextField",
+                  }}
                 />
               )}
             />

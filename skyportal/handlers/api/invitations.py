@@ -212,6 +212,9 @@ class InvitationHandler(BaseHandler):
                     .where(GroupStream.group_id.in_(group_ids))
                 )
                 streams = streams_result.all()
+            # The flag arrays below are positional against the caller's
+            # `group_ids`, which `IN` does not preserve.
+            groups = sorted(groups, key=lambda group: group_ids.index(group.id))
             admin_for_groups = (
                 body.groupAdmin
                 if body.groupAdmin is not None
@@ -453,7 +456,24 @@ class InvitationHandler(BaseHandler):
                     "stream IDs list. Please try again."
                 )
             if group_ids is not None:
+                # The flag arrays are positional against `groups`, so they have
+                # to be rebuilt with it; a group that stays keeps its flags.
+                previous = {
+                    group.id: flags
+                    for group, *flags in zip(
+                        invitation.groups,
+                        invitation.admin_for_groups,
+                        invitation.can_save_to_groups,
+                        invitation.can_share_photometry_for_groups,
+                    )
+                }
+                flags = [
+                    previous.get(group.id, [False, False, False]) for group in groups
+                ]
                 invitation.groups = groups
+                invitation.admin_for_groups = [f[0] for f in flags]
+                invitation.can_save_to_groups = [f[1] for f in flags]
+                invitation.can_share_photometry_for_groups = [f[2] for f in flags]
             if stream_ids is not None:
                 invitation.streams = streams
             if role_id is not None:

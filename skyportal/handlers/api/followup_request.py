@@ -44,9 +44,9 @@ from sqlalchemy.orm import joinedload, selectinload, undefer
 from sqlalchemy.sql.expression import cast
 from tornado.ioloop import IOLoop
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory
 from baselayer.log import make_log
 
 from ...models import (
@@ -861,7 +861,7 @@ async def _post_default_followup_requests_async(
 ):
     # only called with `run_async` (via the sync shim below), so we open the
     # session here with the plain async session factory.
-    async with async_plain_session_factory() as session:
+    async with baselayer_models.async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
             raise ValueError(

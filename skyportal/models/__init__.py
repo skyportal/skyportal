@@ -11,6 +11,7 @@ from .candidate import *
 from .classification import *
 from .comment import *
 from .cosmo import cosmo
+from .data_access_request import *
 from .earthquake import *
 from .facility_transaction import *
 from .filter import *
