@@ -158,6 +158,14 @@ const TelescopeTable = ({
         type: "boolean",
         title: "Does this telescope have a fixed location (lon, lat, elev)?",
       },
+      acknowledgment: {
+        type: "string",
+        title: "Acknowledgment",
+        description:
+          "Sentence papers should cite this telescope with, e.g. 'Based on " +
+          "observations obtained with the Samuel Oschin Telescope'. Used to " +
+          "build a source's acknowledgment block; the name is used if left blank.",
+      },
     },
     required: [
       "name",

@@ -112,6 +112,24 @@ export const sourceApi = skyportalApi.injectEndpoints({
         { type: "SourcePosition", id },
       ],
     }),
+    // Built from the source's own filters, facilities and programs, so it
+    // follows the broad "Source" tag like the rest of the per-source reads.
+    getSourceAcknowledgment: build.query<any, Record<string, any>>({
+      query: ({ id, ...selection }) => {
+        // Omitted selection means "everything detected", which is the server's
+        // default; an explicit empty list must still be sent as empty.
+        const params = buildQueryString(
+          Object.fromEntries(
+            Object.entries(selection).filter(([, v]) => v !== undefined),
+          ),
+        );
+        return `api/sources/${id}/acknowledgment${params ? `?${params}` : ""}`;
+      },
+      providesTags: (_result, _error, { id }) => [
+        "Source",
+        { type: "Source", id },
+      ],
+    }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
       query: (id) => `api/associated_gcns/${id}`,
       // Broad "Source" (so any broad source mutation still refetches it) plus a
@@ -756,6 +774,7 @@ invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 export const {
   useGetSourceQuery,
   useGetObjGroupsQuery,
+  useGetSourceAcknowledgmentQuery,
   useGetSourcePositionQuery,
   useGetAssociatedGcnsQuery,
   useGetAnalysesQuery,

@@ -51,6 +51,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
@@ -811,6 +812,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
+              </div>
+              <div className={classes.rowInfo}>
+                <SourceAcknowledgment obj_id={source.id} />
               </div>
             </div>
             {source.host && (

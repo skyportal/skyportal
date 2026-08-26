@@ -84,6 +84,13 @@ class Telescope(Base):
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
     )
 
+    acknowledgment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Sentence to cite this telescope with, used to build a source's "
+        "acknowledgment block. Falls back to the telescope name when unset.",
+    )
+
     instruments = relationship(
         "Instrument",
         back_populates="telescope",

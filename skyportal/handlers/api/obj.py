@@ -21,6 +21,7 @@ from ...models import (
     Photometry,
     Spectrum,
 )
+from ...utils.acknowledgment import build_acknowledgment
 from ...utils.calculations import great_circle_distance
 from ...utils.offset import _calculate_best_position_for_offset_stars
 from ..base import BaseHandler
@@ -235,3 +236,86 @@ class ObjPositionHandler(BaseHandler):
                 return self.error(
                     f"An error occurred while calculating the object's position: {e}"
                 )
+
+
+class ObjAcknowledgmentGetQuery(BaseModel):
+    """Which detected components to include in the assembled text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    exclude_filter_ids: list[int] | None = Field(
+        default=None,
+        description="Filters not to cite. Omit to cite every one detected.",
+    )
+    exclude_instrument_ids: list[int] | None = Field(
+        default=None,
+        description="Instruments not to cite. Omit to cite every one detected.",
+    )
+    exclude_allocation_ids: list[int] | None = Field(
+        default=None,
+        description="Allocations not to cite. Omit to cite every one detected.",
+    )
+
+
+class ObjAcknowledgmentHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id: str, *, query: ObjAcknowledgmentGetQuery = None):
+        """
+        ---
+        summary: Retrieve the acknowledgment block for an Obj
+        description: |
+          Build the citation text for a source from what it actually used: the
+          instance, the filters and brokers that selected it, the facilities
+          that supplied its photometry and spectra, and the programs it was
+          observed under. Returns the assembled paragraph and the components it
+          was built from, so a caller can drop anything unused.
+        tags:
+          - objs
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            text:
+                              type: string
+                              description: The assembled acknowledgment paragraph
+                            components:
+                              type: object
+                              description: The parts the text was built from
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(ObjAcknowledgmentGetQuery)
+
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(f"Could not load object with ID {obj_id}")
+
+            return self.success(
+                data=await build_acknowledgment(
+                    session,
+                    session.user_or_token,
+                    obj_id,
+                    exclude_filter_ids=query.exclude_filter_ids,
+                    exclude_instrument_ids=query.exclude_instrument_ids,
+                    exclude_allocation_ids=query.exclude_allocation_ids,
+                )
+            )

@@ -279,6 +279,12 @@ class Instrument(Base):
         sa.String,
         doc="The spectral band covered by the instrument (e.g., Optical, IR).",
     )
+    acknowledgment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Sentence to cite this instrument with, used to build a source's "
+        "acknowledgment block. Falls back to the instrument name when unset.",
+    )
     telescope_id = sa.Column(
         sa.ForeignKey("telescopes.id", ondelete="CASCADE"),
         nullable=False,

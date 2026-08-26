@@ -1,5 +1,9 @@
 app:
   title: SkyPortal
+  # Opening sentences of a source's acknowledgment block, before the facilities
+  # and programs that source actually used are appended. Deployment-specific:
+  # name the instance and the infrastructure behind it.
+  acknowledgment: This work made use of SkyPortal (van der Walt et al. 2019).
   logos: # Logos to place in the top-left of the header/login page (zero or more)
     - src: /static/images/skyportal_logo_dark.png
       alt_text: Skyportal logo

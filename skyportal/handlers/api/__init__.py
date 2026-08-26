@@ -143,7 +143,7 @@ from .mmadetector import (
 from .moving_object import MovingObjectFollowupHandler
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
-from .obj import ObjHandler, ObjPositionHandler
+from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
