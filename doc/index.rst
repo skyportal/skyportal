@@ -86,6 +86,7 @@ User Guide
    setup
    usage
    api
+   mcp
    dev
    deploy
    observability
