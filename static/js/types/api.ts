@@ -22166,6 +22166,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user/{user_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a user's public profile
+         * @description Retrieve the profile a user shares with others: their name and avatar, plus the fields they chose to share in their settings.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/{user_id}/acls": {
         parameters: {
             query?: never;
@@ -22345,7 +22393,7 @@ export interface paths {
         };
         /**
          * Get a user
-         * @description Retrieve a user
+         * @description Retrieve a user. Without the Manage users ACL, only the user's own record is returned in full; other users are reduced to the profile they chose to share.
          */
         get: {
             parameters: {
@@ -22460,7 +22508,7 @@ export interface paths {
         };
         /**
          * Get all users
-         * @description Retrieve all users
+         * @description Retrieve all users. Without the Manage users ACL, contact details not shared on a user's public profile are omitted.
          */
         get: {
             parameters: {
