@@ -5,14 +5,19 @@ import TextField from "@mui/material/TextField";
 
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
-// Ignore case and whitespace when matching, so "j smith" finds "J. Smith".
+// Ignore case and whitespace when matching, so "ztfbts" finds "ZTF BTS".
 // Must match on the label: an object option would stringify to "[object Object]".
-const makeDefaultFilter = (labelFor: (option: any) => string) =>
-  createFilterOptions<any>({
+const makeDefaultFilter = (labelFor: (option: any) => string) => {
+  const stripSpaces = (text: string) => text.replace(/\s+/g, "");
+  // MUI only trims the input, so strip it here too: otherwise a query with an
+  // inner space can never match a stripped label.
+  const filter = createFilterOptions<any>({
     matchFrom: "any",
-    stringify: (option: any) => labelFor(option).replace(/\s+/g, ""),
-    trim: true,
+    stringify: (option: any) => stripSpaces(labelFor(option)),
   });
+  return (options: any[], state: any) =>
+    filter(options, { ...state, inputValue: stripSpaces(state.inputValue) });
+};
 
 export interface SearchableSelectProps {
   label: string;
