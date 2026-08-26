@@ -143,12 +143,12 @@ const AddEntitiesDialog = ({
                 multiple
                 label={`Select ${kind}`}
                 value={value}
-                onChange={(data: any) => onChange(data)}
+                onChange={(_e, data) => onChange(data)}
                 options={options}
                 getOptionLabel={(entity: any) => entity.name}
                 filterSelectedOptions
                 error={error}
-                dataTestId={`addInvitation${kind}Select`}
+                data-testid={`addInvitation${kind}Select`}
               />
             )}
           />

@@ -573,6 +573,7 @@ const NewSharingServiceCoauthor = ({
         sharing_service_id: sharingService.id,
         user_id: selectedUser?.id,
       }).unwrap();
+      setSelectedUser(null);
       dispatch(showNotification(`Successfully added user`));
     } catch {
       dispatch(showNotification(`Failed to add user`, "error"));
@@ -603,13 +604,10 @@ const NewSharingServiceCoauthor = ({
             <SearchableSelect
               label="Coauthor"
               value={selectedUser}
-              onChange={(newValue: any) => setSelectedUser(newValue)}
+              onChange={(_event, newValue) => setSelectedUser(newValue)}
               options={sortedUserOptions}
-              getOptionLabel={(option: any) => userLabel(option, false, true)}
-              isOptionEqualToValue={(option: any, val: any) =>
-                option?.id === val?.id
-              }
-              dataTestId="coauthor-select"
+              getOptionLabel={(option) => userLabel(option, false, true)}
+              isOptionEqualToValue={(option, val) => option?.id === val?.id}
               fullWidth
             />
           </FormControl>
@@ -620,7 +618,11 @@ const NewSharingServiceCoauthor = ({
               justifyContent: "space-between",
             }}
           >
-            <Button primary onClick={handleAdd} disabled={loading}>
+            <Button
+              primary
+              onClick={handleAdd}
+              disabled={loading || !selectedUser}
+            >
               Add
             </Button>
             <Button onClick={() => setOpen(false)}>Cancel</Button>

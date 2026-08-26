@@ -52,7 +52,9 @@ const BrokerAlertFilters = ({
                 sx={{ minWidth: 260 }}
                 options={fields}
                 value={filter.field || null}
-                onChange={(value: any) => update(index, { field: value ?? "" })}
+                onChange={(_event, value) =>
+                  update(index, { field: value ?? "" })
+                }
               />
               <TextField
                 select

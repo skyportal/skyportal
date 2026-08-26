@@ -542,7 +542,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
               label="Select Groups/Users"
               options={groups}
               value={value}
-              onChange={(data: any) => onChange(data)}
+              onChange={(_event, data) => onChange(data)}
               getOptionLabel={(group: any) => group.name}
               filterSelectedOptions
               error={!!errors["groups"]}

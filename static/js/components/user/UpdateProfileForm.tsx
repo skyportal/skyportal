@@ -187,11 +187,10 @@ const UpdateProfileForm = () => {
                   <SearchableSelect
                     multiple
                     freeSolo
-                    label=""
-                    onChange={(data: any) => onChange(data)}
+                    onChange={(_e, data) => onChange(data)}
                     value={value}
                     options={profile?.affiliations ?? []}
-                    filterOptions={(options: any[], params: any) => {
+                    filterOptions={(options, params) => {
                       const filtered = filter(options, params);
                       // Suggest the creation of a new value
                       if (

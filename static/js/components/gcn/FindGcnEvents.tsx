@@ -86,17 +86,16 @@ const FindGcnEvents = ({
           label="Dateobs/Name"
           options={gcnEventsList}
           value={
-            gcnEventsList.find(
-              (option: any) => option.id === selectedGcnEventId,
-            ) || null
+            gcnEventsList.find((option) => option.id === selectedGcnEventId) ||
+            null
           }
-          getOptionLabel={(option: any) =>
+          getOptionLabel={(option) =>
             `${option?.dateobs} ${
               option?.aliases?.length > 0 ? `(${option?.aliases})` : ""
             }` || ""
           }
           className={classes.select}
-          onInputChange={(event: any, value: string) => {
+          onInputChange={(event, value) => {
             if (event?.type !== "change") {
               return;
             }
@@ -110,7 +109,7 @@ const FindGcnEvents = ({
               setSearchParams({ partialdateobs: value });
             }
           }}
-          onChange={(newValue: any) => {
+          onChange={(_event, newValue: any) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
               setSelectedEvent(newValue);

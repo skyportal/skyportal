@@ -191,7 +191,7 @@ const CustomClassificationWidget = ({
       id="classification"
       filterOptions={filteringOptions}
       options={options.enumOptions?.map((option: any) => option.value) ?? []}
-      onChange={(newValue: any) => {
+      onChange={(_event, newValue) => {
         onChange(newValue);
       }}
       value={value || ""}

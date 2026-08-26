@@ -932,7 +932,6 @@ const FilterCandidateList = ({
                 render={({ field: { onChange, value } }) => (
                   <SearchableSelect
                     multiple
-                    label=""
                     options={availableFilters}
                     disabled={availableFilters.length === 0}
                     getOptionLabel={(option: any) => option?.name ?? ""}
@@ -940,7 +939,7 @@ const FilterCandidateList = ({
                     value={availableFilters.filter((f: any) =>
                       (value || []).includes(f.id),
                     )}
-                    onChange={(newValue: any) =>
+                    onChange={(_event, newValue: any) =>
                       onChange(newValue.map((f: any) => f.id))
                     }
                     placeholder={
@@ -1052,7 +1051,7 @@ const FilterCandidateList = ({
                         }` || ""
                       }
                       className={classes.select}
-                      onInputChange={(event: any, value: string) => {
+                      onInputChange={(event, value) => {
                         if (
                           ((event?.type === "change" ||
                             event?.type === "clear") &&
@@ -1063,7 +1062,7 @@ const FilterCandidateList = ({
                           setGcnEventsParams({ partialdateobs: value });
                         }
                       }}
-                      onChange={(newValue: any) => {
+                      onChange={(_event, newValue: any) => {
                         if (newValue !== null) {
                           reset({
                             ...getValues(),
@@ -1238,14 +1237,14 @@ const FilterCandidateList = ({
                       <SearchableSelect
                         id="annotationSortingOriginSelect"
                         label="Origin"
-                        dataTestId="annotationSortingOriginSelect"
+                        data-testid="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
-                        filterOptions={(options: any[], state: any) =>
+                        filterOptions={(options, state) =>
                           filterAnnotationOrigins(options, state.inputValue)
                         }
                         style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(newValue: any) => {
+                        onChange={(_event, newValue) => {
                           if (newValue === null) {
                             reset({
                               ...getValues(),
@@ -1280,11 +1279,11 @@ const FilterCandidateList = ({
                       <SearchableSelect
                         id="annotationSortingKeySelect"
                         label="Key"
-                        dataTestId="annotationSortingKeySelect"
+                        data-testid="annotationSortingKeySelect"
                         options={annotationSortingKeyOptions}
                         style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(newValue: any) => {
+                        onChange={(_event, newValue) => {
                           if (newValue === null) {
                             reset({
                               ...getValues(),
@@ -1317,11 +1316,11 @@ const FilterCandidateList = ({
                       <SearchableSelect
                         id="annotationSortingOrderSelect"
                         label="Order"
-                        dataTestId="annotationSortingOrderSelect"
+                        data-testid="annotationSortingOrderSelect"
                         options={["asc", "desc"]}
                         style={{ minWidth: "100%" }}
                         value={value}
-                        getOptionLabel={(option: any) => {
+                        getOptionLabel={(option) => {
                           if (option === "asc") {
                             return "Ascending";
                           }
@@ -1330,7 +1329,7 @@ const FilterCandidateList = ({
                           }
                           return "None";
                         }}
-                        onChange={(newValue: any) => {
+                        onChange={(_event, newValue) => {
                           onChange(newValue);
                         }}
                       />

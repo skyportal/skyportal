@@ -80,14 +80,17 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
       >
         <SearchableSelect
           label="Username"
-          dataTestId="newGroupUser"
+          data-testid="newGroupUser"
           value={
             nonMemberUsers.find((u: any) => u.id === formState.userID) ?? null
           }
-          onChange={(newValue: any) => {
+          onChange={(_event, newValue: any) => {
             setFormState({ ...formState, userID: newValue?.id });
             setIsError(false);
           }}
+          selectOnFocus
+          clearOnBlur
+          handleHomeEndKeys
           options={nonMemberUsers}
           getOptionLabel={(option: any) => option.username}
           sx={{ width: 300 }}

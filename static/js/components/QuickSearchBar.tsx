@@ -5,7 +5,6 @@ import { createFilterOptions } from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import SearchableSelect from "./SearchableSelect";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
@@ -60,6 +59,19 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+function useDebouncer(value: any, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 // create a filterOptions for the MUI Autocomplete component
 // that ignores cases and spaces when matching
 const filterOptions = createFilterOptions<any>({
@@ -83,7 +95,7 @@ const QuickSearchBar = () => {
   const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
   const [saveDialogObjId, setSaveDialogObjId] = useState<string | null>(null);
 
-  const debouncedInputValue = useDebouncedValue(inputValue, 500);
+  const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
 
   useEffect(() => {
@@ -296,13 +308,11 @@ const QuickSearchBar = () => {
         </Select>
         <SearchableSelect
           id="quick-search-bar"
-          label=""
           classes={{ root: classes.root, paper: (classes as any).paper }}
-          getOptionLabel={(option: any) => option.name || ""}
+          getOptionLabel={(option) => option.name || ""}
           filterOptions={filterOptions}
-          inputValue={inputValue}
-          onInputChange={(_e: any, val: string) => setInputValue(val)}
-          onChange={(newValue: any, reason?: string) => {
+          onInputChange={(_e, val) => setInputValue(val)}
+          onChange={(_event, newValue: any, reason) => {
             if (reason === "selectOption") {
               setInputValue("");
               setValue("");
@@ -327,10 +337,10 @@ const QuickSearchBar = () => {
           loading={loading}
           clearOnEscape
           clearOnBlur
+          selectOnFocus
           limitTags={15}
           value={value}
           popupIcon={null}
-          fullWidth
           placeholder="Search"
           textFieldProps={{
             slotProps: {

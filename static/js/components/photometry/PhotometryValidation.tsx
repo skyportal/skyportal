@@ -232,8 +232,7 @@ const PhotometryValidation = ({
                           label="Explanation"
                           freeSolo
                           disableClearable
-                          fullWidth
-                          filterOptions={(options: any[], params: any) => {
+                          filterOptions={(options, params) => {
                             const filtered = filter(options, params);
 
                             if (params.inputValue !== "") {
@@ -242,10 +241,10 @@ const PhotometryValidation = ({
 
                             return filtered;
                           }}
-                          onChange={(newValue: any) => onChange(newValue)}
+                          onChange={(_e, newValue) => onChange(newValue)}
                           options={defaultExplanations}
                           value={value}
-                          renderOption={(props: any, option: any) => (
+                          renderOption={(props, option) => (
                             <Typography
                               style={{ color: getOptionTextColor(option) }}
                               {...props}

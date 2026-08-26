@@ -278,11 +278,11 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                     options={availableTags}
                     getOptionLabel={(option: any) => option.name}
                     value={value}
-                    onChange={(data: any) => {
+                    onChange={(_, data) => {
                       onChange(data);
                       setSelectedTag(data);
                     }}
-                    renderOption={(props: any, option: any) => (
+                    renderOption={(props, option: any) => (
                       <li {...props}>
                         <Chip
                           label={option.name}
@@ -296,7 +296,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                       </li>
                     )}
                     filterSelectedOptions
-                    dataTestId="tag-select"
+                    data-testid="tag-select"
                     textFieldProps={{
                       className: styles.autocomplete,
                       "data-testid": "tag-autocomplete-input",

@@ -159,12 +159,12 @@ const AddEntitiesDialog = ({
               multiple
               label={label}
               value={value}
-              onChange={(data: any) => onChange(data)}
+              onChange={(_e, data) => onChange(data)}
               options={options}
               getOptionLabel={getOptionLabel}
               filterSelectedOptions
               error={invalid}
-              dataTestId={selectTestId}
+              data-testid={selectTestId}
             />
           )}
         />
@@ -684,7 +684,7 @@ const UserManagement = () => {
                   freeSolo
                   label="Select Affiliations"
                   value={value}
-                  onChange={(data: any) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   options={clickedUser?.affiliations ?? []}
                   filterOptions={(options, params) => {
                     const filtered = filterOptions(options, params);
@@ -695,7 +695,7 @@ const UserManagement = () => {
                     return filtered;
                   }}
                   getOptionLabel={(affiliation: any) => affiliation}
-                  dataTestId="addUserAffiliationsSelect"
+                  data-testid="addUserAffiliationsSelect"
                   textFieldProps={{
                     "data-testid": "addUserAffiliationsTextField",
                   }}

@@ -1942,15 +1942,14 @@ const SourceTable = ({
             )}
             {columnPickerOptions.length > 0 && (
               <SearchableSelect
-                label=""
                 options={columnPickerOptions}
-                getOptionLabel={(o: any) => o.label}
+                getOptionLabel={(o) => o.label}
                 // Nothing until the user types, then capped matches, so a large
                 // registry never floods the dropdown.
-                filterOptions={(opts: any[], state: any) =>
+                filterOptions={(opts, state) =>
                   filterColumnPickerOptions(opts, state.inputValue)
                 }
-                onChange={(value: any) => value && handleAddColumn(value.field)}
+                onChange={(_e, value) => value && handleAddColumn(value.field)}
                 value={null}
                 blurOnSelect
                 clearOnBlur

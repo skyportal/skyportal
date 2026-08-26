@@ -77,10 +77,10 @@ const AddGroupOfUsersForm = ({ groupID }: AddGroupOfUsersFormProps) => {
                 multiple
                 id="addUsersFromGroupsSelect"
                 label="Select Groups/Users"
-                onChange={(data: any) => onChange(data)}
+                onChange={(_e, data) => onChange(data)}
                 value={value}
                 options={groups}
-                getOptionLabel={(group: any) => (group as Group).name}
+                getOptionLabel={(group: Group) => group.name}
                 filterSelectedOptions
                 sx={{ width: 300 }}
                 error={!!errors["groups"]}

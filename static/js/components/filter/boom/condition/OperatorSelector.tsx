@@ -68,7 +68,7 @@ const AutocompleteOperators = ({
         },
       }}
       value={options.find((opt: any) => opt.value === value) || null}
-      onChange={(newValue: any) =>
+      onChange={(_, newValue: any) =>
         onChange && onChange(newValue ? newValue.value : "")
       }
       renderOption={(props: any, option: any) => {

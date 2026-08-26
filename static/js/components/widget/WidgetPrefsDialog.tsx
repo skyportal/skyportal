@@ -196,7 +196,7 @@ const WidgetPrefsDialog = ({
                           value={(groups || []).filter((group: any) =>
                             value.includes(group.id),
                           )}
-                          onChange={(data: any) =>
+                          onChange={(_e, data) =>
                             onChange(data.map((group: any) => group.id))
                           }
                           filterSelectedOptions

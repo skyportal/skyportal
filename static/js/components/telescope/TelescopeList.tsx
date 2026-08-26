@@ -282,13 +282,12 @@ const TelescopeList = () => {
               style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
             >
               <SearchableSelect
-                label=""
                 id="telescopes-search-bar"
                 classes={{
                   root: (classes as any).root,
                   paper: (classes as any).paper,
                 }}
-                onChange={(option: any) => handleChange(option)}
+                onChange={(_event, option) => handleChange(option)}
                 value={selectedTelescope}
                 options={telescopeList}
                 getOptionLabel={(option: any) => option.name || ""}
