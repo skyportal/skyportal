@@ -5,6 +5,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { useEditFollowupRequestMutation } from "../../ducks/source";
 import { localeSafeFields } from "./LocaleSafeNumberField";
+import DialogTitle from "@mui/material/DialogTitle";
 
 interface EditFollowupRequestDialogProps {
   followupRequest: {
@@ -95,6 +96,7 @@ const EditFollowupRequestDialog = ({
 
   return (
     <Dialog open onClose={onClose}>
+      <DialogTitle>Edit Follow-up Request</DialogTitle>
       <DialogContent>
         <Form
           schema={formCopy}
