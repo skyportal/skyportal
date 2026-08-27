@@ -542,13 +542,15 @@ const FollowupRequestLists = ({
                 py: "0.3rem",
               }}
             >
-              <ActionButton
-                loading={implementsDelete && isDeleting === row.id}
-                onClick={() => handleDelete(row.id)}
-                testId={`deleteRequest_${row.id}`}
-              >
-                Delete
-              </ActionButton>
+              {implementsDelete && (
+                <ActionButton
+                  loading={isDeleting === row.id}
+                  onClick={() => handleDelete(row.id)}
+                  testId={`deleteRequest_${row.id}`}
+                >
+                  Delete
+                </ActionButton>
+              )}
               {canRetrieve && (
                 <ActionButton
                   loading={isGetting === row.id}
@@ -557,9 +559,9 @@ const FollowupRequestLists = ({
                   Retrieve
                 </ActionButton>
               )}
-              {row.status.includes("failed to submit") && (
+              {implementSubmit && row.status.includes("failed to submit") && (
                 <ActionButton
-                  loading={implementSubmit && isSubmitting === row.id}
+                  loading={isSubmitting === row.id}
                   onClick={() => handleSubmit(row)}
                 >
                   Submit
