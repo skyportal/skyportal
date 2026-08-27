@@ -178,6 +178,46 @@ def read_schema(connection):
     return present
 
 
+def name_markers(markers, limit=3):
+    """``table.column`` for a few markers, table names alone for whole tables."""
+    # a marker is (table, None) for a table and (table, column) for a column,
+    # so it cannot be sorted without a key
+    sample = sorted(markers, key=lambda m: (m[0], m[1] or ""))[:limit]
+    named = ", ".join(
+        table if column is None else f"{table}.{column}" for table, column in sample
+    )
+    return named + (", ..." if len(markers) > limit else "")
+
+
+def report_collisions(order, verdict, markers, present, best):
+    """Warn about pending revisions whose changes the database already has.
+
+    A migration that has not run should leave no trace, so one that does will
+    fail when it is replayed. This happens where a table arrives from the models
+    rather than from its migration, which the app does for missing tables when
+    it runs in debug mode: the table is built to the current model, while older
+    tables never gain the columns their migrations would have added.
+    """
+    collisions = [
+        (order[i], markers[order[i]] & present)
+        for i in range(best + 1, len(order))
+        if verdict[i] is True
+    ]
+    if not collisions:
+        return
+
+    print(
+        f"{len(collisions)} of those migrations are already present in part, so the "
+        "upgrade will\nstop at the first one it cannot apply:\n"
+    )
+    for revision, already in collisions:
+        print(f"    {revision}  {name_markers(already)} already exists")
+    print(
+        "\nCheck each one, and if its changes really are all there, stamp past it\n"
+        "with `alembic stamp <revision>` before continuing the upgrade.\n"
+    )
+
+
 def main():
     env, cfg = load_env()
     engine = init_db(**{**cfg["database"], "pooler": None})
@@ -219,15 +259,7 @@ def main():
     if args.verbose:
         for revision, applied, missing in verdicts:
             state = {True: "present", False: "MISSING", None: "no evidence"}[applied]
-            detail = ""
-            if missing:
-                # a marker is (table, None) for a table, (table, column) for a
-                # column, so it cannot be sorted without a key
-                sample = sorted(missing, key=lambda m: (m[0], m[1] or ""))[:3]
-                detail = "  " + ", ".join(
-                    table if column is None else f"{table}.{column}"
-                    for table, column in sample
-                )
+            detail = f"  {name_markers(missing)}" if missing else ""
             print(f"  {revision}  {state}{detail}")
 
     order = [revision for revision, _ in history]
@@ -294,6 +326,7 @@ def main():
             f"\n    python tools/db_revision_from_schema.py --stamp\n"
             "    make db_migrate\n"
         )
+        report_collisions(order, verdict, markers, present, best)
     else:
         print(
             "\nThe schema is ahead of what has been recorded, which happens when "
