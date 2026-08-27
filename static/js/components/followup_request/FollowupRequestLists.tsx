@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { JSONTree } from "react-json-tree";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
@@ -10,7 +10,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
-import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -27,23 +26,7 @@ import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-const useStyles = makeStyles()(() => ({
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-    padding: "0.3rem 0",
-  },
-  accordion: {
-    width: "100%",
-  },
-  container: {
-    margin: "0 1px 1px 1px",
-  },
-}));
-
-// Labels (lower-cased) of payload-derived columns that should be visible by
-// default. Mirrors the previous mui-datatables `display` list.
+// Lower-cased labels of the payload-derived columns visible by default.
 const displayedColumns = [
   "requester",
   "allocation",
@@ -59,6 +42,197 @@ const displayedColumns = [
   "modify",
   "watch",
 ];
+
+const keyOrder = (a: any, b: any) => {
+  // End date comes after start date
+  if (a === "end_date" && b === "start_date") {
+    return 1;
+  }
+  if (b === "end_date" && a === "start_date") {
+    return -1;
+  }
+
+  // Dates come before anything else
+  if (a === "end_date" || a === "start_date") {
+    return -1;
+  }
+  if (b === "end_date" || b === "start_date") {
+    return 1;
+  }
+
+  // if there is an observation_type, it comes before anything else except dates and priority
+  if (
+    a === "observation_type" &&
+    b !== "end_date" &&
+    b !== "start_date" &&
+    b !== "priority"
+  ) {
+    return -1;
+  }
+  if (
+    b === "observation_type" &&
+    a !== "end_date" &&
+    a !== "start_date" &&
+    a !== "priority"
+  ) {
+    return 1;
+  }
+
+  // priority comes before status
+  if (a === "priority" && b === "status") {
+    return -1;
+  }
+  if (b === "priority" && a === "status") {
+    return 1;
+  }
+
+  // priority and status go at the end, so anything else comes before them
+  if (a === "priority" || a === "status") {
+    return 1;
+  }
+  if (b === "priority" || b === "status") {
+    return -1;
+  }
+
+  // Regular string comparison
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  // a must be equal to b
+  return 0;
+};
+
+const downloadRequestsCsv = (onDownload: any) => {
+  onDownload().then((data: any) => {
+    if (!data?.length) {
+      return;
+    }
+    const head = [
+      "obj_id",
+      "created_at",
+      "requester_id",
+      "requester_name",
+      "last_modified_by_id",
+    ];
+
+    let keys = data.reduce((r: any, a: any) => {
+      Object.keys(a.payload).forEach((key) => {
+        if (!r.includes(key)) {
+          r = [...r, key];
+        }
+      });
+      return r;
+    }, []);
+
+    if (keys.includes("priority")) {
+      keys = keys.filter((key: any) => key !== "priority");
+      keys.unshift("priority");
+    }
+    if (keys.includes("end_date")) {
+      keys = keys.filter((key: any) => key !== "end_date");
+      keys.unshift("end_date");
+    }
+    if (keys.includes("start_date")) {
+      keys = keys.filter((key: any) => key !== "start_date");
+      keys.unshift("start_date");
+    }
+
+    keys.forEach((key: any) => {
+      head.push(`payload.${key}`);
+    });
+
+    head.push(
+      "status",
+      "allocation_id",
+      "allocation_pi",
+      "allocation_group_id",
+      "allocation_group_name",
+      "allocation_types",
+    );
+
+    const formatDataFunc = (x: any) => {
+      const formattedData = [
+        x.obj_id,
+        x.created_at,
+        x.requester.id,
+        x.requester.username.replaceAll(",", "/"),
+        x.last_modified_by_id,
+      ];
+
+      keys.forEach((key: any) => {
+        if (key in x.payload) {
+          if (Array.isArray(x.payload[key])) {
+            formattedData.push(x.payload[key].join("/"));
+          } else if (typeof x.payload[key] === "string") {
+            if (x.payload[key].includes(",")) {
+              formattedData.push(x.payload[key].replaceAll(",", "/"));
+            } else {
+              formattedData.push(x.payload[key]);
+            }
+          } else {
+            formattedData.push(x.payload[key]);
+          }
+        } else {
+          formattedData.push("");
+        }
+      });
+
+      formattedData.push(
+        x.status.replaceAll(",", "/"),
+        x.allocation.id,
+        x.allocation.pi.replaceAll(",", "/"),
+        x.allocation.group.id,
+        x.allocation.group.name.replaceAll(",", "/"),
+        x.allocation.types.join("/"),
+      );
+      return formattedData;
+    };
+
+    const rows = data.map((x: any) => formatDataFunc(x).join(","));
+
+    const result = `${head.join(",")}\n${rows.join("\n")}`;
+
+    const blob = new Blob([result], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "followup_requests.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  });
+};
+
+const ActionButton = ({
+  loading = false,
+  onClick,
+  testId,
+  children,
+}: {
+  loading?: boolean;
+  onClick: () => void;
+  testId?: string;
+  children: string;
+}) =>
+  loading ? (
+    <CircularProgress />
+  ) : (
+    <Button
+      primary
+      size="small"
+      type="submit"
+      onClick={onClick}
+      data-testid={testId}
+    >
+      {children}
+    </Button>
+  );
 
 interface FollowupRequestListsProps {
   followupRequests: any[];
@@ -87,7 +261,6 @@ const FollowupRequestLists = ({
   requestType = "triggered",
   onDownload = false,
 }: FollowupRequestListsProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [deleteFollowupRequestMutation] = useDeleteFollowupRequestMutation();
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
@@ -98,11 +271,31 @@ const FollowupRequestLists = ({
   const [hasRetrieved, setHasRetrieved] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<any>(null);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
-  // Kept here rather than in the cell: the Edit button sits in a horizontally
-  // virtualized DataGrid column, so a cell remount would close the dialog.
+  // Not in the cell: its DataGrid column is virtualized, a remount would close the dialog.
   const [requestIdToEdit, setRequestIdToEdit] = useState<any>(null);
-  // Per-instrument column visibility model, keyed by instrument_id.
   const [columnVisibilityModels, setColumnVisibilityModels] = useState<any>({});
+  // Memoized so MUI keeps the same component type across renders and doesn't remount it.
+  const CustomToolbar = useMemo(
+    () =>
+      function FollowupRequestToolbar() {
+        return (
+          <DataGridToolbar showExport={false}>
+            {typeof onDownload === "function" && (
+              <Tooltip title="Download CSV">
+                <IconButton
+                  size="small"
+                  aria-label="Download CSV"
+                  onClick={() => downloadRequestsCsv(onDownload)}
+                >
+                  <DownloadIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </DataGridToolbar>
+        );
+      },
+    [onDownload],
+  );
 
   const handleDelete = async (id: any) => {
     setIsDeleting(id);
@@ -156,41 +349,28 @@ const FollowupRequestLists = ({
     setIsSubmitting(null);
   };
 
-  if (requestType === "triggered") {
+  if (!Array.isArray(followupRequests)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
+  if (requestType === "triggered" || requestType === "forced_photometry") {
+    const schema =
+      requestType === "triggered" ? "formSchema" : "formSchemaForcedPhotometry";
+    const otherSchema =
+      requestType === "triggered" ? "formSchemaForcedPhotometry" : "formSchema";
+
     instrumentList = instrumentList.filter(
-      // find the instrument in instrumentFormParams that has the same id as the instrument in instrumentList
-      (inst) =>
-        inst.id in instrumentFormParams &&
-        instrumentFormParams[inst.id]?.formSchema !== null &&
-        instrumentFormParams[inst.id]?.formSchema !== undefined,
+      (inst) => instrumentFormParams[inst.id]?.[schema] != null,
     );
 
+    // keep requests of this type, and those whose instrument only implements this type
     followupRequests = followupRequests.filter(
       (request) =>
-        request?.payload?.request_type === "triggered" ||
+        request?.payload?.request_type === requestType ||
         (request?.allocation?.instrument_id in instrumentFormParams &&
-          (instrumentFormParams[request?.allocation?.instrument_id]
-            ?.formSchemaForcedPhotometry === null ||
-            instrumentFormParams[request?.allocation?.instrument_id]
-              ?.formSchemaForcedPhotometry === undefined)),
-    );
-  } else if (requestType === "forced_photometry") {
-    instrumentList = instrumentList.filter(
-      // find the instrument in instrumentFormParams that has the same id as the instrument in instrumentList
-      (inst) =>
-        inst.id in instrumentFormParams &&
-        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== null &&
-        instrumentFormParams[inst.id]?.formSchemaForcedPhotometry !== undefined,
-    );
-
-    followupRequests = followupRequests.filter(
-      (request) =>
-        request?.payload?.request_type === "forced_photometry" ||
-        (request?.allocation?.instrument_id in instrumentFormParams &&
-          (instrumentFormParams[request?.allocation?.instrument_id]
-            ?.formSchema === null ||
-            instrumentFormParams[request?.allocation?.instrument_id]
-              ?.formSchema === undefined)),
+          instrumentFormParams[request?.allocation?.instrument_id]?.[
+            otherSchema
+          ] == null),
     );
   }
 
@@ -203,25 +383,18 @@ const FollowupRequestLists = ({
     return <p>No robotic followup requests found...</p>;
   }
 
-  const instLookUp = instrumentList.reduce((r: any, a: any) => {
-    r[a.id] = a;
-    return r;
-  }, {});
+  const instLookUp = Object.fromEntries(
+    instrumentList.map((inst: any) => [inst.id, inst]),
+  );
 
-  if (!Array.isArray(followupRequests)) {
-    return <p>Waiting for followup requests to load...</p>;
-  }
+  const requestsGroupedByInstId = followupRequests.reduce(
+    (grouped: any, request: any) => {
+      (grouped[request.allocation.instrument.id] ||= []).push(request);
+      return grouped;
+    },
+    {},
+  );
 
-  const requestsGroupedByInstId = followupRequests.reduce((r: any, a: any) => {
-    r[a.allocation.instrument.id] = [
-      ...(r[a.allocation.instrument.id] || []),
-      a,
-    ];
-    return r;
-  }, {});
-
-  // Build DataGrid columns and a default column-visibility model for one
-  // instrument group. Returns { columns, defaultVisibility }.
   const getDataTableColumns = (keys: any[], instrument_id: any) => {
     const columns: any[] = [
       {
@@ -284,25 +457,14 @@ const FollowupRequestLists = ({
         minWidth: 120,
         filterable: false,
         valueGetter: (_value: any, row: any) => row.obj?.id,
-        renderCell: (params: any) => {
-          const followupRequest = params.row;
-          return (
-            <div>
-              {followupRequest.obj ? (
-                <Button
-                  size="small"
-                  data-testid={`link_${followupRequest.obj.id}`}
-                >
-                  <a href={`/source/${followupRequest.obj.id}`}>
-                    {followupRequest.obj.id}&nbsp;
-                  </a>
-                </Button>
-              ) : (
-                <CircularProgress />
-              )}
-            </div>
-          );
-        },
+        renderCell: ({ row }: any) =>
+          row.obj ? (
+            <Button size="small">
+              <a href={`/source/${row.obj.id}`}>{row.obj.id}&nbsp;</a>
+            </Button>
+          ) : (
+            <CircularProgress />
+          ),
       });
     }
 
@@ -344,18 +506,11 @@ const FollowupRequestLists = ({
       minWidth: 150,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => {
-        const followupRequest = params.row;
-        return (
-          <div style={{ whiteSpace: "nowrap" }}>
-            {followupRequest ? (
-              <JSONTree data={followupRequest.transactions} hideRoot />
-            ) : (
-              ""
-            )}
-          </div>
-        );
-      },
+      renderCell: ({ row }: any) => (
+        <Box sx={{ whiteSpace: "nowrap" }}>
+          <JSONTree data={row.transactions} hideRoot />
+        </Box>
+      ),
     });
     defaultVisibility.Transactions = false;
 
@@ -367,104 +522,58 @@ const FollowupRequestLists = ({
         minWidth: 140,
         sortable: false,
         filterable: false,
-        renderCell: (params: any) => {
-          const followupRequest = params.row;
-
-          const isDone =
-            followupRequest.status === "Photometry committed to database";
-
+        renderCell: ({ row }: any) => {
+          const isDone = row.status === "Photometry committed to database";
           const isSubmitted =
-            followupRequest.status.startsWith("pending") ||
-            followupRequest.status.startsWith("submitted");
-
-          const isFailed = followupRequest.status.includes("failed to submit");
+            row.status.startsWith("pending") ||
+            row.status.startsWith("submitted");
+          const canRetrieve =
+            !isDone &&
+            isSubmitted &&
+            implementsGet &&
+            !hasRetrieved.includes(row.id);
 
           return (
-            <div className={classes.actionButtons}>
-              {implementsDelete && isDeleting === followupRequest.id ? (
-                <div>
-                  <CircularProgress />
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    primary
-                    onClick={() => {
-                      handleDelete(followupRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`deleteRequest_${followupRequest.id}`}
-                  >
-                    Delete
-                  </Button>
-                </div>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.2rem",
+                py: "0.3rem",
+              }}
+            >
+              <ActionButton
+                loading={implementsDelete && isDeleting === row.id}
+                onClick={() => handleDelete(row.id)}
+                testId={`deleteRequest_${row.id}`}
+              >
+                Delete
+              </ActionButton>
+              {canRetrieve && (
+                <ActionButton
+                  loading={isGetting === row.id}
+                  onClick={() => handleGet(row.id)}
+                >
+                  Retrieve
+                </ActionButton>
               )}
-              {!isDone &&
-                isSubmitted &&
-                implementsGet &&
-                !hasRetrieved.includes(followupRequest.id) && (
-                  <div>
-                    {implementsGet && isGetting === followupRequest.id ? (
-                      <div>
-                        <CircularProgress />
-                      </div>
-                    ) : (
-                      <div>
-                        <Button
-                          primary
-                          onClick={() => {
-                            handleGet(followupRequest.id);
-                          }}
-                          size="small"
-                          type="submit"
-                          data-testid={`getRequest_${followupRequest.id}`}
-                        >
-                          Retrieve
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              {isFailed && (
-                <div>
-                  {implementSubmit && isSubmitting === followupRequest.id ? (
-                    <div>
-                      <CircularProgress />
-                    </div>
-                  ) : (
-                    <div>
-                      <Button
-                        primary
-                        onClick={() => {
-                          handleSubmit(followupRequest);
-                        }}
-                        size="small"
-                        type="submit"
-                        data-testid={`submitRequest_${followupRequest.id}`}
-                      >
-                        Submit
-                      </Button>
-                    </div>
-                  )}
-                </div>
+              {row.status.includes("failed to submit") && (
+                <ActionButton
+                  loading={implementSubmit && isSubmitting === row.id}
+                  onClick={() => handleSubmit(row)}
+                >
+                  Submit
+                </ActionButton>
               )}
               {implementsEdit && (
-                <div>
-                  <Button
-                    primary
-                    onClick={() => {
-                      setRequestIdToEdit(followupRequest.id);
-                    }}
-                    size="small"
-                    type="submit"
-                    data-testid={`editRequest_${followupRequest.id}`}
-                  >
-                    Edit
-                  </Button>
-                </div>
+                <ActionButton
+                  onClick={() => setRequestIdToEdit(row.id)}
+                  testId={`editRequest_${row.id}`}
+                >
+                  Edit
+                </ActionButton>
               )}
-            </div>
+            </Box>
           );
         },
       });
@@ -477,14 +586,12 @@ const FollowupRequestLists = ({
       minWidth: 100,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => (
-        <div>
-          <WatcherButton
-            followupRequest={params.row}
-            textMode={false}
-            serverSide={serverSide}
-          />
-        </div>
+      renderCell: ({ row }: any) => (
+        <WatcherButton
+          followupRequest={row}
+          textMode={false}
+          serverSide={serverSide}
+        />
       ),
     });
 
@@ -513,207 +620,12 @@ const FollowupRequestLists = ({
     }
   };
 
-  const handleDownload = () => {
-    if (typeof onDownload !== "function") {
-      return;
-    }
-    onDownload().then((data: any) => {
-      if (!data?.length) {
-        return;
-      }
-      const head = [
-        "obj_id",
-        "created_at",
-        "requester_id",
-        "requester_name",
-        "last_modified_by_id",
-      ];
-
-      // get all the unique keys from all the requests' payloads
-      let keys = data.reduce((r: any, a: any) => {
-        Object.keys(a.payload).forEach((key) => {
-          if (!r.includes(key)) {
-            r = [...r, key];
-          }
-        });
-        return r;
-      }, []);
-
-      // then reorder the keys so we have start_date, end_date, priority first, in this order
-      if (keys.includes("priority")) {
-        keys = keys.filter((key: any) => key !== "priority");
-        keys.unshift("priority");
-      }
-      // then check if payload.end_date is in the keys, if so, remove it and add it to the front
-      if (keys.includes("end_date")) {
-        keys = keys.filter((key: any) => key !== "end_date");
-        keys.unshift("end_date");
-      }
-      // then check if payload.start_date is in the keys, if so, remove it and add it to the front
-      if (keys.includes("start_date")) {
-        keys = keys.filter((key: any) => key !== "start_date");
-        keys.unshift("start_date");
-      }
-
-      keys.forEach((key: any) => {
-        head.push(`payload.${key}`);
-      });
-
-      head.push(
-        "status",
-        "allocation_id",
-        "allocation_pi",
-        "allocation_group_id",
-        "allocation_group_name",
-        "allocation_types",
-      );
-
-      const formatDataFunc = (x: any) => {
-        const formattedData = [
-          x.obj_id,
-          x.created_at,
-          x.requester.id,
-          x.requester.username.replaceAll(",", "/"),
-          x.last_modified_by_id,
-        ];
-
-        keys.forEach((key: any) => {
-          if (key in x.payload) {
-            if (Array.isArray(x.payload[key])) {
-              formattedData.push(x.payload[key].join("/"));
-            } else if (typeof x.payload[key] === "string") {
-              if (x.payload[key].includes(",")) {
-                formattedData.push(x.payload[key].replaceAll(",", "/"));
-              } else {
-                formattedData.push(x.payload[key]);
-              }
-            } else {
-              formattedData.push(x.payload[key]);
-            }
-          } else {
-            formattedData.push("");
-          }
-        });
-
-        formattedData.push(
-          x.status.replaceAll(",", "/"),
-          x.allocation.id,
-          x.allocation.pi.replaceAll(",", "/"),
-          x.allocation.group.id,
-          x.allocation.group.name.replaceAll(",", "/"),
-          x.allocation.types.join("/"),
-        );
-        return formattedData;
-      };
-
-      const rows = data.map((x: any) => formatDataFunc(x).join(","));
-
-      const result = `${head.join(",")}\n${rows.join("\n")}`;
-
-      const blob = new Blob([result], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "followup_requests.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    });
-  };
-
-  const showDownload = typeof onDownload === "function";
-
-  const makeToolbar = () =>
-    function FollowupRequestToolbar() {
-      return (
-        <DataGridToolbar showExport={false}>
-          {showDownload && (
-            <Tooltip title="Download CSV">
-              <IconButton
-                size="small"
-                aria-label="Download CSV"
-                data-testid="download-followup-requests-button"
-                onClick={handleDownload}
-              >
-                <DownloadIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-        </DataGridToolbar>
-      );
-    };
-
-  const keyOrder = (a: any, b: any) => {
-    // End date comes after start date
-    if (a === "end_date" && b === "start_date") {
-      return 1;
-    }
-    if (b === "end_date" && a === "start_date") {
-      return -1;
-    }
-
-    // Dates come before anything else
-    if (a === "end_date" || a === "start_date") {
-      return -1;
-    }
-    if (b === "end_date" || b === "start_date") {
-      return 1;
-    }
-
-    // if there is an observation_type, it comes before anything else except dates and priority
-    if (
-      a === "observation_type" &&
-      b !== "end_date" &&
-      b !== "start_date" &&
-      b !== "priority"
-    ) {
-      return -1;
-    }
-    if (
-      b === "observation_type" &&
-      a !== "end_date" &&
-      a !== "start_date" &&
-      a !== "priority"
-    ) {
-      return 1;
-    }
-
-    // priority comes before status
-    if (a === "priority" && b === "status") {
-      return -1;
-    }
-    if (b === "priority" && a === "status") {
-      return 1;
-    }
-
-    // priority and status go at the end, so anything else comes before them
-    if (a === "priority" || a === "status") {
-      return 1;
-    }
-    if (b === "priority" || b === "status") {
-      return -1;
-    }
-
-    // Regular string comparison
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    // a must be equal to b
-    return 0;
-  };
-
   const requestToEdit = followupRequests.find(
     (request: any) => request.id === requestIdToEdit,
   );
 
   return (
-    <div className={classes.container}>
+    <Box sx={{ m: "0 1px 1px 1px" }}>
       {requestToEdit && (
         <EditFollowupRequestDialog
           followupRequest={requestToEdit}
@@ -724,20 +636,13 @@ const FollowupRequestLists = ({
         />
       )}
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
-        // get the flat, unique list of all keys across all requests
-        const keys = requestsGroupedByInstId[instrument_id].reduce(
-          (r: any, a: any) => {
-            Object.keys(a.payload).forEach((key) => {
-              if (!r.includes(key)) {
-                r = [...r, key];
-              }
-            });
-            return r;
-          },
-          [],
-        );
-
-        keys.sort(keyOrder);
+        const keys = [
+          ...new Set<string>(
+            requestsGroupedByInstId[instrument_id].flatMap((request: any) =>
+              Object.keys(request.payload),
+            ),
+          ),
+        ].sort(keyOrder);
 
         const { columns, defaultVisibility } = getDataTableColumns(
           keys,
@@ -747,11 +652,9 @@ const FollowupRequestLists = ({
         const visibilityModel =
           columnVisibilityModels[instrument_id] ?? defaultVisibility;
 
-        const CustomToolbar = makeToolbar();
-
         return (
           <Accordion
-            className={classes.accordion}
+            sx={{ width: "100%" }}
             key={`instrument_${instrument_id}_table_div`}
           >
             <AccordionSummary
@@ -765,55 +668,50 @@ const FollowupRequestLists = ({
             </AccordionSummary>
             <AccordionDetails
               data-testid={`${instrument_id}_followupRequestsTable`}
-              style={{ padding: 0, margin: 0 }}
+              sx={{ p: 0, m: 0 }}
             >
-              <Box sx={{ width: "100%" }}>
-                <StyledDataGrid
-                  autoHeight
-                  // Action cells can hold several buttons (Delete, Retrieve,
-                  // Submit, Edit) that wrap onto multiple lines; let each row
-                  // grow to fit so the wrapped buttons (e.g. Edit) aren't clipped
-                  // by the fixed default row height.
-                  getRowHeight={() => "auto"}
-                  rows={requestsGroupedByInstId[instrument_id]}
-                  columns={columns}
-                  getRowId={(row: any) => row.id}
-                  columnVisibilityModel={visibilityModel}
-                  onColumnVisibilityModelChange={(model: any) =>
-                    setColumnVisibilityModels((prev: any) => ({
-                      ...prev,
-                      [instrument_id]: model,
-                    }))
-                  }
-                  paginationMode={serverSide ? "server" : "client"}
-                  rowCount={serverSide ? totalMatches : undefined}
-                  paginationModel={
-                    serverSide
-                      ? { page: pageNumber - 1, pageSize: rowsPerPage }
-                      : undefined
-                  }
-                  onPaginationModelChange={
-                    serverSide ? handlePaginationModelChange : undefined
-                  }
-                  initialState={
-                    serverSide
-                      ? undefined
-                      : {
-                          pagination: {
-                            paginationModel: { pageSize: numPerPage },
-                          },
-                        }
-                  }
-                  pageSizeOptions={PAGE_SIZE_OPTIONS}
-                  slots={{ toolbar: CustomToolbar }}
-                  showToolbar
-                />
-              </Box>
+              <StyledDataGrid
+                autoHeight
+                // action buttons wrap onto several lines, a fixed row height clips them
+                getRowHeight={() => "auto"}
+                rows={requestsGroupedByInstId[instrument_id]}
+                columns={columns}
+                getRowId={(row: any) => row.id}
+                columnVisibilityModel={visibilityModel}
+                onColumnVisibilityModelChange={(model: any) =>
+                  setColumnVisibilityModels((prev: any) => ({
+                    ...prev,
+                    [instrument_id]: model,
+                  }))
+                }
+                paginationMode={serverSide ? "server" : "client"}
+                rowCount={serverSide ? totalMatches : undefined}
+                paginationModel={
+                  serverSide
+                    ? { page: pageNumber - 1, pageSize: rowsPerPage }
+                    : undefined
+                }
+                onPaginationModelChange={
+                  serverSide ? handlePaginationModelChange : undefined
+                }
+                initialState={
+                  serverSide
+                    ? undefined
+                    : {
+                        pagination: {
+                          paginationModel: { pageSize: numPerPage },
+                        },
+                      }
+                }
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                slots={{ toolbar: CustomToolbar }}
+                showToolbar
+              />
             </AccordionDetails>
           </Accordion>
         );
       })}
-    </div>
+    </Box>
   );
 };
 

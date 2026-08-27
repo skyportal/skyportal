@@ -8,23 +8,9 @@ import { localeSafeFields } from "./LocaleSafeNumberField";
 
 interface EditFollowupRequestDialogProps {
   followupRequest: {
-    requester?: {
-      id?: number;
-      username?: string;
-    };
-    allocation: {
-      instrument: {
-        id?: number;
-        name?: string;
-      };
-      id?: number;
-    };
-    start_date?: string;
-    end_date?: string;
-    priority?: string;
-    status?: string;
-    obj_id?: string;
-    id?: number;
+    id: number;
+    obj_id: string;
+    allocation: { id: number; instrument: { id: number } };
     payload?: Record<string, any>;
   };
   instrumentFormParams: Record<string, any>;
@@ -41,11 +27,10 @@ const EditFollowupRequestDialog = ({
   serverSide = false,
 }: EditFollowupRequestDialogProps) => {
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
+  const formParams =
+    instrumentFormParams[followupRequest.allocation.instrument.id];
 
   const handleSubmit = ({ formData }: { formData: any }) => {
-    if (followupRequest.id === undefined) {
-      return;
-    }
     const json: any = {
       allocation_id: followupRequest.allocation.id,
       obj_id: followupRequest.obj_id,
@@ -61,28 +46,18 @@ const EditFollowupRequestDialog = ({
     onClose();
   };
 
-  // Since we are editing existing follow-up requests,
-  // it makes more sense to set default form values to current request data
-  const { formSchema, formSchemaForcedPhotometry } =
-    instrumentFormParams[followupRequest.allocation.instrument.id as number];
-
-  let formCopy: any;
-  // make a copy of the formSchema, so we can modify it
-  if (requestType === "triggered") {
-    formCopy = JSON.parse(JSON.stringify(formSchema));
-  } else {
-    formCopy = JSON.parse(JSON.stringify(formSchemaForcedPhotometry));
-  }
+  const formCopy = JSON.parse(
+    JSON.stringify(
+      requestType === "triggered"
+        ? formParams.formSchema
+        : formParams.formSchemaForcedPhotometry,
+    ),
+  );
 
   Object.keys(formCopy.properties).forEach((key) => {
-    // Set the form value for "key" to the value in the existing request's
-    // payload, which is the form data sent to the external follow-up API
     if (followupRequest.payload?.[key]) {
-      // if the format is "date" but the value has time info, make sure to only include the date part
-      if (
-        formCopy.properties[key].format === "date" &&
-        followupRequest.payload?.[key]
-      ) {
+      // a "date" field can carry time info, which the date widget rejects
+      if (formCopy.properties[key].format === "date") {
         formCopy.properties[key].default = followupRequest.payload[key]
           .split("T")[0]
           .split(" ")[0];
@@ -92,23 +67,19 @@ const EditFollowupRequestDialog = ({
     }
   });
 
-  // we do the same for formSchema.dependencies, where each key is a value that has dependencies, under a key called "oneOf"
-  // in the oneOf.properties, if any key isnt in formSchema.properties, we set the their default value to the value in the existing request's payload
-  if (formCopy?.dependencies) {
-    Object.keys(formCopy.dependencies).forEach((key) => {
-      formCopy.dependencies[key].oneOf.forEach((oneOf: any) => {
-        Object.keys(oneOf.properties).forEach((oneOfKey) => {
-          if (
-            !formCopy.properties[oneOfKey] &&
-            followupRequest.payload?.[oneOfKey]
-          ) {
-            oneOf.properties[oneOfKey].default =
-              followupRequest.payload[oneOfKey];
-          }
-        });
+  Object.keys(formCopy.dependencies || {}).forEach((key) => {
+    formCopy.dependencies[key].oneOf.forEach((oneOf: any) => {
+      Object.keys(oneOf.properties).forEach((oneOfKey) => {
+        if (
+          !formCopy.properties[oneOfKey] &&
+          followupRequest.payload?.[oneOfKey]
+        ) {
+          oneOf.properties[oneOfKey].default =
+            followupRequest.payload[oneOfKey];
+        }
       });
     });
-  }
+  });
 
   const validate = (formData: any, errors: any) => {
     if (
@@ -128,11 +99,7 @@ const EditFollowupRequestDialog = ({
         <Form
           schema={formCopy}
           validator={validator}
-          uiSchema={
-            instrumentFormParams[
-              followupRequest.allocation.instrument.id as number
-            ].uiSchema
-          }
+          uiSchema={formParams.uiSchema}
           fields={localeSafeFields}
           onSubmit={handleSubmit as any}
           customValidate={validate}
