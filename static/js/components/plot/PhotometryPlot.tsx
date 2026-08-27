@@ -1352,7 +1352,9 @@ const PhotometryPlot = ({
 
       return newPlotData;
     }
-    return null;
+    // No traces for a tab that draws its own plot (Outburst). Callers push
+    // onto this, so it must stay a list.
+    return [];
   };
 
   const createLayouts = (
@@ -1651,7 +1653,9 @@ const PhotometryPlot = ({
   // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
-    if (initialized && filter2color) {
+    // The Outburst tab renders its own plot, so there are no main-plot traces
+    // to rebuild when it is selected.
+    if (initialized && filter2color && tabToPlotType(tabIndex)) {
       const traces = createTraces(
         data,
         photStats,
