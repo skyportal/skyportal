@@ -4,12 +4,19 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 
+import { POST } from "../API";
+import { useAppDispatch } from "../types/hooks";
+
 // A placeholder that never resolves looks exactly like one that is about to, so
 // after this long say the page may be stuck and offer a way out of it.
 const STUCK_AFTER_MS = 15000;
 
+const REPORT_STALL = "skyportal/REPORT_STALL";
+
 interface SlowLoadNoticeProps {
   stuckAfterMs?: number;
+  /** Named in the report, so the logs say which part of the app stalled. */
+  context?: string | undefined;
 }
 
 /**
@@ -19,14 +26,26 @@ interface SlowLoadNoticeProps {
  */
 export const SlowLoadNotice = ({
   stuckAfterMs = STUCK_AFTER_MS,
+  context = "unknown",
 }: SlowLoadNoticeProps) => {
   const [stuck, setStuck] = useState(false);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     if (!stuckAfterMs) return undefined;
-    const timer = setTimeout(() => setStuck(true), stuckAfterMs);
+    const timer = setTimeout(() => {
+      setStuck(true);
+      // Report it: a page that hangs for one user is otherwise only heard
+      // about if they think to say so.
+      dispatch(
+        POST("/api/internal/log", REPORT_STALL, {
+          error: `Still loading after ${Math.round(stuckAfterMs / 1000)}s (${context})`,
+          stack: ` at ${window.location.pathname}`,
+        }),
+      );
+    }, stuckAfterMs);
     return () => clearTimeout(timer);
-  }, [stuckAfterMs]);
+  }, [stuckAfterMs, context, dispatch]);
 
   if (!stuck) return null;
 
@@ -54,7 +73,10 @@ export const SlowLoadNotice = ({
   );
 };
 
-const Spinner = ({ stuckAfterMs = STUCK_AFTER_MS }: SlowLoadNoticeProps) => (
+const Spinner = ({
+  stuckAfterMs = STUCK_AFTER_MS,
+  context,
+}: SlowLoadNoticeProps) => (
   <div
     style={{
       position: "fixed",
@@ -70,7 +92,7 @@ const Spinner = ({ stuckAfterMs = STUCK_AFTER_MS }: SlowLoadNoticeProps) => (
     }}
   >
     <CircularProgress />
-    <SlowLoadNotice stuckAfterMs={stuckAfterMs} />
+    <SlowLoadNotice stuckAfterMs={stuckAfterMs} context={context} />
   </div>
 );
 
