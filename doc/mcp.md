@@ -42,9 +42,14 @@ Tools run with that token's permissions.
 Each tool documents its most common parameters in its input schema and
 accepts any other parameter of the underlying endpoint, so the
 [API reference](api) applies. Arguments are validated against the input
-schema before the call. A successful call returns the endpoint's `data` as
-JSON text and as `structuredContent`; an API error returns the error message
-with `isError` set.
+schema before the call. These tools return the endpoint's `data` as JSON
+text and as `structuredContent`; an API error returns the error message with
+`isError` set.
+
+Tools are async functions in `skyportal/handlers/mcp.py` that may call the
+REST API any number of times (with the caller's token) and return their own
+content, so tools that combine or analyze several API results are added the
+same way.
 
 ## Direct use
 

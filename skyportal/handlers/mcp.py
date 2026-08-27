@@ -2,9 +2,10 @@
 
 Modern-only: no initialize handshake, no sessions, no SSE. Every POST is a
 self-contained JSON-RPC request whose `_meta` carries the protocol version
-and client capabilities, so requests can land on any app process. Tools
-proxy to the REST API with the caller's own token, so the usual permission
-checks apply unchanged.
+and client capabilities, so requests can land on any app process. Tools are
+async functions that may call the REST API (with the caller's own token, so
+the usual permission checks apply) any number of times and return their own
+content.
 """
 
 import base64
@@ -38,9 +39,11 @@ TOOLS = {}
 
 
 def tool(name, description, properties, required=(), passthrough=None):
-    """Register a tool. The wrapped function maps tool arguments to a REST
-    request and returns (method, path, query, body). `passthrough` names the
-    endpoint whose remaining parameters are accepted verbatim."""
+    """Register a tool. The wrapped `async fn(handler, args)` returns the tool's
+    content: a JSON value (also sent as structuredContent) or a plain string.
+    Raise ToolError, or let handler.api() raise APIError, to report a tool
+    execution error. `passthrough` names the endpoint whose remaining
+    parameters are accepted verbatim."""
 
     schema = {"type": "object", "properties": properties, "required": list(required)}
     if passthrough:
@@ -120,10 +123,10 @@ _GROUP_IDS = _prop(
     },
     passthrough="GET /api/sources",
 )
-def get_sources(args):
+async def get_sources(handler, args):
     obj_id = args.pop("obj_id", None)
     path = f"/api/sources/{obj_id}" if obj_id else "/api/sources"
-    return "GET", path, args, None
+    return await handler.api("GET", path, query=args)
 
 
 @tool(
@@ -142,8 +145,8 @@ def get_sources(args):
     required=("id", "ra", "dec"),
     passthrough="POST /api/sources",
 )
-def post_source(args):
-    return "POST", "/api/sources", None, args
+async def post_source(handler, args):
+    return await handler.api("POST", "/api/sources", body=args)
 
 
 @tool(
@@ -168,9 +171,9 @@ def post_source(args):
     required=("obj_id",),
     passthrough="GET /api/sources/{obj_id}/photometry",
 )
-def get_photometry(args):
+async def get_photometry(handler, args):
     obj_id = args.pop("obj_id")
-    return "GET", f"/api/sources/{obj_id}/photometry", args, None
+    return await handler.api("GET", f"/api/sources/{obj_id}/photometry", query=args)
 
 
 @tool(
@@ -199,8 +202,8 @@ def get_photometry(args):
     required=("obj_id", "instrument_id", "mjd", "filter", "magsys"),
     passthrough="POST /api/photometry",
 )
-def post_photometry(args):
-    return "POST", "/api/photometry", None, args
+async def post_photometry(handler, args):
+    return await handler.api("POST", "/api/photometry", body=args)
 
 
 @tool(
@@ -221,9 +224,9 @@ def post_photometry(args):
     required=("obj_id",),
     passthrough="GET /api/sources/{obj_id}/spectra",
 )
-def get_spectra(args):
+async def get_spectra(handler, args):
     obj_id = args.pop("obj_id")
-    return "GET", f"/api/sources/{obj_id}/spectra", args, None
+    return await handler.api("GET", f"/api/sources/{obj_id}/spectra", query=args)
 
 
 @tool(
@@ -248,8 +251,8 @@ def get_spectra(args):
     required=("obj_id", "instrument_id", "observed_at", "wavelengths", "fluxes"),
     passthrough="POST /api/spectrum",
 )
-def post_spectrum(args):
-    return "POST", "/api/spectrum", None, args
+async def post_spectrum(handler, args):
+    return await handler.api("POST", "/api/spectrum", body=args)
 
 
 def _encode_query(query):
@@ -276,6 +279,16 @@ def _decode_header_value(value):
                 HEADER_MISMATCH, "Malformed Base64 header value", status=400
             ) from None
     return value
+
+
+class ToolError(Exception):
+    """A tool execution error, reported to the model as an isError result."""
+
+
+class APIError(ToolError):
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
 
 
 class RPCError(Exception):
@@ -467,20 +480,23 @@ class MCPHandler(BaseHandler):
                 "Invalid arguments: " + "; ".join(sorted(problems)), is_error=True
             )
 
-        method, path, query, body = spec["fn"](dict(arguments))
-        status, payload = await self._api(method, path, query, body)
-        if status == 200 and payload.get("status") == "success":
-            data = payload.get("data")
-            return {**self._tool_result(json.dumps(data)), "structuredContent": data}
-        message = payload.get("message") or f"HTTP {status}"
-        return self._tool_result(f"Error: {message}", is_error=True)
+        try:
+            content = await spec["fn"](self, dict(arguments))
+        except ToolError as e:
+            return self._tool_result(f"Error: {e}", is_error=True)
+        if isinstance(content, str):
+            return self._tool_result(content)
+        return {**self._tool_result(json.dumps(content)), "structuredContent": content}
 
     @staticmethod
     def _tool_result(text, is_error=False):
         return {"content": [{"type": "text", "text": text}], "isError": is_error}
 
-    async def _api(self, method, path, query=None, body=None):
-        """Call the REST API through the local server with the caller's token."""
+    async def api(self, method, path, query=None, body=None):
+        """Call the REST API through the local server with the caller's token.
+
+        Returns the response's `data` on success; raises APIError otherwise.
+        """
         url = f"http://localhost:{self.cfg['ports.app']}{path}"
         if query:
             url += "?" + _encode_query(query)
@@ -501,8 +517,9 @@ class MCPHandler(BaseHandler):
             payload = {}
         if not isinstance(payload, dict):
             payload = {}
-        if response.code != 200 and not payload.get("message"):
-            payload["message"] = (
-                response.body.decode(errors="replace")[:500] if response.body else None
-            ) or f"HTTP {response.code}"
-        return response.code, payload
+        if response.code == 200 and payload.get("status") == "success":
+            return payload.get("data")
+        message = payload.get("message") or (
+            response.body.decode(errors="replace")[:500] if response.body else None
+        )
+        raise APIError(response.code, message or f"HTTP {response.code}")

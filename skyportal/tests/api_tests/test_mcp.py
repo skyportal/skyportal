@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import uuid
@@ -276,33 +277,43 @@ def test_mcp_unknown_tool_and_invalid_arguments(view_only_token):
     assert is_error and "numPerPage" in text
 
 
-def test_mcp_tool_request_mapping():
-    fn = TOOLS["get_sources"]["fn"]
-    assert fn({"obj_id": "X", "includePhotometry": True}) == (
-        "GET",
-        "/api/sources/X",
-        {"includePhotometry": True},
-        None,
-    )
-    assert fn({"ra": 1, "dec": 2, "radius": 0.1})[1] == "/api/sources"
+class FakeHandler:
+    """Records REST calls made by a tool and returns canned data."""
 
-    assert TOOLS["get_photometry"]["fn"]({"obj_id": "X", "format": "flux"}) == (
-        "GET",
-        "/api/sources/X/photometry",
-        {"format": "flux"},
-        None,
+    def __init__(self, data=None):
+        self.data = data
+        self.calls = []
+
+    async def api(self, method, path, query=None, body=None):
+        self.calls.append((method, path, query, body))
+        return self.data
+
+
+def run_tool(name, args, data=None):
+    handler = FakeHandler(data)
+    content = asyncio.run(TOOLS[name]["fn"](handler, dict(args)))
+    return handler.calls, content
+
+
+def test_mcp_tool_request_mapping():
+    calls, content = run_tool(
+        "get_sources", {"obj_id": "X", "includePhotometry": True}, data={"id": "X"}
     )
-    assert TOOLS["get_spectra"]["fn"]({"obj_id": "X"})[1] == "/api/sources/X/spectra"
+    assert calls == [("GET", "/api/sources/X", {"includePhotometry": True}, None)]
+    assert content == {"id": "X"}
+    calls, _ = run_tool("get_sources", {"ra": 1, "dec": 2, "radius": 0.1})
+    assert calls[0][1] == "/api/sources"
+
+    calls, _ = run_tool("get_photometry", {"obj_id": "X", "format": "flux"})
+    assert calls == [("GET", "/api/sources/X/photometry", {"format": "flux"}, None)]
+    calls, _ = run_tool("get_spectra", {"obj_id": "X"})
+    assert calls[0][1] == "/api/sources/X/spectra"
 
     body = {"id": "X", "ra": 1, "dec": 2}
-    assert TOOLS["post_source"]["fn"](dict(body)) == (
-        "POST",
-        "/api/sources",
-        None,
-        body,
-    )
-    assert TOOLS["post_photometry"]["fn"]({})[1] == "/api/photometry"
-    assert TOOLS["post_spectrum"]["fn"]({})[1] == "/api/spectrum"
+    calls, _ = run_tool("post_source", body)
+    assert calls == [("POST", "/api/sources", None, body)]
+    assert run_tool("post_photometry", {})[0][0][1] == "/api/photometry"
+    assert run_tool("post_spectrum", {})[0][0][1] == "/api/spectrum"
 
 
 def test_mcp_source_photometry_spectrum_round_trip(
