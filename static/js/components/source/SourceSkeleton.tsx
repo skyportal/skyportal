@@ -33,7 +33,13 @@ const SourceSkeleton = ({ objId }: SourceSkeletonProps) => {
             }}
           >
             <Skeleton variant="circular" width={22} height={22} />
-            <h6
+            {/*
+              Deliberately not an <h6>: the loaded page's heading is one, and
+              the frontend tests wait on //h6[text()="<obj id>"] to know the
+              source page is ready. Matching it here would report "loaded"
+              while this placeholder is still on screen.
+            */}
+            <div
               style={{
                 lineHeight: "1em",
                 fontSize: "200%",
@@ -47,7 +53,7 @@ const SourceSkeleton = ({ objId }: SourceSkeletonProps) => {
               }}
             >
               {objId}
-            </h6>
+            </div>
           </div>
 
           {/* coordinates, redshift, TNS name */}
