@@ -15,8 +15,16 @@ import type { RouteData } from "../types/routeSchemaMap";
 
 export const observingRunsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getObservingRuns: build.query<RouteData<"GET /api/observing_run">, void>({
-      query: () => "api/observing_run",
+    getObservingRuns: build.query<
+      RouteData<"GET /api/observing_run">,
+      { upcomingOnly?: boolean } | void
+    >({
+      // Callers that only offer a run to assign a target to pass upcomingOnly,
+      // so the backend filters instead of sending every run ever scheduled.
+      query: (params) =>
+        params?.upcomingOnly
+          ? "api/observing_run?upcomingOnly=true"
+          : "api/observing_run",
       providesTags: ["ObservingRun"],
     }),
   }),

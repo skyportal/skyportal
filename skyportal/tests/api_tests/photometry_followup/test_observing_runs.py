@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from skyportal.tests import api
@@ -220,3 +222,50 @@ def test_observing_run_assignment_last_detection(
     assert assignment["last_detected_mag"] == pytest.approx(18.9, abs=0.01)
     assert assignment["last_detected_filter"] == "ztfg"
     assert assignment["last_detected_mjd"] == pytest.approx(61254.4)
+
+
+def test_upcoming_only_excludes_finished_runs(
+    lris, observing_run_token, red_transients_group
+):
+    """The source page offers runs to assign a target to, and a target cannot be
+    assigned to a run that is over. Filtering server-side keeps the whole run
+    history (megabytes of it) off that page."""
+    base = {
+        "instrument_id": lris.id,
+        "pi": "Danny Goldstein",
+        "observers": "D. Goldstein, P. Nugent",
+        "group_id": red_transients_group.id,
+    }
+
+    past = dict(base, calendar_date="2020-02-16")
+    future = dict(
+        base, calendar_date=str(datetime.date.today() + datetime.timedelta(days=30))
+    )
+
+    status, data = api("POST", "observing_run", data=past, token=observing_run_token)
+    assert status == 200, data
+    past_id = data["data"]["id"]
+
+    status, data = api("POST", "observing_run", data=future, token=observing_run_token)
+    assert status == 200, data
+    future_id = data["data"]["id"]
+
+    status, data = api("GET", "observing_run", token=observing_run_token)
+    assert status == 200, data
+    all_ids = {run["id"] for run in data["data"]}
+    assert {past_id, future_id} <= all_ids
+
+    status, data = api(
+        "GET", "observing_run?upcomingOnly=true", token=observing_run_token
+    )
+    assert status == 200, data
+    upcoming_ids = {run["id"] for run in data["data"]}
+    assert future_id in upcoming_ids
+    assert past_id not in upcoming_ids
+
+
+def test_an_unknown_query_parameter_is_rejected(observing_run_token):
+    """extra="forbid" on the query model: a typo should say so, not silently
+    return everything."""
+    status, data = api("GET", "observing_run?upcoming=true", token=observing_run_token)
+    assert status == 400, data

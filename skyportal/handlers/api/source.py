@@ -423,11 +423,30 @@ async def get_source(
             options=[
                 selectinload(ClassicalAssignment.run)
                 .selectinload(ObservingRun.instrument)
-                .selectinload(Instrument.telescope)
+                .selectinload(Instrument.telescope),
+                # Carries the requester's name with the assignment, so the
+                # page showing it does not have to pull the whole user table to
+                # resolve one id.
+                selectinload(ClassicalAssignment.requester),
             ],
         ).where(ClassicalAssignment.obj_id == obj_id)
     )
-    source_info["assignments"] = assignments_result.unique().all()
+    # Project the requester down to a name. Serializing the User itself would
+    # put contact details, and preferences on a page anyone
+    # with access to the source can read -- and load_only cannot be relied on
+    # to prevent it, since the User is often already loaded in this session.
+    source_info["assignments"] = []
+    for assignment in assignments_result.unique().all():
+        assignment_info = assignment.to_dict()
+        assignment_info["requester"] = (
+            {
+                "id": assignment.requester.id,
+                "username": assignment.requester.username,
+            }
+            if assignment.requester is not None
+            else None
+        )
+        source_info["assignments"].append(assignment_info)
 
     if "photstats" in source_info:
         photstats = source_info["photstats"]

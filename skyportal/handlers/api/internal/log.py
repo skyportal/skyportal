@@ -17,7 +17,9 @@ class LogHandler(BaseHandler):
     async def post(self, *ignored_args):
         """Log a frontend error to the server logs, tracking user crash reports."""
         data = self.get_json()
-        log(f"{data['error']}{data['stack']}")
+        # A report that is missing a field is still worth logging, so read
+        # loosely: this endpoint exists to hear about breakage, not to add to it.
+        log(f"{data.get('error', 'Unspecified frontend error')}{data.get('stack', '')}")
         return self.success()
 
     @permissions(["System admin"])

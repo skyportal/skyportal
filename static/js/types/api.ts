@@ -12716,7 +12716,14 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Only return runs that have not finished yet. Callers offering a run to assign a target to want these, rather than every run ever scheduled. */
+                    upcomingOnly?: boolean;
+                    /** @description Number of runs to return per paginated request. Defaults to all runs. */
+                    numPerPage?: number | null;
+                    /** @description Page number for paginated query results. Defaults to 1. */
+                    pageNumber?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
