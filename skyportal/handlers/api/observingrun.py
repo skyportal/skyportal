@@ -1,7 +1,11 @@
+import datetime
+from typing import ClassVar
+
 import numpy as np
 import sqlalchemy as sa
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -68,6 +72,31 @@ async def post_observing_run(data, user_id, session):
     return run.id
 
 
+class ObservingRunGetQuery(BaseModel):
+    """Query parameters for listing observing runs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    upcomingOnly: bool = Field(
+        default=False,
+        description=(
+            "Only return runs that have not finished yet. Callers offering a "
+            "run to assign a target to want these, rather than every run ever "
+            "scheduled."
+        ),
+    )
+    numPerPage: int | None = Field(
+        default=None,
+        description="Number of runs to return per paginated request. Defaults to all runs.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+
+
 class ObservingRunHandler(BaseHandler):
     @permissions(["Manage observing runs"])
     async def post(self):
@@ -110,7 +139,9 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    async def get(self, run_id: int | None = None):
+    async def get(
+        self, run_id: int | None = None, *, query: ObservingRunGetQuery = None
+    ):
         """
         ---
         single:
@@ -248,7 +279,8 @@ class ObservingRunHandler(BaseHandler):
                 data = recursive_to_dict(data)
                 return self.success(data=data)
 
-            result = await session.scalars(
+            query = self.parse_query(ObservingRunGetQuery)
+            stmt = (
                 ObservingRun.select(session.user_or_token)
                 .options(
                     selectinload(ObservingRun.instrument).selectinload(
@@ -257,6 +289,25 @@ class ObservingRunHandler(BaseHandler):
                 )
                 .order_by(ObservingRun.calendar_date.asc())
             )
+            if query.upcomingOnly:
+                # run_end_utc is backfilled lazily just below, so fall back to
+                # the calendar date for runs that have not been through that.
+                today = datetime.datetime.now(datetime.UTC).date()
+                stmt = stmt.where(
+                    sa.or_(
+                        ObservingRun.run_end_utc >= utcnow_naive(),
+                        sa.and_(
+                            ObservingRun.run_end_utc.is_(None),
+                            ObservingRun.calendar_date >= today,
+                        ),
+                    )
+                )
+            if query.numPerPage is not None:
+                stmt = stmt.limit(query.numPerPage).offset(
+                    (query.pageNumber - 1) * query.numPerPage
+                )
+
+            result = await session.scalars(stmt)
             runs = result.all()
 
             # temporary, until we have migrated and called the handler once

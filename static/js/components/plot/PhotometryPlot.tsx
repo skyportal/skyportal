@@ -666,6 +666,11 @@ const PhotometryPlot = ({
 
   const [photStats, setPhotStats] = useState<any>(null);
   const [layouts, setLayouts] = useState<any>({});
+  // Passed to Plotly as uirevision. The layout prop is rebuilt on every render,
+  // and Plotly.react re-applies the declared axis ranges each time unless this
+  // is unchanged -- which threw away the user's zoom, pan and legend state on
+  // any re-render of the source page. Bumped only where we mean to reset.
+  const [layoutRevision, setLayoutRevision] = useState(0);
 
   const [filter2color, setFilter2Color] = useState<any>(
     config?.bandpassesColors,
@@ -1624,6 +1629,7 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
+      setLayoutRevision((revision) => revision + 1);
       setInitialized(true);
     }
   }, [
@@ -1679,6 +1685,7 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
+      setLayoutRevision((revision) => revision + 1);
     }
   }, [tabIndex, phase, shownModelFits]);
 
@@ -1691,6 +1698,7 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
+      setLayoutRevision((revision) => revision + 1);
       setLayoutReset(false);
     }
   }, [layoutReset]);
@@ -1955,6 +1963,7 @@ const PhotometryPlot = ({
           layout={{
             ...layouts,
             ...plotCanvasTheme(muiTheme),
+            uirevision: layoutRevision,
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",

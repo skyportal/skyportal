@@ -82,7 +82,7 @@ import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
-import Spinner from "../Spinner";
+import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
 import ObjectTags from "../ObjectTags";
@@ -259,7 +259,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
-  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  // Only runs a target can still be assigned to; the full history is a couple
+  // of megabytes and nothing on this page shows it.
+  const { data: observingRunList = [] } = useGetObservingRunsQuery({
+    upcomingOnly: true,
+  });
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
@@ -1716,7 +1720,9 @@ const Source = ({ route }: SourceProps) => {
   }, [isSuccess, source?.id, route.id, addSourceView]);
 
   if (isError) return (error as any)?.error ?? "Error while loading source";
-  if (isLoading || !source) return <Spinner />;
+  // The name is known from the route, so the page keeps its shape while the
+  // rest arrives instead of going blank behind a whole-page spinner.
+  if (isLoading || !source) return <SourceSkeleton objId={route.id} />;
   if (source.id === undefined) return "Source not found";
   // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;
