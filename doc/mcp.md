@@ -38,6 +38,7 @@ Tools run with that token's permissions.
 | `post_photometry` | `POST /api/photometry`                 |
 | `get_spectra`     | `GET /api/sources/{obj_id}/spectra`    |
 | `post_spectrum`   | `POST /api/spectrum`                   |
+| `analyze_light_curve` | per-band rise/fade/peak summary from `GET /api/sources/{obj_id}/photometry` |
 
 Each tool documents its most common parameters in its input schema and
 accepts any other parameter of the underlying endpoint, so the

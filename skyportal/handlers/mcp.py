@@ -10,6 +10,7 @@ content.
 
 import base64
 import json
+import statistics
 from urllib.parse import urlencode, urlsplit
 
 import jsonschema
@@ -72,10 +73,11 @@ def _prop(type_, description, **kwargs):
     return {"type": type_, "description": description, **kwargs}
 
 
-def _scalar_or_list(type_, description):
+def _scalar_or_list(type_, description, nullable=False):
+    types = [type_, "null"] if nullable else [type_]
     return {
-        "type": [type_, "array"],
-        "items": {"type": type_},
+        "type": [*types, "array"],
+        "items": {"type": types},
         "description": description,
     }
 
@@ -187,11 +189,15 @@ async def get_photometry(handler, args):
         "mjd": _scalar_or_list("number", "MJD of the observation."),
         "filter": _scalar_or_list("string", "Bandpass, e.g. ztfg."),
         "magsys": _scalar_or_list("string", "Magnitude system, e.g. ab."),
-        "mag": _scalar_or_list("number", "Magnitude (null for non-detections)."),
-        "magerr": _scalar_or_list("number", "Magnitude uncertainty."),
+        "mag": _scalar_or_list(
+            "number", "Magnitude (null for non-detections).", nullable=True
+        ),
+        "magerr": _scalar_or_list("number", "Magnitude uncertainty.", nullable=True),
         "limiting_mag": _scalar_or_list("number", "Limiting magnitude."),
-        "flux": _scalar_or_list("number", "Flux (null for non-detections)."),
-        "fluxerr": _scalar_or_list("number", "Flux uncertainty."),
+        "flux": _scalar_or_list(
+            "number", "Flux (null for non-detections).", nullable=True
+        ),
+        "fluxerr": _scalar_or_list("number", "Flux uncertainty.", nullable=True),
         "zp": _scalar_or_list("number", "Zero point of the flux."),
         "ra": _scalar_or_list("number", "RA of the point (decimal degrees)."),
         "dec": _scalar_or_list("number", "Dec of the point (decimal degrees)."),
@@ -253,6 +259,159 @@ async def get_spectra(handler, args):
 )
 async def post_spectrum(handler, args):
     return await handler.api("POST", "/api/spectrum", body=args)
+
+
+def _analyze_band(points, baseline_threshold):
+    """Light-curve metrics for one band from mag-format photometry points.
+
+    Returns None with fewer than two detections.
+    """
+    detections = sorted(
+        (p for p in points if p.get("mag") is not None), key=lambda p: p["mjd"]
+    )
+    limits = [
+        p for p in points if p.get("mag") is None and p.get("limiting_mag") is not None
+    ]
+    if len(detections) < 2:
+        return None
+    mjds = [p["mjd"] for p in detections]
+    mags = [p["mag"] for p in detections]
+    peak = min(range(len(mags)), key=mags.__getitem__)
+    rise_time = mjds[peak] - mjds[0]
+    rise_mag = mags[0] - mags[peak]
+    band = {
+        "n_detections": len(detections),
+        "n_upper_limits": len(limits),
+        "first_detection": {"mjd": mjds[0], "mag": mags[0]},
+        "last_detection": {"mjd": mjds[-1], "mag": mags[-1]},
+        "peak": {
+            "mjd": mjds[peak],
+            "mag": mags[peak],
+            "magerr": detections[peak].get("magerr"),
+        },
+        "rise_time_days": rise_time,
+        "rise_mag": rise_mag,
+        "rise_rate_mag_per_day": rise_mag / rise_time if rise_time > 0 else None,
+    }
+    if peak == len(mags) - 1:
+        band.update(
+            status="rising",
+            fade_time_days=None,
+            fade_mag=None,
+            fade_rate_mag_per_day=None,
+            duration_days=None,
+        )
+    else:
+        # First post-peak point fainter than the peak by more than the threshold
+        baseline = next(
+            (
+                i
+                for i in range(peak + 1, len(mags))
+                if mags[i] - mags[peak] > baseline_threshold
+            ),
+            None,
+        )
+        end = baseline if baseline is not None else len(mags) - 1
+        fade_time = mjds[end] - mjds[peak]
+        fade_mag = mags[end] - mags[peak]
+        band.update(
+            status="complete" if baseline is not None else "fading",
+            fade_time_days=fade_time,
+            fade_mag=fade_mag,
+            fade_rate_mag_per_day=fade_mag / fade_time if fade_time > 0 else None,
+            duration_days=rise_time + fade_time if baseline is not None else None,
+        )
+    pre_peak = mags[: peak + 1]
+    band["pre_peak_brightening_events"] = sum(
+        b - a < -0.1 for a, b in zip(pre_peak, pre_peak[1:], strict=False)
+    )
+    band["pre_peak_rms"] = statistics.pstdev(pre_peak) if len(pre_peak) > 1 else 0.0
+    last_limit = max(
+        (p for p in limits if p["mjd"] < mjds[0]), key=lambda p: p["mjd"], default=None
+    )
+    band["last_upper_limit_before_first_detection"] = (
+        {
+            "mjd": last_limit["mjd"],
+            "limiting_mag": last_limit["limiting_mag"],
+            "days_before_first_detection": mjds[0] - last_limit["mjd"],
+        }
+        if last_limit
+        else None
+    )
+    return _rounded(band)
+
+
+def _rounded(value, ndigits=4):
+    if isinstance(value, float):
+        return round(value, ndigits)
+    if isinstance(value, dict):
+        return {k: _rounded(v, ndigits) for k, v in value.items()}
+    return value
+
+
+def _band_summary(name, band):
+    text = (
+        f"{name}: {band['n_detections']} detections, peak {band['peak']['mag']:.2f} "
+        f"mag at MJD {band['peak']['mjd']:.2f}, rose {band['rise_mag']:.2f} mag "
+        f"in {band['rise_time_days']:.1f} d"
+    )
+    if band["fade_time_days"] is not None:
+        text += f", faded {band['fade_mag']:.2f} mag in {band['fade_time_days']:.1f} d"
+    return f"{text} ({band['status']})"
+
+
+@tool(
+    "analyze_light_curve",
+    "Summarize how a source's light curve evolves, per band: first, last and "
+    "peak detections, rise and fade times and rates, whether it is still "
+    "rising, still fading, or complete (back to baseline), pre-peak "
+    "variability, and the last upper limit before discovery.",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "filters": _prop(
+            "array",
+            'Bands to analyze, e.g. ["ztfg", "ztfr"]. Defaults to every band with data.',
+            items={"type": "string"},
+        ),
+        "baseline_threshold": _prop(
+            "number",
+            "Magnitudes fainter than peak at which the source counts as back at "
+            "baseline (default 0.3).",
+            minimum=0,
+        ),
+        "magsys": _prop("string", "Magnitude system (default ab)."),
+    },
+    required=("obj_id",),
+)
+async def analyze_light_curve(handler, args):
+    obj_id = args["obj_id"]
+    magsys = args.get("magsys", "ab")
+    threshold = args.get("baseline_threshold", 0.3)
+    photometry = await handler.api(
+        "GET",
+        f"/api/sources/{obj_id}/photometry",
+        query={"format": "mag", "magsys": magsys},
+    )
+    by_filter = {}
+    for p in photometry:
+        by_filter.setdefault(p["filter"], []).append(p)
+    bands, skipped = {}, []
+    for name in args.get("filters") or sorted(by_filter):
+        band = _analyze_band(by_filter.get(name, []), threshold)
+        if band is None:
+            skipped.append(name)
+        else:
+            bands[name] = band
+    if not bands:
+        raise ToolError(f"Fewer than two detections in any requested band for {obj_id}")
+    return {
+        "obj_id": obj_id,
+        "magsys": magsys,
+        "baseline_threshold": threshold,
+        "summary": [_band_summary(name, band) for name, band in bands.items()],
+        "bands": bands,
+        "skipped_filters": skipped,
+    }
 
 
 def _encode_query(query):

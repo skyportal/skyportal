@@ -3,7 +3,7 @@ import base64
 import json
 import uuid
 
-from skyportal.handlers.mcp import TOOLS
+from skyportal.handlers.mcp import TOOLS, _analyze_band
 from skyportal.tests import cfg, session
 
 VERSION = "2026-07-28"
@@ -115,6 +115,7 @@ def test_mcp_tools_list(view_only_token):
         "post_photometry",
         "get_spectra",
         "post_spectrum",
+        "analyze_light_curve",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
@@ -314,6 +315,109 @@ def test_mcp_tool_request_mapping():
     assert calls == [("POST", "/api/sources", None, body)]
     assert run_tool("post_photometry", {})[0][0][1] == "/api/photometry"
     assert run_tool("post_spectrum", {})[0][0][1] == "/api/spectrum"
+
+
+def test_mcp_analyze_band():
+    def pt(mjd, mag=None, limit=None):
+        return {
+            "mjd": mjd,
+            "mag": mag,
+            "magerr": 0.05 if mag else None,
+            "limiting_mag": limit,
+        }
+
+    assert _analyze_band([pt(1, 19.0)], 0.3) is None
+    assert _analyze_band([pt(1, limit=20.5), pt(2, limit=20.6)], 0.3) is None
+
+    rising = _analyze_band([pt(10, 20.0), pt(12, 19.5), pt(14, 19.0)], 0.3)
+    assert rising["status"] == "rising"
+    assert rising["peak"] == {"mjd": 14, "mag": 19.0, "magerr": 0.05}
+    assert rising["rise_time_days"] == 4 and rising["rise_mag"] == 1.0
+    assert rising["rise_rate_mag_per_day"] == 0.25
+    assert rising["fade_time_days"] is None and rising["duration_days"] is None
+
+    # Non-detection two days before discovery, peak, then a fade below baseline
+    complete = _analyze_band(
+        [
+            pt(8, limit=20.5),
+            pt(10, 20.0),
+            pt(12, 19.0),
+            pt(13, 19.1),
+            pt(16, 19.5),
+        ],
+        0.3,
+    )
+    assert complete["status"] == "complete"
+    assert complete["n_detections"] == 4 and complete["n_upper_limits"] == 1
+    assert complete["fade_time_days"] == 4 and complete["fade_mag"] == 0.5
+    assert complete["duration_days"] == 6
+    assert complete["last_upper_limit_before_first_detection"] == {
+        "mjd": 8,
+        "limiting_mag": 20.5,
+        "days_before_first_detection": 2,
+    }
+
+    fading = _analyze_band([pt(10, 20.0), pt(12, 19.0), pt(13, 19.1)], 0.3)
+    assert fading["status"] == "fading"
+    assert fading["fade_time_days"] == 1 and fading["duration_days"] is None
+
+    # A pre-peak dip and re-brightening counts as a brightening event
+    flare = _analyze_band([pt(1, 20.0), pt(2, 19.5), pt(3, 19.8), pt(4, 19.0)], 0.3)
+    assert flare["pre_peak_brightening_events"] == 2
+    assert flare["pre_peak_rms"] > 0
+
+
+def test_mcp_analyze_light_curve(upload_data_token, public_group, ztf_camera):
+    obj_id = str(uuid.uuid4())
+    is_error, text, _ = call_tool(
+        "post_source",
+        {"id": obj_id, "ra": 10.0, "dec": 10.0, "group_ids": [public_group.id]},
+        upload_data_token,
+    )
+    assert not is_error, text
+
+    is_error, text, _ = call_tool(
+        "analyze_light_curve", {"obj_id": obj_id}, upload_data_token
+    )
+    assert is_error and "Fewer than two detections" in text
+
+    is_error, text, _ = call_tool(
+        "post_photometry",
+        {
+            "obj_id": obj_id,
+            "instrument_id": ztf_camera.id,
+            "mjd": [58000.0, 58002.0, 58004.0, 58005.0, 58008.0, 58003.0],
+            "filter": ["ztfg"] * 5 + ["ztfr"],
+            "magsys": "ab",
+            "mag": [None, 20.0, 19.0, 19.1, 19.5, 19.3],
+            "magerr": [None, 0.1, 0.1, 0.1, 0.1, 0.1],
+            "limiting_mag": [20.5, 21.0, 21.0, 21.0, 21.0, 21.0],
+            "group_ids": [public_group.id],
+        },
+        upload_data_token,
+    )
+    assert not is_error, text
+
+    is_error, text, result = call_tool(
+        "analyze_light_curve", {"obj_id": obj_id}, upload_data_token
+    )
+    assert not is_error, text
+    analysis = result["structuredContent"]
+    assert analysis["skipped_filters"] == ["ztfr"]
+    band = analysis["bands"]["ztfg"]
+    assert band["status"] == "complete"
+    assert band["peak"]["mjd"] == 58004.0
+    assert band["rise_time_days"] == 2 and band["fade_time_days"] == 4
+    assert band["last_upper_limit_before_first_detection"]["mjd"] == 58000.0
+    assert analysis["summary"][0].startswith("ztfg: 4 detections")
+
+    is_error, text, result = call_tool(
+        "analyze_light_curve",
+        {"obj_id": obj_id, "filters": ["ztfg"], "baseline_threshold": 1.0},
+        upload_data_token,
+    )
+    assert not is_error, text
+    assert result["structuredContent"]["bands"]["ztfg"]["status"] == "fading"
 
 
 def test_mcp_source_photometry_spectrum_round_trip(
