@@ -38,8 +38,10 @@ const DEFAULTS = {
   },
 } as const;
 
+// Annotators are joined as annotators:TOPIC (e.g. objects,annotators:r0b_lvra).
+// ZTF instance also accepts the topic name directly (e.g. objects,fastfinder).
 const REFERENCE_TABLES =
-  "objects, sherlock_classifications, crossmatch_tns, watchlist_hits";
+  "objects, sherlock_classifications, crossmatch_tns, watchlist_hits, annotators:TOPIC";
 
 const LasairFilterBuilder = ({
   brokerId,
@@ -96,7 +98,11 @@ const LasairFilterBuilder = ({
         onChange={(e) => setConditions(e.target.value)}
         multiline
         minRows={3}
-        placeholder="objects.nDiaSources > 2 AND ... AND objects.firstDiaSourceMjdTai > (mjdnow() - 40)"
+        placeholder={
+          survey === "LSST"
+            ? "objects.nDiaSources > 2 AND objects.firstDiaSourceMjdTai > (mjdnow() - 40)\n-- annotator example (From: objects,annotators:r0b_lvra): r0b_lvra.classification = 'SN'"
+            : "objects.ndethist > 2\n-- annotator example (From: objects,fastfinder): fastfinder.classification = 'SLSN'"
+        }
       />
 
       <Box
