@@ -1116,8 +1116,7 @@ def get_nearby_offset_stars(
                         ):
                             # Without the ref epoch the ZTF position cannot be
                             # carried forward, and for a fast mover a decade-old
-                            # position can fall outside a narrow slit. Gaia's is
-                            # PM-correctable, so prefer it here (issue #6247).
+                            # position can fall outside a narrow slit.
                             cprime = c.apply_space_motion(new_obstime=source_obstime)
                         else:
                             cprime = SkyCoord(
