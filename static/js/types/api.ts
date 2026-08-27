@@ -22836,6 +22836,8 @@ export interface paths {
                     group?: string | null;
                     /** @description Get users with access to the stream with name given by this parameter. */
                     stream?: string | null;
+                    /** @description Return only what is needed to name a user (id, username, first and last name, is_bot). Callers that just label a comment, a redshift or an assignment do not need each user's groups, roles and ACLs, which are most of the response. */
+                    slim?: boolean;
                     /** @description Include users with expired accounts in the results. */
                     includeExpired?: boolean;
                     /** @description Field to sort by. Options are 'username' (alphabetical, default) or 'createdAt' (creation date). */
