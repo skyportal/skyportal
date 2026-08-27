@@ -926,11 +926,7 @@ const PhotometryPlot = ({
 
     const groupedPhotometry = photometryData.reduce((acc: any, point: any) => {
       const instrumentLabel = getPhotometryInstrumentLabel(point);
-      const truncatedInstrument =
-        instrumentLabel.length > 10
-          ? `${instrumentLabel.substring(0, 10)}...`
-          : instrumentLabel;
-      let key = `${truncatedInstrument}/${point.filter}`;
+      let key = `${instrumentLabel}/${point.filter}`;
       // if we are using duplicates, put the obj_id at the beginning of the key
       if (usingDuplicates) {
         key = `${point.obj_id}/${key}`;
