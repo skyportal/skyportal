@@ -2502,7 +2502,7 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    df["flux"] = np.random.normal(-50, 50, 100)
+    df["flux"] = np.random.default_rng(1).normal(-50, 50, 100)
 
     data = {
         "obj_id": public_source.id,
