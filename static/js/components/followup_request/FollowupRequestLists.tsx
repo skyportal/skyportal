@@ -523,6 +523,7 @@ const FollowupRequestLists = ({
         sortable: false,
         filterable: false,
         renderCell: ({ row }: any) => {
+          const isDeleted = row.status === "deleted";
           const isDone = row.status === "Photometry committed to database";
           const isSubmitted =
             row.status.startsWith("pending") ||
@@ -542,7 +543,7 @@ const FollowupRequestLists = ({
                 py: "0.3rem",
               }}
             >
-              {implementsDelete && (
+              {implementsDelete && !isDeleted && (
                 <ActionButton
                   loading={isDeleting === row.id}
                   onClick={() => handleDelete(row.id)}
@@ -567,7 +568,7 @@ const FollowupRequestLists = ({
                   Submit
                 </ActionButton>
               )}
-              {implementsEdit && (
+              {implementsEdit && !isDeleted && (
                 <ActionButton
                   onClick={() => setRequestIdToEdit(row.id)}
                   testId={`editRequest_${row.id}`}
@@ -656,6 +657,7 @@ const FollowupRequestLists = ({
 
         return (
           <Accordion
+            defaultExpanded
             sx={{ width: "100%" }}
             key={`instrument_${instrument_id}_table_div`}
           >
