@@ -1,10 +1,8 @@
-import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import Button from "../Button";
 import { useEditFollowupRequestMutation } from "../../ducks/source";
 import { localeSafeFields } from "./LocaleSafeNumberField";
 
@@ -30,6 +28,7 @@ interface EditFollowupRequestDialogProps {
     payload?: Record<string, any>;
   };
   instrumentFormParams: Record<string, any>;
+  onClose: () => void;
   requestType?: string;
   serverSide?: boolean;
 }
@@ -37,19 +36,11 @@ interface EditFollowupRequestDialogProps {
 const EditFollowupRequestDialog = ({
   followupRequest,
   instrumentFormParams,
+  onClose,
   requestType = "triggered",
   serverSide = false,
 }: EditFollowupRequestDialogProps) => {
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
-  const [open, setOpen] = useState(false);
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
 
   const handleSubmit = ({ formData }: { formData: any }) => {
     if (followupRequest.id === undefined) {
@@ -67,7 +58,7 @@ const EditFollowupRequestDialog = ({
       params: json,
       requestID: followupRequest.id,
     });
-    handleClose();
+    onClose();
   };
 
   // Since we are editing existing follow-up requests,
@@ -132,34 +123,23 @@ const EditFollowupRequestDialog = ({
   };
 
   return (
-    <span key={followupRequest.id}>
-      <Button
-        primary
-        size="small"
-        type="submit"
-        onClick={handleClickOpen}
-        data-testid={`editRequest_${followupRequest.id}`}
-      >
-        Edit
-      </Button>
-      <Dialog open={open} onClose={handleClose}>
-        <DialogContent>
-          <Form
-            schema={formCopy}
-            validator={validator}
-            uiSchema={
-              instrumentFormParams[
-                followupRequest.allocation.instrument.id as number
-              ].uiSchema
-            }
-            fields={localeSafeFields}
-            onSubmit={handleSubmit as any}
-            customValidate={validate}
-            liveValidate
-          />
-        </DialogContent>
-      </Dialog>
-    </span>
+    <Dialog open onClose={onClose}>
+      <DialogContent>
+        <Form
+          schema={formCopy}
+          validator={validator}
+          uiSchema={
+            instrumentFormParams[
+              followupRequest.allocation.instrument.id as number
+            ].uiSchema
+          }
+          fields={localeSafeFields}
+          onSubmit={handleSubmit as any}
+          customValidate={validate}
+          liveValidate
+        />
+      </DialogContent>
+    </Dialog>
   );
 };
 

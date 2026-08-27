@@ -98,6 +98,9 @@ const FollowupRequestLists = ({
   const [hasRetrieved, setHasRetrieved] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<any>(null);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  // Kept here rather than in the cell: the Edit button sits in a horizontally
+  // virtualized DataGrid column, so a cell remount would close the dialog.
+  const [requestIdToEdit, setRequestIdToEdit] = useState<any>(null);
   // Per-instrument column visibility model, keyed by instrument_id.
   const [columnVisibilityModels, setColumnVisibilityModels] = useState<any>({});
 
@@ -447,12 +450,19 @@ const FollowupRequestLists = ({
                 </div>
               )}
               {implementsEdit && (
-                <EditFollowupRequestDialog
-                  followupRequest={followupRequest}
-                  instrumentFormParams={instrumentFormParams}
-                  requestType={requestType}
-                  serverSide={serverSide}
-                />
+                <div>
+                  <Button
+                    primary
+                    onClick={() => {
+                      setRequestIdToEdit(followupRequest.id);
+                    }}
+                    size="small"
+                    type="submit"
+                    data-testid={`editRequest_${followupRequest.id}`}
+                  >
+                    Edit
+                  </Button>
+                </div>
               )}
             </div>
           );
@@ -698,8 +708,21 @@ const FollowupRequestLists = ({
     return 0;
   };
 
+  const requestToEdit = followupRequests.find(
+    (request: any) => request.id === requestIdToEdit,
+  );
+
   return (
     <div className={classes.container}>
+      {requestToEdit && (
+        <EditFollowupRequestDialog
+          followupRequest={requestToEdit}
+          instrumentFormParams={instrumentFormParams}
+          onClose={() => setRequestIdToEdit(null)}
+          requestType={requestType}
+          serverSide={serverSide}
+        />
+      )}
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
         // get the flat, unique list of all keys across all requests
         const keys = requestsGroupedByInstId[instrument_id].reduce(
