@@ -183,7 +183,9 @@ const ConfirmSourceInGCN = ({
   // explanation that records *why* -- which is the whole point of the field.
   const [selected, setSelected] = useState<string | null>(null);
   const openDialog = () => {
-    setSelected(savedStatus);
+    // Start on the verdict already recorded, so the dialog shows where this
+    // association stands and SAVE stays inert until something changes.
+    setSelected(currentState);
     setOpen(true);
   };
 
@@ -223,7 +225,14 @@ const ConfirmSourceInGCN = ({
   };
 
   const handleSave = () => {
-    if (selected) {
+    if (!selected || selected === currentState) {
+      return;
+    }
+    // "Not vetted" is the absence of a verdict, so committing it removes the
+    // row rather than storing a status.
+    if (selected === "not_vetted") {
+      handleNotVetted();
+    } else {
       handleVet(selected);
     }
   };
@@ -322,6 +331,7 @@ const ConfirmSourceInGCN = ({
                         ["confirmed", "HIGHLIGHT"],
                         ["rejected", "REJECT"],
                         ["ambiguous", "AMBIGUOUS"],
+                        ["not_vetted", "NOT VETTED"],
                       ].map(([status, label]) => (
                         <Button
                           key={status}
@@ -333,12 +343,11 @@ const ConfirmSourceInGCN = ({
                       ))}
                       <Button
                         onClick={handleSave}
-                        disabled={!selected}
+                        disabled={!selected || selected === currentState}
                         secondary
                       >
                         SAVE
                       </Button>
-                      <Button onClick={handleNotVetted}>NOT VETTED</Button>
                     </div>
                   </form>
                 </div>

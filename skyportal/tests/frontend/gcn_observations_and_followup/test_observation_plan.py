@@ -75,19 +75,15 @@ def test_gcnevents_observations(
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
-    # test modify sources form
-    page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
+    # The observations query lives on the Observations tab, with its results.
+    page.locator('//button[normalize-space(.)="Observations"]').first.click()
 
-    page.locator('//div[@id="root_queryList"]').first.click()
-    page.locator('//li[contains(text(), "observations")]').first.click()
-    page.keyboard.press("Escape")
+    page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
 
     submit_button_xpath = (
         '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
     )
     page.locator(submit_button_xpath).first.click()
-
-    page.locator('//button[contains(., "Observations")]').first.click()
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
