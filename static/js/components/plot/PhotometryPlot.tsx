@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -80,6 +80,26 @@ import CornerPlot from "./CornerPlot";
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+
+/** New layouts, but keeping the axis ranges already declared.
+ *
+ * Recomputing a range from new points changes the value Plotly compares
+ * against when deciding whether a user's zoom still applies, and the
+ * programmatic range then wins. Reusing the declared range leaves that
+ * comparison unchanged, so the zoom survives points arriving underneath it.
+ */
+const keepDeclaredRanges = (next: any, current: any): any => {
+  if (!current) {
+    return next;
+  }
+  const merged = { ...next };
+  ["xaxis", "xaxis2", "yaxis", "yaxis2"].forEach((axis) => {
+    if (merged[axis]?.range && current[axis]?.range) {
+      merged[axis] = { ...merged[axis], range: current[axis].range };
+    }
+  });
+  return merged;
+};
 
 // True when an analysis ran on extinction-corrected (dereddened) photometry, so
 // its model overlay is dereddened-native. analysis_parameters may store the flag
@@ -671,6 +691,11 @@ const PhotometryPlot = ({
   // is unchanged -- which threw away the user's zoom, pan and legend state on
   // any re-render of the source page. Bumped only where we mean to reset.
   const [layoutRevision, setLayoutRevision] = useState(0);
+  // Whether the view on screen is one the user dragged to rather than the one
+  // we declared. Plotly holds a user's zoom under a stable uirevision only
+  // while the declared range stays put, so while this is set the ranges below
+  // are held to what was declared when they zoomed.
+  const userZoomed = useRef(false);
 
   const [filter2color, setFilter2Color] = useState<any>(
     config?.bandpassesColors,
@@ -1630,8 +1655,11 @@ const PhotometryPlot = ({
         dm,
         showExtinctionCorrection,
       );
-      setLayouts(newLayouts);
-      setLayoutRevision((revision) => revision + 1);
+      setLayouts((current: any) =>
+        userZoomed.current
+          ? keepDeclaredRanges(newLayouts, current)
+          : newLayouts,
+      );
       setInitialized(true);
     }
   }, [
@@ -1647,6 +1675,25 @@ const PhotometryPlot = ({
     fluxUnit,
     showOnlyValidated,
     shownModelFits,
+  ]);
+
+  // Only an axis whose meaning changed invalidates the user's zoom. New or
+  // refetched points reuse the revision, so Plotly keeps the current view.
+  useEffect(() => {
+    if (initialized) {
+      userZoomed.current = false;
+      setLayoutRevision((revision) => revision + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    displayXAxisSinceT0,
+    displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
+    dm,
+    t0,
+    tabIndex,
+    phase,
   ]);
 
   // The main object's photometry (including extinction toggle and magsys) is
@@ -1689,7 +1736,6 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
-      setLayoutRevision((revision) => revision + 1);
     }
   }, [tabIndex, phase, shownModelFits]);
 
@@ -2022,12 +2068,22 @@ const PhotometryPlot = ({
                 name: "Reset",
                 icon: Plotly.Icons.home,
                 click: () => {
+                  userZoomed.current = false;
                   setLayoutReset(true);
                 },
               },
             ],
           }}
           useResizeHandler
+          onRelayout={(event: any) => {
+            const keys = Object.keys(event || {});
+            if (keys.some((key) => key.includes(".range"))) {
+              userZoomed.current = true;
+            }
+            if (keys.some((key) => key.endsWith(".autorange"))) {
+              userZoomed.current = false;
+            }
+          }}
           onClick={(event: any) => {
             const point = (event?.points || []).find(
               (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
