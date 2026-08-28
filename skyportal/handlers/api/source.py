@@ -2092,20 +2092,26 @@ class SourceHandler(BaseHandler):
         has_spectrum_before = validated["has_spectrum_before"]
         created_or_modified_after = validated["created_or_modified_after"]
 
+        # Requiring detections against a localization needs a time range to
+        # require them in. Either pair gives one: startDate/endDate bound the
+        # whole detection history, detectedWindowStart/End ask only that the
+        # source was detected during the window.
+        window_start = detected_window_start or first_detected_date
+        window_end = detected_window_end or last_detected_date
         if (
             query.localizationDateobs is not None or query.localizationName is not None
         ) and query.requireDetections:
-            if first_detected_date is None or last_detected_date is None:
+            if window_start is None or window_end is None:
                 return self.error(
-                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
+                    "must specify startDate and endDate, or detectedWindowStart and "
+                    "detectedWindowEnd, when filtering by localizationDateobs or "
+                    "localizationName"
                 )
-            if first_detected_date > last_detected_date:
+            if window_start > window_end:
                 return self.error(
                     "startDate must be before endDate when filtering by localizationDateobs or localizationName",
                 )
-            if (
-                last_detected_date - first_detected_date
-            ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
+            if (window_end - window_start).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
                     "startDate and endDate must be less than 10 years apart when filtering by localizationDateobs or localizationName",
                 )
