@@ -293,10 +293,14 @@ def test_gcn_request(page, user, super_admin_token, public_group):
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
+    # The localization applies to every tab and sits above them.
     page.locator(
         '//*[@role="combobox" and (@aria-labelledby="localizationSelectLabel" or @id="localizationSelectLabel")]'
     ).first.click()
     page.locator('//li[contains(text(), "bayestar.fits.gz")]').first.click()
+
+    # The instrument and the rest of the observations query live on that tab.
+    page.locator('//button[normalize-space(.)="Observations"]').first.click()
     page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
 
     page.locator('//button[@type="submit"]').first.click()
