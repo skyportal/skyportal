@@ -392,9 +392,8 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
           <AccordionDetails data-testid="analysisTable">
             <Typography
               variant="caption"
-              display="block"
               gutterBottom
-              sx={{ color: "text.secondary" }}
+              sx={{ display: "block", color: "text.secondary" }}
             >
               Completed light-curve fits are overlaid on this source&apos;s
               photometry plot.
