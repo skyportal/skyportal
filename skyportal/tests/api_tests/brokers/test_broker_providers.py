@@ -781,6 +781,94 @@ def test_build_photometry_groups_flux_and_mag_space():
     assert g["flux"][1] == pytest.approx(10.0 ** (-0.4 * (20.0 - 23.9)))
 
 
+def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
+    """WINTER points arrive as flux in nJy, so they take the Jy zeropoint.
+
+    BOOM sends WINTER photometry the same way it sends LSST: flux in nJy, which
+    the transform scales to Jy. The AB zeropoint for Jy is 8.9. Using ZTF's 23.9
+    here, which suits the magnitude path and its uJy scale, would put every
+    WINTER point about 15 magnitudes too faint with nothing to show it was
+    wrong.
+    """
+    import math
+
+    # a real alert point: mag ~16.7 as flux in nJy
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2460869.771,
+                "band": "winterh",
+                "psfFlux": 770160.8125,
+                "psfFluxErr": 41050.37,
+                "programid": 1,
+            },
+        ],
+    }
+    g = build_photometry_groups(
+        "WNTR25euvzp", "WINTER", data, 1087, {("WINTER", 1): [1005]}
+    )[("WINTER", 1)]
+    assert g["zp"][0] == 8.9
+    assert g["flux"][0] == pytest.approx(770160.8125e-9)
+    assert -2.5 * math.log10(g["flux"][0]) + g["zp"][0] == pytest.approx(
+        16.68, abs=0.05
+    )
+
+
+def test_build_photometry_groups_winter_bands_map_to_instrument_filters():
+    """WINTER filters are named for the photometric system, not for the survey.
+
+    The default <survey><band> naming gives "winterh", which the instrument does
+    not have, so the photometry would be refused. BOOM sends WINTER bands
+    survey-prefixed, so the prefix is stripped before the lookup.
+    """
+    for band, expected in (
+        ("winterh", "2massh"),
+        ("winterj", "2massj"),
+        ("wintery", "desy"),
+        ("h", "2massh"),
+    ):
+        data = {
+            "prv_candidates": [
+                {
+                    "jd": 2459000.5,
+                    "band": band,
+                    "psfFlux": 1000.0,
+                    "psfFluxErr": 10.0,
+                    "programid": 1,
+                },
+            ],
+        }
+        groups = build_photometry_groups(
+            "WNTR25abcde", "WINTER", data, 1087, {("WINTER", 1): [1005]}
+        )
+        assert groups[("WINTER", 1)]["filter"] == [expected]
+
+
+def test_build_photometry_groups_winter_refuses_unresolved_bands():
+    """k is refused rather than guessed at.
+
+    fid=3 reaches us as "k" and the instrument has no filter for it. Storing it
+    under a guessed filter would misreport which band the observation was taken
+    in, so the alert is refused instead.
+    """
+    for band in ("winterk", "k"):
+        data = {
+            "prv_candidates": [
+                {
+                    "jd": 2459000.5,
+                    "band": band,
+                    "psfFlux": 1000.0,
+                    "psfFluxErr": 10.0,
+                    "programid": 1,
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="No filter configured"):
+            build_photometry_groups(
+                "WNTR25abcde", "WINTER", data, 1087, {("WINTER", 1): [1005]}
+            )
+
+
 def test_build_photometry_groups_survey_prefixed_band_not_doubled():
     """BOOM emits survey-prefixed bands ("ztfg"); the filter must stay "ztfg",
     not "ztfztfg" (which the photometry validator rejects, dropping the alert)."""
