@@ -81,13 +81,9 @@ import CornerPlot from "./CornerPlot";
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
 
-/** New layouts, but keeping the axis ranges already declared.
- *
- * Recomputing a range from new points changes the value Plotly compares
- * against when deciding whether a user's zoom still applies, and the
- * programmatic range then wins. Reusing the declared range leaves that
- * comparison unchanged, so the zoom survives points arriving underneath it.
- */
+// New layouts, keeping the axis ranges already declared. Plotly holds a user's
+// zoom only while the declared range it compares against stays put, so a range
+// recomputed from new points would hand the axis back to us.
 const keepDeclaredRanges = (next: any, current: any): any => {
   if (!current) {
     return next;
@@ -687,14 +683,11 @@ const PhotometryPlot = ({
   const [photStats, setPhotStats] = useState<any>(null);
   const [layouts, setLayouts] = useState<any>({});
   // Passed to Plotly as uirevision. The layout prop is rebuilt on every render,
-  // and Plotly.react re-applies the declared axis ranges each time unless this
-  // is unchanged -- which threw away the user's zoom, pan and legend state on
-  // any re-render of the source page. Bumped only where we mean to reset.
+  // and Plotly.react re-applies the declared axis ranges unless this is
+  // unchanged. Bumped only where the user's view is meant to reset.
   const [layoutRevision, setLayoutRevision] = useState(0);
   // Whether the view on screen is one the user dragged to rather than the one
-  // we declared. Plotly holds a user's zoom under a stable uirevision only
-  // while the declared range stays put, so while this is set the ranges below
-  // are held to what was declared when they zoomed.
+  // we declared. While it is, the declared ranges are held still.
   const userZoomed = useRef(false);
 
   const [filter2color, setFilter2Color] = useState<any>(

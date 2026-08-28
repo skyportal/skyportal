@@ -14,12 +14,9 @@ X_RANGE = f"""() => {{
 }}"""
 
 
+# Plotly is imported as a module, so there is no window.Plotly to relayout
+# through: the zoom has to come from real mouse events on the drag layer.
 def _drag_zoom(page):
-    """Zoom by dragging a box across the middle of the plot, as a user does.
-
-    Plotly is imported as a module, so there is no window.Plotly to relayout
-    through; the zoom has to come from real mouse events on the drag layer.
-    """
     drag = page.locator(DRAG_LAYER).first
     drag.scroll_into_view_if_needed()
     page.wait_for_timeout(500)
@@ -36,12 +33,10 @@ def _drag_zoom(page):
 def test_zoom_survives_new_photometry(
     page, super_admin_user, super_admin_token, public_source, public_group, ztf_camera
 ):
-    """New points arriving over the websocket must not throw away the zoom.
+    """Photometry arriving over the websocket leaves the user's zoom alone.
 
-    Photometry refetched into an open plot is the same axes with more data on
-    them, so the view the user dragged to still means what they chose. Only a
-    change of what an axis represents -- flux against magnitude, linear against
-    log, a different time origin -- invalidates it.
+    Refetched points are the same axes with more data on them. Only a change of
+    what an axis represents resets the view.
     """
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
