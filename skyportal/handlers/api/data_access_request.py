@@ -1,3 +1,4 @@
+import dateutil.parser
 import sqlalchemy as sa
 from astropy.time import Time
 from pydantic import BaseModel, ConfigDict, Field
@@ -7,7 +8,9 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import (
+    Allocation,
     DataAccessRequest,
+    FollowupRequest,
     Group,
     GroupPhotometry,
     GroupSpectrum,
@@ -151,6 +154,10 @@ def _request_summary(request, shared_groups=None):
         },
         "shareable_groups": (shared_groups or {}).get(request.requester_id, []),
     }
+
+
+# Requests in these states are done with: they cannot collide with tonight.
+_SETTLED_REQUEST_STATES = ("complete", "completed", "deleted", "expired")
 
 
 def _owners_hiding_data():
@@ -677,6 +684,9 @@ class DataAccessRequestHandler(BaseHandler):
 
             for owner_id in notify:
                 self.flow.push(owner_id, "skyportal/FETCH_NOTIFICATIONS", {})
+                # A pending request is an open obligation, not just a
+                # notification: refresh the lists that show it as outstanding.
+                self.flow.push(owner_id, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {})
             return self.success(data={"ids": [request.id for request in created]})
 
     @permissions(["Upload data"])
@@ -741,6 +751,11 @@ class DataAccessRequestHandler(BaseHandler):
             await session.commit()
 
             self.flow.push(request.requester_id, "skyportal/FETCH_NOTIFICATIONS", {})
+            # Answered: it leaves the owner's queue and the requester's.
+            for user_id_to_refresh in (request.requester_id, request.owner_id):
+                self.flow.push(
+                    user_id_to_refresh, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {}
+                )
             if body.status == "accepted":
                 self.flow.push(
                     request.requester_id,
@@ -842,3 +857,210 @@ class DataAccessRequestHandler(BaseHandler):
             await session.delete(request)
             await session.commit()
             return self.success()
+
+
+class ScheduledObservationsHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, obj_id: str):
+        """
+        ---
+        summary: Retrieve what is scheduled on a source but is not visible
+        description: >
+            Retrieve the follow-up requests on a source that the calling user
+            cannot read: which instrument, which group asked, who to talk to,
+            and the state of the request. No request payloads are returned.
+            Data availability describes what has already been taken; this
+            describes what is about to be, so two groups do not spend the same
+            night on the same target. Observing run assignments are not listed:
+            runs are world-readable, so those are already visible to everyone.
+        tags:
+          - sources
+          - data sharing
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error("Invalid objId")
+
+            visible_requests = FollowupRequest.select(
+                session.user_or_token, columns=[FollowupRequest.id]
+            ).where(FollowupRequest.obj_id == obj_id)
+
+            rows = (
+                await session.execute(
+                    sa.select(
+                        FollowupRequest.status,
+                        FollowupRequest.created_at,
+                        Instrument.name,
+                        Group.name,
+                        User.id,
+                        User.username,
+                        User.first_name,
+                        User.last_name,
+                    )
+                    .join(Allocation, Allocation.id == FollowupRequest.allocation_id)
+                    .join(Instrument, Instrument.id == Allocation.instrument_id)
+                    .join(Group, Group.id == Allocation.group_id)
+                    .join(User, User.id == FollowupRequest.requester_id)
+                    .where(
+                        FollowupRequest.obj_id == obj_id,
+                        FollowupRequest.id.notin_(visible_requests),
+                        # Same bargain as data availability: a group that will
+                        # not advertise its data does not advertise its plans.
+                        Group.discoverable_data.is_(True),
+                        FollowupRequest.requester_id.notin_(_owners_hiding_data()),
+                    )
+                )
+            ).all()
+
+            return self.success(
+                data={
+                    "followup_requests": [
+                        {
+                            "status": row[0],
+                            "created_at": row[1].isoformat() if row[1] else None,
+                            "instrument_name": row[2],
+                            "group_name": row[3],
+                            "requester": {
+                                "id": row[4],
+                                "username": row[5],
+                                "first_name": row[6],
+                                "last_name": row[7],
+                            },
+                        }
+                        for row in rows
+                    ]
+                }
+            )
+
+
+def _request_window(payload):
+    """The nights a follow-up request covers, as (start, end) dates.
+
+    Payload shapes vary by facility API, so a request whose dates cannot be
+    read returns (None, None) and is treated as "could be any night".
+    """
+    if not isinstance(payload, dict):
+        return (None, None)
+
+    def parse(value):
+        if not value:
+            return None
+        try:
+            return dateutil.parser.parse(str(value)).date()
+        except (ValueError, OverflowError, TypeError):
+            return None
+
+    return (parse(payload.get("start_date")), parse(payload.get("end_date")))
+
+
+def _windows_overlap(first, second):
+    """Whether two (start, end) date windows could share a night.
+
+    An unknown bound is open-ended: it cannot be used to rule a clash out.
+    """
+    first_start, first_end = first
+    second_start, second_end = second
+    if first_end is not None and second_start is not None and first_end < second_start:
+        return False
+    if second_end is not None and first_start is not None and second_end < first_start:
+        return False
+    return True
+
+
+class DuplicateSchedulingHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Objects you have scheduled that another group has too
+        description: >
+            For every object with a follow-up request you can read, report
+            whether a group you are not in has one as well: which instrument
+            and which group, so the two can be reconciled before the night
+            rather than after it. Nothing about either request's payload is
+            returned. Answers the question a shared instance cannot otherwise
+            answer -- is someone else about to spend their time on this?
+        tags:
+          - sources
+          - data sharing
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        async with self.AsyncSession() as session:
+            mine_stmt = FollowupRequest.select(
+                session.user_or_token,
+                columns=[
+                    FollowupRequest.obj_id,
+                    FollowupRequest.id,
+                    FollowupRequest.payload,
+                ],
+            ).where(FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES))
+            mine = (await session.execute(mine_stmt)).all()
+            if not mine:
+                return self.success(data=[])
+
+            my_obj_ids = {row[0] for row in mine}
+            my_request_ids = {row[1] for row in mine}
+            my_windows = {}
+            for obj_id, _, payload in mine:
+                my_windows.setdefault(obj_id, []).append(_request_window(payload))
+
+            rows = (
+                await session.execute(
+                    sa.select(
+                        FollowupRequest.obj_id,
+                        Instrument.name,
+                        Group.name,
+                        FollowupRequest.status,
+                        FollowupRequest.payload,
+                    )
+                    .join(Allocation, Allocation.id == FollowupRequest.allocation_id)
+                    .join(Instrument, Instrument.id == Allocation.instrument_id)
+                    .join(Group, Group.id == Allocation.group_id)
+                    .where(
+                        FollowupRequest.obj_id.in_(my_obj_ids),
+                        FollowupRequest.id.notin_(my_request_ids),
+                        FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES),
+                        Group.discoverable_data.is_(True),
+                        FollowupRequest.requester_id.notin_(_owners_hiding_data()),
+                    )
+                    .distinct()
+                )
+            ).all()
+
+            # Two groups holding the same object months apart is not a clash.
+            # Only report requests whose window overlaps one of ours; a request
+            # with no readable window could be for any night, so it is reported
+            # rather than assumed harmless.
+            return self.success(
+                data=[
+                    {
+                        "obj_id": row[0],
+                        "instrument_name": row[1],
+                        "group_name": row[2],
+                        "status": row[3],
+                    }
+                    for row in rows
+                    if any(
+                        _windows_overlap(mine_window, _request_window(row[4]))
+                        for mine_window in my_windows.get(row[0], [(None, None)])
+                    )
+                ]
+            )

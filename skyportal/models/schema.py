@@ -1267,6 +1267,14 @@ class ObservingRunPost(_Schema):
     group_id = fields.Integer(
         metadata={"description": "The ID of the group this run is associated with."}
     )
+    group_ids = fields.List(
+        fields.Integer(),
+        metadata={
+            "description": "IDs of the groups that can see this run and its "
+            "target list. Defaults to the sitewide group, which is what a run "
+            "was visible to before runs became group-scoped."
+        },
+    )
     calendar_date = fields.Date(
         metadata={"description": "The local calendar date of the run."}, required=True
     )
