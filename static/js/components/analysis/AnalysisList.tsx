@@ -48,6 +48,17 @@ const useStyles = makeStyles()(() => ({
   chip: {
     margin: "0.1em",
   },
+  chips: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  plotThumb: {
+    maxHeight: "5rem",
+    maxWidth: "100%",
+    cursor: "pointer",
+    display: "block",
+  },
   infoButton: {
     paddingRight: "0.5rem",
   },
@@ -167,7 +178,9 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
           title={`${analysis?.analysis_service_name}: ${analysis?.analysis_service_description}`}
         >
           <Chip
-            label={analysis.analysis_service_id}
+            label={
+              analysis.analysis_service_name || analysis.analysis_service_id
+            }
             key={`chip${analysis.id}_${analysis.analysis_service_id}`}
             size="small"
             className={classes.chip}
@@ -194,25 +207,45 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
     );
   };
 
-  const renderAnalysisParameters = (params: any) => (
-    <div>{JSON.stringify(params.row.analysis_parameters)}</div>
-  );
+  const renderAnalysisParameters = (params: any) => {
+    const analysisParameters = params.row.analysis_parameters || {};
+    const entries = Object.entries(analysisParameters);
+    if (entries.length === 0) return <div />;
+    return (
+      <div className={classes.chips}>
+        {entries.map(([key, value]) => (
+          <Chip
+            key={key}
+            label={`${key}: ${
+              typeof value === "object" ? JSON.stringify(value) : value
+            }`}
+            size="small"
+            className={classes.chip}
+          />
+        ))}
+      </div>
+    );
+  };
 
   const renderPlot = (params: any) => {
     const analysis = params.row;
+    if (analysis?.status !== "completed") return <div />;
+    const plotUrl = `/api/obj/analysis/${analysis.id}/plots/0`;
     return (
       <div>
-        {analysis?.status === "completed" && (
-          <Button
-            href={`/api/obj/analysis/${analysis.id}/plots/0`}
-            size="small"
-            primary
-            type="submit"
-            data-testid={`analysis_plots_${analysis.id}`}
-          >
-            Download Plot
-          </Button>
-        )}
+        {/* Inline thumbnail (click for full size); hides itself if there's no
+            plot to render. */}
+        <a href={plotUrl} data-testid={`analysis_plots_${analysis.id}`}>
+          <img
+            src={plotUrl}
+            alt="analysis plot"
+            className={classes.plotThumb}
+            loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </a>
       </div>
     );
   };
@@ -357,6 +390,15 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
             <Typography variant="subtitle1">Analysis Requests</Typography>
           </AccordionSummary>
           <AccordionDetails data-testid="analysisTable">
+            <Typography
+              variant="caption"
+              display="block"
+              gutterBottom
+              sx={{ color: "text.secondary" }}
+            >
+              Completed light-curve fits are overlaid on this source&apos;s
+              photometry plot.
+            </Typography>
             <StyledDataGrid
               autoHeight
               rows={analysesList || []}
