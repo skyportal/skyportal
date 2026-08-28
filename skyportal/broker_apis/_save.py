@@ -11,27 +11,13 @@ from baselayer.log import make_log
 
 log = make_log("broker/save")
 
-# AB zeropoint per survey (psfFlux is in Jy after the 1e-9 scaling below).
-# A survey missing from here cannot be ingested at all, so adding a survey to a
-# broker's topics means adding it here too. The value follows the units the
-# points arrive in: a survey BOOM sends as flux in nJy is scaled to Jy here and
-# takes 8.9, where one sent as magnitudes is converted against 23.9 and stays on
-# the uJy scale that implies.
+# AB zeropoint per survey, matching the units points arrive in: flux in nJy is
+# scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
 ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9}
 
-# Most surveys name their filters <survey><band>, which is what the default
-# below builds ("ztf" + "g"). WINTER names its filters for the photometric
-# system instead, so its bands are mapped one by one. A band with no entry
-# raises: the alert is refused rather than stored under a filter that would
-# misreport which band it was taken in.
-#
-# WINTER's bands come from the alert's fid (0=Y, 1=J, 2=H, 3=K) and arrive
-# survey-prefixed ("winterh"), which _normalize_band strips before the lookup.
-# Its filters follow the Mauna Kea Observatory set, so Y is centred near 1.02
-# um. Of the filters the instrument carries, desy is much the closer match: it
-# sits about 280 A away and shares roughly three quarters of its passband,
-# where ps1::y cuts off below 0.99 um and shares under a fifth. k is left
-# unmapped, since the instrument has no filter for it.
+# Surveys whose filters are not named <survey><band>. Keys are normalized bands,
+# so any survey prefix is already stripped. An unmapped band raises rather than
+# storing a point under a filter that would misreport it. WINTER has no k filter.
 BAND_TO_FILTER_PER_SURVEY = {
     "WINTER": {"y": "desy", "j": "2massj", "h": "2massh"},
 }
@@ -73,10 +59,7 @@ def _normalize_band(band):
 
 
 def _filter_name(survey, band):
-    """The SkyPortal filter an alert's band belongs to.
-
-    Falls back to <survey><band> for surveys that name their filters that way.
-    """
+    # The SkyPortal filter a band belongs to, <survey><band> unless mapped.
     normalized = _normalize_band(band)
     mapping = BAND_TO_FILTER_PER_SURVEY.get(survey)
     if mapping is None:
@@ -234,9 +217,6 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 }
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
-            # BOOM emits survey-prefixed bands ("ztfg") for some surveys and bare
-            # ones ("h") for others, and not every survey names its filters after
-            # itself, so the two are reconciled in one place.
             pd["filter"].append(_filter_name(survey, band))
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))

@@ -782,13 +782,10 @@ def test_build_photometry_groups_flux_and_mag_space():
 
 
 def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
-    """WINTER points arrive as flux in nJy, so they take the Jy zeropoint.
+    """WINTER flux (nJy) is scaled to Jy and takes the Jy zeropoint, 8.9.
 
-    BOOM sends WINTER photometry the same way it sends LSST: flux in nJy, which
-    the transform scales to Jy. The AB zeropoint for Jy is 8.9. Using ZTF's 23.9
-    here, which suits the magnitude path and its uJy scale, would put every
-    WINTER point about 15 magnitudes too faint with nothing to show it was
-    wrong.
+    ZTF's 23.9 belongs to the magnitude path and its uJy scale. Using it here
+    would put every point about 15 magnitudes too faint.
     """
     import math
 
@@ -815,11 +812,9 @@ def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
 
 
 def test_build_photometry_groups_winter_bands_map_to_instrument_filters():
-    """WINTER filters are named for the photometric system, not for the survey.
+    """WINTER filters are named for the photometric system, not the survey.
 
-    The default <survey><band> naming gives "winterh", which the instrument does
-    not have, so the photometry would be refused. BOOM sends WINTER bands
-    survey-prefixed, so the prefix is stripped before the lookup.
+    Bands arrive survey-prefixed ("winterh"), stripped before the lookup.
     """
     for band, expected in (
         ("winterh", "2massh"),
@@ -845,12 +840,7 @@ def test_build_photometry_groups_winter_bands_map_to_instrument_filters():
 
 
 def test_build_photometry_groups_winter_refuses_unresolved_bands():
-    """k is refused rather than guessed at.
-
-    fid=3 reaches us as "k" and the instrument has no filter for it. Storing it
-    under a guessed filter would misreport which band the observation was taken
-    in, so the alert is refused instead.
-    """
+    """k has no WINTER filter, so the alert is refused rather than mislabelled."""
     for band in ("winterk", "k"):
         data = {
             "prv_candidates": [
