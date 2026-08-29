@@ -11,7 +11,8 @@
  * invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { spectraTag } from "./spectraTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
@@ -58,7 +59,10 @@ export const spectraApi = skyportalApi.injectEndpoints({
       BulkSpectraArgs
     >({
       query: (body) => ({ url: "/api/spectra/bulk", method: "POST", body }),
-      providesTags: ["Spectra"],
+      providesTags: (result) =>
+        result?.sources?.length
+          ? result.sources.flatMap((source) => spectraTag(source.id))
+          : spectraTag(),
     }),
     // The spectrum shape is highly dynamic across SkyPortal apps; consumers read
     // many optional fields, so the element type is `any` (the `Spectrum`
@@ -75,7 +79,7 @@ export const spectraApi = skyportalApi.injectEndpoints({
         }`,
       transformResponse: (data: { spectra?: Spectrum[] }) =>
         data?.spectra ?? [],
-      providesTags: ["Spectra"],
+      providesTags: (_result, _error, { id }) => spectraTag(id),
     }),
     // Single spectrum WITH the raw uploaded file (original_file_string), which is
     // deferred from the source-spectra payload. Fetched on demand for download.
@@ -135,9 +139,22 @@ export const spectraApi = skyportalApi.injectEndpoints({
 });
 
 // Websocket-driven invalidation: refresh spectra on REFRESH_SOURCE_SPECTRA.
-invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
-  payload?.obj_internal_key != null ? ["Spectra"] : null,
-);
+// Broadcast to every client for every source, carrying the source's
+// internal_key: translate it to the obj id so only that source's spectra
+// refetch. Without an obj id there is nothing to refresh, since an unscoped tag
+// here matches every open source page.
+invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload, getState) => {
+  const objKey = payload?.obj_internal_key as string | undefined;
+  if (!objKey) {
+    return null;
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? spectraTag(objId) : null;
+});
 
 export const {
   useGetBulkSpectraQuery,
