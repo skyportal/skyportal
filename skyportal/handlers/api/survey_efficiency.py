@@ -209,7 +209,9 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
 
 class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
     @auth_or_token
-    async def post(self) -> DefaultSurveyEfficiencyPostResponse:
+    async def post(
+        self, *, body: DefaultSurveyEfficiencyPostBody = None
+    ) -> DefaultSurveyEfficiencyPostResponse:
         """
         ---
         summary: Create default survey efficiency requests

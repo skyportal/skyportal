@@ -281,7 +281,7 @@ def broker_to_dict(broker, include_altdata=False):
 
 class BrokerHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    def post(self, *, body: BrokerPostBody = None):
         """
         ---
         summary: Create a broker
@@ -383,7 +383,7 @@ class BrokerHandler(BaseHandler):
             )
 
     @permissions(["System admin"])
-    def patch(self, broker_id: int):
+    def patch(self, broker_id: int, *, body: BrokerPatchBody = None):
         """
         ---
         summary: Update a broker
@@ -644,7 +644,9 @@ class BrokerConeSearchHandler(BaseHandler):
 
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, broker_id: int, alert_id: AlertId):
+    async def post(
+        self, broker_id: int, alert_id: AlertId, *, body: BrokerSaveBody = None
+    ):
         """
         ---
         summary: Save a broker alert as a source
@@ -872,7 +874,7 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
 
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int):
+    def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
         """
         ---
         summary: Preview a broker filter
@@ -916,7 +918,9 @@ class BrokerFilterTestHandler(BaseHandler):
 
 class BrokerFilterValidateHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int, filter_id: int):
+    def post(
+        self, broker_id: int, filter_id: int, *, body: BrokerFilterValidateBody = None
+    ):
         """
         ---
         summary: Validate a broker filter version for activation
@@ -1072,7 +1076,7 @@ class BrokerFilterModulesHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def post(self, broker_id: int, name):
+    def post(self, broker_id: int, name, *, body: BrokerFilterModuleWriteBody = None):
         """
         ---
         summary: Create a broker custom filter module
@@ -1091,10 +1095,11 @@ class BrokerFilterModulesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self._write_module(broker_id, name, insert=True)
+        body = self.parse_body(BrokerFilterModuleWriteBody)
+        return self._write_module(broker_id, name, body, insert=True)
 
     @permissions(["Upload data"])
-    def put(self, broker_id: int, name):
+    def put(self, broker_id: int, name, *, body: BrokerFilterModuleWriteBody = None):
         """
         ---
         summary: Update a broker custom filter module
@@ -1112,12 +1117,12 @@ class BrokerFilterModulesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self._write_module(broker_id, name, insert=False)
+        body = self.parse_body(BrokerFilterModuleWriteBody)
+        return self._write_module(broker_id, name, body, insert=False)
 
-    def _write_module(self, broker_id, name, insert):
+    def _write_module(self, broker_id, name, body, insert):
         if not name:
             return self.error("A module name is required.")
-        body = self.parse_body(BrokerFilterModuleWriteBody)
         elements = body.elements
         payload = body.data
         if elements not in _FILTER_MODULE_ELEMENTS:
@@ -1241,7 +1246,13 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data=result)
 
     @permissions(["Upload data"])
-    def post(self, broker_id: int, filter_id: int | None = None):
+    def post(
+        self,
+        broker_id: int,
+        filter_id: int | None = None,
+        *,
+        body: BrokerFiltersPostBody = None,
+    ):
         """
         ---
         summary: Create a broker filter version
@@ -1377,7 +1388,9 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data={"id": f.id})
 
     @permissions(["Upload data"])
-    def patch(self, broker_id: int, filter_id: int):
+    def patch(
+        self, broker_id: int, filter_id: int, *, body: BrokerFiltersPatchBody = None
+    ):
         """
         ---
         summary: Update a broker filter

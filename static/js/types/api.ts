@@ -613,7 +613,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisServicePatchBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -685,7 +689,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisServicePostBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1449,7 +1457,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFilterTestBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1498,7 +1510,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFilterValidateBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1584,7 +1600,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFilterModuleWriteBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1618,7 +1638,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFilterModuleWriteBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1813,7 +1837,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFiltersPostBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -1883,7 +1911,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFiltersPatchBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -2175,7 +2207,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerSaveBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -2340,7 +2376,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerPatchBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -2382,7 +2422,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerPostBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -4177,7 +4221,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DefaultSurveyEfficiencyPostBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -37645,6 +37693,238 @@ export interface components {
             show_corner: boolean | null;
         };
         /**
+         * AnalysisServicePostBody
+         * @description Request body for creating an Analysis Service.
+         */
+        AnalysisServicePostBody: {
+            /**
+             * Name
+             * @description Unique name/identifier of the analysis service.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Display Name
+             * @description Display name of the analysis service.
+             * @default null
+             */
+            display_name: string | null;
+            /**
+             * Description
+             * @description Description of the analysis service.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Version
+             * @description Semantic version (or githash) of the analysis service.
+             * @default null
+             */
+            version: string | null;
+            /**
+             * Contact Name
+             * @description Name of person responsible for the service (ie. the maintainer). This person does not need to be part of this SkyPortal instance.
+             * @default null
+             */
+            contact_name: string | null;
+            /**
+             * Contact Email
+             * @description Email address of the person responsible for the service.
+             * @default null
+             */
+            contact_email: string | null;
+            /**
+             * Url
+             * @description URL to running service accessible to this SkyPortal instance. For example, http://localhost:5000/analysis/<service_name>.
+             * @default null
+             */
+            url: string | null;
+            /**
+             * Optional Analysis Parameters
+             * @description Optional URL parameters that can be passed to the service, along with a list of possible values (to be used in a dropdown UI).
+             * @default null
+             */
+            optional_analysis_parameters: (string | {
+                [key: string]: unknown;
+            }) | null;
+            /**
+             * Authentication Type
+             * @description Service authentication method. See https://docs.python-requests.org/en/master/user/authentication/
+             * @default null
+             */
+            authentication_type: string | null;
+            /**
+             * Authinfo
+             * @description Authentication secrets for the service. Not needed if authentication_type is "none". This should be a string that can be parsed by the python json.loads() function and should contain the key `authentication_type`.
+             * @default null
+             */
+            _authinfo: string | null;
+            /**
+             * Enabled
+             * @description Whether the service is enabled or not.
+             * @default null
+             */
+            enabled: boolean | null;
+            /**
+             * Analysis Type
+             * @description Type of analysis.
+             * @default null
+             */
+            analysis_type: string | null;
+            /**
+             * Input Data Types
+             * @description List of input data types that the service requires.
+             * @default null
+             */
+            input_data_types: string[] | null;
+            /**
+             * Timeout
+             * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
+             * @default null
+             */
+            timeout: number | null;
+            /**
+             * Is Summary
+             * @description Establishes that analysis results on the resource should be considered a summary.
+             * @default null
+             */
+            is_summary: boolean | null;
+            /**
+             * Display On Resource Dropdown
+             * @description Show this analysis service on the analysis dropdown of the resource.
+             * @default null
+             */
+            display_on_resource_dropdown: boolean | null;
+            /**
+             * Upload Only
+             * @description If true, the analysis service is an upload type, where the user provides the input data.
+             * @default null
+             */
+            upload_only: boolean | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to use the Analysis Service. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * AnalysisServicePatchBody
+         * @description Request body for updating an Analysis Service (all fields optional).
+         */
+        AnalysisServicePatchBody: {
+            /**
+             * Name
+             * @description Unique name/identifier of the analysis service.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Display Name
+             * @description Display name of the analysis service.
+             * @default null
+             */
+            display_name: string | null;
+            /**
+             * Description
+             * @description Description of the analysis service.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Version
+             * @description Semantic version (or githash) of the analysis service.
+             * @default null
+             */
+            version: string | null;
+            /**
+             * Contact Name
+             * @description Name of person responsible for the service (ie. the maintainer). This person does not need to be part of this SkyPortal instance.
+             * @default null
+             */
+            contact_name: string | null;
+            /**
+             * Contact Email
+             * @description Email address of the person responsible for the service.
+             * @default null
+             */
+            contact_email: string | null;
+            /**
+             * Url
+             * @description URL to running service accessible to this SkyPortal instance. For example, http://localhost:5000/analysis/<service_name>.
+             * @default null
+             */
+            url: string | null;
+            /**
+             * Optional Analysis Parameters
+             * @description Optional URL parameters that can be passed to the service, along with a list of possible values (to be used in a dropdown UI).
+             * @default null
+             */
+            optional_analysis_parameters: (string | {
+                [key: string]: unknown;
+            }) | null;
+            /**
+             * Authentication Type
+             * @description Service authentication method. See https://docs.python-requests.org/en/master/user/authentication/
+             * @default null
+             */
+            authentication_type: string | null;
+            /**
+             * Authinfo
+             * @description Authentication secrets for the service. Not needed if authentication_type is "none". This should be a string that can be parsed by the python json.loads() function and should contain the key `authentication_type`.
+             * @default null
+             */
+            _authinfo: string | null;
+            /**
+             * Enabled
+             * @description Whether the service is enabled or not.
+             * @default null
+             */
+            enabled: boolean | null;
+            /**
+             * Analysis Type
+             * @description Type of analysis.
+             * @default null
+             */
+            analysis_type: string | null;
+            /**
+             * Input Data Types
+             * @description List of input data types that the service requires.
+             * @default null
+             */
+            input_data_types: string[] | null;
+            /**
+             * Timeout
+             * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
+             * @default null
+             */
+            timeout: number | null;
+            /**
+             * Is Summary
+             * @description Establishes that analysis results on the resource should be considered a summary.
+             * @default null
+             */
+            is_summary: boolean | null;
+            /**
+             * Display On Resource Dropdown
+             * @description Show this analysis service on the analysis dropdown of the resource.
+             * @default null
+             */
+            display_on_resource_dropdown: boolean | null;
+            /**
+             * Upload Only
+             * @description If true, the analysis service is an upload type, where the user provides the input data.
+             * @default null
+             */
+            upload_only: boolean | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to use the Analysis Service. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
          * AnalysisUploadBody
          * @description Request body for uploading an upload_only analysis result.
          */
@@ -37810,6 +38090,245 @@ export interface components {
              * @default null
              */
             comment: string | null;
+        };
+        /**
+         * BrokerFilterTestBody
+         * @description Filter parameters specific to the broker's filter_kind, passed through to
+         *     the provider (e.g. Lasair's selected/tables/conditions, BOOM's pipeline).
+         */
+        BrokerFilterTestBody: {
+            [key: string]: unknown;
+        };
+        /**
+         * BrokerFilterValidateBody
+         * @description Request body for validating a broker filter version for activation.
+         */
+        BrokerFilterValidateBody: {
+            /**
+             * Fid
+             * @description Filter version id (fid) to validate.
+             * @default null
+             */
+            fid: number | null;
+        };
+        /**
+         * BrokerFilterModuleWriteBody
+         * @description Request body for creating/updating a broker custom filter module.
+         */
+        BrokerFilterModuleWriteBody: {
+            /**
+             * Elements
+             * @description Custom filter-module element type (one of variables/listVariables/switchCases/blocks).
+             * @default null
+             */
+            elements: string | null;
+            /**
+             * Data
+             * @description The module payload to store.
+             * @default null
+             */
+            data: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * BrokerFiltersPostBody
+         * @description Request body for creating a broker filter version.
+         */
+        BrokerFiltersPostBody: {
+            /**
+             * Query
+             * @description Query-kind (e.g. Lasair) filter with selected/tables/conditions.
+             * @default null
+             */
+            query: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Altdata
+             * @description Compiled native filter (pipeline) forwarded to the broker.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Filters
+             * @description Editable version tree stored alongside the broker filter id.
+             * @default null
+             */
+            filters: unknown;
+            /**
+             * Name
+             * @description Filter name (informational; the skyportal Filter name is used server-side).
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Autosave
+             * @description Whether candidates passing the filter are auto-saved as sources.
+             * @default null
+             */
+            autosave: boolean | null;
+        };
+        /**
+         * BrokerFiltersPatchBody
+         * @description Request body for updating a broker filter.
+         */
+        BrokerFiltersPatchBody: {
+            /**
+             * Active
+             * @description Whether the selected filter version is active.
+             * @default null
+             */
+            active: boolean | null;
+            /**
+             * Active Fid
+             * @description Filter version id (fid) to activate.
+             * @default null
+             */
+            active_fid: (number | string) | null;
+            /**
+             * Autoannotate
+             * @description Whether to auto-annotate on filter passage.
+             * @default null
+             */
+            autoAnnotate: boolean | null;
+            /**
+             * Autosave
+             * @description Whether to auto-save on filter passage.
+             * @default null
+             */
+            autoSave: boolean | null;
+            /**
+             * Autofollowup
+             * @description Whether to auto-trigger followup on filter passage.
+             * @default null
+             */
+            autoFollowup: boolean | null;
+            /**
+             * Autosaveignoregroupids
+             * @description Groups whose members are not auto-saved (e.g. junk).
+             * @default null
+             */
+            autoSaveIgnoreGroupIds: number[] | null;
+            /**
+             * Autosaveignoreradius
+             * @description Skip auto-save if a junk-group source lies within this many arcsec. Null or empty string clears it.
+             * @default null
+             */
+            autoSaveIgnoreRadius: (number | string) | null;
+            /**
+             * Autosavesaverid
+             * @description User the auto-saves are attributed to; must be a member of the filter's group. Null or empty string clears it.
+             * @default null
+             */
+            autoSaveSaverId: (number | string) | null;
+            /**
+             * Autosavecomment
+             * @description Comment posted on each auto-save. Null or empty string clears it.
+             * @default null
+             */
+            autoSaveComment: string | null;
+            /**
+             * Autofollowupdefaultid
+             * @description DefaultFollowupRequest the filter's auto-followup uses. Null or empty string clears it.
+             * @default null
+             */
+            autoFollowupDefaultId: (number | string) | null;
+        };
+        /**
+         * BrokerSaveBody
+         * @description Request body for saving a broker alert as a source.
+         */
+        BrokerSaveBody: {
+            /**
+             * Group Ids
+             * @description Group IDs the saved source should belong to.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * BrokerPostBody
+         * @description Request body for creating a broker.
+         */
+        BrokerPostBody: {
+            /**
+             * Name
+             * @description Name of the broker connection.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Broker Classname
+             * @description A registered BrokerAPI provider class name.
+             * @default null
+             */
+            broker_classname: string | null;
+            /**
+             * Altdata
+             * @description Endpoints/credentials for this broker instance.
+             */
+            altdata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Active
+             * @description Whether the broker connection is active.
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Default Alert Search
+             * @description Make this the broker the source page searches alerts on.
+             * @default false
+             */
+            default_alert_search: boolean;
+            /**
+             * Default Crossmatch
+             * @description Make this the broker cross-matches are run against.
+             * @default false
+             */
+            default_crossmatch: boolean;
+        };
+        /**
+         * BrokerPatchBody
+         * @description Request body for updating a broker.
+         */
+        BrokerPatchBody: {
+            /**
+             * Name
+             * @description Name of the broker connection.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Active
+             * @description Whether the broker connection is active.
+             * @default null
+             */
+            active: boolean | null;
+            /**
+             * Altdata
+             * @description Endpoints/credentials for this broker instance.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Default Alert Search
+             * @description Make this the broker the source page searches alerts on.
+             * @default null
+             */
+            default_alert_search: boolean | null;
+            /**
+             * Default Crossmatch
+             * @description Make this the broker cross-matches are run against.
+             * @default null
+             */
+            default_crossmatch: boolean | null;
         };
         /**
          * ScanReportItemPatchBody
@@ -38603,6 +39122,25 @@ export interface components {
              * @description New default observation plan request ID
              */
             id: number;
+        };
+        /**
+         * DefaultSurveyEfficiencyPostBody
+         * @description Request body for creating a default survey efficiency request.
+         */
+        DefaultSurveyEfficiencyPostBody: {
+            /**
+             * Default Observationplan Request Id
+             * @description Default observation plan request ID.
+             */
+            default_observationplan_request_id: number;
+            /**
+             * Payload
+             * @description Content of the default survey efficiency analysis.
+             * @default null
+             */
+            payload: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * DefaultSurveyEfficiencyPostResponse

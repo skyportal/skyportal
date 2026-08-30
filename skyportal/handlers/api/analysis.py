@@ -1157,7 +1157,7 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    async def post(self):
+    async def post(self, *, body: AnalysisServicePostBody = None):
         """
         ---
         summary: Create an Analysis Service.
@@ -1360,7 +1360,9 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    async def patch(self, analysis_service_id: int):
+    async def patch(
+        self, analysis_service_id: int, *, body: AnalysisServicePatchBody = None
+    ):
         """
         ---
         summary: Update an Analysis Service.
