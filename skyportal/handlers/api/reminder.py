@@ -92,12 +92,7 @@ class ReminderPatchBody(BaseModel):
     group_ids: list[int] | None = Field(
         default=None,
         description="List of group IDs corresponding to which groups should be "
-        "able to view reminder. Defaults to all of requesting user's groups.",
-    )
-    user_ids: list[int] | None = Field(
-        default=None,
-        description="List of IDs of users the reminder is for. Defaults to "
-        "the requesting user.",
+        "able to view reminder. Left unchanged if not provided.",
     )
 
 
@@ -590,32 +585,20 @@ class ReminderHandler(BaseHandler):
         body = self.parse_body(ReminderPatchBody)
         async with self.AsyncSession() as session:
             try:
-                group_ids = body.group_ids
-                if not group_ids:
-                    group_ids = [g.id for g in self.current_user.accessible_groups]
-                elif not set(group_ids).issubset(
-                    {g.id for g in self.current_user.accessible_groups}
-                ):
-                    return self.error(
-                        "cannot find some of the requested groups", status=403
-                    )
-                groups_result = await session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                )
-                groups = groups_result.all()
-
-                user_ids = body.user_ids
-                if not user_ids:
-                    user_ids = [self.associated_user_object.id]
-                else:
-                    accessible_result = await session.scalars(
-                        User.select(session.user_or_token)
-                    )
-                    accessible_user_ids = [u.id for u in accessible_result.all()]
-                    if not set(user_ids).issubset(set(accessible_user_ids)):
+                groups = None
+                if body.group_ids:
+                    if not set(body.group_ids).issubset(
+                        {g.id for g in self.current_user.accessible_groups}
+                    ):
                         return self.error(
-                            "cannot find some of the requested users", status=403
+                            "cannot find some of the requested groups", status=403
                         )
+                    groups_result = await session.scalars(
+                        Group.select(session.user_or_token).where(
+                            Group.id.in_(body.group_ids)
+                        )
+                    )
+                    groups = groups_result.all()
 
                 if associated_resource_type.lower() == "source":
                     source = await session.scalar(
@@ -717,9 +700,8 @@ class ReminderHandler(BaseHandler):
                     reminder.reminder_delay = body.reminder_delay
                 if body.number_of_reminders is not None:
                     reminder.number_of_reminders = body.number_of_reminders
-                # like the old marshmallow merge, groups are always replaced,
-                # defaulting to the requesting user's accessible groups
-                reminder.groups = groups
+                if groups is not None:
+                    reminder.groups = groups
 
                 await session.commit()
 

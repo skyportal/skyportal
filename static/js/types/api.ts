@@ -39843,16 +39843,10 @@ export interface components {
             number_of_reminders: number | null;
             /**
              * Group Ids
-             * @description List of group IDs corresponding to which groups should be able to view reminder. Defaults to all of requesting user's groups.
+             * @description List of group IDs corresponding to which groups should be able to view reminder. Left unchanged if not provided.
              * @default null
              */
             group_ids: number[] | null;
-            /**
-             * User Ids
-             * @description List of IDs of users the reminder is for. Defaults to the requesting user.
-             * @default null
-             */
-            user_ids: number[] | null;
         };
         /**
          * MovingObjectFollowupPostBody
