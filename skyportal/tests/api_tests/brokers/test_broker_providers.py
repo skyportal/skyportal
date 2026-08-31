@@ -814,7 +814,8 @@ def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
 def test_build_photometry_groups_winter_bands_map_to_instrument_filters():
     """WINTER filters are named for the photometric system, not the survey.
 
-    Bands arrive survey-prefixed ("winterh"), stripped before the lookup.
+    Bands arrive as a bare letter ("h"); a survey-prefixed form is stripped
+    before the lookup so either spelling resolves to the same filter.
     """
     for band, expected in (
         ("winterh", "2massh"),
