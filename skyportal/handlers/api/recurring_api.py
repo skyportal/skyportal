@@ -30,10 +30,11 @@ class RecurringAPIPostBody(BaseModel):
     endpoint: str = Field(description="Endpoint of the API call.")
     method: str = Field(description="HTTP method of the API call.")
     next_call: str = Field(description="Time of the next API call.")
-    call_delay: float = Field(description="Delay until next API call in days.")
+    call_delay: float = Field(gt=0, description="Delay until next API call in days.")
     payload: str = Field(description="JSON string with the payload of the API call.")
     number_of_retries: int | None = Field(
         default=None,
+        ge=1,
         le=MAX_RETRIES,
         description="Number of retries before service is deactivated.",
     )

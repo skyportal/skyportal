@@ -43,7 +43,9 @@ from skyportal.broker_apis.lasair import LASAIRBROKER
 from skyportal.broker_apis.lasair import _normalize_object as _normalize_lasair
 from skyportal.broker_apis.pittgoogle import _normalize_pubsub_alert, _normalize_rows
 
-CASSETTE_DIR = os.path.join(os.path.dirname(__file__), "data", "broker_cassettes")
+CASSETTE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "broker_cassettes"
+)
 
 # Replay only (never touch the network in CI); a missing/stale cassette fails.
 broker_vcr = vcr.VCR(
