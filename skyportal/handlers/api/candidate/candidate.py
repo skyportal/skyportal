@@ -1535,8 +1535,6 @@ class CandidateHandler(BaseHandler):
         body = self.parse_body(CandidatePostBody)
         data = body.model_dump(exclude_unset=True)
 
-        if data.get("id") is None:
-            return self.error("Missing required parameter: `id`.")
         # Obj.id is a string column, but survey ids are often numeric (e.g. LSST
         # diaObject ids) and arrive as JSON numbers; comparing those against a
         # varchar column errors out in Postgres, so normalize once up front.
@@ -1556,17 +1554,12 @@ class CandidateHandler(BaseHandler):
                 return self.error("Dec must not be null for a new Obj")
 
             passing_alert_id = data.pop("passing_alert_id", None)
-            passed_at = data.pop("passed_at", None)
-            if passed_at is None:
-                return self.error("Missing required parameter: `passed_at`.")
+            passed_at = data.pop("passed_at")
             try:
                 passed_at = arrow.get(passed_at).datetime
             except Exception as e:
                 return self.error(f"Invalid passedAt value: {e}")
-            try:
-                filter_ids = data.pop("filter_ids")
-            except KeyError:
-                return self.error("Missing required filter_ids parameter.")
+            filter_ids = data.pop("filter_ids")
 
             if not obj_already_exists:
                 try:

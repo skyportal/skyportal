@@ -3151,26 +3151,10 @@ class SourceNotificationHandler(BaseHandler):
         data = body.model_dump(exclude_unset=True)
 
         additional_notes = data.get("additionalNotes")
-        if isinstance(additional_notes, str):
-            additional_notes = data["additionalNotes"].strip()
-        else:
-            if additional_notes is not None:
-                return self.error(
-                    "Invalid parameter `additionalNotes`: should be a string"
-                )
+        if additional_notes is not None:
+            additional_notes = additional_notes.strip()
 
-        if data.get("groupIds") is None:
-            return self.error("Missing required parameter `groupIds`")
-        try:
-            group_ids = [int(gid) for gid in data["groupIds"]]
-        except ValueError:
-            return self.error(
-                "Invalid value provided for `groupIDs`; unable to parse "
-                "all list items to integers."
-            )
-
-        if data.get("sourceId") is None:
-            return self.error("Missing required parameter `sourceId`")
+        group_ids = data["groupIds"]
 
         async with self.AsyncSession() as session:
             source = await session.scalar(
@@ -3195,8 +3179,6 @@ class SourceNotificationHandler(BaseHandler):
                     f"group IDs: {forbidden_groups}."
                 )
 
-            if data.get("level") is None:
-                return self.error("Missing required parameter `level`")
             if data["level"] not in ["soft", "hard"]:
                 return self.error(
                     "Invalid value provided for `level`: should be either 'soft' or 'hard'"
@@ -3497,20 +3479,8 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
         data = body.model_dump(exclude_unset=True)
 
-        if data.get("group_ids") is None:
-            return self.error("Missing required parameter `groupIds`")
-        try:
-            group_ids = [int(gid) for gid in data["group_ids"]]
-        except ValueError:
-            return self.error(
-                "Invalid value provided for `groupIDs`; unable to parse "
-                "all list items to integers."
-            )
-
-        if data.get("origin_id") is None:
-            return self.error("Missing required parameter `duplicateId`")
-
-        origin_id = data.get("origin_id")
+        group_ids = data["group_ids"]
+        origin_id = data["origin_id"]
 
         async with self.AsyncSession() as session:
             s = await session.scalar(
