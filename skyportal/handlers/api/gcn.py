@@ -5000,15 +5000,21 @@ def add_gcn_report(
         Session.remove()
 
 
+class GcnReportPostResponse(BaseModel):
+    """ID of the created GCN report."""
+
+    id: int = Field(description="ID of the created GCN report")
+
+
 class GcnReportHandler(BaseHandler):
     @auth_or_token
     async def post(
         self,
         dateobs: str,
-        summary_id: int | None = None,
+        report_id: int | None = None,
         *,
         body: GcnReportPostBody = None,
-    ):
+    ) -> GcnReportPostResponse:
         """
         ---
         summary: Create a GCN report
@@ -5016,15 +5022,6 @@ class GcnReportHandler(BaseHandler):
         tags:
           - gcn events
           - gcn event reports
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
         """
 
         body = self.parse_body(GcnReportPostBody)
@@ -5157,7 +5154,7 @@ class GcnReportHandler(BaseHandler):
                         instrument_ids=instrument_ids,
                     ),
                 )
-                return self.success({"id": summary_id})
+                return self.success({"id": report_id})
             except Exception as e:
                 return self.error(f"Error generating report: {e}")
 

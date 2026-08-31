@@ -1270,6 +1270,22 @@ class FollowupRequestPostBody(BaseModel):
     )
 
 
+class FollowupRequestPostResponse(BaseModel):
+    """Data payload returned when posting a follow-up request."""
+
+    id: int | None = Field(
+        description="New follow-up request ID, null when the request was ignored"
+    )
+    request_status: str | None = Field(
+        default=None, description="Status of the new follow-up request"
+    )
+    ignored: bool | None = Field(
+        default=None,
+        description="True when constraints prevented the request from being sent",
+    )
+    message: str | None = Field(default=None, description="Why the request was ignored")
+
+
 class FollowupRequestPutBody(BaseModel):
     """Request body for updating a follow-up request.
 
@@ -1623,18 +1639,15 @@ class FollowupRequestHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Upload data"])
-    async def post(self, *, body: FollowupRequestPostBody = None):
+    async def post(
+        self, *, body: FollowupRequestPostBody = None
+    ) -> FollowupRequestPostResponse:
         """
         ---
         summary: Post new followup request
         description: Submit follow-up request.
         tags:
           - followup requests
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
         """
         body = self.parse_body(FollowupRequestPostBody)
 

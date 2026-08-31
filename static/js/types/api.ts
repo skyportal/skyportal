@@ -4904,7 +4904,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["FollowupRequestPostResponse"];
+                        };
                     };
                 };
             };
@@ -7108,7 +7110,38 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Create a GCN report
+         * @description Post report data of a GCN event.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                    report_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnReportPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["GcnReportPostResponse"];
+                        };
+                    };
+                };
+            };
+        };
         /**
          * Delete a GCN report
          * @description Delete a GCN report
@@ -7143,59 +7176,6 @@ export interface paths {
                 };
             };
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gcn_event/{dateobs}/report/{summary_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a GCN report
-         * @description Post report data of a GCN event.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    dateobs: string;
-                    summary_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["GcnReportPostBody"];
-                };
-            };
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -13897,15 +13877,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SummaryQueryPostResponse"];
+                        };
                     };
                 };
             };
@@ -39441,6 +39415,35 @@ export interface components {
             refreshRequests: boolean;
         };
         /**
+         * FollowupRequestPostResponse
+         * @description Data payload returned when posting a follow-up request.
+         */
+        FollowupRequestPostResponse: {
+            /**
+             * Id
+             * @description New follow-up request ID, null when the request was ignored
+             */
+            id: number | null;
+            /**
+             * Request Status
+             * @description Status of the new follow-up request
+             * @default null
+             */
+            request_status: string | null;
+            /**
+             * Ignored
+             * @description True when constraints prevented the request from being sent
+             * @default null
+             */
+            ignored: boolean | null;
+            /**
+             * Message
+             * @description Why the request was ignored
+             * @default null
+             */
+            message: string | null;
+        };
+        /**
          * FollowupRequestPutBody
          * @description Request body for updating a follow-up request.
          *
@@ -40125,6 +40128,17 @@ export interface components {
              * @default null
              */
             instrumentIds: number[] | null;
+        };
+        /**
+         * GcnReportPostResponse
+         * @description ID of the created GCN report.
+         */
+        GcnReportPostResponse: {
+            /**
+             * Id
+             * @description ID of the created GCN report
+             */
+            id: number;
         };
         /** GcnSummaryPostBody */
         GcnSummaryPostBody: {
@@ -42980,6 +42994,19 @@ export interface components {
              * @default null
              */
             classificationTypes: string[] | null;
+        };
+        /**
+         * SummaryQueryPostResponse
+         * @description Sources whose summaries match the query.
+         */
+        SummaryQueryPostResponse: {
+            /**
+             * Query Results
+             * @description Matching sources, most similar first, with their scores
+             */
+            query_results: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * PhotometryDataset

@@ -1,5 +1,6 @@
 import copy
 import os
+from typing import Any
 
 import yaml
 from langchain_openai import OpenAIEmbeddings
@@ -162,24 +163,25 @@ class SummaryQueryPostBody(BaseModel):
     )
 
 
+class SummaryQueryPostResponse(BaseModel):
+    """Sources whose summaries match the query."""
+
+    query_results: list[dict[str, Any]] = Field(
+        description="Matching sources, most similar first, with their scores"
+    )
+
+
 class SummaryQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, *, body: SummaryQueryPostBody = None):
+    async def post(
+        self, *, body: SummaryQueryPostBody = None
+    ) -> SummaryQueryPostResponse:
         """
         ---
         summary: Search for sources based on their summaries
         description: Get a list of sources with summaries matching the query
         tags:
           - summary
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
         """
         body = self.parse_body(SummaryQueryPostBody)
 
