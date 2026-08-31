@@ -38241,12 +38241,10 @@ export interface components {
             } | null;
             /**
              * Altdata
-             * @description Compiled native filter (pipeline) forwarded to the broker.
+             * @description Compiled native filter forwarded to the broker, as an aggregation pipeline: a list of stages, not a mapping.
              * @default null
              */
-            altdata: {
-                [key: string]: unknown;
-            } | null;
+            altdata: unknown[] | null;
             /**
              * Filters
              * @description Editable version tree stored alongside the broker filter id.
