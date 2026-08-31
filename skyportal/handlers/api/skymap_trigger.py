@@ -27,8 +27,8 @@ class SkymapTriggerPostBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    allocation_id: int | None = Field(description="Followup request allocation ID.")
-    localization_id: int | None = Field(description="Localization ID.")
+    allocation_id: int = Field(description="Followup request allocation ID.")
+    localization_id: int = Field(description="Localization ID.")
     integrated_probability: float = Field(
         default=0.95, description="Integrated probability within skymap."
     )

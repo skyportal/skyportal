@@ -43268,12 +43268,12 @@ export interface components {
              * Allocation Id
              * @description Followup request allocation ID.
              */
-            allocation_id: number | null;
+            allocation_id: number;
             /**
              * Localization Id
              * @description Localization ID.
              */
-            localization_id: number | null;
+            localization_id: number;
             /**
              * Integrated Probability
              * @description Integrated probability within skymap.
