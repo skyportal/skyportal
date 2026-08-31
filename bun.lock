@@ -35,6 +35,7 @@
         "data-uri-to-buffer": "8.0.0",
         "date-fns": "4.4.0",
         "dayjs": "1.11.21",
+        "diff": "9.0.0",
         "dygraphs": "2.2.1",
         "emoji-dictionary": "1.0.12",
         "emojilib": "4.0.2",
@@ -909,6 +910,8 @@
     "detect-node": ["detect-node@2.1.0", "", {}, "sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g=="],
 
     "devlop": ["devlop@1.1.0", "", { "dependencies": { "dequal": "^2.0.0" } }, "sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA=="],
+
+    "diff": ["diff@9.0.0", "", {}, "sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw=="],
 
     "dnd-core": ["dnd-core@7.7.0", "", { "dependencies": { "asap": "^2.0.6", "invariant": "^2.2.4", "redux": "^4.0.1" } }, "sha512-+YqwflWEY1MEAEl2QiEiRaglYkCwIZryyQwximQGuTOm/ns7fS6Lg/i7OCkrtjM10D5FhArf/VUHIL4ZaRBK0g=="],
 
