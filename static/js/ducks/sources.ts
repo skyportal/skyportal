@@ -59,6 +59,8 @@ const QUERY_KEYS = [
   "currentUserLabeller",
   "dec",
   "deduplicatePhotometry",
+  "detectedWindowEnd",
+  "detectedWindowStart",
   "endDate",
   "excludeForcedPhotometry",
   "followupRequestStatus",
@@ -227,9 +229,23 @@ export const sourcesApi = skyportalApi.injectEndpoints({
       query: ({ dateobs, filterParams = {} }) => {
         const params = addFilterParamDefaults(filterParams);
         params["localizationDateobs"] = dateobs;
+        // A counterpart is a source detected *during* the window. startDate and
+        // endDate mean something stricter, that the whole detection history
+        // falls inside it, which drops anything still being detected -- so the
+        // time range is sent as a detection window instead.
+        if (params["startDate"] != null) {
+          params["detectedWindowStart"] ??= params["startDate"];
+          delete params["startDate"];
+        }
+        if (params["endDate"] != null) {
+          params["detectedWindowEnd"] ??= params["endDate"];
+          delete params["endDate"];
+        }
         if (dateobs) {
-          params["startDate"] ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-          params["endDate"] ??= dayjs(dateobs)
+          params["detectedWindowStart"] ??= dayjs(dateobs).format(
+            "YYYY-MM-DD HH:mm:ss",
+          );
+          params["detectedWindowEnd"] ??= dayjs(dateobs)
             .add(7, "day")
             .format("YYYY-MM-DD HH:mm:ss");
         }

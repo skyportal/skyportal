@@ -1412,6 +1412,22 @@ class SourceGetQuery(BaseModel):
             "PhotStat.last_detected_mjd <= endDate"
         ),
     )
+    detectedWindowStart: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). With requireDetections, "
+            "keep sources detected during [detectedWindowStart, detectedWindowEnd] "
+            "rather than sources whose whole detection history falls in the range, "
+            "which is what startDate/endDate ask for. Approximated from the first "
+            "and last detection, the only ones PhotStat records."
+        ),
+    )
+    detectedWindowEnd: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). See detectedWindowStart."
+        ),
+    )
     listName: str | None = Field(
         default=None,
         description=(
@@ -2028,6 +2044,10 @@ class SourceHandler(BaseHandler):
             saved_before = UTCTZnaiveDateTime(required=False, load_default=None)
             first_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
             last_detected_date = UTCTZnaiveDateTime(required=False, load_default=None)
+            detected_window_start = UTCTZnaiveDateTime(
+                required=False, load_default=None
+            )
+            detected_window_end = UTCTZnaiveDateTime(required=False, load_default=None)
             has_spectrum_after = UTCTZnaiveDateTime(required=False, load_default=None)
             has_spectrum_before = UTCTZnaiveDateTime(required=False, load_default=None)
             created_or_modified_after = UTCTZnaiveDateTime(
@@ -2044,6 +2064,10 @@ class SourceHandler(BaseHandler):
             params_to_be_validated["first_detected_date"] = query.startDate
         if query.endDate is not None:
             params_to_be_validated["last_detected_date"] = query.endDate
+        if query.detectedWindowStart is not None:
+            params_to_be_validated["detected_window_start"] = query.detectedWindowStart
+        if query.detectedWindowEnd is not None:
+            params_to_be_validated["detected_window_end"] = query.detectedWindowEnd
         if query.hasSpectrumAfter is not None:
             params_to_be_validated["has_spectrum_after"] = query.hasSpectrumAfter
         if query.hasSpectrumBefore is not None:
@@ -2062,24 +2086,32 @@ class SourceHandler(BaseHandler):
         saved_before = validated["saved_before"]
         first_detected_date = validated["first_detected_date"]
         last_detected_date = validated["last_detected_date"]
+        detected_window_start = validated["detected_window_start"]
+        detected_window_end = validated["detected_window_end"]
         has_spectrum_after = validated["has_spectrum_after"]
         has_spectrum_before = validated["has_spectrum_before"]
         created_or_modified_after = validated["created_or_modified_after"]
 
+        # Requiring detections against a localization needs a time range to
+        # require them in. Either pair gives one: startDate/endDate bound the
+        # whole detection history, detectedWindowStart/End ask only that the
+        # source was detected during the window.
+        window_start = detected_window_start or first_detected_date
+        window_end = detected_window_end or last_detected_date
         if (
             query.localizationDateobs is not None or query.localizationName is not None
         ) and query.requireDetections:
-            if first_detected_date is None or last_detected_date is None:
+            if window_start is None or window_end is None:
                 return self.error(
-                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
+                    "must specify startDate and endDate, or detectedWindowStart and "
+                    "detectedWindowEnd, when filtering by localizationDateobs or "
+                    "localizationName"
                 )
-            if first_detected_date > last_detected_date:
+            if window_start > window_end:
                 return self.error(
                     "startDate must be before endDate when filtering by localizationDateobs or localizationName",
                 )
-            if (
-                last_detected_date - first_detected_date
-            ).days > MAX_NUM_DAYS_USING_LOCALIZATION:
+            if (window_end - window_start).days > MAX_NUM_DAYS_USING_LOCALIZATION:
                 return self.error(
                     "startDate and endDate must be less than 10 years apart when filtering by localizationDateobs or localizationName",
                 )
@@ -2163,6 +2195,8 @@ class SourceHandler(BaseHandler):
                     remove_nested=query.removeNested,
                     first_detected_date=first_detected_date,
                     last_detected_date=last_detected_date,
+                    detected_window_start=detected_window_start,
+                    detected_window_end=detected_window_end,
                     sourceID=query.sourceID,
                     rejectedSourceIDs=query.rejectedSourceIDs,
                     ra=query.ra,
