@@ -53,6 +53,12 @@ class ObservingRunPostBody(BaseModel):
     group_id: int | None = Field(
         default=None, description="The ID of the group this run is associated with."
     )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of the groups that can see this run and its target "
+        "list. Defaults to the sitewide group, which is what a run was visible "
+        "to before runs became group-scoped.",
+    )
 
 
 class ObservingRunPostResponse(BaseModel):

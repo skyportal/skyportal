@@ -41867,6 +41867,12 @@ export interface components {
              * @default null
              */
             group_id: number | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups that can see this run and its target list. Defaults to the sitewide group, which is what a run was visible to before runs became group-scoped.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * ObservingRunPostResponse
