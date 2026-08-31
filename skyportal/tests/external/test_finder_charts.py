@@ -1,8 +1,4 @@
-"""Finder charts built from live imagery (PS1/DSS) and Gaia positions.
-
-Lives here, rather than under api_tests, because every assertion below depends
-on those external services answering; the suite is allowed to fail on them.
-"""
+"""Finder charts from live PS1/DSS imagery: every assertion needs those up."""
 
 from skyportal.tests import api
 

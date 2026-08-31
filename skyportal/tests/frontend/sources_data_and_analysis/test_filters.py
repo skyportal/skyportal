@@ -5,20 +5,13 @@ from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
-def test_add_filter(page, super_admin_user, public_group, public_stream):
+def test_add_filter(page, super_admin_user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     page.get_by_role("tab", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
-    # add stream
-    page.locator('//button[contains(.,"Add stream")]').first.click()
-    page.locator('//input[@name="stream_id"]/..').first.click()
-    page.get_by_role("option", name=public_stream.name).first.click()
-    page.locator('//button[@type="submit"]').first.click()
-
-    # add filter
     filter_name = str(uuid.uuid4())
     page.get_by_role("button", name="add filter").first.click()
     page.locator('//input[@name="filter_name"]').first.fill(filter_name)
