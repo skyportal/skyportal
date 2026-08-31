@@ -34,7 +34,6 @@ def test_followup_request_frontend(
     filter_form = page.locator(f"//*[@data-testid='filter-followup-requests-form']")
     filter_form.locator('//button[@type="submit"]').first.click()
 
-    page.locator(f"//*[@data-testid='{sedm.id}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "IFU")]'

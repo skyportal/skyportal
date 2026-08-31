@@ -229,7 +229,6 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     page.keyboard.press("Escape")
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     show_followup_columns(page, instrument_id, "exposure_time")
 
     expect(
@@ -292,7 +291,6 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     page.keyboard.press("Escape")
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "U")]'
@@ -357,8 +355,6 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     # UVOTXRT's API implements no delete method, so the form shows a
     # confirmation dialog before submitting; accept it.
     page.locator('//div[@role="dialog"]//button[contains(., "Confirm")]').first.click()
-
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     # Swift's TOO API isn't reachable in the test environment, so the request
     # is rejected rather than submitted; assert it renders with that status.
@@ -427,8 +423,6 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
-
     expect(
         page.locator(
             f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
@@ -490,8 +484,6 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
-
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
@@ -550,7 +542,6 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
@@ -622,8 +613,6 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
-
     # the test_server replays a recorded ATLAS forced-photometry queue success
     expect(
         page.locator(
@@ -681,8 +670,6 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
-
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
@@ -731,8 +718,6 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
     submit_button.click()
-
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
@@ -795,8 +780,6 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
     submit_button.click()
-
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
@@ -868,8 +851,6 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
-
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
@@ -930,8 +911,6 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     submit_button.click()
-
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     # we are not pointing to a real slack channel, so it should fail
     expect(
@@ -1069,7 +1048,6 @@ def test_edit_existing_followup_request(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     # Assert on cell contents by column (data-field), not visibility: the DataGrid
     # horizontally virtualizes columns, so a matching cell can be rendered outside
     # the viewport and fail a visibility check even when the edit succeeded. Scope
@@ -1356,7 +1334,6 @@ def test_submit_new_followup_request_two_groups(
     page.locator('//input[@id="root_observation_choices-4"]').first.click()
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
