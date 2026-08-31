@@ -7,29 +7,25 @@ import ReactMarkdown from "react-markdown";
 
 import Button from "./Button";
 import {
+  TermsOfService,
   useAcceptTermsOfServiceMutation,
-  useGetTermsOfServiceQuery,
 } from "../ducks/terms_of_service";
 
-// App-level provider, mounted once inside the router. When the instance
-// configures terms the user has not accepted, it blocks the app behind a modal
-// that can only be resolved by agreeing or signing out.
-const TermsOfServiceProvider = () => {
-  const { data: terms } = useGetTermsOfServiceQuery();
+interface TermsOfServiceDialogProps {
+  terms: TermsOfService;
+}
+
+// Rendered instead of the app, not on top of it: the backend 403s the rest.
+const TermsOfServiceDialog = ({ terms }: TermsOfServiceDialogProps) => {
   const [acceptTerms] = useAcceptTermsOfServiceMutation();
   const [submitting, setSubmitting] = useState(false);
-
-  if (!terms?.required) {
-    return null;
-  }
 
   const onAgree = async () => {
     setSubmitting(true);
     try {
       await acceptTerms().unwrap();
     } catch {
-      // error notification handled by the base query; leave the dialog up so
-      // the user is never let through on a failed write
+      // leave the dialog up, a failed write must not let the user through
       setSubmitting(false);
     }
   };
@@ -39,25 +35,18 @@ const TermsOfServiceProvider = () => {
       open
       maxWidth="md"
       fullWidth
-      // Deliberately no `onClose`: MUI routes both a backdrop click and the
-      // escape key through it, so omitting it leaves agreeing or signing out
-      // as the only ways past this.
+      // No `onClose`: MUI routes backdrop click and escape through it.
       aria-labelledby="terms-of-service-title"
     >
       <DialogTitle id="terms-of-service-title">{terms.title}</DialogTitle>
-      <DialogContent dividers data-testid="terms-of-service-text">
+      <DialogContent dividers>
         <ReactMarkdown>{terms.text}</ReactMarkdown>
       </DialogContent>
       <DialogActions>
-        <Button secondary href="/logout" data-testid="terms-of-service-decline">
+        <Button secondary href="/logout">
           Decline and sign out
         </Button>
-        <Button
-          primary
-          onClick={onAgree}
-          disabled={submitting}
-          data-testid="terms-of-service-agree"
-        >
+        <Button primary onClick={onAgree} disabled={submitting}>
           I Agree
         </Button>
       </DialogActions>
@@ -65,4 +54,4 @@ const TermsOfServiceProvider = () => {
   );
 };
 
-export default TermsOfServiceProvider;
+export default TermsOfServiceDialog;

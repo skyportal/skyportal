@@ -1,10 +1,3 @@
-/**
- * The instance's terms of service, and this user's acceptance of them.
- *
- * `required` is the only field guaranteed to be present: it is false both when
- * the instance configures no terms and when the user has already accepted the
- * version currently in force.
- */
 import { skyportalApi } from "../api/skyportalApi";
 
 export interface TermsOfService {

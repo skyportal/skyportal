@@ -278,9 +278,7 @@ CASES = [
     ("super_admin_user", "public_annotation", "read", True),
     ("super_admin_user", "public_annotation", "update", True),
     ("super_admin_user", "public_annotation", "delete", True),
-    # --- TermsOfServiceAcceptance  (public_terms_of_service_acceptance):
-    # the accepting user records and reads their own row; the trail is
-    # append-only, so update/delete are sysadmin-only ---
+    # --- TermsOfServiceAcceptance  (public_terms_of_service_acceptance) ---
     ("user", "public_terms_of_service_acceptance", "create", True),
     ("user", "public_terms_of_service_acceptance", "read", True),
     ("user", "public_terms_of_service_acceptance", "update", False),

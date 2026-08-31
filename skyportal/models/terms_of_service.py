@@ -7,15 +7,7 @@ from baselayer.app.models import AccessibleIfUserMatches, Base, restricted
 
 
 class TermsOfServiceAcceptance(Base):
-    """One user's acceptance of one version of the instance's terms of service.
-
-    Rows are an append-only audit trail: a new version prompts the user again
-    and inserts another row, rather than updating the existing one, so the
-    history of what was agreed to and when is preserved.
-    """
-
-    # A user records and reads their own acceptances; the trail is append-only,
-    # so editing and deleting are left to system admins.
+    # Append-only audit trail: a new version inserts a row rather than updating.
     read = create = AccessibleIfUserMatches("user")
     update = delete = restricted
 
