@@ -1585,7 +1585,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status in [500, 401]
+    assert status in [400, 401]
     assert data["status"] == "error"
 
 
