@@ -11,12 +11,15 @@ from .candidate import *
 from .classification import *
 from .comment import *
 from .cosmo import cosmo
+from .data_access_request import *
 from .earthquake import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
 from .galaxy import *
 from .gcn import *
+from .gcn_association_rule import *
+from .gcn_event_association import *
 from .gcn_event_obj import *
 from .group import *
 from .group_joins import *
@@ -43,6 +46,7 @@ from .schema import setup_schema
 from .sharing_service import *
 from .shift import *
 from .source import *
+from .source_interest import *
 from .source_label import *
 from .source_notification import *
 from .source_view import *

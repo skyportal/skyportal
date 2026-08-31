@@ -13,6 +13,7 @@ from suds import Client
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.utils.cache import cache_folder
 
 
 def record_mode_for(cache):
@@ -51,12 +52,12 @@ def get_cache_file():
     Helper function to get the path to the VCR cache file.
     The function will also delete the existing cache if it is too old.
     """
-    files = glob.glob("cache/test_server_recordings_*.yaml")
+    files = glob.glob(f"{cache_folder}/test_server_recordings_*.yaml")
     today = datetime.date.today()
 
     # If no cache files, just return a fresh one stamped for today
     if len(files) == 0:
-        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
+        return f"{cache_folder}/test_server_recordings_{today.isoformat()}.yaml"
 
     current_file = files[0]
     current_file_date = datetime.date.fromisoformat(
@@ -66,7 +67,7 @@ def get_cache_file():
     if (today - current_file_date).days > refresh_cache_days:
         # Delete old cache and return new file path
         os.remove(current_file)
-        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
+        return f"{cache_folder}/test_server_recordings_{today.isoformat()}.yaml"
 
     # Cache is still valid
     return current_file

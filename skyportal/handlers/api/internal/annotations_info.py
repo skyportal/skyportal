@@ -8,12 +8,12 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ....models import Annotation
-from ....utils.cache import Cache, dict_to_bytes
+from ....utils.cache import Cache, cache_folder, dict_to_bytes
 from ...base import BaseHandler
 
 _, cfg = load_env()
 
-cache_dir = "cache/annotations_info"
+cache_dir = f"{cache_folder}/annotations_info"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg.get("misc.minutes_to_keep_annotations_info_query_cache", 360)

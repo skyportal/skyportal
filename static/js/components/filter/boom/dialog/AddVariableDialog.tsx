@@ -12,12 +12,20 @@ import {
   IconButton,
   Alert,
 } from "@mui/material";
-import { Close as CloseIcon, ContentCopy } from "@mui/icons-material";
+import {
+  Close as CloseIcon,
+  ContentCopy,
+  Edit as EditIcon,
+} from "@mui/icons-material";
 import { v4 as uuidv4 } from "uuid";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
-import { usePostFilterElementMutation } from "../../../../ducks/boom_filter_modules";
+import {
+  usePostFilterElementMutation,
+  usePutFilterElementMutation,
+} from "../../../../ducks/boom_filter_modules";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 import EquationEditor from "equation-editor-react";
+import { parseVariableExpression } from "./variableExpression";
 
 // Numeric types
 const numericTypes = ["double", "float", "int", "long"];
@@ -189,11 +197,14 @@ const AddVariableDialog = () => {
   } = useCurrentBuilder() || {};
 
   const [postElement] = usePostFilterElementMutation();
+  const [putElement] = usePutFilterElementMutation();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const stream = boomFilterVersion?.stream?.name;
 
   const [variableName, setVariableName] = useState("");
   const [expression, setExpression] = useState("");
+  // Non-null while editing an existing variable in place (vs. adding a new one).
+  const [editingName, setEditingName] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
@@ -819,7 +830,17 @@ const AddVariableDialog = () => {
     setSpecialConditionDialog({ open: false, blockId: null, equation: "" });
     setVariableName("");
     setExpression("");
+    setEditingName(null);
     setError(""); // Clear error on close
+  };
+
+  // Load an existing variable into the form to edit its expression in place.
+  // The name is kept fixed so conditions referencing it stay valid.
+  const startEditing = (v: any) => {
+    setVariableName(v?.name || "");
+    setExpression(parseVariableExpression(v?.variable || ""));
+    setEditingName(v?.name || null);
+    setError("");
   };
 
   const handleCopyPreview = () => {
@@ -858,41 +879,49 @@ const AddVariableDialog = () => {
       return;
     }
 
-    // Check if a list variable with the same name already exists
-    if (customListVariables?.some((lv: any) => lv.name === variableName)) {
-      setError(
-        `A variable with the name "${variableName}" already exists. Please choose a different name.`,
-      );
-      return;
-    }
-
-    // Check if an arithmetic variable with the same name already exists
-    if (customVariables?.some((v: any) => v.name === variableName)) {
-      setError(
-        `A variable with the name "${variableName}" already exists. Please choose a different name.`,
-      );
-      return;
-    }
-
-    // Check if a block with the same name already exists
-    if (customBlocks?.some((b: any) => b.name === `Custom.${variableName}`)) {
-      setError(
-        `A variable with the name "${variableName}" already exists. Please choose a different name.`,
-      );
-      return;
+    // Name collisions only matter when adding a new variable; editing keeps its
+    // own name.
+    if (!editingName) {
+      if (customListVariables?.some((lv: any) => lv.name === variableName)) {
+        setError(
+          `A variable with the name "${variableName}" already exists. Please choose a different name.`,
+        );
+        return;
+      }
+      if (customVariables?.some((v: any) => v.name === variableName)) {
+        setError(
+          `A variable with the name "${variableName}" already exists. Please choose a different name.`,
+        );
+        return;
+      }
+      if (customBlocks?.some((b: any) => b.name === `Custom.${variableName}`)) {
+        setError(
+          `A variable with the name "${variableName}" already exists. Please choose a different name.`,
+        );
+        return;
+      }
     }
 
     const eq = `${variableName} = ${expression}`;
-
-    postElement({
+    const payload = {
       name: variableName,
-      data: {
-        variable: eq,
-        type: "number",
-        streams: [stream],
-      },
+      data: { variable: eq, type: "number", streams: [stream] },
       elements: "variables",
-    });
+    };
+
+    if (editingName) {
+      // Update the existing definition in place; references by name are kept.
+      putElement(payload);
+      setCustomVariables((prev: any[]) =>
+        prev.map((v: any) =>
+          v.name === editingName ? { ...v, variable: eq } : v,
+        ),
+      );
+      handleCloseSpecialCondition();
+      return;
+    }
+
+    postElement(payload);
 
     setCustomVariables((prev: any[]) => {
       if (prev.some((v: any) => v.name === variableName)) return prev;
@@ -965,7 +994,9 @@ const AddVariableDialog = () => {
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="h6" component="div">
-            Add Arithmetic Variable
+            {editingName
+              ? "Edit Arithmetic Variable"
+              : "Add Arithmetic Variable"}
           </Typography>
         </Box>
         <IconButton onClick={handleCloseSpecialCondition} size="small">
@@ -980,6 +1011,30 @@ const AddVariableDialog = () => {
           </Alert>
         )}
         {/* Context Selector */}
+        {!editingName && customVariables?.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="subtitle2"
+              gutterBottom
+              sx={{ fontWeight: "bold" }}
+            >
+              Edit an existing variable
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {customVariables.map((v: any) => (
+                <Button
+                  key={v.name}
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon fontSize="small" />}
+                  onClick={() => startEditing(v)}
+                >
+                  {v.name}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+        )}
         {/* Variable Name */}
         <Box sx={{ mb: 3 }}>
           <Typography
@@ -995,6 +1050,10 @@ const AddVariableDialog = () => {
             onChange={(e: any) => setVariableName(e.target.value)}
             placeholder="myVariable"
             size="small"
+            disabled={!!editingName}
+            helperText={
+              editingName ? "Editing an existing variable — name is fixed." : ""
+            }
             autoComplete="off"
             data-form-type="other"
             slotProps={{
@@ -1222,7 +1281,7 @@ const AddVariableDialog = () => {
           onClick={handleAddVariable}
           disabled={!variableName.trim() || !expression.trim()}
         >
-          Add Variable
+          {editingName ? "Save Changes" : "Add Variable"}
         </Button>
       </DialogActions>
     </Dialog>

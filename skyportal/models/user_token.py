@@ -27,7 +27,14 @@ from .stream import Stream
 def basic_user_display_info(user):
     return {
         field: getattr(user, field)
-        for field in ("username", "first_name", "last_name", "gravatar_url", "is_bot")
+        for field in (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "gravatar_url",
+            "is_bot",
+        )
     }
 
 

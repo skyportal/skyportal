@@ -4,6 +4,7 @@ import { useGetFilterQuery } from "../../ducks/filter";
 import { useGetBrokersQuery } from "../../ducks/brokers";
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
 import BoomFilterPlugins from "./boom/BoomFilterPlugins";
+import GcnCrossmatchPlugin from "./GcnCrossmatchPlugin";
 
 interface FilterPluginsProps {
   group?: any;
@@ -22,13 +23,22 @@ const FilterPlugins = (_props: FilterPluginsProps) => {
   )?.id;
   const brokerId = filter?.broker_id ?? boomBrokerId;
 
+  // The crossmatch panel is broker-agnostic, so it shows even when there is no
+  // builder to render.
   if (!brokerId) {
-    return <></>;
+    return <GcnCrossmatchPlugin />;
   }
 
   // Set synchronously, before BoomFilterPlugins' mount effects read it.
   setBrokerFilterTarget(brokerId);
-  return <BoomFilterPlugins />;
+  return (
+    <>
+      <BoomFilterPlugins />
+      {/* broker-agnostic: the crossmatch works with any provider that can
+          query alerts, so it is not part of the BOOM builder */}
+      <GcnCrossmatchPlugin />
+    </>
+  );
 };
 
 export default FilterPlugins;

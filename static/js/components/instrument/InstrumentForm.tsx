@@ -212,6 +212,17 @@ const InstrumentForm = ({
         title: "Filter list",
         default: instrumentToEdit?.["filters"] || [],
       },
+      // Outside the create-only block: facilities get their citation text
+      // filled in long after the instrument itself was added.
+      acknowledgment: {
+        type: "string",
+        title: "Acknowledgment",
+        description:
+          "Sentence papers should cite this instrument with. Used to build a " +
+          "source's acknowledgment block; falls back to the telescope's, then " +
+          "to the instrument name.",
+        default: instrumentToEdit?.["acknowledgment"] || undefined,
+      },
       api_classname: {
         type: "string",
         enum: api_classnames,

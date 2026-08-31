@@ -23,6 +23,8 @@ from astropy.time import Time
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 from mocpy import MOC
 
+from skyportal.utils.calculations import gaussian_sigmas_for
+
 SKYMAP_MIN = 1e-300
 
 
@@ -463,7 +465,7 @@ def get_skymap_cone(root):
         # Apparently, all experiments *except* AMON report a 1-sigma error radius.
         # AMON reports a 90% radius, so for AMON, we have to convert.
         if mission == "AMON":
-            error /= scipy.stats.chi(df=2).ppf(0.95)
+            error /= gaussian_sigmas_for(0.90)
 
     if error < 0:
         return None, None, None

@@ -12,6 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import { photometryTag } from "./photometryTags";
 import store from "../store";
 import { configApi } from "./config";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -56,7 +57,7 @@ export const photometryApi = skyportalApi.injectEndpoints({
           },
         };
       },
-      providesTags: ["Photometry"],
+      providesTags: (_result, _error, arg) => photometryTag(arg.id),
     }),
     deletePhotometry: build.mutation<
       RouteData<"DELETE /api/photometry/{photometry_id}">,
@@ -90,11 +91,10 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Websocket-driven invalidation: refresh photometry on
-// REFRESH_SOURCE_PHOTOMETRY. Active queries already keyed to the pushed obj_id
-// will refetch; others stay untouched.
+// Scoped to the pushed object, so a push about one source does not refetch the
+// photometry another page is showing.
 invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload) =>
-  payload?.obj_id != null ? ["Photometry"] : null,
+  payload?.obj_id != null ? photometryTag(payload.obj_id) : null,
 );
 
 export const {

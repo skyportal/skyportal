@@ -66,6 +66,33 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     ],
   },
   {
+    id: "source-interests",
+    path: /^\/source\/[^/]+$/,
+    announcedAt: "2026-08-17",
+    steps: [
+      {
+        target: '[data-testid="interested-button"]',
+        title: "New interested button",
+        content:
+          "Register your interest in a source, with a note and a link to your " +
+          "work. The button shows who else is interested, and opens a " +
+          "conversation with them.",
+      },
+      {
+        target: '[data-testid="discuss-interests-button"]',
+        before: async () => {
+          document
+            .querySelector<HTMLElement>('[data-testid="interested-button"]')
+            ?.click();
+        },
+        title: "Interested conversation",
+        content:
+          "Registering an interest opens a conversation dedicated to it in " +
+          "the comments. Open it from here to plan the work together.",
+      },
+    ],
+  },
+  {
     id: "brokers-page-alert-search",
     path: /^\/brokers\/?$/,
     announcedAt: "2026-08-15",
@@ -76,6 +103,42 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
         content:
           "Every broker set up for this instance is listed here. Open any of " +
           "them to search its alerts.",
+      },
+    ],
+  },
+  {
+    id: "public-profiles",
+    path: /^\/$/,
+    announcedAt: "2026-08-26",
+    steps: [
+      {
+        target: '[data-testid="avatar"]',
+        title: "New public profiles",
+        content:
+          "Every user now has a profile that others can open from their " +
+          "avatar or username anywhere in the app. Set yours up from here.",
+      },
+    ],
+  },
+  {
+    id: "public-profile-settings",
+    path: /^\/profile\/?$/,
+    announcedAt: "2026-08-26",
+    steps: [
+      {
+        // The eyes are per-field, so match whichever one comes first.
+        target: '[data-testid^="public-toggle-"]',
+        title: "Choose what you share",
+        content:
+          "The eye next to a field tells you whether it is on your public " +
+          "profile. Click it to show or hide that field.",
+      },
+      {
+        target: '[data-testid="profile-public-view"]',
+        title: "See your public profile",
+        content:
+          "This opens the page others see when they click your name, with " +
+          "only the fields you chose to share.",
       },
     ],
   },

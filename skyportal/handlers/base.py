@@ -8,7 +8,11 @@ from tornado.web import Finish
 from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
 
 from .. import __version__
-from ..utils.api_validate import format_validation_errors, path_adapters_for
+from ..utils.api_validate import (
+    format_validation_errors,
+    path_adapters_for,
+    query_dict_from,
+)
 
 
 def format_doc(**kwargs):
@@ -84,7 +88,26 @@ class BaseHandler(BaselayerHandler):
         error response and raises tornado.web.Finish to abort the handler.
         """
         try:
-            return model.model_validate(self.get_json())
+            data = self.get_json()
+        except Exception as e:
+            self.error(f"Error parsing JSON: {e}")
+            raise Finish() from None
+        try:
+            return model.model_validate(data)
+        except PydanticValidationError as e:
+            self.error(f"Invalid/missing parameters: {format_validation_errors(e)}")
+            raise Finish() from None
+
+    def parse_query(self, model):
+        """Validate query-string arguments against a pydantic model.
+
+        Returns the parsed model instance; on failure writes the standard 400
+        error response and raises tornado.web.Finish to abort the handler.
+        """
+        try:
+            return model.model_validate(
+                query_dict_from(self.request.query_arguments, model)
+            )
         except PydanticValidationError as e:
             self.error(f"Invalid/missing parameters: {format_validation_errors(e)}")
             raise Finish() from None
@@ -93,6 +116,9 @@ class BaseHandler(BaselayerHandler):
         super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
+        # Tag with handler name so users know which endpoint failed.
+        if message and not str(message).startswith("["):
+            message = f"[{self.__class__.__name__}] {message}"
         super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(

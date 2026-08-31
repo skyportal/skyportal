@@ -1,13 +1,6 @@
-import { useState } from "react";
-
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
-import IconButton from "@mui/material/IconButton";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import {
   DARK_SCHEMES,
@@ -20,14 +13,12 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 
-// Each swatch is painted with the background/text of the mode it selects, so
-// the group doubles as a preview.
 const MODES = [
   { value: "light", label: "White", color: LIGHT_BACKGROUND, text: "#1d1d1d" },
   ...Object.entries(DARK_SCHEMES).map(([value, scheme]) => ({
     value,
     label: scheme.label,
-    color: scheme.default,
+    color: scheme.paper,
     text: scheme.text,
   })),
 ];
@@ -35,9 +26,7 @@ const MODES = [
 const ThemeToggle = () => {
   const preferences = useGetProfileQuery().data?.preferences as any;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const current =
     preferences?.theme === "dark"
@@ -45,7 +34,6 @@ const ThemeToggle = () => {
       : "light";
 
   const selectMode = (value: string) => () => {
-    setAnchorEl(null);
     if (value === current) return;
     updateUserPreferences(
       value === "light"
@@ -54,48 +42,20 @@ const ThemeToggle = () => {
     );
   };
 
-  if (isMobile) {
-    return (
-      <>
-        <IconButton
-          onClick={(event) => setAnchorEl(event.currentTarget)}
-          aria-label="Choose theme"
-          data-testid="theme-toggle-menu"
-        >
-          <MoreVertIcon />
-        </IconButton>
-        <Menu
-          anchorEl={anchorEl}
-          open={!!anchorEl}
-          onClose={() => setAnchorEl(null)}
-        >
-          {MODES.map(({ value, label, color, text }) => (
-            <MenuItem
-              key={value}
-              selected={value === current}
-              onClick={selectMode(value)}
-              data-testid={`theme-${value}`}
-              sx={{
-                backgroundColor: color,
-                color: text,
-                fontWeight: value === current ? "bold" : undefined,
-                opacity: value === current ? 1 : 0.45,
-                "&.Mui-selected, &:hover, &.Mui-selected:hover": {
-                  backgroundColor: color,
-                  opacity: 1,
-                },
-              }}
-            >
-              {label} mode
-            </MenuItem>
-          ))}
-        </Menu>
-      </>
-    );
-  }
-
   return (
-    <Box sx={{ display: "flex" }} data-testid="theme-toggle">
+    <Box
+      data-testid="theme-toggle"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.75,
+        p: 0.5,
+        borderRadius: 999,
+        border: 1,
+        borderColor: "divider",
+        backgroundColor: "background.default",
+      }}
+    >
       {MODES.map(({ value, label, color, text }) => {
         const selected = value === current;
         return (
@@ -105,26 +65,25 @@ const ThemeToggle = () => {
             aria-label={`${label} mode`}
             data-testid={`theme-${value}`}
             sx={{
-              width: selected ? "9rem" : "5.5rem",
-              height: "2.5rem",
-              px: 1,
-              borderRadius: 1,
+              height: "2.25rem",
+              minWidth: "2.25rem",
+              px: selected ? 1.5 : 0,
+              borderRadius: 999,
               border: 1,
               borderColor: "divider",
               backgroundColor: color,
               color: text,
-              overflow: "hidden",
-              whiteSpace: "nowrap",
+              fontSize: "0.8125rem",
               fontWeight: "bold",
-              opacity: selected ? 1 : 0.6,
+              whiteSpace: "nowrap",
               transition: theme.transitions.create(
-                ["width", "opacity", "filter"],
+                ["min-width", "padding", "border-color"],
                 { duration: theme.transitions.duration.short },
               ),
-              "&:hover": { opacity: 1, filter: "none" },
+              "&:hover": { borderColor: "text.secondary" },
             }}
           >
-            {selected ? `${label} mode` : label}
+            {selected && label}
           </ButtonBase>
         );
       })}

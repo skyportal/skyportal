@@ -12,13 +12,13 @@ from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
 
-from ...utils.cache import Cache, dict_to_bytes
+from ...utils.cache import Cache, cache_folder, dict_to_bytes
 from ..group import GroupUser
 from ..source import Source
 
 env, cfg = load_env()
 
-cache_dir = "cache/public_pages/sources"
+cache_dir = f"{cache_folder}/public_pages/sources"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_public_source_pages_cache"] * 60,

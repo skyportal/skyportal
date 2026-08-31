@@ -1,12 +1,11 @@
 import time
 import uuid
 
-import numpy as np
 import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api, open_preferences_panel
+from skyportal.tests import api, open_preferences_panel, retry_until
 
 
 def test_token_acls_options_rendering1(page, user):
@@ -29,6 +28,8 @@ def test_add_and_see_realname_in_user_profile(page, user):
     page.goto("/profile")
     time.sleep(2)  # give it enough time to load the current profile
 
+    page.locator('//*[@id="editProfileButton"]').first.click()
+
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
     last_name = str(uuid.uuid4())
@@ -47,6 +48,8 @@ def test_add_and_see_affiliations_in_user_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     affiliations_entry = page.locator('//input[@name="affiliations"]').first
     affiliation_1 = str(uuid.uuid4())
@@ -69,6 +72,8 @@ def test_add_data_to_user_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
@@ -94,6 +99,8 @@ def test_insufficient_name_entry_in_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     time.sleep(1)
+
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
     page.locator('//input[@name="firstName"]').first.fill("")
     last_name = str(uuid.uuid4())
@@ -207,109 +214,87 @@ def test_delete_classification_shortcut(page, user, public_group, taxonomy_token
     ).to_be_hidden()
 
 
-@pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
-def test_set_automatically_visible_photometry(
-    page, user, upload_data_token, public_source, ztf_camera, public_group
-):
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": str(public_source.id),
-            "instrument_id": ztf_camera.id,
-            "mjd": [59408, 59409, 59410],
-            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
-            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
-            "limiting_mag": [20.0, 20.1, 20.2],
-            "magsys": ["ab", "ab", "ab"],
-            "filter": ["ztfr", "ztfg", "ztfr"],
-            "ra": [42.01, 42.01, 42.02],
-            "dec": [42.02, 42.01, 42.03],
-            "origin": [None, "Muphoten", "lol"],
-            "group_ids": [public_group.id],
-            "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
-        },
-        token=upload_data_token,
-    )
+def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    time.sleep(2)  # give it enough time to load the current profile
 
-    assert status == 200
-    assert data["status"] == "success"
-    assert len(data["data"]["ids"]) == 3
+    page.locator('//*[@id="editProfileButton"]').first.click()
 
+    first_name = str(uuid.uuid4())
+    page.locator('//input[@name="firstName"]').first.fill(first_name)
+    affiliation = str(uuid.uuid4())
+    affiliations_entry = page.locator('//input[@name="affiliations"]').first
+    affiliations_entry.fill(affiliation)
+    affiliations_entry.press("Enter")
+    page.locator('//*[@id="updateProfileButton"]').first.click()
+
+    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    expect(
+        page.locator(
+            f'//*[@id="publicProfileRealname"][contains(text(), "{first_name}")]'
+        ).first
+    ).to_be_visible()
+    expect(page.get_by_text(affiliation).first).to_be_visible()
+
+    page.locator('//*[@data-testid="profile-settings-view"]').first.click()
+    page.locator('//*[@id="userAffiliations"]').first.hover()
+    page.locator('//*[@data-testid="public-toggle-affiliations"]').first.click()
+    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    expect(page.get_by_text(affiliation)).to_have_count(0)
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/user/{user.id}")
+    expect(
+        page.locator(
+            f'//*[@id="publicProfileRealname"][contains(text(), "{first_name}")]'
+        ).first
+    ).to_be_visible()
+    expect(page.get_by_text(affiliation)).to_have_count(0)
+
+
+def test_set_automatically_visible_photometry(page, user, upload_data_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     open_preferences_panel(page, "plotting")
+
     page.locator(
         '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
     ).first.click()
     page.locator('//li[@data-value="2massh"]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator(
-        '//div[@id="originSelectAutomaticallyVisiblePhotometry"]'
-    ).first.click()
-    page.locator('//li[@data-value="Muphoten"]').first.click()
-    page.keyboard.press("Escape")
+    def preference_saved():
+        status, data = api("GET", "internal/profile", token=upload_data_token)
+        assert status == 200
+        preferences = data["data"]["preferences"]
+        assert preferences.get("automaticallyVisibleFilters") == ["2massh"]
 
-    status, data = api("GET", "internal/profile", token=upload_data_token)
-    assert status == 200
-    assert data["data"]["preferences"]["automaticallyVisibleFilters"] == ["2massh"]
-    assert data["data"]["preferences"]["automaticallyVisibleOrigins"] == ["Muphoten"]
+    retry_until(preference_saved, timeout=20)
 
 
-@pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
-def test_photometry_buttons_form(
-    page, user, upload_data_token, public_source, ztf_camera, public_group
-):
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": str(public_source.id),
-            "instrument_id": ztf_camera.id,
-            "mjd": [59408, 59409, 59410],
-            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
-            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
-            "limiting_mag": [20.0, 20.1, 20.2],
-            "magsys": ["ab", "ab", "ab"],
-            "filter": ["ztfr", "ztfg", "ztfr"],
-            "ra": [42.01, 42.01, 42.02],
-            "dec": [42.02, 42.01, 42.03],
-            "origin": [None, "Muphoten", "lol"],
-            "group_ids": [public_group.id],
-            "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
-        },
-        token=upload_data_token,
-    )
-
-    assert status == 200
-    assert data["status"] == "success"
-    assert len(data["data"]["ids"]) == 3
-
+def test_photometry_buttons_form(page, user, upload_data_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     open_preferences_panel(page, "plotting")
+
     page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
     page.locator('//li[@data-value="2massh"]').first.click()
-    page.keyboard.press("Escape")
-
-    page.locator('//div[@id="originSelectPhotometryButtonsForm"]').first.click()
-    page.locator('//li[@data-value="Muphoten"]').first.click()
     page.keyboard.press("Escape")
 
     photometry_button_name = str(uuid.uuid4())
     page.locator('//input[@name="photometryButtonName"]').first.fill(
         photometry_button_name
     )
-
     page.locator('//button[@id="addPhotometryButtonButton"]').first.click()
     expect(
         page.locator(f'//span[contains(text(), "{photometry_button_name}")]').first
     ).to_be_visible()
 
-    status, data = api("GET", "internal/profile", token=upload_data_token)
-    assert status == 200
-    assert data["data"]["preferences"]["photometryButtons"][photometry_button_name] == {
-        "filters": ["2massh"],
-        "origins": ["Muphoten"],
-    }
+    def button_saved():
+        status, data = api("GET", "internal/profile", token=upload_data_token)
+        assert status == 200
+        buttons = data["data"]["preferences"].get("photometryButtons", {})
+        assert buttons.get(photometry_button_name, {}).get("filters") == ["2massh"]
+
+    retry_until(button_saved, timeout=20)

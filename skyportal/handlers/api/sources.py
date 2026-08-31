@@ -33,11 +33,11 @@ from skyportal.models import (
     cosmo,
 )
 
-from ...utils.cache import Cache, array_to_bytes
+from ...utils.cache import Cache, array_to_bytes, cache_folder
 from ...utils.calculations import radec2lb
 
 _, cfg = load_env()
-cache_dir = "cache/sources_queries"
+cache_dir = f"{cache_folder}/sources_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_source_query_cache"] * 60,
@@ -546,6 +546,8 @@ async def get_sources(
     remove_nested=False,
     first_detected_date=None,
     last_detected_date=None,
+    detected_window_start=None,
+    detected_window_end=None,
     has_tns_name=False,
     has_no_tns_name=False,
     has_spectrum=False,
@@ -872,6 +874,62 @@ async def get_sources(
         if require_detections:
             # PHOTSTATS
             photstat_query = []
+            # A detection window asks whether the source was detected *during*
+            # a period, which is what a GCN counterpart search wants: an object
+            # still being detected afterwards is the interesting case, and
+            # first/last date bounds (below) exclude it, since those require
+            # the whole detection history to sit inside the range.
+            #
+            # photstats only keeps the first and last detection, so this is the
+            # closest question it can answer: the detected span overlaps the
+            # window. A source detected before and after the window but not
+            # during it would still pass.
+            if detected_window_start is not None or detected_window_end is not None:
+                first_col = (
+                    "first_detected_mjd"
+                    if not exclude_forced_photometry
+                    else "first_detected_no_forced_phot_mjd"
+                )
+                last_col = (
+                    "last_detected_mjd"
+                    if not exclude_forced_photometry
+                    else "last_detected_no_forced_phot_mjd"
+                )
+                if detected_window_end is not None:
+                    try:
+                        query_params.append(
+                            bindparam(
+                                "detected_window_end",
+                                value=Time(arrow.get(detected_window_end).datetime).mjd,
+                                type_=sa.Float,
+                            )
+                        )
+                        photstat_query.append(
+                            f"""photstats.{first_col} <= :detected_window_end"""
+                        )
+                    except Exception as e:
+                        raise ValueError(
+                            f"Invalid detected_window_end: {detected_window_end} ({e})"
+                        )
+                if detected_window_start is not None:
+                    try:
+                        query_params.append(
+                            bindparam(
+                                "detected_window_start",
+                                value=Time(
+                                    arrow.get(detected_window_start).datetime
+                                ).mjd,
+                                type_=sa.Float,
+                            )
+                        )
+                        photstat_query.append(
+                            f"""photstats.{last_col} >= :detected_window_start"""
+                        )
+                    except Exception as e:
+                        raise ValueError(
+                            f"Invalid detected_window_start: "
+                            f"{detected_window_start} ({e})"
+                        )
             if first_detected_date is not None:
                 try:
                     col = (

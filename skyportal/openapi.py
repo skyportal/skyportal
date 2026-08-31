@@ -10,6 +10,8 @@ from .models import schema
 from .utils.api_validate import (
     body_model_from,
     path_parameters_from,
+    query_model_from,
+    query_parameters_from,
     register_pydantic_schema,
     response_model_from,
 )
@@ -152,54 +154,77 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
             if parameters[-1:] == [""] and path_template.endswith("/{}"):
                 path_template = path_template[:-3]
 
-            if not getattr(method, "__authenticated__", False):
-                spec["security"] = [{}]
-
-            if getattr(method, "__permissions__", None):
-                spec["description"] = (
-                    f"<b>Permission(s) required:</b> <em>{', '.join(method.__permissions__)} (or System admin)</em><br><br>"
-                    + spec.get("description", "")
-                )
-
-            # pydantic models in the method's type hints (keyword-only body
-            # param, return annotation) override any hand-written docstring
-            # sections, so docs match validation
-            body_model = body_model_from(method)
-            if body_model is not None:
-                spec["requestBody"] = {
-                    "required": True,
-                    "content": {
-                        "application/json": {
-                            "schema": register_pydantic_schema(openapi_spec, body_model)
-                        }
-                    },
-                }
-
-            response_model = response_model_from(method)
-            if response_model is not None:
-                spec.setdefault("responses", {})["200"] = {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "allOf": [
-                                    {"$ref": "#/components/schemas/Success"},
-                                    {
-                                        "type": "object",
-                                        "properties": {
-                                            "data": register_pydantic_schema(
-                                                openapi_spec, response_model
-                                            )
-                                        },
-                                    },
-                                ]
-                            }
-                        }
-                    }
-                }
-
+            # `single`/`multiple` docstrings hold one operation spec each;
+            # everything else is a single top-level operation. Injections below
+            # must target the subspecs, not the (possibly empty) top level.
             multiple_spec = spec.pop("multiple", {})
             single_spec = spec.pop("single", {})
             other_spec = spec
+
+            query_model = query_model_from(method)
+            body_model = body_model_from(method)
+            response_model = response_model_from(method)
+
+            for subspec in [single_spec, multiple_spec, other_spec]:
+                if not subspec:
+                    continue
+
+                if not getattr(method, "__authenticated__", False):
+                    subspec["security"] = [{}]
+
+                if getattr(method, "__permissions__", None):
+                    subspec["description"] = (
+                        f"<b>Permission(s) required:</b> <em>{', '.join(method.__permissions__)} (or System admin)</em><br><br>"
+                        + subspec.get("description", "")
+                    )
+
+                # pydantic models in the method's type hints (keyword-only
+                # body/query params, return annotation) override any
+                # hand-written docstring sections, so docs match validation
+                if query_model is not None:
+                    # `single` shares the handler's model but not all its fields
+                    fields = (
+                        getattr(query_model, "single_fields", None)
+                        if subspec is single_spec
+                        else None
+                    )
+                    # a docstring `parameters:` with no entries loads as None
+                    subspec["parameters"] = (subspec.get("parameters") or []) + (
+                        query_parameters_from(query_model, fields)
+                    )
+
+                if body_model is not None:
+                    subspec["requestBody"] = {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": register_pydantic_schema(
+                                    openapi_spec, body_model
+                                )
+                            }
+                        },
+                    }
+
+                if response_model is not None:
+                    subspec.setdefault("responses", {})["200"] = {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {"$ref": "#/components/schemas/Success"},
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": register_pydantic_schema(
+                                                    openapi_spec, response_model
+                                                )
+                                            },
+                                        },
+                                    ]
+                                }
+                            }
+                        }
+                    }
 
             for subspec in [single_spec, other_spec]:
                 if subspec:

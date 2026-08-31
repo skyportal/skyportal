@@ -101,7 +101,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
+          node-version: "24.x"
           package-manager-cache: false
 
       - uses: oven-sh/setup-bun@v2
@@ -109,10 +109,13 @@ jobs:
           bun-version-file: package.json
 
       - name: Install system dependencies
+        timeout-minutes: 10
+        env:
+          APT_OPTS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30
         run: |
-          sudo apt update -y
+          sudo apt $APT_OPTS update -y
 
-          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
+          sudo apt $APT_OPTS install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev libkrb5-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -228,8 +231,10 @@ jobs:
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
           uv pip uninstall pinecone pinecone-plugin-assistant pinecone-plugin-interface pinecone-client
-          # Make sure latest revision on main is included in Alembic history
-          n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD )
+          # Make sure latest revision on main is included in Alembic history.
+          # `|| true` because grep exits 1 on no matches, which under `bash -e`
+          # would abort here and skip the explanation below.
+          n_current_head=$( PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml history | grep -c $CURRENT_HEAD || true )
           if [[ $n_current_head -eq 0 ]]
           then
             cat << EOF

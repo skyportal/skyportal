@@ -23,7 +23,8 @@ const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
   if (!Object.keys(withDefaults).includes("numPerPage")) {
     withDefaults["numPerPage"] = 10;
   }
-  const filtered = filterOutEmptyValues(withDefaults);
+  // keep false so includeObjThumbnails=false actually reaches the server
+  const filtered = filterOutEmptyValues(withDefaults, true, false);
   const queryString = buildQueryString(filtered);
   return queryString
     ? `api/followup_request?${queryString}`
@@ -43,10 +44,27 @@ export const followupRequestsApi = skyportalApi.injectEndpoints({
       RouteData<"PUT /api/followup_request/prioritization">,
       Record<string, any>
     >({
-      query: (body) => ({
+      // The prioritization form carries extra UI-only fields (instrumentId,
+      // gcnEventId, observation dates); the endpoint forbids unknown keys, so
+      // only forward the ones it reads.
+      query: ({
+        requestIds,
+        priorityType,
+        magnitudeOrdering,
+        localizationId,
+        minimumPriority,
+        maximumPriority,
+      }) => ({
         url: "api/followup_request/prioritization",
         method: "PUT",
-        body,
+        body: {
+          requestIds,
+          priorityType,
+          magnitudeOrdering,
+          localizationId,
+          minimumPriority,
+          maximumPriority,
+        },
       }),
       invalidatesTags: ["FollowupRequest"],
     }),
@@ -81,12 +99,14 @@ export const downloadFollowupSchedule = (
   format = "csv",
   include_standards = false,
 ) =>
+  // DOWNLOAD does not send its payload, so the query params go in the URL.
   API.DOWNLOAD(
-    `/api/followup_request/schedule/${instrumentId}`,
+    `/api/followup_request/schedule/${instrumentId}?${buildQueryString({
+      output_format: format,
+      includeStandards: include_standards,
+    })}`,
     "skyportal/DOWNLOAD_FOLLOWUP_SCHEDULE",
     {
-      output_format: format, // ensure the format is passed in the URL
-      includeStandards: include_standards, // include standards if specified
       filename: `followup_schedule_${instrumentId}.${format.toLowerCase()}`, // filename for the download
     },
   );

@@ -42,6 +42,13 @@ const dms_to_dec = (dms: string): number => {
   return mult * (dd + mm + ss);
 };
 
+// Sexagesimal (HH:MM:SS / ±DD:MM:SS) or decimal degrees -> degrees.
+const ra_to_deg = (v: string): number =>
+  v.includes(":") ? hours_to_ra(v) : parseFloat(v);
+
+const dec_to_deg = (v: string): number =>
+  v.includes(":") ? dms_to_dec(v) : parseFloat(v);
+
 const ra_to_hours = (ra: number, sep: string | null = null): string => {
   const ra_h = numeral(Math.floor(ra / 15)).format("00");
   const ra_m = numeral(Math.floor((ra % 15) * 4)).format("00");
@@ -114,6 +121,8 @@ export {
   dec_to_dms,
   hours_to_ra,
   dms_to_dec,
+  ra_to_deg,
+  dec_to_deg,
   time_relative_to_local,
   mjd_to_utc,
   utc_to_mjd,

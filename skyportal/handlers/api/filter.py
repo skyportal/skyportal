@@ -1,11 +1,11 @@
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Filter, set_autosave
+from ...models import Broker, Filter, set_autosave
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
 
@@ -54,6 +54,12 @@ class FilterPatchBody(BaseModel):
         description="ID of the Filter's Stream. Cannot be changed; accepted "
         "only if it matches the current value.",
     )
+    broker_id: int | None = Field(
+        default=None,
+        description="ID of the Broker this Filter runs on. Can only be set "
+        "while the filter has none: moving a filter between brokers would "
+        "orphan whatever the first one holds for it.",
+    )
     autosave: bool | None = Field(
         default=None,
         description="Whether objects passing this filter during broker ingestion "
@@ -61,9 +67,39 @@ class FilterPatchBody(BaseModel):
     )
 
 
+class FilterGetQuery(BaseModel):
+    """Query parameters for listing filters."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(
+        default=None,
+        description="Only return filters belonging to this Group.",
+    )
+    stream_id: int | None = Field(
+        default=None,
+        description="Only return filters reading from this Stream.",
+    )
+
+
+# A filter's altdata holds its whole broker definition, which runs to tens of
+# kilobytes apiece and is only of use one filter at a time. The list leaves it
+# out; GET on a single filter still returns it.
+LIST_FIELDS = (
+    "id",
+    "name",
+    "group_id",
+    "stream_id",
+    "broker_id",
+    "autosave",
+    "created_at",
+    "modified",
+)
+
+
 class FilterHandler(BaseHandler):
     @auth_or_token
-    async def get(self, filter_id: int | None = None):
+    async def get(self, filter_id: int | None = None, *, query: FilterGetQuery = None):
         """
         ---
         single:
@@ -82,14 +118,17 @@ class FilterHandler(BaseHandler):
                   schema: Error
         multiple:
           summary: Get all filters
-          description: Retrieve all filters
+          description: |
+            Retrieve all filters, optionally restricted to one group or stream.
+            Each filter is returned without its altdata, which holds the whole
+            broker definition; GET on a single filter returns that.
           tags:
             - filters
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfFilters
+                  schema: ArrayOfFilterListItems
             400:
               content:
                 application/json:
@@ -108,8 +147,22 @@ class FilterHandler(BaseHandler):
 
                 return self.success(data=f)
 
-            list_result = await session.scalars(Filter.select(session.user_or_token))
-            return self.success(data=list_result.all())
+            query = self.parse_query(FilterGetQuery)
+            stmt = Filter.select(
+                session.user_or_token,
+                options=[load_only(*(getattr(Filter, f) for f in LIST_FIELDS))],
+            )
+            if query.group_id is not None:
+                stmt = stmt.where(Filter.group_id == query.group_id)
+            if query.stream_id is not None:
+                stmt = stmt.where(Filter.stream_id == query.stream_id)
+
+            # The access-control join returns a row per group membership, so the
+            # same filter comes back once per member without unique().
+            filters = (await session.scalars(stmt)).unique().all()
+            return self.success(
+                data=[{f: getattr(fil, f) for f in LIST_FIELDS} for fil in filters]
+            )
 
     @permissions(["Upload data"])
     async def post(self, *, body: FilterPostBody = None) -> FilterPostResponse:
@@ -180,6 +233,23 @@ class FilterHandler(BaseHandler):
                 body.stream_id is not None and body.stream_id != f.stream_id
             ):
                 return self.error("Cannot update group_id or stream_id.")
+
+            # A filter created without one cannot otherwise be attached to a
+            # broker at all, and without a broker it is never ingested.
+            if body.broker_id is not None and body.broker_id != f.broker_id:
+                if f.broker_id is not None:
+                    return self.error(
+                        "Cannot move a filter to a different broker; create a "
+                        "new filter instead."
+                    )
+                broker = await session.scalar(
+                    Broker.select(session.user_or_token).where(
+                        Broker.id == body.broker_id
+                    )
+                )
+                if broker is None:
+                    return self.error(f"No accessible broker {body.broker_id}.")
+                f.broker_id = body.broker_id
 
             # A renamed filter must be renamed on the broker too, or the two
             # names drift and the broker-side filter becomes unidentifiable.

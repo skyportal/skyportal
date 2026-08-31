@@ -32,6 +32,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
+import SearchableSelect from "../SearchableSelect";
 import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -551,23 +552,28 @@ const NewSharingServiceCoauthor = ({
   const dispatch = useAppDispatch();
   const [addSharingServiceCoauthor] = useAddSharingServiceCoauthorMutation();
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const userOptions = Object.values(usersLookup).filter(
-    (u: any) =>
-      !sharingService.coauthors.some(
-        (coauthor: any) => coauthor.user_id === u.id,
-      ),
-  );
+  const sortedUserOptions = Object.values(usersLookup)
+    .filter(
+      (u: any) =>
+        !sharingService.coauthors.some(
+          (coauthor: any) => coauthor.user_id === u.id,
+        ),
+    )
+    .sort((a: any, b: any) =>
+      userLabel(a, false, true).localeCompare(userLabel(b, false, true)),
+    );
 
   const handleAdd = async () => {
     setLoading(true);
     try {
       await addSharingServiceCoauthor({
         sharing_service_id: sharingService.id,
-        user_id: user,
+        user_id: selectedUser?.id,
       }).unwrap();
+      setSelectedUser(null);
       dispatch(showNotification(`Successfully added user`));
     } catch {
       dispatch(showNotification(`Failed to add user`, "error"));
@@ -595,28 +601,15 @@ const NewSharingServiceCoauthor = ({
           sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}
         >
           <FormControl sx={{ marginTop: "0.4rem", minWidth: "20vw" }}>
-            <InputLabel>Coauthor</InputLabel>
-            <Select
+            <SearchableSelect
               label="Coauthor"
-              value={user || ""}
-              onChange={(e) => setUser(e.target.value)}
-            >
-              {userOptions
-                .sort((a: any, b: any) =>
-                  userLabel(a, false, true).localeCompare(
-                    userLabel(b, false, true),
-                  ),
-                )
-                .map(
-                  (
-                    user, // eslint-disable-line no-shadow
-                  ) => (
-                    <MenuItem key={user.id} value={user.id}>
-                      {userLabel(user, false, true)}
-                    </MenuItem>
-                  ),
-                )}
-            </Select>
+              value={selectedUser}
+              onChange={(_event, newValue) => setSelectedUser(newValue)}
+              options={sortedUserOptions}
+              getOptionLabel={(option) => userLabel(option, false, true)}
+              isOptionEqualToValue={(option, val) => option?.id === val?.id}
+              fullWidth
+            />
           </FormControl>
           <Box
             sx={{
@@ -625,7 +618,11 @@ const NewSharingServiceCoauthor = ({
               justifyContent: "space-between",
             }}
           >
-            <Button primary onClick={handleAdd} disabled={loading}>
+            <Button
+              primary
+              onClick={handleAdd}
+              disabled={loading || !selectedUser}
+            >
               Add
             </Button>
             <Button onClick={() => setOpen(false)}>Cancel</Button>

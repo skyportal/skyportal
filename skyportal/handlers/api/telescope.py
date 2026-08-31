@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from astropy.time import Time
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
@@ -34,6 +36,11 @@ class TelescopePostBody(BaseModel):
         description="Does this telescope have a fixed location (lon, lat, "
         "elev)? Defaults to true.",
     )
+    acknowledgment: str | None = Field(
+        default=None,
+        description="Sentence papers should cite this telescope with, used to "
+        "build a source's acknowledgment block.",
+    )
 
 
 class TelescopePostResponse(BaseModel):
@@ -69,6 +76,40 @@ class TelescopePutBody(BaseModel):
     fixed_location: bool | None = Field(
         default=None,
         description="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+    acknowledgment: str | None = Field(
+        default=None,
+        description="Sentence papers should cite this telescope with, used to "
+        "build a source's acknowledgment block.",
+    )
+
+
+class TelescopeGetQuery(BaseModel):
+    """Query parameters for retrieving telescopes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    name: str | None = Field(
+        default=None,
+        description="Filter by name (exact match)",
+    )
+    latitudeMin: float | None = Field(
+        default=None,
+        description="Filter by latitude >= latitudeMin",
+    )
+    latitudeMax: float | None = Field(
+        default=None,
+        description="Filter by latitude <= latitudeMax",
+    )
+    longitudeMin: float | None = Field(
+        default=None,
+        description="Filter by longitude >= longitudeMin",
+    )
+    longitudeMax: float | None = Field(
+        default=None,
+        description="Filter by longitude <= longitudeMax",
     )
 
 
@@ -110,7 +151,9 @@ class TelescopeHandler(BaseHandler):
             return self.success(data={"id": telescope.id})
 
     @auth_or_token
-    async def get(self, telescope_id: int | None = None):
+    async def get(
+        self, telescope_id: int | None = None, *, query: TelescopeGetQuery = None
+    ):
         """
         ---
         single:
@@ -132,32 +175,6 @@ class TelescopeHandler(BaseHandler):
           description: Retrieve all telescopes
           tags:
             - telescopes
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: latitudeMin
-              schema:
-                type: number
-              description: Filter by latitude >= latitudeMin
-            - in: query
-              name: latitudeMax
-              schema:
-                type: number
-              description: Filter by latitude <= latitudeMax
-            - in: query
-              name: longitudeMin
-              schema:
-                type: number
-              description: Filter by longitude >= longitudeMin
-            - in: query
-              name: longitudeMax
-              schema:
-                type: number
-              description: Filter by longitude <= longitudeMax
           responses:
             200:
               content:
@@ -168,12 +185,7 @@ class TelescopeHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-
-        tel_name = self.get_query_argument("name", None)
-        latitude_min = self.get_query_argument("latitudeMin", None, type=float)
-        latitude_max = self.get_query_argument("latitudeMax", None, type=float)
-        longitude_min = self.get_query_argument("longitudeMin", None, type=float)
-        longitude_max = self.get_query_argument("longitudeMax", None, type=float)
+        query = self.parse_query(TelescopeGetQuery)
 
         async with self.AsyncSession() as session:
             if telescope_id is not None:
@@ -211,16 +223,16 @@ class TelescopeHandler(BaseHandler):
                 .selectinload(Allocation.allocation_users)
                 .selectinload(AllocationUser.user)
             )
-            if tel_name is not None:
-                stmt = stmt.where(Telescope.name == tel_name)
-            if latitude_min is not None:
-                stmt = stmt.where(Telescope.lat >= latitude_min)
-            if latitude_max is not None:
-                stmt = stmt.where(Telescope.lat <= latitude_max)
-            if longitude_min is not None:
-                stmt = stmt.where(Telescope.lon >= longitude_min)
-            if longitude_max is not None:
-                stmt = stmt.where(Telescope.lon <= longitude_max)
+            if query.name is not None:
+                stmt = stmt.where(Telescope.name == query.name)
+            if query.latitudeMin is not None:
+                stmt = stmt.where(Telescope.lat >= query.latitudeMin)
+            if query.latitudeMax is not None:
+                stmt = stmt.where(Telescope.lat <= query.latitudeMax)
+            if query.longitudeMin is not None:
+                stmt = stmt.where(Telescope.lon >= query.longitudeMin)
+            if query.longitudeMax is not None:
+                stmt = stmt.where(Telescope.lon <= query.longitudeMax)
 
             list_result = await session.scalars(stmt)
             data = list_result.all()

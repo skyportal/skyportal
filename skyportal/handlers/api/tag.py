@@ -16,7 +16,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 
 from ...models import Group, GroupObjTag, Obj, ObjTag, ObjTagOption, SuperObj
-from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 env, cfg = load_env()
@@ -44,6 +43,25 @@ class ObjTagOptionPatchBody(BaseModel):
     )
 
 
+class ObjTagGetQuery(BaseModel):
+    """Query parameters for listing object-tag associations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(
+        default=None, description="Filter associations by object ID"
+    )
+    objtagoption_id: int | None = Field(
+        default=None, description="Filter associations by tag option ID"
+    )
+    includeSuperObjs: bool = Field(
+        default=False,
+        description="If true and obj_id is given, also return tags on the Objs "
+        "linked to it through a SuperObj (meta-object), as one provenance-tagged "
+        "union (each entry keeps its obj_id). Defaults to false.",
+    )
+
+
 class ObjTagPostBody(BaseModel):
     """Request body for creating an object-tag association."""
 
@@ -55,6 +73,19 @@ class ObjTagPostBody(BaseModel):
         default=None,
         description="IDs of groups that can access this tag association. "
         "Defaults to the public group.",
+    )
+
+
+class ObjTagDeleteBody(BaseModel):
+    """Request body for removing group associations from an object-tag
+    association."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Optional list of group IDs to remove. If not provided, "
+        "all user's group associations are removed.",
     )
 
 
@@ -279,35 +310,13 @@ class ObjTagHandler(BaseHandler):
     """
 
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: ObjTagGetQuery = None):
         """
         ---
         summary: Retrieve object-tag associations
         description: Retrieve all tag-object associations or filter by object ID or tag option ID
         tags:
           - object tags
-        parameters:
-          - in: query
-            name: obj_id
-            required: false
-            schema:
-              type: string
-            description: Filter associations by object ID
-          - in: query
-            name: objtagoption_id
-            required: false
-            schema:
-              type: integer
-            description: Filter associations by tag option ID
-          - in: query
-            name: includeSuperObjs
-            required: false
-            schema:
-              type: boolean
-            description: |
-              If true and obj_id is given, also return tags on the Objs linked
-              to it through a SuperObj (meta-object), as one provenance-tagged
-              union (each entry keeps its obj_id). Defaults to false.
         responses:
           200:
             content:
@@ -322,14 +331,13 @@ class ObjTagHandler(BaseHandler):
                           items:
                             $ref: '#/components/schemas/ObjTag'
         """
-        obj_id = self.get_query_argument("obj_id", None)
-        objtagoption_id = self.get_query_argument("objtagoption_id", None, type=int)
-        include_super_objs = str_to_bool(
-            self.get_query_argument("includeSuperObjs", "false"), default=False
-        )
+        query = self.parse_query(ObjTagGetQuery)
+        obj_id = query.obj_id
+        objtagoption_id = query.objtagoption_id
+        include_super_objs = query.includeSuperObjs
 
         async with self.AsyncSession() as session:
-            query = ObjTag.select(session.user_or_token)
+            stmt = ObjTag.select(session.user_or_token)
 
             if obj_id:
                 # Meta-object aggregation: expand to every Obj linked to this one
@@ -352,11 +360,11 @@ class ObjTagHandler(BaseHandler):
                     )
                     for super_obj in super_objs:
                         obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
-                query = query.where(ObjTag.obj_id.in_(obj_ids))
+                stmt = stmt.where(ObjTag.obj_id.in_(obj_ids))
             if objtagoption_id:
-                query = query.where(ObjTag.objtagoption_id == objtagoption_id)
+                stmt = stmt.where(ObjTag.objtagoption_id == objtagoption_id)
 
-            associations = (await session.scalars(query)).all()
+            associations = (await session.scalars(stmt)).all()
             return self.success(associations)
 
     @auth_or_token
@@ -508,7 +516,7 @@ class ObjTagHandler(BaseHandler):
             return self.success(new_assoc)
 
     @auth_or_token
-    async def delete(self, association_id: int):
+    async def delete(self, association_id: int, *, body: ObjTagDeleteBody = None):
         """
         ---
         summary: Delete object-tag association
@@ -519,19 +527,6 @@ class ObjTagHandler(BaseHandler):
             System admins can remove any group; regular users can only remove their groups.
         tags:
           - object tags
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: >
-                        Optional list of group IDs to remove. If not provided,
-                        all user's group associations are removed.
         responses:
           200:
             content:
@@ -542,20 +537,16 @@ class ObjTagHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ObjTagDeleteBody)
 
         try:
             association_id = int(association_id)
         except Exception:
             raise ValueError("Invalid association ID")
 
-        data = self.get_json() or {}
-        requested_group_ids = data.get("group_ids")
+        requested_group_ids = body.group_ids
 
-        if (
-            requested_group_ids is not None
-            and isinstance(requested_group_ids, list)
-            and len(requested_group_ids) == 0
-        ):
+        if requested_group_ids is not None and len(requested_group_ids) == 0:
             return self.error("`group_ids` cannot be an empty list", status=400)
 
         async with self.AsyncSession() as session:

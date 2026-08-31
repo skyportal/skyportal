@@ -1,16 +1,22 @@
+import datetime
+from typing import ClassVar
+
 import numpy as np
 import sqlalchemy as sa
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
 from ...models import (
     ClassicalAssignment,
+    Group,
     Instrument,
     Obj,
     ObservingRun,
@@ -22,6 +28,79 @@ from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")
+
+_, cfg = load_env()
+
+
+class ObservingRunPostBody(BaseModel):
+    """Request body for creating an observing run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int = Field(
+        description="The ID of the instrument to be used in this run."
+    )
+    calendar_date: str = Field(
+        description="The local calendar date of the run (YYYY-MM-DD)."
+    )
+    pi: str | None = Field(default=None, description="The PI of the observing run.")
+    observers: str | None = Field(
+        default=None, description="The names of the observers"
+    )
+    duration: int | None = Field(
+        default=None, description="Number of nights in the observing run"
+    )
+    group_id: int | None = Field(
+        default=None, description="The ID of the group this run is associated with."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of the groups that can see this run and its target "
+        "list. Defaults to the sitewide group, which is what a run was visible "
+        "to before runs became group-scoped.",
+    )
+
+
+class ObservingRunPostResponse(BaseModel):
+    """ID of the newly created observing run."""
+
+    id: int = Field(description="New Observing Run ID")
+
+
+class ObservingRunPutBody(BaseModel):
+    """Request body for updating an observing run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int | None = Field(
+        default=None, description="The ID of the instrument to be used in this run."
+    )
+    calendar_date: str | None = Field(
+        default=None, description="The local calendar date of the run (YYYY-MM-DD)."
+    )
+    pi: str | None = Field(default=None, description="The PI of the observing run.")
+    observers: str | None = Field(
+        default=None, description="The names of the observers"
+    )
+    duration: int | None = Field(
+        default=None, description="Number of nights in the observing run"
+    )
+    group_id: int | None = Field(
+        default=None, description="The ID of the group this run is associated with."
+    )
+
+
+class ObservingRunBulkEditBody(BaseModel):
+    """Request body for bulk-updating the assignments of an observing run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_status: str | None = Field(
+        default=None, description="Assignment status to filter on"
+    )
+    new_status: str | None = Field(
+        default=None, description="New status to apply to the matching assignments"
+    )
 
 
 async def post_observing_run(data, user_id, session):
@@ -43,8 +122,27 @@ async def post_observing_run(data, user_id, session):
             f"Invalid/missing parameters: {exc.normalized_messages()}"
         )
 
+    group_ids = rund.pop("group_ids", None)
     run = ObservingRun(**rund)
     run.owner_id = user.id
+
+    # A run with no groups is readable by nobody, so default to the sitewide
+    # group: visible to everyone, as runs were before they became group-scoped.
+    if group_ids:
+        groups = (
+            await session.scalars(Group.select(user).where(Group.id.in_(group_ids)))
+        ).all()
+        if {group.id for group in groups} != set(group_ids):
+            raise ValidationError(
+                f"Cannot find one or more groups with IDs: {group_ids}."
+            )
+    else:
+        groups = (
+            await session.scalars(
+                Group.select(user).where(Group.name == cfg["misc.public_group_name"])
+            )
+        ).all()
+    run.groups = list(groups)
 
     session.add(run)
     await session.commit()
@@ -68,49 +166,57 @@ async def post_observing_run(data, user_id, session):
     return run.id
 
 
+class ObservingRunGetQuery(BaseModel):
+    """Query parameters for listing observing runs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    upcomingOnly: bool = Field(
+        default=False,
+        description=(
+            "Only return runs that have not finished yet. Callers offering a "
+            "run to assign a target to want these, rather than every run ever "
+            "scheduled."
+        ),
+    )
+    numPerPage: int | None = Field(
+        default=None,
+        description="Number of runs to return per paginated request. Defaults to all runs.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+
+
 class ObservingRunHandler(BaseHandler):
     @permissions(["Manage observing runs"])
-    async def post(self):
+    async def post(
+        self, *, body: ObservingRunPostBody = None
+    ) -> ObservingRunPostResponse:
         """
         ---
         summary: Create an observing run
         description: Add a new observing run
         tags:
           - observing runs
-        requestBody:
-          content:
-            application/json:
-              schema: ObservingRunPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Observing Run ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ObservingRunPostBody)
 
         async with self.AsyncSession() as session:
             run_id = await post_observing_run(
-                data, self.associated_user_object.id, session
+                body.model_dump(exclude_unset=True),
+                self.associated_user_object.id,
+                session,
             )
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    async def get(self, run_id: int | None = None):
+    async def get(
+        self, run_id: int | None = None, *, query: ObservingRunGetQuery = None
+    ):
         """
         ---
         single:
@@ -248,7 +354,8 @@ class ObservingRunHandler(BaseHandler):
                 data = recursive_to_dict(data)
                 return self.success(data=data)
 
-            result = await session.scalars(
+            query = self.parse_query(ObservingRunGetQuery)
+            stmt = (
                 ObservingRun.select(session.user_or_token)
                 .options(
                     selectinload(ObservingRun.instrument).selectinload(
@@ -257,6 +364,25 @@ class ObservingRunHandler(BaseHandler):
                 )
                 .order_by(ObservingRun.calendar_date.asc())
             )
+            if query.upcomingOnly:
+                # run_end_utc is backfilled lazily just below, so fall back to
+                # the calendar date for runs that have not been through that.
+                today = datetime.datetime.now(datetime.UTC).date()
+                stmt = stmt.where(
+                    sa.or_(
+                        ObservingRun.run_end_utc >= utcnow_naive(),
+                        sa.and_(
+                            ObservingRun.run_end_utc.is_(None),
+                            ObservingRun.calendar_date >= today,
+                        ),
+                    )
+                )
+            if query.numPerPage is not None:
+                stmt = stmt.limit(query.numPerPage).offset(
+                    (query.pageNumber - 1) * query.numPerPage
+                )
+
+            result = await session.scalars(stmt)
             runs = result.all()
 
             # temporary, until we have migrated and called the handler once
@@ -276,35 +402,25 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    async def put(self, run_id: int):
+    async def put(self, run_id: int, *, body: ObservingRunPutBody = None):
         """
         ---
         summary: Update an observing run
         description: Update observing run
         tags:
           - observing runs
-        requestBody:
-          content:
-            application/json:
-              schema: ObservingRunPost
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/ObservingRun'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservingRunPutBody)
         run_id = int(run_id)
 
         async with self.AsyncSession() as session:
@@ -319,7 +435,9 @@ class ObservingRunHandler(BaseHandler):
                 )
 
             try:
-                new_params = ObservingRunPost.load(data, partial=True)
+                new_params = ObservingRunPost.load(
+                    body.model_dump(exclude_unset=True), partial=True
+                )
             except ValidationError as exc:
                 return self.error(
                     f"Invalid/missing parameters: {exc.normalized_messages()}"
@@ -410,7 +528,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    async def put(self, run_id: int):
+    async def put(self, run_id: int, *, body: ObservingRunBulkEditBody = None):
         """
         ---
         summary: Bulk update observing run assignments
@@ -428,14 +546,14 @@ class ObservingRunBulkEditHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservingRunBulkEditBody)
         run_id = int(run_id)
 
-        current_status = data.get("current_status")
+        current_status = body.current_status
         if current_status is None:
             return self.error("Require current status to filter")
 
-        new_status = data.get("new_status")
+        new_status = body.new_status
         if new_status is None:
             return self.error("Require new status to apply")
 

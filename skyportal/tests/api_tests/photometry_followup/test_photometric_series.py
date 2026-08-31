@@ -322,7 +322,7 @@ def test_post_bad_metadata(
     )
     assert_api_fail(status, data, 400, "Allowed values are: start, middle, end")
 
-    # add keywords that are not familiar
+    # add keywords that are not familiar (now rejected by the request body model)
     series_data.update({"time_stamp_alignment": "middle", "foo": "bar"})
     status, data = api(
         "POST",
@@ -330,7 +330,7 @@ def test_post_bad_metadata(
         data=series_data,
         token=upload_data_token,
     )
-    assert_api_fail(status, data, 400, "Unknown keys in metadata: ['foo']")
+    assert_api_fail(status, data, 400, "foo: Extra inputs are not permitted")
 
 
 def test_post_inferred_metadata(
@@ -2230,7 +2230,7 @@ def test_download_formats_single_series(upload_data_token, photometric_series):
             params={"dataFormat": "foobar"},
             token=upload_data_token,
         )
-        assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')
+        assert_api_fail(status, data, 400, "dataFormat: Input should be")
 
 
 def test_download_formats_multiple_series(
@@ -2403,4 +2403,4 @@ def test_download_formats_multiple_series(
         params={"dataFormat": "foobar"},
         token=upload_data_token,
     )
-    assert_api_fail(status, data, 400, 'Invalid dataFormat: "foobar"')
+    assert_api_fail(status, data, 400, "dataFormat: Input should be")

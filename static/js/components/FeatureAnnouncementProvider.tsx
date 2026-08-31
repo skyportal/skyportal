@@ -28,9 +28,7 @@ const FeatureAnnouncementProvider = () => {
   const { controls, on, Tour } = useJoyride({
     steps,
     continuous: true,
-    scrollToFirstStep: true,
-    // A single "what's new" step: no progress counter, just an acknowledgement.
-    options: { ...options, showProgress: false },
+    options: { ...options, showProgress: false, skipScroll: true },
     styles,
     locale: { last: "Got it", close: "Got it" },
   });

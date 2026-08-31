@@ -23,7 +23,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         "GET",
         f"sources/{public_source.id}/color_mag",
         token=annotation_token,
-        params={"includeColorMagnitude": True},
     )
 
     assert status == 200

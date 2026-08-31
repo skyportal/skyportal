@@ -4,7 +4,7 @@ from typing import Annotated
 import astropy.units as u
 import sqlalchemy as sa
 from astropy.time import Time
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
@@ -40,6 +40,37 @@ log = make_log("api/scan_report_item")
 # named "desi_*" (e.g. "desi_dr1").
 DESI_ORIGIN_PREFIX = "desi_"
 
+# FollowUpAPI classes (Instrument.api_classname) whose requests are always
+# photometric or always spectroscopic -- instrument.type is often too coarse
+# (e.g. "imager"/"imaging spectrograph" doesn't capture LCO's per-camera split),
+# so the API class itself is the reliable signal for these.
+_API_CLASSNAME_TYPE = {
+    "ATLASAPI": "photometry",
+    "PS1API": "photometry",
+    "ZTFAPI": "photometry",
+    "BLANCOAPI": "photometry",
+    "NEWFIRMAPI": "photometry",
+    "COLIBRIAPI": "photometry",
+    "KAITAPI": "photometry",
+    "SINISTROAPI": "photometry",
+    "SPECTRALAPI": "photometry",
+    "MUSCATAPI": "photometry",
+    "IOOAPI": "photometry",
+    "IOIAPI": "photometry",
+    "SOARGHTSIMAGERAPI": "photometry",
+    "TAROTAPI": "photometry",
+    "TESSAPI": "photometry",
+    "TRTAPI": "photometry",
+    "TTTAPI": "photometry",
+    "WINTERAPI": "photometry",
+    "SPRINGAPI": "photometry",
+    "FLOYDSAPI": "spectroscopy",
+    "SPRATAPI": "spectroscopy",
+    "NGPSAPI": "spectroscopy",
+    "SOARGHTSAPI": "spectroscopy",
+    "SOARTSPECAPI": "spectroscopy",
+}
+
 
 def _survey_of(band):
     """Map a band name to its survey label for the detections summary."""
@@ -57,19 +88,146 @@ def _followup_request_type(allocation, instrument, payload=None):
     """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
     if allocation and allocation.types and "forced_photometry" in allocation.types:
         return "forced_photometry"
+
+    payload = payload or {}
+    api_classname = getattr(instrument, "api_classname", None)
+
     if instrument and instrument.name == "SEDM":
         # SEDM is an "imaging spectrograph" but most of its request modes
         # (e.g. "3-shot (gri)") are pure photometry; only modes that include
         # the IFU are spectroscopy.
-        payload = payload or {}
         observation_type = payload.get("observation_type") or ""
         observation_choices = payload.get("observation_choices") or []
         if "IFU" in observation_type or "IFU" in observation_choices:
             return "spectroscopy"
         return "photometry"
+
+    if api_classname == "SEDMV2API":
+        # observation_choice is a filter (g/r/i/z) for photometry, or "IFU".
+        return (
+            "spectroscopy"
+            if payload.get("observation_choice") == "IFU"
+            else "photometry"
+        )
+
+    if api_classname in ("BINOSPECAPI", "MMIRSAPI"):
+        # MMT's imaging/spectroscopy modes on the same instrument+API class.
+        return (
+            "spectroscopy"
+            if payload.get("observation_type") == "Spectroscopy"
+            else "photometry"
+        )
+
+    if api_classname == "UVOTXRTAPI":
+        # obs_type is one of Spectroscopy/Light Curve/Position/Timing; only
+        # the first is spectroscopic, the rest are photometric/timing.
+        return (
+            "spectroscopy"
+            if payload.get("obs_type") == "Spectroscopy"
+            else "photometry"
+        )
+
+    fixed_type = _API_CLASSNAME_TYPE.get(api_classname)
+    if fixed_type:
+        return fixed_type
+
     if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
         return "spectroscopy"
     return "photometry"
+
+
+def _detections_by_survey(photstat, now_mjd):
+    """First/first-real/peak/last detection per survey, read off a single object's
+    (already-loaded) PhotStat -- no queries. PhotStat carries the object's
+    global first/last detection and the peak per filter; grouping those filters by
+    survey (via ``_survey_of``) gives per-survey first/peak/last in one pass.
+    """
+    if photstat is None:
+        return {}
+    ps = photstat
+
+    def _entry(mjd, mag, filt, fp=None):
+        if mjd is None:
+            return None
+        entry = {
+            "mag": safe_round(mag, 3),
+            "mjd": safe_round(mjd, 5),
+            "filter": filt,
+            "days_ago": safe_round(now_mjd - mjd, 2),
+        }
+        if fp is not None:
+            entry["fp"] = fp
+        return entry
+
+    # The global first detection can be a forced-photometry point; PhotStat
+    # separately tracks the first non-forced-phot detection, which is >= it
+    # (a strict superset filtered down), so a mismatch means the true first
+    # detection was FP.
+    is_first_fp = ps.first_detected_mjd is not None and (
+        ps.first_detected_no_forced_phot_mjd is None
+        or ps.first_detected_no_forced_phot_mjd > ps.first_detected_mjd
+    )
+    first_entry = _entry(
+        ps.first_detected_mjd,
+        ps.first_detected_mag,
+        ps.first_detected_filter,
+        fp=is_first_fp,
+    )
+    first_survey = _survey_of(ps.first_detected_filter)
+
+    # If the first detection is FP, also surface the first "real" (non-FP)
+    # detection so scanners aren't misled by an FP-only rise.
+    first_real_entry = None
+    first_real_survey = None
+    if is_first_fp:
+        first_real_entry = _entry(
+            ps.first_detected_no_forced_phot_mjd,
+            ps.first_detected_no_forced_phot_mag,
+            ps.first_detected_no_forced_phot_filter,
+            fp=False,
+        )
+        first_real_survey = _survey_of(ps.first_detected_no_forced_phot_filter)
+
+    # The object's most recent detection, same FP-vs-real distinction as "first".
+    is_last_fp = ps.last_detected_mjd is not None and (
+        ps.last_detected_no_forced_phot_mjd is None
+        or ps.last_detected_no_forced_phot_mjd < ps.last_detected_mjd
+    )
+    last_entry = _entry(
+        ps.last_detected_mjd,
+        ps.last_detected_mag,
+        ps.last_detected_filter,
+        fp=is_last_fp,
+    )
+    last_survey = _survey_of(ps.last_detected_filter)
+
+    # survey -> (mag, mjd, filter), brightest (min mag) across the survey's filters
+    peak_by_survey = {}
+    peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
+    for band, mag in (ps.peak_mag_per_filter or {}).items():
+        if mag is None:
+            continue
+        survey = _survey_of(band)
+        current = peak_by_survey.get(survey)
+        if current is None or mag < current[0]:
+            peak_by_survey[survey] = (mag, peak_mjd_per_filter.get(band), band)
+
+    surveys = (
+        set(peak_by_survey)
+        | ({first_survey} if first_survey else set())
+        | ({first_real_survey} if first_real_survey else set())
+        | ({last_survey} if last_survey else set())
+    )
+    result = {}
+    for survey in surveys:
+        peak = peak_by_survey.get(survey)
+        result[survey] = {
+            "first": first_entry if survey == first_survey else None,
+            "first_real": first_real_entry if survey == first_real_survey else None,
+            "peak": _entry(peak[1], peak[0], peak[2]) if peak else None,
+            "last": last_entry if survey == last_survey else None,
+        }
+    return result
 
 
 def _host_offset(obj):
@@ -103,6 +261,8 @@ def _build_scan_report_item(
     desi_annotation=None,
     associated_objs=None,
     previous=None,
+    associated_photstats=None,
+    groups_saved_to=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
@@ -179,86 +339,17 @@ def _build_scan_report_item(
         for assignment in assignment_rows
     ] or None
 
-    # First and peak detection per survey, read from the (already-loaded) PhotStat so
-    # we don't scan raw photometry (which doesn't scale to long report windows).
-    # PhotStat carries the global first detection and the peak per filter; a report is
-    # generated per single-survey group, so the global first is that survey's first,
-    # and peak per survey is the brightest across the survey's filters.
-    detections_by_survey = {}
-    if obj.photstats:
-        ps = obj.photstats[0]
-
-        def _entry(mjd, mag, filt, fp=None):
-            if mjd is None:
-                return None
-            entry = {
-                "mag": safe_round(mag, 3),
-                "mjd": safe_round(mjd, 5),
-                "filter": filt,
-                "days_ago": safe_round(now_mjd - mjd, 2),
-            }
-            if fp is not None:
-                entry["fp"] = fp
-            return entry
-
-        # The global first detection can be a forced-photometry point; PhotStat
-        # separately tracks the first non-forced-phot detection, which is >= it
-        # (a strict superset filtered down), so a mismatch means the true first
-        # detection was FP.
-        is_first_fp = ps.first_detected_mjd is not None and (
-            ps.first_detected_no_forced_phot_mjd is None
-            or ps.first_detected_no_forced_phot_mjd > ps.first_detected_mjd
-        )
-        first_entry = _entry(
-            ps.first_detected_mjd,
-            ps.first_detected_mag,
-            ps.first_detected_filter,
-            fp=is_first_fp,
-        )
-        first_survey = _survey_of(ps.first_detected_filter)
-
-        # If the first detection is FP, also surface the first "real" (non-FP)
-        # detection so scanners aren't misled by an FP-only rise.
-        first_real_entry = None
-        first_real_survey = None
-        if is_first_fp:
-            first_real_entry = _entry(
-                ps.first_detected_no_forced_phot_mjd,
-                ps.first_detected_no_forced_phot_mag,
-                ps.first_detected_no_forced_phot_filter,
-                fp=False,
-            )
-            first_real_survey = _survey_of(ps.first_detected_no_forced_phot_filter)
-
-        # survey -> (mag, mjd, filter), brightest (min mag) across the survey's filters
-        peak_by_survey = {}
-        peak_mjd_per_filter = ps.peak_mjd_per_filter or {}
-        for band, mag in (ps.peak_mag_per_filter or {}).items():
-            if mag is None:
-                continue
-            survey = _survey_of(band)
-            current = peak_by_survey.get(survey)
-            if current is None or mag < current[0]:
-                peak_by_survey[survey] = (
-                    mag,
-                    peak_mjd_per_filter.get(band),
-                    band,
-                )
-
-        surveys = (
-            set(peak_by_survey)
-            | ({first_survey} if first_survey else set())
-            | ({first_real_survey} if first_real_survey else set())
-        )
-        for survey in surveys:
-            peak = peak_by_survey.get(survey)
-            detections_by_survey[survey] = {
-                "first": first_entry if survey == first_survey else None,
-                "first_real": (
-                    first_real_entry if survey == first_real_survey else None
-                ),
-                "peak": _entry(peak[1], peak[0], peak[2]) if peak else None,
-            }
+    # First/first-real/peak/last detection per survey. Primarily from this obj's
+    # own PhotStat, but a report's object is only ever detected in one survey
+    # (e.g. ZTF), so an associated obj from another survey (e.g. a linked LSST
+    # detection, see ``associated_objs``) is merged in too -- its own survey(s)
+    # only, never overriding this obj's.
+    detections_by_survey = _detections_by_survey(
+        obj.photstats[0] if obj.photstats else None, now_mjd
+    )
+    for assoc_photstat in associated_photstats or []:
+        for survey, entry in _detections_by_survey(assoc_photstat, now_mjd).items():
+            detections_by_survey.setdefault(survey, entry)
     detections_by_survey = detections_by_survey or None
 
     host_offset_arcsec, host_offset_kpc = _host_offset(obj)
@@ -293,6 +384,10 @@ def _build_scan_report_item(
             "previous_filter": (previous or {}).get("filter"),
             "classifications": classifications,
             "saved_info": saved_info,
+            # All groups the obj is *currently* an active Source of, regardless of
+            # this report's own group scope or saved-date window (unlike
+            # `saved_info`, which only covers the report's group_ids/window).
+            "groups_saved_to": groups_saved_to,
             "followups": followups,
             "assignments": assignments,
             "detections_by_survey": detections_by_survey,
@@ -380,6 +475,8 @@ async def create_scan_report_items(
     desi_by_obj = {}  # obj_id -> most recent DESI crossmatch Annotation
     associated_by_obj = defaultdict(dict)  # obj_id -> {assoc_obj_id: aliases}
     previous_by_obj = {}  # obj_id -> {mag, mjd, filter} of the detection before the last
+    photstat_by_assoc_obj = {}  # assoc_obj_id -> PhotStat, for associated_objs' surveys
+    groups_by_obj = defaultdict(list)  # obj_id -> group names currently saved to
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -451,6 +548,22 @@ async def create_scan_report_items(
         ).all():
             sources_by_obj[source.obj_id].append(source)
 
+        # Every group the obj is *currently* an active Source of, not just the
+        # report's own group_ids/window (that's what `saved_info` above covers) --
+        # so a scanner can see all groups it's saved to, even ones outside this
+        # report's scope.
+        for source in (
+            await session.scalars(
+                Source.select(user_or_token, mode="read")
+                .options(selectinload(Source.group))
+                .where(
+                    Source.obj_id.in_(chunk_obj_ids),
+                    Source.active.is_(True),
+                )
+            )
+        ).all():
+            groups_by_obj[source.obj_id].append(source.group.name)
+
         for followup in (
             await session.scalars(
                 FollowupRequest.select(user_or_token, mode="read")
@@ -513,6 +626,7 @@ async def create_scan_report_items(
         accessible_objs = Obj.select(user_or_token, mode="read").subquery()
         o2s_this = aliased(ObjToSuperObj)
         o2s_other = aliased(ObjToSuperObj)
+        chunk_assoc_obj_ids = set()
         for obj_id, assoc_obj_id, assoc_alias in await session.execute(
             sa.select(o2s_this.obj_id, accessible_objs.c.id, accessible_objs.c.alias)
             .select_from(o2s_this)
@@ -524,6 +638,21 @@ async def create_scan_report_items(
             )
         ):
             associated_by_obj[obj_id][assoc_obj_id] = assoc_alias
+            chunk_assoc_obj_ids.add(assoc_obj_id)
+
+        # PhotStat of each associated obj (e.g. a linked LSST detection), so its
+        # survey's first/peak/last detection can be merged into detections_by_survey
+        # alongside this obj's own.
+        if chunk_assoc_obj_ids:
+            for assoc_obj in (
+                await session.scalars(
+                    Obj.select(user_or_token, mode="read")
+                    .options(selectinload(Obj.photstats))
+                    .where(Obj.id.in_(chunk_assoc_obj_ids))
+                )
+            ).all():
+                if assoc_obj.photstats:
+                    photstat_by_assoc_obj[assoc_obj.id] = assoc_obj.photstats[0]
 
     now_mjd = Time.now().mjd
     items = []
@@ -550,9 +679,24 @@ async def create_scan_report_items(
                     ).items()
                 ]
                 or None,
+                associated_photstats=[
+                    photstat_by_assoc_obj[assoc_obj_id]
+                    for assoc_obj_id in associated_by_obj.get(obj_id, {})
+                    if assoc_obj_id in photstat_by_assoc_obj
+                ]
+                or None,
+                groups_saved_to=sorted(groups_by_obj.get(obj_id, [])) or None,
             )
         )
     return items
+
+
+class ScanReportItemPatchBody(BaseModel):
+    """Request body for updating a scanning report item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comment: str | None = Field(default=None, description="Comment on the report item")
 
 
 class ScanReportItemHandler(BaseHandler):
@@ -561,37 +705,25 @@ class ScanReportItemHandler(BaseHandler):
         self,
         report_id: ReportId,
         item_id: Annotated[int, Field(description="ID of the report item to update")],
+        *,
+        body: ScanReportItemPatchBody = None,
     ):
         """
         ---
         summary: Update an item from a scanning report
         tags:
           - report item
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  comment:
-                    type: string
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/ScanReportItem'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ScanReportItemPatchBody)
         try:
             report_id = int(report_id)
             item_id = int(item_id)
@@ -610,7 +742,7 @@ class ScanReportItemHandler(BaseHandler):
 
             item.data = {
                 **item.data,
-                "comment": data.get("comment"),
+                "comment": body.comment,
             }
 
             await session.commit()

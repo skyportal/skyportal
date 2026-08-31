@@ -3,11 +3,11 @@ import os
 import string
 import time
 import unicodedata
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -56,6 +56,59 @@ _, cfg = load_env()
 log = make_log("api/comment")
 
 MAX_COMMENTS_NO_RESOURCE_ID = 1000
+
+
+class CommentAttachment(BaseModel):
+    """A comment file attachment (name + base64-encoded body)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    body: str | None = Field(description="base64-encoded file contents")
+    name: str = Field(description="Attachment file name")
+
+
+class CommentPostBody(BaseModel):
+    """Request body for posting a comment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(description="Comment body text")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view comment. Defaults to the public group.",
+    )
+    attachment: CommentAttachment | None = Field(
+        default=None, description="Optional file attachment."
+    )
+    channel: str | None = Field(
+        default=None,
+        description="Conversation the comment belongs to; the main thread if unset. "
+        "Only used for comments on sources.",
+    )
+
+
+class CommentPostResponse(BaseModel):
+    """Data payload returned when posting a comment."""
+
+    comment_id: int = Field(description="New comment ID")
+
+
+class CommentPutBody(BaseModel):
+    """Request body for updating a comment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | None = Field(default=None, description="Comment body text")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view comment.",
+    )
+    attachment: CommentAttachment | None = Field(
+        default=None, description="Optional file attachment."
+    )
+
 
 AUDIO_EXTENSION_TO_CONTENT_TYPE = {
     "aac": "audio/aac",
@@ -181,6 +234,32 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
         return None
 
 
+class CommentGetQuery(BaseModel):
+    """Query parameters for retrieving comments."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    text: str | None = Field(
+        default=None,
+        description="Filter comments by partial text match.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for pagination.",
+    )
+    numPerPage: int = Field(
+        default=25,
+        description="Number of comments per page.",
+    )
+    channel: str | None = Field(
+        default=None,
+        description="Only return comments on this channel. Defaults to the "
+        "comments with no channel set.",
+    )
+
+
 class CommentHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -188,6 +267,8 @@ class CommentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId = None,
         comment_id: int | None = None,
+        *,
+        query: CommentGetQuery = None,
     ):
         """
         ---
@@ -210,25 +291,6 @@ class CommentHandler(BaseHandler):
           description: Retrieve all comments associated with specified resource
           tags:
             - comments
-          parameters:
-            - in: query
-              name: text
-              schema:
-                type: string
-              description: |
-                Filter comments by partial text match.
-            - in: query
-              name: pageNumber
-              schema:
-                type: integer
-              description: |
-                Page number for pagination.
-            - in: query
-              name: numPerPage
-              schema:
-                type: integer
-              description: |
-                Number of comments per page.
           responses:
             200:
               content:
@@ -240,12 +302,12 @@ class CommentHandler(BaseHandler):
                   schema: Error
         """
 
-        text = self.get_query_argument("text", None)
-        pageNumber = self.get_query_argument("pageNumber", 1, type=int)
-        numPerPage = self.get_query_argument("numPerPage", 25, type=int)
+        query = self.parse_query(CommentGetQuery)
+
+        text = query.text
         try:
             pageNumber, numPerPage = get_page_and_n_per_page(
-                pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
+                query.pageNumber, query.numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
             )
         except ValueError as e:
             return self.error(str(e))
@@ -277,7 +339,7 @@ class CommentHandler(BaseHandler):
                     session.user_or_token, options=[selectinload(table.author)]
                 )
                 if table is Comment:
-                    channel = self.get_query_argument("channel", None)
+                    channel = query.channel
                     stmt = stmt.where(
                         Comment.channel == channel
                         if channel
@@ -430,75 +492,26 @@ class CommentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId,
         *ignore_args,
-    ):
+        body: CommentPostBody = None,
+    ) -> CommentPostResponse:
         """
         ---
         summary: Post a comment
         description: Post a new comment. If sent through the API (authenticated with a token), it will be flagged as a bot comment.
         tags:
           - comments
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  text:
-                    type: string
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view comment. Defaults to the public group.
-                  attachment:
-                    type: object
-                    properties:
-                      body:
-                        type: string
-                        format: byte
-                        description: base64-encoded file contents
-                      name:
-                        type: string
-                required:
-                  - text
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            comment_id:
-                              type: integer
-                              description: New comment ID
         """
-        data = self.get_json()
+        body = self.parse_body(CommentPostBody)
 
-        comment_text = data.get("text")
+        comment_text = body.text
         attachment_bytes, attachment_name, data_to_disk = None, None, None
 
-        if "attachment" in data:
-            if (
-                isinstance(data["attachment"], dict)
-                and "body" in data["attachment"]
-                and "name" in data["attachment"]
-            ):
-                attachment_name = data["attachment"]["name"]
-                if data["attachment"]["body"] is None:
-                    return self.error("Comment attachment body is empty")
+        if body.attachment is not None:
+            attachment_name = body.attachment.name
+            if body.attachment.body is None:
+                return self.error("Comment attachment body is empty")
 
-                data_to_disk = base64.b64decode(
-                    data["attachment"]["body"].split("base64,")[-1]
-                )
-            else:
-                return self.error("Malformed comment attachment")
+            data_to_disk = base64.b64decode(body.attachment.body.split("base64,")[-1])
 
         author_id = self.associated_user_object.id
         author_username = self.associated_user_object.username
@@ -506,7 +519,7 @@ class CommentHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                group_ids = data.pop("group_ids", None)
+                group_ids = body.group_ids
                 if not isinstance(group_ids, list) or len(group_ids) == 0:
                     public_group = await session.scalar(
                         sa.select(Group.id).where(
@@ -537,7 +550,7 @@ class CommentHandler(BaseHandler):
 
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
-                    channel = data.get("channel") or None
+                    channel = body.channel or None
                     existing_result = await session.scalars(
                         Comment.select(session.user_or_token)
                         .options(selectinload(Comment.groups))
@@ -888,6 +901,8 @@ class CommentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId,
         comment_id: int,
+        *,
+        body: CommentPutBody = None,
     ):
         """
         ---
@@ -895,37 +910,17 @@ class CommentHandler(BaseHandler):
         description: Update a comment
         tags:
           - comments
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/CommentNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of group IDs corresponding to which groups should be
-                          able to view comment.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Comment'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(CommentPutBody)
 
         try:
             comment_id = int(comment_id)
@@ -1001,24 +996,17 @@ class CommentHandler(BaseHandler):
                         f'Unsupported associated_resource_type "{associated_resource_type}".'
                     )
 
-                data = self.get_json()
+                data = body.model_dump(exclude_unset=True)
                 group_ids = data.pop("group_ids", None)
                 data["id"] = comment_id
 
                 attachment_name, data_to_disk = None, None
                 attachment = data.pop("attachment", None)
                 if attachment:
-                    if (
-                        isinstance(attachment, dict)
-                        and "body" in attachment
-                        and "name" in attachment
-                    ):
-                        attachment_name = attachment["name"]
-                        data_to_disk = base64.b64decode(
-                            attachment["body"].split("base64,")[-1]
-                        )
-                    else:
-                        return self.error("Malformed comment attachment")
+                    attachment_name = attachment["name"]
+                    data_to_disk = base64.b64decode(
+                        attachment["body"].split("base64,")[-1]
+                    )
 
                 try:
                     schema.load(data, partial=True)
@@ -1258,6 +1246,27 @@ class CommentHandler(BaseHandler):
             return self.success()
 
 
+class CommentAttachmentGetQuery(BaseModel):
+    """Query parameters for retrieving a comment attachment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    download: bool = Field(
+        default=True,
+        description="If true, download the attachment; else return file data as text. True by default.",
+    )
+    preview: bool = Field(
+        default=False,
+        description="If true, return an attachment preview. False by default.",
+    )
+
+    @model_validator(mode="after")
+    def _preview_overrides_default_download(self):
+        if self.preview and "download" not in self.model_fields_set:
+            self.download = False
+        return self
+
+
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1265,6 +1274,8 @@ class CommentAttachmentHandler(BaseHandler):
         associated_resource_type: AssociatedResourceType,
         resource_id: ResourceId,
         comment_id: int,
+        *,
+        query: CommentAttachmentGetQuery = None,
     ):
         """
         ---
@@ -1272,19 +1283,6 @@ class CommentAttachmentHandler(BaseHandler):
         description: Download comment attachment
         tags:
           - comments
-        parameters:
-          - in: query
-            name: download
-            nullable: True
-            schema:
-              type: boolean
-              description: If true, download the attachment; else return file data as text. True by default.
-          - in: query
-            name: preview
-            nullable: True
-            schema:
-              type: boolean
-              description: If true, return an attachment preview. False by default.
         responses:
           200:
             content:
@@ -1310,13 +1308,15 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
+        query = self.parse_query(CommentAttachmentGetQuery)
+
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-        download = self.get_query_argument("download", True)
-        preview = self.get_query_argument("preview", False)
+        download = query.download
+        preview = query.preview
 
         if download is True and preview is True:
             return self.error(

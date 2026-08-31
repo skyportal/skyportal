@@ -17,6 +17,9 @@ _, cfg = load_env()
 
 DEFAULT_SURVEY = "ZTF"
 DEFAULT_TIMEOUT = 30  # seconds
+# Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
+# the default; give the slow endpoints their own budget.
+VALIDATE_TIMEOUT = 180  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
 
@@ -62,7 +65,7 @@ def _get_token(altdata, force=False):
     return token
 
 
-def _request(broker, method, path, *, params=None, json=None):
+def _request(broker, method, path, *, params=None, json=None, timeout=DEFAULT_TIMEOUT):
     """Authenticated BOOM request; refreshes the token once on a 401."""
     altdata = broker.altdata or {}
     base_url = _base_url(altdata)
@@ -75,7 +78,7 @@ def _request(broker, method, path, *, params=None, json=None):
             params=params,
             json=json,
             headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
-            timeout=DEFAULT_TIMEOUT,
+            timeout=timeout,
         )
         if response.status_code != 401:
             break
@@ -113,6 +116,10 @@ DEFAULT_PROJECT_STAGE = {
 
 def _ensure_project_stage(pipeline):
     """Append BOOM's required terminal $project unless the caller wrote one."""
+    # BOOM stores pipelines as JSON strings; parse so list() doesn't split the
+    # string into single characters and send BOOM a garbage pipeline.
+    if isinstance(pipeline, str):
+        pipeline = json.loads(pipeline or "[]")
     stages = list(pipeline or [])
     if stages and "$project" in stages[-1]:
         return stages
@@ -297,17 +304,22 @@ def _fetch_sso_history(broker, survey, designation):
                 "catalog_name": "ZTF_alerts",
                 "filter": {"candidate.ssnamenr": str(designation)},
                 "projection": {
-                    f"candidate.{k}": 1
-                    for k in (
-                        "jd",
-                        "band",
-                        "psfFlux",
-                        "psfFluxErr",
-                        "ra",
-                        "dec",
-                        "programid",
-                        "ssmagnr",  # MPC ephemeris mag, for SSO detrending
-                    )
+                    **{
+                        f"candidate.{k}": 1
+                        for k in (
+                            "jd",
+                            "band",
+                            "psfFlux",
+                            "psfFluxErr",
+                            "ra",
+                            "dec",
+                            "programid",
+                            "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                        )
+                    },
+                    # Per-detection SSO geometry (rh/delta/phase) for the outburst
+                    # statistic; present on enrichment-era docs, absent on older ones.
+                    "properties.sso": 1,
                 },
                 "sort": {"candidate.jd": 1},
                 "limit": _SSO_HISTORY_LIMIT,
@@ -339,6 +351,8 @@ def _fetch_sso_history(broker, survey, designation):
                 "dec": c.get("dec"),
                 "programid": c.get("programid", 1),
                 "ssmagnr": c.get("ssmagnr"),
+                # Per-detection geometry, carried onto the point's photometry altdata.
+                "sso": (doc.get("properties") or {}).get("sso"),
             }
         )
     return prv
@@ -992,6 +1006,7 @@ class BOOMBROKER(BrokerAPI):
             "POST",
             f"filters/{kwargs['boom_filter_id']}/validate",
             params=params,
+            timeout=VALIDATE_TIMEOUT,
         )
 
     @staticmethod

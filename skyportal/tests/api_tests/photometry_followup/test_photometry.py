@@ -1585,7 +1585,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status in [500, 401]
+    assert status in [400, 401]
     assert data["status"] == "error"
 
 
@@ -3457,8 +3457,8 @@ def test_token_user_big_post(
     assert status == 400
     assert data["status"] == "error"
     assert (
-        data["message"]
-        == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        in data["message"]
     )
 
 

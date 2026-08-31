@@ -1,11 +1,70 @@
+from typing import ClassVar
+
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Obj, SuperObj
-from ...utils.parse import str_to_bool
 from ..base import BaseHandler
+
+
+class SuperObjGetQuery(BaseModel):
+    """Query parameters for retrieving SuperObjs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    name: str | None = Field(
+        default=None,
+        description="Filter by (partial) name",
+    )
+    isRoid: bool | None = Field(
+        default=None,
+        description="Filter by moving-object status",
+    )
+    objID: str | None = Field(
+        default=None,
+        description="Only SuperObjs linking this Obj",
+    )
+
+
+class SuperObjPostBody(BaseModel):
+    """Request body for creating a SuperObj."""
+
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
+
+    name: str | None = Field(
+        default=None, description="Name of the super-object, e.g. an MPC designation."
+    )
+    is_roid: bool = Field(
+        default=False, description="Whether the super-object is a moving object."
+    )
+    obj_ids: list[str] = Field(
+        default_factory=list, description="IDs of the Objs to link."
+    )
+
+
+class SuperObjPatchBody(BaseModel):
+    """Request body for updating a SuperObj."""
+
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
+
+    name: str | None = Field(default=None, description="Name of the super-object.")
+    is_roid: bool | None = Field(
+        default=None, description="Whether the super-object is a moving object."
+    )
+    obj_ids: list[str] | None = Field(
+        default=None, description="IDs of the Objs to link, replacing the current ones."
+    )
+    add_obj_ids: list[str] | None = Field(
+        default=None, description="IDs of Objs to add to the current ones."
+    )
+    remove_obj_ids: list[str] | None = Field(
+        default=None, description="IDs of Objs to remove from the current ones."
+    )
 
 
 def super_obj_to_dict(super_obj):
@@ -41,7 +100,7 @@ async def load_objs(session, obj_ids):
 
 class SuperObjHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: SuperObjPostBody = None):
         """
         ---
         summary: Create a SuperObj
@@ -51,23 +110,6 @@ class SuperObjHandler(BaseHandler):
           nights, or the same transient reported by different surveys.
         tags:
           - super objs
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: Name of the super-object, e.g. an MPC designation.
-                  is_roid:
-                    type: boolean
-                    description: Whether the super-object is a moving object.
-                  obj_ids:
-                    type: array
-                    items:
-                      type: string
-                    description: IDs of the Objs to link.
         responses:
           200:
             content:
@@ -88,26 +130,16 @@ class SuperObjHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SuperObjPostBody)
 
-        name = data.get("name")
-        if name is not None and not str(name).strip():
+        if body.name is not None and not body.name.strip():
             return self.error("name must be a non-empty string")
 
-        obj_ids = data.get("obj_ids", [])
-        if not isinstance(obj_ids, list):
-            return self.error("obj_ids must be a list")
-
-        try:
-            is_roid = str_to_bool(data.get("is_roid", False))
-        except ValueError:
-            return self.error("Invalid is_roid value")
-
         async with self.AsyncSession() as session:
-            super_obj = SuperObj(name=name, is_roid=is_roid)
-            if obj_ids:
+            super_obj = SuperObj(name=body.name, is_roid=body.is_roid)
+            if body.obj_ids:
                 try:
-                    super_obj.objs = await load_objs(session, obj_ids)
+                    super_obj.objs = await load_objs(session, body.obj_ids)
                 except ValueError as e:
                     return self.error(str(e))
 
@@ -118,7 +150,12 @@ class SuperObjHandler(BaseHandler):
             return self.success(data={"id": super_obj.id})
 
     @auth_or_token
-    async def get(self, super_obj_id: int | None = None):
+    async def get(
+        self,
+        super_obj_id: int | None = None,
+        *,
+        query: SuperObjGetQuery = None,
+    ):
         """
         ---
         single:
@@ -138,22 +175,6 @@ class SuperObjHandler(BaseHandler):
           summary: Retrieve multiple SuperObjs
           tags:
             - super objs
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by (partial) name
-            - in: query
-              name: isRoid
-              schema:
-                type: boolean
-              description: Filter by moving-object status
-            - in: query
-              name: objID
-              schema:
-                type: string
-              description: Only SuperObjs linking this Obj
           responses:
             200:
               content:
@@ -164,6 +185,8 @@ class SuperObjHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(SuperObjGetQuery)
+
         async with self.AsyncSession() as session:
             options = [selectinload(SuperObj.objs)]
 
@@ -184,20 +207,14 @@ class SuperObjHandler(BaseHandler):
 
             stmt = SuperObj.select(session.user_or_token, options=options)
 
-            name = self.get_query_argument("name", None)
-            if name is not None:
-                stmt = stmt.where(SuperObj.name.contains(name))
+            if query.name is not None:
+                stmt = stmt.where(SuperObj.name.contains(query.name))
 
-            is_roid = self.get_query_argument("isRoid", None)
-            if is_roid is not None:
-                try:
-                    stmt = stmt.where(SuperObj.is_roid.is_(str_to_bool(is_roid)))
-                except ValueError:
-                    return self.error("Invalid isRoid value")
+            if query.isRoid is not None:
+                stmt = stmt.where(SuperObj.is_roid.is_(query.isRoid))
 
-            obj_id = self.get_query_argument("objID", None)
-            if obj_id is not None:
-                stmt = stmt.where(SuperObj.objs.any(Obj.id == obj_id))
+            if query.objID is not None:
+                stmt = stmt.where(SuperObj.objs.any(Obj.id == query.objID))
 
             result = await session.scalars(stmt)
             return self.success(
@@ -205,7 +222,7 @@ class SuperObjHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def patch(self, super_obj_id: int):
+    async def patch(self, super_obj_id: int, *, body: SuperObjPatchBody = None):
         """
         ---
         summary: Update a SuperObj
@@ -215,28 +232,6 @@ class SuperObjHandler(BaseHandler):
           incrementally and may not be combined with `obj_ids`.
         tags:
           - super objs
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  is_roid:
-                    type: boolean
-                  obj_ids:
-                    type: array
-                    items:
-                      type: string
-                  add_obj_ids:
-                    type: array
-                    items:
-                      type: string
-                  remove_obj_ids:
-                    type: array
-                    items:
-                      type: string
         responses:
           200:
             content:
@@ -252,23 +247,17 @@ class SuperObjHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error(f"Invalid super_obj_id: {super_obj_id}")
 
-        data = self.get_json()
+        body = self.parse_body(SuperObjPatchBody)
+        data = body.model_dump(exclude_unset=True)
 
-        replace_ids = data.get("obj_ids")
-        add_ids = data.get("add_obj_ids")
-        remove_ids = data.get("remove_obj_ids")
+        replace_ids = body.obj_ids
+        add_ids = body.add_obj_ids
+        remove_ids = body.remove_obj_ids
 
         if replace_ids is not None and (add_ids is not None or remove_ids is not None):
             return self.error(
                 "obj_ids cannot be combined with add_obj_ids or remove_obj_ids"
             )
-        for key, value in (
-            ("obj_ids", replace_ids),
-            ("add_obj_ids", add_ids),
-            ("remove_obj_ids", remove_ids),
-        ):
-            if value is not None and not isinstance(value, list):
-                return self.error(f"{key} must be a list")
 
         async with self.AsyncSession() as session:
             super_obj = await session.scalar(
@@ -282,16 +271,12 @@ class SuperObjHandler(BaseHandler):
                 return self.error(f"Could not load SuperObj {super_obj_id}")
 
             if "name" in data:
-                name = data["name"]
-                if name is not None and not str(name).strip():
+                if body.name is not None and not body.name.strip():
                     return self.error("name must be a non-empty string")
-                super_obj.name = name
+                super_obj.name = body.name
 
             if "is_roid" in data:
-                try:
-                    super_obj.is_roid = str_to_bool(data["is_roid"])
-                except ValueError:
-                    return self.error("Invalid is_roid value")
+                super_obj.is_roid = body.is_roid
 
             try:
                 if replace_ids is not None:

@@ -327,6 +327,15 @@ class Group(Base):
         doc="Boolean indicating whether requests to join the group are "
         "automatically accepted.",
     )
+    discoverable_data = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="true",
+        default=True,
+        doc="Whether non-members may be told that the group's photometry and "
+        "spectra exist, and so ask for them. Data held only by groups with "
+        "this off is never advertised.",
+    )
     streams = relationship(
         "Stream",
         secondary="group_streams",

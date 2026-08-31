@@ -2,21 +2,27 @@ import base64
 import hashlib
 import io
 import os
+import re
 from pathlib import Path
 
 import sqlalchemy as sa
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import StatementError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import utcnow
 from baselayer.log import make_log
 
 from ...models import Broker, Obj, Thumbnail, User
+from ...utils.thumbnail import image_is_grayscale
 from ..base import BaseHandler
 
 log = make_log("api/thumbnail")
+
+SURVEY_RE = re.compile(r"[A-Z0-9][A-Z0-9_-]{0,31}")
 
 
 class ThumbnailPostBody(BaseModel):
@@ -78,27 +84,30 @@ async def post_thumbnail(data, user_id, session):
         Async DB session for this transaction
     """
 
-    user = await session.scalar(sa.select(User).where(User.id == user_id))
+    obj_id, ttype = data["obj_id"], data["ttype"]
+    user = await session.get(User, user_id)
 
-    obj = await session.scalar(Obj.select(user).where(Obj.id == data["obj_id"]))
-
-    if obj is None:
-        raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
+    if await session.scalar(Obj.select(user).where(Obj.id == obj_id)) is None:
+        raise AttributeError(f"Invalid obj_id: {obj_id}")
 
     basedir = Path(os.path.dirname(__file__)) / ".." / ".."
-    obj_hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
+    obj_hash = hashlib.sha256(obj_id.encode("utf-8")).hexdigest()
 
-    # can someday make this a configurable parameter
     required_depth = 2
     subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
 
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
-    file_uri = os.path.abspath(
-        basedir / f"static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
-    )
-    if not os.path.exists(os.path.dirname(file_uri)):
-        Path(os.path.dirname(file_uri)).mkdir(parents=True)
+
+    # BOOM emits title-case names ("Ztf"), which the constraint reads as not "ZTF".
+    survey = (data.get("survey") or "").strip().upper() or None
+    # survey lands in the file path below, so it must not contain separators.
+    if survey is not None and not SURVEY_RE.fullmatch(survey):
+        raise ValueError(f"Invalid survey: {data['survey']}")
+    filename = f"{obj_id}_{ttype}{f'_{survey}' if survey else ''}.png"
+    file_uri = os.path.abspath(basedir / f"static/thumbnails/{subfolders}/{filename}")
+    public_url = f"/static/thumbnails/{subfolders}/{filename}"
+    os.makedirs(os.path.dirname(file_uri), exist_ok=True)
 
     file_bytes = base64.b64decode(data["data"])
     try:
@@ -113,26 +122,91 @@ async def post_thumbnail(data, user_id, session):
             "Invalid thumbnail size. Only thumbnails "
             "between (16, 16) and (500, 500) allowed."
         )
+
     try:
-        t = Thumbnail(
-            obj_id=data["obj_id"],
-            type=data["ttype"],
-            survey=data.get("survey"),
-            file_uri=file_uri,
-            public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
-        )
         with open(file_uri, "wb") as f:
             f.write(file_bytes)
 
-        session.add(t)
+        # before_insert-only event listener doesn't fire on the upsert path below.
+        is_grayscale = image_is_grayscale(file_uri)
+
+        if survey is not None:
+            # Relabel one pre-survey row so it stops rendering as a second tile;
+            # one only, and never onto an existing survey, or the update collides.
+            legacy, sibling = sa.orm.aliased(Thumbnail), sa.orm.aliased(Thumbnail)
+            await session.execute(
+                sa.update(Thumbnail)
+                .where(
+                    Thumbnail.id
+                    == sa.select(legacy.id)
+                    .where(
+                        legacy.obj_id == obj_id,
+                        legacy.type == ttype,
+                        legacy.survey.is_(None),
+                    )
+                    .order_by(legacy.id)
+                    .limit(1)
+                    .scalar_subquery(),
+                    ~sa.select(sibling.id)
+                    .where(
+                        sibling.obj_id == obj_id,
+                        sibling.type == ttype,
+                        sibling.survey == survey,
+                    )
+                    .exists(),
+                )
+                .values(survey=survey)
+            )
+            # A SELECT-then-write loses to a concurrent ingest, and the resulting
+            # IntegrityError kills the whole ingest, not just this thumbnail.
+            thumbnail_id = await session.scalar(
+                pg_insert(Thumbnail)
+                .values(
+                    obj_id=obj_id,
+                    type=ttype,
+                    survey=survey,
+                    file_uri=file_uri,
+                    public_url=public_url,
+                    is_grayscale=is_grayscale,
+                )
+                .on_conflict_do_update(
+                    index_elements=["obj_id", "type", "survey"],
+                    # ON CONFLICT ignores the column's onupdate, hence modified here.
+                    set_={
+                        "file_uri": file_uri,
+                        "public_url": public_url,
+                        "is_grayscale": is_grayscale,
+                        "modified": utcnow,
+                    },
+                )
+                .returning(Thumbnail.id)
+            )
+        else:
+            # Each NULL is distinct to the index, so ON CONFLICT never fires here.
+            t = await session.scalar(
+                sa.select(Thumbnail).where(
+                    Thumbnail.obj_id == obj_id,
+                    Thumbnail.type == ttype,
+                    Thumbnail.survey.is_(None),
+                )
+            )
+            if t is None:
+                t = Thumbnail(obj_id=obj_id, type=ttype)
+                session.add(t)
+            t.file_uri = file_uri
+            t.public_url = public_url
+            t.is_grayscale = is_grayscale
+            await session.flush()
+            thumbnail_id = t.id
+
         await session.commit()
 
-    except (LookupError, StatementError) as e:
+    except StatementError as e:
         if "enum" in str(e):
-            raise LookupError(f"Invalid ttype: {e}")
-        raise StatementError(f"Error creating new thumbnail: {e}")
+            raise LookupError(f"Invalid ttype: {e}") from e
+        raise
 
-    return t.id
+    return thumbnail_id
 
 
 class ThumbnailHandler(BaseHandler):
@@ -153,7 +227,7 @@ class ThumbnailHandler(BaseHandler):
                     body.model_dump(), self.associated_user_object.id, session
                 )
             except Exception as e:
-                return self.error(f"Thumbnail failed to post: {str(e)}")
+                return self.error(f"Thumbnail failed to post: {e}")
             return self.success(data={"id": thumbnail_id})
 
     @auth_or_token
@@ -251,9 +325,51 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
 
+class ThumbnailPathGetQuery(BaseModel):
+    """Query parameters for checking thumbnail paths."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    types: list[str] = Field(
+        default=["new", "ref", "sub"],
+        description=(
+            "types of thumbnails to check. The default is ['new', 'ref', 'sub'] "
+            "which are all the thumbnail types stored locally."
+        ),
+    )
+    requiredDepth: int = Field(
+        default=2,
+        description=(
+            "number of subdirectories that are desired for thumbnails. For example "
+            "if requiredDepth is 2, then thumbnails will be stored in a folder like "
+            "/skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png where 'ab' "
+            "and 'cd' are the first characters of the hash of the source name. "
+            "If requiredDepth is 0, then thumbnails are expected to be all in one "
+            "folder under /skyportal/static/thumbnails."
+        ),
+    )
+
+
+class ThumbnailPathPatchQuery(ThumbnailPathGetQuery):
+    """Query parameters for updating thumbnail paths (same filters as the
+    check, plus pagination over the rows to move)."""
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=(
+            "Number of thumbnails to update per paginated request. Defaults to "
+            "100. Capped at 1000."
+        ),
+    )
+
+
 class ThumbnailPathHandler(BaseHandler):
     @permissions(["System admin"])
-    async def get(self):
+    async def get(self, *, query: ThumbnailPathGetQuery = None):
         """
         ---
         summary: Check thumbnail paths
@@ -262,34 +378,6 @@ class ThumbnailPathHandler(BaseHandler):
           or are not in the correct folder/path.
         tags:
           - thumbnails
-        parameters:
-          - in: query
-            name: types
-            required: false
-            default: ['new', 'ref', 'sub']
-            schema:
-              type: array
-              items:
-                type: string
-            description: |
-              types of thumbnails to check
-              The default is ['new', 'ref', 'sub'] which
-              are all the thumbnail types stored locally.
-          - in: query
-            name: requiredDepth
-            required: false
-            default: 2
-            schema:
-              type: integer
-            description: |
-              number of subdirectories that are desired for
-              thumbnails. For example if requiredDepth is 2,
-                then thumbnails will be stored in a folder like
-                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                where "ab" and "cd" are the first characters of the
-                hash of the source name.
-                If requiredDepth is 0, then thumbnails are expected
-                to be all in one folder under /skyportal/static/thumbnails.
         responses:
           200:
             content:
@@ -310,10 +398,9 @@ class ThumbnailPathHandler(BaseHandler):
                               type: integer
 
         """
-        types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
-        if required_depth is None:
-            return self.error("requiredDepth must be an integer")
+        query = self.parse_query(ThumbnailPathGetQuery)
+        types = query.types
+        required_depth = query.requiredDepth
 
         if required_depth < 0 or required_depth > 32:
             return self.error("requiredDepth must be between 0 and 32")
@@ -322,22 +409,20 @@ class ThumbnailPathHandler(BaseHandler):
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         async with self.AsyncSession() as session:
-            (
-                total_matches,
-                good_matches,
-                bad_matches,
-            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
+            total, good, bad = await count_thumbnails_in_folders(
+                session, types, good_like, bad_like
+            )
 
         return self.success(
             data={
-                "totalMatches": total_matches,
-                "inCorrectFolder": good_matches,
-                "inWrongFolder": bad_matches,
+                "totalMatches": total,
+                "inCorrectFolder": good,
+                "inWrongFolder": bad,
             }
         )
 
     @permissions(["System admin"])
-    async def patch(self):
+    async def patch(self, *, query: ThumbnailPathPatchQuery = None):
         """
         ---
         summary: Update thumbnail paths
@@ -346,47 +431,6 @@ class ThumbnailPathHandler(BaseHandler):
           of thumbnails that are not in the correct folder/path.
         tags:
           - thumbnails
-        parameters:
-          - in: query
-            name: types
-            required: false
-            default: ['new', 'ref', 'sub']
-            schema:
-              type: array
-              items:
-                type: string
-            description: |
-              types of thumbnails to check
-              The default is ['new', 'ref', 'sub'] which
-              are all the thumbnail types stored locally.
-          - in: query
-            name: requiredDepth
-            required: false
-            default: 2
-            schema:
-              type: integer
-            description: |
-              number of subdirectories that are desired for
-              thumbnails. For example if requiredDepth is 2,
-                then thumbnails will be stored in a folder like
-                /skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png
-                where "ab" and "cd" are the first characters of the
-                hash of the source name.
-                If requiredDepth is 0, then thumbnails are expected
-                to be all in one folder under /skyportal/static/thumbnails.
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
         responses:
           200:
             content:
@@ -410,48 +454,41 @@ class ThumbnailPathHandler(BaseHandler):
         # need to import this here because alert.py might import this file
         from .alert import alert_available
 
-        types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
-        if required_depth is None:
-            return self.error("requiredDepth must be an integer")
+        query = self.parse_query(ThumbnailPathPatchQuery)
 
-        if required_depth <= 0 or required_depth > 32:
-            return self.error("requiredDepth must be at least 0 and no bigger than 31.")
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        num_per_page = self.get_query_argument("numPerPage", 100, type=int)
-        if page_number is None or num_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        num_per_page = min(num_per_page, 1000)
+        types = query.types
+        required_depth = query.requiredDepth
+        if required_depth < 0 or required_depth > 32:
+            return self.error("requiredDepth must be between 0 and 32")
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, 1000)
 
         good_like = f"%thumbnails{'/__' * required_depth}/%"
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         num_moved = 0
         async with self.AsyncSession() as session:
-            stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-            stmt = stmt.where(
-                sa.or_(
-                    ~Thumbnail.file_uri.like(good_like),
-                    Thumbnail.file_uri.like(bad_like),
+            stmt = (
+                sa.select(Thumbnail)
+                .where(
+                    Thumbnail.type.in_(types),
+                    sa.or_(
+                        ~Thumbnail.file_uri.like(good_like),
+                        Thumbnail.file_uri.like(bad_like),
+                    ),
                 )
+                .offset((page_number - 1) * num_per_page)
+                .limit(num_per_page)
             )
-            stmt = stmt.offset((page_number - 1) * num_per_page)
-            stmt = stmt.limit(num_per_page)
-            result = await session.scalars(stmt)
-            thumbnails = result.unique().all()
-            for t in thumbnails:
+            for t in (await session.scalars(stmt)).unique().all():
                 if t.file_uri is None:
                     continue
 
-                if alert_available:
-                    ok = await check_thumbnail_file(
-                        t, self.associated_user_object.id, session
-                    )
-                    if not ok:
-                        # the delete is committed in check_thumbnail_file
-                        continue
+                # the delete is committed in check_thumbnail_file
+                if alert_available and not await check_thumbnail_file(
+                    t, self.associated_user_object.id, session
+                ):
+                    continue
                 obj_hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
                 subfolders = "/".join(
                     obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth)
@@ -491,24 +528,20 @@ class ThumbnailPathHandler(BaseHandler):
 
                 num_moved += 1
 
-            (
-                total_matches,
-                good_matches,
-                bad_matches,
-            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
+            total, good, bad = await count_thumbnails_in_folders(
+                session, types, good_like, bad_like
+            )
 
         return self.success(
             data={
-                "totalMatches": total_matches,
-                "inCorrectFolder": good_matches,
-                "inWrongFolder": bad_matches,
+                "totalMatches": total,
+                "inCorrectFolder": good,
+                "inWrongFolder": bad,
                 "numMoved": num_moved,
             }
         )
 
-    # TODO: add a POST that only checks each thumbnail
-    # for missing or empty files, outside of the context
-    # of moving them to the correct folder
+    # TODO: add a POST that only checks for missing or empty files
 
     @permissions(["System admin"])
     async def delete(self):
@@ -543,28 +576,21 @@ class ThumbnailPathHandler(BaseHandler):
 
 
 async def count_thumbnails_in_folders(session, types, good_like, bad_like):
-    """Async version: Count the number of thumbnails in the correct and incorrect folders."""
-    stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-    total_matches = await session.scalar(
-        sa.select(func.count()).select_from(stmt.subquery())
-    )
-    good_stmt = stmt.where(
+    """Count the thumbnails in the correct and incorrect folders."""
+    in_good_folder = sa.and_(
         Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
     )
-    good_matches = await session.scalar(
-        sa.select(func.count()).select_from(good_stmt.subquery())
+    in_bad_folder = sa.or_(
+        ~Thumbnail.file_uri.like(good_like), Thumbnail.file_uri.like(bad_like)
     )
-    bad_stmt = stmt.where(
-        sa.or_(
-            ~Thumbnail.file_uri.like(good_like),
-            Thumbnail.file_uri.like(bad_like),
-        )
+    counts = await session.execute(
+        sa.select(
+            func.count(),
+            func.count().filter(in_good_folder),
+            func.count().filter(in_bad_folder),
+        ).where(Thumbnail.type.in_(types))
     )
-    bad_matches = await session.scalar(
-        sa.select(func.count()).select_from(bad_stmt.subquery())
-    )
-
-    return total_matches, good_matches, bad_matches
+    return counts.one()
 
 
 async def recreate_thumbnails_from_broker(obj_id, user_id, session):
@@ -579,33 +605,31 @@ async def recreate_thumbnails_from_broker(obj_id, user_id, session):
     user = await session.get(User, user_id)
     if user is None:
         return False
-    # Providers fail closed on the stream scope: BOOM turns a missing
-    # `permissions` into an empty programid list, which matches no alert and
-    # returns nothing rather than raising, so the rebuild quietly does nothing.
+    # Providers fail closed on the stream scope: no permissions means no alert
+    # matches, and the rebuild silently does nothing instead of raising.
     permissions = await alert_permissions_async(user, session)
 
-    brokers = (
-        await session.scalars(
-            sa.select(Broker)
-            .where(Broker.active.is_(True))
-            .order_by(Broker.default_alert_search.desc(), Broker.id)
-        )
-    ).all()
+    brokers = await session.scalars(
+        sa.select(Broker)
+        .where(Broker.active.is_(True))
+        .order_by(Broker.default_alert_search.desc(), Broker.id)
+    )
 
     for broker in brokers:
         capabilities = broker.broker_class.implements()
-        if not (capabilities.get("get_alert") and capabilities.get("get_cutouts")):
+        if not capabilities.get("get_alert") or not capabilities.get("get_cutouts"):
             continue
         try:
-            data = broker.broker_class.get_alert(
-                broker, obj_id, session, permissions=permissions
+            data = (
+                broker.broker_class.get_alert(
+                    broker, obj_id, session, permissions=permissions
+                )
+                or {}
             )
-            candid = (data or {}).get("candid") or (
-                (data or {}).get("candidate") or {}
-            ).get("candid")
+            candid = data.get("candid") or (data.get("candidate") or {}).get("candid")
             if candid is None:
                 continue
-            survey = (data or {}).get("survey") or (broker.altdata or {}).get("survey")
+            survey = data.get("survey") or (broker.altdata or {}).get("survey")
             cutouts = broker.broker_class.get_cutouts(
                 broker, candid, session, survey=survey, permissions=permissions
             )
@@ -628,33 +652,28 @@ async def check_thumbnail_file(thumbnail, user_id, session):
     # need to import this here because alert.py might import this file
     from .alert import alert_available, post_alert
 
-    if (
-        not os.path.isfile(thumbnail.file_uri)
-        or os.stat(thumbnail.file_uri).st_size == 0
-    ):
-        obj_id = thumbnail.obj_id
-        try:
-            os.remove(thumbnail.file_uri)
-        except Exception:
-            pass
-        finally:
-            await session.delete(thumbnail)
-            await session.commit()
+    if os.path.isfile(thumbnail.file_uri) and os.stat(thumbnail.file_uri).st_size != 0:
+        return True
 
-        if alert_available:
-            # post_alert is overridden by Fritz; if it's been made async there,
-            # it should be awaited; the base stub is a no-op.
-            post_alert(
-                object_id=obj_id,
-                candid=None,
-                group_ids="all",
-                user_id=user_id,
-                session=session,
-                thumbnails_only=True,
-            )
-        else:
-            await recreate_thumbnails_from_broker(obj_id, user_id, session)
+    obj_id = thumbnail.obj_id
+    try:
+        os.remove(thumbnail.file_uri)
+    except OSError:
+        pass
+    await session.delete(thumbnail)
+    await session.commit()
 
-        return False
+    if alert_available:
+        # Fritz overrides this stub; await it there if it was made async.
+        post_alert(
+            object_id=obj_id,
+            candid=None,
+            group_ids="all",
+            user_id=user_id,
+            session=session,
+            thumbnails_only=True,
+        )
+    else:
+        await recreate_thumbnails_from_broker(obj_id, user_id, session)
 
-    return True
+    return False

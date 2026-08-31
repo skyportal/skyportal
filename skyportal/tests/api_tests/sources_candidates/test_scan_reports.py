@@ -1,11 +1,15 @@
+import time
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
 
+from skyportal.handlers.api.candidate.scan_report_item import _followup_request_type
 from skyportal.models import (
     Candidate,
     DBSession,
+    GroupUser,
     PhotStat,
     ScanReport,
     Source,
@@ -14,6 +18,21 @@ from skyportal.models import (
 from skyportal.tests import api
 from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
+
+
+def _api_retry_on_gateway_timeout(*args, retries=4, delay=3, **kwargs):
+    """`api()` call that retries on a transient gateway timeout (502/503/504),
+    which loaded CI workers occasionally return on a POST. Safe for the calls it
+    wraps here: the SEDM submit is mocked in tests, so no external side effect,
+    and the report assertions tolerate a duplicate request from a retried POST
+    whose original had actually completed server-side."""
+    status, data = api(*args, **kwargs)
+    attempts = 0
+    while status in (502, 503, 504) and attempts < retries:
+        time.sleep(delay)
+        attempts += 1
+        status, data = api(*args, **kwargs)
+    return status, data
 
 
 @pytest.fixture()
@@ -40,6 +59,7 @@ def cleanup_reports():
 def test_scan_report_item_includes_followup_and_assignment(
     public_filter,
     public_group,
+    public_group2,
     user,
     upload_data_token,
     public_group_sedm_allocation,
@@ -66,10 +86,22 @@ def test_scan_report_item_includes_followup_and_assignment(
             saved_at=now,
         )
     )
+    # Also currently saved to a second group outside the report's own group_ids,
+    # to confirm "groups_saved_to" isn't limited to the report's scope. `user`
+    # must belong to it too, or Source.select(mode="read") filters it out.
+    DBSession.add(GroupUser(user_id=user.id, group_id=public_group2.id))
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group2.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
     DBSession.commit()
 
     # A follow-up request (SEDM is an imaging spectrograph -> "spectroscopy").
-    status, data = api(
+    status, data = _api_retry_on_gateway_timeout(
         "POST",
         "followup_request",
         data={
@@ -106,8 +138,9 @@ def test_scan_report_item_includes_followup_and_assignment(
     )
 
     # Detections are read from PhotStat (not raw photometry): a fainter first
-    # detection and a brighter peak, both ZTF filters. ObjFactory already creates a
-    # PhotStat (obj_id is unique), so update it rather than inserting a second one.
+    # detection, a brighter peak, and a later last detection, all ZTF filters.
+    # ObjFactory already creates a PhotStat (obj_id is unique), so update it
+    # rather than inserting a second one.
     photstat = DBSession().scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj.id))
     if photstat is None:
         photstat = PhotStat(obj_id=obj.id)
@@ -117,6 +150,9 @@ def test_scan_report_item_includes_followup_and_assignment(
     photstat.first_detected_filter = "ztfg"
     photstat.peak_mag_per_filter = {"ztfg": 18.9, "ztfr": 16.4}
     photstat.peak_mjd_per_filter = {"ztfg": 60000.0, "ztfr": 60010.0}
+    photstat.last_detected_mjd = 60020.0
+    photstat.last_detected_mag = 17.2
+    photstat.last_detected_filter = "ztfi"
     DBSession.commit()
 
     window = {
@@ -173,7 +209,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert assignment["status"] is not None
     assert assignment["requester"] == user.username
 
-    # First/peak detection per survey (mag, mjd, filter, days-ago), from PhotStat.
+    # First/peak/last detection per survey (mag, mjd, filter, days-ago), from PhotStat.
     detections = item["data"]["detections_by_survey"]
     assert detections is not None
     survey_detections = detections["ZTF"]
@@ -181,8 +217,17 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert survey_detections["first"]["filter"] == "ztfg"
     assert survey_detections["peak"]["mag"] == 16.4
     assert survey_detections["peak"]["filter"] == "ztfr"
+    assert survey_detections["last"]["mag"] == 17.2
+    assert survey_detections["last"]["filter"] == "ztfi"
     assert survey_detections["first"]["days_ago"] > 0
     assert survey_detections["peak"]["days_ago"] > 0
+    assert survey_detections["last"]["days_ago"] > 0
+
+    # Every group the obj is currently an active Source of, including
+    # `public_group2` which isn't part of this report's own group_ids/window.
+    assert sorted(item["data"]["groups_saved_to"]) == sorted(
+        [public_group.name, public_group2.name]
+    )
 
 
 def test_scan_report_item_includes_associated_objs(
@@ -197,6 +242,8 @@ def test_scan_report_item_includes_associated_objs(
     obj = ObjFactory(groups=[public_group])
     # Another survey's detection of the same physical object (e.g. LSST), with
     # its own alias, linked via a SuperObj -- distinct from `obj`'s own alias.
+    # Note the alias/id don't need to start with "lsst": survey is inferred from
+    # the photometry filter/band (see `_survey_of`), not the obj's name.
     assoc_obj = ObjFactory(groups=[public_group], alias=["LSST_123"])
     DBSession.add(SuperObj(objs=[obj, assoc_obj]))
     DBSession.add(
@@ -210,6 +257,23 @@ def test_scan_report_item_includes_associated_objs(
             saved_at=now,
         )
     )
+    DBSession.commit()
+
+    # The associated obj's own detections (LSST filter), so they should surface
+    # under a distinct "LSST" key in the report item's detections_by_survey,
+    # alongside `obj`'s own (ZTF) survey.
+    assoc_photstat = DBSession().scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == assoc_obj.id)
+    )
+    if assoc_photstat is None:
+        assoc_photstat = PhotStat(obj_id=assoc_obj.id)
+        DBSession.add(assoc_photstat)
+    assoc_photstat.first_detected_mjd = 60005.0
+    assoc_photstat.first_detected_mag = 19.5
+    assoc_photstat.first_detected_filter = "lsstg"
+    assoc_photstat.last_detected_mjd = 60025.0
+    assoc_photstat.last_detected_mag = 18.1
+    assoc_photstat.last_detected_filter = "lssti"
     DBSession.commit()
 
     window = {
@@ -246,6 +310,16 @@ def test_scan_report_item_includes_associated_objs(
     assert associated_objs is not None
     assoc = next(a for a in associated_objs if a["obj_id"] == assoc_obj.id)
     assert assoc["aliases"] == ["LSST_123"]
+
+    # The associated obj's own (LSST) detections are merged into
+    # detections_by_survey under their own survey key, alongside `obj`'s (ZTF).
+    detections = item["data"]["detections_by_survey"]
+    assert detections is not None
+    assert "LSST" in detections
+    assert detections["LSST"]["first"]["mag"] == 19.5
+    assert detections["LSST"]["first"]["filter"] == "lsstg"
+    assert detections["LSST"]["last"]["mag"] == 18.1
+    assert detections["LSST"]["last"]["filter"] == "lssti"
 
 
 def test_scan_report_item_includes_previous_mag(
@@ -591,3 +665,99 @@ def test_scan_report_rejects_inaccessible_gcn_event(
     )
     assert status == 400, data
     assert "not found or not accessible" in data["message"]
+
+
+def _followup_request_case(
+    api_classname, instrument_type="imager", instrument_name="Test", payload=None
+):
+    allocation = SimpleNamespace(types=[])
+    instrument = SimpleNamespace(
+        name=instrument_name, type=instrument_type, api_classname=api_classname
+    )
+    return _followup_request_type(allocation, instrument, payload)
+
+
+def test_followup_request_type_classification():
+    """Distinguish photometry vs spectroscopy requests, per Instrument.api_classname
+    and (for API classes that submit both) the request payload -- not just
+    instrument.type, which is too coarse for e.g. LCO's per-camera API split."""
+    # allocation.types takes precedence over everything else.
+    assert (
+        _followup_request_type(
+            SimpleNamespace(types=["forced_photometry"]),
+            SimpleNamespace(name="ATLAS", type="imager", api_classname="ATLASAPI"),
+        )
+        == "forced_photometry"
+    )
+
+    # SEDM: IFU vs any other (imaging) choice, from observation_type/observation_choices.
+    assert (
+        _followup_request_case(
+            "SEDMAPI",
+            instrument_name="SEDM",
+            payload={"observation_type": "IFU"},
+        )
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case(
+            "SEDMAPI",
+            instrument_name="SEDM",
+            payload={"observation_choices": ["3-shot (gri)"]},
+        )
+        == "photometry"
+    )
+
+    # SEDMv2: observation_choice is "IFU" or a filter (g/r/i/z).
+    assert (
+        _followup_request_case("SEDMV2API", payload={"observation_choice": "IFU"})
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("SEDMV2API", payload={"observation_choice": "g"})
+        == "photometry"
+    )
+
+    # MMT (Binospec/MMIRS): same API class submits both, split by observation_type.
+    for api_classname in ("BINOSPECAPI", "MMIRSAPI"):
+        assert (
+            _followup_request_case(
+                api_classname, payload={"observation_type": "Spectroscopy"}
+            )
+            == "spectroscopy"
+        )
+        assert (
+            _followup_request_case(
+                api_classname, payload={"observation_type": "Imaging"}
+            )
+            == "photometry"
+        )
+
+    # Swift UVOT/XRT: obs_type is one of Spectroscopy/Light Curve/Position/Timing.
+    assert (
+        _followup_request_case("UVOTXRTAPI", payload={"obs_type": "Spectroscopy"})
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("UVOTXRTAPI", payload={"obs_type": "Light Curve"})
+        == "photometry"
+    )
+
+    # Photometry-only and spectroscopy-only API classes ignore the payload entirely.
+    assert (
+        _followup_request_case("PS1API", payload={"observation_type": "Spectroscopy"})
+        == "photometry"
+    )
+    assert (
+        _followup_request_case("FLOYDSAPI", payload={"observation_type": "Imaging"})
+        == "spectroscopy"
+    )
+
+    # An API class not in either set falls back to instrument.type.
+    assert (
+        _followup_request_case("SOMEOTHERAPI", instrument_type="spectrograph")
+        == "spectroscopy"
+    )
+    assert (
+        _followup_request_case("SOMEOTHERAPI", instrument_type="imager") == "photometry"
+    )

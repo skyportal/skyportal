@@ -14,6 +14,18 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class UserObjListGetQuery(BaseModel):
+    """Query parameters for retrieving sources from a user's lists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    listName: str | None = Field(
+        default=None,
+        description="Name of the list to retrieve objects from. "
+        "If not given will return all objects saved by the user to all lists.",
+    )
+
+
 class ListingPostBody(BaseModel):
     """Request body for adding a listing."""
 
@@ -73,6 +85,24 @@ class ListingPatchBody(BaseModel):
     )
 
 
+class ListingDeleteBody(BaseModel):
+    """Request body for removing a listing by obj_id and list_name (used when no
+    listing_id path parameter is supplied)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None,
+        description="ID of user that you want to add the listing to. "
+        "If not given, will default to the associated user object that is posting.",
+    )
+    obj_id: str | None = Field(default=None, description="ID of the listed object.")
+    list_name: str | None = Field(
+        default=None,
+        description='Listing name for this item, e.g., "favorites".',
+    )
+
+
 def check_list_name(name):
     """checks that list_name begins with an alphanumeric character
 
@@ -92,21 +122,13 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    async def get(self, user_id: int | None = None):
+    async def get(
+        self, user_id: int | None = None, *, query: UserObjListGetQuery = None
+    ):
         """
         ---
         summary: Get user object listings
         description: Retrieve sources from a user's lists
-        parameters:
-          - in: query
-            name: listName
-            required: false
-            schema:
-              type: string
-            description: |
-              name of the list to retrieve objects from.
-              If not given will return all objects
-              saved by the user to all lists.
         tags:
           - listings
         responses:
@@ -120,6 +142,8 @@ class UserObjListHandler(BaseHandler):
                 schema: Error
         """
 
+        query = self.parse_query(UserObjListGetQuery)
+
         if user_id is None:
             user_id = self.associated_user_object.id
         else:
@@ -128,13 +152,11 @@ class UserObjListHandler(BaseHandler):
             except (TypeError, ValueError):
                 return self.error(f"Invalid user_id: {user_id}")
 
-        list_name = self.get_query_argument("listName", None)
-
         async with self.AsyncSession() as session:
             stmt = Listing.select(self.current_user).where(Listing.user_id == user_id)
 
-            if list_name is not None:
-                stmt = stmt.where(Listing.list_name == list_name)
+            if query.listName is not None:
+                stmt = stmt.where(Listing.list_name == query.listName)
 
             result = await session.scalars(stmt)
             return self.success(data=result.all())
@@ -307,6 +329,8 @@ class UserObjListHandler(BaseHandler):
                 description="ID of the listing object. If not given, must supply the listing's obj_id and list_name (and user_id) to find the correct listing id from that info."
             ),
         ] = None,
+        *,
+        body: ListingDeleteBody = None,
     ):
         """
         ---
@@ -314,26 +338,6 @@ class UserObjListHandler(BaseHandler):
         description: Remove an existing listing
         tags:
         - listings
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: false
-                    description: |
-                      ID of user that you want to add the listing to.
-                      If not given, will default to the associated user object that is posting.
-                  obj_id:
-                    type: string
-                    required: true
-                  list_name:
-                    type: string
-                    required: true
-                    description: |
-                        Listing name for this item, e.g., "favorites".
         responses:
           200:
             content:
@@ -342,6 +346,7 @@ class UserObjListHandler(BaseHandler):
 
 
         """
+        body = self.parse_body(ListingDeleteBody)
         async with self.AsyncSession() as session:
             if listing_id is not None:
                 try:
@@ -355,7 +360,7 @@ class UserObjListHandler(BaseHandler):
                 if listing is None:
                     return self.error(f"Cannot find listing with ID: {listing_id}")
             else:
-                data = self.get_json()
+                data = body.model_dump(exclude_unset=True)
 
                 schema = Listing.__schema__(exclude=["user_id"])
                 user_id = data.pop("user_id", self.associated_user_object.id)

@@ -903,6 +903,26 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     run_end_utc = "3021-02-27 14:20:24.972000"
     owner = factory.SubFactory(UserFactory)
 
+    @factory.post_generation
+    def groups(self, create, passed_groups=None, **kwargs):
+        # ObservingRun.read is group-scoped, so a run with no groups is
+        # invisible to every non-admin user -- and its assignments with it.
+        # Runs created through the API default to the sitewide public group;
+        # this factory builds the row directly and so must do the same.
+        if passed_groups:
+            self.groups = list(passed_groups)
+        else:
+            self.groups = [
+                DBSession()
+                .scalars(
+                    sa.select(Group).where(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .first()
+            ]
+        DBSession().commit()
+
     @staticmethod
     def teardown(run):
         if is_already_deleted(run, ObservingRun):

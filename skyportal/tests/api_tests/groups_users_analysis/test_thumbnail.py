@@ -9,8 +9,8 @@ import pytest
 import sqlalchemy as sa
 
 from baselayer.app.models import async_plain_session_factory
-from skyportal.models import DBSession, Obj, Thumbnail
-from skyportal.tests import api, assert_api
+from skyportal.models import DBSession, Obj, Thumbnail, init_db
+from skyportal.tests import api, assert_api, cfg
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
@@ -89,13 +89,21 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert thumbnails_loaded
 
 
+def import_thumbnail_queue():
+    """The service's import-time init_db() rebinds the session; undo it."""
+    from services.thumbnail_queue import thumbnail_queue
+
+    init_db(**cfg["database"])
+    return thumbnail_queue
+
+
 def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     upload_data_token, public_group
 ):
     """Direct test for services/thumbnail_queue/fetch_obj — the only
     queue-specific logic not exercised by the synchronous bypass above.
     """
-    from services.thumbnail_queue.thumbnail_queue import fetch_obj
+    fetch_obj = import_thumbnail_queue().fetch_obj
 
     obj_id = str(uuid.uuid4())
     status, _ = api(
@@ -136,7 +144,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
     classify_pending_grayscale fills them in. The fetch is stubbed to stay
     offline and deterministic.
     """
-    from services.thumbnail_queue import thumbnail_queue as tq
+    tq = import_thumbnail_queue()
 
     obj_id = str(uuid.uuid4())
     status, _ = api(
@@ -473,7 +481,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 3,
             "numPerPage": 500,
         },
@@ -499,7 +506,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 2,
             "numPerPage": 500,
         },

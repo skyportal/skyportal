@@ -75,19 +75,15 @@ def test_gcnevents_observations(
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
-    # test modify sources form
-    page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
+    # The observations query lives on the Observations tab, with its results.
+    page.locator('//button[normalize-space(.)="Observations"]').first.click()
 
-    page.locator('//div[@id="root_queryList"]').first.click()
-    page.locator('//li[contains(text(), "observations")]').first.click()
-    page.keyboard.press("Escape")
+    page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
 
     submit_button_xpath = (
         '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
     )
     page.locator(submit_button_xpath).first.click()
-
-    page.locator('//button[contains(., "Observations")]').first.click()
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
@@ -297,10 +293,14 @@ def test_gcn_request(page, user, super_admin_token, public_group):
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
+    # The localization applies to every tab and sits above them.
     page.locator(
         '//*[@role="combobox" and (@aria-labelledby="localizationSelectLabel" or @id="localizationSelectLabel")]'
     ).first.click()
     page.locator('//li[contains(text(), "bayestar.fits.gz")]').first.click()
+
+    # The instrument and the rest of the observations query live on that tab.
+    page.locator('//button[normalize-space(.)="Observations"]').first.click()
     page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
 
     page.locator('//button[@type="submit"]').first.click()

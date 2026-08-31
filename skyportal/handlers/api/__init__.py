@@ -54,6 +54,12 @@ from .color_mag import ObjColorMagHandler
 from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
+from .data_access_request import (
+    DataAccessRequestHandler,
+    DataAvailabilityHandler,
+    DuplicateSchedulingHandler,
+    ScheduledObservationsHandler,
+)
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
@@ -84,6 +90,7 @@ from .galaxy import (
 from .gcn import (
     DefaultGcnTagHandler,
     GcnEventAliasesHandler,
+    GcnEventAssociationsHandler,
     GcnEventCatalogQueryHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
@@ -104,6 +111,7 @@ from .gcn import (
     LocalizationTagsHandler,
     ObjGcnEventHandler,
 )
+from .gcn_association_rule import GcnAssociationRuleHandler  # noqa: F401
 from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
 from .gcn_event_obj import (
     GcnEventObjHandler,
@@ -137,7 +145,7 @@ from .mmadetector import (
 from .moving_object import MovingObjectFollowupHandler
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
-from .obj import ObjHandler, ObjPositionHandler
+from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
@@ -215,6 +223,7 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
+from .source_interest import SourceInterestHandler
 from .source_labels import SourceLabelsHandler
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
@@ -244,6 +253,7 @@ from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
+    UserPublicProfileHandler,
     set_default_acls,
     set_default_group,
     set_default_role,

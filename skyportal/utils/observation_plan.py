@@ -20,12 +20,12 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..handlers.api.galaxy import get_galaxies
-from .cache import Cache, array_to_bytes
+from .cache import Cache, array_to_bytes, cache_folder
 
 log = make_log("api/observation_plan")
 
 env, cfg = load_env()
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),

@@ -51,6 +51,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
@@ -62,7 +63,14 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
+import CommentPanel, {
+  INTERESTED_CHANNEL,
+  useCommentPanel,
+} from "../comment/CommentPanel";
+import SourceInterests from "./SourceInterests";
+import RequestDataAccess from "./RequestDataAccess";
+import UnsharedSpectra from "./UnsharedSpectra";
+import { useGetDataAvailabilityQuery } from "../../ducks/dataAccessRequests";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -74,7 +82,7 @@ import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
-import Spinner from "../Spinner";
+import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
 import ObjectTags from "../ObjectTags";
@@ -237,6 +245,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (g: any) => !g.single_user_group,
   );
   const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
+  // Spectra exist that the viewer cannot open: "no spectrum exists" would be
+  // the wrong thing to say, and there is something to ask for.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(source.id, {
+    skip: !source.id,
+  });
+  const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
@@ -245,7 +259,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
-  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  // Only runs a target can still be assigned to; the full history is a couple
+  // of megabytes and nothing on this page shows it.
+  const { data: observingRunList = [] } = useGetObservingRunsQuery({
+    upcomingOnly: true,
+  });
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
@@ -799,6 +817,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
               </div>
+              <div className={classes.rowInfo}>
+                <SourceAcknowledgment obj_id={source.id} />
+              </div>
             </div>
             {source.host && (
               <div className={classes.infoLine}>
@@ -1127,6 +1148,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   }}
                 />
               )}
+              {!isReadOnly && (
+                <SourceInterests
+                  sourceID={source.id}
+                  onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
+                />
+              )}
+              {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
             </div>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
@@ -1411,6 +1439,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       mode={downMd ? "mobile" : "desktop"}
                       t0={source.t0}
                       showExtinctionCorrection={showExtinctionCorrection}
+                      is_roid={source.is_roid}
                     />
                   )}
                 </div>
@@ -1473,7 +1502,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <Grid container id="spectroscopy-container">
                 <div className={classes.plotContainer}>
                   {!source.spectrum_exists &&
-                    (!spectra || spectra?.length === 0) && (
+                    (!spectra || spectra?.length === 0) &&
+                    unsharedSpectraCount === 0 && (
                       <div style={{ marginLeft: "1rem" }}>
                         {" "}
                         No spectrum exists{" "}
@@ -1501,6 +1531,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       />
                     </Suspense>
                   )}
+                  {!isReadOnly && <UnsharedSpectra sourceID={source.id} />}
                 </div>
                 <div className={classes.buttonContainer}>
                   {!isReadOnly && (
@@ -1689,7 +1720,9 @@ const Source = ({ route }: SourceProps) => {
   }, [isSuccess, source?.id, route.id, addSourceView]);
 
   if (isError) return (error as any)?.error ?? "Error while loading source";
-  if (isLoading || !source) return <Spinner />;
+  // The name is known from the route, so the page keeps its shape while the
+  // rest arrives instead of going blank behind a whole-page spinner.
+  if (isLoading || !source) return <SourceSkeleton objId={route.id} />;
   if (source.id === undefined) return "Source not found";
   // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;

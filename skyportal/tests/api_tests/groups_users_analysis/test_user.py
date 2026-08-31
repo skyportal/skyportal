@@ -1,5 +1,8 @@
+import re
 import uuid
+from pathlib import Path
 
+from skyportal.handlers.api.user import PUBLIC_PROFILE_FIELDS
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Token
 from skyportal.tests import api
@@ -212,8 +215,8 @@ def test_patch_user_expiration_date(super_admin_token, user):
 
 
 def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
-    """Every unrecognized key is assigned straight onto the User, so the
-    identity columns have to be refused explicitly."""
+    """Identity columns aren't part of the request body model, so they are
+    rejected outright rather than assigned onto the User."""
     original_uid = user.oauth_uid
 
     status, data = api(
@@ -222,9 +225,107 @@ def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
         data={"id": 999999999, "oauth_uid": "hijacked@example.com"},
         token=super_admin_token,
     )
-    assert status == 200, data
+    assert status == 400, data
+    assert "Extra inputs are not permitted" in data["message"]
 
     status, data = api("GET", f"user/{user.id}", token=super_admin_token)
     assert status == 200, data
     assert data["data"]["id"] == user.id
     assert data["data"]["oauth_uid"] == original_uid
+
+
+def test_public_profile(view_only_token, user, super_admin_token):
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={
+            "affiliations": ["Caltech"],
+            "bio": "An astronomer looking at transients",
+            "contact_email": "public_profile_test@skyportal.com",
+        },
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/profile", token=super_admin_token)
+    assert status == 200, data
+    profile = data["data"]
+    assert profile["id"] == user.id
+    assert profile["username"] == user.username
+    assert profile["affiliations"] == ["Caltech"]
+    assert profile["bio"].startswith("An astronomer")
+    assert "contact_email" not in profile
+
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={
+            "preferences": {
+                "publicProfile": {
+                    "affiliations": False,
+                    "contact_email": True,
+                    "roles": True,
+                }
+            }
+        },
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/profile", token=super_admin_token)
+    assert status == 200, data
+    profile = data["data"]
+    assert "affiliations" not in profile
+    assert profile["contact_email"] == "public_profile_test@skyportal.com"
+    assert profile["roles"] == sorted(role.id for role in user.roles)
+
+    status, data = api("GET", "user/99999999/profile", token=view_only_token)
+    assert status == 400, data
+
+
+def test_public_profile_fields_mirrored_in_frontend():
+    source = (
+        Path(__file__).parents[4] / "static/js/components/user/UserProfileInfo.tsx"
+    ).read_text()
+    block = re.search(
+        r"const PUBLIC_FIELDS: Record<string, boolean> = \{(.*?)\};", source, re.S
+    )
+    assert block is not None, "PUBLIC_FIELDS not found in UserProfileInfo.tsx"
+    frontend = {
+        name: value == "true"
+        for name, value in re.findall(r"(\w+): (true|false),", block.group(1))
+    }
+    assert frontend == PUBLIC_PROFILE_FIELDS
+
+
+def test_user_info_hides_unshared_fields(view_only_token, user, view_only_token2):
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={"bio": "An astronomer looking at transients"},
+        token=view_only_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}", token=view_only_token2)
+    assert status == 200, data
+    assert data["data"]["id"] == user.id
+    assert data["data"]["bio"].startswith("An astronomer")
+    assert "contact_email" not in data["data"]
+    assert "permissions" not in data["data"]
+
+    status, data = api("GET", f"user/{user.id}", token=view_only_token)
+    assert status == 200, data
+    assert data["data"]["contact_email"] == user.contact_email
+    assert "permissions" in data["data"]
+
+    status, data = api(
+        "GET", "user", params={"username": user.username}, token=view_only_token2
+    )
+    assert status == 200, data
+    listed = next(u for u in data["data"]["users"] if u["id"] == user.id)
+    assert listed["bio"].startswith("An astronomer")
+    assert "contact_email" not in listed
+
+    status, data = api("GET", "user", params={"email": "@"}, token=view_only_token)
+    assert status == 400, data
