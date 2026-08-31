@@ -53,7 +53,9 @@ def is_configured():
 
 
 def build_consumer():
-    group_id = f"skyportal-scout-{topic}"
+    # Hopskotch only authorizes consumer groups named for the credential.
+    prefix = f"{username}-" if username else ""
+    group_id = f"{prefix}skyportal-scout-{topic}"
     if from_start:
         group_id += f"-{int(time.time())}"
 
