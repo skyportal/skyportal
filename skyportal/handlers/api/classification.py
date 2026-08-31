@@ -884,23 +884,12 @@ class ClassificationVotesHandler(BaseHandler):
             else:
                 classification_vote.vote = vote
 
-            obj_id = classification.obj.id
-            group_ids = [group.id for group in classification.groups]
-            source_label = None
-            for group_id in group_ids:
-                source_label = await session.scalar(
-                    SourceLabel.select(session.user_or_token)
-                    .where(SourceLabel.obj_id == obj_id)
-                    .where(SourceLabel.group_id == group_id)
-                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                )
-            if source_label is None and group_ids:
-                label = SourceLabel(
-                    obj_id=obj_id,
-                    labeller_id=self.associated_user_object.id,
-                    group_id=group_ids[-1],
-                )
-                session.add(label)
+            await add_source_labels(
+                session,
+                classification.obj.id,
+                [group.id for group in classification.groups],
+                self.associated_user_object.id,
+            )
 
             await session.commit()
 
@@ -947,23 +936,12 @@ class ClassificationVotesHandler(BaseHandler):
             if classification_vote is not None:
                 await session.delete(classification_vote)
 
-            obj_id = classification.obj.id
-            group_ids = [group.id for group in classification.groups]
-            source_label = None
-            for group_id in group_ids:
-                source_label = await session.scalar(
-                    SourceLabel.select(session.user_or_token)
-                    .where(SourceLabel.obj_id == obj_id)
-                    .where(SourceLabel.group_id == group_id)
-                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                )
-            if source_label is None and group_ids:
-                label = SourceLabel(
-                    obj_id=obj_id,
-                    labeller_id=self.associated_user_object.id,
-                    group_id=group_ids[-1],
-                )
-                session.add(label)
+            await add_source_labels(
+                session,
+                classification.obj.id,
+                [group.id for group in classification.groups],
+                self.associated_user_object.id,
+            )
 
             await session.commit()
 
