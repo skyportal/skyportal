@@ -17,12 +17,12 @@ from ...models import (
     ClassificationVote,
     Group,
     Obj,
-    SourceLabel,
     SuperObj,
     Taxonomy,
     User,
 )
 from ..base import BaseHandler
+from .source_labels import add_source_labels
 
 _, cfg = load_env()
 
@@ -124,21 +124,6 @@ class ClassificationVotePostBody(BaseModel):
     vote: int | None = Field(
         default=None, description="Upvote or downvote a classification."
     )
-
-
-async def add_source_labels(session, obj_id, group_ids, labeller_id):
-    """Label the obj for each given group the labeller has not labelled it in yet."""
-    for group_id in group_ids:
-        source_label = await session.scalar(
-            SourceLabel.select(session.user_or_token)
-            .where(SourceLabel.obj_id == obj_id)
-            .where(SourceLabel.group_id == group_id)
-            .where(SourceLabel.labeller_id == labeller_id)
-        )
-        if source_label is None:
-            session.add(
-                SourceLabel(obj_id=obj_id, labeller_id=labeller_id, group_id=group_id)
-            )
 
 
 async def post_classification(data, user_id, session):
