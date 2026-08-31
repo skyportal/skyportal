@@ -1,7 +1,4 @@
-import pytest
 from playwright.sync_api import expect
-
-from skyportal.tests import IS_CI_BUILD
 
 
 def test_share_data(
@@ -12,8 +9,6 @@ def test_share_data(
     public_group,
     public_group2,
 ):
-    if IS_CI_BUILD:
-        pytest.xfail("Xfailing this test on CI builds.")
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
     page.locator('//*[text()="Share data"]').first.click()

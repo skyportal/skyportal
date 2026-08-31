@@ -262,10 +262,15 @@ jobs:
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/groups_users_analysis'
 
-      - name: Run API & utils tests part 4 (spectra, utils & misc)
+      - name: Run API & utils tests part 4 (spectra, brokers, utils & misc)
         if: ${{ matrix.test_subset == 'api_and_utils_pt4' }}
         run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/spectra_misc skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/spectra_misc skyportal/tests/api_tests/brokers skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+
+      - name: Run API & utils tests part 5 (GCN)
+        if: ${{ matrix.test_subset == 'api_and_utils_pt5' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/gcn'
 
       - name: Run external tests (services & moving objects)
         if: ${{ matrix.test_subset == 'external' }}
