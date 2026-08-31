@@ -71,7 +71,7 @@ def test_swift_lsxps(super_admin_token):
     )
     assert status == 200
 
-    NRETRIES = 10
+    NRETRIES = 3
     retries = 0
 
     sources_loaded = False

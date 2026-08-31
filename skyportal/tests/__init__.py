@@ -1,4 +1,3 @@
-import os
 import time
 import urllib.parse
 
@@ -7,8 +6,6 @@ import requests
 from baselayer.app.config import load_config
 
 from .patch_requests import patch_requests
-
-IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
 
 patch_requests()
 
@@ -111,7 +108,7 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
 
     """
     if status == 200:
-        raise Exception(f"Expected failure, got status==200")
+        raise Exception("Expected failure, got status==200")
     if expected_error_partial is not None:
         if not data or expected_error_partial not in data["message"]:
             raise Exception(

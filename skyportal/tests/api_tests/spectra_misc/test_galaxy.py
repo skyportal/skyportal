@@ -34,22 +34,24 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
 
     nretries = 0
     galaxies_loaded = False
-    while nretries < 40:
+    while nretries < 20:
         status, data = api(
             "GET", "galaxy_catalog", token=view_only_token, params=params
         )
-        assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
-        ):
-            galaxies_loaded = True
-            break
+        # a 400 means the async ingestion has not created the catalog row yet
+        if status == 200:
+            galaxies = data["data"]["galaxies"]
+            if len(galaxies) == 92 and any(
+                d["name"] == "6dFgs gJ0001313-055904"
+                and d["mstar"] == 336.60756522868667
+                for d in galaxies
+            ):
+                galaxies_loaded = True
+                break
         nretries = nretries + 1
         time.sleep(2)
 
-    assert nretries < 40
+    assert nretries < 20
     assert galaxies_loaded
 
     params = {
@@ -149,22 +151,24 @@ def test_source_host(
 
     nretries = 0
     galaxies_loaded = False
-    while nretries < 40:
+    while nretries < 20:
         status, data = api(
             "GET", "galaxy_catalog", token=view_only_token, params=params
         )
-        assert status == 200
-        data = data["data"]["galaxies"]
-        if len(data) == 92 and any(
-            d["name"] == "6dFgs gJ0001313-055904" and d["mstar"] == 336.60756522868667
-            for d in data
-        ):
-            galaxies_loaded = True
-            break
+        # a 400 means the async ingestion has not created the catalog row yet
+        if status == 200:
+            galaxies = data["data"]["galaxies"]
+            if len(galaxies) == 92 and any(
+                d["name"] == "6dFgs gJ0001313-055904"
+                and d["mstar"] == 336.60756522868667
+                for d in galaxies
+            ):
+                galaxies_loaded = True
+                break
         nretries = nretries + 1
         time.sleep(2)
 
-    assert nretries < 40
+    assert nretries < 20
     assert galaxies_loaded
 
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)

@@ -62,6 +62,7 @@ const NewRecurringAPI = () => {
         type: "number",
         title: "Delay between reminders (in days)",
         default: 1,
+        exclusiveMinimum: 0,
       },
       payload: {
         type: "string",
