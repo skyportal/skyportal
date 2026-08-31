@@ -44,10 +44,27 @@ export const followupRequestsApi = skyportalApi.injectEndpoints({
       RouteData<"PUT /api/followup_request/prioritization">,
       Record<string, any>
     >({
-      query: (body) => ({
+      // The prioritization form carries extra UI-only fields (instrumentId,
+      // gcnEventId, observation dates); the endpoint forbids unknown keys, so
+      // only forward the ones it reads.
+      query: ({
+        requestIds,
+        priorityType,
+        magnitudeOrdering,
+        localizationId,
+        minimumPriority,
+        maximumPriority,
+      }) => ({
         url: "api/followup_request/prioritization",
         method: "PUT",
-        body,
+        body: {
+          requestIds,
+          priorityType,
+          magnitudeOrdering,
+          localizationId,
+          minimumPriority,
+          maximumPriority,
+        },
       }),
       invalidatesTags: ["FollowupRequest"],
     }),

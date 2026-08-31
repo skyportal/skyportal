@@ -912,36 +912,62 @@ class ObservationPlanRequestGetQuery(BaseModel):
     )
 
 
+class ObservationPlanRequestPostBody(BaseModel):
+    """Request body for submitting one or more observation plan requests.
+
+    Accepts either a single plan (the plan fields at the top level) or a
+    `observation_plans` list together with `combine_plans`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_plans: list[dict] | None = Field(
+        None, description="List of observation plan requests to submit."
+    )
+    combine_plans: bool = Field(
+        False,
+        description="Whether to combine the submitted plans into a single request.",
+    )
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the observation plan request with."
+        ),
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class ObservationPlanRequestPostResponse(BaseModel):
+    """Data payload returned when submitting observation plan requests."""
+
+    ids: list[int] = Field(description="New observation plan request IDs")
+
+
 class ObservationPlanRequestHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: ObservationPlanRequestPostBody = None
+    ) -> ObservationPlanRequestPostResponse:
         """
         ---
         summary: Submit observation plan request.
         description: Submit observation plan request.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanRequestPostBody)
+        json_data = body.model_dump(exclude_unset=True)
         if "observation_plans" in json_data:
             observation_plans = json_data["observation_plans"]
         else:
@@ -1335,36 +1361,55 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanManualPostBody(BaseModel):
+    """Request body for submitting a manual observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    dateobs: str | None = Field(
+        None,
+        description="UTC event timestamp, used to look up the GcnEvent when gcnevent_id is not provided.",
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    localization_name: str | None = Field(
+        None,
+        description="Name of the localization, used to look it up when localization_id is not provided.",
+    )
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    plan_name: str | None = Field(None, description="Name of the observation plan.")
+    observation_plans: list[dict] | None = Field(
+        None,
+        description="Observation plans, each with its validity window and planned observations.",
+    )
+
+
+class ObservationPlanManualPostResponse(BaseModel):
+    """Data payload returned when submitting a manual observation plan request."""
+
+    id: int = Field(description="New observation plan request ID")
+
+
 class ObservationPlanManualRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self):
+    async def post(
+        self, *, body: ObservationPlanManualPostBody = None
+    ) -> ObservationPlanManualPostResponse:
         """
         ---
         summary: Submit manual observation plan request.
         description: Submit manual observation plan.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanManualHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanManualPostBody)
+        json_data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             stmt = GcnEvent.select(session.user_or_token)
@@ -2362,34 +2407,39 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             return self.success(data={"geojson": geojson})
 
 
+class ObservationPlanFieldsDeleteBody(BaseModel):
+    """Request body for removing fields from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fieldIds: list[int] | None = Field(
+        None, description="List of field IDs to remove from the plan"
+    )
+
+
 class ObservationPlanFieldsHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def delete(self, observation_plan_request_id: int):
+    async def delete(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanFieldsDeleteBody = None,
+    ):
         """
         ---
         summary: Delete fields from the observation plan.
         description: Delete selected fields from the observation plan.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema:
-                properties:
-                  fieldIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: List of field IDs to remove from the plan
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
-        data = self.get_json()
-        field_ids_to_remove = data.pop("fieldIds", None)
+        body = self.parse_body(ObservationPlanFieldsDeleteBody)
+        field_ids_to_remove = body.fieldIds
 
         if field_ids_to_remove is None:
             return self.error("Need to specify field IDs to remove")
@@ -2794,9 +2844,28 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class ObservationPlanCreateObservingRunPostBody(BaseModel):
+    """Request body for creating an observing run from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of the groups to share the created sources with. "
+            "Defaults to the allocation's group."
+        ),
+    )
+
+
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self, observation_plan_request_id: int):
+    async def post(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanCreateObservingRunPostBody = None,
+    ):
         """
         ---
         summary: Create observing run from observation plan.
@@ -2815,7 +2884,8 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservationPlanCreateObservingRunPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         try:
             observation_plan_request_id_int = int(observation_plan_request_id)
@@ -3649,36 +3719,60 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class DefaultObservationPlanPostBody(BaseModel):
+    """Request body for creating a default observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    default_plan_name: str | None = Field(
+        None, description="Unique name of the default observation plan."
+    )
+    payload: dict | None = Field(
+        None, description="Content of the default observation plan request."
+    )
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the default observation plan request with."
+        ),
+    )
+    filters: dict | None = Field(
+        None,
+        description=(
+            "Filters to determine which of the default observation plan requests get executed for which events."
+        ),
+    )
+    auto_send: bool | None = Field(
+        None, description="Automatically send to telescope queue?"
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class DefaultObservationPlanPostResponse(BaseModel):
+    """Data payload returned when creating a default observation plan request."""
+
+    id: int = Field(description="New default observation plan request ID")
+
+
 class DefaultObservationPlanRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self):
+    async def post(
+        self, *, body: DefaultObservationPlanPostBody = None
+    ) -> DefaultObservationPlanPostResponse:
         """
         ---
         summary: Create default observation plan requests.
         description: Create default observation plan requests.
         tags:
           - default observation plan
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default observation plan request ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultObservationPlanPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             if "default_plan_name" not in data:

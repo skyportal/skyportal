@@ -28,7 +28,7 @@ def _seed_sources_and_comments(api_, public_group, upload_data_token, comment_to
         status, data = api_(
             "POST",
             f"sources/{obj_id_base}_{i}/comments",
-            data={"obj_id": f"{obj_id_base}_{i}", "text": f"comment_text_{i}"},
+            data={"text": f"comment_text_{i}"},
             token=comment_token,
         )
         assert status == 200

@@ -204,12 +204,16 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       any
     >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
+        // Only the comment body keys; gcnevent_id is a path param.
+        const body: Record<string, any> = {};
+        if (formData.text !== undefined) body["text"] = formData.text;
+        if (formData.group_ids !== undefined)
+          body["group_ids"] = formData.group_ids;
+        if (formData.attachment) {
+          body["attachment"] = await fileReaderPromise(formData.attachment);
         }
         const result = await baseQuery({
-          url: `api/gcn_event/${body.gcnevent_id}/comments`,
+          url: `api/gcn_event/${formData.gcnevent_id}/comments`,
           method: "POST",
           body,
         });
@@ -236,9 +240,12 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
         _extra,
         baseQuery,
       ) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
+        const body: Record<string, any> = {};
+        if (formData.text !== undefined) body["text"] = formData.text;
+        if (formData.group_ids !== undefined)
+          body["group_ids"] = formData.group_ids;
+        if (formData.attachment) {
+          body["attachment"] = await fileReaderPromise(formData.attachment);
         }
         const result = await baseQuery({
           url: `api/gcn_event/${gcnEventID}/comments/${commentID}`,
@@ -407,11 +414,19 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       any,
       { dateobs: string; reportID: number | string; formData: any }
     >({
-      query: ({ dateobs, reportID, formData }) => ({
-        url: `api/gcn_event/${dateobs}/report/${reportID}`,
-        method: "PATCH",
-        body: formData,
-      }),
+      // Callers seed formData from the full fetched report; the API only accepts
+      // `data` and `published`, so send just those.
+      query: ({ dateobs, reportID, formData }) => {
+        const { data, published } = formData;
+        const requestBody: Record<string, any> = {};
+        if (data !== undefined) requestBody["data"] = data;
+        if (published !== undefined) requestBody["published"] = published;
+        return {
+          url: `api/gcn_event/${dateobs}/report/${reportID}`,
+          method: "PATCH",
+          body: requestBody,
+        };
+      },
       invalidatesTags: ["GcnEvent"],
     }),
   }),

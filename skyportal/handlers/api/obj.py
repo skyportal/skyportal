@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 import dustmaps.sfd
 import numpy as np
@@ -27,6 +27,84 @@ from ...utils.offset import _calculate_best_position_for_offset_stars
 from ..base import BaseHandler
 
 _, cfg = load_env()
+
+
+class ObjBody(BaseModel):
+    """Shared optional `Obj` fields accepted by the Obj marshmallow schema
+    (``Obj.__schema__()``) on source/candidate writes. Deep validation and
+    coercion are still performed by that schema; this only constrains the
+    top-level shape."""
+
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column; pydantic rejects int for `str` unless told to coerce.
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
+
+    ra: float | None = Field(None, description="ICRS Right Ascension [deg].")
+    dec: float | None = Field(None, description="ICRS Declination [deg].")
+    ra_dis: float | None = Field(
+        None, description="J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_dis: float | None = Field(
+        None, description="J2000 Declination at discovery time [deg]."
+    )
+    ra_err: float | None = Field(
+        None, description="Error on J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_err: float | None = Field(
+        None, description="Error on J2000 Declination at discovery time [deg]."
+    )
+    offset: float | None = Field(
+        None, description="Offset from nearest static object [arcsec]."
+    )
+    t0: float | None = Field(None, description="Reference time.")
+    redshift: float | None = Field(None, description="Redshift.")
+    redshift_error: float | None = Field(None, description="Redshift error.")
+    redshift_origin: str | None = Field(None, description="Redshift source.")
+    redshift_history: Any = Field(
+        None, description="Record of who set which redshift values and when."
+    )
+    host_id: int | None = Field(
+        None, description="The ID of the Galaxy to which this Obj is associated."
+    )
+    summary: str | None = Field(None, description="Summary of the obj.")
+    summary_history: Any = Field(
+        None,
+        description="Record of the summaries generated and written about this obj",
+    )
+    altdata: Any = Field(
+        None,
+        description="Misc. alternative metadata stored in JSON format, e.g. "
+        "`{'gaia': {'info': {'Teff': 5780}}}`",
+    )
+    dist_nearest_source: float | None = Field(
+        None, description="Distance to the nearest Obj [arcsec]."
+    )
+    mag_nearest_source: float | None = Field(
+        None, description="Magnitude of the nearest Obj [AB]."
+    )
+    e_mag_nearest_source: float | None = Field(
+        None, description="Error on magnitude of the nearest Obj [mag]."
+    )
+    transient: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is an astrophysical transient.",
+    )
+    varstar: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a variable star.",
+    )
+    is_roid: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a moving object.",
+    )
+    mpc_name: str | None = Field(None, description="Minor planet center name.")
+    tns_name: str | None = Field(None, description="Transient Name Server name.")
+    tns_info: Any = Field(None, description="TNS info in JSON format")
+    score: float | None = Field(None, description="Machine learning score.")
+    origin: str | None = Field(None, description="Origin of the object.")
+    alias: list[str] | None = Field(
+        None, description="Alternative names for this object."
+    )
 
 
 class ObjHandler(BaseHandler):
@@ -143,14 +221,7 @@ class ObjPositionHandler(BaseHandler):
         """
         query = self.parse_query(ObjPositionGetQuery)
 
-        instrument_ids = query.instrument_ids
-        stream_ids = query.stream_ids
-        stream_only = query.stream_only
-        snr_threshold = query.snr_threshold
-        method = query.method
-
-        # VALIDATE SNR THRESHOLD
-        if snr_threshold <= 0:
+        if query.snr_threshold <= 0:
             return self.error(
                 "Invalid snr_threshold parameter, must be a positive float"
             )
@@ -166,42 +237,32 @@ class ObjPositionHandler(BaseHandler):
                 return self.error(f"Could not load object with ID {obj_id}")
 
             try:
-                # DATABASE QUERY AND FILTERING
                 query_constraints = [
                     Photometry.obj_id == obj_id,
                     ~Photometry.origin.ilike(
                         "%fp%"
                     ),  # always exclude forced photometry
                 ]
-                if instrument_ids is not None:
+                if query.instrument_ids is not None:
                     query_constraints.append(
-                        Photometry.instrument_id.in_(instrument_ids)
+                        Photometry.instrument_id.in_(query.instrument_ids)
                     )
-                if stream_ids is not None:
-                    query_constraints.append(Photometry.stream_id.in_(stream_ids))
+                if query.stream_ids is not None:
+                    query_constraints.append(Photometry.stream_id.in_(query.stream_ids))
+
+                # `stream_ids` already restricts to streams on its own.
+                check_streams = query.stream_only and not query.stream_ids
 
                 phot_stmt = sa.select(Photometry).where(sa.and_(*query_constraints))
                 # `len(p.streams)` is checked below if `stream_only` is set;
                 # eager-load to avoid a MissingGreenlet inside the filter.
-                if stream_only and not stream_ids:
+                if check_streams:
                     phot_stmt = phot_stmt.options(selectinload(Photometry.streams))
                 photometry_result = await session.scalars(phot_stmt)
-                photometry = photometry_result.all()
-
-                # POST-QUERY FILTERING
-                additional_constraints = [
-                    lambda p: (
-                        p.flux / p.fluxerr > snr_threshold
-                    ),  # signal-to-noise ratio threshold
-                ]
-                if (
-                    stream_only and not stream_ids
-                ):  # if stream_ids are provided, we don't need to check for streams at all
-                    additional_constraints.append(lambda p: p and len(p.streams) > 0)
 
                 photometry = [
                     p
-                    for p in photometry
+                    for p in photometry_result.all()
                     if not np.isnan(p.flux)
                     and not np.isnan(p.fluxerr)
                     and p.fluxerr != 0
@@ -209,13 +270,14 @@ class ObjPositionHandler(BaseHandler):
                     and not np.isnan(p.ra)
                     and p.dec is not None
                     and not np.isnan(p.dec)
-                    and all(constraint(p) for constraint in additional_constraints)
+                    and p.flux / p.fluxerr > query.snr_threshold
+                    and (not check_streams or len(p.streams) > 0)
                 ]
 
                 ra, dec = _calculate_best_position_for_offset_stars(
                     photometry,
                     fallback=(obj.ra, obj.dec),
-                    how=method,
+                    how=query.method,
                 )
                 skycoord = ap_coord.SkyCoord(obj.ra, obj.dec, unit="deg")
                 return self.success(

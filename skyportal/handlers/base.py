@@ -88,7 +88,12 @@ class BaseHandler(BaselayerHandler):
         error response and raises tornado.web.Finish to abort the handler.
         """
         try:
-            return model.model_validate(self.get_json())
+            data = self.get_json()
+        except Exception as e:
+            self.error(f"Error parsing JSON: {e}")
+            raise Finish() from None
+        try:
+            return model.model_validate(data)
         except PydanticValidationError as e:
             self.error(f"Invalid/missing parameters: {format_validation_errors(e)}")
             raise Finish() from None

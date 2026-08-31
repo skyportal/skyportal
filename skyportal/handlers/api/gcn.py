@@ -214,6 +214,266 @@ async def resolve_gcnevent_groups(session, user, group_ids=None):
     return [public_group]
 
 
+class GcnEventAliasPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alias: str | None = Field(default=None, description="Alias to add to the event")
+
+
+class GcnEventAliasDeleteBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alias: str | None = Field(
+        default=None, description="Alias to remove from the event"
+    )
+
+
+class GcnEventTagPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dateobs: str | None = Field(default=None, description="UTC event timestamp")
+    text: str | None = Field(default=None, description="GCN Event tag")
+
+
+class GcnEventTagPostResponse(BaseModel):
+    gcntag_id: int = Field(description="New GcnEvent Tag ID")
+
+
+class GcnEventTagDeleteBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tag: str | None = Field(default=None, description="Tag to remove from the event")
+
+
+class GcnEventPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    xml: str | None = Field(default=None, description="VOEvent XML content.")
+    json_notice: str | dict | None = Field(
+        default=None, alias="json", description="JSON notice content."
+    )
+    dateobs: str | None = Field(default=None, description="UTC event timestamp")
+    trigger_id: str | int | None = Field(
+        default=None, description="Trigger ID of the event, if any"
+    )
+    aliases: list[str] | None = Field(default=None, description="Event aliases")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups the event is readable by. Defaults to the sitewide "
+        "public group.",
+    )
+    tags: list[str] | None = Field(default=None, description="Event tags")
+    properties: dict | None = Field(default=None, description="Event properties")
+    skymap: dict | str | None = Field(
+        default=None,
+        description="Localization skymap: a dict (cone/ellipse/polygon/healpix), "
+        "a base64/bytes string, or a URL.",
+    )
+
+
+class GcnEventPostResponse(BaseModel):
+    gcnevent_id: int | None = Field(description="New GcnEvent ID")
+    dateobs: str | None = Field(description="UTC event timestamp of the event")
+    notice_id: int | None = Field(description="ID of the created GCN notice, if any")
+
+
+class GcnEventUserPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    userID: int | None = Field(
+        default=None, description="ID of the user to add as advocate"
+    )
+
+
+class GcnSummaryPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, description="Title of the summary")
+    number: str | int | None = Field(default=None, description="GCN circular number")
+    subject: str | None = Field(default=None, description="Subject of the summary")
+    userIds: list[int] | int | None = Field(
+        default=None,
+        description="User ids to mention in the summary. Comma-separated.",
+    )
+    groupId: int | None = Field(
+        default=None, description="id of the group that creates the summary."
+    )
+    startDate: str | None = Field(default=None, description="Filter by start date")
+    endDate: str | None = Field(default=None, description="Filter by end date")
+    localizationName: str | None = Field(
+        default=None, description="Name of localization / skymap to use."
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    numberDetections: int | None = Field(
+        default=2,
+        description="Return only sources who have at least numberDetections detections. Defaults to 2.",
+    )
+    numberObservations: int | None = Field(
+        default=1,
+        description="Return only sources with at least this many observations. Defaults to 1.",
+    )
+    showSources: bool = Field(default=False, description="Show sources in the summary")
+    showGalaxies: bool = Field(
+        default=False, description="Show galaxies in the summary"
+    )
+    showObservations: bool = Field(
+        default=False, description="Show observations in the summary"
+    )
+    noText: bool = Field(
+        default=False, description="Do not include text in the summary, only tables."
+    )
+    photometryInWindow: bool = Field(
+        default=False,
+        description="Limit photometry to that within startDate and endDate.",
+    )
+    statsMethod: str = Field(
+        default="python",
+        description="Method to use for calculating statistics. Defaults to python. Options are python and db.",
+    )
+    instrumentIds: list[int] | None = Field(
+        default=None,
+        description="List of instrument ids to include in the summary. Defaults to all instruments if not specified.",
+    )
+    acknowledgements: str | None = Field(
+        default=None, description="Acknowledgements to include in the summary."
+    )
+
+
+class GcnSummaryPostResponse(BaseModel):
+    id: int = Field(description="ID of the created GCN summary")
+
+
+class GcnSummaryPatchBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str | None = Field(default=None, description="Updated summary text")
+
+
+class GcnReportPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reportName: str | None = Field(default=None, description="Name of the report")
+    groupId: int | None = Field(
+        default=None, description="id of the group that creates the report."
+    )
+    startDate: str | None = Field(default=None, description="Filter by start date")
+    endDate: str | None = Field(default=None, description="Filter by end date")
+    localizationName: str | None = Field(
+        default=None, description="Name of localization / skymap to use."
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    numberDetections: int | None = Field(
+        default=2,
+        description="Return only sources who have at least numberDetections detections. Defaults to 2.",
+    )
+    showSources: bool = Field(default=False, description="Show sources in the report")
+    showObservations: bool = Field(
+        default=False, description="Show observations in the report"
+    )
+    showSurveyEfficiencies: bool = Field(
+        default=False, description="Show survey efficiencies in the report"
+    )
+    photometryInWindow: bool = Field(
+        default=False,
+        description="Limit photometry to that within startDate and endDate.",
+    )
+    statsMethod: str = Field(
+        default="python",
+        description="Method to use for calculating statistics. Defaults to python. Options are python and db.",
+    )
+    instrumentIds: list[int] | None = Field(
+        default=None,
+        description="List of instrument ids to include in the report. Defaults to all instruments if not specified.",
+    )
+
+
+class GcnReportPatchBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: dict | None = Field(
+        default=None, description="Report data (e.g. sources) to update"
+    )
+    published: bool | None = Field(
+        default=None, description="Whether the report is published"
+    )
+
+
+class GcnEventTriggerPutBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    triggered: bool | str | None = Field(
+        default=None,
+        description="Triggered status of the allocation for this event",
+    )
+
+
+class ObjGcnEventPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). "
+        "If provided, filter by GcnEvent.dateobs >= startDate.",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). "
+        "If provided, filter by GcnEvent.dateobs <= endDate.",
+    )
+    probability: float | None = Field(
+        default=None,
+        description="Integrated probability contour to crossmatch within (default 0.95).",
+    )
+    beforeFirstDetection: bool = Field(
+        default=False,
+        description="If true, only crossmatch GCN events at or before the source's "
+        "first detection.",
+    )
+    gcnTagKeep: list[str] | str | None = Field(
+        default=None, description="Only crossmatch events having any of these GCN tags."
+    )
+    gcnTagRemove: list[str] | str | None = Field(
+        default=None, description="Exclude events having any of these GCN tags."
+    )
+    localizationTagKeep: list[str] | str | None = Field(
+        default=None,
+        description="Only crossmatch events with a localization having any of these tags.",
+    )
+    localizationTagRemove: list[str] | str | None = Field(
+        default=None,
+        description="Exclude events with a localization having any of these tags.",
+    )
+    gcnPropertiesFilter: list[str] | str | None = Field(
+        default=None,
+        description='GCN property filters, each "name" or "name:value:op" '
+        "(op in lt,le,eq,ne,ge,gt).",
+    )
+    localizationPropertiesFilter: list[str] | str | None = Field(
+        default=None,
+        description="Localization property filters, same format as gcnPropertiesFilter.",
+    )
+
+
+class DefaultGcnTagPostBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default_tag_name: str | None = Field(default=None, description="Default tag name.")
+    filters: dict | None = Field(
+        default=None,
+        description="Filters to determine which of the default gcn tags get executed for which events",
+    )
+
+
+class DefaultGcnTagPostResponse(BaseModel):
+    id: int = Field(description="New default gcn tag ID")
+
+
 async def post_gcn_source(
     dateobs: str,
     localization_name: str,
@@ -1352,6 +1612,8 @@ class GcnEventAliasesHandler(BaseHandler):
             str,
             Field(description="The dateobs of the event, as an arrow parseable string"),
         ],
+        *,
+        body: GcnEventAliasPostBody = None,
     ):
         """
         ---
@@ -1359,17 +1621,6 @@ class GcnEventAliasesHandler(BaseHandler):
         description: Post a GCN Event alias
         tags:
           - gcn events
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  alias:
-                    type: string
-                    description: Alias to add to the event
-                required:
-                  - alias
         responses:
           200:
             content:
@@ -1380,13 +1631,11 @@ class GcnEventAliasesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        alias = data.get("alias", None)
+        body = self.parse_body(GcnEventAliasPostBody)
+        alias = body.alias
 
         if alias is None:
             return self.error("alias must be present in data")
-        if type(alias) is not str:
-            return self.error("alias must be a string")
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -1422,24 +1671,13 @@ class GcnEventAliasesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, dateobs: str):
+    async def delete(self, dateobs: str, *, body: GcnEventAliasDeleteBody = None):
         """
         ---
         summary: Delete a GCN Event alias
         description: Delete a GCN event alias
         tags:
           - gcn events
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  alias:
-                    type: string
-                    description: Alias to remove from the event
-                required:
-                  - alias
         responses:
           200:
             content:
@@ -1451,8 +1689,8 @@ class GcnEventAliasesHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        alias = data.get("alias")
+        body = self.parse_body(GcnEventAliasDeleteBody)
+        alias = body.alias
 
         if alias is None:
             return self.error("alias must be present in data to remove")
@@ -1556,37 +1794,19 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data=tags)
 
     @auth_or_token
-    async def post(self, dateobs: str = None, tag: str = None):
+    async def post(
+        self, dateobs: str = None, tag: str = None, *, body: GcnEventTagPostBody = None
+    ) -> GcnEventTagPostResponse:
         """
         ---
         summary: Post a GCN Event tag
         description: Post a GCN Event tag
         tags:
           - gcn event tags
-        requestBody:
-          content:
-            application/json:
-              schema: GcnEventTagPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New GcnEvent Tag ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        dateobs = data.get("dateobs", None)
-        text = data.get("text", None)
+        body = self.parse_body(GcnEventTagPostBody)
+        dateobs = body.dateobs
+        text = body.text
 
         if dateobs is None:
             return self.error("dateobs must be present in data to add GcnTag")
@@ -1634,7 +1854,7 @@ class GcnEventTagsHandler(BaseHandler):
             return self.success(data={"gcntag_id": tag.id})
 
     @auth_or_token
-    async def delete(self, dateobs: str):
+    async def delete(self, dateobs: str, *, body: GcnEventTagDeleteBody = None):
         """
         ---
         summary: Delete a GCN Event tag
@@ -1658,8 +1878,8 @@ class GcnEventTagsHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        tag = data.get("tag")
+        body = self.parse_body(GcnEventTagDeleteBody)
+        tag = body.tag
         if tag is None:
             return self.error("tag must be present in data to remove GcnTag")
 
@@ -1969,7 +2189,7 @@ class GcnEventGetQuery(BaseModel):
 
 class GcnEventHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: GcnEventPostBody = None) -> GcnEventPostResponse:
         """
         ---
         summary: Post a GCN Event from xml/json/dictionary
@@ -1977,32 +2197,12 @@ class GcnEventHandler(BaseHandler):
         tags:
           - gcn events
           - localizations
-        requestBody:
-          content:
-            application/json:
-              schema: GcnHandlerPut
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New GcnEvent ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(GcnEventPostBody)
+        fields_set = body.model_fields_set
         # If neither an XML nor a JSON notice is provided, a dateobs must be specified
-        if not any(format in data for format in ["xml", "json"]):
-            required_keys = {"dateobs"}
-            if not required_keys.issubset(set(data.keys())):
+        if not any(fmt in fields_set for fmt in ["xml", "json_notice"]):
+            if "dateobs" not in fields_set:
                 return self.error(
                     "Either xml, json or dateobs must be present in data to parse a GcnEvent"
                 )
@@ -2010,17 +2210,19 @@ class GcnEventHandler(BaseHandler):
         event_id, dateobs, notice_id = None, None, None
         async with self.AsyncSession() as session:
             try:
-                if "xml" in data:
+                if "xml" in fields_set:
                     dateobs, event_id, notice_id = await post_gcnevent_from_xml(
-                        data["xml"], self.associated_user_object.id, session
+                        body.xml, self.associated_user_object.id, session
                     )
-                elif "json" in data:
+                elif "json_notice" in fields_set:
                     dateobs, event_id, notice_id = await post_gcnevent_from_json(
-                        data["json"], self.associated_user_object.id, session
+                        body.json_notice, self.associated_user_object.id, session
                     )
                 else:
                     dateobs, event_id = await post_gcnevent_from_dictionary(
-                        data, self.associated_user_object.id, session
+                        body.model_dump(exclude_unset=True),
+                        self.associated_user_object.id,
+                        session,
                     )
 
                 self.push(action="skyportal/REFRESH_GCN_EVENTS")
@@ -2472,7 +2674,9 @@ class GcnEventHandler(BaseHandler):
 
 class GcnEventUserHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs: str, *ignored_args):
+    async def post(
+        self, dateobs: str, *ignored_args, body: GcnEventUserPostBody = None
+    ):
         """
         ---
         summary: Add a user as GCN event advocate
@@ -2480,16 +2684,6 @@ class GcnEventUserHandler(BaseHandler):
         tags:
           - gcn events
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userID:
-                    type: integer
-                required:
-                  - userID
         responses:
           200:
             content:
@@ -2497,15 +2691,11 @@ class GcnEventUserHandler(BaseHandler):
                 schema: Success
         """
 
-        data = self.get_json()
+        body = self.parse_body(GcnEventUserPostBody)
 
-        user_id = data.get("userID", None)
+        user_id = body.userID
         if user_id is None:
             return self.error("userID parameter must be specified")
-        try:
-            user_id = int(user_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid userID parameter: unable to parse to integer")
 
         try:
             dateobs_parsed = arrow.get(dateobs).naive
@@ -4165,148 +4355,42 @@ def add_gcn_summary(
 
 class GcnSummaryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs: str, summary_id: int | None = None):
+    async def post(
+        self,
+        dateobs: str,
+        summary_id: int | None = None,
+        *,
+        body: GcnSummaryPostBody = None,
+    ) -> GcnSummaryPostResponse:
         """
         ---
-          summary: Create a GCN summary
-          description: Post a summary of a GCN event.
-          tags:
-            - gcn events
-            - gcn event summaries
-          parameters:
-            - in: body
-              name: title
-              schema:
-                type: string
-            - in: body
-              name: number
-              schema:
-                type: string
-            - in: body
-              name: subject
-              schema:
-                type: string
-            - in: body
-              name: userIds
-              schema:
-                type: string
-              description: User ids to mention in the summary. Comma-separated.
-            - in: body
-              name: groupId
-              required: true
-              schema:
-                type: string
-              description: id of the group that creates the summary.
-            - in: body
-              name: startDate
-              required: true
-              schema:
-                type: string
-              description: Filter by start date
-            - in: body
-              name: endDate
-              required: true
-              schema:
-                type: string
-              description: Filter by end date
-            - in: body
-              name: localizationName
-              schema:
-                type: string
-              description: Name of localization / skymap to use.
-            - in: body
-              name: localizationCumprob
-              schema:
-                type: number
-              description: Cumulative probability up to which to include fields. Defaults to 0.95.
-            - in: body
-              name: numberDetections
-              nullable: true
-              schema:
-                type: number
-              description: Return only sources who have at least numberDetections detections. Defaults to 2.
-            - in: body
-              name: showSources
-              required: true
-              schema:
-                type: bool
-              description: Show sources in the summary
-            - in: body
-              name: showGalaxies
-              required: true
-              schema:
-                type: bool
-              description: Show galaxies in the summary
-            - in: body
-              name: showObservations
-              required: true
-              schema:
-                type: bool
-              description: Show observations in the summary
-            - in: body
-              name: noText
-              schema:
-                type: bool
-              description: Do not include text in the summary, only tables.
-            - in: body
-              name: photometryInWindow
-              schema:
-                type: bool
-              description: Limit photometry to that within startDate and endDate.
-            - in: body
-              name: statsMethod
-              schema:
-                type: string
-              description: Method to use for calculating statistics. Defaults to python. Options are python and db.
-            - in: body
-              name: instrumentIds
-              schema:
-                type: string
-              description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
-            - in: body
-              name: acknowledgements
-              schema:
-                type: string
-              description: Acknowledgements to include in the summary.
-
-          responses:
-            200:
-              content:
-                application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            type: string
-                            description: GCN summary
-            400:
-              content:
-                application/json:
-                  schema: Error
+        summary: Create a GCN summary
+        description: Post a summary of a GCN event.
+        tags:
+          - gcn events
+          - gcn event summaries
         """
 
-        data = self.get_json()
-        title = data.get("title", None)
-        number = data.get("number", None)
-        subject = data.get("subject")
-        user_ids = data.get("userIds", None)
-        group_id = data.get("groupId", None)
-        start_date = data.get("startDate", None)
-        end_date = data.get("endDate", None)
-        localization_name = data.get("localizationName", None)
-        localization_cumprob = float(data.get("localizationCumprob", 0.95))
-        number_of_detections = data.get("numberDetections", 2)
-        number_of_observations = data.get("numberObservations", 1)
-        show_sources = data.get("showSources", False)
-        show_galaxies = data.get("showGalaxies", False)
-        show_observations = data.get("showObservations", False)
-        no_text = data.get("noText", False)
-        photometry_in_window = data.get("photometryInWindow", False)
-        stats_method = data.get("statsMethod", "python")
-        instrument_ids = data.get("instrumentIds", None)
-        acknowledgements = data.get("acknowledgements", None)
+        body = self.parse_body(GcnSummaryPostBody)
+        title = body.title
+        number = body.number
+        subject = body.subject
+        user_ids = body.userIds
+        group_id = body.groupId
+        start_date = body.startDate
+        end_date = body.endDate
+        localization_name = body.localizationName
+        localization_cumprob = body.localizationCumprob
+        number_of_detections = body.numberDetections
+        number_of_observations = body.numberObservations
+        show_sources = body.showSources
+        show_galaxies = body.showGalaxies
+        show_observations = body.showObservations
+        no_text = body.noText
+        photometry_in_window = body.photometryInWindow
+        stats_method = body.statsMethod
+        instrument_ids = body.instrumentIds
+        acknowledgements = body.acknowledgements
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, load_default=None)
@@ -4517,21 +4601,15 @@ class GcnSummaryHandler(BaseHandler):
             return self.success(data=summary)
 
     @auth_or_token
-    async def patch(self, dateobs: str, summary_id: int):
+    async def patch(
+        self, dateobs: str, summary_id: int, *, body: GcnSummaryPatchBody = None
+    ):
         """
         summary: Update a GCN summary
         description: Update a GCN summary
         tags:
           - gcn events
           - gcn event summaries
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  text:
-                    type: string
         responses:
           200:
             content:
@@ -4542,8 +4620,8 @@ class GcnSummaryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(GcnSummaryPatchBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
 
         if summary_id is None:
@@ -4572,9 +4650,8 @@ class GcnSummaryHandler(BaseHandler):
             if summary is None:
                 return self.error("Summary not found", status=404)
 
-            if data["body"] != {}:
-                body_str = data["body"].strip('"')
-                summary.text = body_str
+            if body.body is not None:
+                summary.text = body.body.strip('"')
             else:
                 return self.error("body not found")
 
@@ -4923,120 +5000,44 @@ def add_gcn_report(
         Session.remove()
 
 
+class GcnReportPostResponse(BaseModel):
+    """ID of the created GCN report."""
+
+    id: int = Field(description="ID of the created GCN report")
+
+
 class GcnReportHandler(BaseHandler):
     @auth_or_token
-    async def post(self, dateobs: str, summary_id: int | None = None):
+    async def post(
+        self,
+        dateobs: str,
+        report_id: int | None = None,
+        *,
+        body: GcnReportPostBody = None,
+    ) -> GcnReportPostResponse:
         """
         ---
-          summary: Create a GCN report
-          description: Post report data of a GCN event.
-          tags:
-            - gcn events
-            - gcn event reports
-          parameters:
-            - in: body
-              name: report_name
-              schema:
-                type: string
-            - in: body
-              name: groupId
-              required: true
-              schema:
-                type: string
-              description: id of the group that creates the summary.
-            - in: body
-              name: startDate
-              required: true
-              schema:
-                type: string
-              description: Filter by start date
-            - in: body
-              name: endDate
-              required: true
-              schema:
-                type: string
-              description: Filter by end date
-            - in: body
-              name: localizationName
-              schema:
-                type: string
-              description: Name of localization / skymap to use.
-            - in: body
-              name: localizationCumprob
-              schema:
-                type: number
-              description: Cumulative probability up to which to include fields. Defaults to 0.95.
-            - in: body
-              name: numberDetections
-              nullable: true
-              schema:
-                type: number
-              description: Return only sources who have at least numberDetections detections. Defaults to 2.
-            - in: body
-              name: showSources
-              required: true
-              schema:
-                type: bool
-              description: Show sources in the summary
-            - in: body
-              name: showObservations
-              required: true
-              schema:
-                type: bool
-              description: Show observations in the summary
-            - in: body
-              name: noText
-              schema:
-                type: bool
-              description: Do not include text in the summary, only tables.
-            - in: body
-              name: photometryInWindow
-              schema:
-                type: bool
-              description: Limit photometry to that within startDate and endDate.
-            - in: body
-              name: statsMethod
-              schema:
-                type: string
-              description: Method to use for calculating statistics. Defaults to python. Options are python and db.
-            - in: body
-              name: instrumentIds
-              schema:
-                type: string
-              description: List of instrument ids to include in the summary. Defaults to all instruments if not specified.
-
-          responses:
-            200:
-              content:
-                application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            type: string
-                            description: GCN summary
-            400:
-              content:
-                application/json:
-                  schema: Error
+        summary: Create a GCN report
+        description: Post report data of a GCN event.
+        tags:
+          - gcn events
+          - gcn event reports
         """
 
-        data = self.get_json()
-        report_name = data.get("reportName", None)
-        group_id = data.get("groupId", None)
-        start_date = data.get("startDate", None)
-        end_date = data.get("endDate", None)
-        localization_name = data.get("localizationName", None)
-        localization_cumprob = float(data.get("localizationCumprob", 0.95))
-        number_of_detections = data.get("numberDetections", 2)
-        show_sources = data.get("showSources", False)
-        show_observations = data.get("showObservations", False)
-        show_survey_efficiencies = data.get("showSurveyEfficiencies", False)
-        photometry_in_window = data.get("photometryInWindow", False)
-        stats_method = data.get("statsMethod", "python")
-        instrument_ids = data.get("instrumentIds", None)
+        body = self.parse_body(GcnReportPostBody)
+        report_name = body.reportName
+        group_id = body.groupId
+        start_date = body.startDate
+        end_date = body.endDate
+        localization_name = body.localizationName
+        localization_cumprob = body.localizationCumprob
+        number_of_detections = body.numberDetections
+        show_sources = body.showSources
+        show_observations = body.showObservations
+        show_survey_efficiencies = body.showSurveyEfficiencies
+        photometry_in_window = body.photometryInWindow
+        stats_method = body.statsMethod
+        instrument_ids = body.instrumentIds
 
         class Validator(Schema):
             start_date = UTCTZnaiveDateTime(required=False, load_default=None)
@@ -5153,7 +5154,7 @@ class GcnReportHandler(BaseHandler):
                         instrument_ids=instrument_ids,
                     ),
                 )
-                return self.success({"id": summary_id})
+                return self.success({"id": report_id})
             except Exception as e:
                 return self.error(f"Error generating report: {e}")
 
@@ -5227,20 +5228,14 @@ class GcnReportHandler(BaseHandler):
             return self.success(data=report)
 
     @auth_or_token
-    async def patch(self, dateobs: str, report_id: int):
+    async def patch(
+        self, dateobs: str, report_id: int, *, body: GcnReportPatchBody = None
+    ):
         """
         summary: Update a GCN report
         description: Update a GCN report
         tags:
           - gcn events
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: object
         responses:
           200:
             content:
@@ -5251,8 +5246,8 @@ class GcnReportHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(GcnReportPatchBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
 
         if report_id is None:
@@ -5283,9 +5278,9 @@ class GcnReportHandler(BaseHandler):
 
             report_id = report.id
 
-            if "data" in data:
-                if data["data"] != {}:
-                    new_data = data["data"]
+            if "data" in body.model_fields_set:
+                if body.data != {}:
+                    new_data = body.data
                     if len(new_data.get("sources", [])) > 0:
                         try:
                             loop = asyncio.get_event_loop()
@@ -5355,10 +5350,8 @@ class GcnReportHandler(BaseHandler):
                 else:
                     return self.error("data not found")
 
-            if data.get("published", None) is not None and isinstance(
-                data.get("published", None), bool
-            ):
-                publish = data["published"]
+            if body.published is not None and isinstance(body.published, bool):
+                publish = body.published
                 if publish:
                     report.publish()
                 else:
@@ -5785,16 +5778,17 @@ class GcnEventTriggerHandler(BaseHandler):
                     )
 
     @permissions(["Manage allocations"])
-    async def put(self, dateobs: str, allocation_id: int):
+    async def put(
+        self, dateobs: str, allocation_id: int, *, body: GcnEventTriggerPutBody = None
+    ):
+        body = self.parse_body(GcnEventTriggerPutBody)
         dateobs = dateobs.strip()
         try:
             dateobs_parsed = arrow.get(dateobs).naive
         except arrow.parser.ParserError as e:
             return self.error(f"Failed to parse dateobs: str({e})")
 
-        data = self.get_json()
-
-        triggered = data.get("triggered", None)
+        triggered = body.triggered
         if triggered is None:
             return self.error("Must specify triggered status")
         elif triggered in ["True", "true", "t", "T", True, "triggered"]:
@@ -6049,71 +6043,13 @@ def parse_gcn_filter_list(value, name):
 
 class ObjGcnEventHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: str, *, body: ObjGcnEventPostBody = None):
         """
         ---
         summary: Crossmatch an object with GCN events
         description: Retrieve an object's in-out critera for GcnEvents
         tags:
           - objs
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  startDate:
-                    type: string
-                    required: true
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                      If provided, filter by GcnEvent.dateobs >= startDate.
-                  endDate:
-                    type: string
-                    required: true
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01).
-                      If provided, filter by GcnEvent.dateobs <= startDate.
-                  probability:
-                    type: number
-                    description: Integrated probability contour to crossmatch within (default 0.95).
-                  beforeFirstDetection:
-                    type: boolean
-                    description: |
-                      If true, only crossmatch GCN events at or before the source's
-                      first detection.
-                  gcnTagKeep:
-                    type: array
-                    items:
-                      type: string
-                    description: Only crossmatch events having any of these GCN tags.
-                  gcnTagRemove:
-                    type: array
-                    items:
-                      type: string
-                    description: Exclude events having any of these GCN tags.
-                  localizationTagKeep:
-                    type: array
-                    items:
-                      type: string
-                    description: Only crossmatch events with a localization having any of these tags.
-                  localizationTagRemove:
-                    type: array
-                    items:
-                      type: string
-                    description: Exclude events with a localization having any of these tags.
-                  gcnPropertiesFilter:
-                    type: array
-                    items:
-                      type: string
-                    description: |
-                      GCN property filters, each "name" or "name:value:op"
-                      (op in lt,le,eq,ne,ge,gt).
-                  localizationPropertiesFilter:
-                    type: array
-                    items:
-                      type: string
-                    description: Localization property filters, same format as gcnPropertiesFilter.
         responses:
           200:
             content:
@@ -6125,28 +6061,26 @@ class ObjGcnEventHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        start_date = data.get("startDate", None)
-        end_date = data.get("endDate", None)
-        integrated_probability = data.get("probability", None)
-        before_first_detection = data.get("beforeFirstDetection", False)
+        body = self.parse_body(ObjGcnEventPostBody)
+        start_date = body.startDate
+        end_date = body.endDate
+        integrated_probability = body.probability
+        before_first_detection = body.beforeFirstDetection
 
         try:
-            gcn_tag_keep = parse_gcn_filter_list(data.get("gcnTagKeep"), "gcnTagKeep")
-            gcn_tag_remove = parse_gcn_filter_list(
-                data.get("gcnTagRemove"), "gcnTagRemove"
-            )
+            gcn_tag_keep = parse_gcn_filter_list(body.gcnTagKeep, "gcnTagKeep")
+            gcn_tag_remove = parse_gcn_filter_list(body.gcnTagRemove, "gcnTagRemove")
             localization_tag_keep = parse_gcn_filter_list(
-                data.get("localizationTagKeep"), "localizationTagKeep"
+                body.localizationTagKeep, "localizationTagKeep"
             )
             localization_tag_remove = parse_gcn_filter_list(
-                data.get("localizationTagRemove"), "localizationTagRemove"
+                body.localizationTagRemove, "localizationTagRemove"
             )
             gcn_properties_filter = parse_gcn_filter_list(
-                data.get("gcnPropertiesFilter"), "gcnPropertiesFilter"
+                body.gcnPropertiesFilter, "gcnPropertiesFilter"
             )
             localization_properties_filter = parse_gcn_filter_list(
-                data.get("localizationPropertiesFilter"), "localizationPropertiesFilter"
+                body.localizationPropertiesFilter, "localizationPropertiesFilter"
             )
         except ValueError as e:
             return self.error(str(e))
@@ -6377,64 +6311,49 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
 
 class DefaultGcnTagHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    async def post(self):
+    async def post(
+        self, *, body: DefaultGcnTagPostBody = None
+    ) -> DefaultGcnTagPostResponse:
         """
         ---
         summary: Create a default gcn tag
         description: Create default gcn tag.
         tags:
           - gcn event default tags
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultGcnTagPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default gcn tag ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultGcnTagPostBody)
 
         async with self.AsyncSession() as session:
-            if "default_tag_name" not in data:
+            if "default_tag_name" not in body.model_fields_set:
                 return self.error("Missing default_tag_name")
             else:
                 stmt = DefaultGcnTag.select(session.user_or_token).where(
-                    DefaultGcnTag.default_tag_name == data["default_tag_name"]
+                    DefaultGcnTag.default_tag_name == body.default_tag_name
                 )
                 existing_default_tag = await session.scalar(stmt)
                 if existing_default_tag is not None:
                     return self.error(
-                        f"A default tag called {data['default_tag_name']} already exists. That name must be unique."
+                        f"A default tag called {body.default_tag_name} already exists. That name must be unique."
                     )
 
-            if "filters" in data:
-                if not isinstance(data["filters"], dict):
+            if "filters" in body.model_fields_set:
+                if not isinstance(body.filters, dict):
                     return self.error("filters must be a dictionary")
-                if not set(data["filters"].keys()).issubset(
+                if not set(body.filters.keys()).issubset(
                     {"gcn_tags", "notice_types", "localization_tags"}
                 ):
                     return self.error(
                         'filters must be a dictionary with keys in ["gcn_tags", "notice_types", "localization_tags"]'
                     )
-                for key in data["filters"]:
-                    if not isinstance(data["filters"][key], list):
+                for key in body.filters:
+                    if not isinstance(body.filters[key], list):
                         return self.error(f"filters[{key}] must be a list")
-                    if not all(isinstance(item, str) for item in data["filters"][key]):
+                    if not all(isinstance(item, str) for item in body.filters[key]):
                         return self.error(f"filters[{key}] must be a list of strings")
 
-            default_gcn_tag = DefaultGcnTag.__schema__().load(data)
+            default_gcn_tag = DefaultGcnTag.__schema__().load(
+                body.model_dump(exclude_unset=True)
+            )
 
             session.add(default_gcn_tag)
             await session.commit()

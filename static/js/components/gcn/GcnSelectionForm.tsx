@@ -600,8 +600,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       localizationCumprob: filterParams.localizationCumprob,
       localizationName: filterParams.localizationName,
       localizationDateobs: dateobs,
-      numberObservations: filterParams?.numberDetections || 1,
-      requireDetections: filterParams?.requireDetections,
     };
     try {
       await submitObservationsTreasureMap({ id, data }).unwrap();

@@ -2,7 +2,7 @@ import copy
 from typing import Annotated, Any, Literal
 
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -98,6 +98,173 @@ def set_default(session, broker, field, value):
     setattr(broker, field, value)
 
 
+class BrokerPostBody(BaseModel):
+    """Request body for creating a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the broker connection.")
+    broker_classname: str | None = Field(
+        default=None, description="A registered BrokerAPI provider class name."
+    )
+    altdata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Endpoints/credentials for this broker instance.",
+    )
+    active: bool = Field(
+        default=True, description="Whether the broker connection is active."
+    )
+    default_alert_search: bool = Field(
+        default=False,
+        description="Make this the broker the source page searches alerts on.",
+    )
+    default_crossmatch: bool = Field(
+        default=False, description="Make this the broker cross-matches are run against."
+    )
+
+
+class BrokerPatchBody(BaseModel):
+    """Request body for updating a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the broker connection.")
+    active: bool | None = Field(
+        default=None, description="Whether the broker connection is active."
+    )
+    altdata: dict[str, Any] | None = Field(
+        default=None, description="Endpoints/credentials for this broker instance."
+    )
+    default_alert_search: bool | None = Field(
+        default=None,
+        description="Make this the broker the source page searches alerts on.",
+    )
+    default_crossmatch: bool | None = Field(
+        default=None, description="Make this the broker cross-matches are run against."
+    )
+
+
+class BrokerSaveBody(BaseModel):
+    """Request body for saving a broker alert as a source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None, description="Group IDs the saved source should belong to."
+    )
+
+
+class BrokerFilterTestBody(RootModel[dict[str, Any]]):
+    """Filter parameters specific to the broker's filter_kind, passed through to
+    the provider (e.g. Lasair's selected/tables/conditions, BOOM's pipeline)."""
+
+
+class BrokerFilterValidateBody(BaseModel):
+    """Request body for validating a broker filter version for activation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fid: int | None = Field(
+        default=None, description="Filter version id (fid) to validate."
+    )
+
+
+class BrokerFilterModuleWriteBody(BaseModel):
+    """Request body for creating/updating a broker custom filter module."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    elements: str | None = Field(
+        default=None,
+        description="Custom filter-module element type "
+        "(one of variables/listVariables/switchCases/blocks).",
+    )
+    data: dict[str, Any] | None = Field(
+        default=None, description="The module payload to store."
+    )
+
+
+class BrokerFiltersPostBody(BaseModel):
+    """Request body for creating a broker filter version."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: dict[str, Any] | None = Field(
+        default=None,
+        description="Query-kind (e.g. Lasair) filter with selected/tables/conditions.",
+    )
+    altdata: dict[str, Any] | None = Field(
+        default=None,
+        description="Compiled native filter (pipeline) forwarded to the broker.",
+    )
+    filters: Any = Field(
+        default=None,
+        description="Editable version tree stored alongside the broker filter id.",
+    )
+    name: str | None = Field(
+        default=None,
+        description="Filter name (informational; the skyportal Filter name is "
+        "used server-side).",
+    )
+    autosave: bool | None = Field(
+        default=None,
+        description="Whether candidates passing the filter are auto-saved as sources.",
+    )
+
+
+class BrokerFiltersPatchBody(BaseModel):
+    """Request body for updating a broker filter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    active: bool | None = Field(
+        default=None, description="Whether the selected filter version is active."
+    )
+    active_fid: int | str | None = Field(
+        default=None, description="Filter version id (fid) to activate."
+    )
+    autoAnnotate: bool | None = Field(
+        default=None, description="Whether to auto-annotate on filter passage."
+    )
+    autoSave: bool | None = Field(
+        default=None, description="Whether to auto-save on filter passage."
+    )
+    autoFollowup: bool | None = Field(
+        default=None, description="Whether to auto-trigger followup on filter passage."
+    )
+    autoSaveIgnoreGroupIds: list[int] | None = Field(
+        default=None,
+        description="Groups whose members are not auto-saved (e.g. junk).",
+    )
+    autoSaveIgnoreRadius: float | str | None = Field(
+        default=None,
+        description="Skip auto-save if a junk-group source lies within this "
+        "many arcsec. Null or empty string clears it.",
+    )
+    autoSaveSaverId: int | str | None = Field(
+        default=None,
+        description="User the auto-saves are attributed to; must be a member "
+        "of the filter's group. Null or empty string clears it.",
+    )
+    autoSaveComment: str | None = Field(
+        default=None,
+        description="Comment posted on each auto-save. Null or empty string clears it.",
+    )
+    autoFollowupDefaultId: int | str | None = Field(
+        default=None,
+        description="DefaultFollowupRequest the filter's auto-followup uses. "
+        "Null or empty string clears it.",
+    )
+
+
+class BrokerFilterAttachBody(BaseModel):
+    """Request body for attaching a filter to a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    broker_id: int = Field(description="ID of the broker to attach the filter to.")
+
+
 def broker_to_dict(broker, include_altdata=False):
     """Serialize a Broker, redacting encrypted credentials by default."""
     data = {
@@ -122,7 +289,7 @@ def broker_to_dict(broker, include_altdata=False):
 
 class BrokerHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    def post(self, *, body: BrokerPostBody = None):
         """
         ---
         summary: Create a broker
@@ -131,31 +298,6 @@ class BrokerHandler(BaseHandler):
           inactive, since activating it is what checks its credentials.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - name
-                  - broker_classname
-                properties:
-                  name:
-                    type: string
-                  broker_classname:
-                    type: string
-                    description: A registered BrokerAPI provider class name.
-                  altdata:
-                    type: object
-                    description: Endpoints/credentials for this broker instance.
-                  active:
-                    type: boolean
-                  default_alert_search:
-                    type: boolean
-                    description: Make this the broker the source page searches alerts on.
-                  default_crossmatch:
-                    type: boolean
-                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -175,10 +317,10 @@ class BrokerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        name = data.get("name")
-        broker_classname = data.get("broker_classname")
-        altdata = data.get("altdata", {})
+        body = self.parse_body(BrokerPostBody)
+        name = body.name
+        broker_classname = body.broker_classname
+        altdata = body.altdata
 
         if not name:
             return self.error("Missing required parameter: name")
@@ -191,7 +333,7 @@ class BrokerHandler(BaseHandler):
             broker = Broker(
                 name=name,
                 broker_classname=broker_classname,
-                active=data.get("active", True),
+                active=body.active,
             )
             if broker.broker_class.implements()["test_connection"]:
                 broker.active = False
@@ -205,7 +347,7 @@ class BrokerHandler(BaseHandler):
             session.add(broker)
             session.flush()
             for field in DEFAULT_FIELDS:
-                if data.get(field):
+                if getattr(body, field):
                     try:
                         set_default(session, broker, field, True)
                     except ValueError as e:
@@ -249,7 +391,7 @@ class BrokerHandler(BaseHandler):
             )
 
     @permissions(["System admin"])
-    def patch(self, broker_id: int):
+    def patch(self, broker_id: int, *, body: BrokerPatchBody = None):
         """
         ---
         summary: Update a broker
@@ -258,24 +400,6 @@ class BrokerHandler(BaseHandler):
           reaches the broker, and fails if the credentials are refused.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  active:
-                    type: boolean
-                  altdata:
-                    type: object
-                  default_alert_search:
-                    type: boolean
-                    description: Make this the broker the source page searches alerts on.
-                  default_crossmatch:
-                    type: boolean
-                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -286,7 +410,7 @@ class BrokerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BrokerPatchBody)
         with self.Session() as session:
             broker = session.scalars(
                 Broker.select(self.current_user, mode="update").where(
@@ -298,22 +422,23 @@ class BrokerHandler(BaseHandler):
 
             checks_credentials = broker.broker_class.implements()["test_connection"]
             was_active = broker.active
-            if "name" in data:
-                broker.name = data["name"]
-            if "altdata" in data:
-                altdata = merge_altdata(broker.altdata, data["altdata"])
+            fields_set = body.model_fields_set
+            if "name" in fields_set:
+                broker.name = body.name
+            if "altdata" in fields_set:
+                altdata = merge_altdata(broker.altdata, body.altdata)
                 if broker.broker_class.implements()["validate_config"]:
                     try:
                         broker.broker_class.validate_config(altdata)
                     except Exception as e:
                         return self.error(f"Invalid broker configuration: {e}")
                 broker.altdata = altdata
-            if "active" in data:
-                broker.active = data["active"]
+            if "active" in fields_set:
+                broker.active = body.active
             if (
                 checks_credentials
                 and broker.active
-                and ("altdata" in data or not was_active)
+                and ("altdata" in fields_set or not was_active)
             ):
                 try:
                     broker.broker_class.test_connection(broker)
@@ -323,9 +448,9 @@ class BrokerHandler(BaseHandler):
                         f"Wrong {broker.name} credentials, it cannot {action}: {e}"
                     )
             for field in DEFAULT_FIELDS:
-                if field in data:
+                if field in fields_set:
                     try:
-                        set_default(session, broker, field, bool(data[field]))
+                        set_default(session, broker, field, bool(getattr(body, field)))
                     except ValueError as e:
                         return self.error(str(e))
 
@@ -527,7 +652,9 @@ class BrokerConeSearchHandler(BaseHandler):
 
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, broker_id: int, alert_id: AlertId):
+    async def post(
+        self, broker_id: int, alert_id: AlertId, *, body: BrokerSaveBody = None
+    ):
         """
         ---
         summary: Save a broker alert as a source
@@ -535,18 +662,6 @@ class BrokerSaveHandler(BaseHandler):
           Obj/Source with photometry, dispatched to the broker's provider.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - group_ids
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
         responses:
           200:
             content:
@@ -557,9 +672,9 @@ class BrokerSaveHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BrokerSaveBody)
         try:
-            group_ids = [int(gid) for gid in data.get("group_ids") or []]
+            group_ids = [int(gid) for gid in body.group_ids or []]
         except (TypeError, ValueError):
             return self.error("`group_ids` must be a list of integers.")
         if not group_ids:
@@ -767,7 +882,7 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
 
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int):
+    def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
         """
         ---
         summary: Preview a broker filter
@@ -777,11 +892,6 @@ class BrokerFilterTestHandler(BaseHandler):
           selected/tables/conditions, BOOM's pipeline).
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
         responses:
           200:
             content:
@@ -792,7 +902,7 @@ class BrokerFilterTestHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        params = self.get_json() or {}
+        params = self.parse_body(BrokerFilterTestBody).root
 
         with self.Session() as session:
             broker = session.scalars(
@@ -816,7 +926,9 @@ class BrokerFilterTestHandler(BaseHandler):
 
 class BrokerFilterValidateHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int, filter_id: int):
+    def post(
+        self, broker_id: int, filter_id: int, *, body: BrokerFilterValidateBody = None
+    ):
         """
         ---
         summary: Validate a broker filter version for activation
@@ -835,7 +947,7 @@ class BrokerFilterValidateHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json() or {}
+        body = self.parse_body(BrokerFilterValidateBody)
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:
@@ -859,7 +971,7 @@ class BrokerFilterValidateHandler(BaseHandler):
                     broker,
                     session,
                     boom_filter_id=boom_filter_id,
-                    fid=data.get("fid"),
+                    fid=body.fid,
                 )
             except Exception as e:
                 return self.error(f"Error validating filter on {broker.name}: {e}")
@@ -972,7 +1084,7 @@ class BrokerFilterModulesHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def post(self, broker_id: int, name):
+    def post(self, broker_id: int, name, *, body: BrokerFilterModuleWriteBody = None):
         """
         ---
         summary: Create a broker custom filter module
@@ -981,11 +1093,6 @@ class BrokerFilterModulesHandler(BaseHandler):
           filter builder. Where it is stored is up to the broker's provider.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
         responses:
           200:
             content:
@@ -996,10 +1103,11 @@ class BrokerFilterModulesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self._write_module(broker_id, name, insert=True)
+        body = self.parse_body(BrokerFilterModuleWriteBody)
+        return self._write_module(broker_id, name, body, insert=True)
 
     @permissions(["Upload data"])
-    def put(self, broker_id: int, name):
+    def put(self, broker_id: int, name, *, body: BrokerFilterModuleWriteBody = None):
         """
         ---
         summary: Update a broker custom filter module
@@ -1007,11 +1115,6 @@ class BrokerFilterModulesHandler(BaseHandler):
           element named ``name``.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
         responses:
           200:
             content:
@@ -1022,14 +1125,14 @@ class BrokerFilterModulesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self._write_module(broker_id, name, insert=False)
+        body = self.parse_body(BrokerFilterModuleWriteBody)
+        return self._write_module(broker_id, name, body, insert=False)
 
-    def _write_module(self, broker_id, name, insert):
+    def _write_module(self, broker_id, name, body, insert):
         if not name:
             return self.error("A module name is required.")
-        data = self.get_json() or {}
-        elements = data.get("elements")
-        payload = data.get("data")
+        elements = body.elements
+        payload = body.data
         if elements not in _FILTER_MODULE_ELEMENTS:
             return self.error(
                 f"'elements' must be one of {list(_FILTER_MODULE_ELEMENTS)}."
@@ -1151,7 +1254,13 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data=result)
 
     @permissions(["Upload data"])
-    def post(self, broker_id: int, filter_id: int | None = None):
+    def post(
+        self,
+        broker_id: int,
+        filter_id: int | None = None,
+        *,
+        body: BrokerFiltersPostBody = None,
+    ):
         """
         ---
         summary: Create a broker filter version
@@ -1161,11 +1270,6 @@ class BrokerFiltersHandler(BaseHandler):
           broker and the broker-side ids are stored in the Filter's altdata.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
         responses:
           200:
             content:
@@ -1176,7 +1280,7 @@ class BrokerFiltersHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BrokerFiltersPostBody)
         if filter_id is None:
             return self.error("An existing skyportal filter_id is required.")
         with self.Session() as session:
@@ -1196,7 +1300,7 @@ class BrokerFiltersHandler(BaseHandler):
                 ).first()
                 if f is None:
                     return self.error(f"Cannot find a filter with ID: {filter_id}.")
-                query = data.get("query") or {}
+                query = body.query or {}
                 selected = (query.get("selected") or "").strip()
                 tables = (query.get("tables") or "").strip()
                 conditions = (query.get("conditions") or "").strip()
@@ -1205,8 +1309,8 @@ class BrokerFiltersHandler(BaseHandler):
                         "A query filter requires 'selected' and 'tables'."
                     )
                 f.broker_id = broker.id
-                if "autosave" in data:
-                    set_autosave(f, data["autosave"])
+                if "autosave" in body.model_fields_set:
+                    set_autosave(f, body.autosave)
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
                 ad["lasair"] = {
                     "selected": selected,
@@ -1242,7 +1346,7 @@ class BrokerFiltersHandler(BaseHandler):
                         broker,
                         session,
                         name=f.name,
-                        pipeline=data["altdata"],
+                        pipeline=body.altdata,
                         survey=survey,
                         permissions=perms,
                     )
@@ -1253,7 +1357,7 @@ class BrokerFiltersHandler(BaseHandler):
                         "autoAnnotate": True,
                         "autoSave": False,
                         "autoFollowup": False,
-                        "filters": [{"fid": new_fid, "version": data["filters"]}],
+                        "filters": [{"fid": new_fid, "version": body.filters}],
                     }
                 else:
                     boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
@@ -1263,11 +1367,11 @@ class BrokerFiltersHandler(BaseHandler):
                         broker,
                         session,
                         boom_filter_id=boom_filter_id,
-                        pipeline=data["altdata"],
+                        pipeline=body.altdata,
                     )
                     new_fid = resp["fid"]
                     f.altdata.setdefault("filters", []).append(
-                        {"fid": new_fid, "version": data["filters"]}
+                        {"fid": new_fid, "version": body.filters}
                     )
                     flag_modified(f, "altdata")
             except Exception as e:
@@ -1292,7 +1396,9 @@ class BrokerFiltersHandler(BaseHandler):
             return self.success(data={"id": f.id})
 
     @permissions(["Upload data"])
-    def patch(self, broker_id: int, filter_id: int):
+    def patch(
+        self, broker_id: int, filter_id: int, *, body: BrokerFiltersPatchBody = None
+    ):
         """
         ---
         summary: Update a broker filter
@@ -1300,11 +1406,6 @@ class BrokerFiltersHandler(BaseHandler):
           the broker) or toggle autoAnnotate/autoSave/autoFollowup flags.
         tags:
           - brokers
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
         responses:
           200:
             content:
@@ -1315,7 +1416,7 @@ class BrokerFiltersHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BrokerFiltersPatchBody)
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:
@@ -1331,15 +1432,16 @@ class BrokerFiltersHandler(BaseHandler):
                 return self.error("Filter not found or not broker-managed.")
             boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
             try:
-                if "active" in data and "active_fid" in data:
+                if (
+                    "active" in body.model_fields_set
+                    and "active_fid" in body.model_fields_set
+                ):
                     # skyportal owns the activation gate: activate only if the
                     # selected version has a passing validation on record, or the
                     # user is an admin. BOOM then skips its own (slow) inline
                     # validation, so the toggle is fast.
-                    if data["active"]:
-                        verdict = (
-                            _version_validation(f.altdata, data["active_fid"]) or {}
-                        )
+                    if body.active:
+                        verdict = _version_validation(f.altdata, body.active_fid) or {}
                         if (
                             verdict.get("passed") is not True
                             and not self.current_user.is_system_admin
@@ -1358,35 +1460,35 @@ class BrokerFiltersHandler(BaseHandler):
                         broker,
                         session,
                         boom_filter_id=boom_filter_id,
-                        active=data["active"],
-                        active_fid=data["active_fid"],
+                        active=body.active,
+                        active_fid=body.active_fid,
                         skip_validation=True,
                     )
                 for flag in ("autoAnnotate", "autoSave", "autoFollowup"):
-                    if flag in data:
-                        f.altdata[flag] = data[flag]
+                    if flag in body.model_fields_set:
+                        f.altdata[flag] = getattr(body, flag)
                         flag_modified(f, "altdata")
                 # autoSave is the UI's name for the column ingestion reads.
-                if "autoSave" in data:
-                    set_autosave(f, data["autoSave"])
+                if "autoSave" in body.model_fields_set:
+                    set_autosave(f, body.autoSave)
                 # Groups whose members are not auto-saved (e.g. junk).
-                if "autoSaveIgnoreGroupIds" in data:
+                if "autoSaveIgnoreGroupIds" in body.model_fields_set:
                     f.altdata["autoSaveIgnoreGroupIds"] = [
-                        int(g) for g in (data["autoSaveIgnoreGroupIds"] or [])
+                        int(g) for g in (body.autoSaveIgnoreGroupIds or [])
                     ]
                     flag_modified(f, "altdata")
                 # Also skip auto-save if a junk-group source lies within this many
                 # arcsec (positional dedup for AGN / high-PM duplicates).
-                if "autoSaveIgnoreRadius" in data:
-                    radius = data["autoSaveIgnoreRadius"]
+                if "autoSaveIgnoreRadius" in body.model_fields_set:
+                    radius = body.autoSaveIgnoreRadius
                     if radius in (None, ""):
                         f.altdata.pop("autoSaveIgnoreRadius", None)
                     else:
                         f.altdata["autoSaveIgnoreRadius"] = float(radius)
                     flag_modified(f, "altdata")
                 # Attribute auto-saves to a service user (must be in the group).
-                if "autoSaveSaverId" in data:
-                    saver_id = data["autoSaveSaverId"]
+                if "autoSaveSaverId" in body.model_fields_set:
+                    saver_id = body.autoSaveSaverId
                     if saver_id in (None, ""):
                         f.altdata.pop("autoSaveSaverId", None)
                     else:
@@ -1405,16 +1507,16 @@ class BrokerFiltersHandler(BaseHandler):
                         f.altdata["autoSaveSaverId"] = saver_id
                     flag_modified(f, "altdata")
                 # Comment posted on each auto-save.
-                if "autoSaveComment" in data:
-                    comment = data["autoSaveComment"]
+                if "autoSaveComment" in body.model_fields_set:
+                    comment = body.autoSaveComment
                     if comment in (None, ""):
                         f.altdata.pop("autoSaveComment", None)
                     else:
                         f.altdata["autoSaveComment"] = str(comment)
                     flag_modified(f, "altdata")
                 # Links the filter to its auto-followup DefaultFollowupRequest.
-                if "autoFollowupDefaultId" in data:
-                    default_id = data["autoFollowupDefaultId"]
+                if "autoFollowupDefaultId" in body.model_fields_set:
+                    default_id = body.autoFollowupDefaultId
                     if default_id in (None, ""):
                         f.altdata.pop("autoFollowupDefaultId", None)
                     else:
@@ -1587,7 +1689,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
 
 class BrokerFilterAttachHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, filter_id: int):
+    def post(self, filter_id: int, *, body: BrokerFilterAttachBody = None):
         """
         ---
         summary: Attach a filter to a broker
@@ -1595,16 +1697,6 @@ class BrokerFilterAttachHandler(BaseHandler):
         tags:
           - brokers
           - filters
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - broker_id
-                properties:
-                  broker_id:
-                    type: integer
         responses:
           200:
             content:
@@ -1615,14 +1707,7 @@ class BrokerFilterAttachHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json() or {}
-        broker_id = data.get("broker_id")
-        if broker_id is None:
-            return self.error("A 'broker_id' is required.")
-        try:
-            broker_id = int(broker_id)
-        except (TypeError, ValueError):
-            return self.error("'broker_id' must be an integer.")
+        broker_id = self.parse_body(BrokerFilterAttachBody).broker_id
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:

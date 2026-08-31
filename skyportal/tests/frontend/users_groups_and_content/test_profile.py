@@ -267,7 +267,8 @@ def test_set_automatically_visible_photometry(page, user, upload_data_token):
     def preference_saved():
         status, data = api("GET", "internal/profile", token=upload_data_token)
         assert status == 200
-        assert data["data"]["preferences"]["automaticallyVisibleFilters"] == ["2massh"]
+        preferences = data["data"]["preferences"]
+        assert preferences.get("automaticallyVisibleFilters") == ["2massh"]
 
     retry_until(preference_saved, timeout=20)
 
@@ -293,7 +294,7 @@ def test_photometry_buttons_form(page, user, upload_data_token):
     def button_saved():
         status, data = api("GET", "internal/profile", token=upload_data_token)
         assert status == 200
-        buttons = data["data"]["preferences"]["photometryButtons"]
-        assert buttons[photometry_button_name]["filters"] == ["2massh"]
+        buttons = data["data"]["preferences"].get("photometryButtons", {})
+        assert buttons.get(photometry_button_name, {}).get("filters") == ["2massh"]
 
     retry_until(button_saved, timeout=20)

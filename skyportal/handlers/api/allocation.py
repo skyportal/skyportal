@@ -1,6 +1,6 @@
 import io
 import json
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import astropy
 import matplotlib
@@ -59,6 +59,65 @@ class AllocationObservationPlanGetQuery(BaseModel):
         default="asc",
         description="The sort order, either asc or desc. Defaults to asc.",
     )
+
+
+class AllocationPostBody(BaseModel):
+    """Request body for creating an allocation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(
+        default=None,
+        description="The ID of the Group the allocation is associated with.",
+    )
+    instrument_id: int | None = Field(
+        default=None,
+        description="The ID of the Instrument the allocation is associated with.",
+    )
+    pi: str | None = Field(
+        default=None, description="The PI of the allocation's proposal."
+    )
+    proposal_id: str | None = Field(
+        default=None,
+        description="The ID of the proposal associated with this allocation.",
+    )
+    hours_allocated: float | None = Field(
+        default=None, description="The number of hours allocated."
+    )
+    validity_ranges: list | None = Field(
+        default=None,
+        description="A list of validity ranges for the allocation, each with a "
+        "start_date and end_date in UTC.",
+    )
+    types: list[str] | None = Field(
+        default=None, description="The type(s) of allocation."
+    )
+    default_share_group_ids: list[int] | None = Field(
+        default=None, description="List of default group IDs to share data with."
+    )
+    allocation_admin_ids: list[int] | None = Field(
+        default=None, description="List of user IDs to set as allocation admins."
+    )
+    altdata: dict[str, Any] | str | None = Field(
+        default=None,
+        alias="_altdata",
+        description="Additional metadata for the allocation (e.g., API credentials).",
+    )
+
+
+class AllocationPutBody(AllocationPostBody):
+    """Request body for updating an allocation."""
+
+    replace_altdata: bool | None = Field(
+        default=None,
+        description="Whether to replace existing altdata rather than merge into it.",
+    )
+
+
+class AllocationPostResponse(BaseModel):
+    """Data payload returned when creating an allocation."""
+
+    id: int = Field(description="New allocation ID")
 
 
 class AllocationObservationPlanHandler(BaseHandler):
@@ -470,35 +529,16 @@ class AllocationHandler(BaseHandler):
             return self.success(data=allocations)
 
     @permissions(["Manage allocations"])
-    async def post(self):
+    async def post(self, *, body: AllocationPostBody = None) -> AllocationPostResponse:
         """
         ---
         summary: Create a new allocation
         description: Post new allocation on a robotic instrument
         tags:
           - allocations
-        requestBody:
-          content:
-            application/json:
-              schema: AllocationNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New allocation ID
         """
-
-        data = self.get_json()
+        body = self.parse_body(AllocationPostBody)
+        data = body.model_dump(exclude_unset=True, by_alias=True)
         if "instrument_id" not in data:
             return self.error("instrument_id is required")
         try:
@@ -583,17 +623,13 @@ class AllocationHandler(BaseHandler):
             return self.success(data={"id": allocation.id})
 
     @permissions(["Manage allocations"])
-    async def put(self, allocation_id: int):
+    async def put(self, allocation_id: int, *, body: AllocationPutBody = None):
         """
         ---
         summary: Update an allocation
         description: Update an allocation on a robotic instrument
         tags:
           - allocations
-        requestBody:
-          content:
-            application/json:
-              schema: AllocationNoID
         responses:
           200:
             content:
@@ -604,6 +640,9 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AllocationPutBody)
+        data = body.model_dump(exclude_unset=True, by_alias=True)
+        data["id"] = allocation_id
 
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
@@ -613,9 +652,6 @@ class AllocationHandler(BaseHandler):
             )
             if allocation is None:
                 return self.error("No such allocation")
-
-            data = self.get_json()
-            data["id"] = allocation_id
 
             replace_altdata = data.pop("replace_altdata", False)
             if isinstance(data.get("_altdata"), dict):
