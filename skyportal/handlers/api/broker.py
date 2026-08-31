@@ -193,9 +193,10 @@ class BrokerFiltersPostBody(BaseModel):
         default=None,
         description="Query-kind (e.g. Lasair) filter with selected/tables/conditions.",
     )
-    altdata: dict[str, Any] | None = Field(
+    altdata: list[Any] | None = Field(
         default=None,
-        description="Compiled native filter (pipeline) forwarded to the broker.",
+        description="Compiled native filter forwarded to the broker, as an "
+        "aggregation pipeline: a list of stages, not a mapping.",
     )
     filters: Any = Field(
         default=None,
