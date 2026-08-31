@@ -292,6 +292,15 @@ class UserGetQuery(BaseModel):
         default=None,
         description="Get users with access to the stream with name given by this parameter.",
     )
+    slim: bool = Field(
+        default=False,
+        description=(
+            "Return only what is needed to name a user (id, username, first "
+            "and last name, is_bot). Callers that just label a comment, a "
+            "redshift or an assignment do not need each user's groups, roles "
+            "and ACLs, which are most of the response."
+        ),
+    )
     includeExpired: bool = Field(
         default=False,
         description="Include users with expired accounts in the results.",
@@ -470,6 +479,23 @@ class UserHandler(BaseHandler):
                 }
 
             users_result = await session.scalars(stmt)
+            if query.slim:
+                return self.success(
+                    data={
+                        "users": [
+                            {
+                                "id": user.id,
+                                "username": user.username,
+                                "first_name": user.first_name,
+                                "last_name": user.last_name,
+                                "is_bot": user.is_bot,
+                            }
+                            for user in users_result.all()
+                        ],
+                        "totalMatches": int(total_matches),
+                    }
+                )
+
             for user in users_result.all():
                 user_info = user.to_dict()
                 user_info["permissions"] = sorted(user.permissions)
