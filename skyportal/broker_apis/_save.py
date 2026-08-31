@@ -11,8 +11,16 @@ from baselayer.log import make_log
 
 log = make_log("broker/save")
 
-# AB zeropoint per survey (psfFlux is in Jy after the 1e-9 scaling below).
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9}
+# AB zeropoint per survey, matching the units points arrive in: flux in nJy is
+# scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9}
+
+# Surveys whose filters are not named <survey><band>. Keys are normalized bands,
+# so any survey prefix is already stripped. An unmapped band raises rather than
+# storing a point under a filter that would misreport it. WINTER has no k filter.
+BAND_TO_FILTER_PER_SURVEY = {
+    "WINTER": {"y": "desy", "j": "2massj", "h": "2massh"},
+}
 
 # A "detection" must clear this S/N unless a Filter's criteria override it. Broker
 # science topics/filters are often broad, so a Filter can carry an extra criteria
@@ -44,10 +52,22 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas"):
+    for prefix in ("ztf", "lsst", "atlas", "winter"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b
+
+
+def _filter_name(survey, band):
+    # The SkyPortal filter a band belongs to, <survey><band> unless mapped.
+    normalized = _normalize_band(band)
+    mapping = BAND_TO_FILTER_PER_SURVEY.get(survey)
+    if mapping is None:
+        return f"{survey.lower()}{normalized}"
+    name = mapping.get(normalized)
+    if name is None:
+        raise ValueError(f"No filter configured for survey '{survey}' band '{band}'.")
+    return name
 
 
 def _passes_criteria(data, criteria):
@@ -197,10 +217,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 }
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
-            # Normalize the band first: BOOM emits survey-prefixed bands ("ztfg"),
-            # so a bare prefix would double it ("ztfztfg"). _normalize_band also
-            # handles bare bands ("g" -> "g"), giving "ztfg" either way.
-            pd["filter"].append(f"{survey.lower()}{_normalize_band(band)}")
+            pd["filter"].append(_filter_name(survey, band))
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))
