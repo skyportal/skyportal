@@ -15529,7 +15529,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ObjClassificationDeleteBody"];
+                    "application/json": components["schemas"]["ClassificationDeleteBody"];
                 };
             };
             responses: {
@@ -38894,15 +38894,15 @@ export interface components {
         };
         /**
          * ClassificationDeleteBody
-         * @description Request body for deleting a classification.
+         * @description Request body for deleting classification(s).
          */
         ClassificationDeleteBody: {
             /**
              * Label
              * @description Add label associated with classification.
-             * @default null
+             * @default true
              */
-            label: boolean | null;
+            label: boolean;
         };
         /**
          * DefaultFollowupRequestPostBody
@@ -43332,18 +43332,6 @@ export interface components {
              * @default null
              */
             galaxyName: string | null;
-        };
-        /**
-         * ObjClassificationDeleteBody
-         * @description Request body for deleting all of an object's classifications.
-         */
-        ObjClassificationDeleteBody: {
-            /**
-             * Label
-             * @description Add label associated with classification.
-             * @default null
-             */
-            label: boolean | null;
         };
         /**
          * SourceLabelsPostBody

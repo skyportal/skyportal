@@ -29,6 +29,94 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 
+class ObjBody(BaseModel):
+    """Shared optional `Obj` fields accepted by the Obj marshmallow schema
+    (``Obj.__schema__()``) on source/candidate writes. Deep validation and
+    coercion are still performed by that schema; this only constrains the
+    top-level shape."""
+
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column; pydantic rejects int for `str` unless told to coerce.
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
+
+    ra: float | None = Field(None, description="ICRS Right Ascension [deg].")
+    dec: float | None = Field(None, description="ICRS Declination [deg].")
+    ra_dis: float | None = Field(
+        None, description="J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_dis: float | None = Field(
+        None, description="J2000 Declination at discovery time [deg]."
+    )
+    ra_err: float | None = Field(
+        None, description="Error on J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_err: float | None = Field(
+        None, description="Error on J2000 Declination at discovery time [deg]."
+    )
+    offset: float | None = Field(
+        None, description="Offset from nearest static object [arcsec]."
+    )
+    t0: float | None = Field(None, description="Reference time.")
+    redshift: float | None = Field(None, description="Redshift.")
+    redshift_error: float | None = Field(None, description="Redshift error.")
+    redshift_origin: str | None = Field(None, description="Redshift source.")
+    redshift_history: Any = Field(
+        None, description="Record of who set which redshift values and when."
+    )
+    host_id: int | None = Field(
+        None, description="The ID of the Galaxy to which this Obj is associated."
+    )
+    summary: str | None = Field(None, description="Summary of the obj.")
+    summary_history: Any = Field(
+        None,
+        description="Record of the summaries generated and written about this obj",
+    )
+    altdata: Any = Field(
+        None,
+        description="Misc. alternative metadata stored in JSON format, e.g. "
+        "`{'gaia': {'info': {'Teff': 5780}}}`",
+    )
+    dist_nearest_source: float | None = Field(
+        None, description="Distance to the nearest Obj [arcsec]."
+    )
+    mag_nearest_source: float | None = Field(
+        None, description="Magnitude of the nearest Obj [AB]."
+    )
+    e_mag_nearest_source: float | None = Field(
+        None, description="Error on magnitude of the nearest Obj [mag]."
+    )
+    transient: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is an astrophysical transient.",
+    )
+    varstar: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a variable star.",
+    )
+    is_roid: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a moving object.",
+    )
+    mpc_name: str | None = Field(None, description="Minor planet center name.")
+    gcn_crossmatch: list[str] | None = Field(
+        None, description="List of GCN event dateobs for crossmatched events."
+    )
+    tns_name: str | None = Field(None, description="Transient Name Server name.")
+    tns_info: Any = Field(None, description="TNS info in JSON format")
+    score: float | None = Field(None, description="Machine learning score.")
+    origin: str | None = Field(None, description="Origin of the object.")
+    alias: list[str] | None = Field(
+        None, description="Alternative names for this object."
+    )
+    internal_key: str | None = Field(
+        None, description="Internal key used for secure websocket messaging."
+    )
+    detect_photometry_count: int | None = Field(
+        None,
+        description="How many times the object was detected above the S/N threshold.",
+    )
+
+
 class ObjHandler(BaseHandler):
     @auth_or_token  # ACLs will be checked below based on configs
     async def delete(self, obj_id: str):

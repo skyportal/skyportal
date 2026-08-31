@@ -107,17 +107,7 @@ class ClassificationPutBody(BaseModel):
 
 
 class ClassificationDeleteBody(BaseModel):
-    """Request body for deleting a classification."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    label: bool | None = Field(
-        default=None, description="Add label associated with classification."
-    )
-
-
-class ObjClassificationDeleteBody(BaseModel):
-    """Request body for deleting all of an object's classifications."""
+    """Request body for deleting classification(s)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -725,7 +715,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    async def delete(self, obj_id: str, *, body: ObjClassificationDeleteBody = None):
+    async def delete(self, obj_id: str, *, body: ClassificationDeleteBody = None):
         """
         ---
         summary: Delete all classifications for an object
