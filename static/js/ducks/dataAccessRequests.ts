@@ -1,5 +1,6 @@
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { dataAvailabilityTag } from "./dataAvailabilityTags";
 import { sourceTag } from "./sourceTags";
 
 export interface DataOwner {
@@ -76,7 +77,7 @@ export const dataAccessRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getDataAvailability: build.query<DataAvailability, string>({
       query: (obj_id) => `api/sources/${obj_id}/data_availability`,
-      providesTags: ["DataAvailability"],
+      providesTags: (_result, _error, obj_id) => dataAvailabilityTag(obj_id),
     }),
     getDataAccessRequests: build.query<
       DataAccessRequestPage,
@@ -108,7 +109,7 @@ export const dataAccessRequestsApi = skyportalApi.injectEndpoints({
         body,
       }),
       invalidatesTags: (_result, _error, { objId }) => [
-        "DataAvailability",
+        ...dataAvailabilityTag(objId),
         "DataAccessRequest",
         ...sourceTag(objId),
       ],
@@ -135,11 +136,22 @@ export const dataAccessRequestsApi = skyportalApi.injectEndpoints({
 });
 
 // A grant lands as new photometry/spectra on the source the requester is
-// looking at, so refresh it alongside the request list.
-invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload) => [
-  "DataAvailability",
-  ...sourceTag(payload?.obj_key as string | undefined),
-]);
+// looking at. REFRESH_SOURCE is broadcast to every client for every source, and
+// carries the source's internal_key, so translate that to the obj id and
+// refresh only that source's availability. Without an obj id there is nothing
+// to refresh: an unscoped tag here matches every open source page.
+invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
+  const objKey = payload?.obj_key as string | undefined;
+  if (!objKey) {
+    return null;
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | null;
+  return objId != null ? dataAvailabilityTag(objId) : null;
+});
 
 export const {
   useGetDataAvailabilityQuery,

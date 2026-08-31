@@ -17090,6 +17090,10 @@ export interface paths {
                     startDate?: string | null;
                     /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by PhotStat.last_detected_mjd <= endDate */
                     endDate?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). With requireDetections, keep sources detected during [detectedWindowStart, detectedWindowEnd] rather than sources whose whole detection history falls in the range, which is what startDate/endDate ask for. Approximated from the first and last detection, the only ones PhotStat records. */
+                    detectedWindowStart?: string | null;
+                    /** @description Arrow-parseable date string (e.g. 2020-01-01). See detectedWindowStart. */
+                    detectedWindowEnd?: string | null;
                     /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
                     listName?: string | null;
                     /** @description Portion of ID or TNS name to filter on */

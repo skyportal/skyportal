@@ -37,7 +37,7 @@ import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 
 import {
   useGetGalaxyCatalogsQuery,
-  useLazyGetGcnEventGalaxiesQuery,
+  useGetGcnEventGalaxiesQuery,
 } from "../../ducks/galaxies";
 import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
 import {
@@ -53,7 +53,8 @@ import { useLazyGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "../observation/ExecutedObservationsTable";
-import GalaxyTable from "../galaxy/GalaxyTable";
+import GcnGalaxiesTab from "./GcnGalaxiesTab";
+import GcnSourcesQueryForm from "./GcnSourcesQueryForm";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
@@ -502,12 +503,20 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     dateobs: any;
     filterParams?: any;
   } | null>(null);
-  const { data: gcnEventSources } = useFetchGcnEventSourcesQuery(
-    gcnSourcesArgs!,
-    { skip: gcnSourcesArgs == null },
-  ) as any;
-  const [fetchGcnEventGalaxies, { data: gcnEventGalaxies }] =
-    useLazyGetGcnEventGalaxiesQuery();
+  const { data: gcnEventSources, isFetching: sourcesFetching } =
+    useFetchGcnEventSourcesQuery(gcnSourcesArgs!, {
+      skip: gcnSourcesArgs == null,
+    }) as any;
+  // The Galaxies tab owns that query's form; the page holds the result so the
+  // skymap can overlay it. Null args means the query has not been run yet.
+  const [gcnGalaxiesArgs, setGcnGalaxiesArgs] = useState<{
+    dateobs: any;
+    filterParams?: any;
+  } | null>(null);
+  const { data: gcnEventGalaxies, isFetching: galaxiesFetching } =
+    useGetGcnEventGalaxiesQuery(gcnGalaxiesArgs!, {
+      skip: gcnGalaxiesArgs == null,
+    }) as any;
   const [gcnEventObservations, setGcnEventObservations] = useState<any>(null);
   const [fetchGcnEventObservations] = useLazyGetGcnEventObservationsQuery();
   const [submitObservationsTreasureMap] =
@@ -724,13 +733,30 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     dispatch(showNotification(message, "error", 4000));
   };
 
-  const handleSubmit = async ({ formData }: { formData: any }) => {
-    const { queryList = [] } = formData;
+  const cleanDate = (date: string) =>
+    date?.replace("+00:00", "").replace(".000Z", "");
 
+  /** Run the source query from the Sources tab's own form. */
+  const handleSourcesSearch = (formData: Record<string, any>) => {
+    const params: Record<string, any> = {
+      ...formData,
+      startDate: cleanDate(formData["startDate"]),
+      endDate: cleanDate(formData["endDate"]),
+      numPerPage: 100,
+      pageNumber: 1,
+    };
+    if (selectedLocalizationId && locLookUp[selectedLocalizationId]) {
+      params["localizationName"] =
+        locLookUp[selectedLocalizationId].localization_name;
+    }
+    setGcnSourcesArgs({ dateobs: gcnEvent?.dateobs, filterParams: params });
+    setSourceFilteringState(params);
+  };
+
+  /** Run the observations query from the Observations tab's own form. */
+  const handleSubmit = async ({ formData }: { formData: any }) => {
     setIsSubmitting(true);
 
-    const cleanDate = (date: string) =>
-      date?.replace("+00:00", "").replace(".000Z", "");
     formData.startDate = cleanDate(formData.startDate);
     formData.endDate = cleanDate(formData.endDate);
     formData.numPerPage = 100;
@@ -740,14 +766,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       formData.localizationName =
         locLookUp[selectedLocalizationId].localization_name;
     }
-
-    const fetchSources = async () => {
-      setGcnSourcesArgs({
-        dateobs: gcnEvent?.dateobs,
-        filterParams: formData,
-      });
-      setSourceFilteringState(formData);
-    };
 
     const fetchObservations = async () => {
       const instrument = instLookUp[selectedInstrumentId];
@@ -779,21 +797,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       return true;
     };
 
-    const fetchGalaxies = async () => {
-      await fetchGcnEventGalaxies({
-        dateobs: gcnEvent?.dateobs,
-        filterParams: { ...formData, numPerPage: 100 },
-      });
-    };
-
     formData.includeGeoJSON = true;
 
-    if (queryList.includes("sources")) await fetchSources();
-    if (queryList.includes("observations")) {
-      const isObservationsFetched = await fetchObservations();
-      if (!isObservationsFetched) return;
-    }
-    if (queryList.includes("galaxies")) await fetchGalaxies();
+    const isObservationsFetched = await fetchObservations();
+    if (!isObservationsFetched) return;
 
     setFormDataState(formData);
     setIsSubmitting(false);
@@ -813,16 +820,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     ) {
       errors.localizationCumprob.addError(
         "Cumulative probability should be between 0 and 1",
-      );
-    }
-    // Querying sources requires a group; surface it inline instead of a
-    // submit-time notification.
-    if (
-      formData.queryList?.includes("sources") &&
-      !formData.group_ids?.length
-    ) {
-      errors.group_ids.addError(
-        "Select at least one group when querying sources.",
       );
     }
     return errors;
@@ -856,34 +853,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         minimum: 0,
         maximum: 1,
       },
-      maxDistance: {
-        type: "number",
-        title: "Maximum Distance [Mpc]",
-        minimum: 0,
-      },
-      localizationRejectSources: {
-        type: "boolean",
-        title: "Do not display rejected sources",
-      },
-      excludeForcedPhotometry: {
-        type: "boolean",
-        title: "Exclude forced photometry",
-        default: false,
-      },
       requireDetections: {
         type: "boolean",
         title: "Require detections",
         default: true,
-      },
-      queryList: {
-        type: "array",
-        items: {
-          type: "string",
-          enum: ["sources", "galaxies", "observations"],
-        },
-        uniqueItems: true,
-        default: ["sources"],
-        title: "Query list",
       },
       group_ids: {
         title: "Groups",
@@ -894,21 +867,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         },
         uniqueItems: true,
       },
-      ...(galaxyCatalogs?.length > 0 && {
-        catalog_name: {
-          type: "string",
-          title: "Galaxy Catalog",
-          enum: galaxyCatalogs.map((catalog) => catalog?.catalog_name),
-          default: galaxyCatalogs[0]?.catalog_name,
-        },
-      }),
     },
     required: [
       "startDate",
       "endDate",
       "localizationCumprob",
-      "queryList",
-      ...(galaxyCatalogs?.length > 0 ? ["catalog_name"] : []),
       "requireDetections",
     ],
   };
@@ -921,16 +884,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       { __section: "Time range" },
       { startDate: 6, endDate: 6 },
       { __section: "Filters" },
-      { numberDetections: 4, localizationCumprob: 4, maxDistance: 4 },
-      {
-        requireDetections: 4,
-        excludeForcedPhotometry: 4,
-        localizationRejectSources: 4,
-      },
-      { __section: "Query targets" },
-      galaxyCatalogs?.length > 0
-        ? { queryList: 4, catalog_name: 4, group_ids: 4 }
-        : { queryList: 6, group_ids: 6 },
+      { numberDetections: 4, localizationCumprob: 4, requireDetections: 4 },
+      { __section: "Groups" },
+      { group_ids: 12 },
     ],
   };
 
@@ -1013,6 +969,26 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         )}
       </Grid>
       <Grid size={{ sm: 12, md: 8 }}>
+        {/* The localization is the one input every tab shares, so it sits
+            above them rather than inside any one query's form. */}
+        <Grid container spacing={1} className={classes.formContainer}>
+          <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
+            <InputLabel id="localizationSelectLabel">Localization</InputLabel>
+            <Select
+              fullWidth
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="localizationSelectLabel"
+              value={selectedLocalizationId || ""}
+              onChange={handleSelectedLocalizationChange}
+            >
+              {gcnEvent?.localizations?.map((localization: any) => (
+                <MenuItem value={localization.id} key={localization.id}>
+                  {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </Grid>
+        </Grid>
         <Tabs
           value={tabIndex}
           onChange={handleChangeTab}
@@ -1029,7 +1005,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         >
           {/* the first tab called skymap has to be hidden until we reach the sm breakpoint */}
           <Tab label="Skymap" sx={{ display: { sm: "block", md: "none" } }} />
-          <Tab label="Query Form" />
           <Tab label="Sources" />
           <Tab label="Associated Events" />
           <Tab label="Galaxies" />
@@ -1121,171 +1096,148 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         )}
 
         {tabIndex === 1 && (
-          <Grid
-            container
-            spacing={1}
-            className={classes.formContainer}
-            sx={{
-              alignItems: "center",
-            }}
-          >
-            <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
-              <InputLabel id="localizationSelectLabel">Localization</InputLabel>
-              <Select
-                fullWidth
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="localizationSelectLabel"
-                value={selectedLocalizationId || ""}
-                onChange={handleSelectedLocalizationChange}
-              >
-                {gcnEvent?.localizations?.map((localization: any) => (
-                  <MenuItem value={localization.id} key={localization.id}>
-                    {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Grid>
-            <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
-              <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-              <Select
-                fullWidth
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="instrumentSelectLabel"
-                value={selectedInstrumentId || ""}
-                onChange={handleSelectedInstrumentChange}
-              >
-                {sortedInstrumentList?.map((instrument: any) => (
-                  <MenuItem
-                    value={instrument.id}
-                    key={instrument.id}
-                    className={(classes as any).instrumentSelectItem}
-                  >
-                    {`${telLookUp[instrument.telescope_id]?.name} / ${
-                      instrument.name
-                    }`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Grid>
-            <Grid
-              size={{ xs: 11, sm: 12 }}
-              data-testid="gcnsource-selection-form"
-              sx={{ mt: "0.8rem" }}
-            >
-              <Form
-                schema={GcnSourceSelectionFormSchema as any}
-                formData={selectedFormData}
-                onChange={((e: any) => setSelectedFormData(e.formData)) as any}
-                uiSchema={uiSchema}
-                templates={{
-                  ObjectFieldTemplate: MyObjectFieldTemplate as any,
-                }}
-                validator={validator}
-                onSubmit={handleSubmit as any}
-                customValidate={validate}
-                disabled={isSubmitting}
-              >
-                <Button
-                  primary
-                  type="submit"
-                  sx={{ my: "1rem" }}
-                  async
-                  loading={isSubmitting}
-                >
-                  Submit
-                </Button>
-              </Form>
-            </Grid>
-            {gcnEvent && selectedLocalizationId ? (
-              <Grid size={{ xs: 11, sm: 12 }}>
-                <div className={classes.buttons}>
-                  <Suspense fallback={<CircularProgress />}>
-                    <GcnSummary dateobs={dateobs} />
-                  </Suspense>
-                  <Suspense fallback={<CircularProgress />}>
-                    <GcnReport dateobs={dateobs} />
-                  </Suspense>
-                  <AddSurveyEfficiencyObservationsPage dateobs={dateobs} />
-                  <AddCatalogQueryPage dateobs={dateobs} />
-                  {isSubmittingTreasureMap === selectedInstrumentId ? (
-                    <CircularProgress />
-                  ) : (
-                    <Button
-                      secondary
-                      onClick={() => {
-                        handleSubmitTreasureMap(
-                          selectedInstrumentId,
-                          formDataState,
-                        );
-                      }}
-                      type="submit"
-                      size="small"
-                      data-testid={`treasuremapRequest_${selectedInstrumentId}`}
-                    >
-                      Send to Treasure Map
-                    </Button>
-                  )}
-                </div>
-              </Grid>
-            ) : (
-              <CircularProgress />
-            )}
-          </Grid>
-        )}
-
-        {tabIndex === 2 && (
           <div>
+            <GcnSourcesQueryForm
+              defaultStartDate={defaultStartDate}
+              defaultEndDate={defaultEndDate}
+              groups={groups}
+              isSubmitting={sourcesFetching}
+              onSearch={handleSourcesSearch}
+            />
             {gcnEventSources?.sources ? (
-              <div>
-                {selectedLocalizationName && (
-                  <GcnEventSourcesPage
-                    dateobs={dateobs}
-                    sources={gcnEventSources}
-                    localizationName={selectedLocalizationName}
-                    sourceFilteringState={sourceFilteringState}
-                    setGcnSourcesArgs={setGcnSourcesArgs}
-                  />
-                )}
-              </div>
+              selectedLocalizationName && (
+                <GcnEventSourcesPage
+                  dateobs={dateobs}
+                  sources={gcnEventSources}
+                  localizationName={selectedLocalizationName}
+                  sourceFilteringState={sourceFilteringState}
+                  setGcnSourcesArgs={setGcnSourcesArgs}
+                />
+              )
             ) : (
-              <Typography variant="h5">
-                Need to fetch sources from the query form
+              <Typography variant="body1">
+                {gcnSourcesArgs == null
+                  ? "Run the query to list sources in this localization."
+                  : "Fetching sources..."}
               </Typography>
             )}
           </div>
         )}
 
-        {tabIndex === 3 && (
+        {tabIndex === 2 && (
           <Box sx={{ p: "0.5rem" }}>
             <GcnEventAssociations dateobs={dateobs} />
           </Box>
         )}
 
-        {tabIndex === 4 && (
-          <div>
-            {gcnEventGalaxies?.galaxies ? (
-              <div>
-                {gcnEventGalaxies?.galaxies.length === 0 ? (
-                  <Typography variant="h5">None</Typography>
-                ) : (
-                  <div>
-                    <GalaxyTable
-                      galaxies={gcnEventGalaxies.galaxies}
-                      totalMatches={gcnEventGalaxies.totalMatches}
-                      serverSide={false}
-                      {...({ showTitle: true } as any)}
-                    />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Typography variant="h5">Fetching galaxies...</Typography>
-            )}
-          </div>
+        {tabIndex === 3 && (
+          <GcnGalaxiesTab
+            dateobs={dateobs}
+            localizationName={selectedLocalizationName}
+            galaxyCatalogs={galaxyCatalogs}
+            galaxies={gcnEventGalaxies}
+            isFetching={galaxiesFetching}
+            hasRun={gcnGalaxiesArgs != null}
+            onSearch={setGcnGalaxiesArgs}
+          />
         )}
 
-        {tabIndex === 5 && (
+        {tabIndex === 4 && (
           <div>
+            <Grid
+              container
+              spacing={1}
+              className={classes.formContainer}
+              sx={{ alignItems: "center" }}
+            >
+              <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
+                <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+                <Select
+                  fullWidth
+                  inputProps={{ MenuProps: { disableScrollLock: true } }}
+                  labelId="instrumentSelectLabel"
+                  value={selectedInstrumentId || ""}
+                  onChange={handleSelectedInstrumentChange}
+                >
+                  {sortedInstrumentList?.map((instrument: any) => (
+                    <MenuItem
+                      value={instrument.id}
+                      key={instrument.id}
+                      className={(classes as any).instrumentSelectItem}
+                    >
+                      {`${telLookUp[instrument.telescope_id]?.name} / ${
+                        instrument.name
+                      }`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Grid>
+              <Grid
+                size={{ xs: 11, sm: 12 }}
+                data-testid="gcnsource-selection-form"
+                sx={{ mt: "0.8rem" }}
+              >
+                <Form
+                  schema={GcnSourceSelectionFormSchema as any}
+                  formData={selectedFormData}
+                  onChange={
+                    ((e: any) => setSelectedFormData(e.formData)) as any
+                  }
+                  uiSchema={uiSchema}
+                  templates={{
+                    ObjectFieldTemplate: MyObjectFieldTemplate as any,
+                  }}
+                  validator={validator}
+                  onSubmit={handleSubmit as any}
+                  customValidate={validate}
+                  disabled={isSubmitting}
+                >
+                  <Button
+                    primary
+                    type="submit"
+                    sx={{ my: "1rem" }}
+                    async
+                    loading={isSubmitting}
+                  >
+                    Submit
+                  </Button>
+                </Form>
+              </Grid>
+              {gcnEvent && selectedLocalizationId ? (
+                <Grid size={{ xs: 11, sm: 12 }}>
+                  <div className={classes.buttons}>
+                    <Suspense fallback={<CircularProgress />}>
+                      <GcnSummary dateobs={dateobs} />
+                    </Suspense>
+                    <Suspense fallback={<CircularProgress />}>
+                      <GcnReport dateobs={dateobs} />
+                    </Suspense>
+                    <AddSurveyEfficiencyObservationsPage dateobs={dateobs} />
+                    <AddCatalogQueryPage dateobs={dateobs} />
+                    {isSubmittingTreasureMap === selectedInstrumentId ? (
+                      <CircularProgress />
+                    ) : (
+                      <Button
+                        secondary
+                        onClick={() => {
+                          handleSubmitTreasureMap(
+                            selectedInstrumentId,
+                            formDataState,
+                          );
+                        }}
+                        type="submit"
+                        size="small"
+                        data-testid={`treasuremapRequest_${selectedInstrumentId}`}
+                      >
+                        Send to Treasure Map
+                      </Button>
+                    )}
+                  </div>
+                </Grid>
+              ) : (
+                <CircularProgress />
+              )}
+            </Grid>
             {gcnEventObservations?.observations ? (
               <div>
                 {gcnEventObservations?.observations.length === 0 ? (
