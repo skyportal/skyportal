@@ -79,7 +79,8 @@ const CommentForm = ({
   onClose = null,
 }: CommentComposerProps) => {
   const { classes: styles, cx } = useStyles();
-  const users = useGetUsersQuery().data ?? { users: [] };
+  // Only usernames are needed, for the @-mention trie.
+  const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
   const { data: instrumentList = [] } = useGetInstrumentsQuery();

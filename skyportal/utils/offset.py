@@ -963,6 +963,9 @@ def get_nearby_offset_stars(
     fainter_diff = 1.5  # mag
     search_multipler = 20
     min_distance = 5.0 / 3600.0  # min distance from source for offset star
+    # Above this proper motion (mas/yr), a ZTF-ref position that cannot be
+    # carried forward is too stale to point at: see the candidate loop below.
+    max_uncorrected_ztfref_pm = 50.0
     source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
     query_string = f"""
                   SELECT DISTANCE(
@@ -1107,6 +1110,14 @@ def get_nearby_offset_stars(
                                 distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
                                 obstime=ztfref_epoch,
                             ).apply_space_motion(new_obstime=source_obstime)
+                        elif (
+                            np.hypot(source["pmra"], source["pmdec"])
+                            >= max_uncorrected_ztfref_pm
+                        ):
+                            # Without the ref epoch the ZTF position cannot be
+                            # carried forward, and for a fast mover a decade-old
+                            # position can fall outside a narrow slit.
+                            cprime = c.apply_space_motion(new_obstime=source_obstime)
                         else:
                             cprime = SkyCoord(
                                 ra=ztfcatalog[idx].ra.value,
