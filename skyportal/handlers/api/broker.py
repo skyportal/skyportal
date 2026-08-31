@@ -257,6 +257,14 @@ class BrokerFiltersPatchBody(BaseModel):
     )
 
 
+class BrokerFilterAttachBody(BaseModel):
+    """Request body for attaching a filter to a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    broker_id: int = Field(description="ID of the broker to attach the filter to.")
+
+
 def broker_to_dict(broker, include_altdata=False):
     """Serialize a Broker, redacting encrypted credentials by default."""
     data = {
@@ -1681,7 +1689,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
 
 class BrokerFilterAttachHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, filter_id: int):
+    def post(self, filter_id: int, *, body: BrokerFilterAttachBody = None):
         """
         ---
         summary: Attach a filter to a broker
@@ -1689,16 +1697,6 @@ class BrokerFilterAttachHandler(BaseHandler):
         tags:
           - brokers
           - filters
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - broker_id
-                properties:
-                  broker_id:
-                    type: integer
         responses:
           200:
             content:
@@ -1709,14 +1707,7 @@ class BrokerFilterAttachHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json() or {}
-        broker_id = data.get("broker_id")
-        if broker_id is None:
-            return self.error("A 'broker_id' is required.")
-        try:
-            broker_id = int(broker_id)
-        except (TypeError, ValueError):
-            return self.error("'broker_id' must be an integer.")
+        broker_id = self.parse_body(BrokerFilterAttachBody).broker_id
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:

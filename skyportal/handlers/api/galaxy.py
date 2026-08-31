@@ -1410,25 +1410,13 @@ class GalaxyRegaladeHandler(BaseHandler):
 
 class GalaxyNEDHandler(BaseHandler):
     @permissions(["System Admin"])
-    async def post(self):
+    async def post(self, *, body: GalaxyCatalogFitsPostBody = None):
         """
         ---
         summary: Upload galaxies from the NEDLVS catalog
         description: Upload galaxies from the NEDLVS catalog (FITS). If no file_name or file_url is provided, looks for NEDLVS_20260424.fits in the data directory.
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                    file_name:
-                        type: string
-                        description: Name of the .fits file containing the galaxies (in the data directory)
-                    file_url:
-                        type: string
-                        description: URL of the .fits file containing the galaxies
         responses:
           200:
             content:
@@ -1440,6 +1428,8 @@ class GalaxyNEDHandler(BaseHandler):
                 schema: Error
         """
 
+        body = self.parse_body(GalaxyCatalogFitsPostBody)
+
         def add_ned_and_notify(file_path=None, file_url=None):
             full_length, full_blueshift_length = add_ned(file_path, file_url)
             self.push(
@@ -1448,7 +1438,7 @@ class GalaxyNEDHandler(BaseHandler):
 
         try:
             file_path, file_url = _resolve_fits_source(
-                self.get_json(), "NEDLVS_20260424.fits"
+                body.model_dump(exclude_unset=True), "NEDLVS_20260424.fits"
             )
         except ValueError as e:
             return self.error(str(e))

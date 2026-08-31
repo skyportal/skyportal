@@ -1749,11 +1749,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        broker_id: number;
-                    };
+                    "application/json": components["schemas"]["BrokerFilterAttachBody"];
                 };
             };
             responses: {
@@ -5112,14 +5110,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Name of the .fits file containing the galaxies (in the data directory) */
-                        file_name?: string;
-                        /** @description URL of the .fits file containing the galaxies */
-                        file_url?: string;
-                    };
+                    "application/json": components["schemas"]["GalaxyCatalogFitsPostBody"];
                 };
             };
             responses: {
@@ -19014,15 +19007,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        is_roid?: boolean;
-                        obj_ids?: string[];
-                        add_obj_ids?: string[];
-                        remove_obj_ids?: string[];
-                    };
+                    "application/json": components["schemas"]["SuperObjPatchBody"];
                 };
             };
             responses: {
@@ -19102,16 +19089,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Name of the super-object, e.g. an MPC designation. */
-                        name?: string;
-                        /** @description Whether the super-object is a moving object. */
-                        is_roid?: boolean;
-                        /** @description IDs of the Objs to link. */
-                        obj_ids?: string[];
-                    };
+                    "application/json": components["schemas"]["SuperObjPostBody"];
                 };
             };
             responses: {
@@ -38106,6 +38086,17 @@ export interface components {
             } | null;
         };
         /**
+         * BrokerFilterAttachBody
+         * @description Request body for attaching a filter to a broker.
+         */
+        BrokerFilterAttachBody: {
+            /**
+             * Broker Id
+             * @description ID of the broker to attach the filter to.
+             */
+            broker_id: number;
+        };
+        /**
          * BrokerFiltersPostBody
          * @description Request body for creating a broker filter version.
          */
@@ -44643,6 +44634,65 @@ export interface components {
              * @default null
              */
             auto_join: boolean | null;
+        };
+        /**
+         * SuperObjPostBody
+         * @description Request body for creating a SuperObj.
+         */
+        SuperObjPostBody: {
+            /**
+             * Name
+             * @description Name of the super-object, e.g. an MPC designation.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Is Roid
+             * @description Whether the super-object is a moving object.
+             * @default false
+             */
+            is_roid: boolean;
+            /**
+             * Obj Ids
+             * @description IDs of the Objs to link.
+             */
+            obj_ids?: string[];
+        };
+        /**
+         * SuperObjPatchBody
+         * @description Request body for updating a SuperObj.
+         */
+        SuperObjPatchBody: {
+            /**
+             * Name
+             * @description Name of the super-object.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Is Roid
+             * @description Whether the super-object is a moving object.
+             * @default null
+             */
+            is_roid: boolean | null;
+            /**
+             * Obj Ids
+             * @description IDs of the Objs to link, replacing the current ones.
+             * @default null
+             */
+            obj_ids: string[] | null;
+            /**
+             * Add Obj Ids
+             * @description IDs of Objs to add to the current ones.
+             * @default null
+             */
+            add_obj_ids: string[] | null;
+            /**
+             * Remove Obj Ids
+             * @description IDs of Objs to remove from the current ones.
+             * @default null
+             */
+            remove_obj_ids: string[] | null;
         };
         /**
          * TaxonomyPostBody
