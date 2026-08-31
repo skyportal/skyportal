@@ -111,8 +111,8 @@ class ClassificationDeleteBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    label: bool | None = Field(
-        default=None, description="Add label associated with classification."
+    label: bool = Field(
+        default=True, description="Add label associated with classification."
     )
 
 
@@ -124,6 +124,21 @@ class ClassificationVotePostBody(BaseModel):
     vote: int | None = Field(
         default=None, description="Upvote or downvote a classification."
     )
+
+
+async def add_source_labels(session, obj_id, group_ids, labeller_id):
+    """Label the obj for each given group the labeller has not labelled it in yet."""
+    for group_id in group_ids:
+        source_label = await session.scalar(
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
+            .where(SourceLabel.group_id == group_id)
+            .where(SourceLabel.labeller_id == labeller_id)
+        )
+        if source_label is None:
+            session.add(
+                SourceLabel(obj_id=obj_id, labeller_id=labeller_id, group_id=group_id)
+            )
 
 
 async def post_classification(data, user_id, session):
@@ -218,35 +233,13 @@ async def post_classification(data, user_id, session):
     )
     session.add(classification)
 
-    add_vote = True
-    if "vote" in data and data["vote"] is False:
-        add_vote = False
-
-    if add_vote:
-        new_vote = ClassificationVote(
-            classification=classification, voter_id=user.id, vote=1
+    if data.get("vote") is not False:
+        session.add(
+            ClassificationVote(classification=classification, voter_id=user.id, vote=1)
         )
-        session.add(new_vote)
 
-    add_label = True
-    if "label" in data and data["label"] is False:
-        add_label = False
-
-    if add_label:
-        for group_id in group_ids:
-            source_label = await session.scalar(
-                SourceLabel.select(session.user_or_token)
-                .where(SourceLabel.obj_id == obj_id)
-                .where(SourceLabel.group_id == group_id)
-                .where(SourceLabel.labeller_id == user_id)
-            )
-            if source_label is None:
-                label = SourceLabel(
-                    obj_id=obj_id,
-                    labeller_id=user_id,
-                    group_id=group_id,
-                )
-                session.add(label)
+    if data.get("label") is not False:
+        await add_source_labels(session, obj_id, group_ids, user_id)
 
     await session.commit()
 
@@ -596,30 +589,15 @@ class ClassificationHandler(BaseHandler):
                     f"Cannot find a classification with ID: {classification_id}."
                 )
 
-            add_label = body.model_dump(exclude_unset=True).get("label", True)
-
             obj_key = c.obj.internal_key
             obj_id = c.obj.id
             group_ids = [group.id for group in c.groups]
             await session.delete(c)
 
-            if add_label:
-                for group_id in group_ids:
-                    source_label = await session.scalar(
-                        SourceLabel.select(session.user_or_token)
-                        .where(SourceLabel.obj_id == obj_id)
-                        .where(SourceLabel.group_id == group_id)
-                        .where(
-                            SourceLabel.labeller_id == self.associated_user_object.id
-                        )
-                    )
-                    if source_label is None:
-                        label = SourceLabel(
-                            obj_id=obj_id,
-                            labeller_id=self.associated_user_object.id,
-                            group_id=group_id,
-                        )
-                        session.add(label)
+            if body.label:
+                await add_source_labels(
+                    session, obj_id, group_ids, self.associated_user_object.id
+                )
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
@@ -729,7 +707,7 @@ class ObjClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        body = self.parse_body(ObjClassificationDeleteBody)
+        body = self.parse_body(ClassificationDeleteBody)
 
         async with self.AsyncSession() as session:
             result = await session.scalars(
@@ -742,8 +720,6 @@ class ObjClassificationHandler(BaseHandler):
             )
             classifications = result.unique().all()
 
-            add_label = body.model_dump(exclude_unset=True).get("label", True)
-
             obj_key = None
             for c in classifications:
                 obj_key = c.obj.internal_key
@@ -751,24 +727,10 @@ class ObjClassificationHandler(BaseHandler):
                 group_ids = [group.id for group in c.groups]
                 await session.delete(c)
 
-                if add_label:
-                    for group_id in group_ids:
-                        source_label = await session.scalar(
-                            SourceLabel.select(session.user_or_token)
-                            .where(SourceLabel.obj_id == obj_id_local)
-                            .where(SourceLabel.group_id == group_id)
-                            .where(
-                                SourceLabel.labeller_id
-                                == self.associated_user_object.id
-                            )
-                        )
-                        if source_label is None:
-                            label = SourceLabel(
-                                obj_id=obj_id_local,
-                                labeller_id=self.associated_user_object.id,
-                                group_id=group_id,
-                            )
-                            session.add(label)
+                if body.label:
+                    await add_source_labels(
+                        session, obj_id_local, group_ids, self.associated_user_object.id
+                    )
 
             await session.commit()
 
