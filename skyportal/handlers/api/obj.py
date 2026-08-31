@@ -98,9 +98,6 @@ class ObjBody(BaseModel):
         description="Boolean indicating whether the object is a moving object.",
     )
     mpc_name: str | None = Field(None, description="Minor planet center name.")
-    gcn_crossmatch: list[str] | None = Field(
-        None, description="List of GCN event dateobs for crossmatched events."
-    )
     tns_name: str | None = Field(None, description="Transient Name Server name.")
     tns_info: Any = Field(None, description="TNS info in JSON format")
     score: float | None = Field(None, description="Machine learning score.")

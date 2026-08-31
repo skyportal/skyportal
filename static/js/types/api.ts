@@ -38530,12 +38530,6 @@ export interface components {
              */
             mpc_name: string | null;
             /**
-             * Gcn Crossmatch
-             * @description List of GCN event dateobs for crossmatched events.
-             * @default null
-             */
-            gcn_crossmatch: string[] | null;
-            /**
              * Tns Name
              * @description Transient Name Server name.
              * @default null
@@ -43835,12 +43829,6 @@ export interface components {
              */
             mpc_name: string | null;
             /**
-             * Gcn Crossmatch
-             * @description List of GCN event dateobs for crossmatched events.
-             * @default null
-             */
-            gcn_crossmatch: string[] | null;
-            /**
              * Tns Name
              * @description Transient Name Server name.
              * @default null
@@ -44047,12 +44035,6 @@ export interface components {
              * @default null
              */
             mpc_name: string | null;
-            /**
-             * Gcn Crossmatch
-             * @description List of GCN event dateobs for crossmatched events.
-             * @default null
-             */
-            gcn_crossmatch: string[] | null;
             /**
              * Tns Name
              * @description Transient Name Server name.
