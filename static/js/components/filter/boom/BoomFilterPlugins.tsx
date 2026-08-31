@@ -24,6 +24,7 @@ import { UnifiedBuilderProvider } from "../../../contexts/UnifiedBuilderContext"
 import FilterBuilderContent from "./FilterBuilderContent";
 import AnnotationBuilderContent from "./AnnotationBuilderContent";
 import BoomFilterFollowupConfig from "./BoomFilterFollowupConfig";
+import FilterVersionDiff from "./FilterVersionDiff";
 
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
@@ -766,6 +767,13 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
                       ))}
                     </Select>
                   </FormControl>
+                )}
+                {filter_v?.fv && (
+                  <FilterVersionDiff
+                    versions={filter_v.fv}
+                    activeFid={filter_v.active_fid}
+                    validations={filter_v?.altdata?.boom?.validations}
+                  />
                 )}
                 <>
                   <Button
