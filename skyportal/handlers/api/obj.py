@@ -108,13 +108,6 @@ class ObjBody(BaseModel):
     alias: list[str] | None = Field(
         None, description="Alternative names for this object."
     )
-    internal_key: str | None = Field(
-        None, description="Internal key used for secure websocket messaging."
-    )
-    detect_photometry_count: int | None = Field(
-        None,
-        description="How many times the object was detected above the S/N threshold.",
-    )
 
 
 class ObjHandler(BaseHandler):

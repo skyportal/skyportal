@@ -38592,18 +38592,6 @@ export interface components {
              */
             alias: string[] | null;
             /**
-             * Internal Key
-             * @description Internal key used for secure websocket messaging.
-             * @default null
-             */
-            internal_key: string | null;
-            /**
-             * Detect Photometry Count
-             * @description How many times the object was detected above the S/N threshold.
-             * @default null
-             */
-            detect_photometry_count: number | null;
-            /**
              * Id
              * @description Name of the object.
              */
@@ -43856,18 +43844,6 @@ export interface components {
              */
             alias: string[] | null;
             /**
-             * Internal Key
-             * @description Internal key used for secure websocket messaging.
-             * @default null
-             */
-            internal_key: string | null;
-            /**
-             * Detect Photometry Count
-             * @description How many times the object was detected above the S/N threshold.
-             * @default null
-             */
-            detect_photometry_count: number | null;
-            /**
              * Id
              * @description Name of the object.
              */
@@ -44080,18 +44056,6 @@ export interface components {
              * @default null
              */
             alias: string[] | null;
-            /**
-             * Internal Key
-             * @description Internal key used for secure websocket messaging.
-             * @default null
-             */
-            internal_key: string | null;
-            /**
-             * Detect Photometry Count
-             * @description How many times the object was detected above the S/N threshold.
-             * @default null
-             */
-            detect_photometry_count: number | null;
         };
         /**
          * SourceDeleteBody
