@@ -208,19 +208,12 @@ const SkymapTriggerAPIDisplay = () => {
         ))}
       </Select>
       <Button
-        onClick={() => {
-          handleAdd();
-        }}
-        data-testid="add-trigger-button"
+        onClick={handleAdd}
+        disabled={!selectedAllocationId || !selectedLocalizationId}
       >
         Add trigger
       </Button>
-      <Button
-        onClick={() => {
-          handleDelete();
-        }}
-        data-testid="delete-trigger-button"
-      >
+      <Button onClick={handleDelete} disabled={!selectedAllocationId}>
         Delete trigger
       </Button>
     </div>

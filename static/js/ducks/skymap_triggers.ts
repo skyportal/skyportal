@@ -22,7 +22,7 @@ export interface RequestSkymapTriggersArg {
 
 export interface PostSkymapTriggerArg {
   allocation_id: number | string;
-  localization_id: number | string | null;
+  localization_id: number | string;
   [key: string]: unknown;
 }
 
