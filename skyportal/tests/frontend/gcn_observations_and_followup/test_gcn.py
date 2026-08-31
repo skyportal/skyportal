@@ -500,26 +500,22 @@ def test_gcn_summary_observations(
 
     nretries = 0
     summaries_loaded = False
-    while nretries < 40:
+    while nretries < 10:
         status, data = api(
             "GET",
             f"gcn_event/2019-08-14T21:10:39/summary/{summary_id}",
             token=view_only_token,
             params=params,
         )
-        if status == 404:
-            nretries = nretries + 1
-            time.sleep(5)
         if status == 200:
             data = data["data"]
-            if data["text"] == "pending":
-                nretries = nretries + 1
-                time.sleep(5)
-            else:
+            if data["text"] != "pending":
                 summaries_loaded = True
                 break
+        nretries = nretries + 1
+        time.sleep(5)
 
-    assert nretries < 40
+    assert nretries < 10
     assert summaries_loaded
     text = data["text"]
     lines = list(filter(None, text.split("\n")))
