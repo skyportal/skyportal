@@ -1535,11 +1535,6 @@ class CandidateHandler(BaseHandler):
         body = self.parse_body(CandidatePostBody)
         data = body.model_dump(exclude_unset=True)
 
-        # Obj.id is a string column, but survey ids are often numeric (e.g. LSST
-        # diaObject ids) and arrive as JSON numbers; comparing those against a
-        # varchar column errors out in Postgres, so normalize once up front.
-        data["id"] = str(data["id"])
-
         async with self.AsyncSession() as session:
             obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])

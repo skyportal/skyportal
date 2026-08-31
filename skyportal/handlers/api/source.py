@@ -3111,9 +3111,8 @@ class SourceNotificationPostBody(BaseModel):
     sourceId: str = Field(
         description="The ID of the Source's Obj the notification is being sent about"
     )
-    level: str = Field(
-        description="Either 'soft' or 'hard', determines whether to send an email or "
-        "email+SMS notification"
+    level: Literal["soft", "hard"] = Field(
+        description="Determines whether to send an email or email+SMS notification"
     )
     additionalNotes: str | None = Field(
         None, description="Notes to append to the message sent out"
@@ -3179,10 +3178,6 @@ class SourceNotificationHandler(BaseHandler):
                     f"group IDs: {forbidden_groups}."
                 )
 
-            if data["level"] not in ["soft", "hard"]:
-                return self.error(
-                    "Invalid value provided for `level`: should be either 'soft' or 'hard'"
-                )
             level = data["level"]
 
             groups_result = await session.scalars(

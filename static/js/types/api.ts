@@ -44086,9 +44086,10 @@ export interface components {
             sourceId: string;
             /**
              * Level
-             * @description Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
+             * @description Determines whether to send an email or email+SMS notification
+             * @enum {string}
              */
-            level: string;
+            level: "soft" | "hard";
             /**
              * Additionalnotes
              * @description Notes to append to the message sent out
