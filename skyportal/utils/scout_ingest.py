@@ -11,13 +11,22 @@ import sqlalchemy as sa
 
 from baselayer.log import make_log
 
-from ..models import Annotation, Group, Obj, Source, SuperObj
-from .sso_ingest import sso_label
+from ..models import Annotation, Group, Obj, ObjTag, ObjTagOption, Source, SuperObj
+from .sso_ingest import designation_to_obj_id, sso_label
 
 log = make_log("scout_ingest")
 
 SUPPORTED_SCHEMA_VERSIONS = {"1.0"}
 ANNOTATION_ORIGIN = "jpl-scout"
+
+# NEOCP candidates are unconfirmed, so they get their own namespace: a tdes is
+# an uncontrolled external string, and one ("ZTF10Fd") can read as a survey id.
+OBJ_ID_PREFIX = "scout_"
+
+# JPL Scout's impact rating is a 0-4 scale, not a flag: any non-zero value means
+# the orbit admits an Earth impact, and higher is more concerning.
+IMPACTOR_TAG = "impactor"
+IMPACTOR_TAG_COLOR = "#b71c1c"
 
 IN_CANDIDATE_SET = {"new_candidate", "updated"}
 LEAVES_CANDIDATE_SET = {"cancelled", "left_neocp"}
@@ -81,26 +90,70 @@ def _upsert_annotation(session, obj_id, data, author_id, groups):
         annotation.data = data
 
 
-def _link_designation(session, obj_id, iau_designation):
+def _apply_impactor_tag(session, obj_id, impact_rating, author_id):
+    """Tag the object while Scout rates it a possible impactor, untag when not."""
+    option = session.scalar(
+        sa.select(ObjTagOption).where(ObjTagOption.name == IMPACTOR_TAG)
+    )
+    tagged = bool(impact_rating)
+
+    if option is None:
+        if not tagged:
+            return
+        option = ObjTagOption(name=IMPACTOR_TAG, color=IMPACTOR_TAG_COLOR)
+        session.add(option)
+        session.flush()
+
+    existing = session.scalar(
+        sa.select(ObjTag).where(
+            ObjTag.obj_id == obj_id, ObjTag.objtagoption_id == option.id
+        )
+    )
+    if tagged and existing is None:
+        session.add(
+            ObjTag(obj_id=obj_id, objtagoption_id=option.id, author_id=author_id)
+        )
+    elif not tagged and existing is not None:
+        session.delete(existing)
+
+
+def _link_designation(session, obj_id, tdes, iau_designation):
     """Link the NEOCP designation and its permanent IAU name under one SuperObj."""
-    super_obj = session.scalar(
+    label = sso_label(iau_designation or tdes)
+    # Found by name, as the survey path does, falling back to whichever group
+    # already holds this object under its earlier NEOCP name.
+    named = session.scalar(sa.select(SuperObj).where(SuperObj.name == label))
+    holding = session.scalar(
         sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
     )
+
+    super_obj = named or holding
     if super_obj is None:
-        super_obj = SuperObj(name=sso_label(iau_designation or obj_id), is_roid=True)
+        super_obj = SuperObj(name=label, is_roid=True)
         session.add(super_obj)
+    elif named is not None and holding is not None and named is not holding:
+        # One body, grouped twice: once by the survey under its designation and
+        # once here under the NEOCP name it had first.
+        held = {obj.id for obj in named.objs}
+        for obj in list(holding.objs):
+            if obj.id not in held:
+                named.objs.append(obj)
+        session.delete(holding)
 
     super_obj.is_roid = True
-    if iau_designation:
-        super_obj.name = sso_label(iau_designation)
+    super_obj.name = label
 
+    # The survey path stores a designated body under its own prefixed id.
+    designated_id = designation_to_obj_id(iau_designation) if iau_designation else None
     linked = {obj.id for obj in super_obj.objs}
-    for candidate_id in (obj_id, iau_designation):
+    for candidate_id in (obj_id, designated_id):
         if not candidate_id or candidate_id in linked:
             continue
         obj = session.scalar(sa.select(Obj).where(Obj.id == candidate_id))
         if obj is not None:
             super_obj.objs.append(obj)
+
+    return super_obj
 
     return super_obj
 
@@ -142,9 +195,10 @@ def ingest_scout_event(
     if event_type not in IN_CANDIDATE_SET | LEAVES_CANDIDATE_SET:
         raise ScoutIngestError(f"Unknown scout event_type: {event_type}")
 
-    obj_id = event.get("tdes")
-    if not obj_id:
+    tdes = event.get("tdes")
+    if not tdes:
         raise ScoutIngestError("Scout event is missing tdes")
+    obj_id = designation_to_obj_id(tdes, prefix=OBJ_ID_PREFIX)
 
     filter_mode = (event.get("provenance") or {}).get("filter_mode", "strict")
     if filter_mode == "relaxed_test" and not allow_relaxed:
@@ -218,7 +272,10 @@ def ingest_scout_event(
     _upsert_annotation(
         session, obj_id, _scout_annotation_data(event), author_id, groups
     )
-    _link_designation(session, obj_id, event.get("iau_designation"))
+    _apply_impactor_tag(
+        session, obj_id, (event.get("scout") or {}).get("impact_rating"), author_id
+    )
+    _link_designation(session, obj_id, tdes, event.get("iau_designation"))
 
     return {
         "obj_id": obj_id,

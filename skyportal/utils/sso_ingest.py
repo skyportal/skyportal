@@ -64,8 +64,8 @@ _OBJ_ID_UNSAFE = re.compile(r"[^0-9A-Za-z\-_.+]")
 OBJ_ID_PREFIX = "sso_"
 
 
-def designation_to_obj_id(designation):
-    """Map an MPC designation to a collision-safe, URL-safe Obj ID.
+def designation_to_obj_id(designation, prefix=OBJ_ID_PREFIX):
+    """Map a designation to a collision-safe, URL-safe Obj ID.
 
     Bare designations are often plain numbers ('220'), which would collide with
     unrelated object IDs, hence the prefix.
@@ -73,7 +73,7 @@ def designation_to_obj_id(designation):
     slug = _OBJ_ID_UNSAFE.sub("_", str(designation).strip())
     if not slug:
         raise ValueError(f"Unusable SSO designation: {designation!r}")
-    return f"{OBJ_ID_PREFIX}{slug}"
+    return f"{prefix}{slug}"
 
 
 def _designation_from_mapping(mapping):
