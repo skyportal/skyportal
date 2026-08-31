@@ -9,12 +9,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
 from ...models import (
     ClassicalAssignment,
+    Group,
     Instrument,
     Obj,
     ObservingRun,
@@ -26,6 +28,8 @@ from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")
+
+_, cfg = load_env()
 
 
 class ObservingRunPostBody(BaseModel):
@@ -112,8 +116,27 @@ async def post_observing_run(data, user_id, session):
             f"Invalid/missing parameters: {exc.normalized_messages()}"
         )
 
+    group_ids = rund.pop("group_ids", None)
     run = ObservingRun(**rund)
     run.owner_id = user.id
+
+    # A run with no groups is readable by nobody, so default to the sitewide
+    # group: visible to everyone, as runs were before they became group-scoped.
+    if group_ids:
+        groups = (
+            await session.scalars(Group.select(user).where(Group.id.in_(group_ids)))
+        ).all()
+        if {group.id for group in groups} != set(group_ids):
+            raise ValidationError(
+                f"Cannot find one or more groups with IDs: {group_ids}."
+            )
+    else:
+        groups = (
+            await session.scalars(
+                Group.select(user).where(Group.name == cfg["misc.public_group_name"])
+            )
+        ).all()
+    run.groups = list(groups)
 
     session.add(run)
     await session.commit()

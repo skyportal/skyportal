@@ -269,3 +269,70 @@ def test_an_unknown_query_parameter_is_rejected(observing_run_token):
     return everything."""
     status, data = api("GET", "observing_run?upcoming=true", token=observing_run_token)
     assert status == 400, data
+
+
+def test_a_run_is_visible_to_everyone_by_default(
+    lris, observing_run_token, red_transients_group, view_only_token
+):
+    """Runs default to the sitewide group, which is what they were visible to
+    before they became group-scoped."""
+    status, data = api(
+        "POST",
+        "observing_run",
+        data={
+            "instrument_id": lris.id,
+            "pi": "D. Goldstein",
+            "observers": "D. Goldstein",
+            "group_id": red_transients_group.id,
+            "calendar_date": "2020-02-16",
+        },
+        token=observing_run_token,
+    )
+    assert status == 200, data
+    run_id = data["data"]["id"]
+
+    status, data = api("GET", f"observing_run/{run_id}", token=view_only_token)
+    assert status == 200, data
+
+
+def test_a_run_can_be_kept_to_one_group(
+    lris,
+    super_admin_token,
+    public_group2,
+    upload_data_token_two_groups,
+    view_only_token,
+):
+    """A group that does not want its plans read across the instance narrows
+    the run to itself; everyone else stops seeing it, target list included.
+
+    view_only_token's user is not in public_group2; the two-groups user is.
+    """
+    status, data = api(
+        "POST",
+        "observing_run",
+        data={
+            "instrument_id": lris.id,
+            "pi": "D. Goldstein",
+            "observers": "D. Goldstein",
+            "group_id": public_group2.id,
+            "group_ids": [public_group2.id],
+            "calendar_date": "2020-02-16",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    run_id = data["data"]["id"]
+
+    # A member of the group it was shared with still sees it ...
+    status, data = api(
+        "GET", f"observing_run/{run_id}", token=upload_data_token_two_groups
+    )
+    assert status == 200, data
+
+    # ... and it no longer appears for anyone else.
+    status, data = api("GET", f"observing_run/{run_id}", token=view_only_token)
+    assert status == 400, data
+
+    status, data = api("GET", "observing_run", token=view_only_token)
+    assert status == 200, data
+    assert run_id not in [run["id"] for run in data["data"]]

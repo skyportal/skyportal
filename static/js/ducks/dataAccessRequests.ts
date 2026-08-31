@@ -135,6 +135,12 @@ export const dataAccessRequestsApi = skyportalApi.injectEndpoints({
   }),
 });
 
+// The owner answering a request is a different session from the requester's, so
+// the requester's list is refreshed by its own push.
+invalidateOnMessage("skyportal/REFRESH_DATA_ACCESS_REQUESTS", () => [
+  "DataAccessRequest",
+]);
+
 // A grant lands as new photometry/spectra on the source the requester is
 // looking at. REFRESH_SOURCE is broadcast to every client for every source, and
 // carries the source's internal_key, so translate that to the obj id and

@@ -78,6 +78,7 @@ from skyportal.models import (
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
     GroupObjTag,
+    GroupObservingRun,
     GroupPhotometricSeries,
     GroupPhotometry,
     GroupPublicRelease,
@@ -1701,6 +1702,29 @@ def public_group_gcnevent(public_group, public_gcnevent):
         .scalars()
         .first()
     )
+
+
+@pytest.fixture()
+def public_group_observingrun(public_group, user):
+    """The GroupObservingRun row tying an observing run to public_group.
+
+    The factory defaults a run to the sitewide group, which is not this
+    fixture's group, so attach it explicitly.
+    """
+    run = ObservingRunFactory(owner=user, groups=[public_group])
+    row = (
+        DBSession()
+        .execute(
+            sa.select(GroupObservingRun).filter(
+                GroupObservingRun.group_id == public_group.id,
+                GroupObservingRun.observingrun_id == run.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    yield row
+    ObservingRunFactory.teardown(run)
 
 
 @pytest.fixture()

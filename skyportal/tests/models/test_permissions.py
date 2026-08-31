@@ -86,6 +86,7 @@ FIXTURE_MODEL = {
     "public_group_sedm_allocation": "Allocation",
     "public_gcnevent_crossmatch_state": "GcnEventCrossmatchState",
     "public_group_gcnevent": "GroupGcnEvent",
+    "public_group_observingrun": "GroupObservingRun",
     "public_group_taxonomy": "GroupTaxonomy",
     "public_groupannotation": "GroupAnnotation",
     "public_groupclassification": "GroupClassification",
@@ -571,6 +572,27 @@ CASES = [
     ("super_admin_user", "public_group_gcnevent", "read", True),
     ("super_admin_user", "public_group_gcnevent", "update", True),
     ("super_admin_user", "public_group_gcnevent", "delete", True),
+    # --- GroupObservingRun  (public_group_observingrun) ---
+    # Same shape as GroupGcnEvent: join_model gives read == create == "can read
+    # both sides", update/delete narrowed to group admins. Group.read is Public,
+    # so the read side reduces to ObservingRun.read -- and this run is attached
+    # to public_group only, so a user outside it cannot read the join row.
+    ("user", "public_group_observingrun", "create", True),
+    ("user", "public_group_observingrun", "read", True),
+    ("user", "public_group_observingrun", "update", False),
+    ("user", "public_group_observingrun", "delete", False),
+    ("user_group2", "public_group_observingrun", "create", False),
+    ("user_group2", "public_group_observingrun", "read", False),
+    ("user_group2", "public_group_observingrun", "update", False),
+    ("user_group2", "public_group_observingrun", "delete", False),
+    ("group_admin_user", "public_group_observingrun", "create", True),
+    ("group_admin_user", "public_group_observingrun", "read", True),
+    ("group_admin_user", "public_group_observingrun", "update", True),
+    ("group_admin_user", "public_group_observingrun", "delete", True),
+    ("super_admin_user", "public_group_observingrun", "create", True),
+    ("super_admin_user", "public_group_observingrun", "read", True),
+    ("super_admin_user", "public_group_observingrun", "update", True),
+    ("super_admin_user", "public_group_observingrun", "delete", True),
     # --- GcnEventCrossmatchState  (public_gcnevent_crossmatch_state) ---
     # read follows the event (public_gcnevent is attached to the sitewide group,
     # which UserFactory puts every user in, so all roles can read it); update and

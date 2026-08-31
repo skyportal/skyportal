@@ -15676,6 +15676,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/scheduled_observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve what is scheduled on a source but is not visible
+         * @description Retrieve the follow-up requests on a source that the calling user cannot read: which instrument, which group asked, who to talk to, and the state of the request. No request payloads are returned. Data availability describes what has already been taken; this describes what is about to be, so two groups do not spend the same night on the same target. Observing run assignments are not listed: runs are world-readable, so those are already visible to everyone.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/duplicate_scheduling": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Objects you have scheduled that another group has too
+         * @description For every object with a follow-up request you can read, report whether a group you are not in has one as well: which instrument and which group, so the two can be reconciled before the night rather than after it. Nothing about either request's payload is returned. Answers the question a shared instance cannot otherwise answer -- is someone else about to spend their time on this?
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{obj_id}/interests": {
         parameters: {
             query?: never;
@@ -27102,6 +27180,44 @@ export interface components {
             message?: string;
             data?: components["schemas"]["GroupObjTagNoID"][];
         };
+        GroupObservingRun: {
+            readonly group?: components["schemas"]["Group"];
+            readonly observingrun?: components["schemas"]["ObservingRun"];
+            group_id: number;
+            observingrun_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupObservingRun: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupObservingRun"];
+        };
+        ArrayOfGroupObservingRuns: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupObservingRun"][];
+        };
+        GroupObservingRunNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly observingrun?: components["schemas"]["ObservingRun"];
+            group_id: number;
+            observingrun_id: number;
+        };
+        SingleGroupObservingRunNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupObservingRunNoID"];
+        };
+        ArrayOfGroupObservingRunNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupObservingRunNoID"][];
+        };
         GroupPhotometricSeries: {
             readonly group?: components["schemas"]["Group"];
             readonly photometricseries?: components["schemas"]["PhotometricSeries"];
@@ -32371,6 +32487,7 @@ export interface components {
             data?: components["schemas"]["ObservationPlanRequestTargetGroupNoID"][];
         };
         ObservingRun: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The Instrument for this run. */
             readonly instrument?: components["schemas"]["Instrument"];
             readonly sources?: components["schemas"]["Obj"][];
@@ -32427,6 +32544,8 @@ export interface components {
             duration?: number;
             /** @description The ID of the group this run is associated with. */
             group_id?: number;
+            /** @description IDs of the groups that can see this run and its target list. Defaults to the sitewide group, which is what a run was visible to before runs became group-scoped. */
+            group_ids?: number[];
             /**
              * Format: date
              * @description The local calendar date of the run.
@@ -32462,6 +32581,8 @@ export interface components {
             duration?: number;
             /** @description The ID of the group this run is associated with. */
             group_id?: number;
+            /** @description IDs of the groups that can see this run and its target list. Defaults to the sitewide group, which is what a run was visible to before runs became group-scoped. */
+            group_ids?: number[];
             /**
              * Format: date
              * @description The local calendar date of the run.
@@ -32489,6 +32610,7 @@ export interface components {
             data?: components["schemas"]["ObservingRunGetWithAssignments"][];
         };
         ObservingRunNoID: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The Instrument for this run. */
             readonly instrument?: components["schemas"]["Instrument"];
             readonly sources?: components["schemas"]["Obj"][];
@@ -32541,6 +32663,8 @@ export interface components {
             duration?: number;
             /** @description The ID of the group this run is associated with. */
             group_id?: number;
+            /** @description IDs of the groups that can see this run and its target list. Defaults to the sitewide group, which is what a run was visible to before runs became group-scoped. */
+            group_ids?: number[];
             /**
              * Format: date
              * @description The local calendar date of the run.

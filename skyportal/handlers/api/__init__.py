@@ -57,6 +57,8 @@ from .config_handler import ConfigHandler
 from .data_access_request import (
     DataAccessRequestHandler,
     DataAvailabilityHandler,
+    DuplicateSchedulingHandler,
+    ScheduledObservationsHandler,
 )
 from .db_stats import StatsHandler
 from .earthquake import (
