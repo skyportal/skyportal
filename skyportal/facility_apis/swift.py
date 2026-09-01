@@ -13,7 +13,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.time import Time
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
-from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_mode
+from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_Mode
 from swifttools.xrt_prods import XRTProductRequest
 from tornado.ioloop import IOLoop
 
@@ -117,7 +117,7 @@ def fetch_observations(instrument_id, request_start, request_end):
 
     observations = []
     for row in oq:
-        mode = UVOT_mode(row.uvot)
+        mode = UVOT_Mode(row.uvot)
         if mode.entries is None:
             continue
         # each observation actually cycles through filters
