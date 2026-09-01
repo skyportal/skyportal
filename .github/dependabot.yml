@@ -26,6 +26,21 @@ updates:
           - minor
           - patch
     ignore:
+      # eslint-plugin-react has no ESLint 10 support at any published version
+      # (7.37.5 peers on `^9.7`), so eslint 10 breaks linting outright. Drop
+      # these two once the plugin ships it.
+      - dependency-name: eslint
+        versions:
+          - ">=10"
+      - dependency-name: "@eslint/js"
+        versions:
+          - ">=10"
+      # `typescript` here feeds typescript-eslint, which cannot read the TS 7
+      # API (see typescript-eslint#10940). Typechecking already runs TS 7 via
+      # the separate `typescript7` alias, so this pin costs nothing.
+      - dependency-name: typescript
+        versions:
+          - ">=7"
       - dependency-name: "@date-io/dayjs"
         versions:
           - ">= 0"
