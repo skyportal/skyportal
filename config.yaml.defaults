@@ -1128,9 +1128,13 @@ gcn:
   circulars:
     enabled: false
     topic: gcn.circulars
-    # How far from a designation's UTC date to look for its event, in hours.
-    # A designation fixes only the day, so a burst near midnight can sit in the
-    # neighbouring day's events.
+    # Only used for the first circular of an event, before any alias exists to
+    # match on; later ones match the designation this one writes. A designation
+    # ("GRB 260604C") fixes the burst's UTC day but not its time, so the search
+    # centres on noon that day and 12 hours spans exactly midnight to midnight.
+    # Widen it only for bursts designated to a neighbouring day -- and note that
+    # widening can lower the match rate, since a window holding more than one
+    # event is ambiguous and is skipped rather than guessed at.
     window_hours: 12
   reject_tags: # reject notices with these tags (optional)
     - MDC
