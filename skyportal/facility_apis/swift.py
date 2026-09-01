@@ -14,6 +14,7 @@ import sqlalchemy as sa
 from astropy.time import Time
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_Mode
+from swifttools.swift_too.base.constants import API_VERSION
 from swifttools.xrt_prods import XRTProductRequest
 from tornado.ioloop import IOLoop
 
@@ -30,6 +31,11 @@ env, cfg = load_env()
 
 # Submission URL
 XRT_URL = f"{cfg['app.swift_xrt_endpoint']}/run_userobject.php"
+# swifttools posts ToO requests itself and defaults to the production API
+TOO_API_BASE = (
+    f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}"
+    f":{cfg['app.swift.port']}/api/v{API_VERSION}"
+)
 
 log = make_log("facility_apis/swift")
 
@@ -558,6 +564,7 @@ class UVOTXRTAPI(FollowUpAPI):
                 # It signs and posts the request itself now (v2 API) and no
                 # longer exposes the JWT that used to be posted to submit_api.php.
                 swiftreq = UVOTXRTRequest(request)
+                swiftreq.requestgroup._api_base = TOO_API_BASE
                 accepted = swiftreq.requestgroup.submit()
                 return accepted, swiftreq.requestgroup
 
