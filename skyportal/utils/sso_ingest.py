@@ -48,6 +48,42 @@ DESIGNATION_KEYS = (
 # cut would silently pass fewer objects.
 SEPARATION_KEYS = ("separation_arcsec", "ssdistnr")
 
+# Arcsec from the object's predicted position beyond which a detection is not
+# treated as photometry of it. ZTF's match radius is generous enough that ~0.2%
+# of detections carrying a designation are a static source near the predicted
+# track instead; those sit a median 22" away, are ~2 mag brighter than genuine
+# detections, and dominate any brightness statistic built over the light curve.
+# BOOM applies the same 2" at light-curve assembly.
+MAX_SEPARATION_ARCSEC = 2.0
+
+
+def point_separation(point):
+    """A detection's arcsec from the predicted position, or None if unrecorded."""
+    if not isinstance(point, dict):
+        return None
+    for key in SEPARATION_KEYS:
+        value = point.get(key)
+        if value is not None:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def is_on_target(point, max_arcsec=MAX_SEPARATION_ARCSEC):
+    """Whether a detection is close enough to be photometry of the object.
+
+    A negative separation is the survey's "no match" marker, not a distance.
+    An unrecorded separation is kept: older broker documents predate the field,
+    and dropping what cannot be assessed would silently thin those light curves.
+    """
+    separation = point_separation(point)
+    if separation is None:
+        return True
+    return 0 <= separation < max_arcsec
+
+
 # Bare designations are often plain integers, which read as an id from anywhere.
 # The alias and SuperObj name carry a marker so one query finds every
 # solar-system object; `mpc_name` keeps the canonical designation.
@@ -366,6 +402,8 @@ async def ingest_sso_alert(
     # The triggering detection's ephemeris mag lives on the alert candidate.
     if detection and detection.get("ssmagnr") is None:
         detection["ssmagnr"] = cand.get("ssmagnr")
+    if detection and detection.get("ssdistnr") is None:
+        detection["ssdistnr"] = cand.get("ssdistnr")
     # Its SSO geometry (rh/delta/phase) lives on the alert's properties.sso;
     # history points carry their own (from _fetch_sso_history).
     sso_geom = (data.get("properties") or {}).get("sso")
@@ -376,15 +414,33 @@ async def ingest_sso_alert(
         history = await fetch_history(survey, designation)
         if history:
             points = history + points
+    # A detection too far from the predicted position is a real measurement of
+    # something else that happened to be near the track, so it is not this
+    # object's photometry.
+    on_target = [p for p in points if is_on_target(p)]
+    if len(on_target) != len(points):
+        log(
+            f"{designation}: dropped {len(points) - len(on_target)} of {len(points)} "
+            f'detections beyond {MAX_SEPARATION_ARCSEC}"'
+        )
+    points = on_target
     if points:
         # Per-epoch MPC ephemeris mag, keyed the same way build_photometry_groups
         # keys its arrays, so periodfind can detrend the geometry (obs - predicted).
         pred_by_key = {}
+        # Kept per point so which detections a threshold admits stays answerable
+        # from the stored photometry, without going back to the broker.
+        sep_by_key = {}
         for p in points:
             ss, jd, band = p.get("ssmagnr"), p.get("jd"), p.get("band")
-            if ss is not None and ss > 0 and jd is not None and band:
-                key = (jd - 2400000.5, f"{survey.lower()}{_normalize_band(band)}")
+            if jd is None or not band:
+                continue
+            key = (jd - 2400000.5, f"{survey.lower()}{_normalize_band(band)}")
+            if ss is not None and ss > 0:
                 pred_by_key[key] = float(ss)
+            separation = point_separation(p)
+            if separation is not None:
+                sep_by_key[key] = separation
 
         programid2streamid = await programid_to_stream_ids(session)
         photometry_data = build_photometry_groups(
@@ -397,9 +453,16 @@ async def ingest_sso_alert(
         for pd in photometry_data.values():
             if not pd["mjd"]:
                 continue
-            preds = [pred_by_key.get((m, f)) for m, f in zip(pd["mjd"], pd["filter"])]
+            keys = list(zip(pd["mjd"], pd["filter"]))
+            preds = [pred_by_key.get(k) for k in keys]
+            seps = [sep_by_key.get(k) for k in keys]
+            altdata = {}
             if any(v is not None for v in preds):
-                pd["altdata"] = {"predicted_mag": preds}
+                altdata["predicted_mag"] = preds
+            if any(v is not None for v in seps):
+                altdata["separation_arcsec"] = seps
+            if altdata:
+                pd["altdata"] = altdata
             await add_external_photometry(pd, user, session, apply_default_share=False)
 
     await _link_designation(session, obj_id, designation)
