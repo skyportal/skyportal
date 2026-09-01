@@ -136,7 +136,7 @@
     "json-loader": "0.5.7",
     "openapi-typescript": "7.13.0",
     "typescript": "7.0.2",
-    "typescript-eslint": "8.60.1",
+    "typescript-eslint": "8.68.0",
     "typescript7": "npm:typescript@7.0.2",
     "webpack-bundle-analyzer": "5.3.2"
   },
