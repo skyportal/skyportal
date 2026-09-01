@@ -52,3 +52,32 @@ class ThumbnailPathReportResponse(BaseModel):
     in_correct_folder: int | None = Field(alias="inCorrectFolder", default=None)
     in_wrong_folder: int | None = Field(alias="inWrongFolder", default=None)
     num_moved: int | None = Field(alias="numMoved", default=None)
+
+
+ThumbnailType = Literal[
+    "new",
+    "ref",
+    "sub",
+    "sdss",
+    "dr8",
+    "ls",
+    "ps1",
+    "sm",
+    "hst",
+    "chandra",
+    "jwst",
+    "new_gz",
+    "ref_gz",
+    "sub_gz",
+]
+
+
+class ThumbnailPost(BaseModel):
+    """Payload for uploading a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    data: str
+    ttype: ThumbnailType
+    survey: str | None = None

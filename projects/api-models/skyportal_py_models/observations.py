@@ -75,3 +75,13 @@ class ObservationSimSurveyResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: int
+
+
+class ObservationPost(BaseModel):
+    """Payload for ingesting a set of executed observations."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    telescope_name: str = Field(alias="telescopeName")
+    instrument_name: str = Field(alias="instrumentName")
+    observation_data: dict[str, list[Any]] = Field(alias="observationData")

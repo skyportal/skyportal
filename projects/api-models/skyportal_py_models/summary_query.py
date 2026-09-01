@@ -34,3 +34,18 @@ class SummaryQueryResultsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query_results: list[SummaryQueryMatchResponse] = Field(default_factory=list)
+
+
+class SummaryQueryPost(BaseModel):
+    """Payload for a source summary similarity search."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    q: str | None = None
+    obj_id: str | None = Field(alias="objID", default=None)
+    k: int | None = None
+    z_min: float | None = None
+    z_max: float | None = None
+    classification_types: list[str] | None = Field(
+        alias="classificationTypes", default=None
+    )

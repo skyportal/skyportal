@@ -420,3 +420,92 @@ class SourceExistsResponse(BaseModel):
 
     source_exists: bool
     message: str | None = None
+
+
+class SourcePost(BaseModel):
+    """Payload for saving a new source (upstream ``ObjPost``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    ra: float | None = None
+    dec: float | None = None
+    ra_dis: float | None = None
+    dec_dis: float | None = None
+    ra_err: float | None = None
+    dec_err: float | None = None
+    offset: float | None = None
+    t0: float | None = None
+    redshift: float | None = None
+    redshift_error: float | None = None
+    redshift_origin: str | None = None
+    host_id: int | None = None
+    summary: str | None = None
+    summary_history: list[dict[str, Any]] | None = None
+    altdata: dict[str, Any] | None = None
+    dist_nearest_source: float | None = None
+    mag_nearest_source: float | None = None
+    e_mag_nearest_source: float | None = None
+    transient: bool | None = None
+    varstar: bool | None = None
+    is_roid: bool | None = None
+    mpc_name: str | None = None
+    tns_name: str | None = None
+    tns_info: dict[str, Any] | None = None
+    score: float | None = None
+    origin: str | None = None
+    alias: list[str] | None = None
+    detect_photometry_count: int | None = None
+    group_ids: list[int] | None = None
+    refresh_source: bool | None = None
+    ignore_if_in_group_ids: dict[str, list[int]] | None = None
+    saver_per_group_id: dict[str, int] | None = None
+
+
+class SourceGcnEventCrossmatchPost(BaseModel):
+    """Payload for crossmatching a source against GCN events."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
+    probability: float | None = None
+    before_first_detection: bool | None = Field(
+        default=None, alias="beforeFirstDetection"
+    )
+    gcn_tag_keep: list[str] | None = Field(default=None, alias="gcnTagKeep")
+    gcn_tag_remove: list[str] | None = Field(default=None, alias="gcnTagRemove")
+    localization_tag_keep: list[str] | None = Field(
+        default=None, alias="localizationTagKeep"
+    )
+    localization_tag_remove: list[str] | None = Field(
+        default=None, alias="localizationTagRemove"
+    )
+    gcn_properties_filter: list[str] | None = Field(
+        default=None, alias="gcnPropertiesFilter"
+    )
+    localization_properties_filter: list[str] | None = Field(
+        default=None, alias="localizationPropertiesFilter"
+    )
+
+
+class SourceMpcQueryPost(BaseModel):
+    """Payload for a Minor Planet Center crossmatch."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obscode: str | None = None
+    date: str | None = None
+    limiting_magnitude: float | None = None
+    search_radius: float | None = None
+
+
+class SourceNotificationPost(BaseModel):
+    """Payload for sending a source notification."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    source_id: str = Field(alias="sourceId")
+    group_ids: list[int] = Field(alias="groupIds")
+    level: Literal["soft", "hard"]
+    additional_notes: str | None = Field(default=None, alias="additionalNotes")

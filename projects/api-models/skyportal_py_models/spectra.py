@@ -148,3 +148,94 @@ class BulkSpectraResponse(BaseModel):
     sources: list[BulkSpectraSourceResponse] = Field(default_factory=list)
     spectra: list[BulkSpectrumResponse] = Field(default_factory=list)
     truncated: bool = False
+
+
+class SpectrumPost(BaseModel):
+    """Payload for posting a spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    instrument_id: int
+    observed_at: str
+    wavelengths: list[float]
+    fluxes: list[float]
+    errors: list[float] | None = None
+    units: str | None = None
+    origin: str | None = None
+    type: str | None = None
+    label: str | None = None
+    altdata: dict[str, Any] | None = None
+    followup_request_id: int | None = None
+    assignment_id: int | None = None
+    group_ids: list[int] | str | None = None
+    pi: list[int] | None = None
+    external_pi: str | None = None
+    reduced_by: list[int] | None = None
+    external_reducer: str | None = None
+    observed_by: list[int] | None = None
+    external_observer: str | None = None
+
+
+class SpectrumUpdate(BaseModel):
+    """Payload for updating a spectrum; every field is optional."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = None
+    instrument_id: int | None = None
+    observed_at: str | None = None
+    wavelengths: list[float] | None = None
+    fluxes: list[float] | None = None
+    errors: list[float] | None = None
+    units: str | None = None
+    origin: str | None = None
+    type: str | None = None
+    label: str | None = None
+    altdata: dict[str, Any] | None = None
+    followup_request_id: int | None = None
+    assignment_id: int | None = None
+    group_ids: list[int] | str | None = None
+    pi: list[int] | None = None
+    external_pi: str | None = None
+    reduced_by: list[int] | None = None
+    external_reducer: str | None = None
+    observed_by: list[int] | None = None
+    external_observer: str | None = None
+
+
+class SpectrumAsciiParse(BaseModel):
+    """Payload for parsing an ASCII spectrum without saving it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ascii: str
+    wave_column: int | None = None
+    flux_column: int | None = None
+    fluxerr_column: int | None = None
+
+
+class SpectrumAsciiPost(BaseModel):
+    """Payload for uploading a spectrum from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ascii: str
+    obj_id: str
+    instrument_id: int
+    observed_at: str
+    filename: str
+    wave_column: int | None = None
+    flux_column: int | None = None
+    fluxerr_column: int | None = None
+    type: str | None = None
+    label: str | None = None
+    group_ids: list[int] | str | None = None
+    pi: list[int] | None = None
+    external_pi: str | None = None
+    reduced_by: list[int] | None = None
+    external_reducer: str | None = None
+    observed_by: list[int] | None = None
+    external_observer: str | None = None
+    followup_request_id: int | None = None
+    assignment_id: int | None = None

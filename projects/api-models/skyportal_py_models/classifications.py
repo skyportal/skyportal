@@ -36,7 +36,38 @@ class ClassificationsPageResponse(BaseModel):
     total_matches: int = Field(alias="totalMatches", default=0)
 
 
+class ClassificationPost(BaseModel):
+    """Payload for posting a classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    classification: str
+    taxonomy_id: int
+    origin: str | None = None
+    probability: float | None = None
+    ml: bool | None = None
+    group_ids: list[int] | None = None
+    vote: bool | None = None
+    label: bool | None = None
+
+
+class ClassificationUpdate(BaseModel):
+    """Payload for updating a classification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    classification: str | None = None
+    taxonomy_id: int | None = None
+    probability: float | None = None
+    origin: str | None = None
+    ml: bool | None = None
+    group_ids: list[int] | None = None
+
+
 __all__ = [
+    "ClassificationPost",
+    "ClassificationUpdate",
     "ClassificationEditResponse",
     "ClassificationPostResponse",
     "ClassificationResponse",

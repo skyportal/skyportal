@@ -164,3 +164,55 @@ class SharingServiceSubmissionsPageResponse(BaseModel):
     total_matches: int = Field(alias="totalMatches", default=0)
     page_number: int = Field(alias="pageNumber", default=1)
     num_per_page: int = Field(alias="numPerPage", default=100)
+
+
+class PhotometryOptions(BaseModel):
+    """Which photometry a sharing service publishes (upstream ``PHOTOMETRY_OPTIONS``).
+
+    The server fills in every option it knows about, defaulting each to true,
+    so a stored value always carries the full set.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_and_last_detections: bool | None = None
+    auto_sharing_allow_archival: bool | None = None
+
+
+class SharingServicePost(BaseModel):
+    """Payload for creating or updating a sharing service."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    name: str
+    owner_group_ids: list[int] | None = None
+    instrument_ids: list[int] | None = None
+    stream_ids: list[int] | None = None
+    acknowledgments: str | None = None
+    testing: bool | None = None
+    photometry_options: PhotometryOptions | None = None
+    enable_sharing_with_tns: bool | None = None
+    enable_sharing_with_hermes: bool | None = None
+    tns_bot_name: str | None = None
+    tns_bot_id: int | None = None
+    tns_source_group_id: int | None = None
+    tns_altdata: dict[str, Any] | None = Field(default=None, alias="_tns_altdata")
+    publish_existing_tns_objects: bool | None = None
+
+
+class SharingServiceSubmissionPost(BaseModel):
+    """Payload for requesting the publication of an object."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    sharing_service_id: int
+    publishers: str
+    remarks: str | None = None
+    archival: bool | None = None
+    archival_comment: str | None = None
+    instrument_ids: list[int] | None = None
+    stream_ids: list[int] | None = None
+    photometry_options: PhotometryOptions | None = None
+    publish_to_tns: bool | None = None
+    publish_to_hermes: bool | None = None

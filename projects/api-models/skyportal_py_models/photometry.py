@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -106,3 +106,87 @@ class PhotometryPointResponse(_SerializedPhotometryResponse):
 
 class PhotometryRangePointResponse(_SerializedPhotometryResponse):
     """A photometry point as serialized by the date-range query."""
+
+
+class PhotometryPost(BaseModel):
+    """Payload for posting one or many photometry points.
+
+    Provide either ``mag``/``magerr`` (magnitude space) or
+    ``flux``/``fluxerr``/``zp`` (flux space). For non-detections, leave the
+    measurement fields unset and provide ``limiting_mag``. Every measurement
+    field also accepts a 1D list to upload many points at once; scalars are
+    broadcast across the lists, and a None entry inside a ``mag``/``flux``
+    list marks that point as a non-detection.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | list[str]
+    mjd: float | list[float]
+    instrument_id: int | list[int]
+    filter: str | list[str]
+    magsys: str | list[str] = "ab"
+    mag: float | list[float | None] | None = None
+    magerr: float | list[float | None] | None = None
+    limiting_mag: float | list[float | None] | None = None
+    limiting_mag_nsigma: float | list[float | None] | None = None
+    magref: float | list[float | None] | None = None
+    e_magref: float | list[float | None] | None = None
+    flux: float | list[float | None] | None = None
+    fluxerr: float | list[float | None] | None = None
+    zp: float | list[float | None] | None = None
+    ref_flux: float | list[float | None] | None = None
+    ref_fluxerr: float | list[float | None] | None = None
+    ref_zp: float | list[float | None] | None = None
+    ra: float | list[float | None] | None = None
+    dec: float | list[float | None] | None = None
+    ra_unc: float | list[float | None] | None = None
+    dec_unc: float | list[float | None] | None = None
+    origin: str | list[str | None] | None = None
+    assignment_id: int | None = None
+    altdata: dict[str, Any] | list[dict[str, Any] | None] | None = None
+    extinction_corrected: bool | None = None
+    group_ids: list[int] | Literal["all"] | None = None
+    stream_ids: list[int] | None = None
+
+
+class PhotometryUpdate(BaseModel):
+    """Payload for updating an existing photometry point.
+
+    Every field is optional: the server loads the point, applies the given
+    fields, and re-validates the result as either a flux-space
+    (``flux``/``fluxerr``/``zp``) or magnitude-space (``mag``/``magerr``)
+    measurement. Only the fields explicitly set on the payload are sent, so
+    passing ``None`` explicitly (e.g. ``mag=None, magerr=None`` to turn a
+    detection into a non-detection) sends a null, while omitting a field
+    leaves it unchanged.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = None
+    mjd: float | None = None
+    instrument_id: int | None = None
+    filter: str | None = None
+    magsys: str | None = None
+    mag: float | None = None
+    magerr: float | None = None
+    limiting_mag: float | None = None
+    magref: float | None = None
+    e_magref: float | None = None
+    flux: float | None = None
+    fluxerr: float | None = None
+    zp: float | None = None
+    ref_flux: float | None = None
+    ref_fluxerr: float | None = None
+    ref_zp: float | None = None
+    ra: float | None = None
+    dec: float | None = None
+    ra_unc: float | None = None
+    dec_unc: float | None = None
+    origin: str | None = None
+    alert_id: int | None = None
+    assignment_id: int | None = None
+    altdata: dict[str, Any] | None = None
+    group_ids: list[int] | None = None
+    stream_ids: list[int] | None = None

@@ -131,7 +131,132 @@ class GcnEventTachInfoResponse(BaseModel):
     circulars: dict[str, str] | None = None
 
 
+class GcnEventPost(BaseModel):
+    """Payload for ingesting a GCN event."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    xml: str | None = None
+    json_notice: dict[str, Any] | None = Field(default=None, alias="json")
+    dateobs: str | None = None
+    trigger_id: str | None = None
+    aliases: list[str] | None = None
+    group_ids: list[int] | None = None
+    properties: dict[str, Any] | None = None
+    tags: list[str] | None = None
+    skymap: Any = None
+
+
+class GcnSummaryPost(BaseModel):
+    """Payload for generating a GCN event summary."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    title: str
+    group_id: int = Field(alias="groupId")
+    number: int | None = None
+    subject: str | None = None
+    user_ids: list[int] | None = Field(default=None, alias="userIds")
+    start_date: str | None = Field(default=None, alias="startDate")
+    end_date: str | None = Field(default=None, alias="endDate")
+    localization_name: str | None = Field(default=None, alias="localizationName")
+    localization_cumprob: float | None = Field(
+        default=None, alias="localizationCumprob"
+    )
+    number_detections: int | None = Field(default=None, alias="numberDetections")
+    number_observations: int | None = Field(default=None, alias="numberObservations")
+    show_sources: bool | None = Field(default=None, alias="showSources")
+    show_galaxies: bool | None = Field(default=None, alias="showGalaxies")
+    show_observations: bool | None = Field(default=None, alias="showObservations")
+    no_text: bool | None = Field(default=None, alias="noText")
+    photometry_in_window: bool | None = Field(default=None, alias="photometryInWindow")
+    stats_method: str | None = Field(default=None, alias="statsMethod")
+    instrument_ids: list[int] | None = Field(default=None, alias="instrumentIds")
+    acknowledgements: str | None = None
+
+
+class GcnReportPost(BaseModel):
+    """Payload for generating a GCN event report."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    report_name: str = Field(alias="reportName")
+    group_id: int = Field(alias="groupId")
+    start_date: str | None = Field(default=None, alias="startDate")
+    end_date: str | None = Field(default=None, alias="endDate")
+    localization_name: str | None = Field(default=None, alias="localizationName")
+    localization_cumprob: float | None = Field(
+        default=None, alias="localizationCumprob"
+    )
+    number_detections: int | None = Field(default=None, alias="numberDetections")
+    show_sources: bool | None = Field(default=None, alias="showSources")
+    show_observations: bool | None = Field(default=None, alias="showObservations")
+    show_survey_efficiencies: bool | None = Field(
+        default=None, alias="showSurveyEfficiencies"
+    )
+    photometry_in_window: bool | None = Field(default=None, alias="photometryInWindow")
+    stats_method: str | None = Field(default=None, alias="statsMethod")
+    instrument_ids: list[int] | None = Field(default=None, alias="instrumentIds")
+
+
+class DefaultGcnTagPost(BaseModel):
+    """Payload for creating a default GCN tag."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_tag_name: str
+    filters: dict[str, Any] | None = None
+
+
+class GcnEventObjPost(BaseModel):
+    """Payload for recording an object's standing against a GCN event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str
+    status: Literal["pending", "confirmed", "ambiguous", "rejected"]
+    localization_name: str
+    localization_cumprob: float
+    start_date: str
+    end_date: str
+    explanation: str | None = None
+    notes: str | None = None
+
+
+class GcnEventObjCrossmatchPost(BaseModel):
+    """Payload for crossmatching an object against GCN events."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
+    probability: float | None = None
+    before_first_detection: bool | None = Field(
+        default=None, alias="beforeFirstDetection"
+    )
+    gcn_tag_keep: list[str] | None = Field(default=None, alias="gcnTagKeep")
+    gcn_tag_remove: list[str] | None = Field(default=None, alias="gcnTagRemove")
+    localization_tag_keep: list[str] | None = Field(
+        default=None, alias="localizationTagKeep"
+    )
+    localization_tag_remove: list[str] | None = Field(
+        default=None, alias="localizationTagRemove"
+    )
+    gcn_properties_filter: list[str] | None = Field(
+        default=None, alias="gcnPropertiesFilter"
+    )
+    localization_properties_filter: list[str] | None = Field(
+        default=None, alias="localizationPropertiesFilter"
+    )
+
+
 __all__ = [
+    "GcnEventPost",
+    "GcnSummaryPost",
+    "GcnReportPost",
+    "DefaultGcnTagPost",
+    "GcnEventObjPost",
+    "GcnEventObjCrossmatchPost",
     "DefaultGcnTagResponse",
     "GcnCatalogQueryResponse",
     "GcnEventCrossmatchRequeueResponse",

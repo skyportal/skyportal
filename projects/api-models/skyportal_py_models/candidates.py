@@ -204,3 +204,77 @@ class ScanReportItemResponse(BaseModel):
     obj_id: str | None = None
     scan_report_id: int | None = None
     data: dict[str, Any] | None = None
+
+
+class CandidatePost(BaseModel):
+    """Payload for posting a new candidate.
+
+    Beyond the candidate's own fields, the server loads the body with the
+    ``Obj`` schema, so any ``Obj`` column may be set when the object does
+    not exist yet (and is updated in place when it does).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    ra: float
+    dec: float
+    filter_ids: list[int]
+    passed_at: str
+    passing_alert_id: int | None = None
+    ra_dis: float | None = None
+    dec_dis: float | None = None
+    ra_err: float | None = None
+    dec_err: float | None = None
+    offset: float | None = None
+    t0: float | None = None
+    redshift: float | None = None
+    redshift_error: float | None = None
+    redshift_origin: str | None = None
+    host_id: int | None = None
+    summary: str | None = None
+    altdata: dict[str, Any] | None = None
+    dist_nearest_source: float | None = None
+    mag_nearest_source: float | None = None
+    e_mag_nearest_source: float | None = None
+    transient: bool | None = None
+    varstar: bool | None = None
+    is_roid: bool | None = None
+    mpc_name: str | None = None
+    tns_name: str | None = None
+    tns_info: dict[str, Any] | None = None
+    score: float | None = None
+    origin: str | None = None
+    alias: list[str] | None = None
+    detect_photometry_count: int | None = None
+
+
+class ScanReportPassedFiltersRange(BaseModel):
+    """Time range over which candidates must have passed a filter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: str
+    end_date: str
+
+
+class ScanReportSavedCandidatesRange(BaseModel):
+    """Time range over which candidates must have been saved as sources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_saved_date: str
+    end_saved_date: str
+
+
+class ScanReportPost(BaseModel):
+    """Payload for generating a candidate scanning report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int]
+    passed_filters_range: ScanReportPassedFiltersRange | None = None
+    saved_candidates_range: ScanReportSavedCandidatesRange | None = None
+    passed_filters_window_hours: float | None = None
+    saved_candidates_window_hours: float | None = None
+    gcn_event_dateobs: str | None = None

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MovingObjectObservationResponse(BaseModel):
@@ -24,3 +24,21 @@ class MovingObjectObservationResponse(BaseModel):
     airmass: float | None = None
     sun_altitude: float | None = None
     moon_distance: float | None = None
+
+
+class MovingObjectFollowupPost(BaseModel):
+    """Payload for scheduling follow-up of a moving object."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    instrument_id: int
+    exposure_count: int
+    exposure_time: float
+    start_time: str
+    end_time: str
+    band: str = Field(alias="filter")
+    primary_only: bool | None = None
+    airmass_limit: float | None = None
+    moon_distance_limit: float | None = None
+    sun_altitude_limit: float | None = None
+    references_only: bool | None = None

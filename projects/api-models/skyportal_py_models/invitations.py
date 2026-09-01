@@ -44,3 +44,20 @@ class InvitationsPageResponse(BaseModel):
 
     invitations: list[InvitationResponse] = Field(default_factory=list)
     total_matches: int = Field(alias="totalMatches", default=0)
+
+
+class InvitationPost(BaseModel):
+    """Payload for inviting a new user."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    user_email: str = Field(alias="userEmail")
+    group_ids: list[int] = Field(alias="groupIDs")
+    role: str | None = None
+    stream_ids: list[int] | None = Field(alias="streamIDs", default=None)
+    group_admin: list[bool] | None = Field(alias="groupAdmin", default=None)
+    can_save: list[bool] | None = Field(alias="canSave", default=None)
+    can_share_photometry: list[bool] | None = Field(
+        alias="canSharePhotometry", default=None
+    )
+    user_expiration_date: str | None = Field(alias="userExpirationDate", default=None)

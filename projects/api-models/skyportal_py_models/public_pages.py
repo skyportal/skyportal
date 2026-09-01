@@ -63,3 +63,30 @@ class PublicReleaseResponse(BaseModel):
     group_ids: list[int] = Field(default_factory=list)
     groups: list[GroupResponse] | None = None
     source_pages: list[PublicSourcePageResponse] | None = None
+
+
+class PublicReleasePost(BaseModel):
+    """Payload for creating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    link_name: str
+    group_ids: list[int]
+    description: str | None = None
+    options: dict[str, Any] | None = None
+    is_visible: bool | None = None
+    auto_publish_enabled: bool | None = None
+
+
+class PublicReleaseUpdate(BaseModel):
+    """Payload for updating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    group_ids: list[int]
+    description: str | None = None
+    options: dict[str, Any] | None = None
+    is_visible: bool | None = None
+    auto_publish_enabled: bool | None = None

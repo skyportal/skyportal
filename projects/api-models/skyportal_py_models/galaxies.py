@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GalaxyResponse(BaseModel):
@@ -75,3 +75,42 @@ class GalaxyCatalogCountResponse(BaseModel):
 
     catalog_name: str
     catalog_count: int | None = None
+
+
+class GalaxyCatalogPost(BaseModel):
+    """Payload for ingesting a galaxy catalog."""
+
+    # The upstream OpenAPI schema documents ``catalog_data`` as a list of
+    # dicts, but the handler indexes it by column name, so it is really a dict
+    # of equal-length column lists.
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str
+    catalog_data: dict[str, list[Any]]
+    catalog_description: str | None = None
+    catalog_url: str | None = None
+
+    @field_validator("catalog_data")
+    @classmethod
+    def _decode_bytes(cls, value: dict[str, list[Any]]) -> dict[str, list[Any]]:
+        # HDF5-read tables carry numpy bytes in string columns, which the
+        # JSON encoder rejects; decode them the way simplejson used to.
+        return {
+            column: [
+                entry.decode() if isinstance(entry, bytes | bytearray) else entry
+                for entry in entries
+            ]
+            for column, entries in value.items()
+        }
+
+
+class GalaxyCatalogASCIIPost(BaseModel):
+    """Payload for uploading a galaxy catalog from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    catalog_name: str = Field(alias="catalogName")
+    catalog_data: str = Field(alias="catalogData")
+    catalog_description: str | None = Field(alias="catalogDescription", default=None)
+    catalog_url: str | None = Field(alias="catalogURL", default=None)

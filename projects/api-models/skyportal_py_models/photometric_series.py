@@ -86,3 +86,42 @@ class PhotometricSeriesPageResponse(BaseModel):
     total_matches: int = Field(alias="totalMatches", default=0)
     page_number: int = Field(alias="pageNumber", default=1)
     num_per_page: int = Field(alias="numPerPage", default=100)
+
+
+class PhotometricSeriesPost(BaseModel):
+    """Payload for uploading or updating a photometric series.
+
+    ``data`` is either a mapping of column name to list of values, or a
+    base64-encoded HDF5 bytestream written with ``pandas.HDFStore``. It must
+    contain an ``mjd`` column and either a ``flux`` or a ``mag`` column.
+    ``ra``, ``dec``, ``exp_time`` and ``filter`` are inferred from the data
+    columns when not given explicitly. ``data`` is required when creating a
+    series and optional when updating one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    data: dict[str, list[Any]] | str | None = None
+    series_name: str | None = None
+    series_obj_id: str | None = None
+    obj_id: str | None = None
+    instrument_id: int | None = None
+    group_ids: list[int] | str | None = None
+    stream_ids: list[int] | None = None
+    ra: float | None = None
+    dec: float | None = None
+    ra_unc: float | None = None
+    dec_unc: float | None = None
+    exp_time: float | None = None
+    filter: str | None = None
+    channel: str | None = None
+    origin: str | None = None
+    limiting_mag: float | None = None
+    magref: float | None = None
+    e_magref: float | None = None
+    ref_flux: float | None = None
+    ref_fluxerr: float | None = None
+    followup_request_id: int | None = None
+    assignment_id: int | None = None
+    time_stamp_alignment: Literal["start", "middle", "end"] | None = None
+    altdata: dict[str, Any] | None = None

@@ -23,3 +23,14 @@ class ListingResponse(BaseModel):
     obj_id: str | None = None
     list_name: str | None = None
     params: dict[str, Any] | None = None
+
+
+class ListingPost(BaseModel):
+    """Payload for adding an object to a user's list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    list_name: str
+    user_id: int | None = None
+    params: dict[str, Any] | None = None

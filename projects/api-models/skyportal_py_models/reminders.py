@@ -17,7 +17,37 @@ class RemindersResponse(BaseModel):
     reminders: list[ReminderResponse] = Field(default_factory=list)
 
 
+class ReminderPost(BaseModel):
+    """Payload for creating reminders on a resource."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+    next_reminder: str
+    reminder_delay: float | None = None
+    number_of_reminders: int | None = None
+    group_ids: list[int] | None = None
+    user_ids: list[int] | None = None
+
+
+class ReminderUpdate(BaseModel):
+    """Payload for updating an existing reminder."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | None = None
+    origin: str | None = None
+    bot: bool | None = None
+    next_reminder: str | None = None
+    reminder_delay: float | None = None
+    number_of_reminders: int | None = None
+    group_ids: list[int] | None = None
+    user_ids: list[int] | None = None
+
+
 __all__ = [
+    "ReminderPost",
+    "ReminderUpdate",
     "ReminderResponse",
     "RemindersResponse",
 ]

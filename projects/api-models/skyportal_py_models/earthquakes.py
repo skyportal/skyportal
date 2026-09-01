@@ -101,3 +101,17 @@ class EarthquakesPageResponse(BaseModel):
 
     events: list[EarthquakeResponse] = Field(default_factory=list)
     total_matches: int = Field(alias="totalMatches", default=0)
+
+
+class EarthquakePost(BaseModel):
+    """Payload for ingesting an earthquake event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    xml: str | None = None
+    event_id: str | None = None
+    date: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    depth: float | None = None
+    magnitude: float | None = None

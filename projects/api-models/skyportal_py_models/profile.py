@@ -56,3 +56,19 @@ class UserProfileResponse(BaseModel):
     )
     streams: list[StreamResponse] = Field(default_factory=list)
     is_anonymous: bool | None = None
+
+
+class ProfilePatch(BaseModel):
+    """Payload for updating the token user's profile and preferences."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    affiliations: list[str] | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    bio: str | None = None
+    is_bot: bool | None = None
+    preferences: dict[str, Any] | None = None

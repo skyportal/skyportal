@@ -185,3 +185,40 @@ class BrokerFilterAttachResponse(BaseModel):
 
     id: int
     broker_id: int | None = None
+
+
+#: The registered ``BrokerAPI`` provider classes (upstream ``BROKERS``).
+BrokerClassname = Literal[
+    "GENERICBROKER",
+    "LASAIRBROKER",
+    "BABAMULBROKER",
+    "BOOMBROKER",
+    "FINKBROKER",
+    "ALERCEBROKER",
+    "ANTARESBROKER",
+    "PITTGOOGLEBROKER",
+    "AMPELBROKER",
+]
+
+
+class BrokerPost(BaseModel):
+    """Payload for registering a broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    broker_classname: BrokerClassname
+    altdata: dict[str, Any] | None = None
+    active: bool | None = None
+    default_alert_search: bool | None = None
+    default_crossmatch: bool | None = None
+
+
+class BrokerFilterQuery(BaseModel):
+    """A saved query for a broker whose ``filter_kind`` is ``"query"``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    selected: str
+    tables: str
+    conditions: str | None = None

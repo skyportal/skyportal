@@ -28,3 +28,27 @@ class FilterResponse(BaseModel):
     altdata: dict[str, Any] | None = None
     autosave: bool | None = None
     stream: StreamResponse | None = None
+
+
+class FilterPost(BaseModel):
+    """Payload for creating a filter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    stream_id: int
+    group_id: int
+    broker_id: int | None = None
+    altdata: dict[str, Any] | None = None
+
+
+class FilterPatch(BaseModel):
+    """Payload for updating a filter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    altdata: dict[str, Any] | None = None
+    group_id: int | None = None
+    stream_id: int | None = None
+    autosave: bool | None = None

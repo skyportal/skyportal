@@ -93,3 +93,30 @@ MMADetectorResponse.model_rebuild()
 MMADetectorSpectrumResponse.model_rebuild()
 
 MMADetectorTimeIntervalResponse.model_rebuild()
+
+
+class MMADetectorPost(BaseModel):
+    """Payload for creating an MMA detector."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    nickname: str
+    type: str
+    fixed_location: bool
+    lat: float | None = None
+    lon: float | None = None
+    elevation: float | None = None
+
+
+class MMADetectorSpectrumPost(BaseModel):
+    """Payload for uploading an MMA detector spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    frequencies: list[float]
+    amplitudes: list[float]
+    start_time: str
+    end_time: str
+    detector_id: int
+    group_ids: list[int] | str | None = None

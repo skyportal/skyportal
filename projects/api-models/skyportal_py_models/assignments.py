@@ -44,3 +44,18 @@ class AssignmentResponse(BaseModel):
     last_detected_mag: float | None = None
     last_detected_filter: str | None = None
     last_detected_mjd: float | None = None
+
+
+FollowupPriority = Literal["1", "2", "3", "4", "5"]
+
+
+class AssignmentPost(BaseModel):
+    """Payload for assigning a target to an observing run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: int
+    obj_id: str
+    priority: FollowupPriority
+    status: str | None = None
+    comment: str | None = None
