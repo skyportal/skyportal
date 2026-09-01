@@ -25,10 +25,18 @@ def record_mode_for(cache):
 def redirect_host(uri):
     """Real host for a test route, longest match first (`/too` also matches
     `/too/winter`, and the last match in config order would otherwise win)."""
-    matches = [r for r in cfg["test_server.redirects"] if re.match(r, uri)]
-    if not matches:
+
+    def matches(route):
+        # Prefixes stop at a segment boundary, or `/too` (Gemini) would also
+        # claim Swift's `/toop/submit_api.php`.
+        if uri == route or route.endswith("/"):
+            return uri.startswith(route)
+        return uri.startswith(route) and uri[len(route)] in "/?"
+
+    routes = [r for r in cfg["test_server.redirects"] if matches(r)]
+    if not routes:
         return None
-    return cfg["test_server.redirects"][max(matches, key=len)]
+    return cfg["test_server.redirects"][max(routes, key=len)]
 
 
 def get_cache_file_static():
