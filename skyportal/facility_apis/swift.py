@@ -29,7 +29,6 @@ env, cfg = load_env()
 
 
 # Submission URL
-API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_api.php"
 XRT_URL = f"{cfg['app.swift_xrt_endpoint']}/run_userobject.php"
 
 log = make_log("facility_apis/swift")
@@ -554,21 +553,19 @@ class UVOTXRTAPI(FollowUpAPI):
 
         if request.payload["request_type"] == "XRT/UVOT ToO":
 
-            def _build_jwt():
-                # swifttools validate()/jwt do blocking HTTP; build off-thread.
+            def _submit():
+                # swifttools does its own blocking HTTP; run off the event loop.
+                # It signs and posts the request itself now (v2 API) and no
+                # longer exposes the JWT that used to be posted to submit_api.php.
                 swiftreq = UVOTXRTRequest(request)
-                swiftreq.requestgroup.validate()
-                return swiftreq.requestgroup.jwt
+                accepted = swiftreq.requestgroup.submit()
+                return accepted, swiftreq.requestgroup
 
-            jwt = await asyncio.to_thread(_build_jwt)
+            accepted, requestgroup = await asyncio.to_thread(_submit)
+            too_status = requestgroup.status
+            content = "; ".join(too_status.errors) or str(too_status.status)
 
-            payload = {"jwt": jwt}
-            async with aiohttp.ClientSession() as http_session:
-                async with http_session.post(API_URL, data=payload) as r:
-                    content = await r.text()
-                    status = r.status
-
-            if status == 200:
+            if accepted:
                 request.status = "submitted"
             else:
                 request.status = f"rejected: {content}"
@@ -588,9 +585,23 @@ class UVOTXRTAPI(FollowUpAPI):
                 except Exception as e:
                     log(f"Failed to send notification: {e}")
 
+            # swifttools owns the transport, so there is no aiohttp response to
+            # serialize; record what it sent and how the server answered.
             transaction = FacilityTransaction(
-                request=http.serialize_aiohttp_request("POST", API_URL, None, payload),
-                response=await http.serialize_aiohttp_response(r, content),
+                request=http.serialize_aiohttp_request(
+                    "POST",
+                    requestgroup.submit_url,
+                    None,
+                    requestgroup.model_dump_json(),
+                ),
+                response={
+                    "headers": {},
+                    "content": content,
+                    "cookies": {},
+                    "elapsed": None,
+                    "status_code": 200 if accepted else 400,
+                    "ok": bool(accepted),
+                },
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )

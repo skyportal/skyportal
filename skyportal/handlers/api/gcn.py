@@ -105,6 +105,7 @@ from ...utils.gcn import (
     from_url,
     get_contour,
     get_dateobs,
+    get_designation_date,
     get_json_tags,
     get_notice_aliases,
     get_properties,
@@ -633,6 +634,96 @@ async def link_detectors_to_event(session, user, event, tag_texts):
     if added:
         event_loaded.detectors = list(event_loaded.detectors) + added
     return added
+
+
+async def post_gcn_circular(circular, session, window_hours=12):
+    """Record one GCN circular on the event it reports on.
+
+    Circulars carry the designation GCN itself assigned them (``eventId``), so
+    the association needs no parsing of the body — unlike the TACH backfill,
+    which regexes designations out of circular text after the fact.
+
+    The circular is added to ``GcnEvent.circulars`` and its designation to
+    ``GcnEvent.aliases``, which is what makes the event findable by name
+    afterwards. Circulars never create events: one whose event has no notice in
+    the database is skipped, since the alternative is manufacturing events with
+    no localization from prose alone.
+
+    Returns the event's dateobs, or None if nothing was recorded.
+    """
+    try:
+        circular_id = int(circular.get("circularId"))
+    except (TypeError, ValueError):
+        return None
+    event_id = circular.get("eventId")
+    subject = circular.get("subject") or ""
+    if not event_id:
+        return None
+
+    event = await _find_event_for_designation(event_id, session, window_hours)
+    if event is None:
+        return None
+
+    # JSONB keys are strings; keep the type stable so the membership test holds
+    # across restarts and matches what TACH writes.
+    key = str(circular_id)
+    circulars = dict(event.circulars or {})
+    if circulars.get(key) == subject and _alias_present(event, event_id):
+        return event.dateobs  # already recorded
+
+    circulars[key] = subject
+    event.circulars = circulars
+    flag_modified(event, "circulars")
+
+    if not _alias_present(event, event_id):
+        event.aliases = list(event.aliases or []) + [event_id]
+        flag_modified(event, "aliases")
+
+    await session.commit()
+    return event.dateobs
+
+
+def _alias_present(event, event_id):
+    """Aliases are stored in several spellings (GRB 260604C, GRB260604C, LVC#S...)."""
+    needle = event_id.replace(" ", "").lower()
+    return any(
+        needle in str(alias).replace(" ", "").lower() for alias in (event.aliases or [])
+    )
+
+
+async def _find_event_for_designation(event_id, session, window_hours):
+    """The event a designation names: by alias if one already matches, else by date.
+
+    A designation fixes only the UTC day, so the date search spans a window and
+    takes the single event in it — an ambiguous day is left alone rather than
+    guessed at, since attaching a circular to the wrong event is worse than
+    attaching it to none.
+    """
+    needle = event_id.replace(" ", "").lower()
+    event = await session.scalar(
+        sa.select(GcnEvent).where(
+            sa.func.replace(
+                sa.func.lower(cast(GcnEvent.aliases, sa.String)), " ", ""
+            ).like(f"%{needle}%")
+        )
+    )
+    if event is not None:
+        return event
+
+    day = get_designation_date(event_id)
+    if day is None:
+        return None
+    # GcnEvent.dateobs is a naive UTC column, so compare against naive datetimes.
+    centre = datetime.datetime(day.year, day.month, day.day, 12)  # noqa: DTZ001
+    events = (
+        await session.scalars(
+            sa.select(GcnEvent).where(
+                GcnEvent.dateobs >= centre - timedelta(hours=window_hours),
+                GcnEvent.dateobs <= centre + timedelta(hours=window_hours),
+            )
+        )
+    ).all()
+    return events[0] if len(events) == 1 else None
 
 
 async def post_gcnevent_from_xml(
