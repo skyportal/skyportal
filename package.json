@@ -27,7 +27,7 @@
     "@rjsf/mui": "6.7.1",
     "@rjsf/utils": "6.7.1",
     "@rjsf/validator-ajv8": "6.7.1",
-    "@types/pako": "^2.0.4",
+    "@types/pako": "^3.0.0",
     "aladin-lite": "3.8.2",
     "autosuggest-highlight": "3.3.4",
     "buffer": "6.0.3",
