@@ -49,12 +49,19 @@ DESIGNATION_KEYS = (
 SEPARATION_KEYS = ("separation_arcsec", "ssdistnr")
 
 # Arcsec from the object's predicted position beyond which a detection is not
-# treated as photometry of it. ZTF's match radius is generous enough that ~0.2%
-# of detections carrying a designation are a static source near the predicted
-# track instead; those sit a median 22" away, are ~2 mag brighter than genuine
-# detections, and dominate any brightness statistic built over the light curve.
-# BOOM applies the same 2" at light-curve assembly.
-MAX_SEPARATION_ARCSEC = 2.0
+# treated as photometry of it, set at the outer edge of the survey's search
+# radius rather than at the width of a good match.
+#
+# How far a genuine detection falls from its prediction tracks the ephemeris,
+# which varies by epoch and by how well the object is observed: across the ZTF
+# archive the share of detections beyond 2" ranges from 1% to 94%, so a threshold
+# near that is really a filter on ephemeris quality and would discard most of a
+# bad season's photometry. The share beyond 20" holds at 0.6-1.0% throughout, and
+# those behave like a separate population rather than a tail -- some 2.6 mag
+# brighter than the MPC prediction, and sitting about 1" from a source in the
+# reference image where genuine detections sit 7" away. They are static sources
+# near the predicted track. BOOM cuts at the same radius.
+MAX_SEPARATION_ARCSEC = 20.0
 
 
 def point_separation(point):

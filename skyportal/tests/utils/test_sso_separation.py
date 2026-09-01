@@ -14,10 +14,18 @@ def test_close_detections_are_kept():
     assert is_on_target({"ssdistnr": 1.99})
 
 
+def test_moderate_separations_are_kept():
+    # An ephemeris good to only a few arcsec is still an ephemeris for this
+    # object. Cutting here would discard most of a bad season's photometry.
+    assert is_on_target({"ssdistnr": 5.0})
+    assert is_on_target({"ssdistnr": 15.0})
+
+
 def test_distant_detections_are_dropped():
     assert not is_on_target({"ssdistnr": MAX_SEPARATION_ARCSEC})
-    # The contaminant population sits around 22".
+    # The contaminant population sits beyond the search radius' edge.
     assert not is_on_target({"ssdistnr": 22.0})
+    assert not is_on_target({"ssdistnr": 30.0})
 
 
 def test_negative_separation_is_a_no_match_marker():
