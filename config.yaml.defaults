@@ -1063,6 +1063,7 @@ ports:
   # migration_manager:
   notification_queue: 64610
   tns_retrieval_queue: 64810
+  jpl_sbident_queue: 64820
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -1073,6 +1074,7 @@ hosts:
   migration_manager: 127.0.0.1
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
+  jpl_sbident_queue: 127.0.0.1
   slack: 127.0.0.1
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by
