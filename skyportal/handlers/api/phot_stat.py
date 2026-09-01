@@ -2,7 +2,13 @@ from typing import Annotated
 
 import arrow
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sources import (
+    PhotStatAggregateGetQuery,
+    PhotStatUpdateGetQuery,
+    PhotStatUpdatePatchQuery,
+    PhotStatUpdatePostQuery,
+)
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +28,6 @@ ObjId = Annotated[str, Field(description="object ID to get statistics on")]
 
 log = make_log("api/source")
 
-DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 
 # Scalar PhotStat columns that can be plotted against one another, with the
@@ -48,7 +53,6 @@ PHOT_STAT_PLOT_FIELDS = {
 
 # Absolute ceiling on returned points, regardless of the requested maxMatches.
 MAX_AGGREGATE_POINTS = 100000
-DEFAULT_AGGREGATE_POINTS = 20000
 
 
 class PhotStatHandler(BaseHandler):
@@ -239,159 +243,6 @@ class PhotStatHandler(BaseHandler):
             await session.commit()
 
         return self.success()
-
-
-class PhotStatUpdateGetQuery(BaseModel):
-    """Query parameters for counting sources with and without PhotStats."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    createdAtStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created after this time "
-            "will be checked for missing/existing PhotStats."
-        ),
-    )
-    createdAtEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created before this time "
-            "will be checked for missing/existing PhotStats."
-        ),
-    )
-    quickUpdateStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been updated (either full update or "
-            "an update at insert time) after this time "
-            "will be recalculated."
-        ),
-    )
-    quickUpdateEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been updated (either full update or "
-            "an update at insert time) before this time "
-            "will be recalculated."
-        ),
-    )
-    fullUpdateStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been fully updated after this time "
-            "will be counted."
-        ),
-    )
-    fullUpdateEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been fully updated before this time "
-            "will be counted."
-        ),
-    )
-
-
-class PhotStatUpdatePostQuery(BaseModel):
-    """Query parameters for calculating PhotStats for a batch of sources."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    numPerPage: int = Field(
-        default=DEFAULT_SOURCES_PER_PAGE,
-        description="Number of sources to check for updates. Defaults to 100. Max 500.",
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for iterating through all sources. Defaults to 1",
-    )
-    createdAtStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created after this time "
-            "will be checked for missing PhotStats."
-        ),
-    )
-    createdAtEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created before this time "
-            "will be checked for missing PhotStats."
-        ),
-    )
-
-
-class PhotStatUpdatePatchQuery(BaseModel):
-    """Query parameters for recalculating PhotStats for a batch of sources."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    numPerPage: int = Field(
-        default=DEFAULT_SOURCES_PER_PAGE,
-        description="Number of sources to check for updates. Defaults to 100. Max 500.",
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for iterating through all sources. Defaults to 1",
-    )
-    createdAtStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created after this time "
-            "will be checked for missing/existing PhotStats."
-        ),
-    )
-    createdAtEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, only objects "
-            "that have been created before this time "
-            "will be checked for missing/existing PhotStats."
-        ),
-    )
-    quickUpdateStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been updated (either full update or "
-            "an update at insert time) after this time "
-            "will be recalculated."
-        ),
-    )
-    quickUpdateEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been updated (either full update or "
-            "an update at insert time) before this time "
-            "will be recalculated."
-        ),
-    )
-    fullUpdateStartTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been fully updated after this time "
-            "will be recalculated."
-        ),
-    )
-    fullUpdateEndTime: str | None = Field(
-        default=None,
-        description=(
-            "arrow parseable string, any object's PhotStat "
-            "that has been fully updated before this time "
-            "will be recalculated."
-        ),
-    )
 
 
 class PhotStatUpdateHandler(BaseHandler):
@@ -743,57 +594,6 @@ class PhotStatUpdateHandler(BaseHandler):
             "pageNumber": page_number,
         }
         return self.success(data=results)
-
-
-class PhotStatAggregateGetQuery(BaseModel):
-    """Query parameters for bulk photometry statistics."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    xField: str | None = Field(
-        default=None,
-        description="PhotStat field for the x axis (see the returned `fields`).",
-    )
-    yField: str | None = Field(
-        default=None,
-        description="PhotStat field for the y axis.",
-    )
-    zField: str | None = Field(
-        default=None,
-        description="Optional PhotStat field for a third (z) axis.",
-    )
-    classifications: str | None = Field(
-        default=None,
-        description=(
-            "Comma-separated classification names to down-select sources "
-            "(matches any). Omit to include all accessible sources."
-        ),
-    )
-    classificationProbThreshold: float | None = Field(
-        default=None,
-        description="Only count classifications at or above this probability.",
-    )
-    group_id: int | None = Field(
-        default=None,
-        description=(
-            "Restrict to sources saved to this group (an alternative to "
-            "classification-based selection)."
-        ),
-    )
-    obj_ids: str | None = Field(
-        default=None,
-        description=(
-            "Comma-separated object IDs to restrict to (an alternative to "
-            "classification-based selection)."
-        ),
-    )
-    maxMatches: int = Field(
-        default=DEFAULT_AGGREGATE_POINTS,
-        description=(
-            "Maximum number of points to return (default 20000, capped at "
-            "100000). If more match, the response is truncated."
-        ),
-    )
 
 
 class PhotStatAggregateHandler(BaseHandler):

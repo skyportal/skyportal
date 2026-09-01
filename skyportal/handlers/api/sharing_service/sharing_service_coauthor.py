@@ -1,7 +1,12 @@
 from typing import Annotated
 
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sharing_services import (
+    SharingServiceCoauthorPatchBody,
+    SharingServiceCoauthorPostBody,
+    SharingServiceCoauthorPostResponse,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -15,33 +20,6 @@ SharingServiceId = Annotated[
 ]
 
 log = make_log("api/sharing_service_coauthor")
-
-
-class SharingServiceCoauthorPostBody(BaseModel):
-    """Request body for adding a coauthor to an external sharing service."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_id: int | None = Field(
-        default=None,
-        description="ID of the user to add as a coauthor, if not specified in the URL",
-    )
-
-
-class SharingServiceCoauthorPostResponse(BaseModel):
-    """Data payload returned when adding a coauthor."""
-
-    id: int = Field(description="New SharingServiceCoauthor ID")
-
-
-class SharingServiceCoauthorPatchBody(BaseModel):
-    """Request body for reordering the coauthors of an external sharing service."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_ids: list[int] = Field(
-        description="IDs of all the coauthors of the sharing service, in the order they should be published"
-    )
 
 
 class SharingServiceCoauthorHandler(BaseHandler):

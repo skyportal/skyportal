@@ -1,8 +1,13 @@
 import time
-from typing import Annotated, Any
+from typing import Annotated
 
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.annotations import (
+    AnnotationPostBody,
+    AnnotationPostResponse,
+    AnnotationPutBody,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -35,57 +40,6 @@ ResourceId = Annotated[
 ]
 
 log = make_log("api/annotation")
-
-
-class AnnotationPostBody(BaseModel):
-    """Request body for posting an annotation."""
-
-    # Clients still send handler-derived fields (obj_id) that the previous
-    # marshmallow schema silently ignored; ignore rather than reject them.
-    model_config = ConfigDict(extra="ignore")
-
-    origin: str = Field(
-        pattern=r"^\w+",
-        description="String describing the source of this information. "
-        "Only one Annotation per origin is allowed, although each Annotation "
-        "can have multiple fields. To add/change data, use the update method "
-        "instead of trying to post another Annotation from this origin. "
-        "Origin must be a non-empty string starting with an alphanumeric "
-        "character or underscore (it must match the regex: /^\\w+/).",
-    )
-    data: dict[str, Any] = Field(description="Annotation data as {key: value} pairs.")
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view annotation. Defaults to all of requesting user's groups.",
-    )
-
-
-class AnnotationPostResponse(BaseModel):
-    """Data payload returned when posting an annotation."""
-
-    annotation_id: int = Field(description="New annotation ID")
-
-
-class AnnotationPutBody(BaseModel):
-    """Request body for updating an annotation."""
-
-    # Clients still send handler-derived fields (obj_id, author_id) that the
-    # previous marshmallow schema silently ignored; ignore rather than reject.
-    model_config = ConfigDict(extra="ignore")
-
-    data: dict[str, Any] | None = Field(
-        default=None, description="Annotation data as {key: value} pairs."
-    )
-    origin: str | None = Field(
-        default=None,
-        description="String describing the source of this information.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should "
-        "be able to view the annotation.",
-    )
 
 
 def _coerce_resource_id(associated_resource_type, resource_id):

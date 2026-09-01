@@ -3,7 +3,6 @@ import functools
 import glob
 import tempfile
 import time
-from typing import Any
 
 import arrow
 import numpy as np
@@ -13,8 +12,13 @@ import swifttools.ukssdc.query as uq
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import selectinload
+from skyportal_py_models.catalog_queries import (
+    CatalogQueryPostBody,
+    GaiaPhotometricAlertsQueryPostBody,
+    SwiftLSXPSQueryPostBody,
+    TessTransientsQueryPostBody,
+)
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -50,80 +54,6 @@ _, cfg = load_env()
 TESS_URL = cfg["app.tess_endpoint"]
 
 log = make_log("api/catalogs")
-
-
-class CatalogQueryPostBody(BaseModel):
-    """Request body for submitting a catalog query."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    allocation_id: int = Field(description="Catalog query request allocation ID.")
-    payload: dict[str, Any] | None = Field(
-        default=None, description="Content of the catalog query request."
-    )
-    status: str | None = Field(default=None, description="The status of the request.")
-    target_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to share the results of the query with.",
-    )
-
-
-class SwiftLSXPSQueryPostBody(BaseModel):
-    """Request body for posting Swift LSXPS objects as sources."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    telescope_name: str | None = Field(
-        default=None,
-        description="Name of telescope to assign this catalog to. Use the same "
-        "name as your nickname for the Neil Gehrels Swift Observatory. Defaults "
-        "to Swift.",
-    )
-    groupIDs: list[int] | None = Field(
-        default=None, description="If provided, save to these group IDs."
-    )
-
-
-class GaiaPhotometricAlertsQueryPostBody(BaseModel):
-    """Request body for posting Gaia Photometric Alerts as sources."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    telescope_name: str | None = Field(
-        default=None,
-        description="Name of telescope to assign this catalog to. Use the same "
-        "name as your nickname for Gaia. Defaults to Gaia.",
-    )
-    groupIDs: list[int] | None = Field(
-        default=None, description="If provided, save to these group IDs."
-    )
-    startDate: str | None = Field(
-        default=None, description="Arrow parsable string. Filter by start date."
-    )
-    endDate: str | None = Field(
-        default=None, description="Arrow parsable string. Filter by end date."
-    )
-
-
-class TessTransientsQueryPostBody(BaseModel):
-    """Request body for posting TESS transients as sources."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    telescope_name: str | None = Field(
-        default=None,
-        description="Name of telescope to assign this catalog to. Use the same "
-        "name as your nickname for TESS. Defaults to TESS.",
-    )
-    groupIDs: list[int] | None = Field(
-        default=None, description="If provided, save to these group IDs."
-    )
-    startDate: str | None = Field(
-        default=None, description="Arrow parsable string. Filter by start date."
-    )
-    endDate: str | None = Field(
-        default=None, description="Arrow parsable string. Filter by end date."
-    )
 
 
 class CatalogQueryHandler(BaseHandler):

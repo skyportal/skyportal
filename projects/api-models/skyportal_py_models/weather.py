@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WeatherResponse(BaseModel):
@@ -28,6 +28,19 @@ class WeatherResponse(BaseModel):
     message: str | None = None
 
 
+class WeatherGetQuery(BaseModel):
+    """Query parameters for retrieving weather at a telescope site."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    telescope_id: int | None = Field(
+        default=None,
+        description="ID of the telescope to report weather for. If not given, "
+        "the telescope saved in the user's preferences is used.",
+    )
+
+
 __all__ = [
+    "WeatherGetQuery",
     "WeatherResponse",
 ]
