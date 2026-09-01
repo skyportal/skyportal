@@ -4,6 +4,10 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import Button from "../Button";
+import {
+  CROSSMATCH_ORIGIN,
+  buildAnnotationFilters,
+} from "./gcnSourcesAnnotationFilters";
 
 /** The source query's own parameters.
  *
@@ -69,6 +73,26 @@ const sourcesFormSchema = (
       default: [] as number[],
       title: "Groups",
     },
+    maxSgscore: {
+      type: "number",
+      title: "Max star score (sgscore)",
+      minimum: 0,
+      maximum: 1,
+    },
+    maxAge: {
+      type: "number",
+      title: "Max age at detection [days]",
+      minimum: 0,
+    },
+    minNdethist: {
+      type: "number",
+      title: "Min detections in history",
+      minimum: 1,
+    },
+    minDeltaT: {
+      type: "number",
+      title: "Earliest detection relative to event [days]",
+    },
   },
   required: [
     "startDate",
@@ -88,6 +112,7 @@ const uiSchema = (groups: any[]) => ({
       excludeForcedPhotometry: 4,
       localizationRejectSources: 4,
     },
+    { maxSgscore: 3, maxAge: 3, minNdethist: 3, minDeltaT: 3 },
   ],
 });
 
@@ -149,7 +174,20 @@ const GcnSourcesQueryForm = ({
         validator={validator}
         customValidate={validate as any}
         onSubmit={
-          (({ formData: submitted }: any) => onSearch(submitted)) as any
+          (({ formData: submitted }: any) => {
+            const { maxSgscore, maxAge, minNdethist, minDeltaT, ...rest } =
+              submitted;
+            const annotationsFilter = buildAnnotationFilters(submitted);
+            onSearch(
+              annotationsFilter.length
+                ? {
+                    ...rest,
+                    annotationsFilter: annotationsFilter.join(","),
+                    annotationsFilterOrigin: CROSSMATCH_ORIGIN,
+                  }
+                : rest,
+            );
+          }) as any
         }
         disabled={!!isSubmitting}
       >

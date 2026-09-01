@@ -67,6 +67,10 @@ from skyportal.utils.crossmatch import (
     skymap_consistency,
     skymap_overlap_integral,
 )
+from skyportal.utils.jpl_sbident import (
+    enqueue_identification,
+    obscode_for_survey,
+)
 from skyportal.utils.naive_datetime import utcnow_naive
 
 log = make_log("gcn_crossmatch")
@@ -670,6 +674,19 @@ async def process_event_filter(
             )
             await propose_association(session, user_id, object_id, event_dateobs)
             await session.commit()
+            # Ask whether the candidate is a known minor planet. Every survey is
+            # asked, not just the ones whose alerts carry their own solar-system
+            # match: a field a survey does not populate would otherwise read as
+            # "no minor planet here" for exactly the candidates nobody checked.
+            alert_time = alert_jd(alert)
+            if alert_time is not None:
+                enqueue_identification(
+                    object_id,
+                    user_id,
+                    Time(alert_time, format="jd").datetime,
+                    group_ids=group_ids,
+                    obscode=await obscode_for_survey(session, survey),
+                )
             matched += 1
         except Exception as e:
             await session.rollback()

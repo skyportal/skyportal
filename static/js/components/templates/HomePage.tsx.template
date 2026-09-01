@@ -1,4 +1,4 @@
-import { Responsive, WidthProvider } from "react-grid-layout";
+import { ResponsiveGridLayout, useContainerWidth } from "react-grid-layout";
 import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";
 
@@ -29,8 +29,6 @@ import {{ widgetName }} from "../group/{{ widgetName }}";
 import {{ widgetName }} from "../widget/{{ widgetName }}";
 {%- endif %}
 {%- endfor %}
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const useStyles = makeStyles()(() => ({
   widgetIcon: {
@@ -89,6 +87,8 @@ const HomePage = () => {
     updateUserPreferences(prefs);
   };
 
+  const { width, containerRef, mounted } = useContainerWidth();
+
   const resetLayouts = () => {
     const prefs = { layouts: defaultLayouts };
     updateUserPreferences(prefs);
@@ -96,14 +96,17 @@ const HomePage = () => {
 
   return profile?.username && (
     <div>
+      <div ref={containerRef}>
+      {mounted && (
       <ResponsiveGridLayout
+        width={width}
         className="layout"
         layouts={currentLayouts}
         breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
         cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
         margin={[10, 10]}
         onLayoutChange={layoutChangeHandler}
-        draggableHandle=".dragHandle"
+        {% raw %}dragConfig={{ handle: ".dragHandle" }}{% endraw %}
         rowHeight={gridRowHeight}
       >
         {%- for widgetName, widgetProps in visible_widgets.items() %}
@@ -143,6 +146,8 @@ const HomePage = () => {
           {%- endif -%}
         {%- endfor %}
       </ResponsiveGridLayout>
+      )}
+      </div>
       <div className={classes.resetButton}>
         <Tooltip title="Reset page layout" placement="left">
           <IconButton onClick={resetLayouts}>

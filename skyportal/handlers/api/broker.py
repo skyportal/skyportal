@@ -164,7 +164,8 @@ class BrokerFilterValidateBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    fid: int | None = Field(
+    # BOOM issues string fids; Lasair-style numeric ones are also accepted.
+    fid: int | str | None = Field(
         default=None, description="Filter version id (fid) to validate."
     )
 
