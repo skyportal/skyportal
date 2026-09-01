@@ -24,6 +24,11 @@ class TelescopePostBody(BaseModel):
     lat: float | None = Field(default=None, description="Latitude in deg.")
     lon: float | None = Field(default=None, description="Longitude in deg.")
     elevation: float | None = Field(default=None, description="Elevation in meters.")
+    mpc_obscode: str | None = Field(
+        default=None,
+        description="Minor Planet Center observatory code, e.g. 'X05' (Rubin) "
+        "or 'I41' (ZTF).",
+    )
     skycam_link: str | None = Field(
         default=None, description="Link to the telescope's sky camera."
     )
@@ -66,6 +71,11 @@ class TelescopePutBody(BaseModel):
     lat: float | None = Field(default=None, description="Latitude in deg.")
     lon: float | None = Field(default=None, description="Longitude in deg.")
     elevation: float | None = Field(default=None, description="Elevation in meters.")
+    mpc_obscode: str | None = Field(
+        default=None,
+        description="Minor Planet Center observatory code, e.g. 'X05' (Rubin) "
+        "or 'I41' (ZTF).",
+    )
     skycam_link: str | None = Field(
         default=None, description="Link to the telescope's sky camera."
     )

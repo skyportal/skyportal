@@ -252,6 +252,7 @@ telescope:
     lon: -116.861944
     elevation: 1706
     diameter: 1.26
+    mpc_obscode: I41
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
     weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
