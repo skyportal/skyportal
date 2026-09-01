@@ -38314,7 +38314,7 @@ export interface components {
              * @description Filter version id (fid) to validate.
              * @default null
              */
-            fid: number | null;
+            fid: (number | string) | null;
         };
         /**
          * BrokerFilterModuleWriteBody

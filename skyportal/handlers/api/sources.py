@@ -284,6 +284,42 @@ def get_period_exists(annotations):
     )
 
 
+# A jsonb text value only casts to float if it looks like a number; Postgres has
+# no try-cast, so the shape is checked before the cast to keep a string-valued
+# annotation from erroring the whole query.
+_NUMERIC_RE = r"^-?[0-9]+\.?[0-9]*([eE][-+]?[0-9]+)?$"
+
+
+def _nested_annotation_clause(param_index, condition, localization_dateobs, params):
+    """A test applied to each sub-object of an annotation's data.
+
+    Annotations that hold one entry per related thing (a GCN crossmatch keyed by
+    event) put their fields one level down. `condition` is written against
+    `value`, the sub-object. When an event is named, only the entry carrying that
+    `dateobs` is considered; the two are compared as timestamps so a difference
+    in formatting does not silently match nothing.
+    """
+    scope = ""
+    if localization_dateobs is not None:
+        params.append(
+            bindparam(
+                f"annotations_filter_dateobs_{param_index}",
+                value=str(localization_dateobs),
+                type_=sa.String,
+            )
+        )
+        scope = (
+            " AND (value ->> 'dateobs') IS NOT NULL"
+            " AND (value ->> 'dateobs')::timestamp"
+            f" = (:annotations_filter_dateobs_{param_index})::timestamp"
+        )
+    return f"""EXISTS (
+        SELECT 1 FROM jsonb_each(annotations.data) AS entry(key, value)
+        WHERE jsonb_typeof(value) = 'object'
+          AND ({condition}){scope}
+    )"""
+
+
 def create_annotation_query(
     annotations_filter,
     annotations_filter_origin,
@@ -291,12 +327,17 @@ def create_annotation_query(
     annotations_filter_after,
     param_index,
     is_admin,
+    accessible_group_ids=None,
+    localization_dateobs=None,
 ):
     stmts = []
     params = []
     if annotations_filter_origin is not None:
         query_str, bindparams = array2sql(
-            annotations_filter_origin,
+            # Compared against `lower(annotations.origin)`, so an origin given
+            # with its real capitalisation ("GCN-crossmatch") has to be lowered
+            # here or it silently matches nothing.
+            [str(origin).lower() for origin in annotations_filter_origin],
             type=sa.String,
             prefix=f"annotations_filter_origin_{param_index}",
         )
@@ -373,9 +414,27 @@ def create_annotation_query(
                     type_=sa.Float,
                 )
             )
+            # Some annotations nest their fields one level down, keyed by the
+            # thing they describe -- a GCN crossmatch holds an entry per event,
+            # since one object can fall inside several localizations. Match at
+            # either level so those fields are reachable, and where the caller
+            # named an event, only that event's entry counts: a value from a
+            # different event would hide a source from the list it belongs to.
+            nested = _nested_annotation_clause(
+                param_index,
+                f"(value ->> :annotations_filter_name_{param_index}) ~ '{_NUMERIC_RE}' "
+                f"AND (value ->> :annotations_filter_name_{param_index})::float "
+                f"{comp_function} (:annotations_filter_value_{param_index})::float",
+                localization_dateobs,
+                params,
+            )
             stmts.append(
                 f"""
-                ((annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
+                (
+                  ((annotations.data ->> :annotations_filter_name_{param_index}) ~ '{_NUMERIC_RE}'
+                   AND (annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
+                  OR {nested}
+                )
                 """
             )
         else:
@@ -387,15 +446,41 @@ def create_annotation_query(
                     type_=sa.String,
                 )
             )
+            nested = _nested_annotation_clause(
+                param_index,
+                f"value ->> :annotations_filter_name_{param_index} IS NOT NULL",
+                localization_dateobs,
+                params,
+            )
             stmts.append(
                 f"""
-                (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
+                (
+                  (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
+                  OR {nested}
+                )
                 """
             )
     if len(stmts) > 0:
+        group_clause = ""
+        if not is_admin:
+            if not accessible_group_ids:
+                # No readable groups means no readable annotations, and an empty
+                # IN list is not valid SQL.
+                group_clause = "and false"
+            else:
+                group_str, group_bindparams = array2sql(
+                    accessible_group_ids,
+                    type=sa.Integer,
+                    prefix=f"annotations_group_ids_{param_index}",
+                )
+                params.extend(group_bindparams)
+                group_clause = (
+                    "and annotations.id in (select annotation_id from "
+                    f"group_annotations where group_id in {group_str})"
+                )
         return (
             f"""
-        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {" AND ".join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :accessible_group_ids)" if not is_admin else ""})
+        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {" AND ".join(stmts)} {group_clause})
         """,
             params,
         )
@@ -1517,6 +1602,8 @@ async def get_sources(
                         annotations_filter_after,
                         i,
                         is_admin,
+                        accessible_group_ids=group_ids,
+                        localization_dateobs=localization_dateobs,
                     )
                     if annotations_query is not None:
                         statements.append(annotations_query)
@@ -1528,7 +1615,9 @@ async def get_sources(
                     annotations_filter_before,
                     annotations_filter_after,
                     0,
-                    group_ids,
+                    is_admin,
+                    accessible_group_ids=group_ids,
+                    localization_dateobs=localization_dateobs,
                 )
                 if annotations_query is not None:
                     statements.append(annotations_query)

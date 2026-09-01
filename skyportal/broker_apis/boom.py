@@ -315,6 +315,9 @@ def _fetch_sso_history(broker, survey, designation):
                             "dec",
                             "programid",
                             "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                            # Arcsec from the object's predicted position: how
+                            # well this detection is associated with it.
+                            "ssdistnr",
                         )
                     },
                     # Per-detection SSO geometry (rh/delta/phase) for the outburst
@@ -351,6 +354,7 @@ def _fetch_sso_history(broker, survey, designation):
                 "dec": c.get("dec"),
                 "programid": c.get("programid", 1),
                 "ssmagnr": c.get("ssmagnr"),
+                "ssdistnr": c.get("ssdistnr"),
                 # Per-detection geometry, carried onto the point's photometry altdata.
                 "sso": (doc.get("properties") or {}).get("sso"),
             }

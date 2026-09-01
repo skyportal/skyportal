@@ -108,7 +108,12 @@ jobs:
 
       - name: Regenerate frontend types from OpenAPI spec and check for drift
         run: |
-          bun install --frozen-lockfile
+          # Dependabot cannot update bun.lock; see typecheck.yaml.
+          if [ "${{ github.actor }}" = "dependabot[bot]" ]; then
+            bun install
+          else
+            bun install --frozen-lockfile
+          fi
           make typegen
           git diff --exit-code static/js/types/api.ts || (
             echo "::error::static/js/types/api.ts is out of date — run 'make typegen' and commit."

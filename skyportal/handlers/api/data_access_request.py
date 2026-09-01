@@ -471,9 +471,16 @@ class DataAccessRequestHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             user_id = self.associated_user_object.id
-            statement = DataAccessRequest.select(session.user_or_token).options(
-                selectinload(DataAccessRequest.requester),
-                selectinload(DataAccessRequest.owner),
+            # distinct(): the accessible-rows ACL joins through the user's groups,
+            # so a request reachable via several shared groups would otherwise be
+            # returned (and counted) once per group.
+            statement = (
+                DataAccessRequest.select(session.user_or_token)
+                .distinct()
+                .options(
+                    selectinload(DataAccessRequest.requester),
+                    selectinload(DataAccessRequest.owner),
+                )
             )
             if request_id is not None:
                 request = await session.scalar(
@@ -1035,8 +1042,26 @@ class DuplicateSchedulingHandler(BaseHandler):
                     .join(Instrument, Instrument.id == Allocation.instrument_id)
                     .join(Group, Group.id == Allocation.group_id)
                     .where(
-                        FollowupRequest.obj_id.in_(my_obj_ids),
-                        FollowupRequest.id.notin_(my_request_ids),
+                        # Bind the id lists as single array parameters
+                        # (= ANY / != ALL), not expanded IN-lists: a user with
+                        # many requests otherwise pushes the bound-parameter count
+                        # past Postgres's 65535 limit and the endpoint 500s.
+                        FollowupRequest.obj_id
+                        == sa.any_(
+                            sa.bindparam(
+                                "my_obj_ids",
+                                list(my_obj_ids),
+                                type_=sa.ARRAY(sa.String),
+                            )
+                        ),
+                        FollowupRequest.id
+                        != sa.all_(
+                            sa.bindparam(
+                                "my_request_ids",
+                                list(my_request_ids),
+                                type_=sa.ARRAY(sa.Integer),
+                            )
+                        ),
                         FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES),
                         Group.discoverable_data.is_(True),
                         FollowupRequest.requester_id.notin_(_owners_hiding_data()),
