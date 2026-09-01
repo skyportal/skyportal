@@ -21,7 +21,20 @@ class GroupsResponse(BaseModel):
     all_groups: list[GroupResponse] | None = None
 
 
+class GroupPost(BaseModel):
+    """Payload for creating a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    nickname: str | None = None
+    description: str | None = None
+    auto_accept_requests: bool | None = None
+    group_admins: list[int] | None = None
+
+
 __all__ = [
+    "GroupPost",
     "GroupMemberResponse",
     "GroupResponse",
     "GroupUserResponse",

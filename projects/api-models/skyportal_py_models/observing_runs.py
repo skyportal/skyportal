@@ -45,6 +45,34 @@ class ObservingRunResponse(BaseModel):
     sources: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class ObservingRunPost(BaseModel):
+    """Payload for creating an observing run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int
+    calendar_date: str
+    pi: str | None = None
+    observers: str | None = None
+    duration: int | None = None
+    group_id: int | None = None
+
+
+class ObservingRunUpdate(BaseModel):
+    """Payload for updating an observing run; every field is optional."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int | None = None
+    calendar_date: str | None = None
+    pi: str | None = None
+    observers: str | None = None
+    duration: int | None = None
+    group_id: int | None = None
+
+
 __all__ = [
+    "ObservingRunPost",
     "ObservingRunResponse",
+    "ObservingRunUpdate",
 ]

@@ -34,6 +34,20 @@ class RecurringAPIResponse(BaseModel):
     owner: UserResponse | None = None
 
 
+class RecurringAPIPost(BaseModel):
+    """Payload for scheduling a recurring API call."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: str
+    method: str
+    next_call: str
+    call_delay: float
+    payload: str
+    number_of_retries: int | None = None
+
+
 __all__ = [
+    "RecurringAPIPost",
     "RecurringAPIResponse",
 ]
