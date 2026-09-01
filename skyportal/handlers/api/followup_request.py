@@ -10,7 +10,7 @@ import time
 import traceback
 import uuid
 from datetime import timedelta
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -44,9 +44,9 @@ from sqlalchemy.orm import joinedload, selectinload, undefer
 from sqlalchemy.sql.expression import cast
 from tornado.ioloop import IOLoop
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory
 from baselayer.log import make_log
 
 from ...models import (
@@ -218,6 +218,47 @@ async def post_assignment(data, session):
     return assignment.id
 
 
+class AssignmentPostBody(BaseModel):
+    """Request body for posting a new observing-run assignment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: int = Field(description="ID of the observing run to assign the target to.")
+    obj_id: str = Field(description="The ID of the object to observe.")
+    priority: str = Field(
+        description="Priority of the request, (lowest = 1, highest = 5)."
+    )
+    status: str | None = Field(default=None, description="The status of the request.")
+    comment: str | None = Field(
+        default=None, description="An optional comment describing the request."
+    )
+
+
+class AssignmentPostResponse(BaseModel):
+    """Data payload returned when posting a new assignment."""
+
+    id: int = Field(description="New assignment ID")
+
+
+class AssignmentPutBody(BaseModel):
+    """Request body for updating an observing-run assignment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: int | None = Field(default=None, description="ID of the observing run.")
+    obj_id: str | None = Field(
+        default=None, description="The ID of the object to observe."
+    )
+    priority: str | None = Field(
+        default=None,
+        description="Priority of the request, (lowest = 1, highest = 5).",
+    )
+    status: str | None = Field(default=None, description="The status of the request.")
+    comment: str | None = Field(
+        default=None, description="An optional comment describing the request."
+    )
+
+
 class AssignmentHandler(BaseHandler):
     @auth_or_token
     async def get(self, assignment_id: int | None = None):
@@ -306,39 +347,22 @@ class AssignmentHandler(BaseHandler):
             return self.success(data=out_json)
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: AssignmentPostBody = None) -> AssignmentPostResponse:
         """
         ---
         summary: Post a new assignment
         description: Post new target assignment to observing run
         tags:
           - assignments
-        requestBody:
-          content:
-            application/json:
-              schema: AssignmentSchema
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New assignment ID
         """
 
-        data = self.get_json()
+        body = self.parse_body(AssignmentPostBody)
 
         async with self.AsyncSession() as session:
             try:
-                assignment_id = await post_assignment(data, session)
+                assignment_id = await post_assignment(
+                    body.model_dump(exclude_unset=True), session
+                )
             except ValidationError as e:
                 return self.error(
                     f'Error posting followup request: "{e.normalized_messages()}"'
@@ -351,17 +375,13 @@ class AssignmentHandler(BaseHandler):
             return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])
-    async def put(self, assignment_id: int):
+    async def put(self, assignment_id: int, *, body: AssignmentPutBody = None):
         """
         ---
         summary: Update an assignment
         description: Update an assignment
         tags:
           - assignments
-        requestBody:
-          content:
-            application/json:
-              schema: ClassicalAssignmentNoID
         responses:
           200:
             content:
@@ -373,6 +393,8 @@ class AssignmentHandler(BaseHandler):
                 schema: Error
         """
 
+        body = self.parse_body(AssignmentPutBody)
+
         async with self.AsyncSession() as session:
             assignment = await session.scalar(
                 ClassicalAssignment.select(session.user_or_token, mode="update")
@@ -382,7 +404,7 @@ class AssignmentHandler(BaseHandler):
             if assignment is None:
                 return self.error(f"Could not find assigment with ID {assignment_id}.")
 
-            data = self.get_json()
+            data = body.model_dump(exclude_unset=True)
             data["id"] = assignment_id
             data["last_modified_by_id"] = self.associated_user_object.id
 
@@ -861,7 +883,7 @@ async def _post_default_followup_requests_async(
 ):
     # only called with `run_async` (via the sync shim below), so we open the
     # session here with the plain async session factory.
-    async with async_plain_session_factory() as session:
+    async with baselayer_models.async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
             raise ValueError(
@@ -1184,6 +1206,172 @@ class FollowupRequestGetQuery(BaseModel):
     )
 
 
+class FollowupRequestPostBody(BaseModel):
+    """Request body for submitting a new follow-up request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str = Field(description="ID of the target Obj.")
+    payload: dict[str, Any] | None = Field(
+        default=None, description="Content of the followup request."
+    )
+    status: str | None = Field(default=None, description="The status of the request.")
+    allocation_id: int = Field(description="Followup request allocation ID.")
+    target_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to share the results of the followup request with.",
+    )
+    not_if_duplicates: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.",
+    )
+    source_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to which there must be a source for the object associated with the followup request.",
+    )
+    not_if_classified: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.",
+    )
+    not_if_spectra_exist: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if there are any sources within radius that have spectra.",
+    )
+    not_if_tns_classified: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.",
+    )
+    not_if_tns_reported: float | None = Field(
+        default=None,
+        description="If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.",
+    )
+    not_if_assignment_exists: bool | None = Field(
+        default=None,
+        description="If there are any sources within radius that are assigned to an observing run, the followup request will not be executed.",
+    )
+    ignore_source_group_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any sources within radius saved to any of these groups, the followup request will not be executed.",
+    )
+    radius: float | None = Field(
+        default=None, description="Radius of to use when checking constraints."
+    )
+    ignore_allocation_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.",
+    )
+    refreshSource: bool = Field(
+        default=True,
+        description="Whether to refresh the source page after posting the request.",
+    )
+    refreshRequests: bool = Field(
+        default=False,
+        description="Whether to refresh the follow-up requests list after posting the request.",
+    )
+
+
+class FollowupRequestPostResponse(BaseModel):
+    """Data payload returned when posting a follow-up request."""
+
+    id: int | None = Field(
+        description="New follow-up request ID, null when the request was ignored"
+    )
+    request_status: str | None = Field(
+        default=None, description="Status of the new follow-up request"
+    )
+    ignored: bool | None = Field(
+        default=None,
+        description="True when constraints prevented the request from being sent",
+    )
+    message: str | None = Field(default=None, description="Why the request was ignored")
+
+
+class FollowupRequestPutBody(BaseModel):
+    """Request body for updating a follow-up request.
+
+    Every field is optional: a body containing ``status`` performs a
+    status-only update, otherwise the request is (re)submitted/updated and the
+    marshmallow ``FollowupRequestPost`` schema enforces the required fields.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(default=None, description="ID of the target Obj.")
+    payload: dict[str, Any] | None = Field(
+        default=None, description="Content of the followup request."
+    )
+    status: str | None = Field(default=None, description="The status of the request.")
+    allocation_id: int | None = Field(
+        default=None, description="Followup request allocation ID."
+    )
+    target_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to share the results of the followup request with.",
+    )
+    not_if_duplicates: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.",
+    )
+    source_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to which there must be a source for the object associated with the followup request.",
+    )
+    not_if_classified: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.",
+    )
+    not_if_spectra_exist: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if there are any sources within radius that have spectra.",
+    )
+    not_if_tns_classified: bool | None = Field(
+        default=None,
+        description="If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.",
+    )
+    not_if_tns_reported: float | None = Field(
+        default=None,
+        description="If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.",
+    )
+    not_if_assignment_exists: bool | None = Field(
+        default=None,
+        description="If there are any sources within radius that are assigned to an observing run, the followup request will not be executed.",
+    )
+    ignore_source_group_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any sources within radius saved to any of these groups, the followup request will not be executed.",
+    )
+    radius: float | None = Field(
+        default=None, description="Radius of to use when checking constraints."
+    )
+    ignore_allocation_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.",
+    )
+    refreshSource: bool = Field(
+        default=True,
+        description="Whether to refresh the source page after updating the request.",
+    )
+    refreshRequests: bool = Field(
+        default=False,
+        description="Whether to refresh the follow-up requests list after updating the request.",
+    )
+
+
+class FollowupRequestDeleteBody(BaseModel):
+    """Request body for deleting a follow-up request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refreshSource: bool = Field(
+        default=True,
+        description="Whether to refresh the source page after deleting the request.",
+    )
+    refreshRequests: bool = Field(
+        default=False,
+        description="Whether to refresh the follow-up requests list after deleting the request.",
+    )
+
+
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
@@ -1451,44 +1639,29 @@ class FollowupRequestHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(
+        self, *, body: FollowupRequestPostBody = None
+    ) -> FollowupRequestPostResponse:
         """
         ---
         summary: Post new followup request
         description: Submit follow-up request.
         tags:
           - followup requests
-        requestBody:
-          content:
-            application/json:
-              schema: FollowupRequestPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New follow-up request ID
         """
-        data = self.get_json()
+        body = self.parse_body(FollowupRequestPostBody)
 
-        refresh_source = self.get_query_argument(
-            "refreshSource", data.pop("refreshSource", True)
-        )
+        refresh_source = self.get_query_argument("refreshSource", body.refreshSource)
         refresh_requests = self.get_query_argument(
-            "refreshRequests", data.pop("refreshRequests", False)
+            "refreshRequests", body.refreshRequests
         )
 
         try:
-            data = FollowupRequestPost.load(data)
+            data = FollowupRequestPost.load(
+                body.model_dump(
+                    exclude_unset=True, exclude={"refreshSource", "refreshRequests"}
+                )
+            )
         except ValidationError as e:
             return self.error(
                 f"Invalid / missing parameters: {e.normalized_messages()}"
@@ -1563,33 +1736,24 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
     @permissions(["Upload data"])
-    async def put(self, request_id: int):
+    async def put(self, request_id: int, *, body: FollowupRequestPutBody = None):
         """
         ---
         summary: Update a follow-up request
         description: Update a follow-up request
         tags:
           - followup requests
-        requestBody:
-          content:
-            application/json:
-              schema: FollowupRequestPost
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/FollowupRequest'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(FollowupRequestPutBody)
 
         try:
             request_id = int(request_id)
@@ -1612,13 +1776,15 @@ class FollowupRequestHandler(BaseHandler):
                     message=f"Missing FollowUpRequest with id {request_id}"
                 )
 
-            data = self.get_json()
-
             refresh_source = self.get_query_argument(
-                "refreshSource", data.pop("refreshSource", True)
+                "refreshSource", body.refreshSource
             )
             refresh_requests = self.get_query_argument(
-                "refreshRequests", data.pop("refreshRequests", False)
+                "refreshRequests", body.refreshRequests
+            )
+
+            data = body.model_dump(
+                exclude_unset=True, exclude={"refreshSource", "refreshRequests"}
             )
 
             if "status" in data:
@@ -1711,7 +1877,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, request_id: int):
+    async def delete(self, request_id: int, *, body: FollowupRequestDeleteBody = None):
         """
         ---
         summary: Delete a follow-up request
@@ -1724,14 +1890,11 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        body = self.parse_body(FollowupRequestDeleteBody)
 
-        data = self.get_json()
-
-        refresh_source = self.get_query_argument(
-            "refreshSource", data.pop("refreshSource", True)
-        )
+        refresh_source = self.get_query_argument("refreshSource", body.refreshSource)
         refresh_requests = self.get_query_argument(
-            "refreshRequests", data.pop("refreshRequests", False)
+            "refreshRequests", body.refreshRequests
         )
 
         try:
@@ -1778,41 +1941,37 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class FollowupRequestCommentPutBody(BaseModel):
+    """Request body for updating a follow-up request comment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comment: str | None = Field(
+        default=None, description="Comment to add to the follow-up request"
+    )
+
+
+class FollowupRequestCommentPutResponse(BaseModel):
+    """Data payload returned when updating a follow-up request comment."""
+
+    id: int = Field(description="ID of the updated follow-up request")
+
+
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, followup_request_id: int):
+    async def put(
+        self, followup_request_id: int, *, body: FollowupRequestCommentPutBody = None
+    ) -> FollowupRequestCommentPutResponse:
         """
         ---
         summary: Update a follow-up request comment
         description: Update a follow-up request comment
         tags:
           - followup requests
-        parameters:
-          - in: query
-            name: comment
-            nullable: true
-            schema:
-                type: string
-            description: Comment to add to the follow-up request
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/FollowupRequest'
-          400:
-            content:
-              application/json:
-                schema: Error
         """
+        body = self.parse_body(FollowupRequestCommentPutBody)
 
-        data = self.get_json()
-        comment = str(data.get("comment")).strip()
+        comment = str(body.comment).strip()
 
         if comment in ["", "None"]:
             comment = None
@@ -2517,9 +2676,36 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class FollowupRequestPrioritizationPutBody(BaseModel):
+    """Request body for reprioritizing follow-up requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    requestIds: list[int] | None = Field(
+        default=None, description="List of follow-up request IDs"
+    )
+    priorityType: str = Field(
+        default="magnitude",
+        description="Priority source. Must be either localization or magnitude. Defaults to magnitude.",
+    )
+    magnitudeOrdering: str = Field(
+        default="ascending",
+        description="Ordering for brightness based prioritization. Must be either ascending (brightest first) or descending (faintest first). Defaults to ascending.",
+    )
+    localizationId: int | None = Field(
+        default=None, description="Filter by localization ID"
+    )
+    minimumPriority: float = Field(
+        default=1, description="Minimum priority for the instrument. Defaults to 1."
+    )
+    maximumPriority: float = Field(
+        default=5, description="Maximum priority for the instrument. Defaults to 5."
+    )
+
+
 class FollowupRequestPrioritizationHandler(BaseHandler):
     @auth_or_token
-    async def put(self):
+    async def put(self, *, body: FollowupRequestPrioritizationPutBody = None):
         """
         ---
         summary: Reprioritize followup requests
@@ -2528,61 +2714,24 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
           either magnitude or location within skymap.
         tags:
             - followup requests
-        parameters:
-        - in: body
-          name: requestIds
-          schema:
-            type: list of integers
-          description: List of follow-up request IDs
-        - in: body
-          name: priorityType
-          schema:
-            type: string
-          description: Priority source. Must be either localization or magnitude. Defaults to magnitude.
-        - in: body
-          name: magnitudeOrdering
-          schema:
-            type: string
-          description: Ordering for brightness based prioritization. Must be either ascending (brightest first) or descending (faintest first). Defaults to ascending.
-        - in: body
-          name: localizationId
-          schema:
-            type: integer
-          description: Filter by localization ID
-        - in: body
-          name: minimumPriority
-          schema:
-            type: string
-          description: Minimum priority for the instrument. Defaults to 1.
-        - in: body
-          name: maximumPriority
-          schema:
-            type: string
-          description: Maximum priority for the instrument. Defaults to 5.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/FollowupRequest'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(FollowupRequestPrioritizationPutBody)
 
-        data = self.get_json()
-        priority_type = data.get("priorityType", "magnitude")
-        magnitude_ordering = data.get("magnitudeOrdering", "ascending")
-        localization_id = data.get("localizationId", None)
-        request_ids = data.get("requestIds", None)
-        minimum_priority = data.get("minimumPriority", 1)
-        maximum_priority = data.get("maximumPriority", 5)
+        priority_type = body.priorityType
+        magnitude_ordering = body.magnitudeOrdering
+        localization_id = body.localizationId
+        request_ids = body.requestIds
+        minimum_priority = body.minimumPriority
+        maximum_priority = body.maximumPriority
 
         if request_ids is None:
             return self.error("requestIds is required")
@@ -2795,38 +2944,127 @@ async def validate_source_filter_regex(session, name):
         )
 
 
+class DefaultFollowupRequestPostBody(BaseModel):
+    """Request body for creating a default follow-up request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    payload: dict[str, Any] = Field(
+        description="Content of the default follow-up request."
+    )
+    allocation_id: int = Field(description="Follow-up request allocation ID.")
+    target_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to share the results of the default follow-up request with.",
+    )
+    default_followup_name: str = Field(
+        description="Unique name of the default follow-up request."
+    )
+    source_filter: dict[str, Any] | str = Field(
+        description="Source filter used to decide which saved sources this default "
+        "follow-up request applies to (keys: name, group_id, origin, classification).",
+    )
+    not_if_duplicates: bool | None = Field(
+        default=None,
+        description="If true, the request will not be submitted if the object already has a pending or completed request of the same allocation.",
+    )
+    source_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups to which there must be a source for the object for the request to be submitted.",
+    )
+    ignore_source_group_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any sources within radius saved to any of these groups, the request will not be submitted.",
+    )
+    not_if_classified: bool | None = Field(
+        default=None,
+        description="If true, the request will not be submitted if there are any sources within radius with (human-only) classifications.",
+    )
+    not_if_spectra_exist: bool | None = Field(
+        default=None,
+        description="If true, the request will not be submitted if there are any sources within radius that have spectra.",
+    )
+    not_if_tns_classified: bool | None = Field(
+        default=None,
+        description="If true, the request will not be submitted if any object within radius is already classified as SN in TNS.",
+    )
+    not_if_tns_reported: float | None = Field(
+        default=None,
+        description="If there are any sources within radius with TNS reports discovered more than this many hours ago, the request will not be submitted.",
+    )
+    not_if_assignment_exists: bool | None = Field(
+        default=None,
+        description="If there are any sources within radius that are assigned to an observing run, the request will not be submitted.",
+    )
+    ignore_allocation_ids: list[int] | None = Field(
+        default=None,
+        description="If there are any existing pending or completed requests from these allocations within radius, the request will not be submitted.",
+    )
+    radius: float | None = Field(
+        default=None,
+        description="Radius (arcsec) to use when checking constraints.",
+    )
+    priority_order: str | None = Field(
+        default=None,
+        description="Whether higher priority values mean higher ('asc', default) or "
+        "lower ('desc') observing priority. Controls whether an incoming "
+        "auto-trigger bumps an existing request's priority.",
+    )
+    validity_days: int | None = Field(
+        default=None,
+        description="Number of days an auto-submitted request stays valid (end_date = "
+        "start_date + validity_days). Defaults to 7. Ignored for "
+        "urgency-based instruments.",
+    )
+    comment: str | None = Field(
+        default=None,
+        description="Optional comment posted to the source when a follow-up request is "
+        "auto-submitted from this default request.",
+    )
+    implements_update: bool | None = Field(
+        default=None,
+        description="Operator override: if false, never priority-bump an existing "
+        "matching request even if the instrument supports updates. Defaults to true.",
+    )
+
+
+class DefaultFollowupRequestPostResponse(BaseModel):
+    """Data payload returned when creating a default follow-up request."""
+
+    id: int = Field(description="New default follow-up request ID")
+
+
 class DefaultFollowupRequestHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: DefaultFollowupRequestPostBody = None
+    ) -> DefaultFollowupRequestPostResponse:
         """
         ---
         summary: Create default follow-up request
         description: Create default follow-up request.
         tags:
           - default followup requests
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultFollowupRequestPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default follow-up request ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultFollowupRequestPostBody)
+
+        data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
+            if data.get("default_followup_name"):
+                existing = await session.scalar(
+                    DefaultFollowupRequest.select(session.user_or_token).where(
+                        DefaultFollowupRequest.default_followup_name
+                        == data["default_followup_name"]
+                    )
+                )
+                if existing is not None:
+                    return self.error(
+                        f"A default follow-up request called "
+                        f"{data['default_followup_name']} already exists. That "
+                        f"name must be unique."
+                    )
+
             target_group_ids = data.pop("target_group_ids", [])
             stmt = Group.select(session.user_or_token).where(
                 Group.id.in_(target_group_ids)
@@ -2928,7 +3166,17 @@ class DefaultFollowupRequestHandler(BaseHandler):
             default_followup_request.target_groups = target_groups
 
             session.add(default_followup_request)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                # Two posts racing past the check above still meet the unique
+                # constraint here.
+                await session.rollback()
+                return self.error(
+                    f"A default follow-up request called "
+                    f"{data['default_followup_name']} already exists. That name "
+                    f"must be unique."
+                )
 
             self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
             return self.success(data={"id": default_followup_request.id})
@@ -3034,9 +3282,41 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success()
 
 
+class FollowupRequestWatcherPostBody(BaseModel):
+    """Request body for adding a follow-up request to the watch list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refreshSource: bool = Field(
+        default=True,
+        description="Whether to refresh the source page after watching the request.",
+    )
+    refreshRequests: bool = Field(
+        default=False,
+        description="Whether to refresh the follow-up requests list after watching the request.",
+    )
+
+
+class FollowupRequestWatcherDeleteBody(BaseModel):
+    """Request body for removing a follow-up request from the watch list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refreshSource: bool = Field(
+        default=True,
+        description="Whether to refresh the source page after unwatching the request.",
+    )
+    refreshRequests: bool = Field(
+        default=False,
+        description="Whether to refresh the follow-up requests list after unwatching the request.",
+    )
+
+
 class FollowupRequestWatcherHandler(BaseHandler):
     @auth_or_token
-    async def post(self, followup_request_id: int):
+    async def post(
+        self, followup_request_id: int, *, body: FollowupRequestWatcherPostBody = None
+    ):
         """
         ---
         summary: Add follow-up request to watch list
@@ -3053,14 +3333,11 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        body = self.parse_body(FollowupRequestWatcherPostBody)
 
-        data = self.get_json()
-
-        refresh_source = self.get_query_argument(
-            "refreshSource", data.pop("refreshSource", True)
-        )
+        refresh_source = self.get_query_argument("refreshSource", body.refreshSource)
         refresh_requests = self.get_query_argument(
-            "refreshRequests", data.pop("refreshRequests", False)
+            "refreshRequests", body.refreshRequests
         )
 
         async with self.AsyncSession() as session:
@@ -3117,7 +3394,9 @@ class FollowupRequestWatcherHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, followup_request_id: int):
+    async def delete(
+        self, followup_request_id: int, *, body: FollowupRequestWatcherDeleteBody = None
+    ):
         """
         ---
         summary: Delete follow-up request from watch list
@@ -3134,15 +3413,11 @@ class FollowupRequestWatcherHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        body = self.parse_body(FollowupRequestWatcherDeleteBody)
 
-        # get parameters
-        data = self.get_json()
-
-        refresh_source = self.get_query_argument(
-            "refreshSource", data.pop("refreshSource", True)
-        )
+        refresh_source = self.get_query_argument("refreshSource", body.refreshSource)
         refresh_requests = self.get_query_argument(
-            "refreshRequests", data.pop("refreshRequests", False)
+            "refreshRequests", body.refreshRequests
         )
 
         async with self.AsyncSession() as session:

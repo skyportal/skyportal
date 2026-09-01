@@ -35,4 +35,4 @@ def test_fail_newsfeed_request_too_many(
     params = {"numItems": 1001}
     status, data = api("GET", "newsfeed", token=view_only_token, params=params)
     assert status == 400
-    assert data["message"] == "numItems should be no larger than 1000."
+    assert "numItems should be no larger than 1000." in data["message"]

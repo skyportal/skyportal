@@ -111,6 +111,7 @@ const NewsFeedItem = ({ item }: NewsFeedItemProps) => {
       entryAvatar = (
         <UserAvatar
           size={32}
+          userId={item.author_info.id}
           firstName={item.author_info.first_name}
           lastName={item.author_info.last_name}
           username={item.author_info.username}

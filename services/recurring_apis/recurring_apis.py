@@ -22,6 +22,19 @@ MAX_SLEEP = cfg.get("misc", {}).get("max_seconds_to_sleep_recurring_apis_service
 MAX_RETRIES = 10
 
 
+def record_outcome(session, recurring_api, text):
+    log(text)
+    session.add(recurring_api)
+    session.add(
+        UserNotification(
+            user=recurring_api.owner,
+            text=text,
+            notification_type="Recurring API",
+        )
+    )
+    session.commit()
+
+
 def perform_api_calls():
     sleep_time = MAX_SLEEP
     now = utcnow_naive()
@@ -38,6 +51,18 @@ def perform_api_calls():
             return
 
         for recurring_api in recurring_apis:
+            # a non-positive delay would spin the next_call loop below forever
+            if recurring_api.call_delay <= 0:
+                recurring_api.active = False
+                record_outcome(
+                    session,
+                    recurring_api,
+                    f"Recurring API {recurring_api.id} has a call_delay of "
+                    f"{recurring_api.call_delay} days and cannot schedule a next "
+                    "call, deactivating it.",
+                )
+                continue
+
             token = recurring_api.owner.tokens[0].id
             if isinstance(recurring_api.payload, str):
                 data = json.loads(recurring_api.payload)
@@ -76,22 +101,13 @@ def perform_api_calls():
                 text_to_send = f"Successfully called recurring API {recurring_api.id}"
             else:
                 recurring_api.number_of_retries = recurring_api.number_of_retries - 1
-                if recurring_api.number_of_retries == 0:
+                if recurring_api.number_of_retries <= 0:
                     recurring_api.active = False
                     text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; Maximum Retries exceeded, deactivating service."
                 else:
                     text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; will try again {recurring_api.next_call}, remaining calls before deactivation: {recurring_api.number_of_retries}."
 
-            log(text_to_send)
-            session.add(recurring_api)
-            session.add(
-                UserNotification(
-                    user=recurring_api.owner,
-                    text=text_to_send,
-                    notification_type="Recurring API",
-                )
-            )
-            session.commit()
+            record_outcome(session, recurring_api, text_to_send)
 
         next_recurring_api = session.scalars(
             RecurringAPI.select(user)

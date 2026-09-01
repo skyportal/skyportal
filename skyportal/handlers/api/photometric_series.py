@@ -1,6 +1,5 @@
 import operator
 import os
-import textwrap
 import traceback
 from contextlib import contextmanager
 from typing import ClassVar, Literal
@@ -34,206 +33,9 @@ from ...models.photometric_series import (
 from ...models.stream import Stream
 from ...utils.data_access import default_share_public_group_name
 from ...utils.hdf5_files import load_dataframe_from_bytestream
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
 
 _, cfg = load_env()
-
-body_schema_docstring = """
-  content:
-    application/json:
-      schema:
-        type: object
-        properties:
-          data:
-            type: string or dict
-            description: |
-              The data to upload. Can be a string or a dict.
-              If a dict (i.e., a json object) will assume each
-              key is a column name and each value is a list of
-              values for that column.
-              That dictionary will be passed into a pandas
-              DataFrame constructor, so the keys must be valid
-              and the length of each value must be the same.
-              If a string, will be converted to a bytes array
-              and de-serialized by the pandas HDF5 reader.
-              Use the HDFStore to create a file that includes
-              a single key/group with the photometric data.
-              Additional information, including any of the
-              parameters specified below, can be stored in
-              the HDFStore as well, inside the attributes
-              under the key "metadata".
-              In any case the DataFrame must have the following
-              columns: "mjd", and either "flux" or "mag".
-              Additional columns like "fluxerr" or "magerr" can be
-              added, to plot errorbars on the frontend.
-              Columns like "RA" or "exp_time" can be added to keep
-              track of the values for individual observations,
-              and the median value of these columns can be used
-              instead of specifying the values in the metadata.
-              Other information can be added as additional columns
-              that will be saved to disk. That information will not
-              be used by SkyPortal, but will be available for download.
-            required: true
-          series_name:
-            type: string
-            description: |
-              Name of the photometric series. Each series can contain light curves
-              for multiple objects, and is usually continuous in some sense.
-              Each series has a single instrument/filter, and generally a single pointing.
-              Some examples would be a TESS sector or a single pointing with a fast photometer.
-              The series name is used as the path to the file containing the photometric data,
-              and can contain slashes (can also include underscores, + and -).
-            required: true
-          series_obj_id:
-            type: string
-            description: |
-              Name or number of the object inside the photometric series. This can
-              be a global object ID from the specific survey (e.g., a TESS TIC ID),
-              or a casual index of the object in the series (e.g., star number 3).
-              This does not have to correspond to the object ID in SkyPortal.
-              It must be a unique identifier inside the series to be able to upload
-              multiple light curves for different objects in the same series.
-            required: true
-          obj_id:
-            type: string
-            description: SkyPortal object ID.
-            required: true
-          instrument_id:
-            type: integer
-            description: SkyPortal ID of the instrument used to take the photometric series.
-            required: true
-          group_ids:
-            type: array
-            items:
-              type: integer
-            description: |
-              List of group IDs to associate with the photometric series.
-              If not specified, defaults to the user's single user group.
-              Can also specify "all" to share with all groups.
-            required: false
-          stream_ids:
-            type: array
-            items:
-              type: integer
-            description: |
-              List of stream IDs to associate with the photometric series.
-            required: false
-          ra:
-            type: number
-            description: |
-              Right ascension of the photometric series (degrees).
-              Can specify the value for the entire series,
-              or add an "RA" column to the data file.
-              If not specified, the median RA from the data
-              will be used as the coordinate for this object.
-              If specified, will override the median value,
-              but will not affect the individual measured RA.
-              If no ra is given and no such column exists in the data file,
-              the photometric series will not be posted.
-            required: false
-          dec:
-            type: number
-            description: |
-              Declination of the photometric series (degrees).
-              Same as the RA column, only using the Dec column.
-            required: false
-          exp_time:
-            type: number
-            description: |
-              Exposure time of each measurement in the
-              photometric series (seconds). If not specified,
-              the median value of the "exp_time" column in
-              the data file will be used instead.
-              If no such column exists and the exp_time is not
-              given, the photometric series will not be posted.
-            required: false
-          filter:
-            type: string
-            description: |
-              Name of the filter used to take the photometric series.
-              If not specified, the filter name will be inferred from the
-              data file. If no filter name is given and no such column
-              If no filter name is given and no such column exists in the data file,
-              the photometric series will not be posted.
-              Filter must be one of the allowed band passes.
-            required: false
-          channel:
-            type: string
-            description: |
-              Name of the channel used to take the photometric series.
-              This is useful for multi-band simultaneous photometry,
-              or for mosiaced CCD images where each tile has its own channel ID.
-              This allows multiple series to be saved with the same series name
-              but different channels, without violating the uniqueness constraint.
-              Series with different channels can have the same or different filters.
-              This field is entirely optional.
-            required: false
-          limiting_mag:
-            type: number
-            description: |
-              The limiting magnitude of the photometric series.
-              Can specify the value for the entire series,
-              or add an "limiting_mag" column to the data file.
-              If not specified, the median limit from the data
-              will be used as the representative limiting mag for this series.
-              If specified, will override the median value,
-              but will not affect the individual measured limits.
-              If no limit is given and no such column exists in the data file,
-              the photometric series will be posted with None as the limit.
-          magref:
-            type: number
-            description: |
-              Reference magnitude for the photometric series.
-              This is used when the photometry is relative
-              (e.g., based on subtraction images) and the magnitude
-              of the object when it is not active is measured separately.
-              This would be the magnitude before/after a transient,
-              or the mean magnitude of a variable.
-              For absolute photometry this is left as None.
-            required: false
-          e_magref:
-            type: number
-            description: uncertainty on the magref.
-            required: false
-          ra_unc:
-            type: number
-            description: uncertainty on the ra.
-            required: false
-          dec_unc:
-            type: number
-            description: uncertainty on the dec.
-            required: false
-          followup_request_id:
-            type: integer
-            description: |
-                ID of the followup request that generated this photometric series.
-                This is used to link the photometric series to the followup request
-                in the SkyPortal database.
-            required: false
-          assignment_id:
-            type: integer
-            description: |
-                ID of the assignment that generated this photometric series.
-                This is used to link the photometric series to the assignment
-                in the SkyPortal database.
-            required: false
-          time_stamp_alignment:
-            type: string
-            description: |
-              Specify when the time stamp for each measurement was taken
-              inside each exposure. Possible values are "start", "middle", "end".
-              This is optional, and defaults to "middle".
-            required: false
-          altdata:
-            type: object
-            description: |
-                Additional information to store in the photometric series.
-                This can be any valid JSON object, and will be stored
-                in the database as a JSON string.
-                This can hold various information that does not fit into
-                any of the other inputs, but will still be useful to keep track of.
-            required: false
-        """
 
 
 log = make_log("api/photometric_series")
@@ -261,6 +63,218 @@ def parse_series_data(data):
         with reraise("Could not load DataFrame from HDF5 file"):
             return load_dataframe_from_bytestream(data)
     return data, {}
+
+
+class PhotometricSeriesPostBody(BaseModel):
+    """Request body for uploading a photometric series.
+
+    Every field is optional at this layer; the required set and per-value
+    type coercion are enforced downstream by ``verify_data`` / ``verify_metadata``
+    and the handler (which errors if ``data`` is missing).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    data: dict | str | None = Field(
+        default=None,
+        description=(
+            "The data to upload. Can be a string or a dict. If a dict (i.e., a "
+            "json object) will assume each key is a column name and each value "
+            "is a list of values for that column. That dictionary will be passed "
+            "into a pandas DataFrame constructor, so the keys must be valid and "
+            "the length of each value must be the same. If a string, will be "
+            "converted to a bytes array and de-serialized by the pandas HDF5 "
+            "reader. Use the HDFStore to create a file that includes a single "
+            "key/group with the photometric data. Additional information, "
+            "including any of the parameters specified below, can be stored in "
+            'the HDFStore as well, inside the attributes under the key "metadata". '
+            'In any case the DataFrame must have the following columns: "mjd", '
+            'and either "flux" or "mag". Additional columns like "fluxerr" or '
+            '"magerr" can be added, to plot errorbars on the frontend. Columns '
+            'like "RA" or "exp_time" can be added to keep track of the values for '
+            "individual observations, and the median value of these columns can "
+            "be used instead of specifying the values in the metadata. Other "
+            "information can be added as additional columns that will be saved to "
+            "disk. That information will not be used by SkyPortal, but will be "
+            "available for download."
+        ),
+    )
+    series_name: str | None = Field(
+        default=None,
+        description=(
+            "Name of the photometric series. Each series can contain light "
+            "curves for multiple objects, and is usually continuous in some "
+            "sense. Each series has a single instrument/filter, and generally a "
+            "single pointing. Some examples would be a TESS sector or a single "
+            "pointing with a fast photometer. The series name is used as the path "
+            "to the file containing the photometric data, and can contain slashes "
+            "(can also include underscores, + and -)."
+        ),
+    )
+    series_obj_id: str | int | None = Field(
+        default=None,
+        description=(
+            "Name or number of the object inside the photometric series. This can "
+            "be a global object ID from the specific survey (e.g., a TESS TIC ID), "
+            "or a casual index of the object in the series (e.g., star number 3). "
+            "This does not have to correspond to the object ID in SkyPortal. It "
+            "must be a unique identifier inside the series to be able to upload "
+            "multiple light curves for different objects in the same series."
+        ),
+    )
+    obj_id: str | int | None = Field(default=None, description="SkyPortal object ID.")
+    instrument_id: int | None = Field(
+        default=None,
+        description="SkyPortal ID of the instrument used to take the photometric series.",
+    )
+    group_ids: list | int | str | None = Field(
+        default=None,
+        description=(
+            "List of group IDs to associate with the photometric series. If not "
+            "specified, defaults to the user's single user group. Can also specify "
+            '"all" to share with all groups.'
+        ),
+    )
+    stream_ids: list | str | None = Field(
+        default=None,
+        description="List of stream IDs to associate with the photometric series.",
+    )
+    ra: float | str | None = Field(
+        default=None,
+        description=(
+            "Right ascension of the photometric series (degrees). Can specify the "
+            'value for the entire series, or add an "RA" column to the data file. '
+            "If not specified, the median RA from the data will be used as the "
+            "coordinate for this object. If specified, will override the median "
+            "value, but will not affect the individual measured RA. If no ra is "
+            "given and no such column exists in the data file, the photometric "
+            "series will not be posted."
+        ),
+    )
+    dec: float | str | None = Field(
+        default=None,
+        description=(
+            "Declination of the photometric series (degrees). Same as the RA "
+            "column, only using the Dec column."
+        ),
+    )
+    exp_time: float | str | None = Field(
+        default=None,
+        description=(
+            "Exposure time of each measurement in the photometric series "
+            "(seconds). If not specified, the median value of the "
+            '"exp_time" column in the data file will be used instead. If no such '
+            "column exists and the exp_time is not given, the photometric series "
+            "will not be posted."
+        ),
+    )
+    filter: str | None = Field(
+        default=None,
+        description=(
+            "Name of the filter used to take the photometric series. If not "
+            "specified, the filter name will be inferred from the data file. If no "
+            "filter name is given and no such column exists in the data file, the "
+            "photometric series will not be posted. Filter must be one of the "
+            "allowed band passes."
+        ),
+    )
+    channel: str | None = Field(
+        default=None,
+        description=(
+            "Name of the channel used to take the photometric series. This is "
+            "useful for multi-band simultaneous photometry, or for mosiaced CCD "
+            "images where each tile has its own channel ID. This allows multiple "
+            "series to be saved with the same series name but different channels, "
+            "without violating the uniqueness constraint. Series with different "
+            "channels can have the same or different filters. This field is "
+            "entirely optional."
+        ),
+    )
+    origin: str | None = Field(
+        default=None,
+        description="Provenance string for the photometric series.",
+    )
+    limiting_mag: float | str | None = Field(
+        default=None,
+        description=(
+            "The limiting magnitude of the photometric series. Can specify the "
+            'value for the entire series, or add a "limiting_mag" column to the '
+            "data file. If not specified, the median limit from the data will be "
+            "used as the representative limiting mag for this series. If specified, "
+            "will override the median value, but will not affect the individual "
+            "measured limits. If no limit is given and no such column exists in "
+            "the data file, the photometric series will be posted with None as the "
+            "limit."
+        ),
+    )
+    magref: float | str | None = Field(
+        default=None,
+        description=(
+            "Reference magnitude for the photometric series. This is used when the "
+            "photometry is relative (e.g., based on subtraction images) and the "
+            "magnitude of the object when it is not active is measured separately. "
+            "This would be the magnitude before/after a transient, or the mean "
+            "magnitude of a variable. For absolute photometry this is left as None."
+        ),
+    )
+    e_magref: float | str | None = Field(
+        default=None, description="Uncertainty on the magref."
+    )
+    ref_flux: float | str | None = Field(
+        default=None, description="Reference flux for the photometric series."
+    )
+    ref_fluxerr: float | str | None = Field(
+        default=None, description="Uncertainty on the reference flux."
+    )
+    ra_unc: float | str | None = Field(
+        default=None, description="Uncertainty on the ra."
+    )
+    dec_unc: float | str | None = Field(
+        default=None, description="Uncertainty on the dec."
+    )
+    followup_request_id: int | None = Field(
+        default=None,
+        description=(
+            "ID of the followup request that generated this photometric series. "
+            "This is used to link the photometric series to the followup request "
+            "in the SkyPortal database."
+        ),
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description=(
+            "ID of the assignment that generated this photometric series. This is "
+            "used to link the photometric series to the assignment in the "
+            "SkyPortal database."
+        ),
+    )
+    time_stamp_alignment: str | None = Field(
+        default=None,
+        description=(
+            "Specify when the time stamp for each measurement was taken inside "
+            'each exposure. Possible values are "start", "middle", "end". This is '
+            'optional, and defaults to "middle".'
+        ),
+    )
+    altdata: dict | str | None = Field(
+        default=None,
+        description=(
+            "Additional information to store in the photometric series. This can "
+            "be any valid JSON object, and will be stored in the database as a "
+            "JSON string. This can hold various information that does not fit into "
+            "any of the other inputs, but will still be useful to keep track of."
+        ),
+    )
+
+
+class PhotometricSeriesPatchBody(PhotometricSeriesPostBody):
+    """Request body for updating a photometric series (all inputs optional)."""
+
+
+class PhotometricSeriesResponse(BaseModel):
+    """Data payload returned when creating/updating a photometric series."""
+
+    id: int = Field(description="Photometric series ID")
 
 
 def get_group_ids(data, user, session):
@@ -865,37 +879,18 @@ class PhotometricSeriesGetQuery(BaseModel):
 
 class PhotometricSeriesHandler(BaseHandler):
     @permissions(["Upload data"])
-    @format_doc(
-        body_schema_docstring=textwrap.indent(
-            body_schema_docstring.strip("\n"), " " * 10
-        ).lstrip()
-    )
-    async def post(self):
+    async def post(
+        self, *, body: PhotometricSeriesPostBody = None
+    ) -> PhotometricSeriesResponse:
         """
         ---
         summary: Upload a photometric series.
         description: Upload a photometric series.
         tags:
           - photometric series
-        requestBody:
-          {body_schema_docstring}
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(PhotometricSeriesPostBody)
+        json_data = body.model_dump(exclude_unset=True)
         data = json_data.pop("data", None)
         if data is None:
             return self.error(
@@ -926,15 +921,9 @@ class PhotometricSeriesHandler(BaseHandler):
         return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    @format_doc(
-        body_schema_docstring=textwrap.indent(
-            body_schema_docstring.replace("required: true", "required: false").strip(
-                "\n"
-            ),
-            " " * 10,
-        ).lstrip()
-    )
-    async def patch(self, photometric_series_id: int):
+    async def patch(
+        self, photometric_series_id: int, *, body: PhotometricSeriesPatchBody = None
+    ) -> PhotometricSeriesResponse:
         """
         ---
         summary: Update a photometric series.
@@ -950,24 +939,8 @@ class PhotometricSeriesHandler(BaseHandler):
           in the request body parameters.
         tags:
           - photometric series
-        requestBody:
-          {body_schema_docstring}
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
         """
+        body = self.parse_body(PhotometricSeriesPatchBody)
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -978,7 +951,7 @@ class PhotometricSeriesHandler(BaseHandler):
             if ps is None:
                 return self.error("Invalid photometric series ID.")
 
-            json_data = self.get_json()
+            json_data = body.model_dump(exclude_unset=True)
             data = json_data.pop("data", None)  # allowed to be None
 
             try:

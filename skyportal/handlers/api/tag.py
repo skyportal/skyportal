@@ -76,6 +76,19 @@ class ObjTagPostBody(BaseModel):
     )
 
 
+class ObjTagDeleteBody(BaseModel):
+    """Request body for removing group associations from an object-tag
+    association."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Optional list of group IDs to remove. If not provided, "
+        "all user's group associations are removed.",
+    )
+
+
 class ObjTagOptionHandler(BaseHandler):
     """Handler for managing tag options.
 
@@ -503,7 +516,7 @@ class ObjTagHandler(BaseHandler):
             return self.success(new_assoc)
 
     @auth_or_token
-    async def delete(self, association_id: int):
+    async def delete(self, association_id: int, *, body: ObjTagDeleteBody = None):
         """
         ---
         summary: Delete object-tag association
@@ -514,19 +527,6 @@ class ObjTagHandler(BaseHandler):
             System admins can remove any group; regular users can only remove their groups.
         tags:
           - object tags
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: >
-                        Optional list of group IDs to remove. If not provided,
-                        all user's group associations are removed.
         responses:
           200:
             content:
@@ -537,20 +537,16 @@ class ObjTagHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ObjTagDeleteBody)
 
         try:
             association_id = int(association_id)
         except Exception:
             raise ValueError("Invalid association ID")
 
-        data = self.get_json() or {}
-        requested_group_ids = data.get("group_ids")
+        requested_group_ids = body.group_ids
 
-        if (
-            requested_group_ids is not None
-            and isinstance(requested_group_ids, list)
-            and len(requested_group_ids) == 0
-        ):
+        if requested_group_ids is not None and len(requested_group_ids) == 0:
             return self.error("`group_ids` cannot be an empty list", status=400)
 
         async with self.AsyncSession() as session:

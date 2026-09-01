@@ -39,12 +39,13 @@ def _post(user, obj_id, ttype="new", survey=None):
 
 
 def _thumbnails(obj_id):
+    """Only the rows _post writes: survey tiles land asynchronously and race the counts."""
     DBSession().expire_all()
     return (
         DBSession()
         .scalars(
             sa.select(Thumbnail)
-            .where(Thumbnail.obj_id == obj_id)
+            .where(Thumbnail.obj_id == obj_id, Thumbnail.type == "new")
             .order_by(Thumbnail.id)
         )
         .all()

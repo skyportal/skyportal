@@ -7,7 +7,7 @@ every ``data-testid`` target still exists somewhere in ``static/js``.
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).parents[2]
+REPO_ROOT = Path(__file__).parents[4]
 STATIC_JS = REPO_ROOT / "static" / "js"
 TOUR_FILES = [
     STATIC_JS / "components" / "widget" / "GettingStartedTour.ts",

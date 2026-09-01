@@ -5,7 +5,7 @@ import re
 import time
 import uuid
 from copy import copy
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import arrow
 import astropy.units as u
@@ -50,7 +50,7 @@ from ....models import (
     Spectrum,
     SuperObj,
 )
-from ....utils.cache import Cache, array_to_bytes
+from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
 from ....utils.data_access import (
     accessible_group_and_filter_ids,
@@ -59,12 +59,13 @@ from ....utils.data_access import (
 from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
+from ..obj import ObjBody
 from .candidate_filter import SAVED_STATUSES, get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 
 _, cfg = load_env()
-cache_dir = "cache/candidates_queries"
+cache_dir = f"{cache_folder}/candidates_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_candidate_query_cache"] * 60,
@@ -582,6 +583,41 @@ class CandidateGetQuery(BaseModel):
     annotationExcludeOutdatedDate: str | None = Field(
         default=None,
         description="No longer supported; an error is returned if provided.",
+    )
+
+
+class CandidatePostBody(ObjBody):
+    """Request body for creating new candidate(s) (one per filter)."""
+
+    id: str = Field(description="Name of the object.")
+    filter_ids: list[int] = Field(description="List of associated filter IDs")
+    passed_at: str = Field(
+        description="Arrow-parseable datetime string indicating when passed filter."
+    )
+    passing_alert_id: int | None = Field(
+        None, description="ID of associated filter that created candidate"
+    )
+
+
+class BulkDeleteCandidatesPostBody(BaseModel):
+    """Request body for bulk-deleting old, unsaved candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAgeMonths: int = Field(
+        6,
+        description="Delete objects whose most recent candidate `passed_at` is older "
+        "than this many months. Defaults to 6.",
+    )
+    batchSize: int = Field(
+        1000,
+        description="Maximum number of objects to delete in this call (deleted "
+        "oldest-first). Defaults to 1000.",
+    )
+    dryRun: bool = Field(
+        False,
+        description="If true, only report how many objects would be deleted, without "
+        "deleting anything. Defaults to false.",
     )
 
 
@@ -1471,37 +1507,13 @@ class CandidateHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: CandidatePostBody = None):
         """
         ---
         summary: Create new candidate(s)
         description: Create new candidate(s) (one per filter).
         tags:
           - candidates
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ObjPost'
-                  - type: object
-                    properties:
-                      filter_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: List of associated filter IDs
-                      passing_alert_id:
-                        type: integer
-                        description: ID of associated filter that created candidate
-                        nullable: true
-                      passed_at:
-                        type: string
-                        description: Arrow-parseable datetime string indicating when passed filter.
-                        nullable: true
-                    required:
-                      - filter_ids
-                      - passed_at
         responses:
           200:
             content:
@@ -1520,14 +1532,8 @@ class CandidateHandler(BaseHandler):
                                 type: integer
                               description: List of new candidate IDs
         """
-        data = self.get_json()
-
-        if data.get("id") is None:
-            return self.error("Missing required parameter: `id`.")
-        # Obj.id is a string column, but survey ids are often numeric (e.g. LSST
-        # diaObject ids) and arrive as JSON numbers; comparing those against a
-        # varchar column errors out in Postgres, so normalize once up front.
-        data["id"] = str(data["id"])
+        body = self.parse_body(CandidatePostBody)
+        data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -1543,17 +1549,12 @@ class CandidateHandler(BaseHandler):
                 return self.error("Dec must not be null for a new Obj")
 
             passing_alert_id = data.pop("passing_alert_id", None)
-            passed_at = data.pop("passed_at", None)
-            if passed_at is None:
-                return self.error("Missing required parameter: `passed_at`.")
+            passed_at = data.pop("passed_at")
             try:
                 passed_at = arrow.get(passed_at).datetime
             except Exception as e:
                 return self.error(f"Invalid passedAt value: {e}")
-            try:
-                filter_ids = data.pop("filter_ids")
-            except KeyError:
-                return self.error("Missing required filter_ids parameter.")
+            filter_ids = data.pop("filter_ids")
 
             if not obj_already_exists:
                 try:
@@ -1819,7 +1820,7 @@ async def grab_query_results(
 
 class BulkDeleteCandidatesHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    def post(self, *, body: BulkDeleteCandidatesPostBody = None):
         """
         ---
         summary: Bulk-delete old, unsaved candidates
@@ -1831,27 +1832,6 @@ class BulkDeleteCandidatesHandler(BaseHandler):
           admin only. Intended to be driven periodically via the Recurring API.
         tags:
           - candidates
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  maxAgeMonths:
-                    type: integer
-                    description: |
-                      Delete objects whose most recent candidate `passed_at` is
-                      older than this many months. Defaults to 6.
-                  batchSize:
-                    type: integer
-                    description: |
-                      Maximum number of objects to delete in this call (deleted
-                      oldest-first). Defaults to 1000.
-                  dryRun:
-                    type: boolean
-                    description: |
-                      If true, only report how many objects would be deleted,
-                      without deleting anything. Defaults to false.
         responses:
           200:
             content:
@@ -1877,7 +1857,8 @@ class BulkDeleteCandidatesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BulkDeleteCandidatesPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         try:
             max_age_months = int(data.get("maxAgeMonths", 6))

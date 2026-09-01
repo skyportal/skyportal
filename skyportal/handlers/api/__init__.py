@@ -54,6 +54,12 @@ from .color_mag import ObjColorMagHandler
 from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
+from .data_access_request import (
+    DataAccessRequestHandler,
+    DataAvailabilityHandler,
+    DuplicateSchedulingHandler,
+    ScheduledObservationsHandler,
+)
 from .db_stats import StatsHandler
 from .earthquake import (
     EarthquakeHandler,
@@ -139,7 +145,7 @@ from .mmadetector import (
 from .moving_object import MovingObjectFollowupHandler
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
-from .obj import ObjHandler, ObjPositionHandler
+from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
@@ -248,6 +254,7 @@ from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
+    UserPublicProfileHandler,
     set_default_acls,
     set_default_group,
     set_default_role,

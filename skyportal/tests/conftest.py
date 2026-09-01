@@ -30,6 +30,7 @@ from skyportal.models import (
     CommentOnGCN,
     CommentOnShift,
     CommentOnSpectrum,
+    DataAccessRequest,
     DBSession,
     DefaultAnalysis,
     DefaultFollowupRequest,
@@ -77,6 +78,7 @@ from skyportal.models import (
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
     GroupObjTag,
+    GroupObservingRun,
     GroupPhotometricSeries,
     GroupPhotometry,
     GroupPublicRelease,
@@ -350,19 +352,6 @@ def group_with_stream(
     group = GroupFactory(
         users=[super_admin_user, group_admin_user, user, view_only_user],
         streams=[public_stream],
-    )
-    group_id = group.id
-    yield group
-    GroupFactory.teardown(group_id)
-
-
-@pytest.fixture()
-def group_with_stream_with_users(
-    super_admin_user, group_admin_user, user, view_only_user, stream_with_users
-):
-    group = GroupFactory(
-        users=[super_admin_user, group_admin_user, user, view_only_user],
-        streams=[stream_with_users],
     )
     group_id = group.id
     yield group
@@ -921,13 +910,6 @@ def public_assignment(red_transients_run, user, public_source):
 
 
 @pytest.fixture()
-def private_source():
-    obj = ObjFactory(groups=[])
-    yield obj
-    ObjFactory.teardown(obj)
-
-
-@pytest.fixture()
 def user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
@@ -1135,23 +1117,6 @@ def user_two_groups(public_group, public_group2, public_stream):
 
 @pytest.fixture()
 def view_only_user(public_group, public_stream):
-    user = UserFactory(
-        groups=[public_group],
-        roles=[
-            DBSession()
-            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
-            .scalars()
-            .first()
-        ],
-        streams=[public_stream],
-    )
-    user_id = user.id
-    yield user
-    UserFactory.teardown(user_id)
-
-
-@pytest.fixture()
-def view_only_user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
@@ -1416,23 +1381,6 @@ def super_admin_token(super_admin_user):
     token_id = create_token(
         ACLs=[a.id for a in role.acls],
         user_id=super_admin_user.id,
-        name=str(uuid.uuid4()),
-    )
-    yield token_id
-    delete_token(token_id)
-
-
-@pytest.fixture()
-def super_admin_token_two_groups(super_admin_user_two_groups):
-    role = (
-        DBSession()
-        .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
-        .scalars()
-        .first()
-    )
-    token_id = create_token(
-        ACLs=[a.id for a in role.acls],
-        user_id=super_admin_user_two_groups.id,
         name=str(uuid.uuid4()),
     )
     yield token_id
@@ -1755,6 +1703,29 @@ def public_group_gcnevent(public_group, public_gcnevent):
         .scalars()
         .first()
     )
+
+
+@pytest.fixture()
+def public_group_observingrun(public_group, user):
+    """The GroupObservingRun row tying an observing run to public_group.
+
+    The factory defaults a run to the sitewide group, which is not this
+    fixture's group, so attach it explicitly.
+    """
+    run = ObservingRunFactory(owner=user, groups=[public_group])
+    row = (
+        DBSession()
+        .execute(
+            sa.select(GroupObservingRun).filter(
+                GroupObservingRun.group_id == public_group.id,
+                GroupObservingRun.observingrun_id == run.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    yield row
+    ObservingRunFactory.teardown(run)
 
 
 @pytest.fixture()
@@ -2502,7 +2473,7 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    df["flux"] = np.random.normal(-50, 50, 100)
+    df["flux"] = np.random.default_rng(1).normal(-50, 50, 100)
 
     data = {
         "obj_id": public_source.id,
@@ -3918,6 +3889,42 @@ def public_group_admission_request(public_group, user):
             sa.select(GroupAdmissionRequest).filter(
                 GroupAdmissionRequest.id == request_id
             )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_data_access_request(
+    public_group, user, user_group2, ztf_camera, public_source
+):
+    """`user` asking `user_group2` for photometry they hold on a source.
+
+    `owner_group_ids` names public_group, so its admins are the third party who
+    can answer it.
+    """
+    request = DataAccessRequest(
+        requester_id=user.id,
+        owner_id=user_group2.id,
+        obj_id=public_source.id,
+        data_type="photometry",
+        instrument_id=ztf_camera.id,
+        filter="ztfg",
+        owner_group_ids=[public_group.id],
+        status="pending",
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(DataAccessRequest).filter(DataAccessRequest.id == request_id)
         )
         .scalars()
         .first()
@@ -5838,36 +5845,6 @@ def public_mmadetector_time_interval(public_group, user):
         if row is not None:
             DBSession().delete(row)
             DBSession().commit()
-
-
-@pytest.fixture()
-def public_obj_model(public_group):
-    obj_id = str(uuid.uuid4())
-    obj = Obj(
-        id=obj_id,
-        ra=10.0,
-        dec=20.0,
-        internal_key=str(uuid.uuid4()),
-    )
-    DBSession.add(obj)
-    DBSession.commit()
-    source = Source(obj_id=obj.id, group_id=public_group.id)
-    DBSession.add(source)
-    DBSession.commit()
-    yield obj
-    src = (
-        DBSession()
-        .execute(sa.select(Source).filter(Source.obj_id == obj_id))
-        .scalars()
-        .first()
-    )
-    if src is not None:
-        DBSession().delete(src)
-        DBSession().commit()
-    row = DBSession().execute(sa.select(Obj).filter(Obj.id == obj_id)).scalars().first()
-    if row is not None:
-        DBSession().delete(row)
-        DBSession().commit()
 
 
 @pytest.fixture()

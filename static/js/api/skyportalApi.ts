@@ -147,6 +147,7 @@ export const TAG_TYPES = [
   "SourceCounts",
   "TopSaver",
   "PublicSourcePage",
+  "PublicProfile",
   "DefaultFollowupRequest",
   "DefaultAnalysis",
   "Galaxy",
@@ -226,6 +227,8 @@ export const TAG_TYPES = [
   "Localizations",
   "Spectra",
   "UserManagement",
+  "DataAvailability",
+  "DataAccessRequest",
 ] as const;
 
 export const skyportalApi = createApi({

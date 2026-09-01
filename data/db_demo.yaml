@@ -3,6 +3,9 @@ groups:
     =id: program_A
   - name: Program B
     =id: program_B
+  # Holds data a fresh login cannot see, and so can ask for.
+  - name: Private Collaboration
+    =id: private_collab
 
 user:
   - username: testadmin
@@ -47,6 +50,10 @@ groups/=program_B/users:
     admin: false
   - userID: =fulluser
     admin: false
+
+groups/=private_collab/users:
+  - userID: =groupadmin
+    admin: true
 
 teams:
   - name: ZTF
@@ -1413,18 +1420,13 @@ sources:
     origin: TESS
 
 sources/ZTF21aaqjmps/comments:
-  - obj_id: ZTF21aaqjmps
-    text: "Kilroy was here"
-  - obj_id: ZTF21aaqjmps
-    text: "Birds aren't real"
-  - obj_id: ZTF21aaqjmps
-    text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
+  - text: "Kilroy was here"
+  - text: "Birds aren't real"
+  - text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
 sources/ZTF18aabcvnq/comments:
-  - obj_id: ZTF18aabcvnq
-    text: "Gosh, stars are cool"
-  - obj_id: ZTF18aabcvnq
-    text: "You're a star! <3"
+  - text: "Gosh, stars are cool"
+  - text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
   - origin: "Program A"
@@ -1544,6 +1546,18 @@ photometry:
       - =public_group_id
       - =program_A
       - =program_B
+  # Private Collaboration only: shows up as unshared data to ask for.
+  - obj_id: AT2017gfo
+    instrument_id: =SEDM
+    filter: sdssr
+    magsys: ab
+    zp: 23.9
+    origin: private_collab_followup
+    mjd: [57983.6, 57984.6, 57985.6, 57986.6]
+    flux: [184.3, 131.9, 96.2, 71.4]
+    fluxerr: [12.2, 10.6, 9.9, 9.1]
+    group_ids:
+      - =private_collab
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
@@ -1696,6 +1710,24 @@ spectrum:
     assignment_id: 1
     units: erg/s/cm/cm/AA
     followup_request_id: =request_3
+  # A pair on one source: the plot marks the first "S" normally and the second
+  # in the unshared colour, which opens a request when clicked.
+  - obj_id: AT2017gfo
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2017-08-19T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =public_group_id
+  - obj_id: AT2017gfo
+    file: spec2.csv
+    instrument_id: =SEDM
+    observed_at: "2017-08-21T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =private_collab
 
 spectra/=spectrum1/annotations:
   - origin: "Kowalski"
@@ -1804,8 +1836,6 @@ gcn_event/2026-08-06T23:02:28/associations:
 
 gcn_event/1/comments:
   - text: "This is a test comment"
-    author_id: testadmin
-    created_at: "2022-03-18 16:00:00"
 
 earthquake:
   - xml:

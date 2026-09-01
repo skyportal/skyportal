@@ -50,7 +50,7 @@ from ...models import (
     Telescope,
 )
 from ...models.schema import ObservationExternalAPIHandlerPost
-from ...utils.cache import Cache
+from ...utils.cache import Cache, cache_folder
 from ...utils.observation_plan import combine_healpix_tuples
 from ...utils.parse import str_to_bool
 from ...utils.simsurvey import (
@@ -77,7 +77,7 @@ log = make_log("api/observation")
 
 Session = scoped_session(sessionmaker())
 
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
@@ -966,19 +966,31 @@ class ObservationGetQuery(BaseModel):
     )
 
 
+class ObservationPostBody(BaseModel):
+    """Request body for ingesting a set of ExecutedObservations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    telescopeName: str | None = Field(
+        None, description="The telescope name associated with the fields"
+    )
+    instrumentName: str | None = Field(
+        None, description="The instrument name associated with the fields"
+    )
+    observationData: dict | None = Field(
+        default_factory=dict, description="Observation data dictionary list"
+    )
+
+
 class ObservationHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: ObservationPostBody = None):
         """
         ---
         summary: Ingest a set of ExecutedObservations
         description: Ingest a set of ExecutedObservations
         tags:
           - observations
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationHandlerPost
         responses:
           200:
             content:
@@ -990,10 +1002,10 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        telescope_name = data.get("telescopeName")
-        instrument_name = data.get("instrumentName")
-        observation_data = data.get("observationData", {})
+        body = self.parse_body(ObservationPostBody)
+        telescope_name = body.telescopeName
+        instrument_name = body.instrumentName
+        observation_data = body.observationData
 
         if observation_data is None:
             return self.error(message="Missing observation_data")
@@ -1219,33 +1231,42 @@ class ObservationHandler(BaseHandler):
             return self.success()
 
 
+class ObservationASCIIFilePostBody(BaseModel):
+    """Request body for uploading observations from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrumentID: int | str | None = Field(
+        None, description="The instrument ID associated with the fields"
+    )
+    observationData: str | None = Field(
+        None, description="Observation data Ascii string"
+    )
+
+
 class ObservationASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: ObservationASCIIFilePostBody = None):
         """
         ---
         summary: Upload observation from ASCII file
         description: Upload observation from ASCII file
         tags:
           - observations
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationASCIIFileHandlerPost
         responses:
           200:
             content:
               application/json:
-                schema: ArrayOfExecutedObservations
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        json = self.get_json()
-        observation_data = json.pop("observationData", None)
-        instrument_id = json.pop("instrumentID", None)
+        body = self.parse_body(ObservationASCIIFilePostBody)
+        observation_data = body.observationData
+        instrument_id = body.instrumentID
 
         if observation_data is None:
             return self.error(message="Missing observation_data")
@@ -1363,31 +1384,48 @@ class ObservationExternalAPIGetQuery(BaseModel):
     )
 
 
+class ObservationExternalAPIPostBody(BaseModel):
+    """Request body for retrieving observations from an external API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: str | None = Field(None, description="start date of the request.")
+    end_date: str | None = Field(None, description="end date of the request.")
+    allocation_id: int | None = Field(
+        None, description="Followup request allocation ID."
+    )
+
+
+class ObservationExternalAPIDeleteBody(BaseModel):
+    """Request body for deleting queued observations from an external API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    queueName: str | None = Field(None, description="Queue name to remove")
+
+
 class ObservationExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: ObservationExternalAPIPostBody = None):
         """
         ---
         summary: Retrieve observations from external API
         description: Retrieve observations from external API
         tags:
           - observations
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationExternalAPIHandlerPost
         responses:
           200:
             content:
               application/json:
-                schema: ArrayOfExecutedObservations
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservationExternalAPIPostBody)
+        data = body.model_dump(exclude_unset=True)
         if "start_date" in data:
             data["start_date"] = arrow.get(data["start_date"].strip()).datetime
         else:
@@ -1529,20 +1567,18 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def delete(self, allocation_id: AllocationId):
+    async def delete(
+        self,
+        allocation_id: AllocationId,
+        *,
+        body: ObservationExternalAPIDeleteBody = None,
+    ):
         """
         ---
         summary: Delete queued observations from external API
         description: Delete queued observations from external API
         tags:
           - observations
-        parameters:
-          - in: query
-            name: queueName
-            required: true
-            schema:
-              type: string
-            description: Queue name to remove
         responses:
           200:
             content:
@@ -1554,16 +1590,14 @@ class ObservationExternalAPIHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservationExternalAPIDeleteBody)
 
-        if "queueName" not in data:
+        if "queueName" not in body.model_fields_set:
             return self.error("queueName is a required argument")
-        queue_name = data["queueName"]
+        queue_name = body.queueName
 
-        data["requester_id"] = self.associated_user_object.id
-        data["last_modified_by_id"] = self.associated_user_object.id
         try:
-            data["allocation_id"] = int(allocation_id)
+            allocation_id_int = int(allocation_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid allocation_id: {allocation_id}")
 
@@ -1572,11 +1606,11 @@ class ObservationExternalAPIHandler(BaseHandler):
                 Allocation.select(
                     session.user_or_token,
                     options=[joinedload(Allocation.instrument)],
-                ).where(Allocation.id == data["allocation_id"])
+                ).where(Allocation.id == allocation_id_int)
             )
             if allocation is None:
                 return self.error(
-                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                    f"Cannot find Allocation with ID: {allocation_id_int}"
                 )
 
             instrument = allocation.instrument
@@ -1612,6 +1646,58 @@ class ObservationTreasureMapPostQuery(BaseModel):
     )
 
 
+class ObservationTreasureMapPostBody(BaseModel):
+    """Request body for submitting executed observations to TreasureMap."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(None, description="Filter by start date")
+    endDate: str | None = Field(None, description="Filter by end date")
+    localizationDateobs: str | None = Field(
+        None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Each localization is associated with a specific GCNEvent by "
+            "the date the event happened, and this date is used as a unique "
+            "identifier. It can be therefore found as Localization.dateobs, "
+            "queried from the /api/localization endpoint or dateobs in the "
+            "GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        None,
+        description=(
+            "Name of localization / skymap to use. "
+            "Can be found in Localization.localization_name queried from "
+            "/api/localization endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        0.95,
+        description=(
+            "Cumulative probability up to which to include fields. Defaults to 0.95."
+        ),
+    )
+
+
+class ObservationTreasureMapDeleteBody(BaseModel):
+    """Request body for removing executed observations from TreasureMap."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    localizationDateobs: str | None = Field(
+        None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Each localization is associated with a specific GCNEvent by "
+            "the date the event happened, and this date is used as a unique "
+            "identifier. It can be therefore found as Localization.dateobs, "
+            "queried from the /api/localization endpoint or dateobs in the "
+            "GcnEvent page table."
+        ),
+    )
+
+
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
     async def post(
@@ -1619,6 +1705,7 @@ class ObservationTreasureMapHandler(BaseHandler):
         instrument_id: InstrumentId,
         *,
         query: ObservationTreasureMapPostQuery = None,
+        body: ObservationTreasureMapPostBody = None,
     ):
         """
         ---
@@ -1638,13 +1725,12 @@ class ObservationTreasureMapHandler(BaseHandler):
         """
 
         query = self.parse_query(ObservationTreasureMapPostQuery)
-
-        data = self.get_json()
-        start_date = data.get("startDate")
-        end_date = data.get("endDate")
-        localization_dateobs = data.get("localizationDateobs", None)
-        localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        body = self.parse_body(ObservationTreasureMapPostBody)
+        start_date = body.startDate
+        end_date = body.endDate
+        localization_dateobs = body.localizationDateobs
+        localization_name = body.localizationName
+        localization_cumprob = body.localizationCumprob
         min_observations_per_field = query.numberObservations
 
         if start_date is None:
@@ -1810,25 +1896,18 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, instrument_id: InstrumentId):
+    async def delete(
+        self,
+        instrument_id: InstrumentId,
+        *,
+        body: ObservationTreasureMapDeleteBody = None,
+    ):
         """
         ---
         summary: Remove observations from TreasureMap
         description: Remove observations from treasuremap.space.
         tags:
           - observation plan requests
-        parameters:
-          - in: query
-            name: localizationDateobs
-            schema:
-              type: string
-            description: |
-              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-              Each localization is associated with a specific GCNEvent by
-              the date the event happened, and this date is used as a unique
-              identifier. It can be therefore found as Localization.dateobs,
-              queried from the /api/localization endpoint or dateobs in the
-              GcnEvent page table.
         responses:
           200:
             content:
@@ -1836,8 +1915,8 @@ class ObservationTreasureMapHandler(BaseHandler):
                 schema: Success
         """
 
-        data = self.get_json()
-        localization_dateobs = data.get("localizationDateobs", None)
+        body = self.parse_body(ObservationTreasureMapDeleteBody)
+        localization_dateobs = body.localizationDateobs
 
         try:
             instrument_id_int = int(instrument_id)

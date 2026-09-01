@@ -32,7 +32,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from .. import __version__
-from .cache import Cache, dict_to_bytes
+from .cache import Cache, cache_folder, dict_to_bytes
 from .naive_datetime import utcnow_naive
 from .tap_services.gaia import GaiaQuery
 
@@ -40,7 +40,7 @@ log = make_log("finder-chart")
 
 _, cfg = load_env()
 
-cache_dir = "cache/finding_charts"
+cache_dir = f"{cache_folder}/finding_charts"
 cache_max_age_days = cfg.get("misc.days_to_keep_finding_charts_cache", 30)
 cache_max_age = cache_max_age_days * 24 * 60 * 60  # days to seconds
 finding_charts_cache = Cache(cache_dir=cache_dir, max_age=cache_max_age)
@@ -189,7 +189,7 @@ starlist_formats = {
 }
 
 JOBLIB_CACHE_SIZE = 100e6  # 100 MB
-offsets_memory = Memory("./cache/offsets/", verbose=0)
+offsets_memory = Memory(f"{cache_folder}/offsets", verbose=0)
 
 
 def memcache(f):
@@ -503,7 +503,7 @@ def get_astrometry_backup_from_ztf(
 def get_ztfcatalog(
     ra,
     dec,
-    cache_dir="./cache/finder_cat/",
+    cache_dir=f"{cache_folder}/finder_cat",
     cache_max_items=1000,
     as_astropy_table=False,
 ):
@@ -963,6 +963,9 @@ def get_nearby_offset_stars(
     fainter_diff = 1.5  # mag
     search_multipler = 20
     min_distance = 5.0 / 3600.0  # min distance from source for offset star
+    # Above this proper motion (mas/yr), a ZTF-ref position that cannot be
+    # carried forward is too stale to point at: see the candidate loop below.
+    max_uncorrected_ztfref_pm = 50.0
     source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
     query_string = f"""
                   SELECT DISTANCE(
@@ -1107,6 +1110,14 @@ def get_nearby_offset_stars(
                                 distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
                                 obstime=ztfref_epoch,
                             ).apply_space_motion(new_obstime=source_obstime)
+                        elif (
+                            np.hypot(source["pmra"], source["pmdec"])
+                            >= max_uncorrected_ztfref_pm
+                        ):
+                            # Without the ref epoch the ZTF position cannot be
+                            # carried forward, and for a fast mover a decade-old
+                            # position can fall outside a narrow slit.
+                            cprime = c.apply_space_motion(new_obstime=source_obstime)
                         else:
                             cprime = SkyCoord(
                                 ra=ztfcatalog[idx].ra.value,
@@ -1346,7 +1357,7 @@ def fits_image(
     center_dec,
     imsize=4.0,
     image_source="ps1",
-    cache_dir="./cache/finder/",
+    cache_dir=f"{cache_folder}/finder",
     cache_max_items=1000,
 ):
     """Returns an opened FITS image centered on the source

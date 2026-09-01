@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
-import TextField from "@mui/material/TextField";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
-import CircularProgress from "@mui/material/CircularProgress";
-import Box from "@mui/material/Box";
+import { createFilterOptions } from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import SearchableSelect from "./SearchableSelect";
 
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
@@ -308,8 +306,7 @@ const QuickSearchBar = () => {
             </MenuItem>
           ))}
         </Select>
-        <Autocomplete
-          color="primary"
+        <SearchableSelect
           id="quick-search-bar"
           classes={{ root: classes.root, paper: (classes as any).paper }}
           getOptionLabel={(option) => option.name || ""}
@@ -334,7 +331,6 @@ const QuickSearchBar = () => {
             }
           }}
           onClose={() => setOpen(false)}
-          size="small"
           noOptionsText={`No matching ${type}.`}
           options={options}
           open={open}
@@ -345,26 +341,12 @@ const QuickSearchBar = () => {
           limitTags={15}
           value={value}
           popupIcon={null}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              variant="outlined"
-              placeholder="Search"
-              fullWidth
-              slotProps={{
-                ...params.slotProps,
-                input: {
-                  ...params.slotProps.input,
-                  className: classes.textField,
-                  endAdornment: loading && (
-                    <Box sx={{ display: "flex" }}>
-                      <CircularProgress size={20} color="inherit" />
-                    </Box>
-                  ),
-                },
-              }}
-            />
-          )}
+          placeholder="Search"
+          textFieldProps={{
+            slotProps: {
+              input: { className: classes.textField },
+            },
+          }}
         />
       </div>
       <SaveCandidateGroupsDialog

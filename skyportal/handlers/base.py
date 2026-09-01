@@ -119,7 +119,12 @@ class BaseHandler(BaselayerHandler):
             raise Finish() from None
 
     def parse_body(self, model):
-        return self._validate(model, self.get_json())
+        try:
+            data = self.get_json()
+        except Exception as e:
+            self.error(f"Error parsing JSON: {e}")
+            raise Finish() from None
+        return self._validate(model, data)
 
     def parse_query(self, model):
         return self._validate(
@@ -130,6 +135,9 @@ class BaseHandler(BaselayerHandler):
         super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
+        # Tag with handler name so users know which endpoint failed.
+        if message and not str(message).startswith("["):
+            message = f"[{self.__class__.__name__}] {message}"
         super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(

@@ -304,17 +304,22 @@ def _fetch_sso_history(broker, survey, designation):
                 "catalog_name": "ZTF_alerts",
                 "filter": {"candidate.ssnamenr": str(designation)},
                 "projection": {
-                    f"candidate.{k}": 1
-                    for k in (
-                        "jd",
-                        "band",
-                        "psfFlux",
-                        "psfFluxErr",
-                        "ra",
-                        "dec",
-                        "programid",
-                        "ssmagnr",  # MPC ephemeris mag, for SSO detrending
-                    )
+                    **{
+                        f"candidate.{k}": 1
+                        for k in (
+                            "jd",
+                            "band",
+                            "psfFlux",
+                            "psfFluxErr",
+                            "ra",
+                            "dec",
+                            "programid",
+                            "ssmagnr",  # MPC ephemeris mag, for SSO detrending
+                        )
+                    },
+                    # Per-detection SSO geometry (rh/delta/phase) for the outburst
+                    # statistic; present on enrichment-era docs, absent on older ones.
+                    "properties.sso": 1,
                 },
                 "sort": {"candidate.jd": 1},
                 "limit": _SSO_HISTORY_LIMIT,
@@ -346,6 +351,8 @@ def _fetch_sso_history(broker, survey, designation):
                 "dec": c.get("dec"),
                 "programid": c.get("programid", 1),
                 "ssmagnr": c.get("ssmagnr"),
+                # Per-detection geometry, carried onto the point's photometry altdata.
+                "sso": (doc.get("properties") or {}).get("sso"),
             }
         )
     return prv

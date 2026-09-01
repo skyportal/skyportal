@@ -1,4 +1,4 @@
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Literal
 
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
@@ -23,6 +23,62 @@ Dateobs = Annotated[
 ]
 
 log = make_log("api/gcn_event_obj")
+
+
+class GcnEventObjPostBody(BaseModel):
+    """Request body for confirming or rejecting a source in a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str = Field(
+        description="The source_id of the source to confirm or reject"
+    )
+    localization_name: str = Field(
+        description="The name of the localization of the event"
+    )
+    localization_cumprob: float = Field(
+        description="The cumprob of the localization of the event"
+    )
+    status: Literal["pending", "confirmed", "ambiguous", "rejected"] = Field(
+        description="Standing of the source against the event"
+    )
+    start_date: str = Field(
+        description="Choose sources with a first detection after start_date, "
+        "as an arrow parseable string"
+    )
+    end_date: str = Field(
+        description="Choose sources with a last detection before end_date, "
+        "as an arrow parseable string"
+    )
+    explanation: str | None = Field(
+        default=None, description="Explanation of the confirmation/rejection"
+    )
+    notes: str | None = Field(
+        default=None, description="Notes about the confirmation/rejection"
+    )
+
+
+class GcnEventObjPatchBody(BaseModel):
+    """Request body for updating the confirmed/rejected status of a source in
+    a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["pending", "confirmed", "ambiguous", "rejected"] = Field(
+        description="Standing of the source against the event"
+    )
+    explanation: str | None = Field(
+        default=None, description="Explanation of the confirmation/rejection"
+    )
+    notes: str | None = Field(
+        default=None, description="Notes about the confirmation/rejection"
+    )
+
+
+class GcnEventObjIdResponse(BaseModel):
+    """ID of the affected gcn_event_obj row."""
+
+    id: int = Field(description="The id of the gcn_event_obj")
 
 
 class Validator(Schema):
@@ -207,7 +263,13 @@ class GcnEventObjHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(["Upload data"])
-    async def post(self, dateobs: Dateobs, source_id: str = None):
+    async def post(
+        self,
+        dateobs: Dateobs,
+        source_id: str = None,
+        *,
+        body: GcnEventObjPostBody = None,
+    ) -> GcnEventObjIdResponse:
         """
         ---
         summary: Confirm or reject a source in a gcn
@@ -215,79 +277,23 @@ class GcnEventObjHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  localization_name:
-                    type: string
-                    description: The name of the localization of the event
-                  localization_cumprob:
-                    type: string
-                    description: The cumprob of the localization of the event
-                  source_id:
-                    type: string
-                    description: The source_id of the source to confirm or reject
-                  status:
-                    type: string
-                    enum: [pending, confirmed, ambiguous, rejected]
-                    description: Standing of the source against the event.
-                  start_date:
-                    type: string
-                    description: Choose sources with a first detection after start_date, as an arrow parseable string
-                  end_date:
-                    type: string
-                    description: Choose sources with a last detection before end_date, as an arrow parseable string
-                required:
-                  - localization_name
-                  - localization_cumprob
-                  - source_id
-                  - status
-                  - start_date
-                  - end_date
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the gcn_event_obj
-          400:
-            content:
-              application/json:
-                schema: Error
-
         """
-        data = self.get_json()
+        body = self.parse_body(GcnEventObjPostBody)
 
-        localization_name = data.get("localization_name")
-        localization_cumprob = data.get("localization_cumprob")
-        source_id = data.get("source_id")
-        status = data.get("status")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        start_date = data.get("start_date")
-        end_date = data.get("end_date")
+        status = body.status
+        explanation = body.explanation
+        notes = body.notes
 
+        # the Validator converts dateobs/start_date/end_date to naive datetimes
         validator_instance = Validator()
         params_to_be_validated = {
             "method": "POST",
-            "source_id": source_id,
+            "source_id": body.source_id,
             "dateobs": dateobs,
-            "start_date": start_date,
-            "end_date": end_date,
-            "localization_name": localization_name,
-            "localization_cumprob": localization_cumprob,
+            "start_date": body.start_date,
+            "end_date": body.end_date,
+            "localization_name": body.localization_name,
+            "localization_cumprob": body.localization_cumprob,
         }
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -375,7 +381,13 @@ class GcnEventObjHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Upload data"])
-    async def patch(self, dateobs: str, source_id: str):
+    async def patch(
+        self,
+        dateobs: Dateobs,
+        source_id: str,
+        *,
+        body: GcnEventObjPatchBody = None,
+    ) -> GcnEventObjIdResponse:
         """
         ---
         summary: Update the confirmed/rejected status of a source in a GCN
@@ -383,43 +395,11 @@ class GcnEventObjHandler(BaseHandler):
         tags:
           - gcn events
           - sources
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [pending, confirmed, ambiguous, rejected]
-                    description: Standing of the source against the event.
-                required:
-                  - status
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the modified gcn_event_obj
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        status = data.get("status")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
+        body = self.parse_body(GcnEventObjPatchBody)
+        status = body.status
+        explanation = body.explanation
+        notes = body.notes
 
         validator_instance = Validator()
         params_to_be_validated = {

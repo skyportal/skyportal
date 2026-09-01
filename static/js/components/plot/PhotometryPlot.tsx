@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -59,6 +59,15 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  RequestSpectrumDialog,
+  UNSHARED_SPECTRUM,
+  unsharedSpectrumTraces,
+} from "./UnsharedSpectrumMarkers";
+import {
+  SpectrumAvailability,
+  useGetDataAvailabilityQuery,
+} from "../../ducks/dataAccessRequests";
 import OutburstPlot from "./OutburstPlot";
 import { OutburstPoint } from "./outburstTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
@@ -71,6 +80,22 @@ import CornerPlot from "./CornerPlot";
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+
+// New layouts, keeping the axis ranges already declared. Plotly holds a user's
+// zoom only while the declared range it compares against stays put, so a range
+// recomputed from new points would hand the axis back to us.
+const keepDeclaredRanges = (next: any, current: any): any => {
+  if (!current) {
+    return next;
+  }
+  const merged = { ...next };
+  ["xaxis", "xaxis2", "yaxis", "yaxis2"].forEach((axis) => {
+    if (merged[axis]?.range && current[axis]?.range) {
+      merged[axis] = { ...merged[axis], range: current[axis].range };
+    }
+  });
+  return merged;
+};
 
 // True when an analysis ran on extinction-corrected (dereddened) photometry, so
 // its model overlay is dereddened-native. analysis_parameters may store the flag
@@ -94,6 +119,9 @@ const periodUnitDividers: Record<string, number> = {
 };
 
 const Plot = createPlotlyComponent(Plotly);
+
+const getPhotometryInstrumentLabel = (point: any) =>
+  point.instrument_name || point.instrument || point.telescope || "Unknown";
 
 // Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
 // factors rescale the flux axis to the selected display unit.
@@ -657,6 +685,13 @@ const PhotometryPlot = ({
 
   const [photStats, setPhotStats] = useState<any>(null);
   const [layouts, setLayouts] = useState<any>({});
+  // Passed to Plotly as uirevision. The layout prop is rebuilt on every render,
+  // and Plotly.react re-applies the declared axis ranges unless this is
+  // unchanged. Bumped only where the user's view is meant to reset.
+  const [layoutRevision, setLayoutRevision] = useState(0);
+  // Whether the view on screen is one the user dragged to rather than the one
+  // we declared. While it is, the declared ranges are held still.
+  const userZoomed = useRef(false);
 
   const [filter2color, setFilter2Color] = useState<any>(
     config?.bandpassesColors,
@@ -818,7 +853,7 @@ const PhotometryPlot = ({
       }
       newPoint.text += `
         <br>Filter: ${newPoint.filter}
-        <br>Instrument: ${newPoint.instrument_name}
+        <br>Instrument: ${getPhotometryInstrumentLabel(newPoint)}
       `;
       if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
         newPoint.text += `<br>Origin: ${newPoint.origin}`;
@@ -908,7 +943,8 @@ const PhotometryPlot = ({
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc: any, point: any) => {
-      let key = `${point.instrument_name}/${point.filter}`;
+      const instrumentLabel = getPhotometryInstrumentLabel(point);
+      let key = `${instrumentLabel}/${point.filter}`;
       // if we are using duplicates, put the obj_id at the beginning of the key
       if (usingDuplicates) {
         key = `${point.obj_id}/${key}`;
@@ -916,7 +952,8 @@ const PhotometryPlot = ({
       if (
         point?.origin !== "None" &&
         point.origin !== "" &&
-        point.origin !== null
+        point.origin !== null &&
+        point.origin !== undefined
       ) {
         // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
         const remaining = (usingDuplicates ? 33 : 23) - key.length;
@@ -1338,7 +1375,9 @@ const PhotometryPlot = ({
 
       return newPlotData;
     }
-    return null;
+    // No traces for a tab that draws its own plot (Outburst). Callers push
+    // onto this, so it must stay a list.
+    return [];
   };
 
   const createLayouts = (
@@ -1585,12 +1624,10 @@ const PhotometryPlot = ({
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
-          if (
-            !(
-              newTrace.name &&
-              ["detections", "upperLimits"].includes(newTrace.dataType)
-            )
-          ) {
+          if (!(
+            newTrace.name &&
+            ["detections", "upperLimits"].includes(newTrace.dataType)
+          )) {
             return newTrace;
           }
           if (
@@ -1616,7 +1653,11 @@ const PhotometryPlot = ({
         dm,
         showExtinctionCorrection,
       );
-      setLayouts(newLayouts);
+      setLayouts((current: any) =>
+        userZoomed.current
+          ? keepDeclaredRanges(newLayouts, current)
+          : newLayouts,
+      );
       setInitialized(true);
     }
   }, [
@@ -1634,11 +1675,32 @@ const PhotometryPlot = ({
     shownModelFits,
   ]);
 
+  // Only an axis whose meaning changed invalidates the user's zoom. New or
+  // refetched points reuse the revision, so Plotly keeps the current view.
+  useEffect(() => {
+    if (initialized) {
+      userZoomed.current = false;
+      setLayoutRevision((revision) => revision + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    displayXAxisSinceT0,
+    displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
+    dm,
+    t0,
+    tabIndex,
+    phase,
+  ]);
+
   // The main object's photometry (including extinction toggle and magsys) is
   // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
-    if (initialized && filter2color) {
+    // The Outburst tab renders its own plot, so there are no main-plot traces
+    // to rebuild when it is selected.
+    if (initialized && filter2color && tabToPlotType(tabIndex)) {
       const traces = createTraces(
         data,
         photStats,
@@ -1684,6 +1746,7 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
+      setLayoutRevision((revision) => revision + 1);
       setLayoutReset(false);
     }
   }, [layoutReset]);
@@ -1806,6 +1869,15 @@ const PhotometryPlot = ({
     setTabIndex(newValue);
   };
 
+  // Spectra on this source that the viewer cannot open: marked like the others,
+  // in a colour that says so, and clickable to ask the owner for them.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(obj_id, {
+    skip: !obj_id,
+  });
+  const unsharedSpectra = dataAvailability?.spectra ?? [];
+  const [spectrumToRequest, setSpectrumToRequest] =
+    useState<SpectrumAvailability | null>(null);
+
   const yMarkers: any[] = [];
   if (photStats) {
     yMarkers.push(
@@ -1885,6 +1957,17 @@ const PhotometryPlot = ({
             };
           }),
         )
+        .concat(
+          unsharedSpectrumTraces(
+            unsharedSpectra,
+            yMarkers,
+            {
+              available: muiTheme.palette.warning.main,
+              requested: muiTheme.palette.text.disabled,
+            },
+            muiTheme.palette.background.paper,
+          ),
+        )
     : [];
 
   if (!(photometry && config && photStats)) {
@@ -1928,6 +2011,7 @@ const PhotometryPlot = ({
           layout={{
             ...layouts,
             ...plotCanvasTheme(muiTheme),
+            uirevision: layoutRevision,
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -1982,12 +2066,36 @@ const PhotometryPlot = ({
                 name: "Reset",
                 icon: Plotly.Icons.home,
                 click: () => {
+                  userZoomed.current = false;
                   setLayoutReset(true);
                 },
               },
             ],
           }}
           useResizeHandler
+          onRelayout={(event: any) => {
+            const keys = Object.keys(event || {});
+            if (keys.some((key) => key.includes(".range"))) {
+              userZoomed.current = true;
+            }
+            if (keys.some((key) => key.endsWith(".autorange"))) {
+              userZoomed.current = false;
+            }
+          }}
+          onClick={(event: any) => {
+            const point = (event?.points || []).find(
+              (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
+            );
+            if (!point) return;
+            const spectrumId = Array.isArray(point.customdata)
+              ? point.customdata[0]
+              : point.customdata;
+            setSpectrumToRequest(
+              unsharedSpectra.find(
+                (spectrum) => spectrum.id === spectrumId,
+              ) as SpectrumAvailability,
+            );
+          }}
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e: any) => {
             // e contains a curveNumber (index of the trace clicked in the legend)
@@ -2040,6 +2148,11 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      <RequestSpectrumDialog
+        objId={obj_id}
+        spectrum={spectrumToRequest}
+        onClose={() => setSpectrumToRequest(null)}
+      />
       {effectiveModelFits.length > 0 && (
         <div
           style={{

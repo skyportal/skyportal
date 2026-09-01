@@ -64,8 +64,8 @@ _OBJ_ID_UNSAFE = re.compile(r"[^0-9A-Za-z\-_.+]")
 OBJ_ID_PREFIX = "sso_"
 
 
-def designation_to_obj_id(designation):
-    """Map an MPC designation to a collision-safe, URL-safe Obj ID.
+def designation_to_obj_id(designation, prefix=OBJ_ID_PREFIX):
+    """Map a designation to a collision-safe, URL-safe Obj ID.
 
     Bare designations are often plain numbers ('220'), which would collide with
     unrelated object IDs, hence the prefix.
@@ -73,7 +73,7 @@ def designation_to_obj_id(designation):
     slug = _OBJ_ID_UNSAFE.sub("_", str(designation).strip())
     if not slug:
         raise ValueError(f"Unusable SSO designation: {designation!r}")
-    return f"{OBJ_ID_PREFIX}{slug}"
+    return f"{prefix}{slug}"
 
 
 def _designation_from_mapping(mapping):
@@ -366,6 +366,11 @@ async def ingest_sso_alert(
     # The triggering detection's ephemeris mag lives on the alert candidate.
     if detection and detection.get("ssmagnr") is None:
         detection["ssmagnr"] = cand.get("ssmagnr")
+    # Its SSO geometry (rh/delta/phase) lives on the alert's properties.sso;
+    # history points carry their own (from _fetch_sso_history).
+    sso_geom = (data.get("properties") or {}).get("sso")
+    if detection is not None and detection.get("sso") is None and sso_geom:
+        detection["sso"] = sso_geom
     points = [detection] if detection else []
     if is_new and fetch_history is not None:
         history = await fetch_history(survey, designation)

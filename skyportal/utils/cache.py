@@ -6,9 +6,14 @@ from pathlib import Path
 
 import numpy as np
 
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+_, cfg = load_env()
+
 log = make_log("cache")
+
+cache_folder = cfg.get("cache_folder", "cache")
 
 
 def array_to_bytes(array):

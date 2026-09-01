@@ -83,7 +83,7 @@ export const groupsApi = skyportalApi.injectEndpoints({
       query: ({ userID, admin, group_id, canSave, canSharePhotometry }) => ({
         url: `api/groups/${group_id}/users`,
         method: "POST",
-        body: { userID, admin, group_id, canSave, canSharePhotometry },
+        body: { userID, admin, canSave, canSharePhotometry },
       }),
       invalidatesTags: ["Group"],
     }),

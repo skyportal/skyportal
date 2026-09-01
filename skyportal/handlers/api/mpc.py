@@ -6,6 +6,7 @@ import astropy.units as u
 import requests
 from astropy.coordinates import Angle
 from astropy.time import Time
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
@@ -30,42 +31,39 @@ MPC_ENDPOINT = cfg["app.mpc_endpoint"]
 mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 
+class ObjMPCPostBody(BaseModel):
+    """Request body for crossmatching an object with the Minor Planet Center."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obscode: str = Field(
+        default="500",
+        description="Minor planet center observatory code. "
+        "Defaults to 500, corresponds to geocentric.",
+    )
+    date: str | None = Field(
+        default=None,
+        description="Time to check MPC for. Defaults to current time.",
+    )
+    limiting_magnitude: float = Field(
+        default=24.0,
+        description="Limiting magnitude down which to search. Defaults to 24.0.",
+    )
+    search_radius: float = Field(
+        default=1,
+        description="Search radius for MPC [in arcmin]. Defaults to 1 arcminute.",
+    )
+
+
 class ObjMPCHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: str, *, body: ObjMPCPostBody = None):
         """
         ---
         summary: Crossmatch an object with MPC
         description: Retrieve an object's status from Minor Planet Center
         tags:
           - objs
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  obscode:
-                    type: string
-                    description: |
-                      Minor planet center observatory code.
-                      Defaults to 500, corresponds to geocentric.
-                  date:
-                    type: string
-                    description: |
-                      Time to check MPC for.
-                      Defaults to current time.
-                  limiting_magnitude:
-                    type: number
-                    description: |
-                      Limiting magnitude down which to search.
-                      Defaults to 24.0.
-                  search_radius:
-                    type: number
-                    description: |
-                      Search radius for MPC [in arcmin].
-                      Defaults to 1 arcminute.
-
         responses:
           200:
             content:
@@ -77,8 +75,8 @@ class ObjMPCHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        date = data.get("date")
+        body = self.parse_body(ObjMPCPostBody)
+        date = body.date
         if date is None:
             date = Time.now()
         else:
@@ -87,19 +85,19 @@ class ObjMPCHandler(BaseHandler):
             except (TypeError, arrow.ParserError):
                 return self.error(f'Cannot parse time input value "{date}".')
 
-        limiting_magnitude = data.get("limiting_magnitude", 24.0)
+        limiting_magnitude = body.limiting_magnitude
         try:
             limiting_magnitude = float(limiting_magnitude)
         except Exception:
             return self.error("Cannot read in limiting magnitude.")
 
-        search_radius = data.get("search_radius", 1)
+        search_radius = body.search_radius
         try:
             search_radius = float(search_radius)
         except Exception:
             return self.error("Cannot read in search radius.")
 
-        obscode = data.get("obscode", "500")
+        obscode = body.obscode
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(

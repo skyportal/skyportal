@@ -52,7 +52,10 @@ const SharingServicesDialog = ({
   const [triggerFetchSharingServices] = useLazyGetSharingServicesQuery();
   const [addSharingServiceSubmission] =
     useAddSharingServiceSubmissionMutation();
-  const allUsers = useGetUsersQuery().data?.users ?? [];
+  // Mounted on every source page but only read once the dialog is open, and
+  // the response is the whole user table. Wait for the dialog.
+  const allUsers =
+    useGetUsersQuery(undefined, { skip: !dialogOpen }).data?.users ?? [];
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allowedInstrumentsForSharing = useGetConfigQuery().data?.[

@@ -36,6 +36,11 @@ class TelescopePostBody(BaseModel):
         description="Does this telescope have a fixed location (lon, lat, "
         "elev)? Defaults to true.",
     )
+    acknowledgment: str | None = Field(
+        default=None,
+        description="Sentence papers should cite this telescope with, used to "
+        "build a source's acknowledgment block.",
+    )
 
 
 class TelescopePostResponse(BaseModel):
@@ -71,6 +76,11 @@ class TelescopePutBody(BaseModel):
     fixed_location: bool | None = Field(
         default=None,
         description="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+    acknowledgment: str | None = Field(
+        default=None,
+        description="Sentence papers should cite this telescope with, used to "
+        "build a source's acknowledgment block.",
     )
 
 

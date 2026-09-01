@@ -1,73 +1,36 @@
-import { useGetProfileQuery } from "../ducks/profile";
-import React from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from "@mui/material/MenuList";
-
-import { makeStyles } from "tss-react/mui";
-import Box from "@mui/material/Box";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PersonIcon from "@mui/icons-material/PersonOutlined";
 
-import IconButton from "@mui/material/IconButton";
-import Divider from "@mui/material/Divider";
+import { useGetProfileQuery } from "../ducks/profile";
 import Button from "./Button";
 import UserAvatar from "./user/UserAvatar";
 
-const useStyles = makeStyles()((theme) => ({
-  avatar: {
-    padding: `${theme.spacing(2)} 0 ${theme.spacing(1)} 0`,
-  },
-  nodecor: {
-    textDecoration: "none",
-    textAlign: "center" as const,
-    color: theme.palette.text.primary,
-  },
-  centerContent: {
-    justifyContent: "center",
-  },
-  signOutMargin: {
-    margin: `0 0 ${theme.spacing(2)} 0`,
-  },
-  typography: {
-    padding: theme.spacing(1),
-  },
-  invisible: {
-    display: "none",
-  },
-  paddingSides: {
-    margin: `0 ${theme.spacing(2)} 0 ${theme.spacing(2)}`,
-  },
-  popoverMenu: {
-    minWidth: "10rem",
-    maxWidth: "20rem",
-  },
-}));
-
 const ProfileDropdown = () => {
-  const profile = useGetProfileQuery().data as any;
+  const { data: profile } = useGetProfileQuery();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  const { classes } = useStyles();
-  const [anchorEl, setAnchorEl] = React.useState<any>(null);
+  // In the header of every page: render nothing, not a spinner, while loading.
+  if (!profile) return null;
 
-  // RTK Query `data` is undefined until the profile loads; this component is in
-  // the header on every page and accesses profile fields unguarded below, so
-  // render nothing until it's available (the old Redux slice was always defined).
-  if (!profile) {
-    return null;
-  }
+  const handleClose = () => setAnchorEl(null);
 
-  const handleClick = (event: any) => {
-    setAnchorEl(event.currentTarget);
+  const avatarProps = {
+    firstName: profile.first_name ?? null,
+    lastName: profile.last_name ?? null,
+    username: profile.username,
+    gravatarUrl: profile.gravatar_url!,
+    noTooltip: true,
   };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
 
   return (
     <>
@@ -75,123 +38,91 @@ const ProfileDropdown = () => {
         color="primary"
         aria-label="profile"
         component="span"
-        onClick={handleClick}
+        onClick={(event) => setAnchorEl(event.currentTarget)}
         data-testid="avatar"
         size="large"
-        style={{ padding: 0, margin: 0 }}
+        sx={{ p: 0, m: 0 }}
       >
-        <UserAvatar
-          size={45}
-          firstName={profile.first_name}
-          lastName={profile.last_name}
-          username={profile.username}
-          gravatarUrl={profile.gravatar_url}
-        />
+        <UserAvatar size={45} {...avatarProps} />
       </IconButton>
       {/* this is to make baselayer.app.test_util.login happy */}
-      <span className={classes.invisible}>{profile.username}</span>
+      <Box component="span" sx={{ display: "none" }}>
+        {profile.username}
+      </Box>
       <Popover
-        id={id}
-        open={open}
+        open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={handleClose}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              borderRadius: 2,
+              minWidth: "15rem",
+              maxWidth: "20rem",
+            },
+          },
         }}
         disableScrollLock
       >
         <Box
-          className={classes.avatar}
           sx={{
             display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 0.5,
+            px: 3,
+            py: 2.5,
+            bgcolor: "action.hover",
           }}
         >
-          <UserAvatar
-            size={60}
-            firstName={profile.first_name}
-            lastName={profile.last_name}
-            username={profile.username}
-            gravatarUrl={profile.gravatar_url}
-          />
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          {(profile?.first_name?.length > 0 ||
-            profile?.last_name?.length > 0) && (
+          <UserAvatar size={64} {...avatarProps} />
+          {(profile.first_name || profile.last_name) && (
             <Typography
-              className={classes.typography}
+              noWrap
               data-testid="firstLastName"
+              sx={{ mt: 1, maxWidth: "100%", fontWeight: 600 }}
             >
               {profile.first_name} {profile.last_name}
             </Typography>
           )}
-        </Box>
-        <Box
-          className={classes.paddingSides}
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <Typography className={classes.typography} data-testid="username">
-            {profile.username.substring(0, 15) +
-              (profile.username.length > 15 ? "..." : "")}
+          <Typography
+            noWrap
+            variant="body2"
+            color="text.secondary"
+            data-testid="username"
+            sx={{ maxWidth: "100%" }}
+          >
+            @{profile.username}
           </Typography>
         </Box>
         <Divider />
-
         {profile.is_anonymous ? (
-          // read-only anonymous visitor: no account UI, just a way to sign in
-          <Box
-            className={classes.signOutMargin}
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <a href="/" className={classes.nodecor}>
-              <Button>Log in</Button>
-            </a>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+            <Button href="/" primary>
+              Log in
+            </Button>
           </Box>
         ) : (
-          <>
-            <MenuList className={classes.popoverMenu}>
-              <Link
-                to="/profile"
-                role="link"
-                className={classes.nodecor}
-                onClick={handleClose}
-              >
-                <MenuItem className={classes.centerContent}>Profile</MenuItem>
-              </Link>
-            </MenuList>
-
-            <Box
-              className={classes.signOutMargin}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-              }}
+          <MenuList
+            sx={{ py: 1, "& .MuiMenuItem-root": { gap: 1.5, py: 1, px: 2.5 } }}
+          >
+            <MenuItem
+              component={Link}
+              to="/profile"
+              role="link"
+              onClick={handleClose}
             >
-              <a
-                href="/logout"
-                className={classes.nodecor}
-                data-testid="signOutButton"
-              >
-                <Button>Sign out</Button>
-              </a>
-            </Box>
-          </>
+              <PersonIcon fontSize="small" color="action" />
+              Profile
+            </MenuItem>
+            <MenuItem component="a" href="/logout" data-testid="signOutButton">
+              <LogoutIcon fontSize="small" color="action" />
+              Sign out
+            </MenuItem>
+          </MenuList>
         )}
       </Popover>
     </>

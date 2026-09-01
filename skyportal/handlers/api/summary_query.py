@@ -1,9 +1,11 @@
 import copy
 import os
+from typing import Any
 
 import yaml
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -127,83 +129,61 @@ else:
     openai_api_key = None
 
 
+class SummaryQueryPostBody(BaseModel):
+    """Request body for a summary similarity search."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: str | None = Field(
+        default=None,
+        description='The query string. E.g. "What sources are associated with '
+        'an NGC galaxy?"',
+    )
+    objID: str | None = Field(
+        default=None,
+        description="The objID of the source which has a summary to be used as "
+        "the query. That is, return the list of sources most similar to the "
+        "summary of this source. Ignored if q is provided.",
+    )
+    k: int = Field(default=5, description="Max number of sources to return. Default 5.")
+    z_min: float | None = Field(
+        default=None,
+        description="Minimum redshift to consider of queries sources. If None or "
+        "missing, then no lower limit is applied.",
+    )
+    z_max: float | None = Field(
+        default=None,
+        description="Maximum redshift to consider of queries sources. If None or "
+        "missing, then no upper limit is applied.",
+    )
+    classificationTypes: list[str] | None = Field(
+        default=None,
+        description="List of classification types to consider. If [] or missing, "
+        "then all classification types are considered.",
+    )
+
+
+class SummaryQueryPostResponse(BaseModel):
+    """Sources whose summaries match the query."""
+
+    query_results: list[dict[str, Any]] = Field(
+        description="Matching sources, most similar first, with their scores"
+    )
+
+
 class SummaryQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: SummaryQueryPostBody = None
+    ) -> SummaryQueryPostResponse:
         """
         ---
         summary: Search for sources based on their summaries
         description: Get a list of sources with summaries matching the query
         tags:
           - summary
-        parameters:
-        - in: query
-          name: q
-          schema:
-              type: string
-          description: |
-              The query string. E.g. "What sources are associated with
-              an NGC galaxy?"
-        - in: query
-          name: objID
-          schema:
-              type: string
-          description: |
-              The objID of the source which has a summary to be used as the query.
-              That is, return the list of sources most similar to the summary of
-                this source. Ignored if q is provided.
-        - in: query
-          name: k
-          schema:
-              type: integer
-          minimum: 1
-          maximum: 100
-          description: |
-              Max number of sources to return. Default 5.
-        - in: query
-          name: z_min
-          schema:
-              type: number
-          nullable: true
-          description: |
-              Minimum redshift to consider of queries sources. If None or missing,
-              then no lower limit is applied.
-        - in: query
-          name: z_max
-          schema:
-              type: number
-          nullable: true
-          description: |
-              Maximum redshift to consider of queries sources. If None or missing,
-              then no upper limit is applied.
-        - in: query
-          name: classificationTypes
-          nullable: true
-          schema:
-              type: array
-              items:
-                  type: string
-          description: |
-              List of classification types to consider. If [] or missing,
-              then all classification types are considered.
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: array
-                          items:
-                            $ref: '#/components/schemas/Obj'
-          400:
-            content:
-              application/json:
-                schema: Error
         """
+        body = self.parse_body(SummaryQueryPostBody)
 
         if not USE_PINECONE:
             return self.error(
@@ -235,23 +215,22 @@ class SummaryQueryHandler(BaseHandler):
         if not user_openai_key:
             return self.error("No OpenAI API key found.", status=400)
 
-        data = self.get_json()
-        query = data.get("q")
-        objID = data.get("objID")
+        query = body.q
+        objID = body.objID
         if query in [None, ""] and objID in [None, ""]:
             return self.error('Missing one of the required: "q" or "objID"')
         if query is not None and objID is not None:
             return self.error('Cannot specify both "q" and "objID"')
 
         search_by_string = query not in [None, ""]
-        k = data.get("k", 5)
+        k = body.k
         if k < 1 or k > 100:
             return self.error("k must be 1<=k<=100")
-        z_min = data.get("z_min", None)
-        z_max = data.get("z_max", None)
+        z_min = body.z_min
+        z_max = body.z_max
         if z_min is not None and z_max is not None and z_min > z_max:
             return self.error("z_min must be <= z_max")
-        classification_types = data.get("classificationTypes", None)
+        classification_types = body.classificationTypes
 
         # construct the filter
         if z_min is not None and z_max is None:

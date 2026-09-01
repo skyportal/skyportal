@@ -1,5 +1,9 @@
 app:
   title: SkyPortal
+  # Opening sentences of a source's acknowledgment block, before the facilities
+  # and programs that source actually used are appended. Deployment-specific:
+  # name the instance and the infrastructure behind it.
+  acknowledgment: This work made use of SkyPortal (van der Walt et al. 2019).
   logos: # Logos to place in the top-left of the header/login page (zero or more)
     - src: /static/images/skyportal_logo_dark.png
       alt_text: Skyportal logo
@@ -207,6 +211,8 @@ app:
       anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
+    - path: "/data_access_requests"
+      component: DataAccessRequestsPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
@@ -228,7 +234,7 @@ app:
     - path: "/brokers/:brokerId/filter/:fid"
       component: broker/BrokerFilterPage
     - path: "/user/:id"
-      component: user/UserInfo
+      component: user/PublicProfile
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
     - path: "/share_data/:id"
@@ -366,6 +372,10 @@ app:
         - name: Analysis Requests
           icon: Analytics
           url: /analysis_requests
+
+        - name: Data Requests
+          icon: LockOpen
+          url: /data_access_requests
 
         - name: Shifts
           icon: SubwayRounded
@@ -584,6 +594,19 @@ app:
         md: [4, 0, 4, 3]
         sm: [0, 0, 4.5, 3]
         xs: [0, 1, 4, 3]
+
+    NeedsAttention:
+      # Open obligations rather than events: data another group has asked you
+      # for and has not been answered, and objects you have scheduled that
+      # another group has scheduled too.
+      resizeable: true
+      minW: 2
+      layouts:
+        xlg: [10, 3, 4, 3]
+        lg: [7, 3, 3, 3]
+        md: [4, 6, 4, 3]
+        sm: [0, 6, 4.5, 3]
+        xs: [0, 7, 4, 3]
 
     TopSources:
       resizeable: true
@@ -1248,6 +1271,8 @@ analysis_services:
 
 
 
+# Root for on-disk caches; everything under it is regenerable and safe to delete.
+cache_folder: cache
 comments_folder: persistentdata/comments
 localizations_folder: persistentdata/localizations
 photometric_series_folder: persistentdata/phot_series
