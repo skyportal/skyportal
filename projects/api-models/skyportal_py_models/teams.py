@@ -59,9 +59,41 @@ class TeamsResponse(BaseModel):
     teams: list[TeamResponse] = Field(default_factory=list)
 
 
+class TeamPost(BaseModel):
+    """Payload for creating a team."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    nickname: str | None = None
+    description: str | None = None
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    logo_url: str | None = None
+    background_url: str | None = None
+    group_ids: list[int] | None = None
+
+
+class TeamPut(BaseModel):
+    """Payload for updating a team."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    nickname: str | None = None
+    description: str | None = None
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    logo_url: str | None = None
+    background_url: str | None = None
+    group_ids: list[int] | None = None
+
+
 __all__ = [
     "TeamGroupResponse",
     "TeamMemberResponse",
+    "TeamPost",
+    "TeamPut",
     "TeamResponse",
     "TeamsResponse",
 ]

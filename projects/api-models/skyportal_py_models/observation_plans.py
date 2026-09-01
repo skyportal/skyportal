@@ -99,7 +99,54 @@ class DefaultObservationPlanRequestResponse(BaseModel):
     )
 
 
+class ObservationPlanPost(BaseModel):
+    """Payload for submitting an observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gcnevent_id: int
+    allocation_id: int
+    localization_id: int
+    payload: dict[str, Any]
+    status: str | None = None
+    target_group_ids: list[int] | None = None
+    requester_id: int | None = None
+
+
+class ObservationPlanManualPost(BaseModel):
+    """Payload for submitting a manually-built observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int
+    plan_name: str
+    status: str
+    payload: dict[str, Any]
+    observation_plans: list[dict[str, Any]]
+    gcnevent_id: int | None = None
+    dateobs: str | None = None
+    localization_id: int | None = None
+    localization_name: str | None = None
+
+
+class DefaultObservationPlanPost(BaseModel):
+    """Payload for creating a default observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int
+    default_plan_name: str
+    payload: dict[str, Any]
+    auto_send: bool | None = None
+    filters: dict[str, Any] | None = None
+    target_group_ids: list[int] | None = None
+    requester_id: int | None = None
+
+
 __all__ = [
+    "ObservationPlanPost",
+    "ObservationPlanManualPost",
+    "DefaultObservationPlanPost",
     "AllocationObservationPlansPageResponse",
     "DefaultObservationPlanRequestResponse",
     "DefaultSurveyEfficiencyRequestResponse",

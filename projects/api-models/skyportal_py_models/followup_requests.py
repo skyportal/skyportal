@@ -106,7 +106,46 @@ class PhotometryRequestStatusResponse(BaseModel):
     request_status: str | None = None
 
 
+class FollowupRequestPost(BaseModel):
+    """Payload for submitting a follow-up request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    allocation_id: int
+    payload: dict[str, Any]
+    target_group_ids: list[int] | None = None
+
+
+class DefaultFollowupRequestPost(BaseModel):
+    """Payload for creating a default follow-up request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int
+    payload: dict[str, Any]
+    default_followup_name: str
+    source_filter: dict[str, Any]
+    target_group_ids: list[int] | None = None
+    comment: str | None = None
+    implements_update: bool | None = None
+    priority_order: str | None = None
+    validity_days: int | None = None
+    radius: float | None = None
+    not_if_duplicates: bool | None = None
+    source_group_ids: list[int] | None = None
+    ignore_source_group_ids: list[int] | None = None
+    not_if_classified: bool | None = None
+    not_if_spectra_exist: bool | None = None
+    not_if_tns_classified: bool | None = None
+    not_if_tns_reported: float | None = None
+    not_if_assignment_exists: bool | None = None
+    ignore_allocation_ids: list[int] | None = None
+
+
 __all__ = [
+    "FollowupRequestPost",
+    "DefaultFollowupRequestPost",
     "DefaultFollowupRequestResponse",
     "FacilityTransactionRequestResponse",
     "FacilityTransactionResponse",

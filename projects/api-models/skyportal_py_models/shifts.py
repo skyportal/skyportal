@@ -124,10 +124,25 @@ class ShiftSummaryReportResponse(BaseModel):
     gcns: ShiftSummarySectionResponse | None = None
 
 
+class ShiftPost(BaseModel):
+    """Payload for creating a new shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    start_date: str
+    end_date: str
+    group_id: int
+    description: str | None = None
+    required_users_number: int | None = None
+    shift_admins: list[int] | None = None
+
+
 __all__ = [
     "ShiftCommentResponse",
     "ShiftGroupMemberResponse",
     "ShiftGroupResponse",
+    "ShiftPost",
     "ShiftResponse",
     "ShiftSummaryReportResponse",
     "ShiftSummarySectionResponse",

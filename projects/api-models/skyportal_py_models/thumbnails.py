@@ -54,7 +54,38 @@ class ThumbnailPathReportResponse(BaseModel):
     num_moved: int | None = Field(alias="numMoved", default=None)
 
 
+ThumbnailType = Literal[
+    "new",
+    "ref",
+    "sub",
+    "sdss",
+    "dr8",
+    "ls",
+    "ps1",
+    "sm",
+    "hst",
+    "chandra",
+    "jwst",
+    "new_gz",
+    "ref_gz",
+    "sub_gz",
+]
+
+
+class ThumbnailPost(BaseModel):
+    """Payload for uploading a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    data: str
+    ttype: ThumbnailType
+    survey: str | None = None
+
+
 __all__ = [
     "ThumbnailPathReportResponse",
+    "ThumbnailPost",
     "ThumbnailResponse",
+    "ThumbnailType",
 ]
