@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "baselayer",
     "skyportal",
+    "skyportal-py-models",
 ]
 
 [[package]]
@@ -4435,6 +4436,7 @@ dependencies = [
     { name = "shapely" },
     { name = "simplejson" },
     { name = "simsurvey" },
+    { name = "skyportal-py-models" },
     { name = "sncosmo" },
     { name = "suds-py3" },
     { name = "swifttools" },
@@ -4568,6 +4570,7 @@ requires-dist = [
     { name = "simplejson", specifier = "==4.1.1" },
     { name = "simsurvey", specifier = "==0.7.5" },
     { name = "skyportal", extras = ["pittgoogle"], marker = "extra == 'brokers-all'" },
+    { name = "skyportal-py-models", editable = "projects/api-models" },
     { name = "sncosmo", specifier = "==2.13.0" },
     { name = "suds-py3", specifier = "==1.4.5.0" },
     { name = "swifttools", specifier = "==4.0.4" },
@@ -4605,6 +4608,17 @@ docs = [
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
     { name = "sphinx-book-theme" },
 ]
+
+[[package]]
+name = "skyportal-py-models"
+version = "0.4.0"
+source = { editable = "projects/api-models" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
 
 [[package]]
 name = "slicerator"

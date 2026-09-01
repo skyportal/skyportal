@@ -4,6 +4,7 @@ version = '1.4.0'
 requires-python = '>=3.12,<3.13'
 dependencies = [
     "baselayer",
+    "skyportal-py-models",
     "astroscrappy==1.3.0",
     "numpy>=2.0.0,<3.0.0",
     "scipy>=1.13.1, <2.0.0",
@@ -144,10 +145,13 @@ docs = [
 
 [tool.uv]
 package = false
-workspace = { members = ["baselayer"] }
+# Listed explicitly rather than globbed: projects/ will also hold JS packages, and
+# a `projects/*` glob errors on any member without a pyproject.toml.
+workspace = { members = ["baselayer", "projects/api-models"] }
 
 [tool.uv.sources]
 baselayer = { workspace = true }
+skyportal-py-models = { workspace = true }
 
 [tool.ruff]
 target-version = "py312"
