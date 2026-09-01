@@ -45098,6 +45098,12 @@ export interface components {
              */
             elevation: number | null;
             /**
+             * Mpc Obscode
+             * @description Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF).
+             * @default null
+             */
+            mpc_obscode: string | null;
+            /**
              * Skycam Link
              * @description Link to the telescope's sky camera.
              * @default null
@@ -45180,6 +45186,12 @@ export interface components {
              * @default null
              */
             elevation: number | null;
+            /**
+             * Mpc Obscode
+             * @description Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF).
+             * @default null
+             */
+            mpc_obscode: string | null;
             /**
              * Skycam Link
              * @description Link to the telescope's sky camera.
