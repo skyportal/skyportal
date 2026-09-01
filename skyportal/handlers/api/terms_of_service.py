@@ -48,7 +48,6 @@ class TermsOfServiceHandler(BaseHandler):
         if terms is None:
             return self.success(data={"required": False})
 
-        # The anonymous account is shared, an acceptance would speak for everyone.
         if getattr(self, "is_anonymous_user", False):
             return self.success(data={"required": False})
 
@@ -90,7 +89,6 @@ class TermsOfServiceHandler(BaseHandler):
                 user_id=user.id, version=terms["version"]
             )
             try:
-                # A double submit hits the unique constraint; already accepted.
                 async with session.begin_nested():
                     session.add(acceptance)
                     await session.flush()

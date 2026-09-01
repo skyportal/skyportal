@@ -11,7 +11,6 @@ _, cfg = load_env()
 
 
 def terms_of_service():
-    # An enabled but blank config would block everyone behind an empty dialog.
     terms = cfg.get("app.terms_of_service") or {}
     text = (terms.get("text") or "").strip()
     if not terms.get("enabled") or not text:

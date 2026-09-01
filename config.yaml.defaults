@@ -42,10 +42,8 @@ app:
       - name: https://github.com/skyportal/skyportal/pulls
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
-  # Terms of service each user must accept before using the instance: until
-  # they do, every endpoint returns 403. Set `enabled` and `text` (markdown) to
-  # turn it on. Bump `version` to require everyone to accept again; editing
-  # `text` alone does not, so a typo fix costs nobody a re-acceptance.
+  # Until accepted, every endpoint returns 403. `text` is markdown. Bumping
+  # `version` makes everyone accept again; editing `text` alone does not.
   terms_of_service:
     enabled: false
     version: 1

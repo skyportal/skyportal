@@ -45,7 +45,6 @@ def format_doc(**kwargs):
 
 
 class BaseHandler(BaselayerHandler):
-    # HTTP methods still served while the terms are pending.
     terms_of_service_exempt = ()
 
     def prepare(self):

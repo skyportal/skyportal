@@ -15,7 +15,6 @@ interface TermsOfServiceDialogProps {
   terms: TermsOfService;
 }
 
-// Rendered instead of the app, not on top of it: the backend 403s the rest.
 const TermsOfServiceDialog = ({ terms }: TermsOfServiceDialogProps) => {
   const [acceptTerms] = useAcceptTermsOfServiceMutation();
   const [submitting, setSubmitting] = useState(false);
@@ -24,8 +23,8 @@ const TermsOfServiceDialog = ({ terms }: TermsOfServiceDialogProps) => {
     setSubmitting(true);
     try {
       await acceptTerms().unwrap();
+      window.location.reload();
     } catch {
-      // leave the dialog up, a failed write must not let the user through
       setSubmitting(false);
     }
   };
@@ -35,7 +34,7 @@ const TermsOfServiceDialog = ({ terms }: TermsOfServiceDialogProps) => {
       open
       maxWidth="md"
       fullWidth
-      // No `onClose`: MUI routes backdrop click and escape through it.
+      // no `onClose`: it would let backdrop click and escape dismiss this
       aria-labelledby="terms-of-service-title"
     >
       <DialogTitle id="terms-of-service-title">{terms.title}</DialogTitle>

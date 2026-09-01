@@ -27,8 +27,7 @@ def redirect_host(uri):
     `/too/winter`, and the last match in config order would otherwise win)."""
 
     def matches(route):
-        # Prefixes stop at a segment boundary, or `/too` (Gemini) would also
-        # claim Swift's `/toop/submit_api.php`.
+        # segment boundary, else `/too` claims `/toop/submit_api.php`
         if uri == route or route.endswith("/"):
             return uri.startswith(route)
         return uri.startswith(route) and uri[len(route)] in "/?"

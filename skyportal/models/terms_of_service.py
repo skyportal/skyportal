@@ -7,7 +7,6 @@ from baselayer.app.models import AccessibleIfUserMatches, Base, restricted
 
 
 class TermsOfServiceAcceptance(Base):
-    # Append-only audit trail: a new version inserts a row rather than updating.
     read = create = AccessibleIfUserMatches("user")
     update = delete = restricted
 

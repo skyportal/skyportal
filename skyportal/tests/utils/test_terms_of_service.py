@@ -12,7 +12,6 @@ from skyportal.utils import terms_of_service as tos_module
 
 @pytest.fixture()
 def terms_config(monkeypatch):
-    # Patched in place rather than by dotted key: `cfg.get` walks the nesting.
     terms = tos_module.cfg["app"]["terms_of_service"]
 
     def configure(**values):
@@ -46,7 +45,6 @@ def test_returns_configured_copy(terms_config):
     terms = tos_module.terms_of_service()
     assert terms is not None
     assert terms["title"] == "Rules of the Road"
-    # stripped, so a YAML block scalar's trailing newline is not rendered
     assert terms["text"] == "Be **excellent** to each other."
 
 
