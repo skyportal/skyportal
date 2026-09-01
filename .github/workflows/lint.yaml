@@ -28,8 +28,17 @@ jobs:
           bun-version-file: package.json
 
       # The ESLint hook runs from the local install (language: system).
+      # Dependabot only edits package.json -- it cannot update bun.lock -- so a
+      # frozen install fails before any check runs, and the job reports nothing
+      # about the bump itself. Refresh the lockfile in-place for its PRs; the
+      # lockfile still has to be regenerated and committed before merge.
       - name: Install JS dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          if [ "${{ github.actor }}" = "dependabot[bot]" ]; then
+            bun install
+          else
+            bun install --frozen-lockfile
+          fi
 
       - name: Formatting and linting checks
         run: |
