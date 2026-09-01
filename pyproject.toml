@@ -130,7 +130,7 @@ dev = [
     "pytest-randomly==4.1.0",
     "pytest-rerunfailures>=14.0",
     "playwright==1.58.0",
-    "pytest-playwright==0.8.0",
+    "pytest-playwright==0.9.0",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",
