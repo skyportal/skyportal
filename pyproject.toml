@@ -129,7 +129,7 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.1.0",
     "pytest-rerunfailures>=14.0",
-    "playwright==1.58.0",
+    "playwright==1.62.0",
     "pytest-playwright==0.9.0",
 ]
 docs = [
