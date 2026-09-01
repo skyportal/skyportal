@@ -76,6 +76,8 @@ def test_accept_rejected_when_instance_configures_none(view_only_token):
 def test_has_accepted_matches_user_and_version(
     user, user2, public_terms_of_service_acceptance
 ):
-    assert tos_module.has_accepted(user.id, "1")
-    assert not tos_module.has_accepted(user.id, "2")
-    assert not tos_module.has_accepted(user2.id, "1")
+    # has_accepted closes the scoped session, detaching the fixtures' users.
+    accepted_id, other_id = user.id, user2.id
+    assert tos_module.has_accepted(accepted_id, "1")
+    assert not tos_module.has_accepted(accepted_id, "2")
+    assert not tos_module.has_accepted(other_id, "1")
