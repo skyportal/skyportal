@@ -16,6 +16,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_json_tags,
     get_tags,
+    post_gcn_circular,
     post_gcnevent_from_json,
     post_gcnevent_from_xml,
     post_skymap_from_notice,
@@ -40,6 +41,10 @@ voevent_notice_types = cfg.get("gcn.notice_types.voevent", [])
 json_notice_types = cfg.get("gcn.notice_types.json", [])
 
 reject_tags = cfg.get("gcn.reject_tags", [])
+
+circulars_enabled = cfg.get("gcn.circulars.enabled", False)
+circulars_topic = cfg.get("gcn.circulars.topic", "gcn.circulars")
+circulars_window_hours = cfg.get("gcn.circulars.window_hours", 12)
 
 log = make_log("gcnserver")
 
@@ -84,6 +89,40 @@ def is_configured():
     return True
 
 
+async def _ingest_circular(payload):
+    """Attach one circular from the stream to the event it reports on."""
+    try:
+        circular = json.loads(payload.decode("utf8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        log(f"Failed to decode gcn circular: {e}")
+        return
+    async with models.async_plain_session_factory() as session:
+        user = await session.scalar(sa.select(User).where(User.id == user_id))
+        if user is None:
+            log(f"User {user_id} not found in DB, cannot ingest gcn circular")
+            return
+        session.user_or_token = user
+        try:
+            dateobs = await post_gcn_circular(
+                circular, session, window_hours=circulars_window_hours
+            )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Failed to ingest gcn circular {circular.get('circularId')}: {e}")
+            return
+        if dateobs is None:
+            # No event for this circular yet; the notice may simply not have
+            # arrived. TACH backfills these later.
+            log(
+                f"No event found for gcn circular {circular.get('circularId')} "
+                f"({circular.get('eventId')})"
+            )
+        else:
+            log(
+                f"Ingested gcn circular {circular.get('circularId')} for event {dateobs}"
+            )
+
+
 @check_loaded(logger=log)
 def poll_events(*args, **kwargs):
     client_group_id = cfg.get("gcn.client_group_id")
@@ -105,8 +144,11 @@ def poll_events(*args, **kwargs):
     except Exception as e:
         log(f"Failed to initiate consumer to poll gcn events: {e}")
         return
+    topics = voevent_notice_types + json_notice_types
+    if circulars_enabled:
+        topics = topics + [circulars_topic]
     try:
-        consumer.subscribe(voevent_notice_types + json_notice_types)
+        consumer.subscribe(topics)
     except Exception as e:
         log(f"Failed to subscribe to gcn events: {e}")
         return
@@ -121,6 +163,10 @@ def poll_events(*args, **kwargs):
                     continue
 
                 if payload.find(b"Broker: Unknown topic or partition") != -1:
+                    continue
+
+                if circulars_enabled and topic == circulars_topic:
+                    asyncio.run(_ingest_circular(payload))
                     continue
 
                 # initialize some variables tht will be used later

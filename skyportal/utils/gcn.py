@@ -1,7 +1,9 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import base64
+import datetime
 import os
+import re
 import tempfile
 import urllib
 from urllib.parse import urlparse
@@ -26,6 +28,38 @@ from mocpy import MOC
 from skyportal.utils.calculations import gaussian_sigmas_for
 
 SKYMAP_MIN = 1e-300
+
+
+# Designations that carry their own UTC date as YYMMDD. The trailing letter
+# (GRB 260604C, S260604a) orders bursts within a day and is not part of the date.
+CIRCULAR_DESIGNATION_RE = re.compile(
+    r"\b(?:GRB|GW|EP|SVOM|IC)[\s_-]?(\d{6})[A-Z]{0,2}\b"
+    r"|\bS(\d{6})[a-z]{1,2}\b",  # LVK superevent
+    re.IGNORECASE,
+)
+
+# The GCN circular archive starts in 1997, so a two-digit year of 90+ is 19xx.
+DESIGNATION_YEAR_PIVOT = 90
+
+
+def get_designation_date(event_id):
+    """UTC date encoded in a GCN designation like "GRB 260604C", or None.
+
+    GRB/GW/EP/SVOM/IC names and LVK superevent names all embed the trigger's UTC
+    date as YYMMDD, which is enough to find the event without parsing the body.
+    """
+    if not isinstance(event_id, str):
+        return None
+    match = CIRCULAR_DESIGNATION_RE.search(event_id)
+    if match is None:
+        return None
+    digits = match.group(1) or match.group(2)
+    year, month, day = int(digits[:2]), int(digits[2:4]), int(digits[4:6])
+    year += 1900 if year >= DESIGNATION_YEAR_PIVOT else 2000
+    try:
+        return datetime.date(year, month, day)
+    except ValueError:
+        return None
 
 
 def get_trigger(root):
