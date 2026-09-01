@@ -119,7 +119,7 @@
     "versor": "0.2.0"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.4",
+    "@eslint/js": "10.0.1",
     "@rspack/cli": "2.1.7",
     "@rspack/core": "2.1.7",
     "@types/eslint": "9.6.1",
