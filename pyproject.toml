@@ -96,7 +96,7 @@ dependencies = [
     "tiktoken==0.13.0",
     "simplejson==4.1.1",
     "langchain==1.3.14",
-    "langchain-openai==1.2.2",
+    "langchain-openai==1.6.0",
     "pinecone==8.0.0",
     "pydantic==2.13.4",
     # Optional observability stack (opt-in via config `observability.enabled`)
