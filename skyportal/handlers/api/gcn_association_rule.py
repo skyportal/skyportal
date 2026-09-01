@@ -1,44 +1,11 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.gcn_events import GcnAssociationRuleBody
 
 from baselayer.app.access import auth_or_token
 
 from ...enum_types import MMA_DETECTOR_TYPES
 from ...models import GcnAssociationRule, Group
 from ..base import BaseHandler
-
-
-class GcnAssociationRuleBody(BaseModel):
-    """One group's cut for a pair of messengers."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    group_id: int = Field(description="ID of the group the rule belongs to.")
-
-    detector_type_1: str = Field(
-        description=f"One of {', '.join(MMA_DETECTOR_TYPES)}.",
-    )
-    detector_type_2: str = Field(
-        description=f"One of {', '.join(MMA_DETECTOR_TYPES)}.",
-    )
-    tags_1: list[str] = Field(
-        default_factory=list,
-        description="Tags the first messenger's event must carry at least one "
-        "of (e.g. BNS, NSBH). Empty means no restriction.",
-    )
-    tags_2: list[str] = Field(
-        default_factory=list,
-        description="Tags the second messenger's event must carry at least one "
-        "of. Empty means no restriction.",
-    )
-    days: float = Field(
-        description="Widest separation in days for this pair to be coincident."
-    )
-    min_consistency: float = Field(
-        default=0.5,
-        description="Smallest sky-map consistency, 0 to 1: how well the two "
-        "localizations must agree, as a fraction of the most they could.",
-    )
 
 
 class GcnAssociationRuleHandler(BaseHandler):

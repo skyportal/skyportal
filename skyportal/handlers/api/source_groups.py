@@ -1,5 +1,8 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.source_groups import (
+    SourceGroupsPatchBody,
+    SourceGroupsPostBody,
+)
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -11,34 +14,6 @@ from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/source_groups")
-
-
-class SourceGroupsPostBody(BaseModel):
-    """Request body for saving/unsaving a source to/from groups."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    objId: str = Field(description="ID of the object in question.")
-    inviteGroupIds: list[int] = Field(
-        default_factory=list,
-        description="List of group IDs to save or invite to save specified source.",
-    )
-    unsaveGroupIds: list[int] = Field(
-        default_factory=list,
-        description="List of group IDs from which specified source is to be unsaved.",
-    )
-
-
-class SourceGroupsPatchBody(BaseModel):
-    """Request body for updating a Source table row."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    groupID: int = Field(description="ID of the group whose Source row to update.")
-    active: bool = Field(description="Whether the source is saved to the group.")
-    requested: bool = Field(
-        description="Whether the source is requested to be saved to the group."
-    )
 
 
 class SourceGroupsHandler(BaseHandler):
