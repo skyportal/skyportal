@@ -1,5 +1,9 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.news_feed import (
+    DEFAULT_NEWSFEED_ITEMS,
+    MAX_NEWSFEED_ITEMS,
+    NewsFeedGetQuery,
+)
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import load_only, selectinload
 
@@ -16,28 +20,6 @@ from ...models import (
 )
 from ...utils.data_access import team_scoped_group_ids
 from ..base import BaseHandler
-
-MAX_NEWSFEED_ITEMS = 1000
-DEFAULT_NEWSFEED_ITEMS = 50
-
-
-class NewsFeedGetQuery(BaseModel):
-    """Query parameters for the news feed."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    numItems: int | None = Field(
-        default=None,
-        description=(
-            "Number of newsfeed items to return. "
-            f"Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}."
-        ),
-    )
-    teamID: int | None = Field(
-        default=None,
-        description="Scope the feed to the groups of this team, intersected with "
-        "the user's accessible groups.",
-    )
 
 
 class NewsFeedHandler(BaseHandler):

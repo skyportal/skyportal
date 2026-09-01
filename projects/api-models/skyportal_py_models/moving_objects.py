@@ -42,3 +42,43 @@ class MovingObjectFollowupPost(BaseModel):
     moon_distance_limit: float | None = None
     sun_altitude_limit: float | None = None
     references_only: bool | None = None
+
+
+class MovingObjectFollowupPostBody(BaseModel):
+    """Request body for a moving object follow-up observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int | None = Field(
+        default=None, description="ID of the instrument to use"
+    )
+    exposure_count: int | None = Field(default=None, description="Number of exposures")
+    exposure_time: float | None = Field(
+        default=None, description="Exposure time in seconds"
+    )
+    start_time: str | None = Field(
+        default=None, description="Start time of the obversations' time window"
+    )
+    end_time: str | None = Field(
+        default=None, description="End time of the obversations' time window"
+    )
+    filter: str | None = Field(default=None, description="Filter to use")
+    primary_only: bool = Field(
+        default=True,
+        description="Only consider an instrument's fields from it's primary grid, if any",
+    )
+    airmass_limit: float = Field(
+        default=2.5, description="Maximum airmass for observations. Default is 2.5"
+    )
+    moon_distance_limit: float = Field(
+        default=30,
+        description="Minimum distance from the Moon in degrees. Default is 30",
+    )
+    sun_altitude_limit: float = Field(
+        default=-18,
+        description="Maximum altitude of the Sun in degrees. Default is -18",
+    )
+    references_only: bool = Field(
+        default=False,
+        description="Only consider fields that have reference images available",
+    )

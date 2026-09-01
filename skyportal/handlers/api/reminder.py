@@ -1,7 +1,12 @@
 from typing import Annotated
 
 import arrow
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.reminders import (
+    ReminderPatchBody,
+    ReminderPostBody,
+    ReminderPostResponse,
+)
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -37,63 +42,6 @@ ResourceId = Annotated[
         description="The ID of the source, spectrum, gcn_event or shift that the reminder is posted to. This would be a string for a source ID or an integer for a spectrum or gcn_event"
     ),
 ]
-
-
-class ReminderPostBody(BaseModel):
-    """Request body for creating reminder(s)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    text: str = Field(description="Text to post for the reminder")
-    next_reminder: str = Field(
-        description="Arrow-parseable date string for the next reminder"
-    )
-    reminder_delay: float = Field(
-        default=1, description="Delay until the next reminder in days"
-    )
-    number_of_reminders: int = Field(
-        default=1, description="Number of remaining reminders"
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view reminder. Defaults to all of requesting user's groups.",
-    )
-    user_ids: list[int] | None = Field(
-        default=None,
-        description="List of IDs of users to post the reminder for. Defaults to "
-        "the requesting user.",
-    )
-
-
-class ReminderPostResponse(BaseModel):
-    """IDs of the newly created reminders."""
-
-    reminder_ids: list[int] = Field(
-        description="IDs of the new reminders (one per user)"
-    )
-
-
-class ReminderPatchBody(BaseModel):
-    """Request body for updating a reminder."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    text: str | None = Field(default=None, description="Text to post for the reminder")
-    next_reminder: str | None = Field(
-        default=None, description="Arrow-parseable date string for the next reminder"
-    )
-    reminder_delay: float | None = Field(
-        default=None, description="Delay until the next reminder in days"
-    )
-    number_of_reminders: int | None = Field(
-        default=None, description="Number of remaining reminders"
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view reminder. Left unchanged if not provided.",
-    )
 
 
 def _coerce_resource_id(associated_resource_type, resource_id):

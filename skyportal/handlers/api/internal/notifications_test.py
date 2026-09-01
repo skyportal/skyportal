@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.notifications import NotificationTestPostBody
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.access import auth_or_token
@@ -10,22 +10,6 @@ from ....models import User
 from ...base import BaseHandler
 
 env, cfg = load_env()
-
-
-class NotificationTestPostBody(BaseModel):
-    """Request body for sending a test notification."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    notification_type: str | None = Field(
-        default=None,
-        description="Type of notification to test. Should be email or SMS.",
-    )
-    user_id: int | None = Field(
-        default=None,
-        description="ID of user that you want to trigger a test notification for. "
-        "If not given, will default to the associated user object that is posting.",
-    )
 
 
 account_sid = cfg["twilio.sms_account_sid"]

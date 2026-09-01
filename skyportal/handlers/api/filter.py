@@ -1,6 +1,9 @@
-from typing import Any
-
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.filters import (
+    FilterGetQuery,
+    FilterPatchBody,
+    FilterPostBody,
+    FilterPostResponse,
+)
 from sqlalchemy.orm import joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
@@ -8,79 +11,6 @@ from baselayer.app.access import auth_or_token, permissions
 from ...models import Broker, Filter, set_autosave
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
-
-
-class FilterPostBody(BaseModel):
-    """Request body for creating a filter."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(description="Filter name.")
-    stream_id: int = Field(description="ID of the Filter's Stream.")
-    group_id: int = Field(description="ID of the Filter's Group.")
-    broker_id: int | None = Field(
-        default=None,
-        description="ID of the Broker this Filter runs on, if any.",
-    )
-    altdata: dict[str, Any] | None = Field(
-        default=None,
-        description="Arbitrary additional JSON data associated with the Filter.",
-    )
-
-
-class FilterPostResponse(BaseModel):
-    """Data payload returned when creating a filter."""
-
-    id: int = Field(description="New filter ID")
-
-
-class FilterPatchBody(BaseModel):
-    """Request body for updating a filter."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = Field(default=None, description="Filter name.")
-    altdata: dict[str, Any] | None = Field(
-        default=None,
-        description="Arbitrary additional JSON data associated with the Filter.",
-    )
-    group_id: int | None = Field(
-        default=None,
-        description="ID of the Filter's Group. Cannot be changed; accepted "
-        "only if it matches the current value.",
-    )
-    stream_id: int | None = Field(
-        default=None,
-        description="ID of the Filter's Stream. Cannot be changed; accepted "
-        "only if it matches the current value.",
-    )
-    broker_id: int | None = Field(
-        default=None,
-        description="ID of the Broker this Filter runs on. Can only be set "
-        "while the filter has none: moving a filter between brokers would "
-        "orphan whatever the first one holds for it.",
-    )
-    autosave: bool | None = Field(
-        default=None,
-        description="Whether objects passing this filter during broker ingestion "
-        "are auto-saved as Sources to the Filter's Group.",
-    )
-
-
-class FilterGetQuery(BaseModel):
-    """Query parameters for listing filters."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    group_id: int | None = Field(
-        default=None,
-        description="Only return filters belonging to this Group.",
-    )
-    stream_id: int | None = Field(
-        default=None,
-        description="Only return filters reading from this Stream.",
-    )
-
 
 # A filter's altdata holds its whole broker definition, which runs to tens of
 # kilobytes apiece and is only of use one filter at a time. The list leaves it

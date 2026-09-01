@@ -4,7 +4,7 @@ import functools
 import io
 import json
 import os
-from typing import Annotated, Any, ClassVar
+from typing import Annotated
 from urllib.parse import urljoin, urlparse
 
 import numpy as np
@@ -13,9 +13,19 @@ import requests
 import sqlalchemy as sa
 import yaml
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from requests_oauthlib import OAuth1
+from skyportal_py_models.analysis import (
+    AnalysisGetQuery,
+    AnalysisPostBody,
+    AnalysisProductsGetQuery,
+    AnalysisServicePatchBody,
+    AnalysisServicePostBody,
+    AnalysisUploadBody,
+    DefaultAnalysisPatchBody,
+    DefaultAnalysisPostBody,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import contains_eager, joinedload, selectinload
@@ -933,221 +943,6 @@ async def post_analysis_async(
     return analysis_id
 
 
-class AnalysisServicePostBody(BaseModel):
-    """Request body for creating an Analysis Service."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = Field(
-        default=None, description="Unique name/identifier of the analysis service."
-    )
-    display_name: str | None = Field(
-        default=None, description="Display name of the analysis service."
-    )
-    description: str | None = Field(
-        default=None, description="Description of the analysis service."
-    )
-    version: str | None = Field(
-        default=None,
-        description="Semantic version (or githash) of the analysis service.",
-    )
-    contact_name: str | None = Field(
-        default=None,
-        description="Name of person responsible for the service (ie. the "
-        "maintainer). This person does not need to be part of this SkyPortal "
-        "instance.",
-    )
-    contact_email: str | None = Field(
-        default=None,
-        description="Email address of the person responsible for the service.",
-    )
-    url: str | None = Field(
-        default=None,
-        description="URL to running service accessible to this SkyPortal instance. "
-        "For example, http://localhost:5000/analysis/<service_name>.",
-    )
-    optional_analysis_parameters: str | dict[str, Any] | None = Field(
-        default=None,
-        description="Optional URL parameters that can be passed to the service, "
-        "along with a list of possible values (to be used in a dropdown UI).",
-    )
-    authentication_type: str | None = Field(
-        default=None,
-        description="Service authentication method. See "
-        "https://docs.python-requests.org/en/master/user/authentication/",
-    )
-    authinfo: str | None = Field(
-        default=None,
-        alias="_authinfo",
-        description="Authentication secrets for the service. Not needed if "
-        'authentication_type is "none". This should be a string that can be '
-        "parsed by the python json.loads() function and should contain the key "
-        "`authentication_type`.",
-    )
-    enabled: bool | None = Field(
-        default=None, description="Whether the service is enabled or not."
-    )
-    analysis_type: str | None = Field(default=None, description="Type of analysis.")
-    input_data_types: list[str] | None = Field(
-        default=None,
-        description="List of input data types that the service requires.",
-    )
-    timeout: float | None = Field(
-        default=None,
-        description="Max time in seconds to wait for the analysis service to "
-        "complete. Default is 3600.0.",
-    )
-    is_summary: bool | None = Field(
-        default=None,
-        description="Establishes that analysis results on the resource should be "
-        "considered a summary.",
-    )
-    display_on_resource_dropdown: bool | None = Field(
-        default=None,
-        description="Show this analysis service on the analysis dropdown of the "
-        "resource.",
-    )
-    upload_only: bool | None = Field(
-        default=None,
-        description="If true, the analysis service is an upload type, where the "
-        "user provides the input data.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to use the Analysis Service. Defaults to all of requesting user's "
-        "groups.",
-    )
-
-
-class AnalysisServicePatchBody(AnalysisServicePostBody):
-    """Request body for updating an Analysis Service (all fields optional)."""
-
-
-class AnalysisPostBody(BaseModel):
-    """Request body for running an analysis."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    show_parameters: bool = Field(
-        default=False, description="Whether to render the parameters of this analysis."
-    )
-    show_plots: bool = Field(
-        default=False, description="Whether to render the plots of this analysis."
-    )
-    show_corner: bool = Field(
-        default=False,
-        description="Whether to render the corner plots of this analysis.",
-    )
-    input_filters: dict[str, Any] | None = Field(
-        default_factory=dict, description="Filters to apply to the input data."
-    )
-    analysis_parameters: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Dictionary of parameters to be passed thru to the analysis.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view analysis results. Defaults to all of requesting user's "
-        "groups.",
-    )
-
-
-class AnalysisUploadBody(BaseModel):
-    """Request body for uploading an upload_only analysis result."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    analysis: dict[str, Any] = Field(
-        default_factory=dict, description="Results data of this analysis."
-    )
-    message: str = Field(
-        default="", description="Status message to store with the analysis."
-    )
-    show_parameters: bool = Field(
-        default=True, description="Whether to render the parameters of this analysis."
-    )
-    show_plots: bool = Field(
-        default=True, description="Whether to render the plots of this analysis."
-    )
-    show_corner: bool = Field(
-        default=True,
-        description="Whether to render the corner plots of this analysis.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view analysis results. Defaults to all of requesting user's "
-        "groups.",
-    )
-
-
-class DefaultAnalysisPostBody(BaseModel):
-    """Request body for creating a default analysis."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    default_analysis_parameters: dict[str, Any] | str = Field(
-        default_factory=dict,
-        description="Dictionary of parameters to be passed thru to the analysis.",
-    )
-    source_filter: dict[str, Any] | str = Field(
-        default_factory=dict,
-        description="Dictionary of filters to apply to the input data.",
-    )
-    daily_limit: int | str = Field(
-        default=10, description="Maximum number of analyses to run per day."
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view analysis results. Defaults to all of requesting user's "
-        "groups.",
-    )
-    show_parameters: bool = Field(
-        default=True, description="Whether to render the parameters of this analysis."
-    )
-    show_plots: bool = Field(
-        default=True, description="Whether to render the plots of this analysis."
-    )
-    show_corner: bool = Field(
-        default=True,
-        description="Whether to render the corner plots of this analysis.",
-    )
-
-
-class DefaultAnalysisPatchBody(BaseModel):
-    """Request body for updating a default analysis (all fields optional)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    default_analysis_parameters: dict[str, Any] | str | None = Field(
-        default=None,
-        description="Dictionary of parameters to be passed thru to the analysis.",
-    )
-    source_filter: dict[str, Any] | str | None = Field(
-        default=None, description="Dictionary of filters to apply to the input data."
-    )
-    daily_limit: int | str | None = Field(
-        default=None, description="Maximum number of analyses to run per day."
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view analysis results.",
-    )
-    show_parameters: bool | None = Field(
-        default=None, description="Whether to render the parameters of this analysis."
-    )
-    show_plots: bool | None = Field(
-        default=None, description="Whether to render the plots of this analysis."
-    )
-    show_corner: bool | None = Field(
-        default=None, description="Whether to render the corner plots of this analysis."
-    )
-
-
 class AnalysisServiceHandler(BaseHandler):
     """Handler for analysis services."""
 
@@ -1472,50 +1267,6 @@ class AnalysisServiceHandler(BaseHandler):
 
             self.push_all(action="skyportal/REFRESH_ANALYSIS_SERVICES")
             return self.success()
-
-
-class AnalysisGetQuery(BaseModel):
-    """Query parameters for retrieving analyses."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset(
-        {"objID", "includeFilename", "includeAnalysisData"}
-    )
-
-    objID: str | None = Field(
-        default=None,
-        description="Return any analysis on an object with ID objID",
-    )
-    analysisServiceID: int | None = Field(
-        default=None,
-        description=(
-            "ID of the analysis service used to create the analysis, used only "
-            "if no analysis_id is given"
-        ),
-    )
-    includeAnalysisData: bool = Field(
-        default=False,
-        description=(
-            "Boolean indicating whether to include the data associated with the "
-            "analysis in the response. Could be a large amount of data. Only "
-            "works for single analysis requests. Defaults to false."
-        ),
-    )
-    summaryOnly: bool = Field(
-        default=False,
-        description=(
-            "Boolean indicating whether to return only analyses that use analysis "
-            "services with `is_summary` set to true. Defaults to false."
-        ),
-    )
-    includeFilename: bool = Field(
-        default=False,
-        description=(
-            "Boolean indicating whether to include the filename of the data "
-            "associated with the analysis in the response. Defaults to false."
-        ),
-    )
 
 
 class AnalysisHandler(BaseHandler):
@@ -1953,17 +1704,6 @@ class AnalysisHandler(BaseHandler):
                     f"analysis_resource_type must be one of {', '.join(['obj'])}",
                     status=404,
                 )
-
-
-class AnalysisProductsGetQuery(BaseModel):
-    """Query parameters for retrieving an analysis product."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    download: bool = Field(
-        default=False,
-        description="Download the results as a file",
-    )
 
 
 class AnalysisProductsHandler(BaseHandler):

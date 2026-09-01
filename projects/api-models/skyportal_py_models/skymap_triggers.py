@@ -15,3 +15,25 @@ class SkymapTriggerQueueResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trigger_names: list[str] = Field(default_factory=list)
+
+
+class SkymapTriggerPostBody(BaseModel):
+    """Request body for posting a skymap-based trigger."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int = Field(description="Followup request allocation ID.")
+    localization_id: int = Field(description="Localization ID.")
+    integrated_probability: float = Field(
+        default=0.95, description="Integrated probability within skymap."
+    )
+
+
+class SkymapTriggerDeleteBody(BaseModel):
+    """Request body for deleting a skymap-based trigger."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    trigger_name: str | None = Field(
+        default=None, description="Name of the trigger/queue to remove"
+    )

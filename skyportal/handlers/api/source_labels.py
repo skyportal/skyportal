@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sources import SourceLabelsDeleteBody, SourceLabelsPostBody
 
 from baselayer.app.access import auth_or_token
 
@@ -9,26 +10,6 @@ from ...models import (
     SourceLabel,
 )
 from ..base import BaseHandler
-
-
-class SourceLabelsPostBody(BaseModel):
-    """Request body for labelling a source."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    groupIds: list[int] = Field(
-        description="List of IDs of groups to indicate labelling for"
-    )
-
-
-class SourceLabelsDeleteBody(BaseModel):
-    """Request body for deleting source labels."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    groupIds: list[int] = Field(
-        description="List of IDs of groups to indicate scanning for"
-    )
 
 
 async def add_source_labels(session, obj_id, group_ids, labeller_id):

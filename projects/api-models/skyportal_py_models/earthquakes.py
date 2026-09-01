@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -115,3 +115,93 @@ class EarthquakePost(BaseModel):
     longitude: float | None = None
     depth: float | None = None
     magnitude: float | None = None
+
+
+class EarthquakePostBody(BaseModel):
+    """Request body for ingesting an earthquake event, either from a QuakeML
+    xml document or from explicit event properties."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    xml: str | None = Field(
+        default=None, description="QuakeML xml document describing the event"
+    )
+    event_id: str | None = Field(
+        default=None, description="Earthquake event ID; required if xml is not given"
+    )
+    date: str | None = Field(
+        default=None,
+        description="Date of the event; required if xml is not given",
+    )
+    latitude: float | None = Field(
+        default=None, description="Event latitude [deg]; required if xml is not given"
+    )
+    longitude: float | None = Field(
+        default=None, description="Event longitude [deg]; required if xml is not given"
+    )
+    depth: float | None = Field(
+        default=None, description="Event depth [m]; required if xml is not given"
+    )
+    magnitude: float | None = Field(
+        default=None, description="Event magnitude; required if xml is not given"
+    )
+
+
+class EarthquakePostResponse(BaseModel):
+    """ID of the ingested earthquake event."""
+
+    id: str | int | None = Field(description="Earthquake event ID")
+
+
+class EarthquakeMeasurementBody(BaseModel):
+    """Request body for posting or updating a ground velocity measurement;
+    at least one of rfamp or lockloss must be provided."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rfamp: float | None = Field(
+        default=None, description="Earthquake amplitude measured [m/s]"
+    )
+    lockloss: int | None = Field(
+        default=None,
+        description="Earthquake lockloss measured, 0 (no lockloss) or 1 (lockloss)",
+    )
+
+
+class EarthquakeGetQuery(BaseModel):
+    """Query parameters for retrieving Earthquake events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "date >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "date <= endDate"
+        ),
+    )
+    statusKeep: str | None = Field(
+        default=None,
+        description="Earthquake Status to match against",
+    )
+    statusRemove: str | None = Field(
+        default=None,
+        description="Earthquake Status to filter out",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description="Number of earthquakes. Defaults to 100.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for iterating through all earthquakes. Defaults to 1",
+    )

@@ -26,3 +26,27 @@ class HealpixUpdateResponse(BaseModel):
     total_matches: int = Field(alias="totalMatches", default=0)
     page_number: int = Field(alias="pageNumber", default=1)
     num_per_page: int = Field(alias="numPerPage", default=100)
+
+
+DEFAULT_SOURCES_PER_PAGE = 100
+
+
+MAX_SOURCES_PER_PAGE = 500
+
+
+class HealpixUpdatePostQuery(BaseModel):
+    """Query parameters for the healpix backfill."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_SOURCES_PER_PAGE,
+        description=(
+            f"Number of objects to update per paginated request. Defaults to "
+            f"{DEFAULT_SOURCES_PER_PAGE}. Capped at {MAX_SOURCES_PER_PAGE}."
+        ),
+    )

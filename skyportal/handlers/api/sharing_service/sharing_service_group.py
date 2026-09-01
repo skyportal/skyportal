@@ -1,7 +1,11 @@
 from typing import Annotated
 
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sharing_services import (
+    SharingServiceGroupPutBody,
+    SharingServiceGroupPutResponse,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -21,33 +25,6 @@ SharingServiceId = Annotated[
 ]
 
 log = make_log("api/sharing_service_group")
-
-
-class SharingServiceGroupPutBody(BaseModel):
-    """Request body for adding or editing a group of an external sharing service."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    group_id: int | None = Field(default=None, description="ID of the group to add")
-    auto_share_to_tns: bool | str | None = Field(
-        default=None, description="Whether to automatically publish to TNS"
-    )
-    auto_share_to_hermes: bool | str | None = Field(
-        default=None, description="Whether to automatically publish to Hermes"
-    )
-    auto_sharing_allow_bots: bool | str | None = Field(
-        default=None, description="Whether to allow bots to automatically publish"
-    )
-    owner: bool | str | None = Field(
-        default=None,
-        description="Whether this group is the owner of the external sharing service",
-    )
-
-
-class SharingServiceGroupPutResponse(BaseModel):
-    """Data payload returned when adding or editing a sharing service group."""
-
-    id: int = Field(description="SharingServiceGroup ID")
 
 
 class SharingServiceGroupHandler(BaseHandler):

@@ -1,6 +1,11 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sharing_services import (
+    SharingServiceGroupAutoPublisherDeleteBody,
+    SharingServiceGroupAutoPublisherPostBody,
+    SharingServiceGroupAutoPublisherPostResponse,
+)
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -23,45 +28,6 @@ SharingServiceId = Annotated[
 ]
 
 log = make_log("api/sharing_service_group_auto_publisher")
-
-
-class SharingServiceGroupAutoPublisherPostBody(BaseModel):
-    """Request body for adding auto_publisher(s) to a SharingServiceGroup."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_ids: list[int] | str | None = Field(
-        default_factory=list,
-        description="An array of user IDs to add as auto_publishers. If a "
-        "string is provided, it will be split by commas.",
-    )
-    user_id: int | None = Field(
-        default=None,
-        description="ID of the user to add as an auto_publisher, used if "
-        "user_ids is empty and no user_id is given in the URL.",
-    )
-
-
-class SharingServiceGroupAutoPublisherPostResponse(BaseModel):
-    """Data payload returned when adding auto_publisher(s)."""
-
-    ids: list[int] = Field(
-        description="IDs of the new SharingServiceGroupAutoPublishers"
-    )
-
-
-class SharingServiceGroupAutoPublisherDeleteBody(BaseModel):
-    """Request body for removing auto_publisher(s) from a SharingServiceGroup."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_id: int | None = Field(
-        default=None, description="The ID of the User to remove as an auto_publisher"
-    )
-    user_ids: list[int] | str | None = Field(
-        default_factory=list,
-        description="The IDs of the Users to remove as auto_publishers, overrides user_id",
-    )
 
 
 class SharingServiceGroupAutoPublisherHandler(BaseHandler):

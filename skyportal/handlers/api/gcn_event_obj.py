@@ -1,8 +1,14 @@
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated
 
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.gcn_events import (
+    GcnEventObjIdResponse,
+    GcnEventObjPatchBody,
+    GcnEventObjPostBody,
+    SourcesConfirmedInGCNGetQuery,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -23,62 +29,6 @@ Dateobs = Annotated[
 ]
 
 log = make_log("api/gcn_event_obj")
-
-
-class GcnEventObjPostBody(BaseModel):
-    """Request body for confirming or rejecting a source in a GCN."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    source_id: str = Field(
-        description="The source_id of the source to confirm or reject"
-    )
-    localization_name: str = Field(
-        description="The name of the localization of the event"
-    )
-    localization_cumprob: float = Field(
-        description="The cumprob of the localization of the event"
-    )
-    status: Literal["pending", "confirmed", "ambiguous", "rejected"] = Field(
-        description="Standing of the source against the event"
-    )
-    start_date: str = Field(
-        description="Choose sources with a first detection after start_date, "
-        "as an arrow parseable string"
-    )
-    end_date: str = Field(
-        description="Choose sources with a last detection before end_date, "
-        "as an arrow parseable string"
-    )
-    explanation: str | None = Field(
-        default=None, description="Explanation of the confirmation/rejection"
-    )
-    notes: str | None = Field(
-        default=None, description="Notes about the confirmation/rejection"
-    )
-
-
-class GcnEventObjPatchBody(BaseModel):
-    """Request body for updating the confirmed/rejected status of a source in
-    a GCN."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    status: Literal["pending", "confirmed", "ambiguous", "rejected"] = Field(
-        description="Standing of the source against the event"
-    )
-    explanation: str | None = Field(
-        default=None, description="Explanation of the confirmation/rejection"
-    )
-    notes: str | None = Field(
-        default=None, description="Notes about the confirmation/rejection"
-    )
-
-
-class GcnEventObjIdResponse(BaseModel):
-    """ID of the affected gcn_event_obj row."""
-
-    id: int = Field(description="The id of the gcn_event_obj")
 
 
 class Validator(Schema):
@@ -132,20 +82,6 @@ class Validator(Schema):
                 raise ValidationError("Missing required fields")
             if data["source_id"] is None:
                 raise ValidationError("Missing required fields")
-
-
-class SourcesConfirmedInGCNGetQuery(BaseModel):
-    """Query parameters for retrieving sources confirmed/rejected in a GCN."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset()
-
-    sourcesIDList: str = Field(
-        default="",
-        description="A comma-separated list of source_id's to retrieve. "
-        "If not provided, all sources confirmed or rejected in GCN will be returned.",
-    )
 
 
 class GcnEventObjHandler(BaseHandler):

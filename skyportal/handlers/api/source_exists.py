@@ -1,5 +1,5 @@
 import conesearch_alchemy as ca
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.sources import SourceExistsGetQuery
 
 from baselayer.app.access import auth_or_token
 
@@ -8,25 +8,6 @@ from ...models import (
     Source,
 )
 from ..base import BaseHandler
-
-
-class SourceExistsGetQuery(BaseModel):
-    """Query parameters for checking whether a source already exists."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    ra: float | None = Field(
-        default=None,
-        description="RA for spatial filtering (in decimal degrees)",
-    )
-    dec: float | None = Field(
-        default=None,
-        description="Declination for spatial filtering (in decimal degrees)",
-    )
-    radius: float | None = Field(
-        default=None,
-        description="Radius for spatial filtering if ra & dec are provided (in decimal degrees)",
-    )
 
 
 class SourceExistsHandler(BaseHandler):

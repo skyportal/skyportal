@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,6 +12,7 @@ from skyportal_py_models.classifications import ClassificationResponse
 from skyportal_py_models.comments import CommentResponse
 from skyportal_py_models.galaxies import GalaxyResponse
 from skyportal_py_models.groups import GroupResponse
+from skyportal_py_models.objs import ObjBody
 from skyportal_py_models.tags import ObjTagResponse
 from skyportal_py_models.thumbnails import ThumbnailResponse
 
@@ -278,3 +279,445 @@ class ScanReportPost(BaseModel):
     passed_filters_window_hours: float | None = None
     saved_candidates_window_hours: float | None = None
     gcn_event_dateobs: str | None = None
+
+
+SAVED_STATUSES = (
+    "all",
+    "savedToAllSelected",
+    "savedToAnySelected",
+    "savedToAnyAccessible",
+    "notSavedToAnyAccessible",
+    "notSavedToAnySelected",
+    "notSavedToAllSelected",
+)
+
+
+class CandidateGetQuery(BaseModel):
+    """Query parameters for retrieving a single candidate or querying candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeAlerts"})
+
+    numPerPage: int = Field(
+        default=25,
+        description=(
+            "Number of candidates to return per paginated request. Defaults to 25. "
+            "Capped at 500."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    autosave: bool = Field(
+        default=False,
+        description="Automatically save candidates passing query.",
+    )
+    autosaveGroupIds: list[int] | None = Field(
+        default=None,
+        description="Group ID(s) to save candidates to.",
+    )
+    savedStatus: Literal[*SAVED_STATUSES] = Field(
+        default="all",
+        description=(
+            "String indicating the saved status to filter candidate results for. "
+            "Must be one of the enumerated values."
+        ),
+    )
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at <= endDate"
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups if filterIDs is not provided."
+        ),
+    )
+    filterIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups' filters if groupIDs is not provided."
+        ),
+    )
+    sortByAnnotationOrigin: str | None = Field(
+        default=None,
+        description="The origin of the Annotation to sort by",
+    )
+    sortByAnnotationKey: str | None = Field(
+        default=None,
+        description="The key of the Annotation data value to sort by",
+    )
+    sortByAnnotationOrder: str | None = Field(
+        default=None,
+        description=(
+            'The sort order for annotations - either "asc" or "desc". '
+            'Defaults to "asc".'
+        ),
+    )
+    annotationFilterList: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of JSON objects representing annotation filters. "
+            "Filter objects are expected to have keys { origin, key, value } for "
+            "non-numeric value types, or { origin, key, min, max } for numeric values."
+        ),
+    )
+    includePhotometry: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated photometry. "
+            "Defaults to false."
+        ),
+    )
+    includeSpectra: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated spectra. "
+            "Defaults to false."
+        ),
+    )
+    includeComments: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated comments. "
+            "Defaults to false."
+        ),
+    )
+    includeFollowupRequests: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated follow-up requests. "
+            "Defaults to false."
+        ),
+    )
+    includeAssociatedObjs: bool = Field(
+        default=True,
+        description=(
+            "Boolean indicating whether to include associated objects (objects "
+            "grouped under the same super-object). Defaults to true."
+        ),
+    )
+    includeAlerts: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include associated alerts. "
+            "Defaults to false."
+        ),
+    )
+    classifications: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter for candidates "
+            "matching that/those classification(s)."
+        ),
+    )
+    classificationsReject: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of classification(s) to filter OUT candidates "
+            "matching with any of those classification(s)."
+        ),
+    )
+    minRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at least this value"
+        ),
+    )
+    maxRedshift: float | None = Field(
+        default=None,
+        description=(
+            "If provided, return only candidates with a redshift of at most this value"
+        ),
+    )
+    listName: str | None = Field(
+        default=None,
+        description=(
+            'Get only candidates saved to the querying user\'s list, e.g., "favorites".'
+        ),
+    )
+    listNameReject: str | None = Field(
+        default=None,
+        description=(
+            "Get only candidates that ARE NOT saved to the querying user's list, "
+            'e.g., "rejected_candidates".'
+        ),
+    )
+    photometryAnnotationsFilter: list[str] | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of "annotation: value: operator" triplet(s) to '
+            "filter for sources matching that/those photometry annotation(s), "
+            'i.e. "drb: 0.5: lt"'
+        ),
+    )
+    photometryAnnotationsFilterOrigin: list[str] | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of origins. Only photometry annotations from "
+            "these origins are used when filtering with the "
+            "photometryAnnotationsFilter."
+        ),
+    )
+    photometryAnnotationsFilterBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations before this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have photometry annotations after this "
+            "UTC datetime."
+        ),
+    )
+    photometryAnnotationsFilterMinCount: int = Field(
+        default=1,
+        description=(
+            "Only return sources that have at least this number of photometry "
+            "annotations passing the photometry annotations filtering criteria. "
+            "Defaults to 1."
+        ),
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). Each "
+            "localization is associated with a specific GCNEvent by the date the "
+            "event happened, and this date is used as a unique identifier. It can "
+            "be therefore found as Localization.dateobs, queried from the "
+            "/api/localization endpoint or dateobs in the GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. Can be found in "
+            "Localization.localization_name queried from /api/localization "
+            "endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include sources",
+    )
+    firstDetectionAfter: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were first detected after this UTC datetime."
+        ),
+    )
+    lastDetectionBefore: str | None = Field(
+        default=None,
+        description=(
+            "Only return sources that were last detected before this UTC datetime."
+        ),
+    )
+    numberDetections: int | None = Field(
+        default=None,
+        description=(
+            "Only return sources that have been detected at least this many times."
+        ),
+    )
+    requireDetections: bool = Field(
+        default=True,
+        description=(
+            "Require firstDetectionAfter, lastDetectionBefore, and "
+            "numberDetections to be set when querying candidates in a "
+            "localization. Defaults to True."
+        ),
+    )
+    excludeForcedPhotometry: bool = Field(
+        default=False,
+        description=(
+            "If true, ignore forced photometry when applying firstDetectionAfter, "
+            "lastDetectionBefore, and numberDetections. Defaults to False."
+        ),
+    )
+    nameOnly: bool = Field(
+        default=False,
+        description=(
+            "Intended for frontend use only: if true (and objID is provided), "
+            "return only candidate obj IDs matching the partial name in objID."
+        ),
+    )
+    objID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: partial object ID used by the "
+            "nameOnly autocomplete query."
+        ),
+    )
+    queryID: str | None = Field(
+        default=None,
+        description=(
+            "Intended for frontend use only: ID of a cached candidates query, "
+            "used when paginating."
+        ),
+    )
+    annotationExcludeOrigin: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+    annotationExcludeOutdatedDate: str | None = Field(
+        default=None,
+        description="No longer supported; an error is returned if provided.",
+    )
+
+
+class CandidatePostBody(ObjBody):
+    """Request body for creating new candidate(s) (one per filter)."""
+
+    id: str = Field(description="Name of the object.")
+    filter_ids: list[int] = Field(description="List of associated filter IDs")
+    passed_at: str = Field(
+        description="Arrow-parseable datetime string indicating when passed filter."
+    )
+    passing_alert_id: int | None = Field(
+        None, description="ID of associated filter that created candidate"
+    )
+
+
+class BulkDeleteCandidatesPostBody(BaseModel):
+    """Request body for bulk-deleting old, unsaved candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAgeMonths: int = Field(
+        6,
+        description="Delete objects whose most recent candidate `passed_at` is older "
+        "than this many months. Defaults to 6.",
+    )
+    batchSize: int = Field(
+        1000,
+        description="Maximum number of objects to delete in this call (deleted "
+        "oldest-first). Defaults to 1000.",
+    )
+    dryRun: bool = Field(
+        False,
+        description="If true, only report how many objects would be deleted, without "
+        "deleting anything. Defaults to false.",
+    )
+
+
+class CandidateFilterGetQuery(BaseModel):
+    """Query parameters for listing candidates with their alert ids."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "Candidate.passed_at <= endDate"
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups if filterIDs is not provided."
+        ),
+    )
+    filterIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of '
+            "user's groups' filters if groupIDs is not provided."
+        ),
+    )
+    savedStatus: Literal[*SAVED_STATUSES] = Field(
+        default="all",
+        description=(
+            "String indicating the saved status to filter candidate results for. "
+            "Must be one of the enumerated values."
+        ),
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+    numPerPage: int = Field(
+        default=25,
+        description=(
+            "Number of candidates to return per paginated request. Defaults to 25. "
+            "Capped at 500."
+        ),
+    )
+
+
+class ScanReportPostBody(BaseModel):
+    """Request body for populating a candidate scanning report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups used to filter the candidates and manage the report",
+    )
+    passed_filters_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_date, end_date) between which the candidates "
+        "passed the filters",
+    )
+    saved_candidates_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_saved_date, end_saved_date) between which the "
+        "candidates were saved as sources",
+    )
+    passed_filters_window_hours: float | None = Field(
+        default=None,
+        description="Alternative to passed_filters_range: a rolling window of this "
+        "many hours ending now. Ignored if passed_filters_range is given. Lets a "
+        "recurring caller generate reports on a schedule.",
+    )
+    saved_candidates_window_hours: float | None = Field(
+        default=None,
+        description="Alternative to saved_candidates_range: a rolling window of this "
+        "many hours ending now. Ignored if saved_candidates_range is given.",
+    )
+    gcn_event_dateobs: str | None = Field(
+        default=None,
+        description="Restrict the report to objects the crossmatch associated with "
+        "this GCN event",
+    )
+
+
+class ScanReportGetQuery(BaseModel):
+    """Query parameters for listing candidate scanning reports."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numPerPage: int = Field(default=10, ge=1, description="Number of items to return")
+    page: int = Field(default=1, ge=1, description="Page number to return")
+
+
+class ScanReportItemPatchBody(BaseModel):
+    """Request body for updating a scanning report item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comment: str | None = Field(default=None, description="Comment on the report item")

@@ -1,11 +1,16 @@
 import time
 from io import StringIO
-from typing import Any
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.spatial_catalogs import (
+    SpatialCatalogASCIIFilePostBody,
+    SpatialCatalogASCIIFilePostResponse,
+    SpatialCatalogGetQuery,
+    SpatialCatalogPostBody,
+    SpatialCatalogPostResponse,
+)
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
@@ -148,49 +153,6 @@ def delete_catalog(catalog_id):
     finally:
         session.close()
         Session.remove()
-
-
-class SpatialCatalogGetQuery(BaseModel):
-    """Query parameters for retrieving spatial catalogs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog_name: str | None = Field(
-        default=None,
-        description="Name of the catalog being looked up, reported back in the not-found error message.",
-    )
-
-
-class SpatialCatalogPostBody(BaseModel):
-    """Request body for ingesting a spatial catalog."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog_name: Any = Field(default=None, description="Spatial catalog name.")
-    catalog_data: Any = Field(default=None, description="Spatial catalog data")
-
-
-class SpatialCatalogPostResponse(BaseModel):
-    """ID of the newly created spatial catalog."""
-
-    id: int = Field(description="New spatial catalog ID")
-
-
-class SpatialCatalogASCIIFilePostBody(BaseModel):
-    """Request body for uploading a spatial catalog from an ASCII file."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalogData: str | None = Field(
-        default=None, description="Catalog data Ascii string"
-    )
-    catalogName: str | None = Field(default=None, description="Spatial catalog name.")
-
-
-class SpatialCatalogASCIIFilePostResponse(BaseModel):
-    """ID of the newly created spatial catalog."""
-
-    id: int = Field(description="New spatial catalog ID")
 
 
 class SpatialCatalogHandler(BaseHandler):

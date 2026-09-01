@@ -90,3 +90,79 @@ class PublicReleaseUpdate(BaseModel):
     options: dict[str, Any] | None = None
     is_visible: bool | None = None
     auto_publish_enabled: bool | None = None
+
+
+class PublicReleasePostBody(BaseModel):
+    """Request body for creating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the release")
+    link_name: str | None = Field(
+        default=None,
+        description="URL-safe name identifying the release in its public URL",
+    )
+    group_ids: list[int] | None = Field(
+        default=None, description="IDs of the groups that can manage this release"
+    )
+    description: str = Field(default="", description="Description of the release")
+    is_visible: bool = Field(
+        default=True, description="Whether the release is publicly visible"
+    )
+    auto_publish_enabled: bool = Field(
+        default=False,
+        description="Whether sources saved to the release's groups are "
+        "automatically published",
+    )
+    options: dict[str, Any] = Field(
+        default_factory=dict, description="Options for the sources in this release"
+    )
+
+
+class PublicReleasePostResponse(BaseModel):
+    """ID of the newly created public release."""
+
+    id: int = Field(description="Public release ID")
+
+
+class PublicReleasePatchBody(BaseModel):
+    """Request body for updating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the release")
+    group_ids: list[int] | None = Field(
+        default=None, description="IDs of the groups that can manage this release"
+    )
+    description: str = Field(default="", description="Description of the release")
+    is_visible: bool = Field(
+        default=True, description="Whether the release is publicly visible"
+    )
+    auto_publish_enabled: bool = Field(
+        default=False,
+        description="Whether sources saved to the release's groups are "
+        "automatically published",
+    )
+    options: dict[str, Any] = Field(
+        default_factory=dict, description="Options for the sources in this release"
+    )
+
+
+class PublicSourcePagePostBody(BaseModel):
+    """Request body for creating a public page for a source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    options: dict[str, Any] | None = Field(
+        default=None, description="Options to manage data to display publicly"
+    )
+    release_id: Any = Field(
+        default=None,
+        description="The ID of the public release where the public source page belongs",
+    )
+
+
+class PublicSourcePagePostResponse(BaseModel):
+    """ID of the newly created public source page."""
+
+    id: int = Field(description="Public source page ID")

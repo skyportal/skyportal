@@ -7,7 +7,13 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.thumbnails import (
+    ThumbnailPathGetQuery,
+    ThumbnailPathPatchQuery,
+    ThumbnailPostBody,
+    ThumbnailPostResponse,
+    ThumbnailPutBody,
+)
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import StatementError
@@ -23,55 +29,6 @@ from ..base import BaseHandler
 log = make_log("api/thumbnail")
 
 SURVEY_RE = re.compile(r"[A-Z0-9][A-Z0-9_-]{0,31}")
-
-
-class ThumbnailPostBody(BaseModel):
-    """Request body for uploading a thumbnail."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    obj_id: str = Field(description="ID of object associated with thumbnails.")
-    data: str = Field(
-        description="base64-encoded PNG image file contents. Image size must "
-        "be between 16px and 500px on a side."
-    )
-    ttype: str = Field(
-        description="Thumbnail type. Must be one of 'new', 'ref', 'sub', "
-        "'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'"
-    )
-    survey: str | None = Field(
-        default=None,
-        description="Survey the cutout came from (e.g. ZTF, LSST). NULL for "
-        "all-sky archival thumbnails.",
-    )
-
-
-class ThumbnailPostResponse(BaseModel):
-    """Data payload returned when uploading a thumbnail."""
-
-    id: int = Field(description="New thumbnail ID")
-
-
-class ThumbnailPutBody(BaseModel):
-    """Request body for updating a thumbnail."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    obj_id: str | None = Field(default=None, description="ID of the thumbnail's obj.")
-    type: str | None = Field(
-        default=None, description="Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)"
-    )
-    file_uri: str | None = Field(
-        default=None,
-        description="Path of the Thumbnail on the machine running SkyPortal.",
-    )
-    public_url: str | None = Field(
-        default=None, description="Publically accessible URL of the thumbnail."
-    )
-    origin: str | None = Field(default=None, description="Origin of the Thumbnail.")
-    is_grayscale: bool | None = Field(
-        default=None, description="Whether the thumbnail is (mostly) grayscale."
-    )
 
 
 async def post_thumbnail(data, user_id, session):
@@ -323,48 +280,6 @@ class ThumbnailHandler(BaseHandler):
             await session.commit()
 
             return self.success()
-
-
-class ThumbnailPathGetQuery(BaseModel):
-    """Query parameters for checking thumbnail paths."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    types: list[str] = Field(
-        default=["new", "ref", "sub"],
-        description=(
-            "types of thumbnails to check. The default is ['new', 'ref', 'sub'] "
-            "which are all the thumbnail types stored locally."
-        ),
-    )
-    requiredDepth: int = Field(
-        default=2,
-        description=(
-            "number of subdirectories that are desired for thumbnails. For example "
-            "if requiredDepth is 2, then thumbnails will be stored in a folder like "
-            "/skyportal/static/thumbnails/ab/cd/<source_name>_<type>.png where 'ab' "
-            "and 'cd' are the first characters of the hash of the source name. "
-            "If requiredDepth is 0, then thumbnails are expected to be all in one "
-            "folder under /skyportal/static/thumbnails."
-        ),
-    )
-
-
-class ThumbnailPathPatchQuery(ThumbnailPathGetQuery):
-    """Query parameters for updating thumbnail paths (same filters as the
-    check, plus pagination over the rows to move)."""
-
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
-    numPerPage: int = Field(
-        default=100,
-        description=(
-            "Number of thumbnails to update per paginated request. Defaults to "
-            "100. Capped at 1000."
-        ),
-    )
 
 
 class ThumbnailPathHandler(BaseHandler):
