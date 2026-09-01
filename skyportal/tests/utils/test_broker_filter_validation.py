@@ -3,6 +3,7 @@ stored validation verdict, keyed per fid with a legacy single-slot fallback.
 """
 
 from skyportal.handlers.api.broker import (
+    BrokerFilterValidateBody,
     _store_version_validation,
     _version_validation,
 )
@@ -48,3 +49,10 @@ def test_store_then_read_round_trip():
     # storing B does not clobber A's verdict
     assert _version_validation(altdata, "A") == {"passed": False, "message": "div0"}
     assert _version_validation(altdata, "B")["passed"] is True
+
+
+def test_validate_body_accepts_a_string_fid():
+    """BOOM's fids are strings; an int-only body rejected every BOOM validation."""
+    assert BrokerFilterValidateBody(fid="nbHFqW").fid == "nbHFqW"
+    assert BrokerFilterValidateBody(fid=3).fid == 3
+    assert BrokerFilterValidateBody().fid is None
