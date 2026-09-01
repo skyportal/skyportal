@@ -51,7 +51,7 @@ dependencies = [
     "responses==0.26.2",
     "twilio==9.11.0",
     "numba>=0.59.0",
-    "pyvo==1.8",
+    "pyvo==1.9.1",
     "lxml==6.1.1",
     "suds-py3==1.4.5.0",
     "aiohttp==3.14.3",
