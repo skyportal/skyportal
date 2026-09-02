@@ -330,12 +330,19 @@ async def _annotation_filter_hint(session, annotations_filter, origins):
     """
     if not annotations_filter:
         return None
+
+    def _as_list(value):
+        """The handler passes these as raw comma-separated strings; iterating a
+        string yields characters, which silently searches for nothing."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return list(value)
+
+    origins = _as_list(origins)
     names = []
-    entries = (
-        annotations_filter
-        if isinstance(annotations_filter, list)
-        else [annotations_filter]
-    )
+    entries = _as_list(annotations_filter)
     for entry in entries:
         head = str(entry).split(":")[0].strip()
         if head:
@@ -711,6 +718,7 @@ async def get_sources(
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
+    min_abs_galactic_latitude=None,
     alias=None,
     origin=None,
     min_redshift=None,
@@ -953,6 +961,27 @@ async def get_sources(
             statements.append(
                 """
                 lower(((objs.altdata['simbad']) ->> 'class')) LIKE '%' || :simbad_class || '%'
+                """
+            )
+        if min_abs_galactic_latitude is not None:
+            # Galactic latitude is derived from ra/dec rather than stored, so it
+            # is computed here: sin(b) from the north galactic pole at
+            # (192.85948, 27.12825) in J2000. Filtering in the query keeps it on
+            # the database side rather than pulling every source back to reject
+            # most of them.
+            query_params.append(
+                bindparam(
+                    "min_abs_galactic_latitude",
+                    value=float(min_abs_galactic_latitude),
+                    type_=sa.Float,
+                )
+            )
+            statements.append(
+                """
+                abs(degrees(asin(
+                    sind(objs.dec) * sind(27.12825)
+                    + cosd(objs.dec) * cosd(27.12825) * cosd(objs.ra - 192.85948)
+                ))) >= :min_abs_galactic_latitude
                 """
             )
         if has_tns_name:
@@ -1995,12 +2024,6 @@ async def get_sources(
             sources, total_matches = [], len(all_source_ids)
 
             data["totalMatches"] = total_matches
-            if total_matches == 0:
-                hint = await _annotation_filter_hint(
-                    session, annotations_filter, annotations_filter_origin
-                )
-                if hint:
-                    data["hint"] = hint
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -2310,12 +2333,6 @@ async def get_sources(
 
             objs, total_matches = [], len(all_obj_ids)
             data["totalMatches"] = total_matches
-            if total_matches == 0:
-                hint = await _annotation_filter_hint(
-                    session, annotations_filter, annotations_filter_origin
-                )
-                if hint:
-                    data["hint"] = hint
             if start > total_matches:
                 return data
             if end > total_matches:

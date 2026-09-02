@@ -17316,6 +17316,8 @@ export interface paths {
                     group_ids?: number[] | null;
                     /** @description Simbad class to filter on */
                     simbadClass?: string | null;
+                    /** @description Keep only sources at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
+                    minAbsGalacticLatitude?: number | null;
                     /** @description additional name for the same object */
                     alias?: string | null;
                     /** @description who posted/discovered this source */

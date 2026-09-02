@@ -93,6 +93,12 @@ const sourcesFormSchema = (
       type: "number",
       title: "Earliest detection relative to event [days]",
     },
+    minAbsGalacticLatitude: {
+      type: "number",
+      title: "Min |galactic latitude| [deg]",
+      minimum: 0,
+      maximum: 90,
+    },
   },
   required: [
     "startDate",
@@ -113,6 +119,7 @@ const uiSchema = (groups: any[]) => ({
       localizationRejectSources: 4,
     },
     { maxSgscore: 3, maxAge: 3, minNdethist: 3, minDeltaT: 3 },
+    { minAbsGalacticLatitude: 3 },
   ],
 });
 

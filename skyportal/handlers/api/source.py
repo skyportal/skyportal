@@ -113,7 +113,7 @@ from .candidate.candidate import (
 from .color_mag import get_color_mag
 from .obj import ObjBody
 from .photometry import add_external_photometry, serialize
-from .sources import get_sources
+from .sources import _annotation_filter_hint, get_sources
 
 ObjId = Annotated[
     str, Field(description="ID of object to generate observability plot for")
@@ -1901,6 +1901,15 @@ class SourceGetQuery(BaseModel):
         default=None,
         description="Simbad class to filter on",
     )
+    minAbsGalacticLatitude: float | None = Field(
+        default=None,
+        description=(
+            "Keep only sources at least this many degrees from the galactic "
+            "plane, i.e. |b| >= this. Use to require extragalactic candidates."
+        ),
+        ge=0,
+        le=90,
+    )
     alias: str | None = Field(
         default=None,
         description="additional name for the same object",
@@ -2250,6 +2259,7 @@ class SourceHandler(BaseHandler):
                     created_or_modified_after=created_or_modified_after,
                     list_name=query.listName,
                     simbad_class=query.simbadClass,
+                    min_abs_galactic_latitude=query.minAbsGalacticLatitude,
                     alias=query.alias,
                     origin=query.origin,
                     has_tns_name=query.hasTNSname,
@@ -2307,6 +2317,18 @@ class SourceHandler(BaseHandler):
             except Exception as e:
                 traceback.print_exc()
                 return self.error(f"Cannot retrieve sources: {str(e)}")
+
+            # get_sources has many ways out; the hint belongs where they all
+            # converge. An annotation filter that matched nothing is far more
+            # often a wrong field name than an empty sky, so say which.
+            if isinstance(query_results, dict) and not query_results.get(
+                "totalMatches"
+            ):
+                hint = await _annotation_filter_hint(
+                    session, query.annotationsFilter, query.annotationsFilterOrigin
+                )
+                if hint:
+                    query_results["hint"] = hint
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
