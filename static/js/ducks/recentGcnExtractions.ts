@@ -15,6 +15,7 @@ export type RecentGcnExtraction = {
   event_aliases: string[];
   summary: {
     event_name: string | null;
+    subject: string | null;
     n_photometry: number;
     n_detections: number;
     bandpasses: string[];
@@ -22,6 +23,7 @@ export type RecentGcnExtraction = {
     classification: string | null;
     ra: number | null;
     dec: number | null;
+    n_references: number;
   };
 };
 
