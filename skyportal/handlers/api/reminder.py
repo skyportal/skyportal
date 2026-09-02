@@ -3,7 +3,7 @@ from typing import Annotated
 import arrow
 from pydantic import BaseModel, ConfigDict, Field
 
-from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.flow import Flow
 from skyportal.models.source import Source
@@ -409,7 +409,7 @@ class ReminderHandler(BaseHandler):
         except Exception as e:
             return self.error(str(e))
 
-    @permissions(["Reminder"])
+    @auth_or_token
     async def post(
         self,
         associated_resource_type: AssociatedResourceType,
@@ -545,7 +545,7 @@ class ReminderHandler(BaseHandler):
                 await session.rollback()
                 return self.error(str(e))
 
-    @permissions(["Reminder"])
+    @auth_or_token
     async def patch(
         self,
         associated_resource_type: AssociatedResourceType,
@@ -735,7 +735,7 @@ class ReminderHandler(BaseHandler):
             except Exception as e:
                 return self.error(str(e))
 
-    @permissions(["Reminder"])
+    @auth_or_token
     async def delete(
         self,
         associated_resource_type: AssociatedResourceType,
