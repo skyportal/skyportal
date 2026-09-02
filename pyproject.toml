@@ -132,6 +132,9 @@ dev = [
     "pytest-rerunfailures>=14.0",
     "playwright==1.62.0",
     "pytest-playwright==0.9.0",
+    # the client is not something the app imports; it is here so the dev shell
+    # can exercise it against a running instance
+    "skyportal-py",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",
@@ -147,11 +150,16 @@ docs = [
 package = false
 # Listed explicitly rather than globbed: projects/ will also hold JS packages, and
 # a `projects/*` glob errors on any member without a pyproject.toml.
-workspace = { members = ["baselayer", "projects/api-models"] }
+workspace = { members = [
+    "baselayer",
+    "projects/api-models",
+    "projects/python-client",
+] }
 
 [tool.uv.sources]
 baselayer = { workspace = true }
 skyportal-py-models = { workspace = true }
+skyportal-py = { workspace = true }
 
 [tool.ruff]
 target-version = "py312"
