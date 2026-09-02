@@ -17418,6 +17418,8 @@ export interface paths {
                     simbadClass?: string | null;
                     /** @description Keep only sources at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
                     minAbsGalacticLatitude?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    promptDeltaT?: number | null;
                     /** @description additional name for the same object */
                     alias?: string | null;
                     /** @description who posted/discovered this source */
