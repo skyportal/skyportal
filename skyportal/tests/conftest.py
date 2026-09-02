@@ -54,6 +54,7 @@ from skyportal.models import (
     GcnEvent,
     GcnEventAssociation,
     GcnEventCrossmatchState,
+    GcnEventExtraction,
     GcnEventObj,
     GcnEventUser,
     GcnNotice,
@@ -3739,6 +3740,42 @@ def public_gcn_property(public_group, user):
     yield gcn_property
     for model, ident, col in (
         (GcnProperty, gcn_property_id, GcnProperty.id),
+        (GcnEvent, dateobs, GcnEvent.dateobs),
+    ):
+        row = (
+            DBSession().execute(sa.select(model).filter(col == ident)).scalars().first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_event_extraction(public_group, user):
+    dateobs = utcnow_naive().replace(microsecond=0) + timedelta(
+        seconds=int(uuid.uuid4().int % 1000000)
+    )
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+        groups=user.groups,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+
+    extraction = GcnEventExtraction(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+        origin="test",
+        circular_id=12345,
+        data={"event": {"event_name": "GRB 260604C"}},
+    )
+    DBSession.add(extraction)
+    DBSession.commit()
+    extraction_id = extraction.id
+    yield extraction
+    for model, ident, col in (
+        (GcnEventExtraction, extraction_id, GcnEventExtraction.id),
         (GcnEvent, dateobs, GcnEvent.dateobs),
     ):
         row = (
