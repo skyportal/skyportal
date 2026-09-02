@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skyportal-py"
+version = "0.4.0"
+description = "First-party Python client for the SkyPortal API"
+readme = "README.md"
+authors = [{ name = "Leo Conforti", email = "leo@leoconforti.us" }]
+license = "BSD-3-clause"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = ["httpx>=0.27", "pydantic>=2", "skyportal-py-models==0.4.0"]
+requires-python = ">=3.11"
+
+[project.urls]
+source = "https://github.com/skyportal/skyportal"
+
+[dependency-groups]
+# Pinned so the dev shell and the flake check agree on one ruff.
+dev = ["ruff==0.15.17", "ty"]
+test = ["pytest", "respx"]
+
+# Stripped at build time; the published wheel carries the `==` requirement above.
+[tool.uv.sources]
+skyportal-py-models = { workspace = true }
+
+[tool.setuptools.packages.find]
+include = ["skyportal_py*"]
+
+# Ruff reads the nearest config, so the client keeps the strict rule set it had
+# as a standalone repo rather than inheriting the app's grandfathered one.
+[tool.ruff.lint]
+extend-select = [
+    "A",    # shadowing Python builtins
+    "ANN",  # require type annotations
+    "ARG",  # unused function arguments
+    "B",    # bugbear: likely bugs and design problems
+    "C4",   # unnecessary comprehensions and generator calls
+    "D",    # docstring presence and style
+    "DTZ",  # naive (timezone-unaware) datetimes
+    "EM",   # string literals directly in raise statements
+    "ERA",  # commented-out code
+    "EXE",  # shebang and executable-bit consistency
+    "FA",   # missing `from __future__ import annotations`
+    "FBT",  # boolean positional arguments ("boolean traps")
+    "FURB", # modernization refactors
+    "I",    # import sorting
+    "ICN",  # conventional import aliases (np, pd, ...)
+    "INP",  # missing __init__.py in package directories
+    "N",    # PEP 8 naming conventions
+    "PERF", # performance anti-patterns
+    "PIE",  # misc lints
+    "PL",   # pylint
+    "PT",   # pytest style
+    "PTH",  # os.path calls that should use pathlib
+    "RET",  # return statement style
+    "RUF",  # ruff-specific rules
+    "S",    # security checks
+    "SIM",  # simplifiable code
+    "SLF",  # private member access on other objects
+    "T20",  # stray print statements
+    "TID",  # tidy imports
+    "TRY",  # exception handling style
+    "UP",   # outdated syntax for the minimum Python version
+    "W",    # whitespace and deprecation warnings
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["INP001", "PLR2004", "S101", "S106"]
