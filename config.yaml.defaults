@@ -997,7 +997,8 @@ additional_bandpasses:
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
-  # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands.
+  # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands,
+  # plus the ATCA 3mm pair.
   - name: 'radio-0.34GHz'
     filterset: 'radio'
     wavelength: [8.641e+09, 8.685e+09, 8.95e+09, 8.994e+09]
@@ -1043,6 +1044,18 @@ additional_bandpasses:
     wavelength: [6.529e+07, 6.562e+07, 6.762e+07, 6.795e+07]
     transmission: [0, 1, 1, 0]
     description: "VLA Q-band tophat centered at 45 GHz"
+  # ATCA 3mm. The recommended CABB continuum pair for the 83-105 GHz band; no
+  # VLA band reaches here, so without these an ATCA 3mm point has no bandpass.
+  - name: 'radio-93GHz'
+    filterset: 'radio'
+    wavelength: [3.159e+07, 3.175e+07, 3.272e+07, 3.288e+07]
+    transmission: [0, 1, 1, 0]
+    description: "ATCA 3mm tophat centered at 93 GHz"
+  - name: 'radio-95GHz'
+    filterset: 'radio'
+    wavelength: [3.093e+07, 3.108e+07, 3.203e+07, 3.219e+07]
+    transmission: [0, 1, 1, 0]
+    description: "ATCA 3mm tophat centered at 95 GHz"
   # SMA submillimeter bands.
   - name: 'sma-230GHz'
     filterset: 'sma'

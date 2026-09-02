@@ -777,7 +777,7 @@ instrument:
     name: ATCA
     telescope_id: =ATCA
     type: imager
-    filters: ['radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
+    filters: ['radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz', 'radio-93GHz', 'radio-95GHz']
     =id: ATCA
   - band: optical
     name: KAIT
