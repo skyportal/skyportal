@@ -7661,6 +7661,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gcn_event/{dateobs}/extractions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get structured extractions for a GCN event
+         * @description Retrieve the structured data producers have extracted from an
+         *     event's circulars and notices. Filter by `origin` to select one
+         *     producer, or by `circularId` for a single circular.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only return extractions from this producer */
+                    origin?: string;
+                    /** @description Only return extractions from this GCN circular */
+                    circularId?: number;
+                };
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Add a structured extraction to a GCN event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Store structured data extracted from an event's text. `origin`
+         *     names the producer and `data` is that producer's own shape; nothing
+         *     is assumed about it.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description What produced this extraction, e.g. circex */
+                        origin: string;
+                        /** @description The extraction itself */
+                        data: Record<string, never>;
+                        /** @description GCN circular it came from, if it came from one */
+                        circular_id?: number;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gcn_event/properties": {
         parameters: {
             query?: never;
@@ -25560,6 +25660,7 @@ export interface components {
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
             readonly properties?: components["schemas"]["GcnProperty"][];
+            readonly extractions?: components["schemas"]["GcnEventExtraction"][];
             readonly reports?: components["schemas"]["GcnReport"][];
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
@@ -25790,6 +25891,68 @@ export interface components {
             message?: string;
             data?: components["schemas"]["GcnEventCrossmatchStateNoID"][];
         };
+        GcnEventExtraction: {
+            /** @description The GcnEvent this extraction describes. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The user that saved this GcnEventExtraction */
+            readonly sent_by?: components["schemas"]["User"];
+            /** @description The ID of the User who created this GcnEventExtraction. */
+            sent_by_id: number;
+            /** Format: date-time */
+            dateobs: string;
+            /** @description GCN circular the extraction came from, where it came from one. Null for an extraction spanning several circulars or none. */
+            circular_id?: number | null;
+            /** @description What produced this extraction, e.g. 'circex'. */
+            origin: string;
+            /** @description The extraction, in JSON format. */
+            data: {
+                [key: string]: unknown;
+            };
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGcnEventExtraction: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventExtraction"];
+        };
+        ArrayOfGcnEventExtractions: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventExtraction"][];
+        };
+        GcnEventExtractionNoID: {
+            /** @description The GcnEvent this extraction describes. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The user that saved this GcnEventExtraction */
+            readonly sent_by?: components["schemas"]["User"];
+            /** @description The ID of the User who created this GcnEventExtraction. */
+            sent_by_id: number;
+            /** Format: date-time */
+            dateobs: string;
+            /** @description GCN circular the extraction came from, where it came from one. Null for an extraction spanning several circulars or none. */
+            circular_id?: number | null;
+            /** @description What produced this extraction, e.g. 'circex'. */
+            origin: string;
+            /** @description The extraction, in JSON format. */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        SingleGcnEventExtractionNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventExtractionNoID"];
+        };
+        ArrayOfGcnEventExtractionNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventExtractionNoID"][];
+        };
         GcnEventMMADetector: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             readonly mmadetector?: components["schemas"]["MMADetector"];
@@ -25834,6 +25997,7 @@ export interface components {
             readonly sent_by?: components["schemas"]["User"];
             readonly gcn_notices?: components["schemas"]["GcnNotice"][];
             readonly properties?: components["schemas"]["GcnProperty"][];
+            readonly extractions?: components["schemas"]["GcnEventExtraction"][];
             readonly reports?: components["schemas"]["GcnReport"][];
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
@@ -37242,6 +37406,7 @@ export interface components {
             readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
             readonly gcntags?: components["schemas"]["GcnTag"][];
             readonly gcnproperties?: components["schemas"]["GcnProperty"][];
+            readonly gcneventextractions?: components["schemas"]["GcnEventExtraction"][];
             readonly earthquakeevents?: components["schemas"]["EarthquakeEvent"][];
             readonly earthquakenotices?: components["schemas"]["EarthquakeNotice"][];
             readonly listings?: components["schemas"]["Listing"][];
@@ -37417,6 +37582,7 @@ export interface components {
             readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
             readonly gcntags?: components["schemas"]["GcnTag"][];
             readonly gcnproperties?: components["schemas"]["GcnProperty"][];
+            readonly gcneventextractions?: components["schemas"]["GcnEventExtraction"][];
             readonly earthquakeevents?: components["schemas"]["EarthquakeEvent"][];
             readonly earthquakenotices?: components["schemas"]["EarthquakeNotice"][];
             readonly listings?: components["schemas"]["Listing"][];

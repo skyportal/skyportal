@@ -1,7 +1,7 @@
 """Add gcneventextractions table
 
 Revision ID: b4e9d17c3a80
-Revises: f1c4e7a92b60
+Revises: a7e3c95d61b4
 Create Date: 2026-09-02 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b4e9d17c3a80"
-down_revision = "f1c4e7a92b60"
+down_revision = "a7e3c95d61b4"
 branch_labels = None
 depends_on = None
 
