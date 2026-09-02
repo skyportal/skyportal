@@ -997,6 +997,44 @@ additional_bandpasses:
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
+  # Einstein Probe and SVOM. Wavelength is the energy band converted with
+  # lambda[AA] = 12.398 / E[keV], following the swiftxrt and nicerxti entries.
+  - name: 'epwxt'
+    filterset: 'wxt'
+    wavelength: [3.038, 3.1, 24.8, 25.29]
+    transmission: [0, 1, 1, 0]
+    description: "Einstein Probe WXT tophat, 0.5-4 keV"
+  - name: 'epfxt'
+    filterset: 'fxt'
+    wavelength: [1.215, 1.24, 41.33, 42.15]
+    transmission: [0, 1, 1, 0]
+    description: "Einstein Probe FXT tophat, 0.3-10 keV"
+  - name: 'svommxt'
+    filterset: 'mxt'
+    wavelength: [1.215, 1.24, 61.99, 63.23]
+    transmission: [0, 1, 1, 0]
+    description: "SVOM MXT tophat, 0.2-10 keV"
+  - name: 'svomeclairs'
+    filterset: 'eclairs'
+    wavelength: [0.081, 0.08266, 3.1, 3.162]
+    transmission: [0, 1, 1, 0]
+    description: "SVOM ECLAIRs tophat, 4-150 keV"
+  - name: 'svomgrm'
+    filterset: 'grm'
+    wavelength: [0.00243, 0.00248, 0.8266, 0.8431]
+    transmission: [0, 1, 1, 0]
+    description: "SVOM GRM tophat, 15 keV to 5 MeV"
+  # SVOM's Visible Telescope is optical, with a blue and a red channel.
+  - name: 'svomvtb'
+    filterset: 'vt'
+    wavelength: [4455, 4500, 6500, 6565]
+    transmission: [0, 1, 1, 0]
+    description: "SVOM VT blue channel tophat, 450-650 nm"
+  - name: 'svomvtr'
+    filterset: 'vt'
+    wavelength: [6435, 6500, 10000, 10100]
+    transmission: [0, 1, 1, 0]
+    description: "SVOM VT red channel tophat, 650-1000 nm"
   # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands,
   # plus the ATCA 3mm pair.
   - name: 'radio-0.34GHz'

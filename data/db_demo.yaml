@@ -244,6 +244,14 @@ mmadetector:
     fixed_location: false
     type: x-ray
     =id: EinsteinProbe
+  - name: SVOM
+    nickname: SVOM
+    aliases:
+      - SVOM
+      - ECLAIRs
+    fixed_location: false
+    type: gamma-ray-burst
+    =id: SVOM
 
 telescope:
   - name: Palomar 1.2m
@@ -380,6 +388,18 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: NICER
+  - diameter: 1.0
+    nickname: EP
+    name: Einstein Probe
+    skycam_link: null
+    fixed_location: false
+    =id: EP
+  - diameter: 1.0
+    nickname: SVOM
+    name: Space Variable Objects Monitor
+    skycam_link: null
+    fixed_location: false
+    =id: SVOMtel
   - diameter: 0.94
     nickname: Gaia
     name: Gaia
@@ -754,6 +774,42 @@ instrument:
     telescope_id: =NICER
     type: imaging spectrograph
     filters: ['nicerxti']
+  - band: X-ray
+    name: WXT
+    telescope_id: =EP
+    type: imager
+    filters: ['epwxt']
+    =id: WXT
+  - band: X-ray
+    name: FXT
+    telescope_id: =EP
+    type: imager
+    filters: ['epfxt']
+    =id: FXT
+  - band: X-ray
+    name: ECLAIRs
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomeclairs']
+    =id: ECLAIRs
+  - band: X-ray
+    name: MXT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svommxt']
+    =id: MXT
+  - band: X-ray
+    name: GRM
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomgrm']
+    =id: GRM
+  - band: optical
+    name: VT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomvtb', 'svomvtr']
+    =id: VT
   - band: Optical
     name: Gaia
     =id: Gaia
