@@ -1094,6 +1094,58 @@ additional_bandpasses:
     wavelength: [3.093e+07, 3.108e+07, 3.203e+07, 3.219e+07]
     transmission: [0, 1, 1, 0]
     description: "ATCA 3mm tophat centered at 95 GHz"
+  # Hard X-ray and gamma-ray monitors. Circulars quote a band inside the
+  # instrument's full range, so the crosswalk keys on the instrument name.
+  - name: 'swiftbat'
+    filterset: 'bat'
+    wavelength: [0.081, 0.08266, 0.8266, 0.8431]
+    transmission: [0, 1, 1, 0]
+    description: "Swift BAT tophat, 15-150 keV"
+  - name: 'fermigbm'
+    filterset: 'gbm'
+    wavelength: [0.0003038, 0.00031, 1.55, 1.581]
+    transmission: [0, 1, 1, 0]
+    description: "Fermi GBM tophat, 8 keV to 40 MeV"
+  - name: 'fermilat'
+    filterset: 'lat'
+    wavelength: [4.05e-08, 4.133e-08, 0.0006199, 0.0006323]
+    transmission: [0, 1, 1, 0]
+    description: "Fermi LAT tophat, 20 MeV to 300 GeV"
+  - name: 'konus'
+    filterset: 'konus'
+    wavelength: [0.0006075, 0.0006199, 0.6199, 0.6323]
+    transmission: [0, 1, 1, 0]
+    description: "Konus-Wind tophat, 20 keV to 20 MeV"
+  - name: 'integralacs'
+    filterset: 'spiacs'
+    wavelength: [0.006075, 0.006199, 0.1653, 0.1686]
+    transmission: [0, 1, 1, 0]
+    description: "INTEGRAL SPI-ACS tophat, 75 keV to 2 MeV"
+  - name: 'integralibis'
+    filterset: 'isgri'
+    wavelength: [0.01215, 0.0124, 0.8266, 0.8431]
+    transmission: [0, 1, 1, 0]
+    description: "INTEGRAL IBIS/ISGRI tophat, 15-1000 keV"
+  - name: 'integraljemx'
+    filterset: 'jemx'
+    wavelength: [0.3472, 0.3542, 4.133, 4.215]
+    transmission: [0, 1, 1, 0]
+    description: "INTEGRAL JEM-X tophat, 3-35 keV"
+  - name: 'caletcgbm'
+    filterset: 'cgbm'
+    wavelength: [0.0006075, 0.0006199, 1.771, 1.807]
+    transmission: [0, 1, 1, 0]
+    description: "CALET CGBM tophat, 7 keV to 20 MeV"
+  - name: 'nustar'
+    filterset: 'nustar'
+    wavelength: [0.1538, 0.1569, 4.133, 4.215]
+    transmission: [0, 1, 1, 0]
+    description: "NuSTAR tophat, 3-79 keV"
+  - name: 'maxigsc'
+    filterset: 'gsc'
+    wavelength: [0.405, 0.4133, 6.199, 6.323]
+    transmission: [0, 1, 1, 0]
+    description: "MAXI GSC tophat, 2-30 keV"
   # SMA submillimeter bands.
   - name: 'sma-230GHz'
     filterset: 'sma'

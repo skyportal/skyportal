@@ -400,6 +400,42 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: SVOMtel
+  - diameter: 1.0
+    nickname: Konus
+    name: Konus-Wind
+    skycam_link: null
+    fixed_location: false
+    =id: KonusWind
+  - diameter: 1.0
+    nickname: INTEGRAL
+    name: INTErnational Gamma-Ray Astrophysics Laboratory
+    skycam_link: null
+    fixed_location: false
+    =id: INTEGRAL
+  - diameter: 1.0
+    nickname: Fermi
+    name: Fermi Gamma-ray Space Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: Fermi
+  - diameter: 1.0
+    nickname: CALET
+    name: CALorimetric Electron Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: CALET
+  - diameter: 1.0
+    nickname: NuSTAR
+    name: Nuclear Spectroscopic Telescope Array
+    skycam_link: null
+    fixed_location: false
+    =id: NuSTAR
+  - diameter: 1.0
+    nickname: MAXI
+    name: Monitor of All-sky X-ray Image
+    skycam_link: null
+    fixed_location: false
+    =id: MAXI
   - diameter: 0.94
     nickname: Gaia
     name: Gaia
@@ -810,6 +846,66 @@ instrument:
     type: imager
     filters: ['svomvtb', 'svomvtr']
     =id: VT
+  - band: X-ray
+    name: BAT
+    telescope_id: =Swift
+    type: imager
+    filters: ['swiftbat']
+    =id: BAT
+  - band: X-ray
+    name: GBM
+    telescope_id: =Fermi
+    type: imager
+    filters: ['fermigbm']
+    =id: GBM
+  - band: X-ray
+    name: LAT
+    telescope_id: =Fermi
+    type: imager
+    filters: ['fermilat']
+    =id: LAT
+  - band: X-ray
+    name: Konus
+    telescope_id: =KonusWind
+    type: imager
+    filters: ['konus']
+    =id: Konus
+  - band: X-ray
+    name: SPI-ACS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integralacs']
+    =id: SPIACS
+  - band: X-ray
+    name: IBIS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integralibis']
+    =id: IBIS
+  - band: X-ray
+    name: JEM-X
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integraljemx']
+    =id: JEMX
+  - band: X-ray
+    name: CGBM
+    telescope_id: =CALET
+    type: imager
+    filters: ['caletcgbm']
+    =id: CGBM
+  - band: X-ray
+    name: FPMA
+    telescope_id: =NuSTAR
+    type: imager
+    filters: ['nustar']
+    =id: FPMA
+  - band: X-ray
+    name: GSC
+    telescope_id: =MAXI
+    type: imager
+    filters: ['maxigsc']
+    =id: GSC
   - band: Optical
     name: Gaia
     =id: Gaia
