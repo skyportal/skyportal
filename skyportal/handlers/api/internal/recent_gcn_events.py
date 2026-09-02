@@ -10,11 +10,20 @@ default_prefs = {"maxNumGcnEvents": 10}
 
 
 def latest_extraction_per_event():
-    """Newest extraction timestamp for each event, as a joinable subquery."""
+    """Newest circular date for each event, as a joinable subquery.
+
+    Prefers when the circular was published over when the row was written, so a
+    bulk backfill of the archive does not collapse every event onto the date of
+    the backfill. Falls back to the row timestamp where the publication date is
+    unknown.
+    """
+    reported_at = sa.func.coalesce(
+        GcnEventExtraction.circular_created_at, GcnEventExtraction.created_at
+    )
     return (
         sa.select(
             GcnEventExtraction.dateobs.label("dateobs"),
-            sa.func.max(GcnEventExtraction.created_at).label("last_extraction"),
+            sa.func.max(reported_at).label("last_extraction"),
         )
         .group_by(GcnEventExtraction.dateobs)
         .subquery()
@@ -25,9 +34,7 @@ def order_by_recent_activity(query, activity):
     """Order events by the later of the event time and its newest circular.
 
     A burst from last week whose circular arrived this morning is current news,
-    so ordering on `dateobs` alone would bury it. `created_at` is when the
-    extraction was written, which tracks circular arrival for a live feed; a
-    bulk backfill of the archive would stamp them all at once and flatten this.
+    so ordering on `dateobs` alone would bury it.
     """
     return query.outerjoin(activity, GcnEvent.dateobs == activity.c.dateobs).order_by(
         sa.func.greatest(

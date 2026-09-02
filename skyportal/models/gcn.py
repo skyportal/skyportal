@@ -592,6 +592,16 @@ class GcnEventExtraction(Base):
         "Null for an extraction spanning several circulars or none.",
     )
 
+    circular_created_at = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        index=True,
+        doc="When the source circular was published. Distinct from created_at, "
+        "which records when this row was written: a backfill of the archive "
+        "stamps every row at once, and only this column still orders them by "
+        "when the observation was reported. Null when unknown.",
+    )
+
     origin = sa.Column(
         sa.String,
         nullable=False,

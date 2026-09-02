@@ -25902,6 +25902,11 @@ export interface components {
             dateobs: string;
             /** @description GCN circular the extraction came from, where it came from one. Null for an extraction spanning several circulars or none. */
             circular_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When the source circular was published. Distinct from created_at, which records when this row was written: a backfill of the archive stamps every row at once, and only this column still orders them by when the observation was reported. Null when unknown.
+             */
+            circular_created_at?: string | null;
             /** @description What produced this extraction, e.g. 'circex'. */
             origin: string;
             /** @description The extraction, in JSON format. */
@@ -25934,6 +25939,11 @@ export interface components {
             dateobs: string;
             /** @description GCN circular the extraction came from, where it came from one. Null for an extraction spanning several circulars or none. */
             circular_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When the source circular was published. Distinct from created_at, which records when this row was written: a backfill of the archive stamps every row at once, and only this column still orders them by when the observation was reported. Null when unknown.
+             */
+            circular_created_at?: string | null;
             /** @description What produced this extraction, e.g. 'circex'. */
             origin: string;
             /** @description The extraction, in JSON format. */

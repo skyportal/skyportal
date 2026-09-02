@@ -9,6 +9,8 @@ export type RecentGcnExtraction = {
   origin: string;
   circular_id: number | null;
   created_at: string;
+  // when GCN published the circular; null when unknown
+  circular_created_at: string | null;
   dateobs: string;
   event_aliases: string[];
   summary: {

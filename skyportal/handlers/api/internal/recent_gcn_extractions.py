@@ -74,6 +74,7 @@ class RecentGcnExtractionsHandler(BaseHandler):
                         "origin": extraction.origin,
                         "circular_id": extraction.circular_id,
                         "created_at": extraction.created_at,
+                        "circular_created_at": extraction.circular_created_at,
                         "dateobs": extraction.dateobs,
                         "event_aliases": list(event.aliases or []) if event else [],
                         # A summary rather than the whole record: the widget shows
