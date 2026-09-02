@@ -254,6 +254,7 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     ProfileHandler,
     RecentGcnEventsHandler,
+    RecentGcnExtractionsHandler,
     RecentSourcesHandler,
     RoboticInstrumentsHandler,
     SourceCountHandler,
@@ -715,6 +716,7 @@ skyportal_handlers = [
     (r"/api/internal/notifications_test(/[0-9]+)?", NotificationTestHandler),
     (r"/api/internal/survey_thumbnail", SurveyThumbnailHandler),
     (r"/api/internal/recent_gcn_events", RecentGcnEventsHandler),
+    (r"/api/internal/recent_gcn_extractions", RecentGcnExtractionsHandler),
     (r"/api/.*", InvalidEndpointHandler),
     # Stateless MCP endpoint for AI assistants; see doc/mcp.md
     (r"/mcp", MCPHandler),
