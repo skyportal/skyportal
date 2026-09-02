@@ -5,6 +5,10 @@ from baselayer.app.access import auth_or_token
 
 from ....models import GcnEvent, GcnEventExtraction
 from ...base import BaseHandler
+from .recent_gcn_events import (
+    latest_extraction_per_event,
+    order_by_recent_activity,
+)
 
 # Matches the recent-events widget, whose events these are shown beneath.
 default_prefs = {"maxNumEvents": 10}
@@ -39,9 +43,12 @@ class RecentGcnExtractionsHandler(BaseHandler):
             # Scope to the events the widget shows. Taking the most recent
             # extractions globally instead would silently drop any whose event
             # had already scrolled off the list beside it.
+            activity = latest_extraction_per_event()
             recent_events = (
-                GcnEvent.select(session.user_or_token, columns=[GcnEvent.dateobs])
-                .order_by(GcnEvent.dateobs.desc())
+                order_by_recent_activity(
+                    GcnEvent.select(session.user_or_token, columns=[GcnEvent.dateobs]),
+                    activity,
+                )
                 .limit(max_num_events)
                 .subquery()
             )
