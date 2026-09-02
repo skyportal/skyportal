@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -5,7 +6,8 @@ from baselayer.app.access import auth_or_token
 from ....models import GcnEvent, GcnEventExtraction
 from ...base import BaseHandler
 
-default_prefs = {"maxNumExtractions": 10}
+# Matches the recent-events widget, whose events these are shown beneath.
+default_prefs = {"maxNumEvents": 10}
 
 
 class RecentGcnExtractionsHandler(BaseHandler):
@@ -27,22 +29,33 @@ class RecentGcnExtractionsHandler(BaseHandler):
                 schema: Error
         """
         user_prefs = getattr(self.current_user, "preferences", None) or {}
-        prefs = {**default_prefs, **user_prefs.get("recentGcnExtractions", {})}
+        prefs = {**default_prefs, **user_prefs.get("recentGcnEvents", {})}
         try:
-            max_num = int(prefs["maxNumExtractions"])
-        except (TypeError, ValueError):
-            max_num = default_prefs["maxNumExtractions"]
+            max_num_events = int(prefs["maxNumEvents"])
+        except (KeyError, TypeError, ValueError):
+            max_num_events = default_prefs["maxNumEvents"]
 
         async with self.AsyncSession() as session:
-            # The event's dateobs and aliases are rendered beside each extraction,
-            # so eager-load the event rather than lazy-loading inside the loop.
+            # Scope to the events the widget shows. Taking the most recent
+            # extractions globally instead would silently drop any whose event
+            # had already scrolled off the list beside it.
+            recent_events = (
+                GcnEvent.select(session.user_or_token, columns=[GcnEvent.dateobs])
+                .order_by(GcnEvent.dateobs.desc())
+                .limit(max_num_events)
+                .subquery()
+            )
+            # The event's aliases are rendered beside each extraction, so
+            # eager-load it rather than lazy-loading inside the loop.
             result = await session.scalars(
                 GcnEventExtraction.select(
                     session.user_or_token,
                     options=[selectinload(GcnEventExtraction.gcnevent)],
                 )
+                .where(
+                    GcnEventExtraction.dateobs.in_(sa.select(recent_events.c.dateobs))
+                )
                 .order_by(GcnEventExtraction.created_at.desc())
-                .limit(max_num)
             )
             extractions = []
             for extraction in result.unique().all():
