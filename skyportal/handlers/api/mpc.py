@@ -6,7 +6,7 @@ import astropy.units as u
 import requests
 from astropy.coordinates import Angle
 from astropy.time import Time
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.objs import ObjMPCPostBody
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
@@ -29,30 +29,6 @@ Session = scoped_session(sessionmaker())
 
 MPC_ENDPOINT = cfg["app.mpc_endpoint"]
 mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
-
-
-class ObjMPCPostBody(BaseModel):
-    """Request body for crossmatching an object with the Minor Planet Center."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    obscode: str = Field(
-        default="500",
-        description="Minor planet center observatory code. "
-        "Defaults to 500, corresponds to geocentric.",
-    )
-    date: str | None = Field(
-        default=None,
-        description="Time to check MPC for. Defaults to current time.",
-    )
-    limiting_magnitude: float = Field(
-        default=24.0,
-        description="Limiting magnitude down which to search. Defaults to 24.0.",
-    )
-    search_radius: float = Field(
-        default=1,
-        description="Search radius for MPC [in arcmin]. Defaults to 1 arcminute.",
-    )
 
 
 class ObjMPCHandler(BaseHandler):

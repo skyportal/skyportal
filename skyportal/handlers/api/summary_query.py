@@ -1,11 +1,13 @@
 import copy
 import os
-from typing import Any
 
 import yaml
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.summary_query import (
+    SummaryQueryPostBody,
+    SummaryQueryPostResponse,
+)
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -127,48 +129,6 @@ elif cfg["database.database"] == "skyportal_test":
     openai_api_key = "TEST_KEY"
 else:
     openai_api_key = None
-
-
-class SummaryQueryPostBody(BaseModel):
-    """Request body for a summary similarity search."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    q: str | None = Field(
-        default=None,
-        description='The query string. E.g. "What sources are associated with '
-        'an NGC galaxy?"',
-    )
-    objID: str | None = Field(
-        default=None,
-        description="The objID of the source which has a summary to be used as "
-        "the query. That is, return the list of sources most similar to the "
-        "summary of this source. Ignored if q is provided.",
-    )
-    k: int = Field(default=5, description="Max number of sources to return. Default 5.")
-    z_min: float | None = Field(
-        default=None,
-        description="Minimum redshift to consider of queries sources. If None or "
-        "missing, then no lower limit is applied.",
-    )
-    z_max: float | None = Field(
-        default=None,
-        description="Maximum redshift to consider of queries sources. If None or "
-        "missing, then no upper limit is applied.",
-    )
-    classificationTypes: list[str] | None = Field(
-        default=None,
-        description="List of classification types to consider. If [] or missing, "
-        "then all classification types are considered.",
-    )
-
-
-class SummaryQueryPostResponse(BaseModel):
-    """Sources whose summaries match the query."""
-
-    query_results: list[dict[str, Any]] = Field(
-        description="Matching sources, most similar first, with their scores"
-    )
 
 
 class SummaryQueryHandler(BaseHandler):

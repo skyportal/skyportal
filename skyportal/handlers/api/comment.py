@@ -3,11 +3,18 @@ import os
 import string
 import time
 import unicodedata
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field
+from skyportal_py_models.comments import (
+    CommentAttachmentGetQuery,
+    CommentGetQuery,
+    CommentPostBody,
+    CommentPostResponse,
+    CommentPutBody,
+)
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -56,58 +63,6 @@ _, cfg = load_env()
 log = make_log("api/comment")
 
 MAX_COMMENTS_NO_RESOURCE_ID = 1000
-
-
-class CommentAttachment(BaseModel):
-    """A comment file attachment (name + base64-encoded body)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    body: str | None = Field(description="base64-encoded file contents")
-    name: str = Field(description="Attachment file name")
-
-
-class CommentPostBody(BaseModel):
-    """Request body for posting a comment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    text: str = Field(description="Comment body text")
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view comment. Defaults to the public group.",
-    )
-    attachment: CommentAttachment | None = Field(
-        default=None, description="Optional file attachment."
-    )
-    channel: str | None = Field(
-        default=None,
-        description="Conversation the comment belongs to; the main thread if unset. "
-        "Only used for comments on sources.",
-    )
-
-
-class CommentPostResponse(BaseModel):
-    """Data payload returned when posting a comment."""
-
-    comment_id: int = Field(description="New comment ID")
-
-
-class CommentPutBody(BaseModel):
-    """Request body for updating a comment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    text: str | None = Field(default=None, description="Comment body text")
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be "
-        "able to view comment.",
-    )
-    attachment: CommentAttachment | None = Field(
-        default=None, description="Optional file attachment."
-    )
 
 
 AUDIO_EXTENSION_TO_CONTENT_TYPE = {
@@ -232,32 +187,6 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
         return int(resource_id)
     except (TypeError, ValueError):
         return None
-
-
-class CommentGetQuery(BaseModel):
-    """Query parameters for retrieving comments."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset()
-
-    text: str | None = Field(
-        default=None,
-        description="Filter comments by partial text match.",
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for pagination.",
-    )
-    numPerPage: int = Field(
-        default=25,
-        description="Number of comments per page.",
-    )
-    channel: str | None = Field(
-        default=None,
-        description="Only return comments on this channel. Defaults to the "
-        "comments with no channel set.",
-    )
 
 
 class CommentHandler(BaseHandler):
@@ -1244,27 +1173,6 @@ class CommentHandler(BaseHandler):
                 )
 
             return self.success()
-
-
-class CommentAttachmentGetQuery(BaseModel):
-    """Query parameters for retrieving a comment attachment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    download: bool = Field(
-        default=True,
-        description="If true, download the attachment; else return file data as text. True by default.",
-    )
-    preview: bool = Field(
-        default=False,
-        description="If true, return an attachment preview. False by default.",
-    )
-
-    @model_validator(mode="after")
-    def _preview_overrides_default_download(self):
-        if self.preview and "download" not in self.model_fields_set:
-            self.download = False
-        return self
 
 
 class CommentAttachmentHandler(BaseHandler):

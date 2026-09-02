@@ -24,6 +24,12 @@ import sqlalchemy as sa
 from astroquery.ipac.irsa import Irsa
 from astroquery.vizier import Vizier
 from pydantic import BaseModel, ConfigDict
+from skyportal_py_models.annotations import (
+    DatalabQueryBody,
+    IRSAQueryWISEBody,
+    PS1QueryBody,
+    VizierQueryBody,
+)
 from sqlalchemy.exc import IntegrityError
 from tornado.ioloop import IOLoop
 
@@ -77,105 +83,6 @@ class GaiaQueryBody(BaseModel):
     crossmatchNumber: int | None = Field(
         default=cfg["cross_match.gaia.number"],
         description="Maximum number of Gaia sources (matches) to retrieve.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be able "
-        "to view annotation. Defaults to all of requesting user's groups.",
-    )
-
-
-class IRSAQueryWISEBody(BaseModel):
-    """Request body for posting WISE cross-match annotations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog: str = Field(
-        default="allwise_p3as_psd",
-        description="The name of the catalog key, associated with a catalog cross "
-        "match, from which the data should be retrieved. Default is allwise_p3as_psd.",
-    )
-    crossmatchRadius: float | None = Field(
-        default=2.0,
-        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
-        "Default is 2.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be able "
-        "to view annotation. Defaults to all of requesting user's groups.",
-    )
-
-
-class VizierQueryBody(BaseModel):
-    """Request body for posting Vizier cross-match annotations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog: str = Field(
-        default="VII/290",
-        description="The name of the catalog key, associated with a catalog cross "
-        "match, from which the data should be retrieved. Default is VII/290.",
-    )
-    crossmatchRadius: float | None = Field(
-        default=2.0,
-        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
-        "Default is 2.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be able "
-        "to view annotation. Defaults to all of requesting user's groups.",
-    )
-
-
-class DatalabQueryBody(BaseModel):
-    """Request body for posting Datalab cross-match annotations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog: str = Field(
-        default="ls_dr10",
-        description="The name of the catalog key, associated with a catalog cross "
-        "match, from which the photoz data should be retrieved. Default is ls_dr10.",
-    )
-    crossmatchRadius: float | None = Field(
-        default=2.0,
-        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
-        "Default is 2.",
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="List of group IDs corresponding to which groups should be able "
-        "to view annotation. Defaults to all of requesting user's groups.",
-    )
-
-
-class PS1QueryBody(BaseModel):
-    """Request body for posting PS1 cross-match annotations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog: str = Field(
-        default="ps1.dr2",
-        description="The name of the catalog key, used when posting annotations. "
-        "Default is ps1.dr2. This is not used for the query, which will always query "
-        "DR2.",
-    )
-    crossmatchRadius: float | None = Field(
-        default=2.0,
-        description="Crossmatch radius (in arcseconds) to retrieve PS1 sources. "
-        "Default is 2.",
-    )
-    crossmatchMinDetections: int | None = Field(
-        default=1,
-        description="Crossmatch minimum number of detections to retrieve PS1 "
-        "sources. Default is 1.",
-    )
-    crossmatchNumber: int | None = Field(
-        default=5,
-        description="Crossmatch number of sources (maximum) to retrieve from PS1. "
-        "Default is 1, max is 5.",
     )
     group_ids: list[int] | None = Field(
         default=None,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SpatialCatalogEntryResponse(BaseModel):
@@ -43,3 +43,46 @@ class SpatialCatalogResponse(BaseModel):
     catalog_name: str | None = None
     entries: list[SpatialCatalogEntryResponse] | None = None
     entries_count: int | None = None
+
+
+class SpatialCatalogGetQuery(BaseModel):
+    """Query parameters for retrieving spatial catalogs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(
+        default=None,
+        description="Name of the catalog being looked up, reported back in the not-found error message.",
+    )
+
+
+class SpatialCatalogPostBody(BaseModel):
+    """Request body for ingesting a spatial catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: Any = Field(default=None, description="Spatial catalog name.")
+    catalog_data: Any = Field(default=None, description="Spatial catalog data")
+
+
+class SpatialCatalogPostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")
+
+
+class SpatialCatalogASCIIFilePostBody(BaseModel):
+    """Request body for uploading a spatial catalog from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalogData: str | None = Field(
+        default=None, description="Catalog data Ascii string"
+    )
+    catalogName: str | None = Field(default=None, description="Spatial catalog name.")
+
+
+class SpatialCatalogASCIIFilePostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")

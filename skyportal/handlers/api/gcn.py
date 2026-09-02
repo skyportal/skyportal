@@ -11,7 +11,7 @@ import os
 import tempfile
 import traceback
 from datetime import timedelta
-from typing import Annotated, ClassVar
+from typing import Annotated
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -34,6 +34,35 @@ from marshmallow import Schema, validate
 from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Integer
 from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.galaxies import MAX_GALAXIES
+from skyportal_py_models.gcn_events import (
+    MAX_GCNEVENTS,
+    DefaultGcnTagPostBody,
+    DefaultGcnTagPostResponse,
+    GcnEventAliasDeleteBody,
+    GcnEventAliasPostBody,
+    GcnEventAssociationsGetQuery,
+    GcnEventGetQuery,
+    GcnEventInstrumentFieldGetQuery,
+    GcnEventPostBody,
+    GcnEventPostResponse,
+    GcnEventTagDeleteBody,
+    GcnEventTagPostBody,
+    GcnEventTagPostResponse,
+    GcnEventTriggerPutBody,
+    GcnEventUserPostBody,
+    GcnReportPatchBody,
+    GcnReportPostBody,
+    GcnReportPostResponse,
+    GcnSummaryPatchBody,
+    GcnSummaryPostBody,
+    GcnSummaryPostResponse,
+    LocalizationCrossmatchGetQuery,
+    LocalizationGetQuery,
+    ObjGcnEventPostBody,
+)
+from skyportal_py_models.healpix import MAX_SOURCES_PER_PAGE
+from skyportal_py_models.observations import MAX_OBSERVATIONS
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     joinedload,
@@ -121,26 +150,17 @@ from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
-from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
+from .galaxy import get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
-from .observation import MAX_OBSERVATIONS, get_observations
+from .observation import get_observations
 from .observation_plan import post_observation_plan
-from .source import (
-    MAX_SOURCES_PER_PAGE,
-    get_source,
-    get_sources,
-    post_source,
-    post_source_async,
-    serialize,
-)
+from .source import get_source, get_sources, post_source, post_source_async, serialize
 
 log = make_log("api/gcn_event")
 
 env, cfg = load_env()
 
 Session = scoped_session(sessionmaker())
-
-MAX_GCNEVENTS = 1000
 
 op_options = [
     "lt",
@@ -213,266 +233,6 @@ async def resolve_gcnevent_groups(session, user, group_ids=None):
             "Sitewide public group not found; cannot determine GCN event access"
         )
     return [public_group]
-
-
-class GcnEventAliasPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    alias: str | None = Field(default=None, description="Alias to add to the event")
-
-
-class GcnEventAliasDeleteBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    alias: str | None = Field(
-        default=None, description="Alias to remove from the event"
-    )
-
-
-class GcnEventTagPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    dateobs: str | None = Field(default=None, description="UTC event timestamp")
-    text: str | None = Field(default=None, description="GCN Event tag")
-
-
-class GcnEventTagPostResponse(BaseModel):
-    gcntag_id: int = Field(description="New GcnEvent Tag ID")
-
-
-class GcnEventTagDeleteBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    tag: str | None = Field(default=None, description="Tag to remove from the event")
-
-
-class GcnEventPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    xml: str | None = Field(default=None, description="VOEvent XML content.")
-    json_notice: str | dict | None = Field(
-        default=None, alias="json", description="JSON notice content."
-    )
-    dateobs: str | None = Field(default=None, description="UTC event timestamp")
-    trigger_id: str | int | None = Field(
-        default=None, description="Trigger ID of the event, if any"
-    )
-    aliases: list[str] | None = Field(default=None, description="Event aliases")
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="Groups the event is readable by. Defaults to the sitewide "
-        "public group.",
-    )
-    tags: list[str] | None = Field(default=None, description="Event tags")
-    properties: dict | None = Field(default=None, description="Event properties")
-    skymap: dict | str | None = Field(
-        default=None,
-        description="Localization skymap: a dict (cone/ellipse/polygon/healpix), "
-        "a base64/bytes string, or a URL.",
-    )
-
-
-class GcnEventPostResponse(BaseModel):
-    gcnevent_id: int | None = Field(description="New GcnEvent ID")
-    dateobs: str | None = Field(description="UTC event timestamp of the event")
-    notice_id: int | None = Field(description="ID of the created GCN notice, if any")
-
-
-class GcnEventUserPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    userID: int | None = Field(
-        default=None, description="ID of the user to add as advocate"
-    )
-
-
-class GcnSummaryPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: str | None = Field(default=None, description="Title of the summary")
-    number: str | int | None = Field(default=None, description="GCN circular number")
-    subject: str | None = Field(default=None, description="Subject of the summary")
-    userIds: list[int] | int | None = Field(
-        default=None,
-        description="User ids to mention in the summary. Comma-separated.",
-    )
-    groupId: int | None = Field(
-        default=None, description="id of the group that creates the summary."
-    )
-    startDate: str | None = Field(default=None, description="Filter by start date")
-    endDate: str | None = Field(default=None, description="Filter by end date")
-    localizationName: str | None = Field(
-        default=None, description="Name of localization / skymap to use."
-    )
-    localizationCumprob: float = Field(
-        default=0.95,
-        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
-    )
-    numberDetections: int | None = Field(
-        default=2,
-        description="Return only sources who have at least numberDetections detections. Defaults to 2.",
-    )
-    numberObservations: int | None = Field(
-        default=1,
-        description="Return only sources with at least this many observations. Defaults to 1.",
-    )
-    showSources: bool = Field(default=False, description="Show sources in the summary")
-    showGalaxies: bool = Field(
-        default=False, description="Show galaxies in the summary"
-    )
-    showObservations: bool = Field(
-        default=False, description="Show observations in the summary"
-    )
-    noText: bool = Field(
-        default=False, description="Do not include text in the summary, only tables."
-    )
-    photometryInWindow: bool = Field(
-        default=False,
-        description="Limit photometry to that within startDate and endDate.",
-    )
-    statsMethod: str = Field(
-        default="python",
-        description="Method to use for calculating statistics. Defaults to python. Options are python and db.",
-    )
-    instrumentIds: list[int] | None = Field(
-        default=None,
-        description="List of instrument ids to include in the summary. Defaults to all instruments if not specified.",
-    )
-    acknowledgements: str | None = Field(
-        default=None, description="Acknowledgements to include in the summary."
-    )
-
-
-class GcnSummaryPostResponse(BaseModel):
-    id: int = Field(description="ID of the created GCN summary")
-
-
-class GcnSummaryPatchBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    body: str | None = Field(default=None, description="Updated summary text")
-
-
-class GcnReportPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    reportName: str | None = Field(default=None, description="Name of the report")
-    groupId: int | None = Field(
-        default=None, description="id of the group that creates the report."
-    )
-    startDate: str | None = Field(default=None, description="Filter by start date")
-    endDate: str | None = Field(default=None, description="Filter by end date")
-    localizationName: str | None = Field(
-        default=None, description="Name of localization / skymap to use."
-    )
-    localizationCumprob: float = Field(
-        default=0.95,
-        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
-    )
-    numberDetections: int | None = Field(
-        default=2,
-        description="Return only sources who have at least numberDetections detections. Defaults to 2.",
-    )
-    showSources: bool = Field(default=False, description="Show sources in the report")
-    showObservations: bool = Field(
-        default=False, description="Show observations in the report"
-    )
-    showSurveyEfficiencies: bool = Field(
-        default=False, description="Show survey efficiencies in the report"
-    )
-    photometryInWindow: bool = Field(
-        default=False,
-        description="Limit photometry to that within startDate and endDate.",
-    )
-    statsMethod: str = Field(
-        default="python",
-        description="Method to use for calculating statistics. Defaults to python. Options are python and db.",
-    )
-    instrumentIds: list[int] | None = Field(
-        default=None,
-        description="List of instrument ids to include in the report. Defaults to all instruments if not specified.",
-    )
-
-
-class GcnReportPatchBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    data: dict | None = Field(
-        default=None, description="Report data (e.g. sources) to update"
-    )
-    published: bool | None = Field(
-        default=None, description="Whether the report is published"
-    )
-
-
-class GcnEventTriggerPutBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    triggered: bool | str | None = Field(
-        default=None,
-        description="Triggered status of the allocation for this event",
-    )
-
-
-class ObjGcnEventPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    startDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). "
-        "If provided, filter by GcnEvent.dateobs >= startDate.",
-    )
-    endDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). "
-        "If provided, filter by GcnEvent.dateobs <= endDate.",
-    )
-    probability: float | None = Field(
-        default=None,
-        description="Integrated probability contour to crossmatch within (default 0.95).",
-    )
-    beforeFirstDetection: bool = Field(
-        default=False,
-        description="If true, only crossmatch GCN events at or before the source's "
-        "first detection.",
-    )
-    gcnTagKeep: list[str] | str | None = Field(
-        default=None, description="Only crossmatch events having any of these GCN tags."
-    )
-    gcnTagRemove: list[str] | str | None = Field(
-        default=None, description="Exclude events having any of these GCN tags."
-    )
-    localizationTagKeep: list[str] | str | None = Field(
-        default=None,
-        description="Only crossmatch events with a localization having any of these tags.",
-    )
-    localizationTagRemove: list[str] | str | None = Field(
-        default=None,
-        description="Exclude events with a localization having any of these tags.",
-    )
-    gcnPropertiesFilter: list[str] | str | None = Field(
-        default=None,
-        description='GCN property filters, each "name" or "name:value:op" '
-        "(op in lt,le,eq,ne,ge,gt).",
-    )
-    localizationPropertiesFilter: list[str] | str | None = Field(
-        default=None,
-        description="Localization property filters, same format as gcnPropertiesFilter.",
-    )
-
-
-class DefaultGcnTagPostBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    default_tag_name: str | None = Field(default=None, description="Default tag name.")
-    filters: dict | None = Field(
-        default=None,
-        description="Filters to determine which of the default gcn tags get executed for which events",
-    )
-
-
-class DefaultGcnTagPostResponse(BaseModel):
-    id: int = Field(description="New default gcn tag ID")
 
 
 async def post_gcn_source(
@@ -1352,35 +1112,6 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
     return dateobs, event.id
 
 
-class GcnEventAssociationsGetQuery(BaseModel):
-    """Query parameters for reading an event's associations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset(
-        {"minConsistency", "maxDays", "includeRejected"}
-    )
-
-    minConsistency: float | None = Field(
-        default=None,
-        description=(
-            "Minimum sky-map consistency, 0 to 1. Defaults to your rule for "
-            "this pair of messengers."
-        ),
-    )
-    maxDays: float | None = Field(
-        default=None,
-        description=(
-            "Maximum separation in days. Defaults to the configured window for "
-            "the detector pair: a neutrino-GW coincidence is judged on seconds, "
-            "a GRB-GW one on minutes."
-        ),
-    )
-    includeRejected: bool = Field(
-        default=False, description="Include associations already rejected."
-    )
-
-
 class GcnEventAssociationPatch(BaseModel):
     """Body for ruling on an association."""
 
@@ -2184,98 +1915,6 @@ class GcnEventCatalogQueryHandler(BaseHandler):
             queries = result.all()
 
             return self.success(data=queries)
-
-
-class GcnEventGetQuery(BaseModel):
-    """Query parameters for retrieving GCN events."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset({"excludeNoticeContent"})
-
-    startDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs >= startDate",
-    )
-    endDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by dateobs <= endDate",
-    )
-    partialdateobs: str | None = Field(
-        default=None,
-        description=(
-            "Partial dateobs string (or alias substring) to filter events whose "
-            "dateobs starts with the given value or whose aliases contain it."
-        ),
-    )
-    gcnTagKeep: list[str] | None = Field(
-        default=None,
-        description="Comma-separated string of `GcnTag`s. Returns events that match any of them.",
-    )
-    gcnTagRemove: list[str] | None = Field(
-        default=None,
-        description="Comma-separated string of `GcnTag`s. Returns events that do not have any of these tags.",
-    )
-    localizationTagKeep: list[str] | None = Field(
-        default=None,
-        description="Comma-separated string of `LocalizationTag`s. Returns events that match any of them.",
-    )
-    localizationTagRemove: list[str] | None = Field(
-        default=None,
-        description="Comma-separated string of `LocalizationTag`s. Returns events that do not have any of these tags.",
-    )
-    gcnPropertiesFilter: list[str] | None = Field(
-        default=None,
-        description=(
-            'Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for events matching '
-            'that/those property(ies), i.e. "BNS" or "BNS: 0.5: lt"'
-        ),
-    )
-    localizationPropertiesFilter: list[str] | None = Field(
-        default=None,
-        description=(
-            'Comma-separated string of "property: value: operator" single(s) or triplet(s) to filter for event localizations matching '
-            'that/those property(ies), i.e. "area_90" or "area_90: 500: lt"'
-        ),
-    )
-    numPerPage: int = Field(
-        default=10,
-        description=(
-            "Number of GCN events to return per paginated request. "
-            f"Defaults to 10. Can be no larger than {MAX_GCNEVENTS}."
-        ),
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
-    sortBy: str | None = Field(
-        default=None,
-        description='Field to sort by. Currently only "dateobs" is supported.',
-    )
-    sortOrder: str = Field(
-        default="asc",
-        description='Sort order, "asc" or "desc". Defaults to "asc".',
-    )
-    excludeNoticeContent: bool = Field(
-        default=False,
-        description="If true, do not include the notice content in the response. Defaults to false.",
-    )
-    # comma-separated: the handler owns the split and its error message
-    groupIds: str | None = Field(
-        default=None,
-        description=(
-            "Comma-separated string of group IDs. If provided, only return events "
-            "shared with those groups."
-        ),
-    )
-    mmadetectorIds: list[int] | None = Field(
-        default=None,
-        description=(
-            "Comma-separated string of `MMADetector` IDs. Returns events any of "
-            "them contributed to."
-        ),
-    )
 
 
 class GcnEventHandler(BaseHandler):
@@ -3504,17 +3143,6 @@ def add_tiles_properties_contour_and_obsplan(
         if parent_session is None:
             session.close()
             Session.remove()
-
-
-class LocalizationGetQuery(BaseModel):
-    """Query parameters for retrieving a GCN localization."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    include2DMap: bool = Field(
-        default=False,
-        description="Boolean indicating whether to include flatted skymap. Defaults to false.",
-    )
 
 
 class LocalizationHandler(BaseHandler):
@@ -5091,12 +4719,6 @@ def add_gcn_report(
         Session.remove()
 
 
-class GcnReportPostResponse(BaseModel):
-    """ID of the created GCN report."""
-
-    id: int = Field(description="ID of the created GCN report")
-
-
 class GcnReportHandler(BaseHandler):
     @auth_or_token
     async def post(
@@ -5609,15 +5231,6 @@ class LocalizationDownloadHandler(BaseHandler):
                         pass
 
 
-class LocalizationCrossmatchGetQuery(BaseModel):
-    """Query parameters for crossmatching two localizations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    id1: int = Field(description="ID of the first localization.")
-    id2: int = Field(description="ID of the second localization.")
-
-
 class LocalizationCrossmatchHandler(BaseHandler):
     @auth_or_token
     async def get(self, *, query: LocalizationCrossmatchGetQuery = None):
@@ -5710,19 +5323,6 @@ class LocalizationCrossmatchHandler(BaseHandler):
                         os.remove(f)
                     except:  # noqa E722
                         pass
-
-
-class GcnEventInstrumentFieldGetQuery(BaseModel):
-    """Query parameters for instrument field probabilities for a skymap."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    localization_name: str | None = Field(
-        default=None, description="Localization map name"
-    )
-    integrated_probability: float = Field(
-        default=0.95, description="Cumulative integrated probability threshold"
-    )
 
 
 class GcnEventInstrumentFieldHandler(BaseHandler):

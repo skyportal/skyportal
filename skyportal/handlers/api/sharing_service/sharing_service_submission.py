@@ -1,7 +1,11 @@
-from typing import Annotated, Any, ClassVar
+from typing import Annotated
 
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sharing_services import (
+    SharingServiceSubmissionGetQuery,
+    SharingServiceSubmissionPostBody,
+)
 from sqlalchemy.orm import joinedload, undefer
 
 from baselayer.app.access import auth_or_token
@@ -27,82 +31,6 @@ is_configured = (
     and cfg.get("app.hermes.topic")
     and cfg.get("app.hermes.token")
 )
-
-
-class SharingServiceSubmissionGetQuery(BaseModel):
-    """Query parameters for retrieving sharing service submissions."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset({"sharing_service_id"})
-
-    sharing_service_id: int = Field(
-        description=(
-            "The ID of the external sharing service to which the submissions belong"
-        ),
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="The page number to retrieve, starting at 1",
-    )
-    numPerPage: int = Field(
-        default=100,
-        description="The number of results per page, defaults to 100",
-    )
-    include_payload: bool = Field(
-        default=False,
-        description="Whether to include the payload in the response",
-    )
-    include_response: bool = Field(
-        default=False,
-        description="Whether to include the response in the response",
-    )
-    objectID: str | None = Field(
-        default=None,
-        description="The object ID of the submission",
-    )
-
-
-class SharingServiceSubmissionPostBody(BaseModel):
-    """Request body for publishing an Obj to TNS or Hermes via a sharing service."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    obj_id: str | None = Field(default=None, description="ID of the object to publish")
-    sharing_service_id: int | None = Field(
-        default=None,
-        description="ID of the external sharing service to use for submission",
-    )
-    publishers: str | None = Field(
-        default="", description="Custom string for publishers"
-    )
-    remarks: str | None = Field(default="", description="Custom remarks string")
-    archival: bool | None = Field(
-        default=False, description="Flag to indicate if the source is archival"
-    )
-    archival_comment: str | None = Field(
-        default="",
-        description="Comment for archival sources (required if archival is True)",
-    )
-    instrument_ids: list[int] | None = Field(
-        default_factory=list,
-        description="List of instrument IDs to associate with the submission",
-    )
-    stream_ids: list[int] | None = Field(
-        default_factory=list,
-        description="List of stream IDs to associate with the submission",
-    )
-    photometry_options: dict[str, Any] | None = Field(
-        default_factory=dict, description="Options for photometry processing"
-    )
-    publish_to_tns: bool | None = Field(
-        default=False,
-        description="Flag to indicate if the submission should be published to TNS",
-    )
-    publish_to_hermes: bool | None = Field(
-        default=False,
-        description="Flag to indicate if the submission should be published to Hermes",
-    )
 
 
 class SharingServiceSubmissionHandler(BaseHandler):

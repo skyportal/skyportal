@@ -1,11 +1,13 @@
 import json
 import operator  # noqa: F401
-from typing import Any
 
 import joblib
 import numpy as np
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.public_pages import (
+    PublicSourcePagePostBody,
+    PublicSourcePagePostResponse,
+)
 from sqlalchemy import not_, or_
 
 from baselayer.app.access import auth_or_token, permissions
@@ -255,26 +257,6 @@ def delete_auto_published_page(source_id, remaining_group_ids):
             )
 
         session.commit()
-
-
-class PublicSourcePagePostBody(BaseModel):
-    """Request body for creating a public page for a source."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    options: dict[str, Any] | None = Field(
-        default=None, description="Options to manage data to display publicly"
-    )
-    release_id: Any = Field(
-        default=None,
-        description="The ID of the public release where the public source page belongs",
-    )
-
-
-class PublicSourcePagePostResponse(BaseModel):
-    """ID of the newly created public source page."""
-
-    id: int = Field(description="Public source page ID")
 
 
 class PublicSourcePageHandler(BaseHandler):

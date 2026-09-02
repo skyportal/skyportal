@@ -4,7 +4,8 @@ from typing import Annotated
 import astropy.units as u
 import sqlalchemy as sa
 from astropy.time import Time
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.candidates import ScanReportItemPatchBody
 from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
@@ -689,14 +690,6 @@ async def create_scan_report_items(
             )
         )
     return items
-
-
-class ScanReportItemPatchBody(BaseModel):
-    """Request body for updating a scanning report item."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    comment: str | None = Field(default=None, description="Comment on the report item")
 
 
 class ScanReportItemHandler(BaseHandler):

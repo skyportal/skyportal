@@ -35,3 +35,14 @@ class SysInfoResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     gitlog: list[GitLogEntryResponse] = Field(default_factory=list)
+
+
+class LogPostBody(BaseModel):
+    """Request body for logging a frontend error."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    error: str | None = Field(default=None, description="Error message to log")
+    stack: str | None = Field(
+        default=None, description="Component stack trace of the error"
+    )

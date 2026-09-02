@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.tokens import TokenPostBody, TokenPostResponse, TokenPutBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -6,40 +6,6 @@ from baselayer.app.access import auth_or_token
 from ....model_util import create_token
 from ....models import ACL, Token, User
 from ...base import BaseHandler
-
-
-class TokenPostBody(BaseModel):
-    """Request body for creating a new API token."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(description="Name of the token")
-    acls: list[str] = Field(description="List of ACL IDs to grant the token")
-    user_id: int | None = Field(
-        default=None,
-        description="ID of the user to create the token for; defaults to the requesting user",
-    )
-
-
-class TokenPostResponse(BaseModel):
-    """ID of the newly created token."""
-
-    token_id: str = Field(description="Token ID")
-
-
-class TokenPutBody(BaseModel):
-    """Request body for updating a token."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = Field(default=None, description="New name of the token")
-    acls: list[str] | None = Field(
-        default=None, description="New list of ACL IDs for the token"
-    )
-    user_id: int | None = Field(
-        default=None,
-        description="ID of the user whose permissions the new ACLs are checked against; defaults to the requesting user",
-    )
 
 
 class TokenHandler(BaseHandler):

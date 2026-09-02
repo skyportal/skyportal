@@ -1,20 +1,10 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.acls import UserACLPostBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import ACL, User, UserACL
 from ..base import BaseHandler
-
-
-class UserACLPostBody(BaseModel):
-    """Request body for granting ACLs to a user."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    aclIds: list[str] = Field(
-        description="Array of ACL IDs (strings) to be granted to user"
-    )
 
 
 class ACLHandler(BaseHandler):

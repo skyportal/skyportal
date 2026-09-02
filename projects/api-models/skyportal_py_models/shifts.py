@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -128,3 +128,142 @@ class ShiftSummaryReportResponse(BaseModel):
 
     shifts: ShiftSummarySectionResponse | None = None
     gcns: ShiftSummarySectionResponse | None = None
+
+
+class ShiftPost(BaseModel):
+    """Payload for creating a new shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    start_date: str
+    end_date: str
+    group_id: int
+    description: str | None = None
+    required_users_number: int | None = None
+    shift_admins: list[int] | None = None
+
+
+class ShiftGetQuery(BaseModel):
+    """Query parameters for retrieving shifts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset()
+
+    group_id: int | None = Field(
+        default=None,
+        description="Filter shifts by group ID",
+    )
+    start_date_limit: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string. Return shifts that start after or at this datetime",
+    )
+    end_date_limit: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string. Return shifts that end after or at this datetime",
+    )
+
+
+class ShiftPostBody(BaseModel):
+    """Request body for creating a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the shift.")
+    group_id: int = Field(description="ID of the Shift's Group.")
+    start_date: str = Field(description="The start time of this shift.")
+    end_date: str = Field(description="The end time of this shift.")
+    description: str | None = Field(
+        default=None, description="Longer description of the shift."
+    )
+    required_users_number: int | None = Field(
+        default=None,
+        description="The number of users required to join this shift for it to "
+        "be considered full.",
+    )
+    shift_admins: list[int] | None = Field(
+        default=None, description="List of IDs of users to be shift admins."
+    )
+
+
+class ShiftPostResponse(BaseModel):
+    """Data payload returned when creating a shift."""
+
+    id: int = Field(description="New Shift ID")
+
+
+class ShiftPatchBody(BaseModel):
+    """Request body for updating a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the shift.")
+    description: str | None = Field(
+        default=None, description="Longer description of the shift."
+    )
+    required_users_number: int | None = Field(
+        default=None,
+        description="The number of users required to join this shift for it to "
+        "be considered full.",
+    )
+
+
+class ShiftUserPostBody(BaseModel):
+    """Request body for adding a user to a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    userID: int = Field(description="ID of the user to add to the shift.")
+    admin: bool = Field(
+        default=False,
+        description="Boolean indicating whether user is shift admin.",
+    )
+    needs_replacement: bool = Field(
+        default=False,
+        description="Boolean indicating whether user needs replacement or not.",
+    )
+
+
+class ShiftUserPostResponse(BaseModel):
+    """Data payload returned when adding a user to a shift."""
+
+    shift_id: int = Field(description="Shift ID")
+    user_id: int = Field(description="User ID")
+    admin: bool = Field(description="Boolean indicating whether user is shift admin")
+
+
+class ShiftUserPatchBody(BaseModel):
+    """Request body for updating a shift user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    admin: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user is shift admin.",
+    )
+    needs_replacement: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user needs replacement or not.",
+    )
+
+
+class ShiftSummaryGetQuery(BaseModel):
+    """Query parameters for summarizing shift activity."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "shift.start_date >= startDate"
+        ),
+    )
+    endDate: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
+            "shift.start_date <= endDate"
+        ),
+    )

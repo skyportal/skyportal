@@ -1,25 +1,10 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.followup_requests import PhotometryRequestGetQuery
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
 from ...models import FollowupRequest
 from ..base import BaseHandler
-
-
-class PhotometryRequestGetQuery(BaseModel):
-    """Query parameters for retrieving a photometry request."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page once the request is retrieved. Defaults to true.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up request lists once the request is retrieved. Defaults to false.",
-    )
 
 
 class PhotometryRequestHandler(BaseHandler):

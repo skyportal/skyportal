@@ -1,11 +1,10 @@
 from copy import deepcopy
-from typing import Any
 
 import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.profile import ProfilePatchBody
 from slugify import slugify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -23,39 +22,6 @@ from ....models import (
     User,
 )
 from ...base import BaseHandler
-
-
-class ProfilePatchBody(BaseModel):
-    """Request body for updating a user's profile and preferences."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    username: str | None = Field(default=None, description="User's preferred user name")
-    first_name: str | None = Field(
-        default=None, description="User's preferred first name"
-    )
-    last_name: str | None = Field(
-        default=None, description="User's preferred last name"
-    )
-    affiliations: list[str] | None = Field(
-        default=None, description="User's list of affiliations"
-    )
-    contact_email: str | None = Field(
-        default=None, description="User's preferred email address"
-    )
-    contact_phone: str | None = Field(
-        default=None, description="User's preferred (international) phone number"
-    )
-    bio: str | None = Field(
-        default=None, description="User's biography, or a short description of the user"
-    )
-    is_bot: bool | None = Field(
-        default=None,
-        description="Whether or not the user account should be flagged as a bot account",
-    )
-    preferences: dict[str, Any] | None = Field(
-        default=None, description="JSON describing updates to user preferences dict"
-    )
 
 
 class ProfileHandler(BaseHandler):

@@ -18,3 +18,13 @@ class RoleResponse(BaseModel):
     created_at: datetime | None = None
     modified: datetime | None = None
     acls: list[str] = Field(default_factory=list)
+
+
+class UserRolePostBody(BaseModel):
+    """Request body for granting roles to a user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    roleIds: list[str] = Field(
+        description="Array of Role IDs (strings) to be granted to user"
+    )
