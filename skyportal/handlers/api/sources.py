@@ -320,6 +320,62 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
     )"""
 
 
+async def _annotation_filter_hint(session, annotations_filter, origins):
+    """Why an annotation filter matched nothing, in terms of what is stored.
+
+    An empty result reads the same whether the sky is empty or the field name is
+    wrong, and the second is far more common: these fields are often nested one
+    level down, keyed by the thing they describe. Naming the keys that do exist
+    turns a silent zero into something the caller can act on.
+    """
+    if not annotations_filter:
+        return None
+    names = []
+    entries = (
+        annotations_filter
+        if isinstance(annotations_filter, list)
+        else [annotations_filter]
+    )
+    for entry in entries:
+        head = str(entry).split(":")[0].strip()
+        if head:
+            names.append(head)
+    if not names:
+        return None
+
+    where, params = "true", {}
+    if origins:
+        where = "lower(a.origin) = ANY(:origins)"
+        params["origins"] = [str(o).lower() for o in origins]
+    rows = (
+        await session.execute(
+            sa.text(f"SELECT a.data FROM annotations a WHERE {where} LIMIT 200"),
+            params,
+        )
+    ).all()
+    if not rows:
+        return f"No annotation exists for origin(s) {sorted(origins or [])}."
+
+    top, nested = set(), set()
+    for (data,) in rows:
+        if not isinstance(data, dict):
+            continue
+        top.update(data.keys())
+        for value in data.values():
+            if isinstance(value, dict):
+                nested.update(value.keys())
+    missing = [n for n in names if n not in top and n not in nested]
+    if not missing:
+        return None
+    where_found = (
+        "nested one level down, keyed per event" if nested else "at the top level"
+    )
+    return (
+        f"No annotation carries {missing}. Fields present are {where_found}: "
+        f"{sorted(nested or top)[:12]}."
+    )
+
+
 def create_annotation_query(
     annotations_filter,
     annotations_filter_origin,
@@ -1939,6 +1995,12 @@ async def get_sources(
             sources, total_matches = [], len(all_source_ids)
 
             data["totalMatches"] = total_matches
+            if total_matches == 0:
+                hint = await _annotation_filter_hint(
+                    session, annotations_filter, annotations_filter_origin
+                )
+                if hint:
+                    data["hint"] = hint
             if start > total_matches:
                 return data
             if end > total_matches:
@@ -2248,6 +2310,12 @@ async def get_sources(
 
             objs, total_matches = [], len(all_obj_ids)
             data["totalMatches"] = total_matches
+            if total_matches == 0:
+                hint = await _annotation_filter_hint(
+                    session, annotations_filter, annotations_filter_origin
+                )
+                if hint:
+                    data["hint"] = hint
             if start > total_matches:
                 return data
             if end > total_matches:
