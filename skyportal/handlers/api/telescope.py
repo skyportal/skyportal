@@ -152,9 +152,6 @@ class TelescopeHandler(BaseHandler):
                     return self.error(
                         "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
                     )
-            # telescopes.name is unique, so without this the insert raises an
-            # IntegrityError: a 500 and a Sentry alert for what is a user typing
-            # a name that is already taken. InstrumentHandler checks the same way.
             existing_telescope = await session.scalar(
                 Telescope.select(session.user_or_token).where(
                     Telescope.name == body.name,
