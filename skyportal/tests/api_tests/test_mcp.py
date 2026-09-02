@@ -116,6 +116,11 @@ def test_mcp_tools_list(view_only_token):
         "get_spectra",
         "post_spectrum",
         "analyze_light_curve",
+        "get_gcn_events",
+        "get_gcn_event",
+        "get_gcn_event_extractions",
+        "get_gcn_event_comments",
+        "post_gcn_event_comment",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
@@ -514,3 +519,60 @@ def test_mcp_api_errors_become_tool_errors(view_only_token, upload_data_token):
         view_only_token,
     )
     assert is_error, text
+
+
+# ─── GCN event tools ────────────────────────────────────────────────────────
+
+
+def _call(name, args, token):
+    return mcp("tools/call", {"name": name, "arguments": args}, token=token)
+
+
+def test_mcp_get_gcn_event(gcn_GW190814, view_only_token):
+    status, data = _call(
+        "get_gcn_event", {"dateobs": gcn_GW190814.dateobs.isoformat()}, view_only_token
+    )
+    assert status == 200, data
+    event = data["result"]["structuredContent"]
+    assert event["dateobs"].startswith("2019-08-14")
+    assert "LVC#S190814bv" in event["aliases"]
+
+
+def test_mcp_get_gcn_events_by_alias(gcn_GW190814, view_only_token):
+    """The name a circular uses resolves the event, via the alias substring."""
+    status, data = _call(
+        "get_gcn_events", {"partialdateobs": "S190814bv"}, view_only_token
+    )
+    assert status == 200, data
+    events = data["result"]["structuredContent"]["events"]
+    assert any(e["dateobs"].startswith("2019-08-14") for e in events)
+
+
+def test_mcp_gcn_extractions_are_empty_before_any_are_written(
+    gcn_GW190814, view_only_token
+):
+    status, data = _call(
+        "get_gcn_event_extractions",
+        {"dateobs": gcn_GW190814.dateobs.isoformat()},
+        view_only_token,
+    )
+    assert status == 200, data
+    assert data["result"]["structuredContent"] == []
+
+
+def test_mcp_gcn_comment_round_trip(gcn_GW190814, super_admin_token):
+    """Comments are the discussion on an event, so an assistant can reply there."""
+    dateobs = gcn_GW190814.dateobs.isoformat()
+    status, data = _call(
+        "post_gcn_event_comment",
+        {"dateobs": dateobs, "text": "Follow-up requested."},
+        super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = _call(
+        "get_gcn_event_comments", {"dateobs": dateobs}, super_admin_token
+    )
+    assert status == 200, data
+    texts = [c["text"] for c in data["result"]["structuredContent"]]
+    assert "Follow-up requested." in texts

@@ -27,3 +27,21 @@ Tools run with that token's permissions.
 | `server/discover` | Supported protocol versions, capabilities, server identity |
 | `tools/list`      | Tool definitions with input schemas                       |
 | `tools/call`      | Invoke a tool                                             |
+
+## GCN events
+
+Five tools cover multi-messenger events, so an assistant can answer questions
+about a trigger and reply in the discussion on it.
+
+| Tool                        | Purpose                                            |
+| --------------------------- | -------------------------------------------------- |
+| `get_gcn_events`            | List or search events; `partialdateobs` matches a dateobs prefix or an alias |
+| `get_gcn_event`             | One event in full, including its GCN circulars      |
+| `get_gcn_event_extractions` | Structured data a pipeline extracted from the circulars |
+| `get_gcn_event_comments`    | The discussion on the event                         |
+| `post_gcn_event_comment`    | Reply in that discussion                            |
+
+`get_gcn_event_extractions` reads the `gcneventextractions` table, where any
+producer may store machine-readable values parsed out of an event's prose.
+`origin` names the producer and the payload is that producer's own shape, so
+filter by `origin` when you care which pipeline it came from.

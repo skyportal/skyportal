@@ -414,6 +414,87 @@ async def analyze_light_curve(handler, args):
     }
 
 
+@tool(
+    "get_gcn_events",
+    "List GCN events (gravitational-wave, GRB, neutrino and other multi-messenger "
+    "triggers). Filter by date range, or by name with partialdateobs, which "
+    "matches a dateobs prefix or any of the event's aliases.",
+    {
+        "partialdateobs": _prop(
+            "string",
+            "Match a dateobs prefix or an alias substring, e.g. 2026-06-04 or "
+            "S190814bv.",
+        ),
+        "startDate": _prop("string", "Only events at or after this UTC time."),
+        "endDate": _prop("string", "Only events at or before this UTC time."),
+        "gcnTagKeep": _prop(
+            "array", "Only events with these tags, e.g. GRB.", items={"type": "string"}
+        ),
+        "numPerPage": _prop("integer", "Events per page (default 10)."),
+        "pageNumber": _prop("integer", "1-indexed page."),
+    },
+    passthrough="GET /api/gcn_event",
+)
+async def get_gcn_events(handler, args):
+    return await handler.api("GET", "/api/gcn_event", query=args)
+
+
+@tool(
+    "get_gcn_event",
+    "One GCN event in full: its aliases, tags, notices, localizations, and the "
+    "GCN circulars associated with it. Use this to find what has been reported "
+    "about an event.",
+    {"dateobs": _prop("string", "The event's dateobs, e.g. 2026-06-04T20:20:37.")},
+    required=("dateobs",),
+)
+async def get_gcn_event(handler, args):
+    return await handler.api("GET", f"/api/gcn_event/{args['dateobs']}")
+
+
+@tool(
+    "get_gcn_event_extractions",
+    "Structured data extracted from a GCN event's circulars by a pipeline "
+    "(photometry, redshift, classification and the like). Unlike the circular "
+    "text, these are machine-readable values. Filter by origin to select one "
+    "producer, or by circularId for a single circular.",
+    {
+        "dateobs": _prop("string", "The event's dateobs."),
+        "origin": _prop("string", "Only extractions from this producer, e.g. circex."),
+        "circularId": _prop("integer", "Only extractions from this GCN circular."),
+    },
+    required=("dateobs",),
+)
+async def get_gcn_event_extractions(handler, args):
+    dateobs = args.pop("dateobs")
+    return await handler.api("GET", f"/api/gcn_event/{dateobs}/extractions", query=args)
+
+
+@tool(
+    "get_gcn_event_comments",
+    "The discussion on a GCN event. Comments are how people talk about an event "
+    "in SkyPortal.",
+    {"dateobs": _prop("string", "The event's dateobs.")},
+    required=("dateobs",),
+)
+async def get_gcn_event_comments(handler, args):
+    return await handler.api("GET", f"/api/gcn_event/{args['dateobs']}/comments")
+
+
+@tool(
+    "post_gcn_event_comment",
+    "Add a comment to a GCN event, to reply in the discussion on that event.",
+    {
+        "dateobs": _prop("string", "The event's dateobs."),
+        "text": _prop("string", "The comment body."),
+        "group_ids": _GROUP_IDS,
+    },
+    required=("dateobs", "text"),
+)
+async def post_gcn_event_comment(handler, args):
+    dateobs = args.pop("dateobs")
+    return await handler.api("POST", f"/api/gcn_event/{dateobs}/comments", body=args)
+
+
 def _encode_query(query):
     """Encode tool arguments the way the REST handlers parse them."""
     out = {}
