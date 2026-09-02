@@ -92,6 +92,7 @@ from .gcn import (
     GcnEventAliasesHandler,
     GcnEventAssociationsHandler,
     GcnEventCatalogQueryHandler,
+    GcnEventExtractionsHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventNoticeDownloadHandler,

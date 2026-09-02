@@ -244,6 +244,14 @@ mmadetector:
     fixed_location: false
     type: x-ray
     =id: EinsteinProbe
+  - name: SVOM
+    nickname: SVOM
+    aliases:
+      - SVOM
+      - ECLAIRs
+    fixed_location: false
+    type: gamma-ray-burst
+    =id: SVOM
 
 telescope:
   - name: Palomar 1.2m
@@ -380,6 +388,54 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: NICER
+  - diameter: 1.0
+    nickname: EP
+    name: Einstein Probe
+    skycam_link: null
+    fixed_location: false
+    =id: EP
+  - diameter: 1.0
+    nickname: SVOM
+    name: Space Variable Objects Monitor
+    skycam_link: null
+    fixed_location: false
+    =id: SVOMtel
+  - diameter: 1.0
+    nickname: Konus
+    name: Konus-Wind
+    skycam_link: null
+    fixed_location: false
+    =id: KonusWind
+  - diameter: 1.0
+    nickname: INTEGRAL
+    name: INTErnational Gamma-Ray Astrophysics Laboratory
+    skycam_link: null
+    fixed_location: false
+    =id: INTEGRAL
+  - diameter: 1.0
+    nickname: Fermi
+    name: Fermi Gamma-ray Space Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: Fermi
+  - diameter: 1.0
+    nickname: CALET
+    name: CALorimetric Electron Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: CALET
+  - diameter: 1.0
+    nickname: NuSTAR
+    name: Nuclear Spectroscopic Telescope Array
+    skycam_link: null
+    fixed_location: false
+    =id: NuSTAR
+  - diameter: 1.0
+    nickname: MAXI
+    name: Monitor of All-sky X-ray Image
+    skycam_link: null
+    fixed_location: false
+    =id: MAXI
   - diameter: 0.94
     nickname: Gaia
     name: Gaia
@@ -402,6 +458,14 @@ telescope:
     nickname: VLA
     skycam_link: null
     =id: VLA
+  - diameter: 22.0
+    elevation: 237.0
+    lat: -30.312778
+    lon: 149.550278
+    name: Australia Telescope Compact Array
+    nickname: ATCA
+    skycam_link: null
+    =id: ATCA
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -746,6 +810,102 @@ instrument:
     telescope_id: =NICER
     type: imaging spectrograph
     filters: ['nicerxti']
+  - band: X-ray
+    name: WXT
+    telescope_id: =EP
+    type: imager
+    filters: ['epwxt']
+    =id: WXT
+  - band: X-ray
+    name: FXT
+    telescope_id: =EP
+    type: imager
+    filters: ['epfxt']
+    =id: FXT
+  - band: X-ray
+    name: ECLAIRs
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomeclairs']
+    =id: ECLAIRs
+  - band: X-ray
+    name: MXT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svommxt']
+    =id: MXT
+  - band: X-ray
+    name: GRM
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomgrm']
+    =id: GRM
+  - band: optical
+    name: VT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ['svomvtb', 'svomvtr']
+    =id: VT
+  - band: X-ray
+    name: BAT
+    telescope_id: =Swift
+    type: imager
+    filters: ['swiftbat']
+    =id: BAT
+  - band: X-ray
+    name: GBM
+    telescope_id: =Fermi
+    type: imager
+    filters: ['fermigbm']
+    =id: GBM
+  - band: X-ray
+    name: LAT
+    telescope_id: =Fermi
+    type: imager
+    filters: ['fermilat']
+    =id: LAT
+  - band: X-ray
+    name: Konus
+    telescope_id: =KonusWind
+    type: imager
+    filters: ['konus']
+    =id: Konus
+  - band: X-ray
+    name: SPI-ACS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integralacs']
+    =id: SPIACS
+  - band: X-ray
+    name: IBIS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integralibis']
+    =id: IBIS
+  - band: X-ray
+    name: JEM-X
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ['integraljemx']
+    =id: JEMX
+  - band: X-ray
+    name: CGBM
+    telescope_id: =CALET
+    type: imager
+    filters: ['caletcgbm']
+    =id: CGBM
+  - band: X-ray
+    name: FPMA
+    telescope_id: =NuSTAR
+    type: imager
+    filters: ['nustar']
+    =id: FPMA
+  - band: X-ray
+    name: GSC
+    telescope_id: =MAXI
+    type: imager
+    filters: ['maxigsc']
+    =id: GSC
   - band: Optical
     name: Gaia
     =id: Gaia
@@ -765,6 +925,12 @@ instrument:
     type: imager
     filters: ['radio-0.34GHz', 'radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-15GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
     =id: VLA
+  - band: radio
+    name: ATCA
+    telescope_id: =ATCA
+    type: imager
+    filters: ['radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz', 'radio-93GHz', 'radio-95GHz']
+    =id: ATCA
   - band: optical
     name: KAIT
     telescope_id: =KAIT

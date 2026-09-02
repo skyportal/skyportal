@@ -5,6 +5,7 @@ __all__ = [
     "GcnEventCrossmatchState",
     "GcnEventUser",
     "GcnProperty",
+    "GcnEventExtraction",
     "GcnReport",
     "GcnSummary",
     "GcnTrigger",
@@ -538,6 +539,79 @@ class GcnProperty(Base):
     data = sa.Column(JSONB, doc="Event properties in JSON format.", index=True)
 
 
+class GcnEventExtraction(Base):
+    """Structured data extracted from an event's text, by any producer.
+
+    Circulars and notices carry their content as prose. A pipeline that parses
+    them into structured values stores the result here rather than only its
+    side effects, so the extraction stays queryable and attributable after the
+    photometry and comments it produced have been written.
+
+    `origin` names the producer and `data` holds whatever shape that producer
+    emits; nothing here assumes a particular schema.
+    """
+
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
+    update = delete = AccessibleIfUserMatches("sent_by") | CustomUserAccessControl(
+        gcn_update_delete_logic
+    )
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="extractions",
+        doc="The GcnEvent this extraction describes.",
+    )
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnEventExtraction.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcneventextractions",
+        doc="The user that saved this GcnEventExtraction",
+    )
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    circular_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        index=True,
+        doc="GCN circular the extraction came from, where it came from one. "
+        "Null for an extraction spanning several circulars or none.",
+    )
+
+    circular_created_at = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        index=True,
+        doc="When the source circular was published. Distinct from created_at, "
+        "which records when this row was written: a backfill of the archive "
+        "stamps every row at once, and only this column still orders them by "
+        "when the observation was reported. Null when unknown.",
+    )
+
+    origin = sa.Column(
+        sa.String,
+        nullable=False,
+        index=True,
+        doc="What produced this extraction, e.g. 'circex'.",
+    )
+
+    data = sa.Column(JSONB, nullable=False, doc="The extraction, in JSON format.")
+
+
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
@@ -630,6 +704,15 @@ class GcnEvent(Base):
         passive_deletes=True,
         order_by="GcnProperty.created_at",
         doc="Properties associated with this GCN event.",
+    )
+
+    extractions = relationship(
+        "GcnEventExtraction",
+        back_populates="gcnevent",
+        cascade="save-update, merge, refresh-expire, expunge, delete",
+        passive_deletes=True,
+        order_by="GcnEventExtraction.created_at",
+        doc="Structured extractions associated with this GCN event.",
     )
 
     reports = relationship(

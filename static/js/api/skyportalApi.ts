@@ -156,6 +156,7 @@ export const TAG_TYPES = [
   "NewsFeed",
   "Photometry",
   "RecentGcnEvent",
+  "RecentGcnExtraction",
   "SharingService",
   "SharingServiceSubmission",
   "PublicRelease",
