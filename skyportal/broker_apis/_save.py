@@ -545,9 +545,14 @@ async def _ingest_object(
     if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
         publish_to = ["TNS", "Hermes", "Public page"]
         for gid in saved_group_ids:
+            saver = user_by_id.get(group_saver_id.get(gid), user)
+            # The submission lookup underneath reads the session's actor instead
+            # of taking one, and ingestion runs on a plain session that carries
+            # none unless it is set here.
+            session.user_or_token = saver
             await auto_source_publishing_async(
                 session=session,
-                saver=user_by_id.get(group_saver_id.get(gid), user),
+                saver=saver,
                 obj=obj,
                 group_id=gid,
                 publish_to=publish_to,

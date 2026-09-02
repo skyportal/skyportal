@@ -86,7 +86,13 @@ class RecentGcnExtractionsHandler(BaseHandler):
 
 
 def _summarize(data: dict) -> dict:
-    """Counts and headline values a reader can scan without opening the record."""
+    """Counts and headline values a reader can scan without opening the record.
+
+    A circular that reports no photometry has usually still contributed
+    something: the discovery circular carries the position the source is built
+    on, and a follow-up names the circulars it responds to. Reporting those
+    keeps a row informative instead of blank.
+    """
     photometry = data.get("photometry") or []
     event = data.get("event") or {}
     name = event.get("event_name")
@@ -98,8 +104,17 @@ def _summarize(data: dict) -> dict:
     bandpasses = sorted(
         {row.get("bandpass") for row in photometry if row.get("bandpass")}
     )
+    references = ((data.get("follow_up") or {}).get("reference") or {}).get(
+        "gcn_circulars"
+    )
+    n_references = (
+        len([r for r in str(references).split(",") if r.strip()]) if references else 0
+    )
     return {
         "event_name": name,
+        # The circular's own title, where the writer stored it: the most direct
+        # summary of a circular that reports no measurements.
+        "subject": (data.get("subject") or "").strip() or None,
         "n_photometry": len(photometry),
         "n_detections": sum(1 for row in photometry if row.get("is_detection")),
         "bandpasses": bandpasses,
@@ -107,4 +122,5 @@ def _summarize(data: dict) -> dict:
         "classification": classification,
         "ra": localization.get("ra"),
         "dec": localization.get("dec"),
+        "n_references": n_references,
     }

@@ -108,9 +108,19 @@ const defaultPrefs = {
 
 /** What an extraction found, in one line a scanner can read at a glance. */
 const summarizeExtraction = (extraction: RecentGcnExtraction): string => {
-  const { n_photometry, n_detections, redshift, classification, bandpasses } =
-    extraction.summary;
+  const {
+    n_photometry,
+    n_detections,
+    redshift,
+    classification,
+    bandpasses,
+    ra,
+    dec,
+    n_references,
+    subject,
+  } = extraction.summary;
   const parts: string[] = [];
+
   if (n_photometry > 0) {
     const limits = n_photometry - n_detections;
     const counts = [
@@ -129,7 +139,21 @@ const summarizeExtraction = (extraction: RecentGcnExtraction): string => {
   if (classification) parts.push(classification);
   if (redshift !== null && redshift !== undefined)
     parts.push(`z = ${redshift}`);
-  return parts.length > 0 ? parts.join(" \u00b7 ") : "no values extracted";
+
+  // A circular with no measurements is best described by its own title; older
+  // rows predate the stored subject, so the position it carried stands in.
+  if (parts.length === 0 && subject) {
+    return subject;
+  }
+  if (parts.length === 0 && ra !== null && dec !== null) {
+    parts.push(`position ${ra.toFixed(3)}, ${dec.toFixed(3)}`);
+  }
+  if (parts.length === 0 && n_references > 0) {
+    parts.push(
+      `follows up ${n_references} circular${n_references > 1 ? "s" : ""}`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" \u00b7 ") : "no measurements";
 };
 
 interface RecentGcnEventsProps {

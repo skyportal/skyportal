@@ -126,7 +126,7 @@ const GcnPropertiesSelect = ({
         </ButtonGroup>
         <SelectWithChips
           label="Gcn Properties"
-          id="selectGcns"
+          id="selectGcnProperties"
           initValue={selectedGcnProperties}
           onChange={(e: any) => setSelectedGcnProperties(e.target.value)}
           options={selectedGcnProperties}
