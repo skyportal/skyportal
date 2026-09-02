@@ -19,6 +19,12 @@ import {
  * the whole detection history falls inside it, which would drop any transient
  * still being detected. The range is sent as a detection window for that
  * reason (see fetchGcnEventSources).
+ *
+ * The star, detection history and galactic latitude cuts are on by default, as
+ * the scanning guidelines call for. The latitude and history cuts apply only
+ * beyond promptDeltaT days of the event, so a counterpart seen promptly is
+ * shown wherever it sits; every cut can be cleared for a search that wants the
+ * unfiltered list.
  */
 const sourcesFormSchema = (
   defaultStartDate: string,
@@ -65,6 +71,7 @@ const sourcesFormSchema = (
     localizationRejectSources: {
       type: "boolean",
       title: "Do not display rejected sources",
+      default: true,
     },
     group_ids: {
       type: "array",
@@ -76,6 +83,7 @@ const sourcesFormSchema = (
     maxSgscore: {
       type: "number",
       title: "Max star score (sgscore)",
+      default: 0.7,
       minimum: 0,
       maximum: 1,
     },
@@ -87,6 +95,7 @@ const sourcesFormSchema = (
     minNdethist: {
       type: "number",
       title: "Min detections in history",
+      default: 2,
       minimum: 1,
     },
     minDeltaT: {
@@ -96,8 +105,15 @@ const sourcesFormSchema = (
     minAbsGalacticLatitude: {
       type: "number",
       title: "Min |galactic latitude| [deg]",
+      default: 10,
       minimum: 0,
       maximum: 90,
+    },
+    promptDeltaT: {
+      type: "number",
+      title: "Always show within [days] of event",
+      default: 2,
+      minimum: 0,
     },
   },
   required: [
@@ -119,7 +135,7 @@ const uiSchema = (groups: any[]) => ({
       localizationRejectSources: 4,
     },
     { maxSgscore: 3, maxAge: 3, minNdethist: 3, minDeltaT: 3 },
-    { minAbsGalacticLatitude: 3 },
+    { minAbsGalacticLatitude: 3, promptDeltaT: 3 },
   ],
 });
 
@@ -167,6 +183,11 @@ const GcnSourcesQueryForm = ({
     numberDetections: 2,
     requireDetections: true,
     excludeForcedPhotometry: false,
+    localizationRejectSources: true,
+    maxSgscore: 0.7,
+    minNdethist: 2,
+    minAbsGalacticLatitude: 10,
+    promptDeltaT: 2,
   });
 
   return (

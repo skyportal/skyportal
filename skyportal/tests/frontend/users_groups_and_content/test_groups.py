@@ -241,7 +241,13 @@ def test_edit_group_toggle_auto_accept(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/group/{public_group.id}")
-    page.locator('//*[@data-testid="editGroupButton"]').first.click()
+    # The edit button needs both the group and an admin profile to have loaded.
+    # Wait for the group heading first, so a slow profile fetch is not read as a
+    # missing button and each wait gets its own budget.
+    expect(page.locator("//h5[contains(., 'Group:')]").first).to_be_visible()
+    edit_group = page.locator('//*[@data-testid="editGroupButton"]').first
+    expect(edit_group).to_be_visible()
+    edit_group.click()
     page.locator('//*[@data-testid="editAutoAcceptRequestsCheckbox"]').first.click()
     submit = page.locator('//*[@data-testid="submitEditGroupButton"]').first
     submit.click()

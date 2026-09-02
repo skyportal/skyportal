@@ -1910,6 +1910,15 @@ class SourceGetQuery(BaseModel):
         ge=0,
         le=90,
     )
+    promptDeltaT: float | None = Field(
+        default=None,
+        description=(
+            "Exempt candidates detected within this many days of the event from "
+            "the galactic latitude and detection history cuts, which exist to "
+            "thin late candidates. Those cuts still apply to everything else."
+        ),
+        ge=0,
+    )
     alias: str | None = Field(
         default=None,
         description="additional name for the same object",
@@ -2260,6 +2269,7 @@ class SourceHandler(BaseHandler):
                     list_name=query.listName,
                     simbad_class=query.simbadClass,
                     min_abs_galactic_latitude=query.minAbsGalacticLatitude,
+                    prompt_delta_t=query.promptDeltaT,
                     alias=query.alias,
                     origin=query.origin,
                     has_tns_name=query.hasTNSname,

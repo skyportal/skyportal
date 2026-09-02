@@ -384,9 +384,14 @@ def test_new_gcn_event_triggers_notification(page, user):
 
     page.locator('//*[@id="GcnNotificationNameInput"]').first.fill("test")
 
-    page.locator(
-        '//*[@role="combobox" and (@aria-labelledby="selectGcns" or @id="selectGcns")]'
-    ).first.click()
+    # The notice types come from the config endpoint, so this select renders
+    # only once that query resolves; the others in the form are already there.
+    notice_types = page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="selectGcnNoticeTypes"'
+        ' or @id="selectGcnNoticeTypes")]'
+    ).first
+    expect(notice_types).to_be_visible()
+    notice_types.click()
     page.locator('//li[@data-value="FERMI_GBM_GND_POS"]').first.click()
     page.keyboard.press("Escape")
 

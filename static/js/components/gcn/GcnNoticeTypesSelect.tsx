@@ -17,7 +17,7 @@ const GcnNoticeTypesSelect = ({
   return (
     <SelectWithChips
       label="Gcn Notice Types"
-      id="selectGcns"
+      id="selectGcnNoticeTypes"
       initValue={selectedGcnNoticeTypes}
       onChange={(e: any) => setSelectedGcnNoticeTypes(e.target.value)}
       options={gcn_notice_types}

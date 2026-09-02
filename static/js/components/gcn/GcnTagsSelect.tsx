@@ -28,7 +28,7 @@ const GcnTagsSelect = ({
   return (
     <SelectWithChips
       label={title}
-      id="selectGcns"
+      id="selectGcnTags"
       initValue={selectedGcnTags}
       onChange={handleChange}
       options={gcnTags}
