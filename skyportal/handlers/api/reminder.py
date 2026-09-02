@@ -341,7 +341,7 @@ class ReminderHandler(BaseHandler):
                             f'Unsupported associated resource type "{associated_resource_type}".'
                         )
                     list_result = await session.scalars(stmt)
-                    reminders = list_result.all()
+                    reminders = list_result.unique().all()
                     await session.commit()
                     return self.success(
                         data={
