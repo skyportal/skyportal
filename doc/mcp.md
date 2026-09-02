@@ -45,28 +45,3 @@ about a trigger and reply in the discussion on it.
 producer may store machine-readable values parsed out of an event's prose.
 `origin` names the producer and the payload is that producer's own shape, so
 filter by `origin` when you care which pipeline it came from.
-
-## Tools
-
-Sources, photometry and spectra are read and written with `get_sources` /
-`post_source`, `get_photometry` / `post_photometry` and `get_spectra` /
-`post_spectrum`. `analyze_light_curve` summarises how a source evolves per band.
-
-Broker filters have their own set, covering the whole life of a filter:
-
-| Tool                             | Purpose                                     |
-| -------------------------------- | ------------------------------------------- |
-| `post_filter`                    | Create a filter on a stream and group       |
-| `get_broker_filter`              | Its versions, which is active, its settings |
-| `run_broker_filter`              | Preview which alerts a pipeline passes      |
-| `post_broker_filter_version`     | Add a version from a compiled pipeline      |
-| `activate_broker_filter_version` | Make a version the one the broker runs      |
-| `diff_broker_filter_versions`    | Unified diff between two versions           |
-
-Posting a version does not activate it, so a version can be previewed and
-compared before it goes live. `diff_broker_filter_versions` defaults to the two
-most recent versions, which is what answers "this filter stopped passing alerts
-after I edited it -- what changed?".
-
-`run_broker_filter` writes nothing. A pipeline that returns no alerts there will
-pass none in production, so it is worth running before activating a version.
