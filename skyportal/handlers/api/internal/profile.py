@@ -59,6 +59,8 @@ class ProfilePatchBody(BaseModel):
 
 
 class ProfileHandler(BaseHandler):
+    terms_of_service_exempt = ("GET",)
+
     @auth_or_token
     async def get(self):
         """
