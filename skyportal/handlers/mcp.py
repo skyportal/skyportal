@@ -28,6 +28,34 @@ SERVER_INFO = {"name": "SkyPortal", "version": __version__}
 # The tool set only changes with a deploy
 LIST_TTL_MS = 3_600_000
 
+# Conventions a caller cannot infer from the tool schemas, and that silently
+# produce a wrong or empty answer when missed. Each one has cost someone real
+# time, so they are stated here rather than left to be rediscovered.
+INSTRUCTIONS = """Read and write SkyPortal sources, photometry and spectra, and \
+manage broker filters. Tools run with the permissions of the API token you send.
+
+Conventions worth knowing before you trust a result:
+
+- A missing value is often a sentinel, not a number. Survey alerts write -999 \
+for "not measured" and negative separations (ssdistnr) for "no match", so \
+comparing them numerically treats an absent value as the closest possible one.
+- Annotations are not always flat. A GCN crossmatch stores one entry per event, \
+keyed by event name, so its fields (delta_t, age, ndethist, sgscore) live one \
+level down. A filter on a top-level key of that name matches nothing.
+- delta_t is signed relative to the event: negative before it. "Detected more \
+than 10 days before" is a lower bound, not an upper one.
+- Annotation origins are matched case-insensitively on the stored value but not \
+on yours: pass the origin lower-cased.
+- Photometry is de-duplicated on obj_id, instrument, origin, mjd, flux and \
+fluxerr -- not on filter. Re-uploading a point whose flux differs in its last \
+digits adds a second point at the same epoch rather than replacing it.
+- A broker filter version is identified by a uuid, not a number, and posting \
+one does not activate it. Preview with run_broker_filter before activating: a \
+pipeline that returns nothing there will pass nothing in production.
+- An empty result is usually a wrong field name rather than an empty sky. \
+Check the shape of one record before concluding that nothing matched."""
+
+
 # JSON-RPC / MCP error codes
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -495,6 +523,194 @@ async def post_gcn_event_comment(handler, args):
     return await handler.api("POST", f"/api/gcn_event/{dateobs}/comments", body=args)
 
 
+def _versions(filter_record):
+    """A broker filter's versions, oldest first, as (fid, pipeline) pairs."""
+    return [
+        (v.get("fid"), v.get("pipeline"))
+        for v in (filter_record or {}).get("fv") or []
+        if v.get("fid")
+    ]
+
+
+@tool(
+    "get_broker_filter",
+    "Retrieve a broker filter: its versions (fid, changelog, pipeline), which "
+    "one is active, and its auto-save settings. Omit filter_id to list the "
+    "broker's filters.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "filter_id": _prop("integer", "Filter ID. Omit to list every filter."),
+    },
+    required=("broker_id",),
+)
+async def get_broker_filter(handler, args):
+    broker_id = args.pop("broker_id")
+    filter_id = args.pop("filter_id", None)
+    path = f"/api/brokers/{broker_id}/filters"
+    if filter_id is not None:
+        path += f"/{filter_id}"
+    return await handler.api("GET", path, query=args)
+
+
+@tool(
+    "diff_broker_filter_versions",
+    "Compare two versions of a broker filter and return a unified diff of their "
+    "pipelines. Defaults to the two most recent versions, which is what shows "
+    "why a filter that used to pass alerts stopped.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "filter_id": _prop("integer", "Filter ID."),
+        "from_fid": _prop("string", "Version to compare from (default: previous)."),
+        "to_fid": _prop("string", "Version to compare to (default: most recent)."),
+    },
+    required=("broker_id", "filter_id"),
+)
+async def diff_broker_filter_versions(handler, args):
+    import difflib
+
+    broker_id, filter_id = args["broker_id"], args["filter_id"]
+    record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
+    versions = _versions(record)
+    if len(versions) < 2 and not (args.get("from_fid") and args.get("to_fid")):
+        raise ToolError("Filter has fewer than two versions to compare.")
+
+    by_fid = dict(versions)
+    from_fid = args.get("from_fid") or versions[-2][0]
+    to_fid = args.get("to_fid") or versions[-1][0]
+    for fid in (from_fid, to_fid):
+        if fid not in by_fid:
+            raise ToolError(f"Filter has no version {fid}.")
+
+    def lines(fid):
+        pipeline = by_fid[fid]
+        if isinstance(pipeline, str):
+            try:
+                pipeline = json.loads(pipeline)
+            except ValueError:
+                return [pipeline]
+        return json.dumps(pipeline, indent=2, sort_keys=True).splitlines()
+
+    diff = list(
+        difflib.unified_diff(
+            lines(from_fid),
+            lines(to_fid),
+            fromfile=from_fid,
+            tofile=to_fid,
+            lineterm="",
+        )
+    )
+    return {
+        "from_fid": from_fid,
+        "to_fid": to_fid,
+        "changed": bool(diff),
+        "diff": "\n".join(diff),
+    }
+
+
+@tool(
+    "run_broker_filter",
+    "Preview which alerts a pipeline passes, without saving anything. The way "
+    "to check a filter before activating it: a pipeline that returns nothing "
+    "here will pass nothing in production.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "pipeline": _prop(
+            "array",
+            "The aggregation pipeline to run, as a list of stages.",
+            items={"type": "object"},
+        ),
+        "selectedCollection": _prop(
+            "string", "Alert collection to run against, e.g. ZTF_alerts."
+        ),
+        "filter_id": _prop(
+            "integer",
+            "Filter whose stream bounds which alerts are searched.",
+        ),
+        "start_jd": _prop("number", "Earliest alert JD to consider."),
+        "end_jd": _prop("number", "Latest alert JD to consider."),
+        "limit": _prop("integer", "Maximum alerts to return."),
+    },
+    required=("broker_id", "pipeline"),
+    passthrough="POST /api/brokers/{broker_id}/filter/test",
+)
+async def run_broker_filter(handler, args):
+    broker_id = args.pop("broker_id")
+    return await handler.api("POST", f"/api/brokers/{broker_id}/filter/test", body=args)
+
+
+@tool(
+    "post_broker_filter_version",
+    "Add a version to a broker filter, from a compiled pipeline. The new "
+    "version is not active until activate_broker_filter_version is called with "
+    "the fid this returns.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "filter_id": _prop("integer", "Filter ID."),
+        "altdata": _prop(
+            "array",
+            "The compiled pipeline: a list of aggregation stages.",
+            items={"type": "object"},
+        ),
+        "filters": _prop("object", "Editable version tree kept alongside it."),
+        "name": _prop("string", "Informational name for the version."),
+    },
+    required=("broker_id", "filter_id", "altdata"),
+)
+async def post_broker_filter_version(handler, args):
+    broker_id = args.pop("broker_id")
+    filter_id = args.pop("filter_id")
+    result = await handler.api(
+        "POST", f"/api/brokers/{broker_id}/filters/{filter_id}", body=args
+    )
+    # The POST returns only the filter id, so read back the fid it created:
+    # activating a version needs it, and nothing else reports it.
+    record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
+    versions = _versions(record)
+    return {
+        "id": (result or {}).get("id", filter_id),
+        "fid": versions[-1][0] if versions else None,
+        "active_fid": (record or {}).get("active_fid"),
+    }
+
+
+@tool(
+    "activate_broker_filter_version",
+    "Make a version of a broker filter the active one, so the broker runs it.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "filter_id": _prop("integer", "Filter ID."),
+        "active_fid": _prop("string", "Version (fid) to activate."),
+        "active": _prop("boolean", "Whether the filter itself is active."),
+    },
+    required=("broker_id", "filter_id", "active_fid"),
+    passthrough="PATCH /api/brokers/{broker_id}/filters/{filter_id}",
+)
+async def activate_broker_filter_version(handler, args):
+    broker_id = args.pop("broker_id")
+    filter_id = args.pop("filter_id")
+    args.setdefault("active", True)
+    return await handler.api(
+        "PATCH", f"/api/brokers/{broker_id}/filters/{filter_id}", body=args
+    )
+
+
+@tool(
+    "post_filter",
+    "Create a filter on a stream and group. A broker filter also needs a "
+    "version posting to it before it does anything.",
+    {
+        "name": _prop("string", "Filter name."),
+        "stream_id": _prop("integer", "ID of the filter's stream."),
+        "group_id": _prop("integer", "ID of the filter's group."),
+        "broker_id": _prop("integer", "Broker this filter runs on, if any."),
+    },
+    required=("name", "stream_id", "group_id"),
+    passthrough="POST /api/filters",
+)
+async def post_filter(handler, args):
+    return await handler.api("POST", "/api/filters", body=args)
+
+
 def _encode_query(query):
     """Encode tool arguments the way the REST handlers parse them."""
     out = {}
@@ -678,10 +894,7 @@ class MCPHandler(BaseHandler):
             return {
                 "supportedVersions": [PROTOCOL_VERSION],
                 "capabilities": {"tools": {}},
-                "instructions": (
-                    "Read and write SkyPortal sources, photometry and spectra. "
-                    "Tools run with the permissions of the API token you send."
-                ),
+                "instructions": INSTRUCTIONS,
                 "ttlMs": LIST_TTL_MS,
                 "cacheScope": "public",
             }

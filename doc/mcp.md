@@ -22,11 +22,11 @@ Tools run with that token's permissions.
 
 ## Methods
 
-| Method            | Purpose                                                   |
-| ----------------- | --------------------------------------------------------- |
+| Method            | Purpose                                                    |
+| ----------------- | ---------------------------------------------------------- |
 | `server/discover` | Supported protocol versions, capabilities, server identity |
-| `tools/list`      | Tool definitions with input schemas                       |
-| `tools/call`      | Invoke a tool                                             |
+| `tools/list`      | Tool definitions with input schemas                        |
+| `tools/call`      | Invoke a tool                                              |
 
 ## GCN events
 
