@@ -147,6 +147,7 @@ from skyportal.models import (
     SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
     Telescope,
+    TermsOfServiceAcceptance,
     Thumbnail,
     User,
     UserInvitation,
@@ -7743,3 +7744,25 @@ def public_weather():
         DBSession().delete(row)
         DBSession().commit()
     TelescopeFactory.teardown(telescope_id)
+
+
+@pytest.fixture()
+def public_terms_of_service_acceptance(user):
+    acceptance = TermsOfServiceAcceptance(user_id=user.id, version="1")
+    DBSession.add(acceptance)
+    DBSession.commit()
+    acceptance_id = acceptance.id
+    yield acceptance
+    row = (
+        DBSession()
+        .execute(
+            sa.select(TermsOfServiceAcceptance).filter(
+                TermsOfServiceAcceptance.id == acceptance_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()

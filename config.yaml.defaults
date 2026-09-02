@@ -42,6 +42,14 @@ app:
       - name: https://github.com/skyportal/skyportal/pulls
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
+  # Until accepted, every endpoint returns 403. `text` is markdown. Bumping
+  # `version` makes everyone accept again; editing `text` alone does not.
+  terms_of_service:
+    enabled: false
+    version: 1
+    title: Terms of Service
+    text: ""
+
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
   # login. Write endpoints still 401 because that account holds no write ACLs.

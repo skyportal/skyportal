@@ -4,6 +4,8 @@ from .base import BaseHandler
 
 
 class LogoutHandler(BaseHandler):
+    terms_of_service_exempt = ("GET",)
+
     @auth_or_token
     def get(self):
         self.clear_cookie("user_id")
