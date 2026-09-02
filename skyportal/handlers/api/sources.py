@@ -320,6 +320,69 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
     )"""
 
 
+async def _annotation_filter_hint(session, annotations_filter, origins):
+    """Why an annotation filter matched nothing, in terms of what is stored.
+
+    An empty result reads the same whether the sky is empty or the field name is
+    wrong, and the second is far more common: these fields are often nested one
+    level down, keyed by the thing they describe. Naming the keys that do exist
+    turns a silent zero into something the caller can act on.
+    """
+    if not annotations_filter:
+        return None
+
+    def _as_list(value):
+        """The handler passes these as raw comma-separated strings; iterating a
+        string yields characters, which silently searches for nothing."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return list(value)
+
+    origins = _as_list(origins)
+    names = []
+    entries = _as_list(annotations_filter)
+    for entry in entries:
+        head = str(entry).split(":")[0].strip()
+        if head:
+            names.append(head)
+    if not names:
+        return None
+
+    where, params = "true", {}
+    if origins:
+        where = "lower(a.origin) = ANY(:origins)"
+        params["origins"] = [str(o).lower() for o in origins]
+    rows = (
+        await session.execute(
+            sa.text(f"SELECT a.data FROM annotations a WHERE {where} LIMIT 200"),
+            params,
+        )
+    ).all()
+    if not rows:
+        return f"No annotation exists for origin(s) {sorted(origins or [])}."
+
+    top, nested = set(), set()
+    for (data,) in rows:
+        if not isinstance(data, dict):
+            continue
+        top.update(data.keys())
+        for value in data.values():
+            if isinstance(value, dict):
+                nested.update(value.keys())
+    missing = [n for n in names if n not in top and n not in nested]
+    if not missing:
+        return None
+    where_found = (
+        "nested one level down, keyed per event" if nested else "at the top level"
+    )
+    return (
+        f"No annotation carries {missing}. Fields present are {where_found}: "
+        f"{sorted(nested or top)[:12]}."
+    )
+
+
 def create_annotation_query(
     annotations_filter,
     annotations_filter_origin,
@@ -655,6 +718,7 @@ async def get_sources(
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
+    min_abs_galactic_latitude=None,
     alias=None,
     origin=None,
     min_redshift=None,
@@ -897,6 +961,27 @@ async def get_sources(
             statements.append(
                 """
                 lower(((objs.altdata['simbad']) ->> 'class')) LIKE '%' || :simbad_class || '%'
+                """
+            )
+        if min_abs_galactic_latitude is not None:
+            # Galactic latitude is derived from ra/dec rather than stored, so it
+            # is computed here: sin(b) from the north galactic pole at
+            # (192.85948, 27.12825) in J2000. Filtering in the query keeps it on
+            # the database side rather than pulling every source back to reject
+            # most of them.
+            query_params.append(
+                bindparam(
+                    "min_abs_galactic_latitude",
+                    value=float(min_abs_galactic_latitude),
+                    type_=sa.Float,
+                )
+            )
+            statements.append(
+                """
+                abs(degrees(asin(
+                    sind(objs.dec) * sind(27.12825)
+                    + cosd(objs.dec) * cosd(27.12825) * cosd(objs.ra - 192.85948)
+                ))) >= :min_abs_galactic_latitude
                 """
             )
         if has_tns_name:
