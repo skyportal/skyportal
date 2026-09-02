@@ -64,6 +64,26 @@ def test_gcn_tach(page, super_admin_user, super_admin_token):
     ).to_be_visible()
 
 
+def open_trigger_dialog(page, chip, row):
+    """Click an instrument chip until its allocation row shows in the dialog.
+
+    The event page is still mounting its skymap and widgets when the chip
+    appears, so the reflow can move the chip out from under a click that has
+    already passed the actionability check and the dialog never opens.
+    """
+    for attempt in range(5):
+        page.locator(chip).first.click()
+        try:
+            expect(page.locator(row).first).to_be_visible(timeout=10000)
+            return
+        except AssertionError:
+            if attempt == 4:
+                raise
+            # A dialog that opened without the row would swallow the next
+            # click on the chip behind its backdrop.
+            page.keyboard.press("Escape")
+
+
 def test_gcn_allocation_triggers(
     page,
     public_group,
@@ -167,14 +187,13 @@ def test_gcn_allocation_triggers(
     # find the trigger for the allocation
     chip_not_set = f'//div[@id="{instrument_name}_not_set"]'
     expect(page.locator(chip_not_set)).to_have_count(1)
-    page.locator(chip_not_set).first.click()
 
     # check that the allocation trigger is not set
-    expect(
-        page.locator(
-            f'//div[@id="{allocation_id}_current"]/span[contains(., "Not set")]'
-        ).first
-    ).to_be_visible()
+    open_trigger_dialog(
+        page,
+        chip_not_set,
+        f'//div[@id="{allocation_id}_current"]/span[contains(., "Not set")]',
+    )
 
     trigger_state = (
         f'//div[@id="{allocation_id}_triggered"]/span[contains(., "Triggered")]'
@@ -183,13 +202,11 @@ def test_gcn_allocation_triggers(
 
     # check that the allocation trigger is triggered
     chip_triggered = f'//div[@id="{instrument_name}_triggered"]'
-    page.locator(chip_triggered).first.click()
-
-    expect(
-        page.locator(
-            f'//div[@id="{allocation_id}_current"]/span[contains(., "Triggered")]'
-        ).first
-    ).to_be_visible()
+    open_trigger_dialog(
+        page,
+        chip_triggered,
+        f'//div[@id="{allocation_id}_current"]/span[contains(., "Triggered")]',
+    )
 
     # now switch to view only user
     page.goto(f"/become_user/{view_only_user.id}")
