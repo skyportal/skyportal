@@ -6153,7 +6153,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a reminder
-         * @description <b>Permission(s) required:</b> <em>Reminder (or System admin)</em><br><br>Delete a reminder
+         * @description Delete a reminder
          */
         delete: {
             parameters: {
@@ -6184,7 +6184,7 @@ export interface paths {
         head?: never;
         /**
          * Update a reminder
-         * @description <b>Permission(s) required:</b> <em>Reminder (or System admin)</em><br><br>Update a reminder
+         * @description Update a reminder
          */
         patch: {
             parameters: {
@@ -6271,7 +6271,7 @@ export interface paths {
         put?: never;
         /**
          * Post a reminder
-         * @description <b>Permission(s) required:</b> <em>Reminder (or System admin)</em><br><br>Post a reminder
+         * @description Post a reminder
          */
         post: {
             parameters: {
