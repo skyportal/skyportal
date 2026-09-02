@@ -402,6 +402,14 @@ telescope:
     nickname: VLA
     skycam_link: null
     =id: VLA
+  - diameter: 22.0
+    elevation: 237.0
+    lat: -30.312778
+    lon: 149.550278
+    name: Australia Telescope Compact Array
+    nickname: ATCA
+    skycam_link: null
+    =id: ATCA
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -765,6 +773,12 @@ instrument:
     type: imager
     filters: ['radio-0.34GHz', 'radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-15GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
     =id: VLA
+  - band: radio
+    name: ATCA
+    telescope_id: =ATCA
+    type: imager
+    filters: ['radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
+    =id: ATCA
   - band: optical
     name: KAIT
     telescope_id: =KAIT
