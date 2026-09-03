@@ -103,6 +103,13 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.parse import get_page_and_n_per_page
+from ...utils.scout_ephemeris import (
+    position_at as scout_position_at,
+)
+from ...utils.scout_ephemeris import (
+    tdes_from_annotation,
+)
+from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -2937,6 +2944,35 @@ async def get_finding_chart_callable(
                 "type": "error",
             },
         )
+
+    # A NEOCP candidate is only somewhere at a time: it is stored at its
+    # discovery position, which for a fast mover is nowhere near where the chart
+    # is being pointed. Ask JPL where it is at obstime instead. A failure here
+    # leaves the stored position in place rather than losing the chart.
+    scout_annotation = (
+        await session.scalars(
+            Annotation.select(user).where(
+                Annotation.obj_id == obj_id,
+                Annotation.origin == SCOUT_ANNOTATION_ORIGIN,
+            )
+        )
+    ).first()
+    tdes = tdes_from_annotation(scout_annotation.data if scout_annotation else None)
+    if tdes:
+        try:
+            when = isoparse(obstime)
+            if when.tzinfo is not None:
+                when = when.replace(tzinfo=None)
+            eph_ra, eph_dec, sigma = await IOLoop.current().run_in_executor(
+                None, functools.partial(scout_position_at, tdes, when)
+            )
+            log(
+                f"{obj_id}: charting JPL Scout position for {tdes} at {obstime} "
+                f"({eph_ra:.5f}, {eph_dec:+.5f}), 1-sigma {sigma} arcmin"
+            )
+            ra, dec = eph_ra, eph_dec
+        except Exception as e:
+            log(f"{obj_id}: no Scout ephemeris for {tdes}, using stored position ({e})")
 
     return functools.partial(
         get_finding_chart,

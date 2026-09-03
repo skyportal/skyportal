@@ -11,7 +11,7 @@ Fetched on demand rather than stored: Scout re-fits as new astrometry arrives,
 so a saved track for a fast mover is wrong within the hour.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -28,6 +28,9 @@ MAX_RECORDS = 500
 DEFAULT_HOURS = 3.0
 DEFAULT_STEP_MINUTES = 1
 DEFAULT_TIMEOUT = 120
+
+# Enough of a window to bracket one moment; a chart needs a position, not a track.
+STEP_LOOKUP_HOURS = 0.1
 
 # Geocentric. A NEO close enough to matter has a parallax between sites that is
 # large compared with a good Scout uncertainty, so pass the real observatory
@@ -124,7 +127,7 @@ def fetch_ephemeris(
         raise ScoutEphemerisError("A NEOCP designation is required")
 
     hours = clamp_window(hours, step_minutes)
-    start = start or datetime.utcnow()
+    start = start or datetime.now(UTC).replace(tzinfo=None)
     stop = start + timedelta(hours=hours)
     params = {
         "tdes": str(tdes),
@@ -177,6 +180,27 @@ def ephemeris_at(track, when):
     if not timed:
         return track[0]
     return min(timed, key=lambda pair: pair[0])[1]
+
+
+def position_at(tdes, when, obs_code=GEOCENTRIC_OBSCODE, timeout=DEFAULT_TIMEOUT):
+    """Where `tdes` is at `when`, as (ra, dec, sigma_pos_arcmin).
+
+    A short window is asked for and its first row taken: JPL will not start an
+    ephemeris more than 30 days out, and one row either side of the moment is
+    all a chart needs.
+    """
+    track = fetch_ephemeris(
+        tdes,
+        start=when,
+        hours=STEP_LOOKUP_HOURS,
+        step_minutes=DEFAULT_STEP_MINUTES,
+        obs_code=obs_code,
+        timeout=timeout,
+    )
+    row = ephemeris_at(track, when)
+    if row is None:
+        raise ScoutEphemerisError(f"No ephemeris row near {when} for {tdes}")
+    return row["ra"], row["dec"], row.get("sigma_pos_arcmin")
 
 
 def tdes_from_annotation(data):

@@ -15489,6 +15489,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/scout_ephemeris": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a NEOCP candidate's ephemeris
+         * @description Positions over time for a JPL Scout NEOCP candidate, with the
+         *     plane-of-sky uncertainty at each step.
+         *
+         *     A Scout candidate is stored with one nominal position and a single
+         *     uncertainty, which places it on the sky only when that uncertainty is
+         *     small. Objects with a short arc carry a sigma of degrees and move
+         *     while observed, so a position is only meaningful with a time attached.
+         *
+         *     Fetched from JPL on each request rather than stored, since Scout
+         *     re-fits as new astrometry arrives.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Span to cover, starting now. Shortened if the requested span and step would exceed JPL's 500-row limit. */
+                    hours?: number;
+                    /** @description Minutes between ephemeris rows. */
+                    stepMinutes?: number;
+                    /** @description MPC observatory code the positions are computed for. A near-Earth object's apparent place depends on it, so pass the real site rather than the geocentric default when pointing a telescope. */
+                    obsCode?: string;
+                };
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/finder_chart/facilities": {
         parameters: {
             query?: never;

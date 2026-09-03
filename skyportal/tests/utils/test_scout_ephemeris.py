@@ -112,3 +112,24 @@ def test_designation_falls_back_to_the_scout_url():
 def test_no_designation_available():
     assert tdes_from_annotation({}) is None
     assert tdes_from_annotation(None) is None
+
+
+def test_position_at_reads_the_nearest_row(monkeypatch, payload):
+    """position_at returns (ra, dec, sigma) for the row nearest the moment."""
+    import skyportal.utils.scout_ephemeris as se
+
+    monkeypatch.setattr(
+        se, "fetch_ephemeris", lambda *a, **k: se.parse_ephemeris(payload)
+    )
+    rows = se.parse_ephemeris(payload)
+    when = datetime.fromisoformat(rows[1]["time"])
+    ra, dec, sigma = se.position_at("ZTF10Fd", when)
+    assert (ra, dec) == (rows[1]["ra"], rows[1]["dec"])
+    assert sigma == rows[1]["sigma_pos_arcmin"]
+
+
+def test_lookup_window_is_short():
+    # A chart wants one position, not a track.
+    from skyportal.utils.scout_ephemeris import STEP_LOOKUP_HOURS
+
+    assert 0 < STEP_LOOKUP_HOURS <= 1
