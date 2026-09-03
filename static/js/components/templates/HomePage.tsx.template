@@ -87,22 +87,21 @@ const HomePage = () => {
     updateUserPreferences(prefs);
   };
 
-  // `mounted` only gates anything when the hook is asked to measure first.
-  // Left to its default it starts true, so the grid paints at the hook's
-  // 1280px placeholder width and the columns past it never exist.
-  const { width, containerRef, mounted } = useContainerWidth({
-    measureBeforeMount: true,
-  });
+  // The hook measures once, in an effect, and gives up if its container is not
+  // in the DOM yet -- so the container below is rendered unconditionally. Gate
+  // it on the profile instead and the first measurement finds nothing, leaving
+  // the grid stuck at the hook's 1280px placeholder width.
+  const { width, containerRef, mounted } = useContainerWidth();
 
   const resetLayouts = () => {
     const prefs = { layouts: defaultLayouts };
     updateUserPreferences(prefs);
   };
 
-  return profile?.username && (
+  return (
     <div>
       <div ref={containerRef}>
-      {mounted && (
+      {profile?.username && mounted && (
       <ResponsiveGridLayout
         width={width}
         className="layout"
@@ -153,6 +152,7 @@ const HomePage = () => {
       </ResponsiveGridLayout>
       )}
       </div>
+      {profile?.username && (
       <div className={classes.resetButton}>
         <Tooltip title="Reset page layout" placement="left">
           <IconButton onClick={resetLayouts}>
@@ -160,6 +160,7 @@ const HomePage = () => {
           </IconButton>
         </Tooltip>
       </div>
+      )}
     </div>
   );
 };
