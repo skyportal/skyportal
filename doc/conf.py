@@ -12,6 +12,7 @@
 
 import os
 import sys
+import warnings
 
 import eralchemy2
 
@@ -21,6 +22,12 @@ import eralchemy2
 # sys.path.insert(0, os.path.abspath('.'))
 
 sys.path.insert(0, os.path.abspath(".."))
+
+# ligo.skymap, imported transitively below, warns about a private reproject module.
+warnings.filterwarnings(
+    "ignore", message=".*reproject.healpix.utils is a private module.*"
+)
+
 from skyportal import models  # noqa
 
 # -- General configuration ------------------------------------------------
@@ -43,6 +50,14 @@ extensions = [
     #    'sphinx.ext.linkcode',
     #    'sphinx_gallery.gen_gallery'
 ]
+
+# numpydoc emits an autosummary `:toctree:` per class member; without it Sphinx
+# asks for stub files that are never generated.
+numpydoc_class_members_toctree = False
+
+# Inherited members pull third-party docstrings in, along with their unresolvable
+# :ref: targets.
+numpydoc_show_inherited_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -86,7 +101,7 @@ release = version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -96,7 +111,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ["_build"]
+exclude_patterns = ["_build", "papers"]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

@@ -16,9 +16,9 @@ running.
 **How this differs from other extension mechanisms.** An external service is
 distinct from:
 
-- **[Extensions](extensions.html)** copy custom handlers/components *into* the
+- **[Extensions](extensions)** copy custom handlers/components *into* the
   SkyPortal source tree at build time.
-- **[External analysis services](analysis.html)** receive data over HTTP and
+- **[External analysis services](analysis)** receive data over HTTP and
   return results via a webhook.
 
 An *external service* is neither: it is a separate repository that SkyPortal

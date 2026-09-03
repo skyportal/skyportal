@@ -13,7 +13,7 @@ To evaluate the efficacy of the executed observation plans, we have the `Execute
 ## Scanning events for optical counterparts
 
 Broker alerts can be crossmatched against an event's localization and raised as
-candidates to scan; see [Scanning GCN events for optical counterparts](./gcn_crossmatch.html).
+candidates to scan; see [Scanning GCN events for optical counterparts](gcn_crossmatch).
 
 ## Uploading executed observations
 

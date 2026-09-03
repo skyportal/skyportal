@@ -214,7 +214,7 @@ data = r.json()
 
 ## Summaries
 
-[Analysis services](analysis_services) in SkyPortal can be declared as providing a summary of a source. When `is_summary` is `True` in an analysis service, the results of an analysis using this service will be stored in the `obj.summary` and `obj.summary_history` (akin to how redshifts are stored and updated). If the associated analysis is deleted then it will be removed from `obj.summary_history`. The frontend allows a user to see the summary history and edit the results of a summary analysis.
+[Analysis services](#external-analysis-services) in SkyPortal can be declared as providing a summary of a source. When `is_summary` is `True` in an analysis service, the results of an analysis using this service will be stored in the `obj.summary` and `obj.summary_history` (akin to how redshifts are stored and updated). If the associated analysis is deleted then it will be removed from `obj.summary_history`. The frontend allows a user to see the summary history and edit the results of a summary analysis.
 
 ### AI Summarization
 

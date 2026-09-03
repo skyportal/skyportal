@@ -20,6 +20,7 @@ SkyPortal and baselayer classes that are mapped to database tables.
 
 .. automodule:: baselayer.app.models
    :members:
+   :exclude-members: init_db, SlugifiedStr
 
 Entity Relationship Diagram
 ===========================

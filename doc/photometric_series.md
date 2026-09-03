@@ -112,7 +112,9 @@ the response includes group and stream information:
 
 ```json
 {
-  "data": {...},
+  "data": {
+    // ...
+  },
   "groups": [
     {
       "id": 1,
@@ -248,21 +250,20 @@ To get the data without saving it to disk, use the following code
 (see `skyportal/utils/hdf5_files.py`):
 
 ```python
-    with pd.HDFStore(
-        "data.h5",
-        mode="r",
-        driver="H5FD_CORE",
-        driver_core_backing_store=0,
-        driver_core_image=base64.b64decode(data),
-    ) as store:
-        keys = store.keys()
-        if len(keys) != 1:
-            raise ValueError(f'Expected 1 table in HDF5 file, got {len(keys)}. ')
-        data = store[keys[0]]
-        attributes = store.get_storer(keys[0]).attrs
-        if 'metadata' in attributes and isinstance(attributes['metadata'], dict):
-            metadata = attributes['metadata']
-        else:
-            metadata = {}
-
+with pd.HDFStore(
+    "data.h5",
+    mode="r",
+    driver="H5FD_CORE",
+    driver_core_backing_store=0,
+    driver_core_image=base64.b64decode(data),
+) as store:
+    keys = store.keys()
+    if len(keys) != 1:
+        raise ValueError(f'Expected 1 table in HDF5 file, got {len(keys)}. ')
+    data = store[keys[0]]
+    attributes = store.get_storer(keys[0]).attrs
+    if 'metadata' in attributes and isinstance(attributes['metadata'], dict):
+        metadata = attributes['metadata']
+    else:
+        metadata = {}
 ```
