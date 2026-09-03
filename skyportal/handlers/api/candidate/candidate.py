@@ -1820,7 +1820,7 @@ async def grab_query_results(
 
 class BulkDeleteCandidatesHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, *, body: BulkDeleteCandidatesPostBody = None):
+    async def post(self, *, body: BulkDeleteCandidatesPostBody = None):
         """
         ---
         summary: Bulk-delete old, unsaved candidates
@@ -1888,30 +1888,32 @@ class BulkDeleteCandidatesHandler(BaseHandler):
             ),
         )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
 
             if dry_run:
-                total = int(session.scalar(count_stmt) or 0)
+                total = int(await session.scalar(count_stmt) or 0)
                 return self.success(
                     data={"deleted": 0, "remaining": total, "dryRun": True}
                 )
 
-            objs = session.scalars(
-                sa.select(Obj)
-                .where(criteria)
-                .order_by(Obj.created_at)
-                .limit(batch_size)
+            objs = (
+                await session.scalars(
+                    sa.select(Obj)
+                    .where(criteria)
+                    .order_by(Obj.created_at)
+                    .limit(batch_size)
+                )
             ).all()
 
             # Per-row delete so ORM cascades and the Obj `before_delete` event
             # (on-disk thumbnail cleanup) fire, rather than a bulk DELETE.
             n = len(objs)
             for obj in objs:
-                session.delete(obj)
-            session.commit()
+                await session.delete(obj)
+            await session.commit()
 
-            remaining = int(session.scalar(count_stmt) or 0)
+            remaining = int(await session.scalar(count_stmt) or 0)
             log(
                 f"Bulk-deleted {n} unsaved candidate object(s) older than "
                 f"{max_age_months} months; {remaining} remaining."

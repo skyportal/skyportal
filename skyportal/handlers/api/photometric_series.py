@@ -1023,10 +1023,12 @@ class PhotometricSeriesHandler(BaseHandler):
         query = self.parse_query(PhotometricSeriesGetQuery)
 
         if photometric_series_id is not None:
-            with self.Session() as session:
-                ps = session.scalars(
-                    PhotometricSeries.select(self.current_user).where(
-                        PhotometricSeries.id == photometric_series_id
+            async with self.AsyncSession() as session:
+                ps = (
+                    await session.scalars(
+                        PhotometricSeries.select(self.current_user).where(
+                            PhotometricSeries.id == photometric_series_id
+                        )
                     )
                 ).first()
                 if ps is None:
@@ -1181,12 +1183,12 @@ class PhotometricSeriesHandler(BaseHandler):
         page_number = max(query.pageNumber, 1)
         num_per_page = min(query.numPerPage, MAX_SERIES_PER_PAGE)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = (await session.execute(count_stmt)).scalar()
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            series = session.scalars(stmt).unique().all()
+            series = (await session.scalars(stmt)).unique().all()
 
             try:
                 results = {

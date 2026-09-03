@@ -2470,7 +2470,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(
+    async def get(
         self, photometry_id: int | None = None, *, query: PhotometryGetQuery = None
     ):
         query = self.parse_query(PhotometryGetQuery)
@@ -2484,10 +2484,19 @@ class PhotometryHandler(BaseHandler):
             photometry_id = int(photometry_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid photometry_id: {photometry_id}")
-        with self.Session() as session:
-            phot = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            phot = (
+                await session.scalars(
+                    Photometry.select(self.associated_user_object)
+                    # serialize() reads instrument.name and, by default, groups
+                    # and annotations; an async session cannot lazy-load any of
+                    # them.
+                    .options(
+                        joinedload(Photometry.instrument),
+                        selectinload(Photometry.groups),
+                        selectinload(Photometry.annotations),
+                    )
+                    .where(Photometry.id == photometry_id)
                 )
             ).first()
 
@@ -2500,7 +2509,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    def patch(
+    async def patch(
         self,
         photometry_id: int,
         *,
@@ -2537,10 +2546,15 @@ class PhotometryHandler(BaseHandler):
         stream_ids = data.pop("stream_ids", None)
         magsys = data.get("magsys", "ab")
 
-        with self.Session() as session:
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token, mode="update").where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            photometry = (
+                await session.scalars(
+                    Photometry.select(self.associated_user_object, mode="update")
+                    # `photometry.groups` is reassigned below, which loads the
+                    # existing collection first; an async session cannot do that
+                    # lazily.
+                    .options(selectinload(Photometry.groups))
+                    .where(Photometry.id == photometry_id)
                 )
             ).first()
 
@@ -2548,9 +2562,11 @@ class PhotometryHandler(BaseHandler):
                 # Update access (owner / "Manage photometry" / admin) is stricter
                 # than read access, so a point can be visible yet not editable.
                 # Distinguish that from a genuinely missing point.
-                readable = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.id == photometry_id
+                readable = (
+                    await session.scalars(
+                        Photometry.select(self.associated_user_object).where(
+                            Photometry.id == photometry_id
+                        )
                     )
                 ).first()
                 if readable is not None:
@@ -2593,12 +2609,16 @@ class PhotometryHandler(BaseHandler):
             phot.original_user_data = original_user_data
             phot.id = photometry_id
 
-            session.merge(phot)
+            await session.merge(phot)
 
             # Update groups, if relevant
             if group_ids is not None:
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                groups = (
+                    await session.scalars(
+                        Group.select(self.associated_user_object).where(
+                            Group.id.in_(group_ids)
+                        )
+                    )
                 ).all()
                 if not groups:
                     return self.error(
@@ -2615,9 +2635,11 @@ class PhotometryHandler(BaseHandler):
 
             # Update streams, if relevant
             if stream_ids is not None:
-                streams = session.scalars(
-                    Stream.select(session.user_or_token).where(
-                        Stream.id.in_(stream_ids)
+                streams = (
+                    await session.scalars(
+                        Stream.select(self.associated_user_object).where(
+                            Stream.id.in_(stream_ids)
+                        )
                     )
                 ).all()
 
@@ -2628,10 +2650,12 @@ class PhotometryHandler(BaseHandler):
 
                 # Add new stream_photometry rows if not already present
                 for stream in streams:
-                    stream_photometry = session.scalars(
-                        StreamPhotometry.select(session.user_or_token).where(
-                            StreamPhotometry.stream_id == stream.id,
-                            StreamPhotometry.photometr_id == photometry_id,
+                    stream_photometry = (
+                        await session.scalars(
+                            StreamPhotometry.select(self.associated_user_object).where(
+                                StreamPhotometry.stream_id == stream.id,
+                                StreamPhotometry.photometr_id == photometry_id,
+                            )
                         )
                     ).first()
                     if stream_photometry is None:
@@ -2641,26 +2665,30 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
-            phot_stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == photometry.obj_id
+            phot_stat = (
+                await session.scalars(
+                    PhotStat.select(self.associated_user_object, mode="update").where(
+                        PhotStat.obj_id == photometry.obj_id
+                    )
                 )
             ).first()
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
 
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+            all_phot = (
+                await session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
             ).all()
             phot_stat.full_update(all_phot)
             for phot in all_phot:
                 session.expunge(phot)
 
-            session.commit()
+            await session.commit()
 
             if refresh:
                 flow = Flow()
-                internal_key = session.scalar(
+                internal_key = await session.scalar(
                     sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
                 )
                 flow.push(
@@ -2678,7 +2706,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, photometry_id: int):
+    async def delete(self, photometry_id: int):
         """
         ---
         summary: Delete photometry
@@ -2701,19 +2729,23 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            photometry = (
+                await session.scalars(
+                    Photometry.select(self.associated_user_object, mode="delete").where(
+                        Photometry.id == photometry_id
+                    )
                 )
             ).first()
 
             if photometry is None:
                 # Delete access (owner / "Manage photometry" / admin) is stricter
                 # than read access, so a point can be visible yet not deletable.
-                readable = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.id == photometry_id
+                readable = (
+                    await session.scalars(
+                        Photometry.select(self.associated_user_object).where(
+                            Photometry.id == photometry_id
+                        )
                     )
                 ).first()
                 if readable is not None:
@@ -2728,20 +2760,24 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = photometry.obj_id
 
-            session.delete(photometry)
+            await session.delete(photometry)
 
-            phot_stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == photometry.obj_id
+            phot_stat = (
+                await session.scalars(
+                    PhotStat.select(self.associated_user_object, mode="update").where(
+                        PhotStat.obj_id == obj_id
+                    )
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                    )
                 ).all()
                 phot_stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
@@ -2823,7 +2859,7 @@ class ObjPhotometryGetQuery(BaseModel):
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(
+    async def get(
         self,
         obj_id: Annotated[
             str, Field(description="ID of the object to retrieve photometry for")
@@ -2845,9 +2881,11 @@ class ObjPhotometryHandler(BaseHandler):
         include_superobjs_photometry = query.includeSuperObjsPhotometry
         deduplicate_photometry = query.deduplicatePhotometry
 
-        with self.Session() as session:
-            obj: Obj = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+        async with self.AsyncSession() as session:
+            obj: Obj = (
+                await session.scalars(
+                    Obj.select(self.associated_user_object).where(Obj.id == obj_id)
+                )
             ).first()
             if obj is None:
                 return self.error(
@@ -2899,9 +2937,13 @@ class ObjPhotometryHandler(BaseHandler):
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
                     super_objs = (
-                        session.scalars(
-                            sa.select(SuperObj).where(
-                                SuperObj.objs.any(Obj.id == obj_id)
+                        (
+                            await session.scalars(
+                                sa.select(SuperObj)
+                                # The member objs are read below, which an async
+                                # session cannot lazy-load.
+                                .options(selectinload(SuperObj.objs))
+                                .where(SuperObj.objs.any(Obj.id == obj_id))
                             )
                         )
                         .unique()
@@ -2912,7 +2954,7 @@ class ObjPhotometryHandler(BaseHandler):
 
                 stmt = (
                     Photometry.select(
-                        session.user_or_token,
+                        self.associated_user_object,
                         options=options,
                     )
                     .where(
@@ -2922,7 +2964,7 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     .distinct()
                 )
-                photometry = session.scalars(stmt).unique().all()
+                photometry = (await session.scalars(stmt)).unique().all()
 
                 # Compute extinction for all filters
                 extinction_dict = None
@@ -2965,9 +3007,11 @@ class ObjPhotometryHandler(BaseHandler):
 
             if individual_or_series in ["series", "both"]:
                 series = (
-                    session.scalars(
-                        PhotometricSeries.select(session.user_or_token).where(
-                            PhotometricSeries.obj_id == obj_id
+                    (
+                        await session.scalars(
+                            PhotometricSeries.select(self.associated_user_object).where(
+                                PhotometricSeries.obj_id == obj_id
+                            )
                         )
                     )
                     .unique()
@@ -2986,9 +3030,11 @@ class ObjPhotometryHandler(BaseHandler):
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
 
-                annotations = session.scalars(
-                    Annotation.select(session.user_or_token).where(
-                        Annotation.obj_id == obj_id
+                annotations = (
+                    await session.scalars(
+                        Annotation.select(self.associated_user_object).where(
+                            Annotation.obj_id == obj_id
+                        )
                     )
                 ).all()
                 period_str_options = ["period", "Period", "PERIOD"]
@@ -3007,7 +3053,7 @@ class ObjPhotometryHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Delete bulk photometry"])
-    def delete(self, obj_id: str):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete all photometry for an object
@@ -3031,10 +3077,12 @@ class ObjPhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.obj_id == obj_id
+        async with self.AsyncSession() as session:
+            photometry_to_delete = (
+                await session.scalars(
+                    Photometry.select(self.associated_user_object, mode="delete").where(
+                        Photometry.obj_id == obj_id
+                    )
                 )
             ).all()
 
@@ -3043,25 +3091,29 @@ class ObjPhotometryHandler(BaseHandler):
                 return self.error("Invalid object id.")
 
             for phot in photometry_to_delete:
-                session.delete(phot)
+                await session.delete(phot)
 
-            stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == obj_id
+            stat = (
+                await session.scalars(
+                    PhotStat.select(self.associated_user_object, mode="update").where(
+                        PhotStat.obj_id == obj_id
+                    )
                 )
             ).first()
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            all_phot = (
+                await session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                )
             ).all()
             stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    def delete(self, upload_id: str):
+    async def delete(self, upload_id: str):
         """
         ---
         summary: Delete bulk-uploaded photometry
@@ -3085,10 +3137,12 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.upload_id == upload_id
+        async with self.AsyncSession() as session:
+            photometry_to_delete = (
+                await session.scalars(
+                    Photometry.select(self.associated_user_object, mode="delete").where(
+                        Photometry.upload_id == upload_id
+                    )
                 )
             ).all()
 
@@ -3097,21 +3151,25 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 return self.error("Invalid bulk upload id.")
 
             for phot in photometry_to_delete:
-                session.delete(phot)
+                await session.delete(phot)
 
             obj_ids = {phot.obj_id for phot in photometry_to_delete}
             for oid in obj_ids:
-                stat = session.scalars(
-                    PhotStat.select(session.user_or_token, mode="update").where(
-                        PhotStat.obj_id == oid
+                stat = (
+                    await session.scalars(
+                        PhotStat.select(
+                            self.associated_user_object, mode="update"
+                        ).where(PhotStat.obj_id == oid)
                     )
                 ).first()
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == oid)
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == oid)
+                    )
                 ).all()
                 stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s).")
 
 
@@ -3136,13 +3194,13 @@ class PhotometryRangeGetQuery(BaseModel):
 
 class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self, *, query: PhotometryRangeGetQuery = None):
+    async def get(self, *, query: PhotometryRangeGetQuery = None):
         """Docstring appears below as an f-string."""
         query = self.parse_query(PhotometryRangeGetQuery)
 
         json = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 standardized = PhotometryRangeQuery.load(json)
             except ValidationError as e:
@@ -3155,11 +3213,17 @@ class PhotometryRangeHandler(BaseHandler):
             gids = [g.id for g in self.current_user.accessible_groups]
 
             group_phot_subquery = (
-                GroupPhotometry.select(session.user_or_token)
+                GroupPhotometry.select(self.associated_user_object)
                 .where(GroupPhotometry.group_id.in_(gids))
                 .subquery()
             )
-            stmt = Photometry.select(session.user_or_token)
+            # serialize() reads instrument.name and, by default, groups and
+            # annotations; an async session cannot lazy-load any of them.
+            stmt = Photometry.select(self.associated_user_object).options(
+                joinedload(Photometry.instrument),
+                selectinload(Photometry.groups),
+                selectinload(Photometry.annotations),
+            )
 
             if instrument_ids is not None:
                 stmt = stmt.where(Photometry.instrument_id.in_(instrument_ids))
@@ -3174,10 +3238,8 @@ class PhotometryRangeHandler(BaseHandler):
                 group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
             )
 
-            output = [
-                serialize(p, query.magsys, query.format)
-                for p in session.scalars(stmt.distinct()).unique().all()
-            ]
+            rows = (await session.scalars(stmt.distinct())).unique().all()
+            output = [serialize(p, query.magsys, query.format) for p in rows]
             return self.success(data=output)
 
 

@@ -1850,7 +1850,7 @@ MAX_BULK_SPECTRA = 3000
 
 class BulkSpectraHandler(BaseHandler):
     @auth_or_token
-    def post(self, *, body: BulkSpectraPostBody = None):
+    async def post(self, *, body: BulkSpectraPostBody = None):
         """
         ---
         summary: Bulk spectra for a set of sources
@@ -1891,7 +1891,7 @@ class BulkSpectraHandler(BaseHandler):
         )
         max_sources = max(1, min(max_sources, MAX_BULK_SPECTRA_SOURCES))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             src = Source.select(self.current_user)
             if group_id is not None:
                 try:
@@ -1916,17 +1916,19 @@ class BulkSpectraHandler(BaseHandler):
                     match = match.where(accessible_cls.c.probability >= prob_threshold)
                 source_ids = source_ids.where(src_subq.c.obj_id.in_(match))
 
-            meta_rows = session.execute(
-                sa.select(
-                    Obj.id,
-                    Obj.redshift,
-                    Obj.tns_info,
-                    PhotStat.first_detected_mjd,
-                    PhotStat.peak_mjd_global,
+            meta_rows = (
+                await session.execute(
+                    sa.select(
+                        Obj.id,
+                        Obj.redshift,
+                        Obj.tns_info,
+                        PhotStat.first_detected_mjd,
+                        PhotStat.peak_mjd_global,
+                    )
+                    .outerjoin(PhotStat, PhotStat.obj_id == Obj.id)
+                    .where(Obj.id.in_(source_ids))
+                    .limit(max_sources)
                 )
-                .outerjoin(PhotStat, PhotStat.obj_id == Obj.id)
-                .where(Obj.id.in_(source_ids))
-                .limit(max_sources)
             ).all()
             selected_ids = [r.id for r in meta_rows]
 
@@ -1949,10 +1951,12 @@ class BulkSpectraHandler(BaseHandler):
             spectra_truncated = False
             if selected_ids:
                 spec_rows = (
-                    session.scalars(
-                        Spectrum.select(self.current_user)
-                        .where(Spectrum.obj_id.in_(selected_ids))
-                        .order_by(Spectrum.observed_at.asc())
+                    (
+                        await session.scalars(
+                            Spectrum.select(self.current_user)
+                            .where(Spectrum.obj_id.in_(selected_ids))
+                            .order_by(Spectrum.observed_at.asc())
+                        )
                     )
                     .unique()
                     .all()

@@ -2821,9 +2821,10 @@ class SourceOffsetsHandler(BaseHandler):
             )
 
 
-def get_finding_chart_callable(
+async def get_finding_chart_callable(
     obj_id,
     session,
+    user,
     imsize,
     use_cache,
     facility,
@@ -2840,8 +2841,11 @@ def get_finding_chart_callable(
 
     obj_id:  str
         The ID of the object for which to generate the finding chart.
-    session: SQLAlchemy session
-        The SQLAlchemy session to use for database queries.
+    session: SQLAlchemy async session
+        The session to use for database queries.
+    user: User or Token
+        Whose access the queries run under. Passed rather than read from the
+        session: only the sync session carries `user_or_token`.
     imsize: float
         The size of the image in arcminutes (default is 4.0).
     use_cache: bool
@@ -2867,9 +2871,7 @@ def get_finding_chart_callable(
 
     Returns a callable that generates the finding chart.
     """
-    source = session.scalars(
-        Obj.select(session.user_or_token).where(Obj.id == obj_id)
-    ).first()
+    source = (await session.scalars(Obj.select(user).where(Obj.id == obj_id))).first()
     if source is None:
         raise ValueError("Source not found")
     if output_type not in ["pdf", "png"]:
@@ -2898,7 +2900,7 @@ def get_finding_chart_callable(
         raise ValueError("`mag_min` must be brighter (smaller) than `mag_limit`")
 
     photometry = (
-        session.scalars(
+        await session.scalars(
             sa.select(Photometry).where(
                 sa.and_(
                     Photometry.obj_id == source.id,
@@ -2928,7 +2930,7 @@ def get_finding_chart_callable(
     except JSONDecodeError:
         flow = Flow()
         flow.push(
-            session.user_or_token.id,
+            user.id,
             action_type="baselayer/SHOW_NOTIFICATION",
             payload={
                 "note": f"Source position using photometry points failed. Reverting to discovery position.",
@@ -3074,11 +3076,12 @@ class SourceFinderHandler(BaseHandler):
         as_json = query.as_json
         use_cache = query.use_cache
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                finder = get_finding_chart_callable(
+                finder = await get_finding_chart_callable(
                     obj_id,
                     session,
+                    self.associated_user_object,
                     imsize,
                     use_cache,
                     facility,
