@@ -3,6 +3,7 @@
 A photometric series is a set of photometry points taken for a single source,
 with a single filter, and usually in a single observing season.
 There are some advantages to using a series instead of single photometry points:
+
 - All the points share the metadata, so less storage and data transfer is needed.
 - Can use binary files (HDF5) to transfer the data instead of inefficient JSON.
 - Reduces the load on the database and instead saves the raw flux data on disk.
@@ -23,6 +24,7 @@ The format of the binary file is discussed below.
 
 There are some required fields that must be defined in the request body
 in addition to the data field. These include:
+
 - obj_id: the skyportal object ID of the source that will receive the new data.
 - instrument_id: the skyportal ID of the instrument used to make the photometry.
 - group_ids: a list of skyportal group IDs that will have access to the photometry.
@@ -33,6 +35,7 @@ in addition to the data field. These include:
 
 Additional fields can be included in the request body,
 or inferred from the columns of the data table:
+
 - exp_time: the exposure time for each measurement, in seconds.
   If not given, will use the median value from the data.
 - ra: the right ascension of the source, in degrees.
@@ -44,10 +47,11 @@ or inferred from the columns of the data table:
   The column for "filter" must contain the same filter
   for all rows in the data table, and that filter must
   be part of the ALLOWED_BANDPASSES list in skyportal/enum_types.py.
-If one of these fields is not given in the body or by the data table
-the photometry will not be uploaded.
+  If one of these fields is not given in the body or by the data table
+  the photometry will not be uploaded.
 
 Some optional information can be given to the request body:
+
 - channel: the channel identifier, useful for multi-channel or multi-CCD instruments.
 - magref: the reference magnitude of the source, useful if the photometry points are given
   as subtraction results on transient/variable sources.
@@ -73,6 +77,7 @@ PhotometricSeries data is subject to SkyPortal's permission-based access control
 
 By specifying `group_ids` when uploading a photometric series,
 you grant access to that series to members of those groups.
+
 - Members of the specified groups can **read** the photometric series
 - Members of the specified groups can **update** or **delete** the series if they have the "Manage photometry" permission
 - The owner of the series can always update or delete it

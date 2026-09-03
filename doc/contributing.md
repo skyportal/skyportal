@@ -29,7 +29,7 @@ We follow a very similar process; some guidance follows below.
 ## Bug Reports
 
 While we appreciate code changes, it is also very helpful simply to
-know when SkyPortal does not function correctly.  Please [file any
+know when SkyPortal does not function correctly. Please [file any
 issues](https://github.com/skyportal/skyportal/issues) you run across.
 
 If possible, provide:
@@ -49,14 +49,14 @@ development:
 
 We don't like arguing about code style, and likely you don't
 either. Therefore, we use code formatters: black for Python, and
-Prettier for JavaScript.  Code is an art, and opinions differ of what
+Prettier for JavaScript. Code is an art, and opinions differ of what
 looks good: we choose to spend our time writing correct, elegant code.
 
 ### Testing
 
-All functionality should be accompanied by tests.  We use pytest and
-Selenium with Geckodriver.  PRs can only be merged once tests have
-been added and pass.  The continuous integration system indicates this
+All functionality should be accompanied by tests. We use pytest and
+Selenium with Geckodriver. PRs can only be merged once tests have
+been added and pass. The continuous integration system indicates this
 with a green checkmark, hence you may see developers talking about "PR
 599 being green" ✅.
 
@@ -72,22 +72,22 @@ and re-run the workflow to force a full run; see
 
 All code that goes into SkyPortal is reviewed by two team members
 (team members are persons with commit access) or, if the contributor
-is a team member, by at least one other team member.  We find review
+is a team member, by at least one other team member. We find review
 invaluable for improving code quality, and no author ever merges their
 own work.
 
 We ask all reviewers to be mindful that there is a human at the other
-side of the PR.  As such, consider the review process as a
+side of the PR. As such, consider the review process as a
 conversation aimed at getting the work mergeable as quickly as
 possible:
 
 - Do not nitpick in comments; add small fixes as suggestions (click
   the `±` button) or push uncontroversial changes as a commit into the
-  PR branch.  We prefer suggestions, because that stil gives the
+  PR branch. We prefer suggestions, because that stil gives the
   original author a chance to accept/reject the change.
 
 - Comments should provide provide actionable feedback, and can come in
-  two flavors: suggestions and requirements.  Requirements are direct
+  two flavors: suggestions and requirements. Requirements are direct
   instructions such as "Define the variable first", whereas
   suggestions are softer: "Consider whether you'd like to reformat
   this dictionary" or "Recommendation: prefer the shorthand form".
@@ -98,23 +98,23 @@ possible:
 
 ### Focused PRs
 
-In SkyPortal, we squash all PRs before merging them.  Because of this,
+In SkyPortal, we squash all PRs before merging them. Because of this,
 it is okay to merge the main branch into your branch, instead of
 rebasing.
 
-The resulting squashed commit should deal with one topic only.  For
+The resulting squashed commit should deal with one topic only. For
 example, if you find that, while implementing a new component, you
 also need to fix another, split that out into a separate PR.
 
-Long PRs take much longer to review than shorter ones.  So, for the
+Long PRs take much longer to review than shorter ones. So, for the
 benefit of the developer and reviewers alike, we ask that PRs are kept
 as small as possible.
 
 ### Describe your work
 
-When a PR is squashed, all commit messages are listed.  Please provide
+When a PR is squashed, all commit messages are listed. Please provide
 information in commit messages on what they do—this helps us
-track bugs down later.  A commit message has a title and a
+track bugs down later. A commit message has a title and a
 description:
 
 ```
@@ -133,15 +133,15 @@ Remember that you can augment the last commit using `git commit
 ### Very large, dependent sets of changes
 
 Sometimes, you are working on a feature that is large enough that it
-spans several sequential PRs.  In this case, each branch will depend
+spans several sequential PRs. In this case, each branch will depend
 on the previous, so you may have:
 
 - `part-1` (based on main)
 - `part-2` (based on feature-part-1)
 - `part-3` (based on feature-part-2)
 
-etc.  Turn `part-1` into a PR and, once it is merged, move on to
-`part-2`.  If you would also like others to look at `part-2` while
+etc. Turn `part-1` into a PR and, once it is merged, move on to
+`part-2`. If you would also like others to look at `part-2` while
 `part-1` is still under review, make a PR onto your own `part-1`
 branch, and direct reviewers there.
 
