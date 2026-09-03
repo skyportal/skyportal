@@ -1988,6 +1988,15 @@ gcn_event:
       - Einstein Probe
       - X-ray
 
+# Tags a scanner can filter on. XRF-candidate is applied automatically to the
+# objects of an event whose circular extraction classifies it as an X-ray Flash
+# (app.gcn_extraction_tags); XRF is set by hand once one is confirmed.
+objtagoption:
+  - name: XRF
+    color: "#b8860b"
+  - name: XRF-candidate
+    color: "#daa520"
+
 # Association cuts are per user and gate the search: without one, no pairs are
 # looked for at all.
 gcn_association_rules:

@@ -14,6 +14,7 @@ from .classification import Classification
 from .comment import Comment
 from .facility_transaction import FacilityTransaction
 from .followup_request import FollowupRequest
+from .gcn import GcnEventExtraction
 from .group import GroupAdmissionRequest
 from .observation_plan import EventObservationPlan
 from .spectrum import Spectrum
@@ -58,6 +59,7 @@ class UserNotification(Base):
     )
 
 
+@event.listens_for(GcnEventExtraction, "after_insert")
 @event.listens_for(Classification, "after_insert")
 @event.listens_for(Spectrum, "after_insert")
 @event.listens_for(Comment, "after_insert")
