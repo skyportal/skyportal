@@ -2487,7 +2487,7 @@ class PhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             phot = (
                 await session.scalars(
-                    Photometry.select(self.associated_user_object)
+                    Photometry.select(session.user_or_token)
                     # serialize() reads instrument.name and, by default, groups
                     # and annotations; an async session cannot lazy-load any of
                     # them.
@@ -2549,7 +2549,7 @@ class PhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             photometry = (
                 await session.scalars(
-                    Photometry.select(self.associated_user_object, mode="update")
+                    Photometry.select(session.user_or_token, mode="update")
                     # `photometry.groups` is reassigned below, which loads the
                     # existing collection first; an async session cannot do that
                     # lazily.
@@ -2564,7 +2564,7 @@ class PhotometryHandler(BaseHandler):
                 # Distinguish that from a genuinely missing point.
                 readable = (
                     await session.scalars(
-                        Photometry.select(self.associated_user_object).where(
+                        Photometry.select(session.user_or_token).where(
                             Photometry.id == photometry_id
                         )
                     )
@@ -2615,7 +2615,7 @@ class PhotometryHandler(BaseHandler):
             if group_ids is not None:
                 groups = (
                     await session.scalars(
-                        Group.select(self.associated_user_object).where(
+                        Group.select(session.user_or_token).where(
                             Group.id.in_(group_ids)
                         )
                     )
@@ -2637,7 +2637,7 @@ class PhotometryHandler(BaseHandler):
             if stream_ids is not None:
                 streams = (
                     await session.scalars(
-                        Stream.select(self.associated_user_object).where(
+                        Stream.select(session.user_or_token).where(
                             Stream.id.in_(stream_ids)
                         )
                     )
@@ -2652,7 +2652,7 @@ class PhotometryHandler(BaseHandler):
                 for stream in streams:
                     stream_photometry = (
                         await session.scalars(
-                            StreamPhotometry.select(self.associated_user_object).where(
+                            StreamPhotometry.select(session.user_or_token).where(
                                 StreamPhotometry.stream_id == stream.id,
                                 StreamPhotometry.photometr_id == photometry_id,
                             )
@@ -2667,7 +2667,7 @@ class PhotometryHandler(BaseHandler):
 
             phot_stat = (
                 await session.scalars(
-                    PhotStat.select(self.associated_user_object, mode="update").where(
+                    PhotStat.select(session.user_or_token, mode="update").where(
                         PhotStat.obj_id == photometry.obj_id
                     )
                 )
@@ -2732,7 +2732,7 @@ class PhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             photometry = (
                 await session.scalars(
-                    Photometry.select(self.associated_user_object, mode="delete").where(
+                    Photometry.select(session.user_or_token, mode="delete").where(
                         Photometry.id == photometry_id
                     )
                 )
@@ -2743,7 +2743,7 @@ class PhotometryHandler(BaseHandler):
                 # than read access, so a point can be visible yet not deletable.
                 readable = (
                     await session.scalars(
-                        Photometry.select(self.associated_user_object).where(
+                        Photometry.select(session.user_or_token).where(
                             Photometry.id == photometry_id
                         )
                     )
@@ -2764,7 +2764,7 @@ class PhotometryHandler(BaseHandler):
 
             phot_stat = (
                 await session.scalars(
-                    PhotStat.select(self.associated_user_object, mode="update").where(
+                    PhotStat.select(session.user_or_token, mode="update").where(
                         PhotStat.obj_id == obj_id
                     )
                 )
@@ -2884,7 +2884,7 @@ class ObjPhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             obj: Obj = (
                 await session.scalars(
-                    Obj.select(self.associated_user_object).where(Obj.id == obj_id)
+                    Obj.select(session.user_or_token).where(Obj.id == obj_id)
                 )
             ).first()
             if obj is None:
@@ -2954,7 +2954,7 @@ class ObjPhotometryHandler(BaseHandler):
 
                 stmt = (
                     Photometry.select(
-                        self.associated_user_object,
+                        session.user_or_token,
                         options=options,
                     )
                     .where(
@@ -3009,7 +3009,7 @@ class ObjPhotometryHandler(BaseHandler):
                 series = (
                     (
                         await session.scalars(
-                            PhotometricSeries.select(self.associated_user_object).where(
+                            PhotometricSeries.select(session.user_or_token).where(
                                 PhotometricSeries.obj_id == obj_id
                             )
                         )
@@ -3032,7 +3032,7 @@ class ObjPhotometryHandler(BaseHandler):
 
                 annotations = (
                     await session.scalars(
-                        Annotation.select(self.associated_user_object).where(
+                        Annotation.select(session.user_or_token).where(
                             Annotation.obj_id == obj_id
                         )
                     )
@@ -3080,7 +3080,7 @@ class ObjPhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             photometry_to_delete = (
                 await session.scalars(
-                    Photometry.select(self.associated_user_object, mode="delete").where(
+                    Photometry.select(session.user_or_token, mode="delete").where(
                         Photometry.obj_id == obj_id
                     )
                 )
@@ -3095,7 +3095,7 @@ class ObjPhotometryHandler(BaseHandler):
 
             stat = (
                 await session.scalars(
-                    PhotStat.select(self.associated_user_object, mode="update").where(
+                    PhotStat.select(session.user_or_token, mode="update").where(
                         PhotStat.obj_id == obj_id
                     )
                 )
@@ -3140,7 +3140,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             photometry_to_delete = (
                 await session.scalars(
-                    Photometry.select(self.associated_user_object, mode="delete").where(
+                    Photometry.select(session.user_or_token, mode="delete").where(
                         Photometry.upload_id == upload_id
                     )
                 )
@@ -3157,9 +3157,9 @@ class BulkDeletePhotometryHandler(BaseHandler):
             for oid in obj_ids:
                 stat = (
                     await session.scalars(
-                        PhotStat.select(
-                            self.associated_user_object, mode="update"
-                        ).where(PhotStat.obj_id == oid)
+                        PhotStat.select(session.user_or_token, mode="update").where(
+                            PhotStat.obj_id == oid
+                        )
                     )
                 ).first()
                 all_phot = (
@@ -3213,13 +3213,13 @@ class PhotometryRangeHandler(BaseHandler):
             gids = [g.id for g in self.current_user.accessible_groups]
 
             group_phot_subquery = (
-                GroupPhotometry.select(self.associated_user_object)
+                GroupPhotometry.select(session.user_or_token)
                 .where(GroupPhotometry.group_id.in_(gids))
                 .subquery()
             )
             # serialize() reads instrument.name and, by default, groups and
             # annotations; an async session cannot lazy-load any of them.
-            stmt = Photometry.select(self.associated_user_object).options(
+            stmt = Photometry.select(session.user_or_token).options(
                 joinedload(Photometry.instrument),
                 selectinload(Photometry.groups),
                 selectinload(Photometry.annotations),
