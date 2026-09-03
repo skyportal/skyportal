@@ -166,18 +166,84 @@ def test_mcp_unknown_method(view_only_token):
     assert data["id"] == 1
 
 
-def test_mcp_legacy_initialize_rejected(view_only_token):
+LEGACY_VERSION = "2025-06-18"
+# The deprecated profile: no Mcp-* headers, no per-request _meta.
+LEGACY = {"Mcp-Method": None, "MCP-Protocol-Version": None, "Mcp-Name": None}
+
+
+def legacy(method, params=None, token=None):
+    return mcp(method, params, token=token, headers=LEGACY, meta=False)
+
+
+def test_mcp_legacy_handshake_is_answered_without_a_session(view_only_token):
+    """A pre-2026 client hands over its version and gets one back, and no
+    session id, so its later requests stay independent of this process."""
+    status, data = legacy(
+        "initialize",
+        {"protocolVersion": LEGACY_VERSION, "capabilities": {}},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    result = data["result"]
+    assert result["protocolVersion"] == LEGACY_VERSION
+    assert "tools" in result["capabilities"]
+    assert result["serverInfo"]["name"] == "SkyPortal"
+    assert result["instructions"]
+    # resultType is a 2026-07-28 addition and has no place in this response.
+    assert "resultType" not in result
+
+
+def test_mcp_legacy_unknown_version_negotiates_down(view_only_token):
+    status, data = legacy(
+        "initialize",
+        {"protocolVersion": "2025-03-26", "capabilities": {}},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    assert data["result"]["protocolVersion"] == LEGACY_VERSION
+
+
+def test_mcp_legacy_tools_list_and_call(view_only_token, public_source):
+    """The whole point: the same tools, reachable without the 2026 envelope."""
+    status, data = legacy("tools/list", token=view_only_token)
+    assert status == 200, data
+    assert len(data["result"]["tools"]) == len(TOOLS)
+
+    status, data = legacy(
+        "tools/call",
+        {"name": "get_sources", "arguments": {"sourceID": public_source.id}},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    assert data["result"]["isError"] is False
+
+
+def test_mcp_legacy_initialized_notification_accepted(view_only_token):
+    status, data = mcp(
+        "notifications/initialized",
+        token=view_only_token,
+        headers=LEGACY,
+        meta=False,
+        id=None,
+    )
+    assert status == 202
+    assert data is None
+
+
+def test_mcp_initialize_at_our_own_version_is_method_not_found(view_only_token):
+    """A client that knows this revision but still handshakes needs to hear that
+    the handshake is missing, not that its version is unsupported."""
     status, data = mcp(
         "initialize",
-        {"protocolVersion": "2025-06-18", "capabilities": {}},
+        {"protocolVersion": VERSION, "capabilities": {}},
         token=view_only_token,
         headers={"Mcp-Method": None, "MCP-Protocol-Version": None},
         meta=False,
     )
-    assert status == 400
-    assert data["error"]["code"] == -32022
-    assert data["error"]["data"] == {"supported": [VERSION], "requested": "2025-06-18"}
-    assert VERSION in data["error"]["message"]
+    assert status == 404
+    assert data["error"]["code"] == -32601
+    assert "initialize handshake" in data["error"]["message"]
+    assert "_meta" in data["error"]["message"]
 
 
 def test_mcp_unsupported_version(view_only_token):

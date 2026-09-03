@@ -1,11 +1,16 @@
 """MCP (Model Context Protocol) endpoint at /mcp, protocol revision 2026-07-28.
 
-Modern-only: no initialize handshake, no sessions, no SSE. Every POST is a
-self-contained JSON-RPC request whose `_meta` carries the protocol version
-and client capabilities, so requests can land on any app process. Tools are
-async functions that may call the REST API (with the caller's own token, so
-the usual permission checks apply) any number of times and return their own
-content.
+Every POST is a self-contained JSON-RPC request whose `_meta` carries the
+protocol version and client capabilities, so requests can land on any app
+process. No sessions, no SSE. Tools are async functions that may call the REST
+API (with the caller's own token, so the usual permission checks apply) any
+number of times and return their own content.
+
+The pre-2026 handshake (`initialize`, then bare requests with no `Mcp-Method`
+header or `_meta`) is also answered, for clients that do not speak 2026-07-28
+yet. That path is deprecated: it is answered without issuing a session id, so
+the endpoint stays stateless either way, and it is removed once those clients
+catch up.
 """
 
 import base64
@@ -17,12 +22,20 @@ import jsonschema
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 
 from .. import __version__
 from ..app_utils import get_app_base_url
 from .base import BaseHandler
 
+log = make_log("mcp")
+
 PROTOCOL_VERSION = "2026-07-28"
+# Deprecated. The pre-2026 handshake profile, carried only until the clients
+# that need it speak 2026-07-28. Everything reached through _legacy() goes
+# with it; nothing new should be built on that path, and server/discover
+# deliberately does not advertise it.
+LEGACY_PROTOCOL_VERSION = "2025-06-18"
 META = "io.modelcontextprotocol/"
 SERVER_INFO = {"name": "SkyPortal", "version": __version__}
 # The tool set only changes with a deploy
@@ -791,10 +804,14 @@ class MCPHandler(BaseHandler):
             params = message.get("params") or {}
             if not isinstance(params, dict):
                 raise RPCError(INVALID_PARAMS, "params must be an object", status=400)
-            self._validate_request(message["method"], params)
+            legacy = self._legacy(message["method"])
+            self._validate_request(message["method"], params, legacy)
             result = await self._dispatch(message["method"], params)
-            result["resultType"] = "complete"
-            result.setdefault("_meta", {})[f"{META}serverInfo"] = SERVER_INFO
+            if not legacy:
+                # resultType and the serverInfo _meta are 2026-07-28 additions;
+                # a pre-2026 client is not expecting either.
+                result["resultType"] = "complete"
+                result.setdefault("_meta", {})[f"{META}serverInfo"] = SERVER_INFO
             self._respond({"jsonrpc": "2.0", "id": request_id, "result": result})
         except RPCError as e:
             error = {"code": e.code, "message": str(e)}
@@ -828,7 +845,16 @@ class MCPHandler(BaseHandler):
             )
         return message
 
-    def _validate_request(self, method, params):
+    def _legacy(self, method):
+        """Whether this request is on the deprecated pre-2026 profile.
+
+        Those clients open with `initialize` and then send bare JSON-RPC, so the
+        absence of the header 2026-07-28 requires on every request is what tells
+        the two apart -- no session, and nothing remembered between requests.
+        """
+        return method == "initialize" or "Mcp-Method" not in self.request.headers
+
+    def _validate_request(self, method, params, legacy=False):
         """Enforce the transport's header/body mirroring and per-request _meta."""
         unsupported = RPCError(
             UNSUPPORTED_PROTOCOL_VERSION,
@@ -837,9 +863,22 @@ class MCPHandler(BaseHandler):
             data={"supported": [PROTOCOL_VERSION]},
         )
         if method == "initialize":
-            # Legacy handshake from a pre-2026-07-28 client
-            unsupported.data["requested"] = params.get("protocolVersion")
-            raise unsupported
+            if params.get("protocolVersion") == PROTOCOL_VERSION:
+                # The revision is the one we speak, so reporting it unsupported
+                # sends the client looking for the wrong fix: it is the
+                # handshake, not the version, that this server does not have.
+                raise RPCError(
+                    METHOD_NOT_FOUND,
+                    f"This server implements MCP {PROTOCOL_VERSION}, which has no "
+                    "initialize handshake. Send each request on its own, carrying "
+                    "the protocol version in its _meta.",
+                    status=404,
+                )
+            return
+        if legacy:
+            # Deprecated profile: no header to mirror and no per-request _meta,
+            # so there is nothing here to check.
+            return
 
         headers = self.request.headers
 
@@ -889,7 +928,34 @@ class MCPHandler(BaseHandler):
             unsupported.data["requested"] = version
             raise unsupported
 
+    def _initialize(self, params):
+        """Answer the deprecated pre-2026 handshake.
+
+        No `Mcp-Session-Id` is issued: the old transport makes the session
+        optional, so declining one keeps every request independent of the
+        process that serves it, exactly as the modern profile is.
+        """
+        requested = params.get("protocolVersion")
+        client = params.get("clientInfo") or {}
+        # Recorded so we can see who still needs this path before dropping it.
+        log(
+            f"deprecated MCP handshake from {client.get('name', 'unknown')} "
+            f"{client.get('version', '?')} requesting {requested}"
+        )
+        return {
+            # Agree to the caller's revision when we know it; otherwise name the
+            # one we do speak here and let the client decide whether to go on.
+            "protocolVersion": requested
+            if requested == LEGACY_PROTOCOL_VERSION
+            else LEGACY_PROTOCOL_VERSION,
+            "capabilities": {"tools": {}},
+            "serverInfo": SERVER_INFO,
+            "instructions": INSTRUCTIONS,
+        }
+
     async def _dispatch(self, method, params):
+        if method == "initialize":
+            return self._initialize(params)
         if method == "server/discover":
             return {
                 "supportedVersions": [PROTOCOL_VERSION],
