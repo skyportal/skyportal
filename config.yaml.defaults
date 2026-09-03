@@ -58,8 +58,7 @@ app:
   anonymous_user: anonymous
 
   # This secret key can be any random string of characters.
-  # To ensure privacy of cookies and websocket communications, you
-  # should re-generate this token for your application using:
+  # You should re-generate this for your application using:
   # base64.b64encode(os.urandom(50)).decode('ascii')
   secret_key: abc01234
 
@@ -704,20 +703,25 @@ photometry_display_endpoint:
 
 server:
   # From https://console.developers.google.com/
+  #
   # - Create Client ID
   # - Javascript origins: https://localhost:5000
   # - Authorized redirect URLs: http://localhost:5000/complete/google-oauth2/
+  #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
-
   host: localhost
   port: 5000 # This is the public-facing port
-  ssl: False # Whether the base URL is http or https
+
+  # Whether the base URL is http or https
+  ssl: False
 
   # According to the Tornado docs at
   # https://www.tornadoweb.org/en/stable/guide/running.html#processes-and-ports:
-  #   Due to the Python GIL (Global Interpreter Lock), it is necessary
-  #   to run multiple Python processes to take full advantage of
-  #   multi-CPU machines. Typically, it is best to run one process per CPU.
+  #
+  # Due to the Python GIL (Global Interpreter Lock), it is necessary
+  # to run multiple Python processes to take full advantage of
+  # multi-CPU machines. Typically, it is best to run one process per
+  # CPU.
   processes: 4
 
   # How many of the above processes should be dedicated to
