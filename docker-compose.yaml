@@ -21,7 +21,11 @@ services:
   db-init:
     build: .
     command:
-      ["bash", "-c", "source .venv/bin/activate && PYTHONPATH=. python skyportal/initial_setup.py --config=config.yaml"]
+      [
+        "bash",
+        "-c",
+        "source .venv/bin/activate && PYTHONPATH=. python skyportal/initial_setup.py --config=config.yaml",
+      ]
     depends_on:
       db:
         condition: service_healthy

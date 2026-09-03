@@ -57,13 +57,11 @@ app:
   anonymous_access: false
   anonymous_user: anonymous
 
-  secret_key: abc01234  # This secret key can be any random string of
-                        # characters.
-                        #
-                        # You should re-generate this for your application
-                        # using:
-                        #
-                        # base64.b64encode(os.urandom(50)).decode('ascii')
+  # This secret key can be any random string of characters.
+  # You should re-generate this for your application using:
+  # base64.b64encode(os.urandom(50)).decode('ascii')
+  secret_key: abc01234
+
   factory: skyportal.app_server.make_app
 
   # Threads each Tornado instance may use for blocking work. Too few lets a slow
@@ -72,7 +70,7 @@ app:
   thread_pool_size:
 
   observation_plan:
-    default_filters: ['ztfg', 'ztfr', 'ztfi']
+    default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
     use_parallel: False
     Ncores: 1
@@ -160,19 +158,19 @@ app:
     look_back_days: 1
 
   hermes:
-      endpoint: https://hermes.lco.global/api/v0  # Base URL of the Hermes API
-      token:  # Hermes API token for authentication (required to publish messages)
-      topic: skyportal.skyportal  # Kafka topic used to publish outgoing SkyPortal alerts to Hermes
-      test_topic: skyportal.skyportal_test  # Kafka topic used during testing
-      sync:
-        scimma_username: # SCiMMA/Kafka username for authentication
-        scimma_password: # SCiMMA/Kafka password for authentication
-        kafka_server: kafka.scimma.org
-        from_start: False  # Start from beginning of topic (True) or latest message (False)
-        max_age_days:  # Skip messages older than N days (null/empty = no limit)
-        bot_user_id:   # User ID of the bot account that will save sources and own photometry. If not set, the service will not start.
-        group_ids: []  # List of group IDs to assign imported sources to
-        instrument_tns_ids: # Whitelist of TNS instrument IDs whose photometry will be imported (see https://www.wis-tns.org/api/get/values). If not set, photometry import is skipped entirely.
+    endpoint: https://hermes.lco.global/api/v0 # Base URL of the Hermes API
+    token: # Hermes API token for authentication (required to publish messages)
+    topic: skyportal.skyportal # Kafka topic used to publish outgoing SkyPortal alerts to Hermes
+    test_topic: skyportal.skyportal_test # Kafka topic used during testing
+    sync:
+      scimma_username: # SCiMMA/Kafka username for authentication
+      scimma_password: # SCiMMA/Kafka password for authentication
+      kafka_server: kafka.scimma.org
+      from_start: False # Start from beginning of topic (True) or latest message (False)
+      max_age_days: # Skip messages older than N days (null/empty = no limit)
+      bot_user_id: # User ID of the bot account that will save sources and own photometry. If not set, the service will not start.
+      group_ids: [] # List of group IDs to assign imported sources to
+      instrument_tns_ids: # Whitelist of TNS instrument IDs whose photometry will be imported (see https://www.wis-tns.org/api/get/values). If not set, photometry import is skipped entirely.
 
   # Configuration for the WINTER and SPRING instruments.
   winter:
@@ -474,7 +472,6 @@ app:
           permissions: ["Manage users", "System admin"]
           url: /user_management
 
-
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
     # This section describes the grid on which Home Page widgets are laid out.
@@ -714,7 +711,7 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   protocol: http
   host: localhost
-  port: 5000  # This is the public-facing port
+  port: 5000 # This is the public-facing port
 
   # Whether the base URL is http or https
   ssl: False
@@ -838,7 +835,7 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
-  # whether or not the frontend show photometry validation information
+  # whether the frontend should show photometry validation information
   # and if the backend allows adding/editing/deleting it
   photometry_validation: True
 
@@ -852,7 +849,7 @@ weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
   # Get an API key at OpenWeatherMap https://openweathermap.org/price
-  # the free tier should be sufficent, as we cache the weather results
+  # the free tier should be sufficient, as we cache the weather results
   # for each telescope
   openweather_api_key:
 
@@ -917,18 +914,18 @@ twilio:
   sms_auth_token:
 
 smtp:
-  from_email:  # This is both the email used to authenticate with smtplib and the sender address
+  from_email: # This is both the email used to authenticate with smtplib and the sender address
   password:
-  host: smtp.gmail.com  # Default Gmail settings; modify as needed
-  port: 587  # Default Gmail settings; modify as needed
+  host: smtp.gmail.com # Default Gmail settings; modify as needed
+  port: 587 # Default Gmail settings; modify as needed
 
 # This value needs to be either "sendgrid" or "smtp" (without quotes)
 email_service:
 
 invitations:
-  enabled: False  # If debug_login=True above, invite tokens won't be used during auth
+  enabled: False # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
-  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
+  disable_emailing: False # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
@@ -955,9 +952,9 @@ slack:
 
 spectrum_types:
   types:
-   - source
-   - host
-   - host_center
+    - source
+    - host
+    - host_center
   default: source
 
 cross_match:
@@ -966,7 +963,6 @@ cross_match:
     radius: 2.0
     limmag: 20.5
     number: 1
-
 
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
@@ -977,194 +973,194 @@ cross_match:
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
 additional_bandpasses:
-#  - name: 'atlasc'
-#    filterset: 'atlas'
-#    wavelength: [4150, 4157, 6556, 6560]
-#    transmission: [0, 1, 1, 0]
-#    description: "basic ATLAS C filter - tophat transmission"
-#  - name: 'atlaso'
-#    filterset: 'atlas'
-#    wavelength: [5580, 5582, 8249, 8250]
-#    transmission: [0, 1, 1, 0]
-#    description: "basic ATLAS O filter - tophat transmission"
-  - name: 'swiftxrt'
-    filterset: 'xrt'
+  #  - name: 'atlasc'
+  #    filterset: 'atlas'
+  #    wavelength: [4150, 4157, 6556, 6560]
+  #    transmission: [0, 1, 1, 0]
+  #    description: "basic ATLAS C filter - tophat transmission"
+  #  - name: 'atlaso'
+  #    filterset: 'atlas'
+  #    wavelength: [5580, 5582, 8249, 8250]
+  #    transmission: [0, 1, 1, 0]
+  #    description: "basic ATLAS O filter - tophat transmission"
+  - name: "swiftxrt"
+    filterset: "xrt"
     wavelength: [0.1, 1, 62, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XRT filter - tophat transmission"
-  - name: 'nicerxti'
-    filterset: 'xti'
+  - name: "nicerxti"
+    filterset: "xti"
     wavelength: [0.1, 1.2, 41, 100]
     transmission: [0, 1, 1, 0]
     description: "basic XTI filter - tophat transmission"
   # Einstein Probe and SVOM. Wavelength is the energy band converted with
   # lambda[AA] = 12.398 / E[keV], following the swiftxrt and nicerxti entries.
-  - name: 'epwxt'
-    filterset: 'wxt'
+  - name: "epwxt"
+    filterset: "wxt"
     wavelength: [3.038, 3.1, 24.8, 25.29]
     transmission: [0, 1, 1, 0]
     description: "Einstein Probe WXT tophat, 0.5-4 keV"
-  - name: 'epfxt'
-    filterset: 'fxt'
+  - name: "epfxt"
+    filterset: "fxt"
     wavelength: [1.215, 1.24, 41.33, 42.15]
     transmission: [0, 1, 1, 0]
     description: "Einstein Probe FXT tophat, 0.3-10 keV"
-  - name: 'svommxt'
-    filterset: 'mxt'
+  - name: "svommxt"
+    filterset: "mxt"
     wavelength: [1.215, 1.24, 61.99, 63.23]
     transmission: [0, 1, 1, 0]
     description: "SVOM MXT tophat, 0.2-10 keV"
-  - name: 'svomeclairs'
-    filterset: 'eclairs'
+  - name: "svomeclairs"
+    filterset: "eclairs"
     wavelength: [0.081, 0.08266, 3.1, 3.162]
     transmission: [0, 1, 1, 0]
     description: "SVOM ECLAIRs tophat, 4-150 keV"
-  - name: 'svomgrm'
-    filterset: 'grm'
+  - name: "svomgrm"
+    filterset: "grm"
     wavelength: [0.00243, 0.00248, 0.8266, 0.8431]
     transmission: [0, 1, 1, 0]
     description: "SVOM GRM tophat, 15 keV to 5 MeV"
   # SVOM's Visible Telescope is optical, with a blue and a red channel.
-  - name: 'svomvtb'
-    filterset: 'vt'
+  - name: "svomvtb"
+    filterset: "vt"
     wavelength: [4455, 4500, 6500, 6565]
     transmission: [0, 1, 1, 0]
     description: "SVOM VT blue channel tophat, 450-650 nm"
-  - name: 'svomvtr'
-    filterset: 'vt'
+  - name: "svomvtr"
+    filterset: "vt"
     wavelength: [6435, 6500, 10000, 10100]
     transmission: [0, 1, 1, 0]
     description: "SVOM VT red channel tophat, 650-1000 nm"
   # Radio is frequency-specified: wavelength(AA) = c / nu. Standard VLA bands,
   # plus the ATCA 3mm pair.
-  - name: 'radio-0.34GHz'
-    filterset: 'radio'
+  - name: "radio-0.34GHz"
+    filterset: "radio"
     wavelength: [8.641e+09, 8.685e+09, 8.95e+09, 8.994e+09]
     transmission: [0, 1, 1, 0]
     description: "VLA P-band tophat centered at 0.34 GHz"
-  - name: 'radio-1.4GHz'
-    filterset: 'radio'
+  - name: "radio-1.4GHz"
+    filterset: "radio"
     wavelength: [2.099e+09, 2.109e+09, 2.173e+09, 2.184e+09]
     transmission: [0, 1, 1, 0]
     description: "VLA L-band tophat centered at 1.4 GHz"
-  - name: 'radio-3GHz'
-    filterset: 'radio'
+  - name: "radio-3GHz"
+    filterset: "radio"
     wavelength: [9.793e+08, 9.843e+08, 1.014e+09, 1.019e+09]
     transmission: [0, 1, 1, 0]
     description: "VLA S-band tophat centered at 3 GHz"
-  - name: 'radio-6GHz'
-    filterset: 'radio'
+  - name: "radio-6GHz"
+    filterset: "radio"
     wavelength: [4.897e+08, 4.922e+08, 5.071e+08, 5.096e+08]
     transmission: [0, 1, 1, 0]
     description: "VLA C-band tophat centered at 6 GHz"
-  - name: 'radio-10GHz'
-    filterset: 'radio'
+  - name: "radio-10GHz"
+    filterset: "radio"
     wavelength: [2.938e+08, 2.953e+08, 3.043e+08, 3.058e+08]
     transmission: [0, 1, 1, 0]
     description: "VLA X-band tophat centered at 10 GHz"
-  - name: 'radio-15GHz'
-    filterset: 'radio'
+  - name: "radio-15GHz"
+    filterset: "radio"
     wavelength: [1.959e+08, 1.969e+08, 2.029e+08, 2.039e+08]
     transmission: [0, 1, 1, 0]
     description: "VLA Ku-band tophat centered at 15 GHz"
-  - name: 'radio-22GHz'
-    filterset: 'radio'
+  - name: "radio-22GHz"
+    filterset: "radio"
     wavelength: [1.335e+08, 1.342e+08, 1.383e+08, 1.39e+08]
     transmission: [0, 1, 1, 0]
     description: "VLA K-band tophat centered at 22 GHz"
-  - name: 'radio-33GHz'
-    filterset: 'radio'
+  - name: "radio-33GHz"
+    filterset: "radio"
     wavelength: [8.903e+07, 8.948e+07, 9.221e+07, 9.266e+07]
     transmission: [0, 1, 1, 0]
     description: "VLA Ka-band tophat centered at 33 GHz"
-  - name: 'radio-45GHz'
-    filterset: 'radio'
+  - name: "radio-45GHz"
+    filterset: "radio"
     wavelength: [6.529e+07, 6.562e+07, 6.762e+07, 6.795e+07]
     transmission: [0, 1, 1, 0]
     description: "VLA Q-band tophat centered at 45 GHz"
   # ATCA 3mm. The recommended CABB continuum pair for the 83-105 GHz band; no
   # VLA band reaches here, so without these an ATCA 3mm point has no bandpass.
-  - name: 'radio-93GHz'
-    filterset: 'radio'
+  - name: "radio-93GHz"
+    filterset: "radio"
     wavelength: [3.159e+07, 3.175e+07, 3.272e+07, 3.288e+07]
     transmission: [0, 1, 1, 0]
     description: "ATCA 3mm tophat centered at 93 GHz"
-  - name: 'radio-95GHz'
-    filterset: 'radio'
+  - name: "radio-95GHz"
+    filterset: "radio"
     wavelength: [3.093e+07, 3.108e+07, 3.203e+07, 3.219e+07]
     transmission: [0, 1, 1, 0]
     description: "ATCA 3mm tophat centered at 95 GHz"
   # Hard X-ray and gamma-ray monitors. Circulars quote a band inside the
   # instrument's full range, so the crosswalk keys on the instrument name.
-  - name: 'swiftbat'
-    filterset: 'bat'
+  - name: "swiftbat"
+    filterset: "bat"
     wavelength: [0.081, 0.08266, 0.8266, 0.8431]
     transmission: [0, 1, 1, 0]
     description: "Swift BAT tophat, 15-150 keV"
-  - name: 'fermigbm'
-    filterset: 'gbm'
+  - name: "fermigbm"
+    filterset: "gbm"
     wavelength: [0.0003038, 0.00031, 1.55, 1.581]
     transmission: [0, 1, 1, 0]
     description: "Fermi GBM tophat, 8 keV to 40 MeV"
-  - name: 'fermilat'
-    filterset: 'lat'
+  - name: "fermilat"
+    filterset: "lat"
     wavelength: [4.05e-08, 4.133e-08, 0.0006199, 0.0006323]
     transmission: [0, 1, 1, 0]
     description: "Fermi LAT tophat, 20 MeV to 300 GeV"
-  - name: 'konus'
-    filterset: 'konus'
+  - name: "konus"
+    filterset: "konus"
     wavelength: [0.0006075, 0.0006199, 0.6199, 0.6323]
     transmission: [0, 1, 1, 0]
     description: "Konus-Wind tophat, 20 keV to 20 MeV"
-  - name: 'integralacs'
-    filterset: 'spiacs'
+  - name: "integralacs"
+    filterset: "spiacs"
     wavelength: [0.006075, 0.006199, 0.1653, 0.1686]
     transmission: [0, 1, 1, 0]
     description: "INTEGRAL SPI-ACS tophat, 75 keV to 2 MeV"
-  - name: 'integralibis'
-    filterset: 'isgri'
+  - name: "integralibis"
+    filterset: "isgri"
     wavelength: [0.01215, 0.0124, 0.8266, 0.8431]
     transmission: [0, 1, 1, 0]
     description: "INTEGRAL IBIS/ISGRI tophat, 15-1000 keV"
-  - name: 'integraljemx'
-    filterset: 'jemx'
+  - name: "integraljemx"
+    filterset: "jemx"
     wavelength: [0.3472, 0.3542, 4.133, 4.215]
     transmission: [0, 1, 1, 0]
     description: "INTEGRAL JEM-X tophat, 3-35 keV"
-  - name: 'caletcgbm'
-    filterset: 'cgbm'
+  - name: "caletcgbm"
+    filterset: "cgbm"
     wavelength: [0.0006075, 0.0006199, 1.771, 1.807]
     transmission: [0, 1, 1, 0]
     description: "CALET CGBM tophat, 7 keV to 20 MeV"
-  - name: 'nustar'
-    filterset: 'nustar'
+  - name: "nustar"
+    filterset: "nustar"
     wavelength: [0.1538, 0.1569, 4.133, 4.215]
     transmission: [0, 1, 1, 0]
     description: "NuSTAR tophat, 3-79 keV"
-  - name: 'maxigsc'
-    filterset: 'gsc'
+  - name: "maxigsc"
+    filterset: "gsc"
     wavelength: [0.405, 0.4133, 6.199, 6.323]
     transmission: [0, 1, 1, 0]
     description: "MAXI GSC tophat, 2-30 keV"
   # SMA submillimeter bands.
-  - name: 'sma-230GHz'
-    filterset: 'sma'
+  - name: "sma-230GHz"
+    filterset: "sma"
     wavelength: [1.277e+07, 1.284e+07, 1.323e+07, 1.33e+07]
     transmission: [0, 1, 1, 0]
     description: "SMA 1.3mm tophat centered at 230 GHz"
-  - name: 'sma-345GHz'
-    filterset: 'sma'
+  - name: "sma-345GHz"
+    filterset: "sma"
     wavelength: [8.516e+06, 8.559e+06, 8.82e+06, 8.863e+06]
     transmission: [0, 1, 1, 0]
     description: "SMA 0.87mm tophat centered at 345 GHz"
-  - name: 'sma-400GHz'
-    filterset: 'sma'
+  - name: "sma-400GHz"
+    filterset: "sma"
     wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
     transmission: [0, 1, 1, 0]
     description: "SMA 0.75mm tophat centered at 400 GHz"
 
 user:
-  default_role: 'Full user'
+  default_role: "Full user"
   default_groups: []
   default_acls: []
 
@@ -1191,13 +1187,13 @@ hosts:
 # JPL Scout NEO Target-of-Opportunity candidates, published by
 # lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 scout:
-  topic:  # e.g. lco.scout-neo-too-test
+  topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
-  scimma_username:  # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
+  scimma_username: # SCiMMA/Kafka credentials; omit both for an unauthenticated broker
   scimma_password:
-  group_ids: []  # groups the NEO candidates are saved to
-  bot_user_id:  # user recorded as saving the sources and authoring the annotations
-  from_start: False  # read the topic from the beginning (True) or from latest (False)
+  group_ids: [] # groups the NEO candidates are saved to
+  bot_user_id: # user recorded as saving the sources and authoring the annotations
+  from_start: False # read the topic from the beginning (True) or from latest (False)
   # The bridge can publish under a `relaxed_test` filter mode that waives all but
   # the identity filters. Off by default so test traffic can't look like a trigger.
   allow_relaxed_test: False
@@ -1387,8 +1383,6 @@ analysis_services:
         cloud: aws
         region: us-east-1
 
-
-
 # Root for on-disk caches; everything under it is regenerable and safe to delete.
 cache_folder: cache
 comments_folder: persistentdata/comments
@@ -1400,14 +1394,8 @@ colors:
   classifications:
     classification:
       # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
-      {
-        "variable": "#3a87ad",
-        "Time-domain Source": "#ff0000",
-      }
-    origin:
-      {
-        "SCoPe": "#3a87ad",
-      }
+      { "variable": "#3a87ad", "Time-domain Source": "#ff0000" }
+    origin: { "SCoPe": "#3a87ad" }
   gcnTags:
     {
       "BNS": "#468847",
@@ -1420,18 +1408,18 @@ colors:
     }
 
   summary_sources:
-  - score: 0.9
-    fw: bold
-    col: green
-  - score: 0.8
-    fw: bold
-    col: black
-  - score: 0.7
-    fw: normal
-    col: black
-  - score: 0.0
-    fw: normal
-    col: grey
+    - score: 0.9
+      fw: bold
+      col: green
+    - score: 0.8
+      fw: bold
+      col: black
+    - score: 0.7
+      fw: normal
+      col: black
+    - score: 0.0
+      fw: normal
+      col: grey
 
 docs:
   servers:
