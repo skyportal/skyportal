@@ -1,15 +1,16 @@
 __all__ = [
     "Comment",
-    "CommentOnSpectrum",
     "CommentOnEarthquake",
     "CommentOnGCN",
     "CommentOnShift",
+    "CommentOnSpectrum",
 ]
 
 import sqlalchemy as sa
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import deferred, relationship
+from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -19,6 +20,12 @@ from baselayer.app.models import (
 )
 from baselayer.log import make_log
 
+from ..utils.assistant import (
+    assistant_channel,
+    is_addressed_to_assistant,
+    is_enabled,
+    post_to_assistant,
+)
 from ..utils.files import delete_file_data, save_file_data
 from .group import accessible_by_groups_members
 
@@ -196,6 +203,25 @@ class Comment(Base, CommentMixin):
         server_default="false",
         doc="Whether the comment was posted by the app rather than typed by its author.",
     )
+
+
+@event.listens_for(Comment, "after_insert")
+def ask_the_assistant(mapper, connection, target):
+    """Wake the assistant when a comment lands in its channel."""
+
+    @event.listens_for(inspect(target).session, "after_commit", once=True)
+    def receive_after_commit(session):
+        if not is_enabled(cfg):
+            return
+        if not is_addressed_to_assistant(
+            {"channel": target.channel, "system": bool(target.system)},
+            assistant_channel(cfg),
+        ):
+            return
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: post_to_assistant(cfg, type(target).__name__, target.id),
+        )
 
 
 class CommentOnSpectrum(Base, CommentMixin):

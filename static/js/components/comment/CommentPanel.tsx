@@ -1,5 +1,11 @@
 import { KeyboardEvent, Suspense, lazy, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
+import {
+  ASSISTANT_CHANNEL,
+  INTERESTED_CHANNEL,
+  MAIN_CHANNEL,
+} from "./channels";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 import ChatIcon from "@mui/icons-material/Chat";
 import CloseIcon from "@mui/icons-material/Close";
 import PictureInPictureAltIcon from "@mui/icons-material/PictureInPictureAlt";
@@ -26,9 +32,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 const CommentThread = lazy(() => import("../comment/CommentThread"));
 
-const MAIN_CHANNEL = "Comments";
 const INLINE_KEY = "sourceChatInline";
-export const INTERESTED_CHANNEL = "Interested";
 
 const useStyles = makeStyles()((theme) => ({
   fab: {
@@ -177,13 +181,19 @@ const CommentPanel = ({
   const hasInterested =
     openedChannels.includes(INTERESTED_CHANNEL) ||
     channel === INTERESTED_CHANNEL;
+  const hasAssistant =
+    openedChannels.includes(ASSISTANT_CHANNEL) || channel === ASSISTANT_CHANNEL;
 
   const channels = [
     MAIN_CHANNEL,
     ...(hasInterested ? [INTERESTED_CHANNEL] : []),
+    ...(hasAssistant ? [ASSISTANT_CHANNEL] : []),
     ...new Set(
       [...openedChannels, ...addedChannels].filter(
-        (name) => name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL,
+        (name) =>
+          name !== MAIN_CHANNEL &&
+          name !== INTERESTED_CHANNEL &&
+          name !== ASSISTANT_CHANNEL,
       ),
     ),
   ];
@@ -300,15 +310,26 @@ const CommentPanel = ({
             ))}
           </Tabs>
           {newChannel === null ? (
-            <Tooltip title="New conversation">
-              <IconButton
-                size="small"
-                onClick={() => setNewChannel("")}
-                data-testid="new-channel-button"
-              >
-                <AddIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <>
+              <Tooltip title="New conversation">
+                <IconButton
+                  size="small"
+                  onClick={() => setNewChannel("")}
+                  data-testid="new-channel-button"
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Ask the assistant">
+                <IconButton
+                  size="small"
+                  onClick={() => setChannel(ASSISTANT_CHANNEL)}
+                  data-testid="assistant-channel-button"
+                >
+                  <SmartToyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
           ) : (
             <TextField
               autoFocus

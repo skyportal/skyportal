@@ -510,6 +510,23 @@ app:
       sm: 6
       xs: 4
 
+  assistant:
+    # Conversational assistant answering in a reserved comment channel. It reaches
+    # the instance through SkyPortal's own MCP endpoint, so it gains a capability
+    # whenever a tool is added there — nothing here is per-pipeline.
+    # Leave base_url unset to disable the service.
+    base_url:  # e.g. https://host/llm/qwen3-27b/v1
+    model: ""
+    api_key: ""
+    # Comments in this channel are addressed to the assistant; its replies carry
+    # system=true so they never retrigger it.
+    channel: assistant
+    # Cap on tool round-trips per question, so a looping model cannot run away.
+    max_tool_calls: 8
+    # Oldest comments are dropped first when a thread outgrows this.
+    max_context_comments: 40
+    request_timeout: 300
+
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how
     # they are laid out by default on the grid of the page.
@@ -1175,6 +1192,7 @@ ports:
   notification_queue: 64610
   tns_retrieval_queue: 64810
   jpl_sbident_queue: 64820
+  assistant: 64830
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -1186,6 +1204,7 @@ hosts:
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
   jpl_sbident_queue: 127.0.0.1
+  assistant: 127.0.0.1
   slack: 127.0.0.1
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by
