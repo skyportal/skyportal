@@ -2675,6 +2675,10 @@ class PhotometryHandler(BaseHandler):
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
 
+            # The edit above is still pending, so flush it or the stats are
+            # recomputed from the pre-edit rows -- and the expunge below would
+            # discard it entirely.
+            await session.flush()
             all_phot = (
                 await session.scalars(
                     sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
@@ -2770,6 +2774,9 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
+                # Flush the delete first, or it is still one of the rows the
+                # stats are recomputed from.
+                await session.flush()
                 all_phot = (
                     await session.scalars(
                         sa.select(Photometry).where(Photometry.obj_id == obj_id)
