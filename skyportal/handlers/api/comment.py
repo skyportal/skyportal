@@ -221,6 +221,15 @@ async def instruments_mentioned(text, session):
     return users_result.unique().all()
 
 
+COMMENT_TABLES = {
+    "sources": (Comment, "obj_id"),
+    "spectra": (CommentOnSpectrum, "spectrum_id"),
+    "gcn_event": (CommentOnGCN, "gcn_id"),
+    "earthquake": (CommentOnEarthquake, "earthquake_id"),
+    "shift": (CommentOnShift, "shift_id"),
+}
+
+
 def _coerce_comment_resource_id(associated_resource_type, resource_id):
     """For comments, sources use a string obj_id; everything else uses an
     integer id. Returns the coerced value or None on parse failure (which
@@ -320,31 +329,20 @@ class CommentHandler(BaseHandler):
                     return self.error(
                         "Please provide a resource_id or text to search for."
                     )
-                if associated_resource_type.lower() == "sources":
-                    table, resource_id_col = Comment, "obj_id"
-                elif associated_resource_type.lower() == "spectra":
-                    table, resource_id_col = CommentOnSpectrum, "spectrum_id"
-                elif associated_resource_type.lower() == "gcn_event":
-                    table, resource_id_col = CommentOnGCN, "gcn_id"
-                elif associated_resource_type.lower() == "earthquake":
-                    table, resource_id_col = CommentOnEarthquake, "earthquake_id"
-                elif associated_resource_type.lower() == "shift":
-                    table, resource_id_col = CommentOnShift, "shift_id"
-                else:
+                mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+                if mapping is None:
                     return self.error(
                         f'Unsupported associated resource type "{associated_resource_type}".'
                     )
+                table, resource_id_col = mapping
 
                 stmt = table.select(
                     session.user_or_token, options=[selectinload(table.author)]
                 )
-                if table is Comment:
-                    channel = query.channel
-                    stmt = stmt.where(
-                        Comment.channel == channel
-                        if channel
-                        else Comment.channel.is_(None)
-                    )
+                channel = query.channel
+                stmt = stmt.where(
+                    table.channel == channel if channel else table.channel.is_(None)
+                )
                 if resource_id is not None:
                     coerced = _coerce_comment_resource_id(
                         associated_resource_type, resource_id
@@ -547,10 +545,10 @@ class CommentHandler(BaseHandler):
                 gcnevent_id = None
                 earthquake_id = None
                 shift_id = None
+                channel = body.channel or None
 
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
-                    channel = body.channel or None
                     existing_result = await session.scalars(
                         Comment.select(session.user_or_token)
                         .options(selectinload(Comment.groups))
@@ -600,6 +598,9 @@ class CommentHandler(BaseHandler):
                         .options(selectinload(CommentOnSpectrum.groups))
                         .where(
                             CommentOnSpectrum.text == comment_text,
+                            CommentOnSpectrum.channel.is_(None)
+                            if channel is None
+                            else CommentOnSpectrum.channel == channel,
                             CommentOnSpectrum.spectrum_id == spectrum_id,
                             CommentOnSpectrum.attachment_bytes == attachment_bytes,
                             CommentOnSpectrum.attachment_name == attachment_name,
@@ -614,6 +615,7 @@ class CommentHandler(BaseHandler):
                     if existing is None:
                         comment = CommentOnSpectrum(
                             text=comment_text,
+                            channel=channel,
                             spectrum_id=spectrum_id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
@@ -642,6 +644,9 @@ class CommentHandler(BaseHandler):
                         .options(selectinload(CommentOnGCN.groups))
                         .where(
                             CommentOnGCN.text == comment_text,
+                            CommentOnGCN.channel.is_(None)
+                            if channel is None
+                            else CommentOnGCN.channel == channel,
                             CommentOnGCN.gcn_id == gcnevent_id,
                             CommentOnGCN.attachment_bytes == attachment_bytes,
                             CommentOnGCN.attachment_name == attachment_name,
@@ -656,6 +661,7 @@ class CommentHandler(BaseHandler):
                     if existing is None:
                         comment = CommentOnGCN(
                             text=comment_text,
+                            channel=channel,
                             gcn_id=gcn_event.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
@@ -682,6 +688,9 @@ class CommentHandler(BaseHandler):
                         .options(selectinload(CommentOnEarthquake.groups))
                         .where(
                             CommentOnEarthquake.text == comment_text,
+                            CommentOnEarthquake.channel.is_(None)
+                            if channel is None
+                            else CommentOnEarthquake.channel == channel,
                             CommentOnEarthquake.earthquake_id == earthquake_id,
                             CommentOnEarthquake.attachment_bytes == attachment_bytes,
                             CommentOnEarthquake.attachment_name == attachment_name,
@@ -696,6 +705,7 @@ class CommentHandler(BaseHandler):
                     if existing is None:
                         comment = CommentOnEarthquake(
                             text=comment_text,
+                            channel=channel,
                             earthquake_id=earthquake.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
@@ -720,6 +730,9 @@ class CommentHandler(BaseHandler):
                         .options(selectinload(CommentOnShift.groups))
                         .where(
                             CommentOnShift.text == comment_text,
+                            CommentOnShift.channel.is_(None)
+                            if channel is None
+                            else CommentOnShift.channel == channel,
                             CommentOnShift.shift_id == shift_id,
                             CommentOnShift.attachment_bytes == attachment_bytes,
                             CommentOnShift.attachment_name == attachment_name,
@@ -734,6 +747,7 @@ class CommentHandler(BaseHandler):
                     if existing is None:
                         comment = CommentOnShift(
                             text=comment_text,
+                            channel=channel,
                             shift_id=shift.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
@@ -1434,19 +1448,38 @@ class CommentAttachmentHandler(BaseHandler):
 
 
 class CommentChannelHandler(BaseHandler):
+    @staticmethod
+    def _resolve(associated_resource_type, resource_id):
+        """Comment table, its resource id column, and the coerced id."""
+        mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+        if mapping is None:
+            return None, None, None
+        table, resource_id_col = mapping
+        return (
+            table,
+            resource_id_col,
+            _coerce_comment_resource_id(associated_resource_type, resource_id),
+        )
+
     @auth_or_token
-    async def get(self, obj_id: str):
+    async def get(self, associated_resource_type: str, resource_id: str):
         """
         ---
-        summary: List the conversations opened on a source
+        summary: List the conversations opened on a resource
         description: >
-            Retrieve the names of the source's named conversations. A
+            Retrieve the names of the resource's named conversations. A
             conversation exists as soon as a comment carries its name.
         tags:
           - comments
         parameters:
           - in: path
-            name: obj_id
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+              enum: [sources, spectra, gcn_event, earthquake, shift]
+          - in: path
+            name: resource_id
             required: true
             schema:
               type: string
@@ -1456,19 +1489,32 @@ class CommentChannelHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        table, resource_id_col, coerced = self._resolve(
+            associated_resource_type, resource_id
+        )
+        if table is None:
+            return self.error(
+                f'Unsupported associated resource type "{associated_resource_type}".'
+            )
+        if coerced is None:
+            return self.error(f"Invalid resource id: {resource_id}")
+
         async with self.AsyncSession() as session:
             channels = await session.scalars(
-                Comment.select(session.user_or_token, columns=[Comment.channel])
-                .where(Comment.obj_id == obj_id, Comment.channel.isnot(None))
+                table.select(session.user_or_token, columns=[table.channel])
+                .where(
+                    getattr(table, resource_id_col) == coerced,
+                    table.channel.isnot(None),
+                )
                 .distinct()
             )
             return self.success(data=sorted(channels.all()))
 
     @permissions(["Comment"])
-    async def delete(self, obj_id: str):
+    async def delete(self, associated_resource_type: str, resource_id: str):
         """
         ---
-        summary: Delete a conversation on a source
+        summary: Delete a conversation on a resource
         description: >
             Delete a named conversation and every comment it holds. Restricted
             to the user who opened it (the author of its first comment) and to
@@ -1477,7 +1523,13 @@ class CommentChannelHandler(BaseHandler):
           - comments
         parameters:
           - in: path
-            name: obj_id
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+              enum: [sources, spectra, gcn_event, earthquake, shift]
+          - in: path
+            name: resource_id
             required: true
             schema:
               type: string
@@ -1496,11 +1548,22 @@ class CommentChannelHandler(BaseHandler):
         if not channel:
             return self.error("`channel` must be provided")
 
+        table, resource_id_col, coerced = self._resolve(
+            associated_resource_type, resource_id
+        )
+        if table is None:
+            return self.error(
+                f'Unsupported associated resource type "{associated_resource_type}".'
+            )
+        if coerced is None:
+            return self.error(f"Invalid resource id: {resource_id}")
+        belongs_to = getattr(table, resource_id_col) == coerced
+
         async with self.AsyncSession() as session:
             opener_id = await session.scalar(
-                sa.select(Comment.author_id)
-                .where(Comment.obj_id == obj_id, Comment.channel == channel)
-                .order_by(Comment.created_at)
+                sa.select(table.author_id)
+                .where(belongs_to, table.channel == channel)
+                .order_by(table.created_at)
                 .limit(1)
             )
             if opener_id is None:
@@ -1518,9 +1581,9 @@ class CommentChannelHandler(BaseHandler):
             comment_ids = (
                 (
                     await session.scalars(
-                        Comment.select(
-                            session.user_or_token, columns=[Comment.id]
-                        ).where(Comment.obj_id == obj_id, Comment.channel == channel)
+                        table.select(session.user_or_token, columns=[table.id]).where(
+                            belongs_to, table.channel == channel
+                        )
                     )
                 )
                 .unique()
@@ -1529,13 +1592,29 @@ class CommentChannelHandler(BaseHandler):
             if not comment_ids:
                 return self.error("Invalid channel")
 
-            await session.execute(sa.delete(Comment).where(Comment.id.in_(comment_ids)))
+            await session.execute(sa.delete(table).where(table.id.in_(comment_ids)))
             await session.commit()
 
-            target_obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            await self._push_refresh(session, associated_resource_type, coerced)
+            return self.success()
+
+    async def _push_refresh(self, session, associated_resource_type, resource_id):
+        """Tell the front end the resource's comments changed."""
+        if associated_resource_type.lower() == "sources":
+            target_obj = await session.scalar(
+                sa.select(Obj).where(Obj.id == resource_id)
+            )
             if target_obj is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE",
                     payload={"obj_key": target_obj.internal_key},
                 )
-            return self.success()
+        elif associated_resource_type.lower() == "gcn_event":
+            event = await session.scalar(
+                sa.select(GcnEvent).where(GcnEvent.id == resource_id)
+            )
+            if event is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_GCN_EVENT",
+                    payload={"gcnEvent_dateobs": event.dateobs},
+                )

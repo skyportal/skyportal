@@ -16391,7 +16391,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/sources/{obj_id}/comments/channels": {
+    "/api/{associated_resource_type}/{resource_id}/comments/channels": {
         parameters: {
             query?: never;
             header?: never;
@@ -16399,15 +16399,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the conversations opened on a source
-         * @description Retrieve the names of the source's named conversations. A conversation exists as soon as a comment carries its name.
+         * List the conversations opened on a resource
+         * @description Retrieve the names of the resource's named conversations. A conversation exists as soon as a comment carries its name.
          */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    obj_id: string;
+                    associated_resource_type: string;
+                    resource_id: string;
                 };
                 cookie?: never;
             };
@@ -16426,7 +16427,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a conversation on a source
+         * Delete a conversation on a resource
          * @description <b>Permission(s) required:</b> <em>Comment (or System admin)</em><br><br>Delete a named conversation and every comment it holds. Restricted to the user who opened it (the author of its first comment) and to system admins.
          */
         delete: {
@@ -16436,7 +16437,8 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    obj_id: string;
+                    associated_resource_type: string;
+                    resource_id: string;
                 };
                 cookie?: never;
             };
@@ -23541,14 +23543,14 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
-            /** @description Conversation the comment belongs to, NULL for the main thread. */
-            channel?: string | null;
-            /** @description Whether the comment was posted by the app rather than typed by its author. */
-            system?: boolean;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23582,12 +23584,12 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
+            /** @description Comment body. */
+            text: string;
             /** @description Conversation the comment belongs to, NULL for the main thread. */
             channel?: string | null;
             /** @description Whether the comment was posted by the app rather than typed by its author. */
             system?: boolean;
-            /** @description Comment body. */
-            text: string;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23625,6 +23627,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23660,6 +23666,10 @@ export interface components {
             earthquake_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23697,6 +23707,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23732,6 +23746,10 @@ export interface components {
             gcn_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23769,6 +23787,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23804,6 +23826,10 @@ export interface components {
             shift_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23845,6 +23871,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23884,6 +23914,10 @@ export interface components {
             spectrum_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
