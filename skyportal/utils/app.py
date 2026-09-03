@@ -4,12 +4,10 @@ _, cfg = load_env()
 
 
 def get_app_base_url():
-    ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
-    return f"{'https' if cfg['server.ssl'] else 'http'}://{cfg['server.host']}" + (
+    default_port = 443 if cfg["server.ssl"] else 80
+    port = (
         f":{cfg['server.port']}"
-        if (
-            cfg["server.port"] is not None
-            and cfg["server.port"] != ports_to_ignore[cfg["server.ssl"]]
-        )
+        if cfg["server.port"] not in (None, default_port)
         else ""
     )
+    return f"{'https' if cfg['server.ssl'] else 'http'}://{cfg['server.host']}{port}"

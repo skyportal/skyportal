@@ -1,12 +1,11 @@
 import asyncio
 import json
-import operator  # noqa: F401
+import operator
 import string
 import time
 from threading import Thread
 
 import arrow
-import gcn
 import requests
 import sqlalchemy as sa
 import tornado.escape

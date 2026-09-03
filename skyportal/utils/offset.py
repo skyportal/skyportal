@@ -57,7 +57,7 @@ NGPS_TARGET_BANDS_TO_SNCOSMO = {
     "U": ["sdssu", "bessellux", "standard::u", "lsstu"],
 }
 
-# we inverse the dictionnary
+# we inverse the dictionary
 SNCOSMO_BANDS_TO_NGPS_TARGET = {}
 for k, v in NGPS_TARGET_BANDS_TO_SNCOSMO.items():
     for vv in v:

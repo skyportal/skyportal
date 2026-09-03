@@ -56,13 +56,13 @@ from .localization import Localization
 
 env, cfg = load_env()
 
-host = get_app_base_url()
-
 cache_dir = f"{cache_folder}/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,
 )
+
+HOST = get_app_base_url()
 
 # max error radius of a sky localization to automatically
 # create an associated source. It should be specified in arcminutes
@@ -313,7 +313,7 @@ class GcnReport(Base):
 
         template = env.get_template("gcn_report_template.html")
         html = template.render(
-            host=host,
+            host=HOST,
             dateobs=str(self.dateobs).replace(" ", "T"),
             report_id=self.id,
             report_name=self.report_name,

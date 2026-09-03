@@ -12,10 +12,10 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-from skyportal.utils.app import get_app_base_url
-from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
-from skyportal.utils.email import send_email
 
+from .app import get_app_base_url
+from .calculations import deg2dms, deg2hms, radec2lb
+from .email import send_email
 from .naive_datetime import utcnow_naive
 
 env, cfg = load_env()
