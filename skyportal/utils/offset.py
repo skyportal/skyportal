@@ -32,6 +32,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from .. import __version__
+from .app import get_app_base_url
 from .cache import Cache, cache_folder, dict_to_bytes
 from .naive_datetime import utcnow_naive
 from .tap_services.gaia import GaiaQuery
@@ -47,9 +48,7 @@ finding_charts_cache = Cache(cache_dir=cache_dir, max_age=cache_max_age)
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
 
-HOST = f"{cfg['server.protocol']}://{cfg['server.host']}" + (
-    f":{cfg['server.port']}" if cfg["server.port"] not in [80, 443] else ""
-)
+HOST = get_app_base_url()
 
 NGPS_TARGET_BANDS_TO_SNCOSMO = {
     "G": ["ztfg", "sdssg", "lsstg"],
