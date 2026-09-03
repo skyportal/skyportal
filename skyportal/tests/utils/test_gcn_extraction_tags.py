@@ -48,4 +48,4 @@ def test_unmapped_class_tags_nothing():
 
 
 def test_configured_class_maps_to_its_tag():
-    assert tag_name_for("X-ray Flash") == "XRF-candidate"
+    assert tag_name_for("X-ray Flash") == "XRFcandidate"

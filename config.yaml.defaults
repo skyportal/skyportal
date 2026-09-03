@@ -514,7 +514,7 @@ app:
     # Taxonomy class reported by a circular extraction -> obj tag applied to the
     # objects of that event. An unmapped class tags nothing. The tag must already
     # exist as an ObjTagOption.
-    X-ray Flash: XRF-candidate
+    X-ray Flash: XRFcandidate
 
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how
