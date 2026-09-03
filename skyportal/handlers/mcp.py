@@ -19,7 +19,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from baselayer.app.access import auth_or_token
 
 from .. import __version__
-from ..app_utils import get_app_base_url
+from ..utils.app import get_app_base_url
 from .base import BaseHandler
 
 PROTOCOL_VERSION = "2026-07-28"

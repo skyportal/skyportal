@@ -1,12 +1,11 @@
 import asyncio
 import json
-import operator  # noqa: F401
+import operator
 import string
 import time
 from threading import Thread
 
 import arrow
-import gcn
 import requests
 import sqlalchemy as sa
 import tornado.escape
@@ -19,8 +18,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
-from skyportal.email_utils import send_email
 from skyportal.models import (
     Allocation,
     AnalysisService,
@@ -47,6 +44,8 @@ from skyportal.models import (
     User,
     UserNotification,
 )
+from skyportal.utils.app import get_app_base_url
+from skyportal.utils.email import send_email
 from skyportal.utils.gcn import get_skymap_properties
 from skyportal.utils.notifications import (
     gcn_email_notification,

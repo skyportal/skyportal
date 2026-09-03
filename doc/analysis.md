@@ -10,9 +10,9 @@ SkyPortal enables the establishment of 3rd party analysis services, which can be
 
 Some example use cases contemplated:
 
-  - send a source to a 3rd party application which applies custom machine learning models to determine **classification** of that source
-  - **Light curve fitting** to template models
-  - **Redshift fitting** on spectra
+- send a source to a 3rd party application which applies custom machine learning models to determine **classification** of that source
+- **Light curve fitting** to template models
+- **Redshift fitting** on spectra
 
 ### Creating a new Analysis Service
 
@@ -43,12 +43,10 @@ url = "http://localhost:5000/api/analysis_service"
 r = requests.post(url, headers=header, json= payload)
 analysis_id =  r.json()['data']['id']
 ```
+
 Setting `upload_only` to True will set that service as providing the results of a 3rd party analysis that does not make explicit use of SkyPortal data. Setting `upload_only` to False will mean that SkyPortal will package and send data to an external service and that service sends back data via a webhook.
 
-We support header-based authentication and those authentications described in the `requests` package. You can also GET parameters of an analysis by ID and also modify (PATCH) and delete analyses.  By default we place a cap of 50 completed analyses per object per user/token. Old or outdated analyses should be deleted as appropriate.
-
-
-
+We support header-based authentication and those authentications described in the `requests` package. You can also GET parameters of an analysis by ID and also modify (PATCH) and delete analyses. By default we place a cap of 50 completed analyses per object per user/token. Old or outdated analyses should be deleted as appropriate.
 
 ### Starting a new Analysis (Webhook approach)
 
@@ -59,6 +57,7 @@ header =  {'Authorization': 'token <token>'}
 url = f"http://localhost:5000/api/obj/{source_id}/analysis/{analysis_id}"
 r = requests.post(url, headers=header)
 ```
+
 This will assemble data on that source and send it to the 3rd party application host at the url specified when making the analysis service. It will also send a callback URL for the analysis service to send results over. This data will be stored by SkyPortal.
 
 ### What an Analysis Service returns
@@ -80,9 +79,9 @@ The "analysis" value should itself be an object containing some combination of t
 
 The "analysis" can also be empty an empty object. Theses values are used in the following way:
 
- - **interfence_data** - an [`arviz` InferenceData](https://arviz-devs.github.io) object, containing at least a `posterior` group.
- - **plots** - a list of plots (e.g. in png format) to be stored/shown.
- - **results** - a freeform python object containing fitting results, such as best fit parameters, goodness-of-fit results, etc. This object should be packaged on the analysis end with `joblib.dump`.
+- **interfence_data** - an [`arviz` InferenceData](https://arviz-devs.github.io) object, containing at least a `posterior` group.
+- **plots** - a list of plots (e.g. in png format) to be stored/shown.
+- **results** - a freeform python object containing fitting results, such as best fit parameters, goodness-of-fit results, etc. This object should be packaged on the analysis end with `joblib.dump`.
 
 All three of these data are encoded with `base64.b64encode` to facilitate the web transport from the service to SkyPortal. Stored data can be retrieved from SkyPortal with a GET request with the flag `includeAnalysisData=True` like:
 
@@ -91,6 +90,7 @@ url = https://<skyportal_base>:5000/api/obj/analysis/<int>?includeAnalysisData=T
 r = requests.get(url, headers=<token info>)
 data = r.json()
 ```
+
 So that the inference data can be retrieved
 like:
 
@@ -101,6 +101,7 @@ f.write(base64.b64decode(data["analysis"]["inference_data"]["data"]))
 f.close()
 inference_data = arviz.from_netcdf("tmp.nc")
 ```
+
 The plots can be retrieved like:
 
 ```python
@@ -109,6 +110,7 @@ for i, plot in enumerate(data["analysis"]["plots"]):
 	f.write(base64.b64decode(plot["data"]))
 	f.close()
 ```
+
 And the results data can be retrieved like:
 
 ```python
@@ -159,17 +161,21 @@ SkyPortal has an API endpoint that allows programmatic access to GET products (p
 The GET endpoints are:
 
 Plots (return an image to display):
+
 ```
 http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/plots/<plot_number>
 ```
 
 Posterior viz (ie. return a corner plot image to display):
+
 ```
 http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/corner
 ```
+
 (attach corner plot kwargs in the body of the GET)
 
 Results (returned as a json):
+
 ```
 http://<skyportal_base>:5000/api/obj/analysis/<analysis_id>/results
 ```
@@ -220,6 +226,6 @@ data = r.json()
 
 Following the dramatic quality, speed, and cost improvements of publicly assessable large language models (LLMs), the ability to programmatically summarize what is known about (many SkyPortal) sources became feasible. Shipped with SkyPortal is a microservice served by default at the endpoint `http://localhost:7003/summarize`. This service packages source information such as comments, redshift, and classification, and obtains a human-readable summary by wrapping the ChatGPT API from OpenAI. Summaries (AI or human generated) appear below the source name on the source page and can be returned as part of a query on `objs`.
 
-To use this service the SkyPortal config must set a valid API key from OpenAI to be shared with all users of the service or each individual user must supply their own API key and set the OpenAI integration to `active` in their user profiles. Specifics of the  ChatGPT interaction (such as model, model parameters, and prompt) are established in the site-wide config. See the `openai_analysis_service` section of `analysis_services` in the config file.
+To use this service the SkyPortal config must set a valid API key from OpenAI to be shared with all users of the service or each individual user must supply their own API key and set the OpenAI integration to `active` in their user profiles. Specifics of the ChatGPT interaction (such as model, model parameters, and prompt) are established in the site-wide config. See the `openai_analysis_service` section of `analysis_services` in the config file.
 
 Note: only data that the user who initiates a summary analysis has access to is shipped to the 3rd party. However summaries, like redshifts, are public on the source. So anyone who has access to the source can see the summaries. Users are advised to check for any sensitive information that might leak into summaries that other SkyPortal users might not know otherwise. If information has leaked in an AI summary they can delete the appropriate analysis and manually add a summary as they see fit.

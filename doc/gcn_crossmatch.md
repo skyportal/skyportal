@@ -28,7 +28,7 @@ Events are re-queried while they stay active, because alerts keep arriving after
 the trigger. Each pass resumes from the newest alert already seen rather than
 from wall-clock time, so late-arriving alerts are not skipped.
 
-A one-shot **archival** pass also searches the window *before* the event. Those
+A one-shot **archival** pass also searches the window _before_ the event. Those
 alerts cannot have been caused by it, so they rule a candidate out: a position
 already flaring last month is a variable, not a counterpart. Such matches carry
 `prior_activity: true` on the annotation.
@@ -51,7 +51,7 @@ versioned and editable in the filter builder rather than frozen in code.
 ```yaml
 gcn_crossmatch:
   enabled: True
-  filter_id: 42        # the SkyPortal Filter id
+  filter_id: 42 # the SkyPortal Filter id
 ```
 
 The service reads that filter's **active version** and prepends the cone to it,
@@ -61,7 +61,7 @@ without a filter no `Candidate` can be created, so nothing reaches the scanning
 page.
 
 > **Choose the filter's group deliberately.** A candidate is visible to the
-> filter's group. Annotations inherit the *event's* groups, so the link between
+> filter's group. Annotations inherit the _event's_ groups, so the link between
 > an object and a restricted event stays restricted, but the candidate itself
 > does not. For a proprietary stream, use a filter whose group matches that
 > stream's audience.
@@ -70,7 +70,7 @@ page.
 
 A **Filter** is one crossmatch configuration. It already names the broker, the
 stream (hence the survey and the alert programs) and the group that sees the
-candidates, so nothing about *which* alerts to search lives in `config.yaml`.
+candidates, so nothing about _which_ alerts to search lives in `config.yaml`.
 Opt a filter in through its `altdata`:
 
 ```yaml
@@ -97,18 +97,18 @@ interfere.
 These are the defaults every opted-in filter inherits, under `gcn_crossmatch`
 in `config.yaml`. Any of them can be overridden per filter.
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `enabled` | `False` | Run the service at all |
-| `poll_interval` | `300` | Seconds between passes |
-| `max_event_age` | `31.0` | Days; older events are no longer crossmatched |
-| `recheck_interval_minutes` | `60.0` | Minimum gap before re-querying an event |
-| `delta_t_before` / `delta_t_after` | `1.0` / `31.0` | Query window around the event, in days |
-| `archival` / `archival_days` | `True` / `31.0` | One-shot pre-event search |
-| `max_radius_deg` | `5.0` | Skip localizations bounding wider than this |
-| `credible_level` | `90` | Contour used to bound non-cone localizations |
-| `cumprob` | `0.95` | Cumulative probability defining "inside" |
-| `max_alerts` | `500` | Cap per event, per broker, per pass |
+| Setting                            | Default         | Meaning                                       |
+| ---------------------------------- | --------------- | --------------------------------------------- |
+| `enabled`                          | `False`         | Run the service at all                        |
+| `poll_interval`                    | `300`           | Seconds between passes                        |
+| `max_event_age`                    | `31.0`          | Days; older events are no longer crossmatched |
+| `recheck_interval_minutes`         | `60.0`          | Minimum gap before re-querying an event       |
+| `delta_t_before` / `delta_t_after` | `1.0` / `31.0`  | Query window around the event, in days        |
+| `archival` / `archival_days`       | `True` / `31.0` | One-shot pre-event search                     |
+| `max_radius_deg`                   | `5.0`           | Skip localizations bounding wider than this   |
+| `credible_level`                   | `90`            | Contour used to bound non-cone localizations  |
+| `cumprob`                          | `0.95`          | Cumulative probability defining "inside"      |
+| `max_alerts`                       | `500`           | Cap per event, per broker, per pass           |
 
 ## Scanning the results
 
@@ -116,25 +116,25 @@ Matches appear on the **candidates** page under the configured filter, like any
 other candidates. Each carries an annotation with origin `GCN-crossmatch`, keyed
 by event, holding the fields the reviewer needs:
 
-| Field | Meaning |
-|---|---|
-| `delta_t` | Days between the event and the alert |
-| `distance_arcmin` | Separation from the localization centre |
-| `distance_ratio` | That separation as a fraction of the error radius |
-| `age` | Days since the object's first detection |
-| `drb` | Deep-learning real/bogus score |
-| `sgscore`, `distpsnr` | Star/galaxy score and distance to the nearest PS1 source |
-| `ssdistnr`, `ssmagnr` | Proximity to a known solar-system object |
-| `ndethist` | Number of prior detections |
-| `event_mjd` | Event time, MJD |
-| `prior_activity` | Set when the position was already active before the event |
-| `dist_mean`, `dist_std` | For a 3D (GW) skymap: the distance the event implies *at this position*, in Mpc |
+| Field                   | Meaning                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `delta_t`               | Days between the event and the alert                                            |
+| `distance_arcmin`       | Separation from the localization centre                                         |
+| `distance_ratio`        | That separation as a fraction of the error radius                               |
+| `age`                   | Days since the object's first detection                                         |
+| `drb`                   | Deep-learning real/bogus score                                                  |
+| `sgscore`, `distpsnr`   | Star/galaxy score and distance to the nearest PS1 source                        |
+| `ssdistnr`, `ssmagnr`   | Proximity to a known solar-system object                                        |
+| `ndethist`              | Number of prior detections                                                      |
+| `event_mjd`             | Event time, MJD                                                                 |
+| `prior_activity`        | Set when the position was already active before the event                       |
+| `dist_mean`, `dist_std` | For a 3D (GW) skymap: the distance the event implies _at this position_, in Mpc |
 
 Because these are annotations, they can be sorted and filtered on the scanning
 page — `delta_t` and `distance_arcmin` are the usual first cut, and
 `prior_activity` is the quickest way to discard variables.
 
-`dist_mean`/`dist_std` are the *conditional* distance at the candidate's own
+`dist_mean`/`dist_std` are the _conditional_ distance at the candidate's own
 pixel, not the skymap's marginal distance: for a localization spanning a range
 of distances the two differ, and "inside the localization volume" means the
 former. They are recorded rather than cut on, because an alert rarely has a host

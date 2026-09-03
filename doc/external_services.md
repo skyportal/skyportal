@@ -16,12 +16,12 @@ running.
 **How this differs from other extension mechanisms.** An external service is
 distinct from:
 
-- **[Extensions](extensions)** copy custom handlers/components *into* the
+- **[Extensions](extensions)** copy custom handlers/components _into_ the
   SkyPortal source tree at build time.
 - **[External analysis services](analysis)** receive data over HTTP and
   return results via a webhook.
 
-An *external service* is neither: it is a separate repository that SkyPortal
+An **external service** is neither: it is a separate repository that SkyPortal
 clones and runs as a long-lived background process with direct database access.
 
 ## How it works
@@ -46,23 +46,23 @@ SkyPortal root, alongside `config.yaml.defaults`). Using Lasair as the example:
 
 ```yaml
 services:
-    external:
-        lasair:                      # the service name; becomes services/lasair
-            repo: https://github.com/skyportal/lasair-skyportal-plugin.git
-            rev: main                # branch, tag, or commit (default: main)
-            params:                  # arbitrary config handed to the plugin
-                lasair:
-                    token: <YOUR_LASAIR_API_TOKEN>
-                ingest:
-                    poll_interval: 86400
-                    group_ids: [1]
-                    lsst_instrument_name: LSST
-                    filter_ids: []
-                    queries:
-                        - name: nightly
-                          fields: 'objects.diaObjectId, objects.ra, objects.decl'
-                          tables: objects
-                          conditions: 'objects.nDiaSources > 2 AND objects.firstDiaSourceMjdTai > (mjdnow() - 40)'
+  external:
+    lasair: # the service name; becomes services/lasair
+      repo: https://github.com/skyportal/lasair-skyportal-plugin.git
+      rev: main # branch, tag, or commit (default: main)
+      params: # arbitrary config handed to the plugin
+        lasair:
+          token: <YOUR_LASAIR_API_TOKEN>
+        ingest:
+          poll_interval: 86400
+          group_ids: [1]
+          lsst_instrument_name: LSST
+          filter_ids: []
+          queries:
+            - name: nightly
+              fields: "objects.diaObjectId, objects.ra, objects.decl"
+              tables: objects
+              conditions: "objects.nDiaSources > 2 AND objects.firstDiaSourceMjdTai > (mjdnow() - 40)"
 ```
 
 Each entry accepts:
@@ -71,7 +71,7 @@ Each entry accepts:
   already present in `services/<name>` and only supervises it.
 - **`rev`**: Branch, tag, or commit to check out. Defaults to `main`.
 - **`params`**: Free-form configuration passed through to the plugin. SkyPortal
-  does not interpret it; the plugin reads it (see *Writing a plugin* below). Each
+  does not interpret it; the plugin reads it (see _Writing a plugin_ below). Each
   plugin documents its own `params` in its `config.yaml.defaults` and
   `README`.
 
@@ -155,6 +155,6 @@ Remove the block from `services.external`, or add the service name to
 
 ```yaml
 services:
-    disabled:
-        - lasair
+  disabled:
+    - lasair
 ```
