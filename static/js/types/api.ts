@@ -2892,6 +2892,16 @@ export interface paths {
                     sortByAnnotationKey?: string | null;
                     /** @description The sort order for annotations - either "asc" or "desc". Defaults to "asc". */
                     sortByAnnotationOrder?: string | null;
+                    /** @description Keep only candidates at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
+                    minAbsGalacticLatitude?: number | null;
+                    /** @description Keep only candidates whose crossmatch star/galaxy score is below this. A high score means the candidate sits on a star. */
+                    maxSgscore?: number | null;
+                    /** @description Keep only candidates with at least this many detections in their alert history. */
+                    minNdethist?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    promptDeltaT?: number | null;
+                    /** @description Annotation origin the crossmatch cuts above are read from, compared lower-cased. */
+                    crossmatchOrigin?: string;
                     /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
                     annotationFilterList?: string | null;
                     /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
