@@ -24,6 +24,7 @@ import {
   usePutFilterElementMutation,
 } from "../../../../ducks/boom_filter_modules";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import ModuleStreams, { surveyToken } from "./ModuleStreams";
 import EquationEditor from "equation-editor-react";
 import { parseVariableExpression } from "./variableExpression";
 
@@ -205,6 +206,9 @@ const AddVariableDialog = () => {
   const [expression, setExpression] = useState("");
   // Non-null while editing an existing variable in place (vs. adding a new one).
   const [editingName, setEditingName] = useState<string | null>(null);
+  // Defaults to the survey being edited; editing keeps whatever the saved
+  // variable already had, so opening it elsewhere cannot narrow its reach.
+  const [moduleStreams, setModuleStreams] = useState<string[]>([]);
   const [cursorPos, setCursorPos] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
@@ -831,8 +835,17 @@ const AddVariableDialog = () => {
     setVariableName("");
     setExpression("");
     setEditingName(null);
+    const token = surveyToken(stream);
+    setModuleStreams(token ? [token] : []);
     setError(""); // Clear error on close
   };
+
+  useEffect(() => {
+    if (specialConditionDialog.open && !editingName) {
+      const token = surveyToken(stream);
+      setModuleStreams(token ? [token] : []);
+    }
+  }, [specialConditionDialog.open, editingName, stream]);
 
   // Load an existing variable into the form to edit its expression in place.
   // The name is kept fixed so conditions referencing it stay valid.
@@ -840,6 +853,7 @@ const AddVariableDialog = () => {
     setVariableName(v?.name || "");
     setExpression(parseVariableExpression(v?.variable || ""));
     setEditingName(v?.name || null);
+    setModuleStreams(Array.isArray(v?.streams) ? v.streams : []);
     setError("");
   };
 
@@ -905,7 +919,7 @@ const AddVariableDialog = () => {
     const eq = `${variableName} = ${expression}`;
     const payload = {
       name: variableName,
-      data: { variable: eq, type: "number", streams: [stream] },
+      data: { variable: eq, type: "number", streams: moduleStreams },
       elements: "variables",
     };
 
@@ -914,7 +928,9 @@ const AddVariableDialog = () => {
       putElement(payload);
       setCustomVariables((prev: any[]) =>
         prev.map((v: any) =>
-          v.name === editingName ? { ...v, variable: eq } : v,
+          v.name === editingName
+            ? { ...v, variable: eq, streams: moduleStreams }
+            : v,
         ),
       );
       handleCloseSpecialCondition();
@@ -1064,6 +1080,7 @@ const AddVariableDialog = () => {
               },
             }}
           />
+          <ModuleStreams value={moduleStreams} onChange={setModuleStreams} />
         </Box>
 
         {/* Expression Builder */}
