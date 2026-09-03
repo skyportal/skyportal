@@ -3,7 +3,7 @@ import base64
 import json
 import uuid
 
-from skyportal.handlers.mcp import TOOLS, _analyze_band
+from skyportal.handlers.mcp import TOOLS, _analyze_band, _versions
 from skyportal.tests import cfg, session
 
 VERSION = "2026-07-28"
@@ -116,6 +116,17 @@ def test_mcp_tools_list(view_only_token):
         "get_spectra",
         "post_spectrum",
         "analyze_light_curve",
+        "get_gcn_events",
+        "get_gcn_event",
+        "get_gcn_event_extractions",
+        "get_gcn_event_comments",
+        "post_gcn_event_comment",
+        "get_broker_filter",
+        "diff_broker_filter_versions",
+        "run_broker_filter",
+        "post_broker_filter_version",
+        "activate_broker_filter_version",
+        "post_filter",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
@@ -514,3 +525,112 @@ def test_mcp_api_errors_become_tool_errors(view_only_token, upload_data_token):
         view_only_token,
     )
     assert is_error, text
+
+
+# ─── GCN event tools ────────────────────────────────────────────────────────
+
+
+def _call(name, args, token):
+    return mcp("tools/call", {"name": name, "arguments": args}, token=token)
+
+
+def test_mcp_get_gcn_event(gcn_GW190814, view_only_token):
+    status, data = _call(
+        "get_gcn_event", {"dateobs": gcn_GW190814.dateobs.isoformat()}, view_only_token
+    )
+    assert status == 200, data
+    event = data["result"]["structuredContent"]
+    assert event["dateobs"].startswith("2019-08-14")
+    assert "LVC#S190814bv" in event["aliases"]
+
+
+def test_mcp_get_gcn_events_by_alias(gcn_GW190814, view_only_token):
+    """The name a circular uses resolves the event, via the alias substring."""
+    status, data = _call(
+        "get_gcn_events", {"partialdateobs": "S190814bv"}, view_only_token
+    )
+    assert status == 200, data
+    events = data["result"]["structuredContent"]["events"]
+    assert any(e["dateobs"].startswith("2019-08-14") for e in events)
+
+
+def test_mcp_gcn_extractions_are_empty_before_any_are_written(
+    gcn_GW190814, view_only_token
+):
+    status, data = _call(
+        "get_gcn_event_extractions",
+        {"dateobs": gcn_GW190814.dateobs.isoformat()},
+        view_only_token,
+    )
+    assert status == 200, data
+    assert data["result"]["structuredContent"] == []
+
+
+def test_mcp_gcn_comment_round_trip(gcn_GW190814, super_admin_token):
+    """Comments are the discussion on an event, so an assistant can reply there."""
+    dateobs = gcn_GW190814.dateobs.isoformat()
+    status, data = _call(
+        "post_gcn_event_comment",
+        {"dateobs": dateobs, "text": "Follow-up requested."},
+        super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = _call(
+        "get_gcn_event_comments", {"dateobs": dateobs}, super_admin_token
+    )
+    assert status == 200, data
+    texts = [c["text"] for c in data["result"]["structuredContent"]]
+    assert "Follow-up requested." in texts
+
+
+# ─── Broker filter tools ────────────────────────────────────────────────────
+
+
+def test_versions_reads_oldest_first():
+    record = {
+        "fv": [
+            {"fid": "a", "pipeline": [{"$match": {}}]},
+            {"fid": "b", "pipeline": [{"$project": {}}]},
+        ]
+    }
+    assert [fid for fid, _ in _versions(record)] == ["a", "b"]
+
+
+def test_versions_skips_entries_without_an_fid():
+    # A version with no fid cannot be activated or diffed, so it is not one.
+    record = {"fv": [{"pipeline": []}, {"fid": "b", "pipeline": []}]}
+    assert [fid for fid, _ in _versions(record)] == ["b"]
+
+
+def test_versions_of_a_filter_with_no_history():
+    assert _versions({}) == []
+    assert _versions({"fv": None}) == []
+
+
+def test_broker_filter_tools_require_their_identifiers():
+    for name in (
+        "get_broker_filter",
+        "diff_broker_filter_versions",
+        "run_broker_filter",
+        "post_broker_filter_version",
+        "activate_broker_filter_version",
+    ):
+        assert "broker_id" in TOOLS[name]["schema"]["required"], name
+
+
+def test_run_broker_filter_takes_a_pipeline_as_stages():
+    # The pipeline is a list of stages; passing a mapping is the mistake that
+    # made a broker filter reject every alert.
+    schema = TOOLS["run_broker_filter"]["schema"]
+    assert schema["properties"]["pipeline"]["type"] == "array"
+    assert "pipeline" in schema["required"]
+
+
+def test_posting_a_version_does_not_activate_it():
+    # Activation is a separate step, so a bad version cannot go live by being
+    # uploaded.
+    assert (
+        "active_fid" not in TOOLS["post_broker_filter_version"]["schema"]["properties"]
+    )
+    assert "active_fid" in TOOLS["activate_broker_filter_version"]["schema"]["required"]

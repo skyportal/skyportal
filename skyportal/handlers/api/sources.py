@@ -320,6 +320,127 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
     )"""
 
 
+PROMPT_EXEMPT_ANNOTATIONS = ("ndethist",)
+
+
+def _prompt_candidate_clause(
+    prompt_delta_t,
+    origins,
+    localization_dateobs,
+    is_admin,
+    accessible_group_ids,
+    params,
+):
+    """Candidates detected close enough in time to the event to be shown anyway.
+
+    A counterpart seen within `prompt_delta_t` days of the event is worth a look
+    on that basis alone, so it is spared the cuts that exist to thin a backlog of
+    late, poorly constrained candidates -- the galactic plane and detection
+    history cuts. Those cuts still apply to everything else.
+    """
+    params.append(
+        bindparam("prompt_delta_t", value=float(prompt_delta_t), type_=sa.Float)
+    )
+    condition = (
+        f"(value ->> 'delta_t') ~ '{_NUMERIC_RE}'"
+        " AND abs((value ->> 'delta_t')::float) <= :prompt_delta_t"
+    )
+    nested = _nested_annotation_clause(
+        "prompt", condition, localization_dateobs, params
+    )
+    origin_clause = ""
+    if origins:
+        origin_str, origin_bindparams = array2sql(
+            [str(origin).lower() for origin in origins],
+            type=sa.String,
+            prefix="prompt_annotations_origin",
+        )
+        params.extend(origin_bindparams)
+        origin_clause = f" AND lower(annotations.origin) IN {origin_str}"
+    group_clause = ""
+    if not is_admin:
+        if not accessible_group_ids:
+            group_clause = " AND false"
+        else:
+            group_str, group_bindparams = array2sql(
+                accessible_group_ids,
+                type=sa.Integer,
+                prefix="prompt_annotations_group_ids",
+            )
+            params.extend(group_bindparams)
+            group_clause = (
+                " AND annotations.id IN (SELECT annotation_id FROM"
+                f" group_annotations WHERE group_id IN {group_str})"
+            )
+    return f"""EXISTS (
+        SELECT 1 FROM annotations WHERE annotations.obj_id = objs.id
+          AND {nested}{origin_clause}{group_clause}
+    )"""
+
+
+async def _annotation_filter_hint(session, annotations_filter, origins):
+    """Why an annotation filter matched nothing, in terms of what is stored.
+
+    An empty result reads the same whether the sky is empty or the field name is
+    wrong, and the second is far more common: these fields are often nested one
+    level down, keyed by the thing they describe. Naming the keys that do exist
+    turns a silent zero into something the caller can act on.
+    """
+    if not annotations_filter:
+        return None
+
+    def _as_list(value):
+        """The handler passes these as raw comma-separated strings; iterating a
+        string yields characters, which silently searches for nothing."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return list(value)
+
+    origins = _as_list(origins)
+    names = []
+    entries = _as_list(annotations_filter)
+    for entry in entries:
+        head = str(entry).split(":")[0].strip()
+        if head:
+            names.append(head)
+    if not names:
+        return None
+
+    where, params = "true", {}
+    if origins:
+        where = "lower(a.origin) = ANY(:origins)"
+        params["origins"] = [str(o).lower() for o in origins]
+    rows = (
+        await session.execute(
+            sa.text(f"SELECT a.data FROM annotations a WHERE {where} LIMIT 200"),
+            params,
+        )
+    ).all()
+    if not rows:
+        return f"No annotation exists for origin(s) {sorted(origins or [])}."
+
+    top, nested = set(), set()
+    for (data,) in rows:
+        if not isinstance(data, dict):
+            continue
+        top.update(data.keys())
+        for value in data.values():
+            if isinstance(value, dict):
+                nested.update(value.keys())
+    missing = [n for n in names if n not in top and n not in nested]
+    if not missing:
+        return None
+    where_found = (
+        "nested one level down, keyed per event" if nested else "at the top level"
+    )
+    return (
+        f"No annotation carries {missing}. Fields present are {where_found}: "
+        f"{sorted(nested or top)[:12]}."
+    )
+
+
 def create_annotation_query(
     annotations_filter,
     annotations_filter_origin,
@@ -655,6 +776,8 @@ async def get_sources(
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
+    min_abs_galactic_latitude=None,
+    prompt_delta_t=None,
     alias=None,
     origin=None,
     min_redshift=None,
@@ -798,6 +921,9 @@ async def get_sources(
         )
 
         statements = []
+        # Cuts that a prompt candidate is spared; combined with the prompt
+        # clause once the annotation filters have been read.
+        late_statements = []
         joins = []
         query_params = []
 
@@ -899,6 +1025,29 @@ async def get_sources(
                 lower(((objs.altdata['simbad']) ->> 'class')) LIKE '%' || :simbad_class || '%'
                 """
             )
+        if min_abs_galactic_latitude is not None:
+            # Galactic latitude is derived from ra/dec rather than stored, so it
+            # is computed here: sin(b) from the north galactic pole at
+            # (192.85948, 27.12825) in J2000. Filtering in the query keeps it on
+            # the database side rather than pulling every source back to reject
+            # most of them.
+            query_params.append(
+                bindparam(
+                    "min_abs_galactic_latitude",
+                    value=float(min_abs_galactic_latitude),
+                    type_=sa.Float,
+                )
+            )
+            galactic_statement = """
+                abs(degrees(asin(
+                    sind(objs.dec) * sind(27.12825)
+                    + cosd(objs.dec) * cosd(27.12825) * cosd(objs.ra - 192.85948)
+                ))) >= :min_abs_galactic_latitude
+                """
+            if prompt_delta_t is not None:
+                late_statements.append(galactic_statement)
+            else:
+                statements.append(galactic_statement)
         if has_tns_name:
             statements.append(
                 """
@@ -1606,7 +1755,13 @@ async def get_sources(
                         localization_dateobs=localization_dateobs,
                     )
                     if annotations_query is not None:
-                        statements.append(annotations_query)
+                        if (
+                            prompt_delta_t is not None
+                            and ann_split[0].strip() in PROMPT_EXEMPT_ANNOTATIONS
+                        ):
+                            late_statements.append(annotations_query)
+                        else:
+                            statements.append(annotations_query)
                         query_params.extend(annotations_query_params)
             else:
                 annotations_query, annotations_query_params = create_annotation_query(
@@ -1622,6 +1777,21 @@ async def get_sources(
                 if annotations_query is not None:
                     statements.append(annotations_query)
                     query_params.extend(annotations_query_params)
+
+        if late_statements:
+            if prompt_delta_t is not None:
+                prompt_clause = _prompt_candidate_clause(
+                    prompt_delta_t,
+                    annotations_filter_origin,
+                    localization_dateobs,
+                    is_admin,
+                    group_ids,
+                    query_params,
+                )
+                late = " AND ".join(f"({stmt})" for stmt in late_statements)
+                statements.append(f"(({prompt_clause}) OR ({late}))")
+            else:
+                statements.extend(late_statements)
 
         # COMMENTS
         comments_query = []

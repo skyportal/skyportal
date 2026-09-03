@@ -62,6 +62,7 @@ from skyportal.models import (
 from skyportal.utils.crossmatch import (
     DEFAULT_CUMPROB,
     credible_levels_in_localization,
+    equatorial_to_galactic,
     great_circle_distance,
     search_cone,
     skymap_consistency,
@@ -286,6 +287,9 @@ def build_annotation_data(
         data["distance_arcmin"] = round(separation * 60.0, 4)
         if radius_deg:
             data["distance_ratio"] = round(separation / radius_deg, 4)
+        gal_lat, gal_long = equatorial_to_galactic(*position)
+        data["gal_lat"] = round(float(gal_lat), 4)
+        data["gal_long"] = round(float(gal_long), 4)
 
     candidate = _candidate(alert)
     for key, source in ALERT_ANNOTATION_FIELDS:

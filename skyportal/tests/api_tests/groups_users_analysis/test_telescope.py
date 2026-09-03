@@ -182,3 +182,29 @@ def test_token_user_delete_telescope(super_admin_token):
 
     status, data = api("GET", f"telescope/{telescope_id}", token=super_admin_token)
     assert status == 400
+
+
+def test_duplicate_telescope_name_is_rejected_cleanly(super_admin_token):
+    """A taken name is a 400, not the IntegrityError the unique index would raise."""
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "nickname": name,
+        "lat": 0.0,
+        "lon": 0.0,
+        "elevation": 0.0,
+        "diameter": 10.0,
+    }
+
+    status, data = api("POST", "telescope", data=post_data, token=super_admin_token)
+    assert status == 200, data
+
+    # the same name again, with a different nickname
+    status, data = api(
+        "POST",
+        "telescope",
+        data={**post_data, "nickname": str(uuid.uuid4())},
+        token=super_admin_token,
+    )
+    assert status == 400, data
+    assert "already exists" in data["message"]

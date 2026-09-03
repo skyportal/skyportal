@@ -49,6 +49,27 @@ def _enable_switch(page, name, attempts=3):
                 raise
 
 
+def expect_unread_badge(page, count=1, attempts=3):
+    """Wait for the notification bell to show `count` unread, reloading between tries.
+
+    A notification is created after the API call that triggers it has returned,
+    and the page only hears about it over a websocket. One created in the gap
+    between the page's first fetch and its socket connecting is missed until
+    something refetches, so reload rather than wait it out.
+    """
+    badge = page.locator(
+        f'//*[@data-testid="notificationsBadge"]//span[text()="{count}"]'
+    ).first
+    for attempt in range(attempts):
+        try:
+            expect(badge).to_be_visible(timeout=10000)
+            return
+        except AssertionError:
+            if attempt == attempts - 1:
+                raise
+            page.reload()
+
+
 @pytest.mark.flaky(reruns=2)
 def test_mention_generates_notification_then_mark_read_and_delete(
     page, user, public_source
@@ -65,7 +86,7 @@ def test_mention_generates_notification_then_mark_read_and_delete(
 
     add_comment_and_wait_for_display(page, f"@{user.username}")
 
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[text()=" mentioned you in a comment on "]').first
@@ -216,7 +237,7 @@ def test_classification_on_favorite_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator(
@@ -262,7 +283,7 @@ def test_spectra_on_favorite_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[contains(text(), "New spectrum on favorite source")]').first
@@ -321,7 +342,7 @@ def test_new_classification_on_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[contains(text(), "New classification")]').first
@@ -365,7 +386,7 @@ def test_new_spectra_on_source_triggers_notification(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[contains(text(), "New spectrum for source")]').first
@@ -384,9 +405,14 @@ def test_new_gcn_event_triggers_notification(page, user):
 
     page.locator('//*[@id="GcnNotificationNameInput"]').first.fill("test")
 
-    page.locator(
-        '//*[@role="combobox" and (@aria-labelledby="selectGcns" or @id="selectGcns")]'
-    ).first.click()
+    # The notice types come from the config endpoint, so this select renders
+    # only once that query resolves; the others in the form are already there.
+    notice_types = page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="selectGcnNoticeTypes"'
+        ' or @id="selectGcnNoticeTypes")]'
+    ).first
+    expect(notice_types).to_be_visible()
+    notice_types.click()
     page.locator('//li[@data-value="FERMI_GBM_GND_POS"]').first.click()
     page.keyboard.press("Escape")
 
@@ -411,7 +437,7 @@ def test_new_gcn_event_triggers_notification(page, user):
     )
 
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    expect_unread_badge(page)
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator('//*[contains(text(), "New GCN Event")]').first).to_be_visible()
 

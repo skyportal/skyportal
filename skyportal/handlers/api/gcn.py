@@ -8,6 +8,7 @@ import io
 import json
 import operator  # noqa: F401
 import os
+import re
 import tempfile
 import traceback
 from datetime import timedelta
@@ -68,6 +69,7 @@ from ...models import (
     GcnAssociationRule,
     GcnEvent,
     GcnEventAssociation,
+    GcnEventExtraction,
     GcnEventMMADetector,
     GcnEventObj,
     GcnEventUser,
@@ -660,7 +662,9 @@ async def post_gcn_circular(circular, session, window_hours=12):
     if not event_id:
         return None
 
-    event = await _find_event_for_designation(event_id, session, window_hours)
+    event = await _find_event_for_designation(
+        event_id, session, window_hours, text=str(circular.get("body") or "")
+    )
     if event is None:
         return None
 
@@ -691,13 +695,14 @@ def _alias_present(event, event_id):
     )
 
 
-async def _find_event_for_designation(event_id, session, window_hours):
-    """The event a designation names: by alias if one already matches, else by date.
+async def _find_event_for_designation(event_id, session, window_hours, text=""):
+    """The event a designation names, by alias, then trigger id, then date.
 
     A designation fixes only the UTC day, so the date search spans a window and
     takes the single event in it — an ambiguous day is left alone rather than
     guessed at, since attaching a circular to the wrong event is worse than
-    attaching it to none.
+    attaching it to none. A trigger id shared by the notice and the circular
+    (SVOM's "burst-id sb26060404") settles it outright, so it is tried first.
     """
     needle = event_id.replace(" ", "").lower()
     event = await session.scalar(
@@ -709,6 +714,16 @@ async def _find_event_for_designation(event_id, session, window_hours):
     )
     if event is not None:
         return event
+
+    # Only reasonably distinctive ids: a short numeric one would match digits
+    # anywhere in the prose.
+    candidates = set(re.findall(r"\b[A-Za-z0-9_-]{6,}\b", text))
+    if candidates:
+        event = await session.scalar(
+            sa.select(GcnEvent).where(GcnEvent.trigger_id.in_(candidates))
+        )
+        if event is not None:
+            return event
 
     day = get_designation_date(event_id)
     if day is None:
@@ -1998,6 +2013,159 @@ class GcnEventTagsHandler(BaseHandler):
             )
 
             return self.success()
+
+
+class GcnEventExtractionsHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, dateobs):
+        """
+        ---
+        summary: Get structured extractions for a GCN event
+        description: |
+            Retrieve the structured data producers have extracted from an
+            event's circulars and notices. Filter by `origin` to select one
+            producer, or by `circularId` for a single circular.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+            description: The dateobs of the event, as an arrow parseable string
+          - in: query
+            name: origin
+            schema:
+              type: string
+            description: Only return extractions from this producer
+          - in: query
+            name: circularId
+            schema:
+              type: integer
+            description: Only return extractions from this GCN circular
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        origin = self.get_query_argument("origin", None)
+        circular_id = self.get_query_argument("circularId", None)
+        try:
+            dateobs = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == dateobs
+                )
+            )
+            if event is None:
+                return self.error("GCN event not found", status=404)
+
+            stmt = GcnEventExtraction.select(session.user_or_token).where(
+                GcnEventExtraction.dateobs == dateobs
+            )
+            if origin is not None:
+                stmt = stmt.where(GcnEventExtraction.origin == origin)
+            if circular_id is not None:
+                try:
+                    stmt = stmt.where(
+                        GcnEventExtraction.circular_id == int(circular_id)
+                    )
+                except ValueError:
+                    return self.error("circularId must be an integer")
+
+            extractions = (await session.scalars(stmt)).unique().all()
+            return self.success(data=[e.to_dict() for e in extractions])
+
+    @permissions(["Manage GCNs"])
+    async def post(self, dateobs):
+        """
+        ---
+        summary: Add a structured extraction to a GCN event
+        description: |
+            Store structured data extracted from an event's text. `origin`
+            names the producer and `data` is that producer's own shape; nothing
+            is assumed about it.
+        tags:
+          - gcn events
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  origin:
+                    type: string
+                    description: What produced this extraction, e.g. circex
+                  data:
+                    type: object
+                    description: The extraction itself
+                  circular_id:
+                    type: integer
+                    description: GCN circular it came from, if it came from one
+                required:
+                  - origin
+                  - data
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        payload = self.get_json()
+        origin = payload.get("origin")
+        data = payload.get("data")
+        if not origin:
+            return self.error("origin must be present in data")
+        if not isinstance(data, dict):
+            return self.error("data must be an object")
+        circular_id = payload.get("circular_id")
+        if circular_id is not None and not isinstance(circular_id, int):
+            return self.error("circular_id must be an integer")
+
+        try:
+            dateobs = arrow.get(dateobs).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == dateobs
+                )
+            )
+            if event is None:
+                return self.error("GCN event not found", status=404)
+
+            extraction = GcnEventExtraction(
+                dateobs=dateobs,
+                origin=origin,
+                data=data,
+                circular_id=circular_id,
+                sent_by_id=self.associated_user_object.id,
+            )
+            session.add(extraction)
+            await session.commit()
+            return self.success(data={"id": extraction.id})
 
 
 class GcnEventPropertiesHandler(BaseHandler):

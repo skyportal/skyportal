@@ -20,7 +20,6 @@ import sqlalchemy as sa
 import tornado.escape
 import tornado.ioloop
 import tornado.web
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -38,8 +37,6 @@ env, cfg = load_env()
 init_db(**cfg["database"])
 
 log = make_log("jpl_sbident_queue")
-
-Session = scoped_session(sessionmaker())
 
 ANNOTATION_ORIGIN = "JPL-sbident"
 
@@ -93,17 +90,6 @@ def process_queue(queue):
         task = queue.pop(0)
         obj_id = task.get("obj_id")
         try:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
-
-            user = session.get(User, task["user_id"])
-            obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
-            if obj is None:
-                log(f"{obj_id}: not found or not readable, skipping")
-                continue
-
             obs_time = task.get("obs_time")
             if isinstance(obs_time, str):
                 obs_time = datetime.fromisoformat(obs_time)
@@ -113,30 +99,45 @@ def process_queue(queue):
                 log(f"{obj_id}: no observation time, skipping")
                 continue
 
+            # Read what the query needs and let the session go before asking
+            # JPL. That call takes minutes, and a session held open across it is
+            # closed underneath us as an idle transaction, which used to take
+            # the whole worker down with it.
+            with DBSession() as session:
+                user = session.get(User, task["user_id"])
+                obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
+                if obj is None:
+                    log(f"{obj_id}: not found or not readable, skipping")
+                    continue
+                ra, dec, internal_key = obj.ra, obj.dec, obj.internal_key
+
             matches = identify(
-                obj.ra,
-                obj.dec,
+                ra,
+                dec,
                 obs_time,
                 obscode=task.get("obscode", "500"),
                 max_arcsec=task.get("max_arcsec", DEFAULT_MATCH_ARCSEC),
             )
-            data = write_annotation(
-                session, obj_id, user, task.get("group_ids") or [], matches
-            )
+
+            with DBSession() as session:
+                user = session.get(User, task["user_id"])
+                data = write_annotation(
+                    session, obj_id, user, task.get("group_ids") or [], matches
+                )
             log(f"{obj_id}: {data['sb_n_matches']} match(es) {data}")
 
-            flow = Flow()
-            flow.push(
-                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            Flow().push(
+                "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": internal_key}
             )
         except JPLSBIdentError as e:
             # A refusal or a timeout is about this call, not the queue: the next
             # task is unaffected, and the object can be asked about again.
             log(f"{obj_id}: identification failed ({e})")
         except Exception as e:
+            # One task must never take the worker down: the queue outlives any
+            # single check.
             log(f"{obj_id}: error processing check ({e})")
         finally:
-            Session.remove()
             time.sleep(REQUEST_SPACING_SECONDS)
 
 

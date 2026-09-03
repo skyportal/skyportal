@@ -50,3 +50,17 @@ describe("buildAnnotationFilters", () => {
     expect(CROSSMATCH_ORIGIN).toBe("gcn-crossmatch");
   });
 });
+
+describe("fields that are not annotation filters", () => {
+  it("ignores the galactic latitude cut", () => {
+    // |b| is a plain query parameter, not an annotation: if the builder
+    // claimed it, it would be sent as a filter on a field no annotation has.
+    expect(buildAnnotationFilters({ minAbsGalacticLatitude: 10 })).toEqual([]);
+  });
+
+  it("still builds the annotation filters alongside it", () => {
+    expect(
+      buildAnnotationFilters({ minAbsGalacticLatitude: 10, maxSgscore: 0.7 }),
+    ).toEqual(["sgscore: 0.7: lt"]);
+  });
+});

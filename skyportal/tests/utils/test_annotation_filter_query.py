@@ -5,7 +5,12 @@ annotations: their fields sit one level down, keyed by event, and the origin is
 compared case-insensitively on the column but not on the input.
 """
 
-from skyportal.handlers.api.sources import create_annotation_query
+import asyncio
+
+from skyportal.handlers.api.sources import (
+    _annotation_filter_hint,
+    create_annotation_query,
+)
 
 ORIGIN = ["GCN-crossmatch"]
 DATEOBS = "2026-08-18T16:50:49"
@@ -92,3 +97,69 @@ def test_admin_skips_the_group_restriction():
         ["delta_t", "-10", "ge"], ORIGIN, None, None, 0, is_admin=True
     )
     assert "group_annotations" not in sql
+
+
+class _FakeResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return [(r,) for r in self._rows]
+
+
+class _FakeSession:
+    """Answers the hint's key survey with a fixed set of annotations."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    async def execute(self, *args, **kwargs):
+        return _FakeResult(self._rows)
+
+
+# A crossmatch annotation: one entry per event, fields one level down.
+EP_ANNOTATION = {
+    "ep11900858886wxt14s2": {
+        "age": 3189.19,
+        "delta_t": 10.4,
+        "ndethist": 181,
+        "sgscore": 0.5,
+    }
+}
+
+
+def test_no_hint_when_the_key_exists():
+    # Nothing was wrong with the query, so the empty result is about the sky.
+    hint = asyncio.run(
+        _annotation_filter_hint(
+            _FakeSession([EP_ANNOTATION]), ["delta_t: -10: ge"], ["gcn-crossmatch"]
+        )
+    )
+    assert hint is None
+
+
+def test_hint_names_the_missing_key_and_what_exists():
+    hint = asyncio.run(
+        _annotation_filter_hint(
+            _FakeSession([EP_ANNOTATION]), ["deltat: -10: ge"], ["gcn-crossmatch"]
+        )
+    )
+    assert "deltat" in hint
+    assert "delta_t" in hint
+    # The reason a top-level filter finds nothing is the nesting; say so.
+    assert "nested" in hint
+
+
+def test_hint_when_the_origin_has_no_annotations():
+    hint = asyncio.run(
+        _annotation_filter_hint(_FakeSession([]), ["delta_t"], ["not-an-origin"])
+    )
+    assert "not-an-origin" in hint
+
+
+def test_no_hint_without_an_annotation_filter():
+    # An empty result from an unrelated query is not the hint's business.
+    assert (
+        asyncio.run(_annotation_filter_hint(_FakeSession([EP_ANNOTATION]), None, None))
+        is None
+    )

@@ -59,6 +59,34 @@ def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
     )
 
 
+# North galactic pole and the galactic longitude of the north celestial pole,
+# J2000.
+NGP_RA_DEG = 192.85948
+NGP_DEC_DEG = 27.12825
+NCP_GAL_LONG_DEG = 122.93192
+
+
+def equatorial_to_galactic(ra_deg, dec_deg):
+    """Galactic (latitude, longitude) in degrees, longitude in [0, 360).
+
+    Ported from the ep-ztf-xmatch service alongside the distance above, and for
+    the same reason.
+    """
+    ra = np.radians(np.asarray(ra_deg))
+    dec = np.radians(np.asarray(dec_deg))
+    ngp_ra, ngp_dec = np.radians(NGP_RA_DEG), np.radians(NGP_DEC_DEG)
+    delta_ra = ra - ngp_ra
+    lat = np.arcsin(
+        np.sin(dec) * np.sin(ngp_dec) + np.cos(dec) * np.cos(ngp_dec) * np.cos(delta_ra)
+    )
+    long = np.radians(NCP_GAL_LONG_DEG) - np.arctan2(
+        np.cos(dec) * np.sin(delta_ra),
+        np.sin(dec) * np.cos(ngp_dec)
+        - np.cos(dec) * np.sin(ngp_dec) * np.cos(delta_ra),
+    )
+    return np.degrees(lat), np.mod(np.degrees(long), 360.0)
+
+
 def cone_from_localization_name(localization_name):
     """(ra, dec, radius_deg) for a cone localization, or None.
 

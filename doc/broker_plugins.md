@@ -66,7 +66,7 @@ Confirm it via `make monitor` (the `broker_ingest` entry should be `RUNNING`) an
 
 `brokers.ingest_enabled` is a **config value**, not in the database, not in a
 broker's `altdata`, and not exposed via the API. A broker's `run_ingestion: true`
-capability only means the provider *supports* ingestion, not that it is running.
+capability only means the provider _supports_ ingestion, not that it is running.
 
 ### 2. Attach filters
 
