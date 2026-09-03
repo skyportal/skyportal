@@ -1,3 +1,7 @@
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
@@ -7,16 +11,69 @@ from ....models import (
     SharingServiceGroupAutoPublisher,
     User,
 )
-from ....utils.data_access import check_access_to_sharing_service
+from ....utils.data_access import check_access_to_sharing_service_async
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
+
+GroupId = Annotated[
+    int, Field(description="The ID of the group to add auto_publisher(s) to")
+]
+SharingServiceId = Annotated[
+    int, Field(description="The ID of the external sharing service")
+]
 
 log = make_log("api/sharing_service_group_auto_publisher")
 
 
+class SharingServiceGroupAutoPublisherPostBody(BaseModel):
+    """Request body for adding auto_publisher(s) to a SharingServiceGroup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_ids: list[int] | str | None = Field(
+        default_factory=list,
+        description="An array of user IDs to add as auto_publishers. If a "
+        "string is provided, it will be split by commas.",
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to add as an auto_publisher, used if "
+        "user_ids is empty and no user_id is given in the URL.",
+    )
+
+
+class SharingServiceGroupAutoPublisherPostResponse(BaseModel):
+    """Data payload returned when adding auto_publisher(s)."""
+
+    ids: list[int] = Field(
+        description="IDs of the new SharingServiceGroupAutoPublishers"
+    )
+
+
+class SharingServiceGroupAutoPublisherDeleteBody(BaseModel):
+    """Request body for removing auto_publisher(s) from a SharingServiceGroup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None, description="The ID of the User to remove as an auto_publisher"
+    )
+    user_ids: list[int] | str | None = Field(
+        default_factory=list,
+        description="The IDs of the Users to remove as auto_publishers, overrides user_id",
+    )
+
+
 class SharingServiceGroupAutoPublisherHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def post(self, sharing_service_id, group_id, user_id=None):
+    async def post(
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: GroupId,
+        user_id: int | None = None,
+        *,
+        body: SharingServiceGroupAutoPublisherPostBody = None,
+    ) -> SharingServiceGroupAutoPublisherPostResponse:
         """
         ---
         summary: Add auto_publisher(s) to an SharingServiceGroup
@@ -24,53 +81,19 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
         tags:
             - external sharing service
         parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the SharingService
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: string
-              description: The ID of the group to add auto_publisher(s) to
             - in: query
               name: user_id
               required: false
               schema:
                 type: string
               description: The ID of the user to add as an auto_publisher
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_ids:
-                                type: array
-                                items:
-                                    type: string
-                                description: |
-                                    An array of user IDs to add as auto_publishers.
-                                    If a string is provided, it will be split by commas.
-        responses:
-            200:
-                content:
-                    application/json:
-                        schema: Success
-            400:
-                content:
-                    application/json:
-                        schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SharingServiceGroupAutoPublisherPostBody)
 
-        user_ids = get_list_typed(data.get("user_ids", []), int)
+        user_ids = get_list_typed(body.user_ids, int)
 
         if not user_ids:
-            user_id = data.get("user_id") if user_id is None else user_id
+            user_id = body.user_id if user_id is None else user_id
             if user_id is not None:
                 user_ids = [int(user_id)]
 
@@ -79,15 +102,22 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                 "You must specify at least one user_id when adding auto_publisher(s) for an SharingServiceGroup"
             )
 
-        with self.Session() as session:
+        try:
+            sharing_service_id = int(sharing_service_id)
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/group_id: {sharing_service_id}/{group_id}"
+            )
+        async with self.AsyncSession() as session:
             # Check if the user has access to the sharing_service and group
-            check_access_to_sharing_service(
+            await check_access_to_sharing_service_async(
                 session, session.user_or_token, sharing_service_id
             )
             self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the sharing_service
-            sharing_service_group = session.scalar(
+            sharing_service_group = await session.scalar(
                 SharingServiceGroup.select(session.user_or_token).where(
                     SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
@@ -101,14 +131,14 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             new_auto_publishers = []
             for user_id in user_ids:
                 # verify that the user has access to the user_id
-                user = session.scalar(
+                user = await session.scalar(
                     User.select(session.user_or_token).where(User.id == user_id)
                 )
                 if user is None:
                     return self.error(f"No user with ID {user_id}, or inaccessible")
 
                 # verify that the user specified is a group user of the group
-                group_user = session.scalar(
+                group_user = await session.scalar(
                     GroupUser.select(session.user_or_token).where(
                         GroupUser.group_id == group_id, GroupUser.user_id == user_id
                     )
@@ -119,7 +149,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     )
 
                 # verify that the user isn't already an auto_publisher
-                existing_auto_publisher = session.scalar(
+                existing_auto_publisher = await session.scalar(
                     SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
@@ -152,53 +182,32 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                 )
 
             session.add_all(new_auto_publishers)
-            session.commit()
+            await session.commit()
             self.push(
                 action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success(data={"ids": [a.id for a in new_auto_publishers]})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, group_id, user_id):
+    async def delete(
+        self,
+        sharing_service_id: SharingServiceId,
+        group_id: GroupId,
+        user_id: Annotated[
+            int,
+            Field(
+                description="The ID of the User to remove as an auto_publisher. If not provided, the user_id will be taken from the request body."
+            ),
+        ],
+        *,
+        body: SharingServiceGroupAutoPublisherDeleteBody = None,
+    ):
         """
         ---
         summary: Remove auto_publisher(s) from an SharingServiceGroup
         description: Delete an auto_publisher from an SharingServiceGroup
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: The ID of the external sharing service
-            - in: path
-              name: group_id
-              required: true
-              schema:
-                type: integer
-              description: The ID of the Group
-            - in: path
-              name: user_id
-              required: false
-              schema:
-                type: integer
-              description: The ID of the User to remove as an auto_publisher. If not provided, the user_id will be taken from the request body.
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_id:
-                                type: integer
-                                description: The ID of the User to remove as an auto_publisher
-                            user_ids:
-                                type: array
-                                items:
-                                    type: integer
-                                description: The IDs of the Users to remove as auto_publishers, overrides user_id
         responses:
             200:
                 content:
@@ -209,11 +218,11 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SharingServiceGroupAutoPublisherDeleteBody)
 
-        user_ids = get_list_typed(data.get("user_ids", []), int)
+        user_ids = get_list_typed(body.user_ids, int)
         if not user_ids:
-            user_id = data.get("user_id") if user_id is None else user_id
+            user_id = body.user_id if user_id is None else user_id
             if user_id is not None:
                 user_ids = [int(user_id)]
         if not user_ids:
@@ -221,15 +230,22 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                 "You must specify at least one user_id when removing auto_publisher(s) from an SharingServiceGroup"
             )
 
-        with self.Session() as session:
+        try:
+            sharing_service_id = int(sharing_service_id)
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/group_id: {sharing_service_id}/{group_id}"
+            )
+        async with self.AsyncSession() as session:
             # Check if the user has access to the sharing_service and group
-            check_access_to_sharing_service(
+            await check_access_to_sharing_service_async(
                 session, session.user_or_token, sharing_service_id
             )
             self.current_user.assert_group_accessible(group_id)
 
             # check if the group already has access to the sharing_service
-            sharing_service_group = session.scalar(
+            sharing_service_group = await session.scalar(
                 SharingServiceGroup.select(session.user_or_token).where(
                     SharingServiceGroup.sharing_service_id == sharing_service_id,
                     SharingServiceGroup.group_id == group_id,
@@ -243,14 +259,14 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
             auto_publishers_to_delete = []
             for user_id in user_ids:
                 # verify that the user has access to the user_id
-                user = session.scalar(
+                user = await session.scalar(
                     User.select(session.user_or_token).where(User.id == user_id)
                 )
                 if user is None:
                     return self.error(f"No user with ID {user_id}, or inaccessible")
 
                 # verify that the user specified is a group user of the group
-                group_user = session.scalar(
+                group_user = await session.scalar(
                     GroupUser.select(session.user_or_token).where(
                         GroupUser.group_id == group_id, GroupUser.user_id == user_id
                     )
@@ -261,7 +277,7 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     )
 
                 # verify that the user is an auto_publisher
-                auto_publisher = session.scalar(
+                auto_publisher = await session.scalar(
                     SharingServiceGroupAutoPublisher.select(
                         session.user_or_token
                     ).where(
@@ -279,8 +295,8 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                 auto_publishers_to_delete.append(auto_publisher)
 
             for a in auto_publishers_to_delete:
-                session.delete(a)
-            session.commit()
+                await session.delete(a)
+            await session.commit()
             self.push(
                 action="skyportal/REFRESH_SHARING_SERVICES",
             )

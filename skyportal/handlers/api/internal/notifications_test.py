@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.access import auth_or_token
@@ -9,6 +10,23 @@ from ....utils.email import send_email
 from ...base import BaseHandler
 
 env, cfg = load_env()
+
+
+class NotificationTestPostBody(BaseModel):
+    """Request body for sending a test notification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    notification_type: str | None = Field(
+        default=None,
+        description="Type of notification to test. Should be email or SMS.",
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of user that you want to trigger a test notification for. "
+        "If not given, will default to the associated user object that is posting.",
+    )
+
 
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
@@ -24,44 +42,27 @@ if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
 
 class NotificationTestHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self, *, body: NotificationTestPostBody = None):
         """
         ---
         description: Post user test notifications
         tags:
         - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: false
-                    description: |
-                      ID of user that you want to trigger a test notifcation for.
-                      If not given, will default to the associated user object that is posting.
-                  notification_type:
-                    type: string
-                    required: true
-                    description: |
-                      Type of notification to test. Should be email or SMS.
         responses:
           200:
             content:
               application/json:
-                schema: SingleTaxonomy
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(NotificationTestPostBody)
 
-        user_id = data.get("user_id", None)
-        notification_type = data.get("notification_type", None)
+        user_id = body.user_id
+        notification_type = body.notification_type
 
         if user_id is None:
             user_id = self.associated_user_object.id
@@ -83,8 +84,8 @@ class NotificationTestHandler(BaseHandler):
         if notification_type == "SMS" and client is None:
             return self.error("SMS not enabled in application")
 
-        with self.Session() as session:
-            user = session.scalar(sa.select(User).where(User.id == user_id))
+        async with self.AsyncSession() as session:
+            user = await session.scalar(sa.select(User).where(User.id == user_id))
 
             try:
                 if notification_type == "email":

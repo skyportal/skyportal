@@ -86,8 +86,10 @@ User Guide
    setup
    usage
    api
+   mcp
    dev
    deploy
+   observability
    versioning
    data_loader
    contributing
@@ -101,11 +103,15 @@ User Guide
    slack
    followup
    mma
+   gcn_crossmatch
    period
    spatial_catalog
    advanced_usage
    photometric_series
    analysis
+   external_services
+   broker_plugins
+   broker_ingestion
    extensions
    pages
    thumbnails

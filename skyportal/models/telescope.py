@@ -17,18 +17,17 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
     public,
 )
 from baselayer.log import make_log
 
-from ..utils.cache import Cache, dict_to_bytes
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 
 env, cfg = load_env()
 
 log = make_log("model/telescope")
 
-cache_dir = "cache/telescopes_time_info"
+cache_dir = f"{cache_folder}/telescopes_time_info"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=1000,  # large number of telescopes, as we don't want to constrain by age
@@ -37,19 +36,19 @@ cache = Cache(
 
 def manage_telescope_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return sa.select(cls)
     elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return sa.select(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return sa.select(cls).where(cls.id == -1)
 
 
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
-    read = public
-    create = update = delete = CustomUserAccessControl(manage_telescope_access_logic)
+    read = create = public
+    update = delete = CustomUserAccessControl(manage_telescope_access_logic)
 
     name = sa.Column(
         sa.String,
@@ -63,6 +62,12 @@ class Telescope(Base):
     lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")
     lon = sa.Column(sa.Float, nullable=True, doc="Longitude in deg.")
     elevation = sa.Column(sa.Float, nullable=True, doc="Elevation in meters.")
+    mpc_obscode = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Minor Planet Center observatory code, e.g. 'X05' (Rubin) or 'I41' (ZTF). "
+        "Required to query moving-object ephemerides for this site.",
+    )
     diameter = sa.Column(sa.Float, nullable=False, doc="Diameter in meters.")
     skycam_link = sa.Column(
         URLType, nullable=True, doc="Link to the telescope's sky camera."
@@ -77,6 +82,13 @@ class Telescope(Base):
         nullable=False,
         server_default="true",
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+
+    acknowledgment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Sentence to cite this telescope with, used to build a source's "
+        "acknowledgment block. Falls back to the telescope name when unset.",
     )
 
     instruments = relationship(
@@ -392,8 +404,6 @@ class Telescope(Base):
             except Exception:
                 log(f"Failed to load cached time info for telescope {self.id}")
 
-        morning = False
-        evening = False
         is_night_astronomical = False
         try:
             morning = self.next_twilight_morning_astronomical()

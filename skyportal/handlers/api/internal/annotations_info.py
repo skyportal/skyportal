@@ -8,12 +8,12 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ....models import Annotation
-from ....utils.cache import Cache, dict_to_bytes
+from ....utils.cache import Cache, cache_folder, dict_to_bytes
 from ...base import BaseHandler
 
 _, cfg = load_env()
 
-cache_dir = "cache/annotations_info"
+cache_dir = f"{cache_folder}/annotations_info"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg.get("misc.minutes_to_keep_annotations_info_query_cache", 360)
@@ -25,7 +25,7 @@ log = make_log("api/annotations_info")
 
 class AnnotationsInfoHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Collects valid annotation origin/key pairs to filter on for scanning
@@ -61,10 +61,10 @@ class AnnotationsInfoHandler(BaseHandler):
                 annotations = func.jsonb_each(Annotation.data).table_valued(
                     "key", "value"
                 )
-                with self.Session() as session:
+                async with self.AsyncSession() as session:
                     # Objs are read-public, so no need to check that annotations belong to an unreadable obj
                     # Instead, just check for annotation group membership
-                    results = session.execute(
+                    result = await session.execute(
                         Annotation.select(
                             session.user_or_token, columns=[Annotation.origin]
                         )
@@ -74,7 +74,8 @@ class AnnotationsInfoHandler(BaseHandler):
                         )
                         .outerjoin(annotations, literal(True))
                         .distinct()
-                    ).all()
+                    )
+                    results = result.all()
 
                     # Restructure query results so that records are grouped by origin in a
                     # nice, nested dictionary

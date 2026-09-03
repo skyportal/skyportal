@@ -11,11 +11,20 @@ from sncosmo.magsystems import _MAGSYSTEMS
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from .broker_apis import BROKERS
 from .facility_apis import APIS, LISTENERS
 
 log = make_log("enum_types")
 
 _, cfg = load_env()
+
+# Point sncosmo at the vendored data dir (the skyportal-data submodule) before
+# any bandpass lookup, so app import reads local files instead of blocking on
+# the flaky SVO Filter Profile Service. A missing bandpass still falls back to a
+# network fetch into this directory.
+sncosmo_data_folder = cfg.get("misc.sncosmo_data_folder")
+if sncosmo_data_folder:
+    sncosmo.conf.data_dir = sncosmo_data_folder
 
 # load additional bandpasses into the SN comso registry
 existing_bandpasses_names = [val["name"] for val in _BANDPASSES.get_loaders_metadata()]
@@ -35,6 +44,13 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     except Exception as e:
         log(f"Could not make bandpass for {name}: {e}")
         continue
+
+    # Seed the lazyproperty: it samples the band on a fixed 5 A grid, unusable
+    # for a radio band ~1e8 A wide. Same quantity, from the config points.
+    band.wave_eff = float(
+        np.trapezoid(wavelength * transmission, wavelength)
+        / np.trapezoid(transmission, wavelength)
+    )
 
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
@@ -61,12 +77,21 @@ THUMBNAIL_TYPES = (
     "dr8",
     "ls",
     "ps1",
+    "sm",
+    "hst",
+    "chandra",
+    "jwst",
     "new_gz",
     "ref_gz",
     "sub_gz",
 )
+# Where an obj stands against a GCN event. "pending" means proposed (e.g. by the
+# crossmatch service) and still awaiting a scanner; "ambiguous" means a scanner
+# looked and could not decide -- reviewed, unlike pending.
+GCN_EVENT_OBJ_STATUSES = ("pending", "confirmed", "ambiguous", "rejected")
+
 INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
-MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst")
+MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst", "x-ray")
 FOLLOWUP_PRIORITIES = ("1", "2", "3", "4", "5")
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ("remote", "skyportal")
 
@@ -84,6 +109,9 @@ ANALYSIS_INPUT_TYPES = (
     "classifications",
 )
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
+# Scalar (non list-of-dicts) source-filter keys. group_id triggers a default
+# analysis when a source is saved to that group (see create_default_analysis_on_save).
+DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int}
 AUTHENTICATION_TYPES = (
     "none",
     "header_token",
@@ -145,6 +173,9 @@ thumbnail_types = sa.Enum(
 instrument_types = sa.Enum(
     *INSTRUMENT_TYPES, name="instrument_types", validate_strings=True
 )
+gcn_event_obj_statuses = sa.Enum(
+    *GCN_EVENT_OBJ_STATUSES, name="gcn_event_obj_statuses", validate_strings=True
+)
 mma_detector_types = sa.Enum(
     *MMA_DETECTOR_TYPES, name="mma_detector_types", validate_strings=True
 )
@@ -163,6 +194,14 @@ api_classnames = sa.Enum(
 listener_classnames = sa.Enum(
     *LISTENER_CLASSNAMES,
     name="followup_listeners",
+    validate_strings=True,
+)
+
+ALLOWED_BROKER_CLASSNAMES = [c.__name__ for c in BROKERS]
+
+broker_classnames = sa.Enum(
+    *ALLOWED_BROKER_CLASSNAMES,
+    name="broker_apis",
     validate_strings=True,
 )
 
@@ -188,6 +227,7 @@ sqla_enum_types = [
     followup_priorities,
     api_classnames,
     listener_classnames,
+    broker_classnames,
     allowed_analysis_types,
     allowed_analysis_input_types,
     allowed_external_authentication_types,

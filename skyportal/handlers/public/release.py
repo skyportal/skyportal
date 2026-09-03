@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import sqlalchemy as sa
+from pydantic import Field
 
 from baselayer.app.models import DBSession
 
@@ -8,7 +11,12 @@ from ..base import BaseHandler
 
 
 class ReleaseHandler(BaseHandler):
-    def get(self, link_name=None):
+    def get(
+        self,
+        link_name: Annotated[
+            str, Field(description="The link name of the public release to display")
+        ] = None,
+    ):
         """
         ---
         single:
@@ -17,13 +25,6 @@ class ReleaseHandler(BaseHandler):
             tags:
               - public
               - public releases
-            parameters:
-                - in: path
-                  name: link_name
-                  required: true
-                  schema:
-                    type: string
-                  description: The link name of the public release to display
             responses:
                 200:
                   content:

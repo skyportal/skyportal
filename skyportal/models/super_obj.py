@@ -7,6 +7,7 @@ from sqlalchemy.orm import column_property, relationship
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
+    public,
 )
 from baselayer.log import make_log
 
@@ -46,6 +47,9 @@ class SuperObj(Base):
 
     __tablename__ = "super_objs"
 
+    # Ingest services extend membership as new detections arrive.
+    update = public
+
     name = sa.Column(
         sa.String,
         nullable=True,
@@ -57,10 +61,12 @@ class SuperObj(Base):
         doc="Boolean indicating whether the super-object is a moving object.",
     )
 
+    # No delete cascade: on a `secondary` relationship it deletes the Objs
+    # themselves. The link table is cleaned up by its ON DELETE CASCADE FKs.
     objs = relationship(
         "Obj",
         secondary=ObjToSuperObj.__table__,
-        cascade="delete",
+        back_populates="super_objs",
         passive_deletes=True,
         doc="Obj entries associated with this SuperObj.",
     )
@@ -69,7 +75,7 @@ class SuperObj(Base):
 Obj.super_objs = relationship(
     "SuperObj",
     secondary=ObjToSuperObj.__table__,
-    cascade="delete",
+    back_populates="objs",
     passive_deletes=True,
     doc="SuperObj entries associated with this Obj.",
 )

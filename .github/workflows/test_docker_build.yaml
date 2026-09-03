@@ -6,11 +6,16 @@ on:
       - main
       - test-docker
   pull_request:
-    types: [labeled]
+    # Run on PRs that touch docker-related files.
+    paths:
+      - Dockerfile
+      - docker.yaml
+      - docker-compose.yaml
+      - .dockerignore
+      - .github/workflows/test_docker_build.yaml
 
 jobs:
   test:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'docker')
     name: Test Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -21,24 +26,48 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # `ADD . /skyportal` bakes the skyportal-data submodule into the
+          # image, so its LFS payload (SFD dust maps) must be materialized here.
+          lfs: true
 
       - name: Build Docker image
         run: |
           docker compose build
 
       - name: Start containers
-        run: |
-          docker compose up -d
+        # compose orders this: db (healthcheck) -> db-init (schema) -> web.
+        run: docker compose up -d
 
       - name: Wait for web service to be healthy
+        # The old `sleep 30 + ps grep` only proved the container hadn't crashed,
+        # not that the tornado app had finished booting. With the new (heavier)
+        # sncosmo warm-up and the dustmap fetch firing during model import,
+        # `.tokens.yaml` can be written well after 30 s — by then the data_loader
+        # has already burned its 50 × 5 s retry budget waiting for a token that
+        # didn't exist yet. Poll the app port directly until it responds.
         run: |
-          sleep 30
-          if ! docker compose ps --services --filter "status=running" | grep -q "web"; then
-            echo "Web service is not running. Logs:"
-            docker compose logs web
-            exit 1
-          fi
+          for i in $(seq 1 60); do
+            if ! docker compose ps --services --filter "status=running" | grep -q "web"; then
+              echo "Web container is not running. Logs:"
+              docker compose logs web
+              exit 1
+            fi
+            if docker exec skyportal-web-1 bash -c 'test -f .tokens.yaml && grep -q INITIAL_ADMIN .tokens.yaml' 2>/dev/null; then
+              echo "App is up; .tokens.yaml present after ${i}0 s."
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Timed out waiting for .tokens.yaml. Web logs:"
+              docker compose logs web
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Test loading demo data
         run: |
           docker exec skyportal-web-1 bash -c 'source .venv/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
+
+      - name: Dump web container logs on failure
+        if: failure()
+        run: docker compose logs web

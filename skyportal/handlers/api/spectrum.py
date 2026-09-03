@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Annotated, Any, ClassVar, Literal
 
 import arrow
 import numpy as np
@@ -9,8 +10,9 @@ import sqlalchemy as sa
 from arrow import ParserError
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -23,11 +25,15 @@ from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (
     AnnotationOnSpectrum,
     ClassicalAssignment,
+    Classification,
     CommentOnSpectrum,
     FollowupRequest,
     Group,
+    GroupUser,
     Instrument,
     Obj,
+    PhotStat,
+    Source,
     Spectrum,
     SpectrumObserver,
     SpectrumPI,
@@ -39,6 +45,10 @@ from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
 )
+from ...utils.data_access import (
+    accessible_group_ids_async,
+    default_extra_share_group_ids,
+)
 from ..base import BaseHandler
 from .photometry import add_external_photometry
 
@@ -46,7 +56,235 @@ _, cfg = load_env()
 log = make_log("api/spectrum")
 
 
-def parse_id_list(id_list, model_class, session):
+# The pydantic request models below gate the top-level body shape (allowed keys +
+# extra="forbid"); the existing marshmallow schemas (SpectrumPost, the ASCII
+# JSON schemas) keep doing the deep per-field validation on model_dump().
+class SpectrumPostBody(BaseModel):
+    """Request body for uploading/updating a spectrum (see SpectrumPost)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Array elements may be null; the downstream marshmallow schema enforces the
+    # real per-element rules (see the photometry migration null-element bug).
+    wavelengths: list[float | None] | None = Field(
+        default=None, description="Wavelengths of the spectrum [Angstrom]."
+    )
+    fluxes: list[float | None] | None = Field(
+        default=None,
+        description="Flux of the Spectrum [F_lambda, arbitrary units].",
+    )
+    errors: list[float | None] | None = Field(
+        default=None,
+        description="Errors on the fluxes of the spectrum [F_lambda, same units as "
+        "`fluxes`.]",
+    )
+    units: str | None = Field(
+        default=None,
+        description="Units of the fluxes/errors. Options are Jy, AB, or "
+        "erg/s/cm/cm/AA).",
+    )
+    obj_id: str | None = Field(default=None, description="ID of this Spectrum's Obj.")
+    observed_at: str | None = Field(
+        default=None, description="The ISO UTC time the spectrum was taken."
+    )
+    pi: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who are PI of this Spectrum, or to use as "
+        "points of contact given an external PI.",
+    )
+    external_pi: str | None = Field(
+        default=None, description="Free text provided as an external PI"
+    )
+    reduced_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who reduced this Spectrum, or to use as points "
+        "of contact given an external reducer.",
+    )
+    external_reducer: str | None = Field(
+        default=None, description="Free text provided as an external reducer"
+    )
+    observed_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who observed this Spectrum, or to use as points "
+        "of contact given an external observer.",
+    )
+    external_observer: str | None = Field(
+        default=None, description="Free text provided as an external observer"
+    )
+    origin: str | None = Field(default=None, description="Origin of the spectrum.")
+    type: str | None = Field(
+        default=None,
+        description="Type of spectrum. One of the configured allowed spectrum types.",
+    )
+    label: str | None = Field(
+        default=None,
+        description="User defined label (can be used to replace default "
+        "instrument/date labeling on plot legends).",
+    )
+    instrument_id: int | None = Field(
+        default=None,
+        description="ID of the Instrument that acquired the Spectrum.",
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description='IDs of the Groups to share this spectrum with. Set to "all" to '
+        "make this spectrum visible to all users.",
+    )
+    followup_request_id: int | None = Field(
+        default=None,
+        description="ID of the Followup request that generated this spectrum, if any.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment that generated this spectrum, "
+        "if any.",
+    )
+    altdata: dict[str, Any] | None = Field(
+        default=None, description="Miscellaneous alternative metadata."
+    )
+
+
+class SpectrumPostResponse(BaseModel):
+    """Data payload returned when uploading a spectrum."""
+
+    id: int = Field(description="New spectrum ID")
+
+
+class SpectrumASCIIParseBody(BaseModel):
+    """Request body for parsing a spectrum from an ASCII file (see
+    SpectrumAsciiFileParseJSON)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    wave_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the "
+        "wavelength values of the spectrum (default 0).",
+    )
+    flux_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "values of the spectrum (default 1).",
+    )
+    fluxerr_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "error values of the spectrum (default None). If a column for errors is "
+        "provided, set to the corresponding 0-based column number, otherwise, it "
+        "will be ignored.",
+    )
+    ascii: str | None = Field(
+        default=None, description="The content of the ASCII file to be parsed."
+    )
+
+
+class SpectrumASCIIPostBody(SpectrumASCIIParseBody):
+    """Request body for uploading a spectrum from an ASCII file (see
+    SpectrumAsciiFilePostJSON)."""
+
+    obj_id: str | None = Field(
+        default=None, description="The ID of the object that the spectrum is of."
+    )
+    instrument_id: int | None = Field(
+        default=None, description="The ID of the instrument that took the spectrum."
+    )
+    type: str | None = Field(
+        default=None,
+        description="Type of spectrum. One of the configured allowed spectrum types.",
+    )
+    label: str | None = Field(
+        default=None,
+        description="User defined label to be placed in plot legends, instead of the "
+        "default <instrument>-<date taken>.",
+    )
+    observed_at: str | None = Field(
+        default=None, description="The ISO UTC time the spectrum was taken."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description="The IDs of the groups to share this spectrum with.",
+    )
+    filename: str | None = Field(
+        default=None,
+        description="The original filename (for bookkeeping purposes).",
+    )
+    pi: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who are PI of this Spectrum, or to use as "
+        "points of contact given an external PI.",
+    )
+    external_pi: str | None = Field(
+        default=None, description="Free text provided as an external PI"
+    )
+    reduced_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who reduced this Spectrum, or to use as points "
+        "of contact given an external reducer.",
+    )
+    external_reducer: str | None = Field(
+        default=None, description="Free text provided as an external reducer"
+    )
+    observed_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who observed this Spectrum, or to use as points "
+        "of contact given an external observer.",
+    )
+    external_observer: str | None = Field(
+        default=None, description="Free text provided as an external observer"
+    )
+    followup_request_id: int | None = Field(
+        default=None,
+        description="ID of the Followup request that generated this spectrum, if any.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment that generated this spectrum, "
+        "if any.",
+    )
+
+
+class SpectrumASCIIPostResponse(BaseModel):
+    """Data payload returned when uploading a spectrum from an ASCII file."""
+
+    id: int = Field(description="New spectrum ID")
+
+
+class BulkSpectraPostBody(BaseModel):
+    """Request body for the bulk spectra endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(
+        default=None, description="Restrict to sources saved to this group."
+    )
+    obj_ids: list[str] | str | None = Field(
+        default=None,
+        description="Restrict to these object IDs (also accepts a comma-separated "
+        "string).",
+    )
+    classifications: list[str] | str | None = Field(
+        default=None,
+        description="Restrict to sources with any of these (non-ML) classifications.",
+    )
+    classificationProbThreshold: float | None = Field(
+        default=None,
+        description="Only count classifications at or above this probability.",
+    )
+    maxSources: int | None = Field(
+        default=None,
+        description="Max sources to fetch spectra for (default 200, capped at 1000).",
+    )
+
+
+class SyntheticPhotometryPostBody(BaseModel):
+    """Request body for creating synthetic photometry from a spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    filters: list[str] | None = Field(default=None, description="List of filters")
+
+
+async def parse_id_list(id_list, model_class, session):
     """
     Return a list of integer IDs from the comma separated
     string of IDs given by the query argument, and the
@@ -61,14 +299,12 @@ def parse_id_list(id_list, model_class, session):
     session: sqlalchemy.Session
         Database session for this transaction
     """
-
     if id_list is None:
-        return  # silently pass through any None values
+        return
 
     try:
-        accessible_rows = (
-            session.scalars(model_class.select(session.user_or_token)).unique().all()
-        )
+        result = await session.scalars(model_class.select(session.user_or_token))
+        accessible_rows = result.unique().all()
         validated_ids = []
         for id in id_list.split(","):
             id = int(id)
@@ -104,7 +340,7 @@ def parse_string_list(str_list):
         raise TypeError("Must input a string!")
 
 
-def post_spectrum(data, user_id, session):
+async def post_spectrum(data, user_id, session):
     """Post spectrum to database.
     data: dict
         Spectrum dictionary
@@ -113,11 +349,11 @@ def post_spectrum(data, user_id, session):
     session: sqlalchemy.Session
         Database session for this transaction
     """
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-
-    stmt = Instrument.select(user).where(Instrument.id == data["instrument_id"])
-    instrument = session.scalars(stmt).first()
+    instrument = await session.scalar(
+        Instrument.select(user).where(Instrument.id == data["instrument_id"])
+    )
     if instrument is None:
         raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
 
@@ -133,12 +369,10 @@ def post_spectrum(data, user_id, session):
             "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
         )
     for pi_id in pi_ids:
-        stmt = User.select(user).where(User.id == pi_id)
-        pi = session.scalars(stmt).first()
+        pi = await session.scalar(User.select(user).where(User.id == pi_id))
         if pi is None:
             raise ValueError(f"Invalid pi ID: {pi_id}.")
-        pi_association = SpectrumPI(external_pi=external_pi)
-        pi_association.user = pi
+        pi_association = SpectrumPI(external_pi=external_pi, user_id=pi.id)
         pis.append(pi_association)
 
     reducers = []
@@ -149,12 +383,12 @@ def post_spectrum(data, user_id, session):
             "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
         )
     for reducer_id in reducer_ids:
-        stmt = User.select(user).where(User.id == reducer_id)
-        reducer = session.scalars(stmt).first()
+        reducer = await session.scalar(User.select(user).where(User.id == reducer_id))
         if reducer is None:
             raise ValueError(f"Invalid reducer ID: {reducer_id}.")
-        reducer_association = SpectrumReducer(external_reducer=external_reducer)
-        reducer_association.user = reducer
+        reducer_association = SpectrumReducer(
+            external_reducer=external_reducer, user_id=reducer.id
+        )
         reducers.append(reducer_association)
 
     observers = []
@@ -165,119 +399,259 @@ def post_spectrum(data, user_id, session):
             "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
         )
     for observer_id in observer_ids:
-        stmt = User.select(user).where(User.id == observer_id)
-        observer = session.scalars(stmt).first()
+        observer = await session.scalar(User.select(user).where(User.id == observer_id))
         if observer is None:
             raise ValueError(f"Invalid observer ID: {observer_id}.")
-        observer_association = SpectrumObserver(external_observer=external_observer)
-        observer_association.user = observer
+        observer_association = SpectrumObserver(
+            external_observer=external_observer, user_id=observer.id
+        )
         observers.append(observer_association)
 
     group_ids = data.pop("group_ids", None)
-    groups = (
-        session.scalars(Group.select(user).where(Group.id.in_(group_ids)))
-        .unique()
-        .all()
+    groups_result = await session.scalars(
+        Group.select(user).where(Group.id.in_(group_ids))
     )
+    groups = list(groups_result.unique().all())
     if {g.id for g in groups} != set(group_ids):
         raise ValueError(f"Cannot find one or more groups with IDs: {group_ids}.")
 
     spec = Spectrum(**data)
-    spec.instrument = instrument
+    spec.instrument_id = instrument.id
 
     spec.groups = groups
     spec.owner_id = user_id
     if spec.type is None:
         spec.type = default_spectrum_type
     session.add(spec)
+    await session.flush()  # populate spec.id
 
     for pi in pis:
-        pi.spectrum = spec
+        pi.spectr_id = spec.id
         session.add(pi)
     for reducer in reducers:
-        reducer.spectrum = spec
+        reducer.spectr_id = spec.id
         session.add(reducer)
     for observer in observers:
-        observer.spectrum = spec
+        observer.spectr_id = spec.id
         session.add(observer)
 
-    session.commit()
+    await session.commit()
 
-    flow = Flow()
-    flow.push(
-        "*",
-        "skyportal/REFRESH_SOURCE",
-        payload={"obj_key": spec.obj.internal_key},
-    )
+    # Re-fetch obj.internal_key for the refresh push (avoid lazy load).
+    obj = await session.scalar(sa.select(Obj).where(Obj.id == spec.obj_id))
 
-    flow.push(
-        "*",
-        "skyportal/REFRESH_SOURCE_SPECTRA",
-        payload={"obj_internal_key": spec.obj.internal_key},
-    )
+    if obj is not None:
+        flow = Flow()
+        flow.push(
+            "*",
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
+        )
+
+        flow.push(
+            "*",
+            "skyportal/REFRESH_SOURCE_SPECTRA",
+            payload={"obj_internal_key": obj.internal_key},
+        )
 
     return spec.id
 
 
+class SpectrumGetQuery(BaseModel):
+    """Query parameters for retrieving a single spectrum or multiple spectra."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset({"includeOriginalFile"})
+
+    includeOriginalFile: bool = Field(
+        default=False,
+        description=(
+            "If true, include the raw uploaded spectrum file "
+            "(original_file_string) in each spectrum. Defaults to false; "
+            "when omitted, that field is neither loaded nor returned. "
+            "Ignored when minimalPayload is true (which never includes it)."
+        ),
+    )
+    minimalPayload: bool = Field(
+        default=False,
+        description=(
+            "If true, return only the minimal metadata "
+            "about each spectrum, instead of returning "
+            "the potentially large payload that includes "
+            "wavelength/flux and also comments and annotations. "
+            "The metadata that is always included is: "
+            "id, obj_id, owner_id, origin, type, label, "
+            "observed_at, created_at, modified, "
+            "instrument_id, instrument_name, original_file_name, "
+            "followup_request_id, assignment_id, and altdata."
+        ),
+    )
+    observedBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra observed before this time."
+        ),
+    )
+    observedAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra observed after this time."
+        ),
+    )
+    modifiedBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra modified before this time."
+        ),
+    )
+    modifiedAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "return only spectra modified after this time."
+        ),
+    )
+    objID: str | None = Field(
+        default=None,
+        description=(
+            "Return any spectra on an object with ID that has a (partial) match "
+            'to this argument (i.e., the given argument is "in" the object\'s ID).'
+        ),
+    )
+    instrumentIDs: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated list of integer instrument IDs. If provided, "
+            "filter only spectra observed with one of these instrument IDs."
+        ),
+    )
+    groupIDs: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated list of integer group IDs. If provided, filter "
+            "only spectra saved to one of these group IDs."
+        ),
+    )
+    followupRequestIDs: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated list of integer followup request IDs. If "
+            "provided, filter only spectra associate with these followup "
+            "request IDs."
+        ),
+    )
+    assignmentIDs: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated list of integer assignment IDs. If provided, "
+            "filter only spectra associate with these assignment request IDs."
+        ),
+    )
+    origin: str | None = Field(
+        default=None,
+        description=(
+            "Return any spectra that have an origin with a (partial) match "
+            "to any of the values in this comma separated list."
+        ),
+    )
+    label: str | None = Field(
+        default=None,
+        description=(
+            "Return any spectra that have a label with a (partial) match "
+            "to any of the values in this comma separated list."
+        ),
+    )
+    type: str | None = Field(
+        default=None,
+        description=(
+            "Return spectra of the given type or types "
+            "(match multiple values using a comma separated list). "
+            "Types of spectra are defined in the config, "
+            "e.g., source, host or host_center."
+        ),
+    )
+    commentsFilter: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated string of comment text to filter for spectra matching."
+        ),
+    )
+    commentsFilterAuthor: str | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of authors. "
+            "Only comments from these authors are used "
+            "when filtering with the commentsFilter."
+        ),
+    )
+    commentsFilterBefore: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "only return sources that have comments before this time."
+        ),
+    )
+    commentsFilterAfter: str | None = Field(
+        default=None,
+        description=(
+            "Arrow-parseable date string (e.g. 2020-01-01). If provided, "
+            "only return sources that have comments after this time."
+        ),
+    )
+
+
 class SpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self, *, body: SpectrumPostBody = None) -> SpectrumPostResponse:
         """
         ---
         summary: Upload spectrum
         description: Upload spectrum
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spectrum ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        json = self.get_json()
+        body = self.parse_body(SpectrumPostBody)
 
         try:
-            data = SpectrumPost.load(json)
+            data = SpectrumPost.load(body.model_dump(exclude_unset=True))
         except ValidationError as e:
             return self.error(
                 f"Invalid / missing parameters; {e.normalized_messages()}"
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                # always append the single user group
-                single_user_group = self.associated_user_object.single_user_group
+                # always append the single user group (queried async-safely
+                # instead of via the sync-DBSession `single_user_group` property).
+                single_user_group = (
+                    await session.scalars(
+                        sa.select(Group)
+                        .join(GroupUser)
+                        .where(
+                            Group.single_user_group.is_(True),
+                            GroupUser.user_id == self.associated_user_object.id,
+                        )
+                    )
+                ).first()
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
-                    group_ids = [single_user_group.id]
+                    group_ids = await default_extra_share_group_ids(session)
                 elif group_ids == "all":
-                    group_ids = [g.id for g in self.current_user.accessible_groups]
+                    group_ids = await accessible_group_ids_async(
+                        self.current_user, session
+                    )
 
                 if single_user_group.id not in group_ids:
                     group_ids.append(single_user_group.id)
 
                 data["group_ids"] = group_ids
 
-                spectrum_id = post_spectrum(
+                spectrum_id = await post_spectrum(
                     data,
                     self.associated_user_object.id,
                     session,
@@ -287,7 +661,9 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    async def get(
+        self, spectrum_id: int | None = None, *, query: SpectrumGetQuery = None
+    ):
         """
         ---
         single:
@@ -295,12 +671,6 @@ class SpectrumHandler(BaseHandler):
           description: Retrieve a spectrum
           tags:
             - spectra
-          parameters:
-            - in: path
-              name: spectrum_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -315,194 +685,70 @@ class SpectrumHandler(BaseHandler):
           description: Retrieve multiple spectra with given criteria
           tags:
             - spectra
-          parameters:
-            - in: query
-              name: minimalPayload
-              nullable: true
-              default: false
-              schema:
-                type: boolean
-              description: |
-                If true, return only the minimal metadata
-                about each spectrum, instead of returning
-                the potentially large payload that includes
-                wavelength/flux and also comments and annotations.
-                The metadata that is always included is:
-                id, obj_id, owner_id, origin, type, label,
-                observed_at, created_at, modified,
-                instrument_id, instrument_name, original_file_name,
-                followup_request_id, assignment_id, and altdata.
-            - in: query
-              name: observedBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed before this time.
-            - in: query
-              name: observedAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed after this time.
-            - in: query
-              name: modifiedBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra modified before this time.
-            - in: query
-              name: modifiedAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra modified after this time.
-            - in: query
-              name: objID
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra on an object with ID that has a (partial) match
-                to this argument (i.e., the given argument is "in" the object's ID).
-            - in: query
-              name: instrumentIDs
-              nullable: true
-              type: list
-              items:
-                type: integer
-              description: |
-                If provided, filter only spectra observed with one of these instrument IDs.
-            - in: query
-              name: groupIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra saved to one of these group IDs.
-            - in: query
-              name: followupRequestIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra associate with these
-                followup request IDs.
-            - in: query
-              name: assignmentIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra associate with these
-                assignment request IDs.
-            - in: query
-              name: origin
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra that have an origin with a (partial) match
-                to any of the values in this comma separated list.
-            - in: query
-              name: label
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra that have an origin with a (partial) match
-                to any of the values in this comma separated list.
-            - in: query
-              name: type
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return spectra of the given type or types
-                (match multiple values using a comma separated list).
-                Types of spectra are defined in the config,
-                e.g., source, host or host_center.
-            - in: query
-              name: commentsFilter
-              nullable: true
-              schema:
-                type: array
-                items:
-                  type: string
-              explode: false
-              style: simple
-              description: |
-                Comma-separated string of comment text to filter for spectra matching.
-            - in: query
-              name: commentsFilterAuthor
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma separated string of authors.
-                Only comments from these authors are used
-                when filtering with the commentsFilter.
-            - in: query
-              name: commentsFilterBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                only return sources that have comments before this time.
-            - in: query
-              name: commentsFilterAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                only return sources that have comments after this time.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Spectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
+        query = self.parse_query(SpectrumGetQuery)
+        # original_file_string (the raw uploaded file) is opt-in to keep the
+        # default payload small.
+        include_original_file = query.includeOriginalFile
 
         if spectrum_id is not None:
-            with self.Session() as session:
-                spectrum = session.scalars(
-                    Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == spectrum_id
+            async with self.AsyncSession() as session:
+                spectrum = await session.scalar(
+                    Spectrum.select(session.user_or_token)
+                    .options(
+                        selectinload(Spectrum.instrument).selectinload(
+                            Instrument.telescope
+                        ),
+                        selectinload(Spectrum.groups),
+                        selectinload(Spectrum.reducers),
+                        selectinload(Spectrum.observers),
+                        selectinload(Spectrum.pis),
+                        selectinload(Spectrum.owner),
+                        *(
+                            []
+                            if include_original_file
+                            else [defer(Spectrum.original_file_string)]
+                        ),
                     )
-                ).first()
+                    .where(Spectrum.id == spectrum_id)
+                )
                 if spectrum is None:
                     return self.error(
                         f"Could not access spectrum {spectrum_id}.", status=403
                     )
-                comments = (
-                    session.scalars(
-                        CommentOnSpectrum.select(
-                            session.user_or_token,
-                            options=[joinedload(CommentOnSpectrum.groups)],
-                        ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
-                    )
-                    .unique()
-                    .all()
+                comments_result = await session.scalars(
+                    CommentOnSpectrum.select(
+                        session.user_or_token,
+                        options=[
+                            selectinload(CommentOnSpectrum.groups),
+                            selectinload(CommentOnSpectrum.author),
+                        ],
+                    ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
                 )
-                annotations = (
-                    session.scalars(
-                        AnnotationOnSpectrum.select(session.user_or_token).where(
-                            AnnotationOnSpectrum.spectrum_id == spectrum_id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments = comments_result.unique().all()
+                annotations_result = await session.scalars(
+                    AnnotationOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(AnnotationOnSpectrum.author))
+                    .where(AnnotationOnSpectrum.spectrum_id == spectrum_id)
                 )
+                annotations = annotations_result.unique().all()
 
                 spec_dict = recursive_to_dict(spectrum)
                 spec_dict["instrument_name"] = spectrum.instrument.name
@@ -516,50 +762,50 @@ class SpectrumHandler(BaseHandler):
                 spec_dict["comments"] = comments
                 spec_dict["annotations"] = annotations
 
-                external_pi = session.scalars(
+                external_pi = await session.scalar(
                     SpectrumPI.select(session.user_or_token).where(
                         SpectrumPI.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_pi is not None:
                     spec_dict["external_pi"] = external_pi.external_pi
 
-                external_reducer = session.scalars(
+                external_reducer = await session.scalar(
                     SpectrumReducer.select(session.user_or_token).where(
                         SpectrumReducer.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_reducer is not None:
                     spec_dict["external_reducer"] = external_reducer.external_reducer
 
-                external_observer = session.scalars(
+                external_observer = await session.scalar(
                     SpectrumObserver.select(session.user_or_token).where(
                         SpectrumObserver.spectr_id == spectrum_id
                     )
-                ).first()
+                )
                 if external_observer is not None:
                     spec_dict["external_observer"] = external_observer.external_observer
 
                 return self.success(data=spec_dict)
 
         # multiple spectra
-        minimal_payload = self.get_query_argument("minimalPayload", False)
-        observed_before = self.get_query_argument("observedBefore", None)
-        observed_after = self.get_query_argument("observedAfter", None)
-        obj_id = self.get_query_argument("objID", None)
-        instrument_ids = self.get_query_argument("instrumentIDs", None)
-        group_ids = self.get_query_argument("groupIDs", None)
-        followup_ids = self.get_query_argument("followupRequestIDs", None)
-        assignment_ids = self.get_query_argument("assignmentIDs", None)
-        spec_origin = self.get_query_argument("origin", None)
-        spec_label = self.get_query_argument("label", None)
-        spec_type = self.get_query_argument("type", None)
-        comments_filter = self.get_query_argument("commentsFilter", None)
-        comments_filter_author = self.get_query_argument("commentsFilterAuthor", None)
-        comments_filter_before = self.get_query_argument("commentsFilterBefore", None)
-        comments_filter_after = self.get_query_argument("commentsFilterAfter", None)
-        modified_before = self.get_query_argument("modifiedBefore", None)
-        modified_after = self.get_query_argument("modifiedAfter", None)
+        minimal_payload = query.minimalPayload
+        observed_before = query.observedBefore
+        observed_after = query.observedAfter
+        obj_id = query.objID
+        instrument_ids = query.instrumentIDs
+        group_ids = query.groupIDs
+        followup_ids = query.followupRequestIDs
+        assignment_ids = query.assignmentIDs
+        spec_origin = query.origin
+        spec_label = query.label
+        spec_type = query.type
+        comments_filter = query.commentsFilter
+        comments_filter_author = query.commentsFilterAuthor
+        comments_filter_before = query.commentsFilterBefore
+        comments_filter_after = query.commentsFilterAfter
+        modified_before = query.modifiedBefore
+        modified_after = query.modifiedAfter
 
         # validate inputs
         try:
@@ -588,12 +834,16 @@ class SpectrumHandler(BaseHandler):
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{modified_after}".')
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                instrument_ids = parse_id_list(instrument_ids, Instrument, session)
-                group_ids = parse_id_list(group_ids, Group, session)
-                followup_ids = parse_id_list(followup_ids, FollowupRequest, session)
-                assignment_ids = parse_id_list(
+                instrument_ids = await parse_id_list(
+                    instrument_ids, Instrument, session
+                )
+                group_ids = await parse_id_list(group_ids, Group, session)
+                followup_ids = await parse_id_list(
+                    followup_ids, FollowupRequest, session
+                )
+                assignment_ids = await parse_id_list(
                     assignment_ids, ClassicalAssignment, session
                 )
             except (ValueError, AccessError) as e:
@@ -707,7 +957,23 @@ class SpectrumHandler(BaseHandler):
             if spec_type:
                 spec_query = spec_query.where(Spectrum.type.in_(spec_type))
 
-            spectra = session.scalars(spec_query).unique().all()
+            # Eager-load instrument/telescope/groups/owner/pi/reducer/observer
+            # for the per-spectrum dict construction below.
+            spec_query = spec_query.options(
+                selectinload(Spectrum.instrument).selectinload(Instrument.telescope),
+                selectinload(Spectrum.groups),
+                selectinload(Spectrum.owner),
+                selectinload(Spectrum.pis),
+                selectinload(Spectrum.reducers),
+                selectinload(Spectrum.observers),
+                *(
+                    []
+                    if include_original_file
+                    else [defer(Spectrum.original_file_string)]
+                ),
+            )
+            spectra_result = await session.scalars(spec_query)
+            spectra = spectra_result.unique().all()
 
             result_spectra = recursive_to_dict(spectra)
 
@@ -745,13 +1011,15 @@ class SpectrumHandler(BaseHandler):
                 for spec_dict in result_spectra:
                     comments_query = CommentOnSpectrum.select(
                         session.user_or_token,
-                        options=[joinedload(CommentOnSpectrum.groups)],
+                        options=[
+                            selectinload(CommentOnSpectrum.groups),
+                            selectinload(CommentOnSpectrum.author),
+                        ],
                     ).where(CommentOnSpectrum.spectrum_id == spec_dict["id"])
 
                     if not minimal_payload:  # grab these before further filtering
-                        spec_dict["comments"] = recursive_to_dict(
-                            session.scalars(comments_query).unique().all()
-                        )
+                        result = await session.scalars(comments_query)
+                        spec_dict["comments"] = recursive_to_dict(result.unique().all())
 
                     if (
                         (comments_filter is not None)
@@ -768,7 +1036,8 @@ class SpectrumHandler(BaseHandler):
                                 CommentOnSpectrum.created_at >= comments_filter_after
                             )
 
-                        comments = session.scalars(comments_query).unique().all()
+                        result = await session.scalars(comments_query)
+                        comments = result.unique().all()
                         if not comments:  # if nothing passed, this spectrum is rejected
                             continue
 
@@ -798,33 +1067,32 @@ class SpectrumHandler(BaseHandler):
                 result_spectra = new_result_spectra
 
             if not minimal_payload:  # add other data to each spectrum
-                for spec, spec_dict in zip(spectra, result_spectra):
-                    annotations = (
-                        session.scalars(
-                            AnnotationOnSpectrum.select(session.user_or_token).where(
-                                AnnotationOnSpectrum.spectrum_id == spec.id
-                            )
-                        )
-                        .unique()
-                        .all()
+                spectra_by_id = {spec.id: spec for spec in spectra}
+                for spec_dict in result_spectra:
+                    spec = spectra_by_id[spec_dict["id"]]
+                    annotations_result = await session.scalars(
+                        AnnotationOnSpectrum.select(session.user_or_token)
+                        .options(selectinload(AnnotationOnSpectrum.author))
+                        .where(AnnotationOnSpectrum.spectrum_id == spec.id)
                     )
+                    annotations = annotations_result.unique().all()
                     spec_dict["annotations"] = recursive_to_dict(annotations)
 
-                    external_pi = session.scalars(
+                    external_pi = await session.scalar(
                         SpectrumPI.select(session.user_or_token).where(
                             SpectrumPI.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_pi is not None:
                         spec_dict["external_pi"] = external_pi.external_pi
 
                     spec_dict["pis"] = recursive_to_dict(spec.pis)
 
-                    external_reducer = session.scalars(
+                    external_reducer = await session.scalar(
                         SpectrumReducer.select(session.user_or_token).where(
                             SpectrumReducer.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_reducer is not None:
                         spec_dict["external_reducer"] = (
                             external_reducer.external_reducer
@@ -832,11 +1100,11 @@ class SpectrumHandler(BaseHandler):
 
                     spec_dict["reducers"] = recursive_to_dict(spec.reducers)
 
-                    external_observer = session.scalars(
+                    external_observer = await session.scalar(
                         SpectrumObserver.select(session.user_or_token).where(
                             SpectrumObserver.spectr_id == spec.id
                         )
-                    ).first()
+                    )
                     if external_observer is not None:
                         spec_dict["external_observer"] = (
                             external_observer.external_observer
@@ -856,23 +1124,13 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    def put(self, spectrum_id):
+    async def put(self, spectrum_id: int, *, body: SpectrumPostBody = None):
         """
         ---
         summary: Update a spectrum
         description: Update a spectrum
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumPost
         responses:
           200:
             content:
@@ -883,21 +1141,24 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SpectrumPostBody)
+
         try:
             spectrum_id = int(spectrum_id)
         except TypeError:
             return self.error("Could not convert spectrum id to int.")
 
-        data = self.get_json()
-
         try:
-            data = SpectrumPost.load(data, partial=True)
+            data = SpectrumPost.load(body.model_dump(exclude_unset=True), partial=True)
         except ValidationError as e:
             return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
+        try:
+            spectrum_id = int(spectrum_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid spectrum_id: {spectrum_id}")
+
         group_ids = data.pop("group_ids", None)
-        if group_ids == "all":
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         pi = data.pop("pi", None)
         reduced_by = data.pop("reduced_by", None)
@@ -907,182 +1168,193 @@ class SpectrumHandler(BaseHandler):
         external_reducer = data.pop("external_reducer", None)
         external_observer = data.pop("external_observer", None)
 
-        with self.Session() as session:
-            stmt = Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
-            spectrum = session.scalars(stmt).first()
+        async with self.AsyncSession() as session:
+            if group_ids == "all":
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            spectrum = await session.scalar(
+                Spectrum.select(self.current_user)
+                .options(
+                    selectinload(Spectrum.groups),
+                    selectinload(Spectrum.pis),
+                    selectinload(Spectrum.reducers),
+                    selectinload(Spectrum.observers),
+                )
+                .where(Spectrum.id == spectrum_id)
+            )
 
             if group_ids:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
+                groups = list(groups_result.unique().all())
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
                 if groups:
-                    spectrum.groups = spectrum.groups + groups
+                    existing_group_ids = {g.id for g in spectrum.groups}
+                    new_groups = [g for g in groups if g.id not in existing_group_ids]
+                    if new_groups:
+                        spectrum.groups = spectrum.groups + new_groups
 
             if pi:
-                existing_pis = spectrum.pis
+                existing_pis = list(spectrum.pis)
                 pis = []
-                for pi_id in reduced_by:
-                    stmt = User.select(session.user_or_token).where(User.id == pi_id)
-                    pi = session.scalars(stmt).first()
-                    if pi is None:
-                        raise ValueError(f"Invalid pi ID: {pi_id}.")
-                    pi_association = SpectrumReducer(external_pi=external_pi)
-                    pi_association.user = pi
+                for pi_id in pi:
+                    pi_user = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == pi_id)
+                    )
+                    if pi_user is None:
+                        return self.error(f"Invalid pi ID: {pi_id}.")
+                    pi_association = SpectrumPI(
+                        external_pi=external_pi, user_id=pi_user.id
+                    )
                     pis.append(pi_association)
 
                 if len(pis) == 0 and external_pi is not None:
-                    raise ValueError(
-                        "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
+                    return self.error(
+                        "At least one valid user must be provided as a pi point of contact via the 'pi' parameter."
                     )
 
-                # remove any existing pis that are not in the new list
-                for pi in existing_pis:
-                    if pi.user_id not in [r.user_id for r in pis]:
-                        session.delete(pi)
+                for pi_assoc in existing_pis:
+                    if pi_assoc.user_id not in [r.user_id for r in pis]:
+                        await session.delete(pi_assoc)
 
-                for pi in pis:
-                    pi.spectr_id = spectrum.id
-                    session.add(pi)
+                for pi_assoc in pis:
+                    pi_assoc.spectr_id = spectrum.id
+                    session.add(pi_assoc)
 
             if reduced_by:
-                existing_reducers = spectrum.reducers
+                existing_reducers = list(spectrum.reducers)
                 reducers = []
                 for reducer_id in reduced_by:
-                    stmt = User.select(session.user_or_token).where(
-                        User.id == reducer_id
+                    reducer = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == reducer_id)
                     )
-                    reducer = session.scalars(stmt).first()
                     if reducer is None:
-                        raise ValueError(f"Invalid reducer ID: {reducer_id}.")
+                        return self.error(f"Invalid reducer ID: {reducer_id}.")
                     reducer_association = SpectrumReducer(
-                        external_reducer=external_reducer
+                        external_reducer=external_reducer, user_id=reducer.id
                     )
-                    reducer_association.user = reducer
                     reducers.append(reducer_association)
 
                 if len(reducers) == 0 and external_reducer is not None:
-                    raise ValueError(
+                    return self.error(
                         "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
                     )
 
-                # remove any existing reducers that are not in the new list
-                for reducer in existing_reducers:
-                    if reducer.user_id not in [r.user_id for r in reducers]:
-                        session.delete(reducer)
+                for reducer_assoc in existing_reducers:
+                    if reducer_assoc.user_id not in [r.user_id for r in reducers]:
+                        await session.delete(reducer_assoc)
 
-                for reducer in reducers:
-                    reducer.spectr_id = spectrum.id
-                    session.add(reducer)
+                for reducer_assoc in reducers:
+                    reducer_assoc.spectr_id = spectrum.id
+                    session.add(reducer_assoc)
 
             if observed_by:
-                existing_observers = spectrum.observers
+                existing_observers = list(spectrum.observers)
                 observers = []
                 for observer_id in observed_by:
-                    stmt = User.select(session.user_or_token).where(
-                        User.id == observer_id
+                    observer = await session.scalar(
+                        User.select(session.user_or_token).where(User.id == observer_id)
                     )
-                    observer = session.scalars(stmt).first()
                     if observer is None:
-                        raise ValueError(f"Invalid observer ID: {observer_id}.")
+                        return self.error(f"Invalid observer ID: {observer_id}.")
                     observer_association = SpectrumObserver(
-                        external_observer=external_observer
+                        external_observer=external_observer, user_id=observer.id
                     )
-                    observer_association.user = observer
                     observers.append(observer_association)
 
                 if len(observers) == 0 and external_observer is not None:
-                    raise ValueError(
+                    return self.error(
                         "At least one valid user must be provided as an "
                         "observer point of contact via the 'observed_by' parameter."
                     )
 
-                # remove any existing observers that are not in the new list
-                for observer in existing_observers:
-                    if observer.user_id not in [o.user_id for o in observers]:
-                        session.delete(observer)
+                for observer_assoc in existing_observers:
+                    if observer_assoc.user_id not in [o.user_id for o in observers]:
+                        await session.delete(observer_assoc)
 
-                for observer in observers:
-                    observer.spectr_id = spectrum.id
-                    session.add(observer)
+                for observer_assoc in observers:
+                    observer_assoc.spectr_id = spectrum.id
+                    session.add(observer_assoc)
 
             for k in data:
                 setattr(spectrum, k, data[k])
 
-            session.commit()
+            await session.commit()
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": spectrum.obj.internal_key},
-            )
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spectrum.obj.internal_key},
-            )
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            if obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj.internal_key},
+                )
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id):
+    async def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete a spectrum
         description: Delete a spectrum
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            spectrum = session.scalars(
+        async with self.AsyncSession() as session:
+            spectrum = await session.scalar(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
-            ).first()
-            obj_key = spectrum.obj.internal_key
-            session.delete(spectrum)
-            session.commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_key},
             )
+            if spectrum is None:
+                return self.error("Could not find spectrum.", status=403)
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            obj_key = obj.internal_key if obj is not None else None
 
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spectrum.obj.internal_key},
-            )
+            await session.delete(spectrum)
+            await session.commit()
+
+            if obj_key is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj_key},
+                )
+
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj_key},
+                )
 
             return self.success()
 
 
 class ASCIIHandler:
     def spec_from_ascii_request(
-        self, validator=SpectrumAsciiFilePostJSON, return_json=False
+        self, data, validator=SpectrumAsciiFilePostJSON, return_json=False
     ):
         """Helper method to read in Spectrum objects from ASCII POST."""
-        json = self.get_json()
-
         try:
-            json = validator.load(json)
+            json = validator.load(data)
         except ValidationError as e:
             raise ValidationError(
                 f"Invalid/missing parameters: {e.normalized_messages()}"
@@ -1115,7 +1387,9 @@ class ASCIIHandler:
             fluxerr_column=json.get("fluxerr_column", None),
         )
         spec.original_file_string = ascii
-        spec.owner = self.associated_user_object
+        # Set FK rather than the relationship to avoid the cascade-conflict
+        # gotcha when this Spectrum is later added to an async session.
+        spec.owner_id = self.associated_user_object.id
         if return_json:
             return spec, json
         return spec
@@ -1123,17 +1397,202 @@ class ASCIIHandler:
 
 class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(
+        self, *, body: SpectrumASCIIPostBody = None
+    ) -> SpectrumASCIIPostResponse:
         """
         ---
         summary: Upload spectrum from ASCII
         description: Upload spectrum from ASCII file
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumAsciiFilePostJSON
+        """
+        body = self.parse_body(SpectrumASCIIPostBody)
+
+        try:
+            spec, json = self.spec_from_ascii_request(
+                body.model_dump(exclude_unset=True), return_json=True
+            )
+        except Exception as e:
+            return self.error(f"Error parsing spectrum: {e.args[0]}")
+
+        filename = json.pop("filename")
+
+        async with self.AsyncSession() as session:
+            obj_check = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == json["obj_id"])
+            )
+
+            if obj_check is None:
+                return self.error(f"Cannot find object with ID: {json['obj_id']}")
+
+            inst_check = await session.scalar(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.id == json["instrument_id"]
+                )
+            )
+
+            if inst_check is None:
+                return self.error(
+                    f"Cannot find instrument with ID: {json['instrument_id']}"
+                )
+
+            single_user_group = (
+                await session.scalars(
+                    sa.select(Group)
+                    .join(GroupUser)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == self.associated_user_object.id,
+                    )
+                )
+            ).first()
+
+            group_ids = json.pop("group_ids", [])
+            if group_ids in ([], None):
+                group_ids = await default_extra_share_group_ids(session)
+            elif group_ids == "all":
+                public_name = cfg["misc.public_group_name"]
+                public_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.name == public_name)
+                )
+                public_groups = public_result.unique().all()
+                group_ids = [g.id for g in public_groups]
+
+            if single_user_group.id not in group_ids:
+                group_ids.append(single_user_group.id)
+
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            )
+            groups = list(groups_result.unique().all())
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f"Cannot find one or more groups with IDs: {group_ids}."
+                )
+
+            pis = []
+            external_pi = json.pop("external_pi", None)
+            pi_ids = json.pop("pi", [])
+            if external_pi is not None and len(pi_ids) == 0:
+                return self.error(
+                    "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
+                )
+            for pi_id in pi_ids:
+                pi = await session.scalar(
+                    User.select(self.current_user).where(User.id == pi_id)
+                )
+                if pi is None:
+                    return self.error(f"Invalid pi ID: {pi_id}.")
+                pi_association = SpectrumPI(external_pi=external_pi, user_id=pi.id)
+                pis.append(pi_association)
+
+            reducers = []
+            external_reducer = json.pop("external_reducer", None)
+            reducer_ids = json.pop("reduced_by", [])
+            if external_reducer is not None and len(reducer_ids) == 0:
+                return self.error(
+                    "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+                )
+            for reducer_id in reducer_ids:
+                reducer = await session.scalar(
+                    User.select(self.current_user).where(User.id == reducer_id)
+                )
+                if reducer is None:
+                    return self.error(f"Invalid reducer ID: {reducer_id}.")
+                reducer_association = SpectrumReducer(
+                    external_reducer=external_reducer, user_id=reducer.id
+                )
+                reducers.append(reducer_association)
+
+            observers = []
+            external_observer = json.pop("external_observer", None)
+            observer_ids = json.pop("observed_by", [])
+            if external_observer is not None and len(observer_ids) == 0:
+                return self.error(
+                    "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+                )
+            for observer_id in observer_ids:
+                observer = await session.scalar(
+                    User.select(self.current_user).where(User.id == observer_id)
+                )
+                if observer is None:
+                    return self.error(f"Invalid observer ID: {observer_id}.")
+                observer_association = SpectrumObserver(
+                    external_observer=external_observer, user_id=observer.id
+                )
+                observers.append(observer_association)
+
+            followup_request_id = json.pop("followup_request_id", None)
+            if followup_request_id is not None:
+                followup_request = await session.scalar(
+                    FollowupRequest.select(self.current_user)
+                    .options(selectinload(FollowupRequest.target_groups))
+                    .where(FollowupRequest.id == followup_request_id)
+                )
+                if followup_request is not None:
+                    spec.followup_request_id = followup_request.id
+                    for group in followup_request.target_groups:
+                        if group not in groups:
+                            groups.append(group)
+
+            assignment_id = json.pop("assignment_id", None)
+            if assignment_id is not None:
+                assignment = await session.scalar(
+                    ClassicalAssignment.select(self.current_user)
+                    .options(selectinload(ClassicalAssignment.run))
+                    .where(ClassicalAssignment.id == assignment_id)
+                )
+                if assignment is None:
+                    return self.error("Invalid assignment.")
+                spec.assignment_id = assignment.id
+                if assignment.run.group_id is not None:
+                    run_group = await session.scalar(
+                        sa.select(Group).where(Group.id == assignment.run.group_id)
+                    )
+                    if run_group is not None and run_group not in groups:
+                        groups.append(run_group)
+
+            spec.original_file_filename = Path(filename).name
+            spec.groups = groups
+
+            session.add(spec)
+            await session.flush()  # populate spec.id
+            for pi_assoc in pis:
+                pi_assoc.spectr_id = spec.id
+                session.add(pi_assoc)
+            for reducer_assoc in reducers:
+                reducer_assoc.spectr_id = spec.id
+                session.add(reducer_assoc)
+            for observer_assoc in observers:
+                observer_assoc.spectr_id = spec.id
+                session.add(observer_assoc)
+
+            await session.commit()
+
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spec.obj_id))
+            if obj is not None:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj.internal_key},
+                )
+
+            return self.success(data={"id": spec.id})
+
+
+class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
+    @permissions(["Upload data"])
+    async def post(self, *, body: SpectrumASCIIParseBody = None):
+        """
+        ---
+        summary: Parse spectrum from ASCII file
+        description: Parse spectrum from ASCII file
+        tags:
+          - spectra
         responses:
           200:
             content:
@@ -1144,245 +1603,77 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spectrum ID
+                          $ref: '#/components/schemas/SpectrumNoID'
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SpectrumASCIIParseBody)
 
         try:
-            spec, json = self.spec_from_ascii_request(return_json=True)
-        except Exception as e:
-            return self.error(f"Error parsing spectrum: {e.args[0]}")
-
-        filename = json.pop("filename")
-
-        with self.Session() as session:
-            obj_check = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == json["obj_id"])
-            ).first()
-
-            if obj_check is None:
-                return self.error(f"Cannot find object with ID: {json['obj_id']}")
-
-            inst_check = session.scalars(
-                Instrument.select(session.user_or_token).where(
-                    Instrument.id == json["instrument_id"]
-                )
-            ).first()
-
-            if inst_check is None:
-                return self.error(
-                    f"Cannot find instrument with ID: {json['instrument_id']}"
-                )
-
-            # always add the single user group
-            single_user_group = self.associated_user_object.single_user_group
-
-            group_ids = json.pop("group_ids", [])
-            if group_ids is None:
-                group_ids = [single_user_group.id]
-            elif group_ids == "all":
-                public_name = cfg["misc.public_group_name"]
-                stmt = Group.select(self.current_user).where(Group.name == public_name)
-                public_groups = session.scalars(stmt).unique().all()
-                group_ids = [g.id for g in public_groups]
-
-            if single_user_group.id not in group_ids:
-                group_ids.append(single_user_group.id)
-
-            groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                )
-                .unique()
-                .all()
+            spec = self.spec_from_ascii_request(
+                body.model_dump(exclude_unset=True),
+                validator=SpectrumAsciiFileParseJSON,
             )
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}."
-                )
-
-            pis = []
-            external_pi = json.pop("external_pi", None)
-            pi_ids = json.pop("pi", [])
-            if external_pi is not None and len(pi_ids) == 0:
-                raise ValueError(
-                    "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
-                )
-            for pi_id in pi_ids:
-                stmt = User.select(self.current_user).where(User.id == pi_id)
-                pi = session.scalars(stmt).first()
-                if pi is None:
-                    return self.error(f"Invalid pi ID: {pi_id}.")
-                pi_association = SpectrumPI(external_pi=external_pi)
-                pi_association.user = pi
-                pis.append(pi_association)
-
-            reducers = []
-            external_reducer = json.pop("external_reducer", None)
-            reducer_ids = json.pop("reduced_by", [])
-            if external_reducer is not None and len(reducer_ids) == 0:
-                self.error(
-                    "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
-                )
-            for reducer_id in reducer_ids:
-                stmt = User.select(self.current_user).where(User.id == reducer_id)
-                reducer = session.scalars(stmt).first()
-                if reducer is None:
-                    return self.error(f"Invalid reducer ID: {reducer_id}.")
-                reducer_association = SpectrumReducer(external_reducer=external_reducer)
-                reducer_association.user = reducer
-                reducers.append(reducer_association)
-
-            observers = []
-            external_observer = json.pop("external_observer", None)
-            observer_ids = json.pop("observed_by", [])
-            if external_observer is not None and len(observer_ids) == 0:
-                self.error(
-                    "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
-                )
-            for observer_id in observer_ids:
-                stmt = User.select(self.current_user).where(User.id == observer_id)
-                observer = session.scalars(stmt).first()
-                if observer is None:
-                    return self.error(f"Invalid observer ID: {observer_id}.")
-                observer_association = SpectrumObserver(
-                    external_observer=external_observer
-                )
-                observer_association.user = observer
-                observers.append(observer_association)
-
-            # will never KeyError as missing value is imputed
-            followup_request_id = json.pop("followup_request_id", None)
-            if followup_request_id is not None:
-                stmt = FollowupRequest.select(self.current_user)
-                stmt = stmt.where(FollowupRequest.id == followup_request_id)
-                followup_request = session.scalars(stmt).first()
-                spec.followup_request = followup_request
-                for group in followup_request.target_groups:
-                    if group not in groups:
-                        groups.append(group)
-
-            assignment_id = json.pop("assignment_id", None)
-            if assignment_id is not None:
-                stmt = ClassicalAssignment.select(self.current_user)
-                stmt = stmt.where(ClassicalAssignment.id == assignment_id)
-                assignment = session.scalars(stmt).first()
-                if assignment is None:
-                    return self.error("Invalid assignment.")
-                spec.assignment = assignment
-                if assignment.run.group is not None:
-                    groups.append(assignment.run.group)
-
-            spec.original_file_filename = Path(filename).name
-            spec.groups = groups
-
-            session.add(spec)
-            for pi in pis:
-                pi.spectrum = spec
-                session.add(pi)
-            for reducer in reducers:
-                reducer.spectrum = spec
-                session.add(reducer)
-            for observer in observers:
-                observer.spectrum = spec
-                session.add(observer)
-
-            session.commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE",
-                payload={"obj_key": spec.obj.internal_key},
-            )
-
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": spec.obj.internal_key},
-            )
-
-            return self.success(data={"id": spec.id})
-
-
-class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
-    @permissions(["Upload data"])
-    def post(self):
-        """
-        ---
-        summary: Parse spectrum from ASCII file
-        description: Parse spectrum from ASCII file
-        tags:
-          - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumAsciiFileParseJSON
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SpectrumNoID
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        try:
-            spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
         except Exception as e:
             return self.error(f"Error parsing spectrum: {e.args[0]}")
         return self.success(data=spec)
 
 
+class ObjSpectraGetQuery(BaseModel):
+    """Query parameters for retrieving all spectra associated with an Object."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    normalization: Literal["median"] | None = Field(
+        default=None,
+        description=(
+            'what normalization is needed for the spectra (e.g., "median"). '
+            "If omitted, returns the original spectrum. "
+            "Options for normalization are: "
+            "median: normalize the flux to have median==1"
+        ),
+    )
+    sortBy: Literal["observed_at", "created_at"] = Field(
+        default="observed_at",
+        description=(
+            "The column to order the spectra by. Defaults to observed_at. "
+            "Options are: observed_at, created_at"
+        ),
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description=(
+            "The order to sort the spectra by. Defaults to asc. Options are: asc, desc"
+        ),
+    )
+    includeOriginalFile: bool = Field(
+        default=False,
+        description=(
+            "If true, include the raw uploaded spectrum file "
+            "(original_file_string) in each spectrum. Defaults to false; "
+            "when omitted, that field is neither loaded nor returned."
+        ),
+    )
+
+
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve spectra for")
+        ],
+        *,
+        query: ObjSpectraGetQuery = None,
+    ):
         """
         ---
         summary: Get spectra for an object
         description: Retrieve all spectra associated with an Object
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve spectra for
-          - in: query
-            name: normalization
-            required: false
-            schema:
-              type: string
-            description: |
-              what normalization is needed for the spectra (e.g., "median").
-              If omitted, returns the original spectrum.
-              Options for normalization are:
-              - median: normalize the flux to have median==1
-          - in: query
-            name: sortBy
-            required: false
-            schema:
-                type: string
-            description: |
-                The column to order the spectra by. Defaults to observed_at.
-                Options are: observed_at, created_at
-          - in: query
-            name: sortOrder
-            required: false
-            schema:
-                type: string
-            description: |
-                The order to sort the spectra by. Defaults to asc.
-                Options are: asc, desc
-
         responses:
           200:
             content:
@@ -1408,26 +1699,39 @@ class ObjSpectraHandler(BaseHandler):
                 schema: Error
         """
 
-        sortBy = self.get_query_argument("sortBy", "observed_at")
-        sortOrder = self.get_query_argument("sortOrder", "asc")
+        query = self.parse_query(ObjSpectraGetQuery)
 
-        if sortBy not in ["observed_at", "created_at"]:
-            return self.error(
-                "Invalid sortBy, must be one of: observed_at, created_at."
-            )
+        sortBy = query.sortBy
+        sortOrder = query.sortOrder
 
-        if sortOrder not in ["asc", "desc"]:
-            return self.error("Invalid sortOrder, must be one of: asc, desc.")
+        # original_file_string (the raw uploaded file) is opt-in.
+        include_original_file = query.includeOriginalFile
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error("Invalid object ID.")
 
-            stmt = Spectrum.select(session.user_or_token).where(
-                Spectrum.obj_id == obj_id
+            stmt = (
+                Spectrum.select(session.user_or_token)
+                .options(
+                    selectinload(Spectrum.instrument).selectinload(
+                        Instrument.telescope
+                    ),
+                    selectinload(Spectrum.groups),
+                    selectinload(Spectrum.owner),
+                    selectinload(Spectrum.pis),
+                    selectinload(Spectrum.reducers),
+                    selectinload(Spectrum.observers),
+                    *(
+                        []
+                        if include_original_file
+                        else [defer(Spectrum.original_file_string)]
+                    ),
+                )
+                .where(Spectrum.obj_id == obj_id)
             )
 
             if sortBy == "observed_at":
@@ -1443,29 +1747,24 @@ class ObjSpectraHandler(BaseHandler):
                     else Spectrum.created_at.desc()
                 )
 
-            spectra = session.scalars(stmt).unique().all()
+            spectra_result = await session.scalars(stmt)
+            spectra = spectra_result.unique().all()
 
             return_values = []
             for spec in spectra:
                 spec_dict = recursive_to_dict(spec)
-                comments = (
-                    session.scalars(
-                        CommentOnSpectrum.select(session.user_or_token).where(
-                            CommentOnSpectrum.spectrum_id == spec.id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments_result = await session.scalars(
+                    CommentOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(CommentOnSpectrum.author))
+                    .where(CommentOnSpectrum.spectrum_id == spec.id)
                 )
-                annotations = (
-                    session.scalars(
-                        AnnotationOnSpectrum.select(session.user_or_token).where(
-                            AnnotationOnSpectrum.spectrum_id == spec.id
-                        )
-                    )
-                    .unique()
-                    .all()
+                comments = comments_result.unique().all()
+                annotations_result = await session.scalars(
+                    AnnotationOnSpectrum.select(session.user_or_token)
+                    .options(selectinload(AnnotationOnSpectrum.author))
+                    .where(AnnotationOnSpectrum.spectrum_id == spec.id)
                 )
+                annotations = annotations_result.unique().all()
 
                 spec_dict["comments"] = sorted(
                     (
@@ -1499,93 +1798,221 @@ class ObjSpectraHandler(BaseHandler):
                 spec_dict["observers"] = spec.observers
                 spec_dict["observed_at_mjd"] = Time(spec.observed_at).mjd
 
-                external_pi = session.scalars(
+                external_pi = await session.scalar(
                     SpectrumPI.select(session.user_or_token).where(
                         SpectrumPI.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_pi is not None:
                     spec_dict["external_pi"] = external_pi.external_pi
 
-                external_reducer = session.scalars(
+                external_reducer = await session.scalar(
                     SpectrumReducer.select(session.user_or_token).where(
                         SpectrumReducer.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_reducer is not None:
                     spec_dict["external_reducer"] = external_reducer.external_reducer
 
-                external_observer = session.scalars(
+                external_observer = await session.scalar(
                     SpectrumObserver.select(session.user_or_token).where(
                         SpectrumObserver.spectr_id == spec.id
                     )
-                ).first()
+                )
                 if external_observer is not None:
                     spec_dict["external_observer"] = external_observer.external_observer
 
                 spec_dict["owner"] = spec.owner
-                spec_dict["obj_internal_key"] = obj.internal_key
 
                 return_values.append(spec_dict)
 
-            normalization = self.get_query_argument("normalization", None)
+            if query.normalization == "median":
+                for s in return_values:
+                    norm = np.median(np.abs(s["fluxes"]))
+                    norm = norm if norm != 0.0 else 1e-20
+                    if not (np.isfinite(norm) and norm > 0):
+                        # otherwise normalize the value at the median wavelength to 1
+                        median_wave_index = np.argmin(
+                            np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                        )
+                        norm = s["fluxes"][median_wave_index]
 
-            if normalization is not None:
-                if normalization == "median":
-                    for s in return_values:
-                        norm = np.median(np.abs(s["fluxes"]))
-                        norm = norm if norm != 0.0 else 1e-20
-                        if not (np.isfinite(norm) and norm > 0):
-                            # otherwise normalize the value at the median wavelength to 1
-                            median_wave_index = np.argmin(
-                                np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
-                            )
-                            norm = s["fluxes"][median_wave_index]
-
-                        s["fluxes"] = s["fluxes"] / norm
-                else:
-                    return self.error(
-                        f'Invalid "normalization" value "{normalization}, use '
-                        '"median" or None'
-                    )
+                    s["fluxes"] = s["fluxes"] / norm
             return self.success(data={"obj_id": obj.id, "spectra": return_values})
+
+
+# Ceilings for the bulk spectra endpoint, which fans a whole source set into one
+# response (per-source phase anchors + slim spectra) for phase-stacking plots.
+DEFAULT_BULK_SPECTRA_SOURCES = 200
+MAX_BULK_SPECTRA_SOURCES = 1000
+MAX_BULK_SPECTRA = 3000
+
+
+class BulkSpectraHandler(BaseHandler):
+    @auth_or_token
+    def post(self, *, body: BulkSpectraPostBody = None):
+        """
+        ---
+        summary: Bulk spectra for a set of sources
+        description: |
+          Return slim spectra (wavelengths/fluxes/observed_at) plus per-source
+          phase anchors (redshift, first-detection and peak MJD, TNS discovery
+          date) for a set of accessible sources selected by group, explicit
+          object list, and/or classification. Powers the phase-stacked spectra
+          view without one request per source.
+        tags:
+          - spectra
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(BulkSpectraPostBody)
+        group_id = body.group_id
+        obj_ids = body.obj_ids
+        classifications = body.classifications
+        prob_threshold = body.classificationProbThreshold
+
+        if isinstance(obj_ids, str):
+            obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
+        if isinstance(classifications, str):
+            classifications = [
+                c.strip() for c in classifications.split(",") if c.strip()
+            ]
+        max_sources = (
+            body.maxSources
+            if body.maxSources is not None
+            else DEFAULT_BULK_SPECTRA_SOURCES
+        )
+        max_sources = max(1, min(max_sources, MAX_BULK_SPECTRA_SOURCES))
+
+        with self.Session() as session:
+            src = Source.select(self.current_user)
+            if group_id is not None:
+                try:
+                    src = src.where(Source.group_id == int(group_id))
+                except (TypeError, ValueError):
+                    return self.error("group_id must be an integer")
+            if obj_ids:
+                src = src.where(Source.obj_id.in_(obj_ids))
+            src_subq = src.subquery()
+            source_ids = sa.select(src_subq.c.obj_id).distinct()
+
+            if classifications:
+                accessible_cls = (
+                    Classification.select(self.current_user)
+                    .where(Classification.ml.is_(False))
+                    .subquery()
+                )
+                match = sa.select(accessible_cls.c.obj_id).where(
+                    accessible_cls.c.classification.in_(classifications)
+                )
+                if prob_threshold is not None:
+                    match = match.where(accessible_cls.c.probability >= prob_threshold)
+                source_ids = source_ids.where(src_subq.c.obj_id.in_(match))
+
+            meta_rows = session.execute(
+                sa.select(
+                    Obj.id,
+                    Obj.redshift,
+                    Obj.tns_info,
+                    PhotStat.first_detected_mjd,
+                    PhotStat.peak_mjd_global,
+                )
+                .outerjoin(PhotStat, PhotStat.obj_id == Obj.id)
+                .where(Obj.id.in_(source_ids))
+                .limit(max_sources)
+            ).all()
+            selected_ids = [r.id for r in meta_rows]
+
+            sources = [
+                {
+                    "id": r.id,
+                    "redshift": r.redshift,
+                    "first_detected_mjd": r.first_detected_mjd,
+                    "peak_mjd": r.peak_mjd_global,
+                    "tns_discovery_date": (
+                        (r.tns_info or {}).get("discoverydate")
+                        if isinstance(r.tns_info, dict)
+                        else None
+                    ),
+                }
+                for r in meta_rows
+            ]
+
+            spectra = []
+            spectra_truncated = False
+            if selected_ids:
+                spec_rows = (
+                    session.scalars(
+                        Spectrum.select(self.current_user)
+                        .where(Spectrum.obj_id.in_(selected_ids))
+                        .order_by(Spectrum.observed_at.asc())
+                    )
+                    .unique()
+                    .all()
+                )
+                spectra_truncated = len(spec_rows) > MAX_BULK_SPECTRA
+                for s in spec_rows[:MAX_BULK_SPECTRA]:
+                    spectra.append(
+                        {
+                            "obj_id": s.obj_id,
+                            "observed_at": (
+                                s.observed_at.isoformat() if s.observed_at else None
+                            ),
+                            "wavelengths": s.wavelengths,
+                            "fluxes": s.fluxes,
+                        }
+                    )
+
+            return self.success(
+                data={
+                    "sources": sources,
+                    "spectra": spectra,
+                    "truncated": len(selected_ids) >= max_sources or spectra_truncated,
+                }
+            )
+
+
+class SpectrumRangeGetQuery(BaseModel):
+    """Query parameters for retrieving spectra within a date range."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_ids: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Instrument id numbers of spectrum. If None, retrieve for all instruments."
+        ),
+    )
+    min_date: str | None = Field(
+        default=None,
+        description=(
+            "Minimum UTC date of range in ISOT format. If None, open ended range."
+        ),
+    )
+    max_date: str | None = Field(
+        default=None,
+        description=(
+            "Maximum UTC date of range in ISOT format. If None, open ended range."
+        ),
+    )
 
 
 class SpectrumRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self, *, query: SpectrumRangeGetQuery = None):
         """
         ---
         summary: Get spectra within a date range
         description: Retrieve spectra for given instrument within date range
         tags:
           - spectra
-        parameters:
-          - in: query
-            name: instrument_ids
-            required: false
-            schema:
-              type: list of integers
-            description: |
-              Instrument id numbers of spectrum.  If None, retrieve
-              for all instruments.
-          - in: query
-            name: min_date
-            required: false
-            schema:
-              type: ISO UTC date string
-            description: |
-              Minimum UTC date of range in ISOT format.  If None,
-              open ended range.
-          - in: query
-            name: max_date
-            required: false
-            schema:
-              type: ISO UTC date string
-            description: |
-              Maximum UTC date of range in ISOT format. If None,
-              open ended range.
-
         responses:
           200:
             content:
@@ -1611,68 +2038,55 @@ class SpectrumRangeHandler(BaseHandler):
                 schema: Error
         """
 
-        instrument_ids = self.get_query_arguments("instrument_ids")
-        min_date = self.get_query_argument("min_date", None)
-        max_date = self.get_query_argument("max_date", None)
+        query = self.parse_query(SpectrumRangeGetQuery)
 
-        with self.Session() as session:
-            if len(instrument_ids) > 0:
-                query = Spectrum.select(session.user_or_token).where(
-                    Spectrum.instrument_id.in_(instrument_ids)
+        async with self.AsyncSession() as session:
+            if len(query.instrument_ids) > 0:
+                stmt = Spectrum.select(session.user_or_token).where(
+                    Spectrum.instrument_id.in_(query.instrument_ids)
                 )
             else:
-                query = Spectrum.select(session.user_or_token)
+                stmt = Spectrum.select(session.user_or_token)
 
-            if min_date is not None:
-                utc = Time(min_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at >= utc.isot)
-            if max_date is not None:
-                utc = Time(max_date, format="isot", scale="utc")
-                query = query.where(Spectrum.observed_at <= utc.isot)
+            if query.min_date is not None:
+                utc = Time(query.min_date, format="isot", scale="utc")
+                stmt = stmt.where(Spectrum.observed_at >= utc.datetime)
+            if query.max_date is not None:
+                utc = Time(query.max_date, format="isot", scale="utc")
+                stmt = stmt.where(Spectrum.observed_at <= utc.datetime)
 
-            return self.success(data=session.scalars(query).unique().all())
+            result = await session.scalars(stmt)
+            return self.success(data=result.unique().all())
 
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    def post(self, spectrum_id):
+    async def post(self, spectrum_id: int, *, body: SyntheticPhotometryPostBody = None):
         """
         ---
         summary: Create synthetic photometry from a spectrum
         description: Create synthetic photometry from a spectrum
         tags:
           - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
-          - in: query
-            name: filters
-            schema:
-              type: list
-            required: true
-            description: |
-                List of filters
         responses:
           200:
             content:
               application/json:
-                schema: SingleSpectrum
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SyntheticPhotometryPostBody)
+        filters = body.filters
 
-        data = self.get_json()
-        filters = data.get("filters")
-
-        with self.Session() as session:
-            spectrum = session.scalars(
-                Spectrum.select(session.user_or_token).where(Spectrum.id == spectrum_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            spectrum = await session.scalar(
+                Spectrum.select(session.user_or_token)
+                .options(selectinload(Spectrum.instrument))
+                .where(Spectrum.id == spectrum_id)
+            )
             if spectrum is None:
                 return self.error(f"No spectrum with id {spectrum_id}")
 
@@ -1694,6 +2108,12 @@ class SyntheticPhotometryHandler(BaseHandler):
             except TypeError:
                 spec = sncosmo.Spectrum(wav, flux * spectrum.astropy_units)
 
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == spectrum.obj_id))
+            if obj is None:
+                return self.error(
+                    f"Cannot find Obj associated with spectrum {spectrum_id}"
+                )
+
             data_list = []
             for filt in filters:
                 try:
@@ -1707,8 +2127,8 @@ class SyntheticPhotometryHandler(BaseHandler):
                 data_list.append(
                     {
                         "mjd": Time(obstime, format="datetime").mjd,
-                        "ra": spectrum.obj.ra,
-                        "dec": spectrum.obj.dec,
+                        "ra": obj.ra,
+                        "dec": obj.dec,
                         "mag": mag,
                         "magerr": magerr,
                         "filter": filt,
@@ -1719,14 +2139,15 @@ class SyntheticPhotometryHandler(BaseHandler):
             if len(data_list) > 0:
                 df = pd.DataFrame.from_dict(data_list)
                 df["magsys"] = "ab"
+                group_ids = await accessible_group_ids_async(self.current_user, session)
                 data_out = {
-                    "obj_id": spectrum.obj.id,
+                    "obj_id": obj.id,
                     "instrument_id": spectrum.instrument.id,
-                    "group_ids": [g.id for g in self.current_user.accessible_groups],
+                    "group_ids": group_ids,
                     **df.to_dict(orient="list"),
                 }
-                add_external_photometry(
-                    data_out, self.associated_user_object, parent_session=session
+                await add_external_photometry(
+                    data_out, self.associated_user_object, session
                 )
 
                 return self.success()

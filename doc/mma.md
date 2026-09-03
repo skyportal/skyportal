@@ -10,6 +10,11 @@ These `ObservationPlanRequest`s in particular are triggered on the front-end fro
 
 To evaluate the efficacy of the executed observation plans, we have the `ExecutedObservation`s table, which is accessible through the `observation` api. After execution of the requested observations in the `EventObservationPlan`, the user is responsible for uploading successfully executed observations to the `ExecutedObservation`s table (see below). Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the `Localization`s to determine sky coverage and integrated probability contained with the map.
 
+## Scanning events for optical counterparts
+
+Broker alerts can be crossmatched against an event's localization and raised as
+candidates to scan; see [Scanning GCN events for optical counterparts](./gcn_crossmatch.html).
+
 ## Uploading executed observations
 
 In addition to making available the `observation` api, we also include an Observations page to simplify upload and viewing of `ExecutedObservation`s. On this page, simply specify the instrument and upload a file of the form:
@@ -62,6 +67,42 @@ gcn:
 ```
 
 where notice types are also available from the GCN quickstart guide linked above.
+
+## Galaxy Catalog Ingestion
+
+For galaxy-targeted follow-up (e.g. of poorly localized gravitational-wave events), SkyPortal ingests large galaxy catalogs into the `Galaxy` table. Two catalogs are supported out of the box, each read from a FITS table:
+
+* **REGALADE** — `regalade_v2.fits` (~8 GB), available from the authors' Google Drive: https://drive.google.com/file/d/1vVdR_KphBTL9E17xl4cadF1HYW_A6Zis/view
+* **NEDLVS** (NED Local Volume Sample) — `NEDLVS_<date>.fits` (~1 GB), available from https://ned.ipac.caltech.edu/NED::LVS/
+
+Because these files are large, they are **not** uploaded through the API. Download them and place them in the `data/` directory at the root of your SkyPortal checkout, keeping the default filenames:
+
+```
+data/regalade_v2.fits
+data/NEDLVS_20260424.fits
+```
+
+For example:
+
+```
+# REGALADE (Google Drive; large files need gdown's confirm-token handling)
+pip install gdown
+gdown 1vVdR_KphBTL9E17xl4cadF1HYW_A6Zis -O data/regalade_v2.fits
+
+# NEDLVS (direct download of the current release)
+curl -L "https://ned.ipac.caltech.edu/NED::LVS/fits/Current/" -o data/NEDLVS_20260424.fits
+```
+
+Then trigger ingestion (System Admin only) with a POST to the matching endpoint. With no request body, the server reads the default file shown above from `data/`:
+
+```
+POST /api/galaxy_catalog/regalade
+POST /api/galaxy_catalog/ned
+```
+
+To ingest a differently named file already in `data/`, pass `{"file_name": "<name>.fits"}`; to have the server download it, pass `{"file_url": "https://.../<name>.fits"}` (the URL must be a direct link ending in `.fits`).
+
+Ingestion runs in the background and streams the file in chunks, so it neither blocks the request nor loads the whole catalog into memory; a notification is pushed when it finishes. Re-running **appends** to the existing catalog, so to re-ingest, first delete the catalog (via the **galaxies** page or the `galaxy_catalog` API) to avoid duplicate rows.
 
 ## Earthquake Ingestion
 

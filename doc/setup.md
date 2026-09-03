@@ -10,24 +10,38 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
+- Bun
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
+If you use [Nix](https://nixos.org/), the repository ships a flake that provides the language toolchain (Python, Node.js, `uv`) — see [Nix + direnv](#nix-direnv) below. You will still need to install the system services (PostgreSQL, NGINX, Supervisor) following the platform instructions.
+
 ## Source download, Python environment
 
-First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal):
+First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and its submodule [Baselayer](https://github.com/cesium-ml/baselayer/):
 
 ```
-git clone https://github.com/skyportal/skyportal.git
+git clone --recurse-submodules https://github.com/skyportal/skyportal.git
 cd skyportal/
 ```
 
-Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in once command:
+If you already cloned the repository without `--recurse-submodules`, you can initialize the submodules with:
+
+```
+git submodule update --init --recursive
+```
+
+Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in one command:
 ```
 uv sync
+```
+
+If you intend to do development work (running tests, using pre-commit hooks, etc.), install the dev dependencies instead:
+```
+uv sync --inexact --group dev
 ```
 
 Thereafter, to enter the environment, simply run:
@@ -37,6 +51,27 @@ source .venv/bin/activate
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
+<a name="nix-direnv"></a>
+## Nix + direnv (optional)
+
+The repository includes a Nix flake (`flake.nix`) that provides a development shell with Python, Node.js, and `uv`, pinned to exact versions by `flake.lock`. This means every developer — and any CI job or AI coding agent working in the repository — gets the same toolchain, regardless of what is installed system-wide, and entering the shell automatically runs `uv sync` to keep the Python environment up to date.
+
+With [Nix installed](https://nixos.org/download/) (and flakes enabled), enter the shell with:
+
+```
+nix develop
+```
+
+For a smoother workflow, install [direnv](https://direnv.net/) and hook it into your shell. The repository's `.envrc` already contains `use flake`, so after a one-time:
+
+```
+direnv allow
+```
+
+the development shell loads automatically whenever you `cd` into the repository, and unloads when you leave. This also benefits tools that spawn shells on your behalf: editors and AI coding agents (e.g., Claude Code) pick up the pinned toolchain through direnv, so their builds and tests run with the same versions you use, without any manual environment activation.
+
+Note that the flake only covers the language toolchain; system services (PostgreSQL, NGINX, Supervisor) and test/doc dependencies (Geckodriver, graphviz) still need to be installed following the platform instructions below.
+
 ## Installation: MacOS
 
 These instructions assume that you have [Homebrew](http://brew.sh/) installed.
@@ -45,7 +80,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
+brew install supervisor nginx postgresql node llvm libomp gsl rust bun
 ```
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 ```
@@ -67,14 +102,18 @@ After installing each package, Homebrew will print out the installation paths. Y
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+  - To start automatically at login: `brew services start postgresql@<version>`
+  - To start manually: `pg_ctl -D $(brew --prefix)/var/postgresql@<version> start`
+
+  Replace `<version>` with your installed PostgreSQL version (e.g., `14`). You can check with `brew list | grep postgresql`.
 
   You may also need to run the following command to create the proper admin user:
 
   ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
+  createuser -s postgres
   ```
+
+  If `createuser` is not found in your `PATH`, locate it via `brew info postgresql` (typically `/opt/homebrew/opt/postgresql@<version>/bin/` on Apple Silicon, or `/usr/local/opt/postgresql@<version>/bin/` on Intel Macs) and invoke it with its full path.
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -135,12 +174,28 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability
-SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+SkyPortal defaults to using port 5000. However, this port may already be in use on MacOS (e.g., by AirPlay Receiver, MacPorts, or other services). To verify port availability, use the `lsof` command in the terminal:
 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port (in `config.yaml`, and if you intend to run the unit tests, then also in `test_config.yaml`).
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port by updating the following lines in `config.yaml`:
+
+```yaml
+server:
+  port: 5001  # Change from 5000 to 5001
+
+ports:
+  app: 5001  # Change from 5000 to 5001
+
+docs:
+  servers:
+    - url: http://localhost:5001  # Change from 5000 to 5001
+```
+
+Before switching, verify that your chosen alternative port is itself available (e.g., `lsof -i :5001`).
+
+If you plan to run `make load_demo_data` or the unit tests, also update the port in `test_config.yaml` to match. Port mismatches between the two configs can cause 403 Forbidden errors during demo data loading.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -162,6 +217,12 @@ If the command outputs information about a service, it means that port 5000 is a
 	```
 
 	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
+
+	Bun isn't packaged in apt; install it with:
+
+	```
+	curl -fsSL https://bun.sh/install | bash
+	```
 
 2. Configure your database permissions.
 
@@ -215,20 +276,85 @@ If the command outputs information about a service, it means that port 5000 is a
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. Direct your browser to `http://localhost:5000`.
+4. Direct your browser to `http://localhost:5000` (or `http://localhost:<port>` if you changed the default port in `config.yaml`).
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
 
+## Updating an existing checkout
+
+New code usually needs more than `git pull`, since the submodules, the Python
+environment, the Javascript bundle and the database schema all change with it.
+
+0. Stop the app with `make stop`.
+1. Get the new code with `git pull` (or `git checkout v1.2.3` for a release).
+2. Update the submodules with `git submodule update --init --recursive`.
+3. Update the Python environment with `uv sync`.
+4. Apply any pending database migrations with `make db_migrate`.
+5. Start the app again with `make run`, which reinstalls the Javascript
+   dependencies and rebuilds the bundle.
+
+`make db_migrate` runs `alembic upgrade head`, with `PYTHONPATH` and the config
+flag already set. To run alembic directly, activate the environment and supply
+both:
+
+```
+source .venv/bin/activate
+PYTHONPATH=. alembic -x config=config.yaml heads
+```
+
+Without them alembic reports `ModuleNotFoundError: No module named 'baselayer'`,
+since its environment imports the app.
+
+The resulting errors do not usually name the step that was skipped:
+
+* Database errors about missing columns or tables mean the migrations have not
+  been applied. Run `make db_migrate`. If it reports nothing to do, the recorded
+  revision is ahead of the schema, which
+  [Database migrations](migrations) covers.
+* Front-end errors about a module that cannot be found, or that do not match
+  the code you have checked out, mean the Javascript bundle is stale. It is
+  rebuilt when the app starts, so restart the app. Then reload the browser with
+  Shift held down, in case it has cached the old bundle.
+* An import error for `baselayer` when running a tool directly usually means it
+  was run without `PYTHONPATH=.`, or outside the environment, rather than the
+  submodules being missing. The `make` targets set both.
+* If alembic reports more than one head, see [Database migrations](migrations).
+
 ## Troubleshooting
 
-If you have trouble getting the demo data try doing
+If you have trouble running `uv sync` and see an error link to `python-ligo-lw`:
+```
+Failed to build `python-ligo-lw==1.8.4`
+...
+error: incompatible pointer to integer conversion
+```
+You may need to run `CFLAGS="-Wno-error=int-conversion" uv sync` instead to avoid treating this warning as an error.
 
-```make db_clear && make db_init && make run```
+---
+
+If you have trouble running `make run` and see this error:
+```
+make[1]: *** [dependencies] Error 1
+make: *** [run] Error 2
+```
+You may need to run `bun install --frozen-lockfile` and then try `make run` again.
+
+---
+
+If you have trouble getting the demo data try doing:
+
+```
+make db_clear && make run
+```
 
 and then, from a different window, do `make load_demo_data`.
 
+---
+
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
+
+---
 
 Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
 
@@ -254,6 +380,14 @@ login screen).  If you are running a public-facing instance of
 SkyPortal, you should enable multi-user login by adding Google
 credentials to the `server:auth` section of the configuration file and
 setting `debug_login` to `False`.
+
+### Username generation
+
+When `server.auth.username_is_email` is set to `True` (the default), the user's username is generated from their email address (e.g., `testuser@cesium-ml.org` → `testuser-cesium-ml-org`).
+
+When `server.auth.username_is_email` is set to `False`, SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
+
+If the OAuth provider does not supply first and last name fields, the username falls back to the raw `username` field from the provider details.
 
 ### Creating an administrative user
 

@@ -1,7 +1,9 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import base64
+import datetime
 import os
+import re
 import tempfile
 import urllib
 from urllib.parse import urlparse
@@ -23,7 +25,41 @@ from astropy.time import Time
 from astropy_healpix import HEALPix, nside_to_level, pixel_resolution_to_nside
 from mocpy import MOC
 
+from skyportal.utils.calculations import gaussian_sigmas_for
+
 SKYMAP_MIN = 1e-300
+
+
+# Designations that carry their own UTC date as YYMMDD. The trailing letter
+# (GRB 260604C, S260604a) orders bursts within a day and is not part of the date.
+CIRCULAR_DESIGNATION_RE = re.compile(
+    r"\b(?:GRB|GW|EP|SVOM|IC)[\s_-]?(\d{6})[A-Z]{0,2}\b"
+    r"|\bS(\d{6})[a-z]{1,2}\b",  # LVK superevent
+    re.IGNORECASE,
+)
+
+# The GCN circular archive starts in 1997, so a two-digit year of 90+ is 19xx.
+DESIGNATION_YEAR_PIVOT = 90
+
+
+def get_designation_date(event_id):
+    """UTC date encoded in a GCN designation like "GRB 260604C", or None.
+
+    GRB/GW/EP/SVOM/IC names and LVK superevent names all embed the trigger's UTC
+    date as YYMMDD, which is enough to find the event without parsing the body.
+    """
+    if not isinstance(event_id, str):
+        return None
+    match = CIRCULAR_DESIGNATION_RE.search(event_id)
+    if match is None:
+        return None
+    digits = match.group(1) or match.group(2)
+    year, month, day = int(digits[:2]), int(digits[2:4]), int(digits[4:6])
+    year += 1900 if year >= DESIGNATION_YEAR_PIVOT else 2000
+    try:
+        return datetime.date(year, month, day)
+    except ValueError:
+        return None
 
 
 def get_trigger(root):
@@ -83,6 +119,43 @@ def get_dateobs(root):
         return None
 
 
+# IGWN/LVK gwalert `alert_type` -> the LVC_* notice types SkyPortal already uses
+# for GCN Classic VOEvent LVC notices (which ceased in 2026). Reusing them keeps
+# downstream tag/retraction handling consistent between the two sources.
+IGWN_ALERT_TYPE_TO_NOTICE_TYPE = {
+    "EARLYWARNING": "LVC_EARLY_WARNING",
+    "PRELIMINARY": "LVC_PRELIMINARY",
+    "INITIAL": "LVC_INITIAL",
+    "UPDATE": "LVC_UPDATE",
+    "RETRACTION": "LVC_RETRACTION",
+}
+
+
+def get_igwn_gwalert_tags(payload):
+    """Tags for an IGWN/LVK gwalert JSON alert, matching the vocabulary the
+    VOEvent LVC path (get_tags) produced."""
+    tags = ["GW"]
+    if str(payload.get("alert_type", "")).upper() == "RETRACTION":
+        tags.append("retracted")
+        return tags
+    event = payload.get("event") or {}
+    classification = event.get("classification") or {}
+    if classification:
+        # dominant class: BNS / NSBH / BBH / Terrestrial
+        tags.append(max(classification, key=classification.get))
+    if event.get("search"):
+        tags.append(event["search"])
+    instruments = event.get("instruments") or []
+    tags.extend(instruments)
+    if len(instruments) > 1:
+        tags.append("MultiInstrument")
+    if event.get("pipeline"):
+        tags.append(event["pipeline"])
+    if "significant" in event:
+        tags.append("Significant" if event["significant"] else "Subthreshold")
+    return tags
+
+
 def get_json_tags(payload):
     tags = []
     if "instrument" in payload:
@@ -91,7 +164,66 @@ def get_json_tags(payload):
         elif payload["instrument"] == "BAT-GUANO":
             tags = ["GUANO"]
 
+    # IGWN/LVK gravitational-wave alerts are keyed by superevent_id.
+    if payload.get("superevent_id") is not None:
+        tags += get_igwn_gwalert_tags(payload)
+
     return tags
+
+
+def from_igwn_gwalert(payload):
+    """Normalize a raw IGWN/LVK gwalert JSON alert (GCN Kafka topic
+    `igwn.gwalert`) into the canonical GCN JSON-notice shape consumed by
+    post_gcnevent_from_json / get_json_tags / get_skymap.
+
+    LVK stopped feeding GCN Classic (text/socket/VOEvent) in 2026, so this JSON
+    stream replaces the old LVC_* VOEvent notices.
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("IGWN gwalert payload must be a dict")
+
+    alert_type = str(payload.get("alert_type", "")).upper()
+    superevent_id = payload.get("superevent_id")
+    event = payload.get("event") or {}
+
+    out = dict(payload)
+    out["notice_type"] = IGWN_ALERT_TYPE_TO_NOTICE_TYPE.get(
+        alert_type, f"LVC_{alert_type}"
+    )
+    # used by post_gcnevent_from_json as the GcnNotice stream/ivorn label
+    out["type"] = "LVC"
+
+    if superevent_id is not None:
+        out["aliases"] = [f"LVC#{superevent_id}"]
+        out["ref_ID"] = superevent_id
+
+    # Notice datetime = when this alert was issued, so successive alerts for the
+    # same event get distinct notices/ivorns (rather than all keyed on dateobs).
+    if payload.get("time_created"):
+        out["alert_datetime"] = payload["time_created"].replace("Z", "")
+
+    # event is null for retractions
+    if event.get("time"):
+        out["trigger_time"] = event["time"].replace("Z", "")
+    if event.get("skymap"):
+        # from_bytes expects a "name=<file>;base64,<data>" envelope; encode the
+        # alert type so successive updates get distinct localization names.
+        out["healpix_file"] = (
+            f"name={superevent_id}-{alert_type}.multiorder.fits"
+            f";base64,{event['skymap']}"
+        )
+    if alert_type == "RETRACTION":
+        out["retraction"] = True  # is_retraction(dict) checks this key
+
+    properties = {}
+    if event.get("far") is not None:
+        properties["FAR"] = event["far"]
+    properties.update(event.get("classification") or {})
+    properties.update(event.get("properties") or {})
+    if properties:
+        out["properties"] = properties
+
+    return out
 
 
 def get_tags(root, notice_type):
@@ -300,14 +432,20 @@ def get_skymap_url(root, notice_type, timeout=10):
                     break
 
     if url is not None:
-        # we have a URL, but is it available? We don't want to download the file here,
-        # so we'll just check the HTTP status code.
-        try:
-            response = requests.head(url, timeout=timeout, allow_redirects=True)
-            if response.status_code == 200:
-                available = True
-        except requests.exceptions.RequestException:
-            pass
+        if url.startswith(("http://", "https://")):
+            # we have a URL, but is it available? We don't want to download the file here,
+            # so we'll just check the HTTP status code.
+            try:
+                response = requests.head(url, timeout=timeout, allow_redirects=True)
+                if response.status_code == 200:
+                    available = True
+            except requests.exceptions.RequestException:
+                pass
+        else:
+            # A local path (tests and demo data use this to avoid an external
+            # fetch); read_sky_map/Table.read read it directly, so it is
+            # "available" as long as the file exists.
+            available = os.path.exists(url)
 
     return url, available
 
@@ -361,7 +499,7 @@ def get_skymap_cone(root):
         # Apparently, all experiments *except* AMON report a 1-sigma error radius.
         # AMON reports a 90% radius, so for AMON, we have to convert.
         if mission == "AMON":
-            error /= scipy.stats.chi(df=2).ppf(0.95)
+            error /= gaussian_sigmas_for(0.90)
 
     if error < 0:
         return None, None, None
@@ -428,7 +566,12 @@ def get_skymap(root, notice_type, url_timeout=10):
         )
     elif status == "healpix_file":
         skymap, properties, tags = from_bytes(skymap_metadata)
-        skymap["localization_name"] = "healpix"
+        # from_bytes derives the name from a "name=<file>;base64,..." envelope;
+        # fall back to a generic name only if none was provided (raw base64
+        # yields the whole blob as the "name", hence the length guard).
+        name = skymap.get("localization_name")
+        if not name or len(name) > 255:
+            skymap["localization_name"] = "healpix"
         return skymap, None, properties, tags
     else:
         return None, None, None, []
@@ -525,7 +668,9 @@ def from_cone(ra, dec, error, n_sigma=4):
     ipix = hpx.cone_search_skycoord(center, n_sigma * radius)
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -566,7 +711,9 @@ def from_polygon(localization_name, polygon):
         raise ValueError("No pixels found in polygon.")
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -598,7 +745,9 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
     ).flatten()
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(NSIDE), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(NSIDE)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]

@@ -6,6 +6,7 @@ import conesearch_alchemy
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
@@ -31,6 +32,12 @@ PHOT_SYS = "ab"
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+# SQL literal for double-precision NaN. Used in hybrid_property expressions
+# below to compare against Float columns. Under psycopg2, `"NaN"` was
+# implicitly coerced; psycopg3 binds Python strings as VARCHAR, so the cast
+# must be explicit.
+_PG_NAN = sa.cast(sa.literal("NaN"), sa.Float)
+
 manage_photometry_access = (
     accessible_by_groups_members | accessible_by_streams_members | accessible_by_owner
 )
@@ -42,17 +49,41 @@ def manage_photometry_access_logic(cls, user_or_token):
     for objects accessible to their groups.
     """
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
     elif "Manage photometry" in user_or_token.permissions:
-        return manage_photometry_access.query_accessible_rows(cls, user_or_token)
+        return manage_photometry_access.select_accessible_rows(cls, user_or_token)
     else:
-        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+        return accessible_by_owner.select_accessible_rows(cls, user_or_token)
 
 
 class Photometry(conesearch_alchemy.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = "photometry"
+
+    # bigint PK. Inbound FKs use bare ForeignKey("photometry.id") so they infer
+    # bigint too.
+    id = sa.Column(
+        sa.BigInteger,
+        primary_key=True,
+        autoincrement=True,
+        doc="Unique object identifier.",
+    )
+
+    # created_at is never queried on this 1B-row table; skip the dead index.
+    index_created_at = False
+
+    @declared_attr
+    def __table_args__(cls):
+        # conesearch_alchemy.Point auto-creates a spatial index
+        # (ix_<table>_point) on the cartesian coords for every table that mixes
+        # it in. Photometry is only ever queried by obj_id and never
+        # cone-searched (there is no Photometry.within(...) call), so that index
+        # is enormous and unused on a large DB. Skip it by inheriting
+        # __table_args__ from Point's parent instead of Point, whose
+        # __table_args__ builds the index. Other indexes (deduplication_index)
+        # are attached after the class is defined below.
+        return super(conesearch_alchemy.Point, cls).__table_args__
 
     read = (
         accessible_by_groups_members
@@ -86,7 +117,6 @@ class Photometry(conesearch_alchemy.Point, Base):
     ref_flux = sa.Column(
         sa.Float,
         nullable=True,
-        index=True,
         doc="Reference flux. E.g., "
         "of the source before transient started, "
         "or the mean flux of a variable source.",
@@ -118,7 +148,6 @@ class Photometry(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         unique=False,
-        index=True,
         doc="Origin from which this Photometry was extracted (if any).",
         server_default="",
     )
@@ -220,7 +249,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The magnitude of the photometry point in the AB system."""
         return sa.case(
             (
-                sa.and_(cls.flux != "NaN", cls.flux > 0),  # noqa
+                sa.and_(cls.flux != _PG_NAN, cls.flux > 0),  # noqa
                 -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
             ),
             else_=None,
@@ -231,7 +260,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         """The error on the magnitude of the photometry point."""
         return sa.case(
             (
-                sa.and_(cls.flux != "NaN", cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
+                sa.and_(cls.flux != _PG_NAN, cls.flux > 0, cls.fluxerr > 0),  # noqa: E711
                 2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
             ),
             else_=None,
@@ -269,7 +298,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                 ),
                 -2.5 * sa.func.log(cls.ref_flux) + PHOT_ZP,
@@ -284,7 +313,7 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                 ),  # noqa: E711
@@ -333,9 +362,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                 ),  # noqa
                 -2.5 * sa.func.log(cls.ref_flux + cls.flux) + PHOT_ZP,
@@ -350,11 +379,11 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux is not None,
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
                     cls.ref_fluxerr > 0,
                     cls.flux is not None,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                     cls.fluxerr > 0,
                 ),  # noqa: E711
@@ -396,9 +425,9 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_flux != None,  # noqa: E711
-                    cls.ref_flux != "NaN",
+                    cls.ref_flux != _PG_NAN,
                     cls.ref_flux > 0,
-                    cls.flux != "NaN",
+                    cls.flux != _PG_NAN,
                     cls.flux > 0,
                 ),  # noqa
                 cls.ref_flux + cls.flux,
@@ -413,10 +442,10 @@ class Photometry(conesearch_alchemy.Point, Base):
             (
                 sa.and_(
                     cls.ref_fluxerr != None,  # noqa: E711
-                    cls.ref_fluxerr != "NaN",
+                    cls.ref_fluxerr != _PG_NAN,
                     cls.ref_fluxerr > 0,
                     cls.fluxerr != None,  # noqa: E711
-                    cls.fluxerr != "NaN",
+                    cls.fluxerr != _PG_NAN,
                     cls.fluxerr > 0,
                 ),  # noqa
                 sa.func.sqrt(
@@ -458,7 +487,9 @@ class Photometry(conesearch_alchemy.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return sa.case(
             (
-                sa.and_(self.flux != "NaN", self.fluxerr != "NaN", self.fluxerr != 0),  # noqa
+                sa.and_(
+                    self.flux != _PG_NAN, self.fluxerr != _PG_NAN, self.fluxerr != 0
+                ),  # noqa
                 self.flux / self.fluxerr,
             ),
             else_=None,
@@ -497,15 +528,22 @@ class Photometry(conesearch_alchemy.Point, Base):
 # being inserted into the table. The index also allows fast lookups on this
 # set of columns, making the search for duplicates a O(log(n)) operation.
 
+# Single source of truth for the dedup column set: ON CONFLICT call sites
+# and the dedup-key helper in handlers/api/photometry.py both read this so
+# the list cannot drift from the index definition.
+Photometry.DEDUP_COLUMNS = (
+    "obj_id",
+    "instrument_id",
+    "origin",
+    "mjd",
+    "fluxerr",
+    "flux",
+)
+
 Photometry.__table_args__ = (
     sa.Index(
         "deduplication_index",
-        Photometry.obj_id,
-        Photometry.instrument_id,
-        Photometry.origin,
-        Photometry.mjd,
-        Photometry.fluxerr,
-        Photometry.flux,
+        *(getattr(Photometry, c) for c in Photometry.DEDUP_COLUMNS),
         unique=True,
     ),
 )

@@ -7,7 +7,10 @@ from sqlalchemy.dialects.postgresql import ARRAY as pg_array
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
-from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
+from sqlalchemy_utils.types.encrypted.encrypted_type import (
+    AesEngine,
+    StringEncryptedType,
+)
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -31,21 +34,22 @@ def allocationuser_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_allocation_admin = (
-        DBSession()
-        .query(Allocation)
+        sa.select(Allocation)
         .join(GroupUser, GroupUser.group_id == Allocation.group_id)
-        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+        .where(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
     )
-    query = (
-        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
-    )
+    query = sa.select(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(
+        query = query.where(
             sa.or_(
                 aliased.user_id == user_id,
-                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
                 aliased.allocation_id.in_(
-                    [allocation.id for allocation in user_allocation_admin.all()]
+                    [
+                        allocation.id
+                        for allocation in DBSession()
+                        .scalars(user_allocation_admin)
+                        .all()
+                    ]
                 ),
             )
         )
@@ -137,7 +141,7 @@ class Allocation(Base):
     )
 
     _altdata = sa.Column(
-        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
     )
 
     allocation_users = relationship(

@@ -11,6 +11,7 @@ import time
 import urllib
 import uuid
 from datetime import datetime, timedelta
+from typing import Annotated, ClassVar, Literal
 
 import afterglowpy
 import arrow
@@ -45,11 +46,18 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
 from marshmallow.exceptions import ValidationError
 from matplotlib import animation, dates
+from pydantic import BaseModel, ConfigDict, Field
 from simsurvey.models import AngularTimeSeriesSource
 from simsurvey.utils import model_tools
 from sncosmo import get_bandpass
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import (
+    joinedload,
+    scoped_session,
+    selectinload,
+    sessionmaker,
+    undefer,
+)
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -58,9 +66,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.enum_types import ALLOWED_BANDPASSES
-from skyportal.handlers.api.followup_request import post_assignment
 from skyportal.handlers.api.observingrun import post_observing_run
-from skyportal.handlers.api.source import post_source
 from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
     convert_plan_to_rubin_format,
@@ -87,9 +93,14 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler
+
+LocalizationId = Annotated[
+    int, Field(description="ID of localization to generate observability plot for")
+]
 
 env, cfg = load_env()
 log = make_log("api/observation_plan")
@@ -153,15 +164,19 @@ TREASUREMAP_FILTERS = {
     "HESS": "HESS",
     "WISEL": "WISEL",
 }
-# to it, we add mappers for sncosmo bandpasses
-for bandpass_name in ALLOWED_BANDPASSES:
-    try:
-        bandpass = get_bandpass(bandpass_name)
-        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
-        bandwidth = bandpass.maxwave() - bandpass.minwave()
-        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
-    except Exception as e:
-        log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
+# to it, we add mappers for sncosmo bandpasses. Wrap the loop in a short
+# astropy remote_timeout so an uncached bandpass whose CDN (the flaky SVO host)
+# is unreachable fails in ~2s instead of the default 10s, keeping import-time
+# blocking from pushing app startup past the test health-check window.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    for bandpass_name in ALLOWED_BANDPASSES:
+        try:
+            bandpass = get_bandpass(bandpass_name)
+            central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+            bandwidth = bandpass.maxwave() - bandpass.minwave()
+            TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+        except Exception as e:
+            log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
 
 # overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
 TREASUREMAP_FILTERS["ztfg"] = "g"
@@ -179,14 +194,12 @@ op_options = [
 
 Session = scoped_session(sessionmaker())
 
-observation_plans_microservice_url = (
-    f"http://127.0.0.1:{cfg['ports.observation_plan_queue']}"
-)
-
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 
-def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=None):
+async def send_observation_plan(
+    plan_id, session, auto_send=False, default_obsplan_id=None
+):
     """Send observation plan to queue
 
     Parameters
@@ -196,15 +209,25 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
     session : sqlalchemy.Session
         Database session for this transaction
     """
-    observation_plan_request = session.scalar(
+    observation_plan_request = await session.scalar(
         sa.select(ObservationPlanRequest)
         .options(
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
+            selectinload(ObservationPlanRequest.observation_plans)
+            .selectinload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field),
+            selectinload(ObservationPlanRequest.observation_plans).selectinload(
+                EventObservationPlan.statistics
+            ),
+            joinedload(ObservationPlanRequest.allocation).joinedload(
+                Allocation.instrument
+            ),
+            joinedload(ObservationPlanRequest.gcnevent),
         )
-        .where(ObservationPlanRequest.id == plan_id)
+        .where(ObservationPlanRequest.id == int(plan_id))
     )
+
+    if observation_plan_request is None:
+        raise ValueError(f"Cannot find observation plan with ID {plan_id}")
 
     if observation_plan_request.status != "complete":
         raise ValueError(
@@ -222,9 +245,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         return
 
     if auto_send and default_obsplan_id is not None:
-        # if we already sent a plan for this event + allocation,
-        # we avoid auto-sending again.
-        existing_obs_plan_requests = session.scalars(
+        existing_obs_plan_requests = await session.scalar(
             sa.select(ObservationPlanRequest).where(
                 ObservationPlanRequest.gcnevent_id
                 == observation_plan_request.gcnevent_id,
@@ -232,14 +253,14 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
                 == observation_plan_request.allocation_id,
                 ObservationPlanRequest.status == "submitted to telescope queue",
             )
-        ).first()
+        )
         if existing_obs_plan_requests:
             log(
                 f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
             )
             return
 
-        defaultobsplanrequest = session.scalar(
+        defaultobsplanrequest = await session.scalar(
             sa.select(DefaultObservationPlanRequest).where(
                 DefaultObservationPlanRequest.id == int(default_obsplan_id)
             )
@@ -257,19 +278,17 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
             )
             return
 
-        # if the plan request's created_at date (when we received the GCN) is more than 1 hour ago, we skip the auto-send
-        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+        if observation_plan_request.created_at < utcnow_naive() - timedelta(hours=1):
             log(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
             return
 
-        # if the plan's end date is in the past (can see that in the payload), we skip the auto-send
         plan_request_end_date = observation_plan_request.payload.get("end_date", None)
         if plan_request_end_date:
             if (
                 arrow.get(plan_request_end_date).timestamp()
-                < datetime.utcnow().timestamp()
+                < utcnow_naive().timestamp()
             ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
@@ -339,18 +358,16 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         raise ValueError("Cannot send observation plan without allocation information.")
 
     try:
-        api.send(observation_plan_request, session)
+        await api.send(observation_plan_request, session)
     except Exception as e:
         raise ValueError(f"Error sending observation plan to telescope: {str(e)}")
 
-    session.commit()
+    await session.commit()
 
     try:
         status = observation_plan_request.status
         if "submit" in status and "fail" not in status:
-            # check if there is already a GCN trigger for this dateobs and allocation, with triggered=True
-            # if there is one already set "triggered" to True, otherwise create it.
-            existing_gcn_trigger = session.scalar(
+            existing_gcn_trigger = await session.scalar(
                 sa.select(GcnTrigger).where(
                     GcnTrigger.dateobs == observation_plan_request.gcnevent.dateobs,
                     GcnTrigger.allocation_id == observation_plan_request.allocation_id,
@@ -363,10 +380,10 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
                     triggered=True,
                 )
                 session.add(gcn_triggered)
-                session.commit()
+                await session.commit()
             elif existing_gcn_trigger.triggered is not True:
                 existing_gcn_trigger.triggered = True
-                session.commit()
+                await session.commit()
     except Exception:
         pass  # this is not a critical error, we can continue
 
@@ -380,7 +397,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
     return observation_plan_request
 
 
-def post_survey_efficiency_analysis(
+async def post_survey_efficiency_analysis(
     survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
 ):
     """Post survey efficiency analysis to database.
@@ -401,38 +418,35 @@ def post_survey_efficiency_analysis(
 
     status_complete = False
     while not status_complete:
-        observation_plan_request = session.scalar(
+        observation_plan_request = await session.scalar(
             sa.select(ObservationPlanRequest)
             .options(
-                joinedload(ObservationPlanRequest.observation_plans)
-                .joinedload(EventObservationPlan.planned_observations)
-                .joinedload(PlannedObservation.field)
+                selectinload(ObservationPlanRequest.observation_plans)
+                .selectinload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field),
+                selectinload(ObservationPlanRequest.target_groups),
             )
-            .where(ObservationPlanRequest.id == plan_id)
+            .where(ObservationPlanRequest.id == int(plan_id))
         )
         status_complete = observation_plan_request.status == "complete"
 
         if not status_complete:
-            time.sleep(30)
+            await asyncio.sleep(30)
 
     observation_plans = observation_plan_request.observation_plans
     if not observation_plans or not observation_plans[0].planned_observations:
         raise ValueError("Need at least one observation to evaluate efficiency")
 
-    allocation = (
-        session.scalars(
-            sa.select(Allocation).where(
-                Allocation.id == observation_plan_request.allocation_id
-            )
+    allocation = await session.scalar(
+        sa.select(Allocation)
+        .where(Allocation.id == observation_plan_request.allocation_id)
+        .options(joinedload(Allocation.instrument))
+    )
+    localization = await session.scalar(
+        sa.select(Localization).where(
+            Localization.id == observation_plan_request.localization_id
         )
-    ).first()
-    localization = (
-        session.scalars(
-            sa.select(Localization).where(
-                Localization.id == observation_plan_request.localization_id
-            )
-        )
-    ).first()
+    )
 
     instrument = allocation.instrument
 
@@ -470,7 +484,7 @@ def post_survey_efficiency_analysis(
         status="running",
     )
     session.add(survey_efficiency_analysis)
-    session.commit()
+    await session.commit()
 
     observations = []
     for ii, o in enumerate(observation_plans[0].planned_observations):
@@ -556,7 +570,7 @@ def post_survey_efficiency_analysis(
     return survey_efficiency_analysis.id
 
 
-def post_observation_plans(
+async def post_observation_plans(
     plans, user_id, session, default_plan=False, asynchronous=True
 ):
     """Post combined ObservationPlans to database.
@@ -575,10 +589,8 @@ def post_observation_plans(
         Create asynchronous request. Defaults to True.
     """
 
-    user = session.query(User).get(user_id)
+    user = await session.get(User, int(user_id))
 
-    # generate a uuid that will be used to identify this set of observation plans
-    # and will be used to group them together
     combined_id = str(uuid.uuid4())
 
     observation_plan_requests = []
@@ -597,9 +609,11 @@ def post_observation_plans(
         data["default_plan"] = default_plan
         data["combined_id"] = combined_id
 
-        allocation = session.scalars(
-            Allocation.select(user).where(Allocation.id == data["allocation_id"])
-        ).first()
+        allocation = await session.scalar(
+            Allocation.select(user)
+            .where(Allocation.id == data["allocation_id"])
+            .options(joinedload(Allocation.instrument).joinedload(Instrument.telescope))
+        )
         if allocation is None:
             raise AttributeError(
                 f"Cannot access allocation with ID: {data['allocation_id']}"
@@ -616,17 +630,18 @@ def post_observation_plans(
 
         target_groups = []
         for group_id in data.pop("target_group_ids", []):
-            g = session.scalars(Group.select(user).where(Group.id == group_id)).first()
+            g = await session.scalar(Group.select(user).where(Group.id == group_id))
             if g is None:
                 raise AttributeError(f"Cannot access group with ID: {group_id}")
             target_groups.append(g)
 
-        try:
-            formSchema = instrument.api_class_obsplan.custom_json_schema(
-                instrument, user
-            )
-        except AttributeError:
-            formSchema = instrument.api_class_obsplan.form_json_schema
+        def _custom_schema(sync_session, instrument=instrument, user=user):
+            try:
+                return instrument.api_class_obsplan.custom_json_schema(instrument, user)
+            except AttributeError:
+                return instrument.api_class_obsplan.form_json_schema
+
+        formSchema = await session.run_sync(_custom_schema)
 
         # validate the payload
         try:
@@ -640,15 +655,21 @@ def post_observation_plans(
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
         observation_plan_requests.append(observation_plan_request)
-    session.commit()
+    await session.commit()
 
     flow = Flow()
     plan_ids = []
     for observation_plan_request in observation_plan_requests:
+        # ensure gcnevent is loaded via async refresh
+        opr = await session.scalar(
+            sa.select(ObservationPlanRequest)
+            .options(joinedload(ObservationPlanRequest.gcnevent))
+            .where(ObservationPlanRequest.id == observation_plan_request.id)
+        )
         flow.push(
             "*",
             "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+            payload={"gcnEvent_dateobs": opr.gcnevent.dateobs},
         )
         plan_ids.append(observation_plan_request.id)
 
@@ -674,7 +695,7 @@ def post_observation_plan(
         Create asynchronous request. Defaults to True.
     """
 
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
 
     try:
         data = ObservationPlanPost.load(plan)
@@ -751,36 +772,202 @@ def post_observation_plan(
     return observation_plan_request_id
 
 
+async def post_observation_plan_async(
+    plan, user_id, session, default_plan=False, asynchronous=True
+):
+    """Async equivalent of ``post_observation_plan``."""
+
+    user = await session.get(User, int(user_id))
+
+    try:
+        data = ObservationPlanPost.load(plan)
+    except ValidationError as e:
+        raise ValidationError(
+            f"Invalid / missing parameters: {e.normalized_messages()}"
+        )
+
+    data["requester_id"] = (
+        user.id if data.get("requester_id") is None else int(data.get("requester_id"))
+    )
+    data["last_modified_by_id"] = user.id
+    data["allocation_id"] = int(data["allocation_id"])
+    data["localization_id"] = int(data["localization_id"])
+    data["default_plan"] = default_plan
+
+    allocation = await session.scalar(
+        Allocation.select(user)
+        .where(Allocation.id == data["allocation_id"])
+        .options(joinedload(Allocation.instrument).joinedload(Instrument.telescope))
+    )
+    if allocation is None:
+        raise AttributeError(
+            f"Cannot access allocation with ID: {data['allocation_id']}"
+        )
+
+    instrument = allocation.instrument
+    if instrument.api_classname_obsplan is None:
+        raise AttributeError("Instrument has no remote API.")
+
+    if not instrument.api_class_obsplan.implements()["submit"]:
+        raise AttributeError(
+            "Cannot submit observation plan requests for this Instrument."
+        )
+
+    target_groups = []
+    for group_id in data.pop("target_group_ids", []):
+        g = await session.scalar(Group.select(user).where(Group.id == group_id))
+        if g is None:
+            raise AttributeError(f"Cannot access group with ID: {group_id}")
+        target_groups.append(g)
+
+    def _custom_schema(sync_session):
+        try:
+            return instrument.api_class_obsplan.custom_json_schema(instrument, user)
+        except AttributeError:
+            return instrument.api_class_obsplan.form_json_schema
+
+    formSchema = await session.run_sync(_custom_schema)
+
+    # validate the payload
+    try:
+        jsonschema.validate(data["payload"], formSchema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
+
+    observation_plan_request = ObservationPlanRequest.__schema__().load(data)
+    observation_plan_request.target_groups = target_groups
+    session.add(observation_plan_request)
+    await session.commit()
+
+    # eager-load gcnevent for dateobs access
+    opr = await session.scalar(
+        sa.select(ObservationPlanRequest)
+        .options(joinedload(ObservationPlanRequest.gcnevent))
+        .where(ObservationPlanRequest.id == observation_plan_request.id)
+    )
+    dateobs = opr.gcnevent.dateobs
+    observation_plan_request_id = opr.id
+
+    flow = Flow()
+
+    flow.push(
+        "*",
+        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+        payload={"gcnEvent_dateobs": dateobs},
+    )
+
+    flow.push(
+        "*",
+        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+        payload={"gcnEvent_dateobs": dateobs},
+    )
+
+    return observation_plan_request_id
+
+
+class ObservationPlanRequestGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"includePlannedObservations", "rubinFormat"}
+    )
+
+    includePlannedObservations: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated planned observations. Defaults to false.",
+    )
+    rubinFormat: bool = Field(
+        default=False,
+        description="Boolean indicating whether to format the response in a way that is compatible with Rubin",
+    )
+    dateobs: str | None = Field(
+        default=None,
+        description="GcnEvent dateobs to filter on",
+    )
+    instrumentID: int | None = Field(
+        default=None,
+        description="Instrument ID to filter on",
+    )
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate",
+    )
+    status: str | None = Field(
+        default=None,
+        description="String to match status of request against",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=f"Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+
+
+class ObservationPlanRequestPostBody(BaseModel):
+    """Request body for submitting one or more observation plan requests.
+
+    Accepts either a single plan (the plan fields at the top level) or a
+    `observation_plans` list together with `combine_plans`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_plans: list[dict] | None = Field(
+        None, description="List of observation plan requests to submit."
+    )
+    combine_plans: bool = Field(
+        False,
+        description="Whether to combine the submitted plans into a single request.",
+    )
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the observation plan request with."
+        ),
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class ObservationPlanRequestPostResponse(BaseModel):
+    """Data payload returned when submitting observation plan requests."""
+
+    ids: list[int] = Field(description="New observation plan request IDs")
+
+
 class ObservationPlanRequestHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(
+        self, *, body: ObservationPlanRequestPostBody = None
+    ) -> ObservationPlanRequestPostResponse:
         """
         ---
         summary: Submit observation plan request.
         description: Submit observation plan request.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanRequestPostBody)
+        json_data = body.model_dump(exclude_unset=True)
         if "observation_plans" in json_data:
             observation_plans = json_data["observation_plans"]
         else:
@@ -788,27 +975,27 @@ class ObservationPlanRequestHandler(BaseHandler):
         combine_plans = json_data.get("combine_plans", False)
 
         # for each plan, verify that their payload has a 'queue_name' key that is unique
-        with DBSession() as session:
+        async with self.AsyncSession() as session:
             for plan in observation_plans:
                 if "queue_name" not in plan.get("payload", {}):
                     return self.error(
                         'All observation plans must have a "queue_name" key in their payload.'
                     )
-                existing_plan = session.scalars(
+                existing_plan = await session.scalar(
                     sa.select(EventObservationPlan).where(
                         EventObservationPlan.plan_name == plan["payload"]["queue_name"]
                     )
-                ).first()
+                )
                 if existing_plan is not None:
                     return self.error(
                         f"Observation plan with name {plan['payload']['queue_name']} already exists."
                     )
 
-                allocation = session.scalars(
-                    Allocation.select(self.current_user).where(
-                        Allocation.id == plan["allocation_id"]
-                    )
-                ).first()
+                allocation = await session.scalar(
+                    Allocation.select(self.current_user)
+                    .where(Allocation.id == plan["allocation_id"])
+                    .options(joinedload(Allocation.instrument))
+                )
                 if allocation is None:
                     return self.error(
                         f"Cannot access allocation with ID: {plan['allocation_id']}"
@@ -825,7 +1012,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                     )
 
             if len(observation_plans) == 1:
-                plan_id = post_observation_plan(
+                plan_id = await post_observation_plan_async(
                     observation_plans[0],
                     self.associated_user_object.id,
                     session,
@@ -834,7 +1021,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 plan_ids = [plan_id]
             else:
                 if combine_plans:
-                    plan_ids = post_observation_plans(
+                    plan_ids = await post_observation_plans(
                         observation_plans,
                         self.associated_user_object.id,
                         session,
@@ -843,7 +1030,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 else:
                     plan_ids = []
                     for plan in observation_plans:
-                        plan_id = post_observation_plan(
+                        plan_id = await post_observation_plan_async(
                             plan,
                             self.associated_user_object.id,
                             session,
@@ -854,34 +1041,19 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"ids": plan_ids})
 
     @auth_or_token
-    def get(self, observation_plan_request_id=None):
-        f"""
+    async def get(
+        self,
+        observation_plan_request_id: int | None = None,
+        *,
+        query: ObservationPlanRequestGetQuery = None,
+    ):
+        """
         ---
         single:
           summary: Get an observation plan.
           description: Get an observation plan.
           tags:
             - observation plan requests
-          parameters:
-            - in: path
-              name: observation_plan_id
-              required: true
-              schema:
-                type: string
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
-            - in: query
-              name: rubinFormat
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to format the response in a way that is compatible with Rubin
           responses:
             200:
               content:
@@ -896,111 +1068,86 @@ class ObservationPlanRequestHandler(BaseHandler):
           description: Get all observation plans.
           tags:
             - observation plan requests
-          parameters:
-            - in: query
-              name: dateobs
-              nullable: true
-              schema:
-                type: string
-              description: GcnEvent dateobs to filter on
-            - in: query
-              name: instrumentID
-              nullable: true
-              schema:
-                type: integer
-              description: Instrument ID to filter on
-            - in: query
-              name: startDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at >= startDate
-            - in: query
-              name: endDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at <= endDate
-            - in: query
-              name: status
-              nullable: true
-              schema:
-                type: string
-              description: |
-                String to match status of request against
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
           responses:
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservationPlanRequests
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              requests:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ObservationPlanRequest'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
                   schema: Error
         """
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        dateobs = self.get_query_argument("dateobs", None)
-        instrumentID = self.get_query_argument("instrumentID", None)
-        status = self.get_query_argument("status", None)
-        include_planned_observations = self.get_query_argument(
-            "includePlannedObservations", False
-        )
-        rubin_format = self.get_query_argument("rubinFormat", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
-        page_number, n_per_page = get_page_and_n_per_page(
-            page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
-        )
+        query = self.parse_query(ObservationPlanRequestGetQuery)
+
+        start_date = query.startDate
+        end_date = query.endDate
+        dateobs = query.dateobs
+        status = query.status
+        include_planned_observations = query.includePlannedObservations
+        rubin_format = query.rubinFormat
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                query.pageNumber, query.numPerPage, MAX_OBSERVATION_PLAN_REQUESTS
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         if include_planned_observations:
             options = [
-                joinedload(ObservationPlanRequest.observation_plans)
-                .joinedload(EventObservationPlan.planned_observations)
+                selectinload(ObservationPlanRequest.observation_plans)
+                .selectinload(EventObservationPlan.planned_observations)
                 .joinedload(PlannedObservation.field),
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                selectinload(ObservationPlanRequest.observation_plans).selectinload(
                     EventObservationPlan.statistics
+                ),
+                selectinload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.instrument)
+                .joinedload(Instrument.telescope),
+                joinedload(ObservationPlanRequest.allocation).joinedload(
+                    Allocation.instrument
                 ),
             ]
         else:
             options = [
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                selectinload(ObservationPlanRequest.observation_plans).selectinload(
                     EventObservationPlan.statistics
-                )
+                ),
+                joinedload(ObservationPlanRequest.allocation).joinedload(
+                    Allocation.instrument
+                ),
             ]
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if observation_plan_request_id is not None:
-                observation_plan_request = session.scalars(
+                try:
+                    observation_plan_request_id_int = int(observation_plan_request_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+                    )
+
+                observation_plan_request = await session.scalar(
                     ObservationPlanRequest.select(
                         session.user_or_token, options=options
-                    ).where(ObservationPlanRequest.id == observation_plan_request_id)
-                ).first()
+                    ).where(
+                        ObservationPlanRequest.id == observation_plan_request_id_int
+                    )
+                )
 
                 if observation_plan_request is None:
                     return self.error(
@@ -1103,30 +1250,31 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at <= end_date
                 )
             if dateobs:
+                parsed_dateobs = arrow.get(dateobs).naive
                 gcn_event_query = GcnEvent.select(self.current_user).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == parsed_dateobs
                 )
                 gcn_event_subquery = gcn_event_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
                     gcn_event_subquery,
                     ObservationPlanRequest.gcnevent_id == gcn_event_subquery.c.id,
                 )
-            if instrumentID:
+            if query.instrumentID is not None:
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
                 allocation_query = Allocation.select(self.current_user).where(
-                    Allocation.instrument_id == instrumentID
+                    Allocation.instrument_id == query.instrumentID
                 )
                 allocation_subquery = allocation_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1139,16 +1287,15 @@ class ObservationPlanRequestHandler(BaseHandler):
                 )
 
             count_stmt = sa.select(func.count()).select_from(observation_plan_requests)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = await session.scalar(count_stmt)
             if n_per_page is not None:
                 observation_plan_requests = (
                     observation_plan_requests.distinct()
                     .limit(n_per_page)
                     .offset((page_number - 1) * n_per_page)
                 )
-            observation_plan_requests = (
-                session.scalars(observation_plan_requests).unique().all()
-            )
+            result = await session.scalars(observation_plan_requests)
+            observation_plan_requests = result.unique().all()
 
             info = {}
             info["requests"] = [req.to_dict() for req in observation_plan_requests]
@@ -1156,31 +1303,37 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    async def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Delete observation plan request.
         description: Delete observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        with self.Session() as session:
-            observation_plan_request = session.scalars(
-                ObservationPlanRequest.select(
-                    session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
-            ).first()
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        async with self.AsyncSession() as session:
+            observation_plan_request = await session.scalar(
+                ObservationPlanRequest.select(session.user_or_token, mode="delete")
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
+                .options(
+                    joinedload(ObservationPlanRequest.gcnevent),
+                    joinedload(ObservationPlanRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                )
+            )
             if observation_plan_request is None:
                 return self.error(
                     f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
@@ -1198,9 +1351,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                     "Cannot delete observation plan sent to the telescope queue."
                 )
 
-            api.delete(
-                observation_plan_request.id
-            )  # the session.commit() happens in this method, not need to commit here too
+            await api.delete(observation_plan_request, session)
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -1210,48 +1361,69 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanManualPostBody(BaseModel):
+    """Request body for submitting a manual observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    dateobs: str | None = Field(
+        None,
+        description="UTC event timestamp, used to look up the GcnEvent when gcnevent_id is not provided.",
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    localization_name: str | None = Field(
+        None,
+        description="Name of the localization, used to look it up when localization_id is not provided.",
+    )
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    plan_name: str | None = Field(None, description="Name of the observation plan.")
+    observation_plans: list[dict] | None = Field(
+        None,
+        description="Observation plans, each with its validity window and planned observations.",
+    )
+
+
+class ObservationPlanManualPostResponse(BaseModel):
+    """Data payload returned when submitting a manual observation plan request."""
+
+    id: int = Field(description="New observation plan request ID")
+
+
 class ObservationPlanManualRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self):
+    async def post(
+        self, *, body: ObservationPlanManualPostBody = None
+    ) -> ObservationPlanManualPostResponse:
         """
         ---
         summary: Submit manual observation plan request.
         description: Submit manual observation plan.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanManualHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanManualPostBody)
+        json_data = body.model_dump(exclude_unset=True)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = GcnEvent.select(session.user_or_token)
             if "gcnevent_id" in json_data:
                 stmt = stmt.where(GcnEvent.id == json_data["gcnevent_id"])
             elif "dateobs" in json_data:
-                stmt = stmt.where(GcnEvent.dateobs == json_data["dateobs"])
+                stmt = stmt.where(
+                    GcnEvent.dateobs == arrow.get(json_data["dateobs"]).naive
+                )
             else:
                 return self.error(
                     message="Need to specify either gcnevent_id or dateobs"
                 )
-            event = session.scalars(stmt).first()
+            event = await session.scalar(stmt)
             if event is None:
                 return self.error(message="Cannot find associated GcnEvent")
 
@@ -1266,7 +1438,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 return self.error(
                     message="Need to specify either localization_id or localization_name"
                 )
-            localization = session.scalars(stmt).first()
+            localization = await session.scalar(stmt)
             if localization is None:
                 return self.error(message="Cannot find associated Localization")
 
@@ -1284,12 +1456,14 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 allocation_id=json_data["allocation_id"],
             )
             session.add(observation_plan_request)
-            session.commit()
+            await session.commit()
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == observation_plan_request.allocation_id,
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(joinedload(Allocation.instrument))
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
             instrument = allocation.instrument
 
             observation_plan = json_data["observation_plans"][0]
@@ -1303,7 +1477,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 status=observation_plan["status"],
             )
             session.add(event_observation_plan)
-            session.commit()
+            await session.commit()
 
             if not {
                 planned_obs["filt"]
@@ -1317,12 +1491,12 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             for planned_obs in observation_plan["planned_observations"]:
                 tt = Time(planned_obs["dateobs"], format="isot")
 
-                field = session.scalars(
+                field = await session.scalar(
                     InstrumentField.select(session.user_or_token).where(
                         InstrumentField.instrument_id == instrument.id,
                         InstrumentField.field_id == planned_obs["field_id"],
                     )
-                ).first()
+                )
                 if field is None:
                     return self.error(
                         f"No field for instrument with ID {instrument.id} available with ID {planned_obs['field_id']}"
@@ -1343,73 +1517,89 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 planned_observations.append(planned_observation)
 
             session.add_all(planned_observations)
-            session.commit()
+            await session.commit()
 
-            generate_observation_plan_statistics(
-                [event_observation_plan.id], [observation_plan_request.id], session
-            )
+            def _gen_stats(sync_session):
+                generate_observation_plan_statistics(
+                    [event_observation_plan.id],
+                    [observation_plan_request.id],
+                    sync_session,
+                )
+
+            await session.run_sync(_gen_stats)
 
             return self.success(data={"id": observation_plan_request.id})
 
 
 class ObservationPlanSubmitHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    async def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to telescope.
         description: Submit an observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: SingleObservationPlanRequest
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                observation_plan_request = send_observation_plan(
-                    observation_plan_request_id, session
+                observation_plan_request = await send_observation_plan(
+                    observation_plan_request_id_int, session
                 )
             except Exception as e:
                 return self.error(str(e))
             return self.success(data=observation_plan_request)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    async def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan request from telescope queue.
         description: Remove an observation plan from the queue.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SingleObservationPlanRequest'
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
-            observation_plan_request = session.scalars(
-                ObservationPlanRequest.select(
-                    session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            observation_plan_request = await session.scalar(
+                ObservationPlanRequest.select(session.user_or_token, mode="delete")
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
+                .options(
+                    joinedload(ObservationPlanRequest.gcnevent),
+                    joinedload(ObservationPlanRequest.allocation).joinedload(
+                        Allocation.instrument
+                    ),
+                )
+            )
             if observation_plan_request is None:
                 return self.error(
                     f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
@@ -1422,27 +1612,38 @@ class ObservationPlanSubmitHandler(BaseHandler):
                 )
 
             try:
-                api.remove(observation_plan_request)
+                await api.remove(observation_plan_request)
             except Exception as e:
                 observation_plan_request.status = "failed to remove from queue"
                 return self.error(
                     f"Error removing observation plan from telescope: {e.args[0]}"
                 )
             finally:
-                session.commit()
+                await session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTST",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 
-            session.commit()
+            await session.commit()
 
             return self.success(data=observation_plan_request)
 
 
+class ObservationPlanNameGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan names."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="The name of the Observation Plan",
+    )
+
+
 class ObservationPlanNameHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self, *, query: ObservationPlanNameGetQuery = None):
         """
         ---
         multiple:
@@ -1454,7 +1655,15 @@ class ObservationPlanNameHandler(BaseHandler):
               200:
                 content:
                   application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                type: string
               400:
                 content:
                   application/json:
@@ -1464,13 +1673,6 @@ class ObservationPlanNameHandler(BaseHandler):
             description: Verify that an Observation Plan name exists
             tags:
               - observation plans
-            parameters:
-              - in: query
-                name: name
-                required: false
-                schema:
-                  type: string
-                description: The name of the Observation Plan
             responses:
               200:
                 content:
@@ -1483,11 +1685,12 @@ class ObservationPlanNameHandler(BaseHandler):
 
 
         """
-        name = self.get_query_argument("name", None)
+        query = self.parse_query(ObservationPlanNameGetQuery)
+        name = query.name
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if name:
-                plan = session.scalar(
+                plan = await session.scalar(
                     sa.select(EventObservationPlan.id).where(
                         EventObservationPlan.plan_name == name
                     )
@@ -1497,7 +1700,7 @@ class ObservationPlanNameHandler(BaseHandler):
 
                 # look into the observation plan requests
                 # these don't have a plan name, but they have a queue_name in their JSONB payload
-                plan = session.scalar(
+                plan = await session.scalar(
                     sa.select(ObservationPlanRequest.id).where(
                         ObservationPlanRequest.payload["queue_name"].astext == name
                     )
@@ -1507,66 +1710,73 @@ class ObservationPlanNameHandler(BaseHandler):
 
                 return self.success(data={"exists": False})
 
-            plan_names = (
-                session.scalars(sa.select(EventObservationPlan.plan_name).distinct())
-                .unique()
-                .all()
+            result = await session.scalars(
+                sa.select(EventObservationPlan.plan_name).distinct()
             )
+            plan_names = result.unique().all()
             return self.success(data=plan_names)
 
 
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GCN summary for observation plan request.
         description: Get a GCN-izable summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: SingleObservationPlanRequest
         """
-        with self.Session() as session:
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
-                    .joinedload(PlannedObservation.field)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
+                    .joinedload(PlannedObservation.field),
+                    selectinload(ObservationPlanRequest.observation_plans).selectinload(
+                        EventObservationPlan.statistics
+                    ),
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            event = session.scalars(
+            event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
                 )
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == observation_plan_request.allocation_id,
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(
+                    joinedload(Allocation.instrument).joinedload(Instrument.telescope)
+                )
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
             instrument = allocation.instrument
 
             observation_plans = observation_plan_request.observation_plans
@@ -1730,19 +1940,13 @@ def observation_animations(
 
 class ObservationPlanMovieHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get a movie of the observation plan.
         description: Get a movie summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1750,18 +1954,25 @@ class ObservationPlanMovieHandler(BaseHandler):
                 schema: SingleObservationPlanRequest
         """
 
-        with self.Session() as session:
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
                     .undefer(InstrumentField.contour_summary)
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if not observation_plan_request:
                 return self.error(
@@ -1772,11 +1983,17 @@ class ObservationPlanMovieHandler(BaseHandler):
                     f"Observation plan request with ID {observation_plan_request_id} has no observation plans."
                 )
 
-            localization = session.scalars(
-                Localization.select(
-                    session.user_or_token,
-                ).where(Localization.id == observation_plan_request.localization_id)
-            ).first()
+            localization = await session.scalar(
+                Localization.select(session.user_or_token)
+                .where(Localization.id == observation_plan_request.localization_id)
+                .options(
+                    undefer(Localization.uniq),
+                    undefer(Localization.probdensity),
+                    undefer(Localization.distmu),
+                    undefer(Localization.distsigma),
+                    undefer(Localization.distnorm),
+                )
+            )
             if localization is None:
                 return self.error(
                     message=f"Invalid Localization dateobs: {observation_plan_request.localization_id}"
@@ -1812,19 +2029,13 @@ class ObservationPlanMovieHandler(BaseHandler):
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    async def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to TreasureMap.
         description: Submit the observation plan to treasuremap.space
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1835,38 +2046,46 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            event = session.scalars(
+            event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
                 )
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == observation_plan_request.allocation_id,
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(joinedload(Allocation.instrument))
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
             instrument = allocation.instrument
 
             treasuremap_id = None
@@ -1975,57 +2194,59 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    async def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan from treasuremap.space.
         description: Remove observation plan from treasuremap.space.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            event = session.scalars(
+            event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
+                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     message=f"Invalid GcnEvent ID: {observation_plan_request.gcnevent_id}"
                 )
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == observation_plan_request.allocation_id,
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(joinedload(Allocation.instrument))
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
             instrument = allocation.instrument
 
             if instrument.treasuremap_id is None:
@@ -2061,37 +2282,37 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
 class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get survey efficiency analyses of the observation plan.
         description: Get survey efficiency analyses of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: ArrayOfSurveyEfficiencyForObservationPlans
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans).joinedload(
+                    selectinload(ObservationPlanRequest.observation_plans).selectinload(
                         EventObservationPlan.survey_efficiency_analyses
                     )
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
@@ -2121,38 +2342,38 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
 
 class ObservationPlanGeoJSONHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GeoJSON summary of the observation plan.
         description: Get GeoJSON summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: SingleObservationPlanRequest
         """
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
                     .undefer(InstrumentField.contour_summary)
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
@@ -2173,63 +2394,76 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             for observation in observation_plans[0].planned_observations:
                 if observation.field_id not in fields_in:
                     fields_in.append(observation.field_id)
-                    geojson.append(observation.field.contour_summary)
+                    # A planned observation can reference a field that no longer
+                    # exists (or that has no contour). Skip those rather than
+                    # raising an AttributeError (500), which left the frontend
+                    # skymap globe spinning on its loading indicator forever.
+                    field = observation.field
+                    if field is not None and field.contour_summary is not None:
+                        geojson.append(field.contour_summary)
                 else:
                     continue
 
             return self.success(data={"geojson": geojson})
 
 
+class ObservationPlanFieldsDeleteBody(BaseModel):
+    """Request body for removing fields from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fieldIds: list[int] | None = Field(
+        None, description="List of field IDs to remove from the plan"
+    )
+
+
 class ObservationPlanFieldsHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    async def delete(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanFieldsDeleteBody = None,
+    ):
         """
         ---
         summary: Delete fields from the observation plan.
         description: Delete selected fields from the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                properties:
-                  fieldIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: List of field IDs to remove from the plan
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
-        data = self.get_json()
-        field_ids_to_remove = data.pop("fieldIds", None)
+        body = self.parse_body(ObservationPlanFieldsDeleteBody)
+        field_ids_to_remove = body.fieldIds
 
         if field_ids_to_remove is None:
             return self.error("Need to specify field IDs to remove")
 
-        with self.Session() as session:
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        async with self.AsyncSession() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
-                    .undefer(InstrumentField.contour_summary)
+                    .undefer(InstrumentField.contour_summary),
+                    joinedload(ObservationPlanRequest.gcnevent),
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
@@ -2244,10 +2478,10 @@ class ObservationPlanFieldsHandler(BaseHandler):
 
             for observation in observation_plans[0].planned_observations:
                 if observation.field_id in field_ids_to_remove:
-                    session.delete(observation)
+                    await session.delete(observation)
                 else:
                     continue
-                session.commit()
+                await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -2257,57 +2491,70 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanPlotGetQuery(BaseModel):
+    """Query parameters for the worldmap and observability plots."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAirmass: float = Field(
+        default=2.5,
+        description="Maximum airmass to consider. Defaults to 2.5.",
+    )
+    twilight: Literal["astronomical", "nautical", "civil"] = Field(
+        default="astronomical",
+        description="Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).",
+    )
+
+
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate map for
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
         twilight_dict = {"astronomical": -18, "nautical": -12, "civil": -6}
 
-        with self.Session() as session:
-            stmt = Telescope.select(self.current_user)
-            telescopes = session.scalars(stmt).all()
+        try:
+            localization_id_int = int(localization_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid localization_id: {localization_id}")
 
-            stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+        async with self.AsyncSession() as session:
+            stmt = Telescope.select(self.current_user)
+            result = await session.scalars(stmt)
+            telescopes = result.all()
+
+            stmt = (
+                Localization.select(self.current_user)
+                .where(Localization.id == localization_id_int)
+                .options(
+                    undefer(Localization.uniq),
+                    undefer(Localization.probdensity),
+                    undefer(Localization.distmu),
+                    undefer(Localization.distsigma),
+                    undefer(Localization.distnorm),
+                )
             )
-            localization = session.scalars(stmt).first()
+            localization = await session.scalar(stmt)
             m = localization.flat_2d
             nside = localization.nside
             npix = len(m)
@@ -2401,53 +2648,49 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate observability plot for
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
-        with self.Session() as session:
+        try:
+            localization_id_int = int(localization_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid localization_id: {localization_id}")
+
+        async with self.AsyncSession() as session:
             stmt = Telescope.select(self.current_user)
-            telescopes = session.scalars(stmt).all()
+            result = await session.scalars(stmt)
+            telescopes = result.all()
 
-            stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+            # contour is deferred: load it with the row, or reading it below
+            # emits IO from async context (MissingGreenlet).
+            stmt = (
+                Localization.select(self.current_user)
+                .where(Localization.id == localization_id_int)
+                .options(undefer(Localization.contour))
             )
-            localization = session.scalars(stmt).first()
+            localization = await session.scalar(stmt)
+            if localization is None:
+                return self.error(f"Cannot find localization with ID {localization_id}")
             cent = localization.contour["features"][0]["geometry"]["coordinates"]
             coords = astropy.coordinates.SkyCoord(cent[0], cent[1], unit="deg")
 
@@ -2516,28 +2759,19 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id, telescope_id):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        telescope_id: Annotated[
+            int, Field(description="ID of telescope to generate airmass chart for")
+        ],
+    ):
         """
         ---
         summary: Create an airmass chart for an event.
         description: Get an airmass chart for the GcnEvent
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate airmass chart for
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -2545,16 +2779,32 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            stmt = Telescope.select(self.current_user).where(
-                Telescope.id == telescope_id
+        try:
+            localization_id_int = int(localization_id)
+            telescope_id_int = int(telescope_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid localization_id or telescope_id: {localization_id}, {telescope_id}"
             )
-            telescope = session.scalars(stmt).first()
 
-            stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+        async with self.AsyncSession() as session:
+            stmt = Telescope.select(self.current_user).where(
+                Telescope.id == telescope_id_int
             )
-            localization = session.scalars(stmt).first()
+            telescope = await session.scalar(stmt)
+
+            stmt = (
+                Localization.select(self.current_user)
+                .where(Localization.id == localization_id_int)
+                .options(
+                    undefer(Localization.uniq),
+                    undefer(Localization.probdensity),
+                    undefer(Localization.distmu),
+                    undefer(Localization.distsigma),
+                    undefer(Localization.distnorm),
+                )
+            )
+            localization = await session.scalar(stmt)
 
             trigger_time = astropy.time.Time(localization.dateobs, format="datetime")
 
@@ -2594,9 +2844,28 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class ObservationPlanCreateObservingRunPostBody(BaseModel):
+    """Request body for creating an observing run from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of the groups to share the created sources with. "
+            "Defaults to the allocation's group."
+        ),
+    )
+
+
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    async def post(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanCreateObservingRunPostBody = None,
+    ):
         """
         ---
         summary: Create observing run from observation plan.
@@ -2604,14 +2873,6 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
            to an observing run
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of observation plan request to create observing run for
         responses:
           200:
             content:
@@ -2623,32 +2884,43 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservationPlanCreateObservingRunPostBody)
+        data = body.model_dump(exclude_unset=True)
 
-        with self.Session() as session:
-            observation_plan_request = session.scalars(
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        from .followup_request import post_assignment
+        from .source import post_source_async
+
+        async with self.AsyncSession() as session:
+            observation_plan_request = await session.scalar(
                 ObservationPlanRequest.select(
                     session.user_or_token,
                     options=[
-                        joinedload(ObservationPlanRequest.observation_plans)
-                        .joinedload(EventObservationPlan.planned_observations)
+                        selectinload(ObservationPlanRequest.observation_plans)
+                        .selectinload(EventObservationPlan.planned_observations)
                         .joinedload(PlannedObservation.field)
                     ],
-                ).where(ObservationPlanRequest.id == observation_plan_request_id),
-            ).first()
+                ).where(ObservationPlanRequest.id == observation_plan_request_id_int),
+            )
             if observation_plan_request is None:
-                raise self.error(
+                return self.error(
                     f"Cannot access ObservationPlanRequest with ID {observation_plan_request_id}"
                 )
 
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == observation_plan_request.allocation_id
-                )
-            ).first()
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(joinedload(Allocation.instrument))
+            )
 
             if allocation is None:
-                raise self.error(
+                return self.error(
                     f"Cannot find Allocation with ID {observation_plan_request.allocation_id}"
                 )
 
@@ -2668,7 +2940,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 "group_id": allocation.group_id,
                 "calendar_date": str(observation_plans[0].validity_window_end.date()),
             }
-            run_id = post_observing_run(
+            run_id = await post_observing_run(
                 observing_run, self.associated_user_object.id, session
             )
 
@@ -2689,7 +2961,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 else:
                     source["group_ids"] = [allocation.group_id]
 
-                obj_id, _, _ = post_source(
+                obj_id, _, _ = await post_source_async(
                     source, self.associated_user_object.id, session
                 )
                 if np.max(priorities) - np.min(priorities) == 0.0:
@@ -2709,7 +2981,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                     "priority": str(int(priority)),
                 }
                 try:
-                    post_assignment(assignment, session)
+                    await post_assignment(assignment, session)
                 except ValueError:
                     # No need to assign multiple times to same run
                     pass
@@ -3100,100 +3372,74 @@ def observation_simsurvey_plot(
     }
 
 
+class ObservationPlanSimSurveyGetQuery(BaseModel):
+    """Query parameters for running a simsurvey efficiency analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numberInjections: int = Field(
+        default=1000,
+        description="Number of simulations to evaluate efficiency with. Defaults to 1000.",
+    )
+    numberDetections: int = Field(
+        default=1,
+        description="Number of detections required for detection. Defaults to 1.",
+    )
+    detectionThreshold: float = Field(
+        default=5.0,
+        description="Threshold (in sigmas) required for detection. Defaults to 5.",
+    )
+    minimumPhase: float = Field(
+        default=0.0,
+        description="Minimum phase (in days) post event time to consider detections. Defaults to 0.",
+    )
+    maximumPhase: float = Field(
+        default=3.0,
+        description="Maximum phase (in days) post event time to consider detections. Defaults to 3.",
+    )
+    modelName: str = Field(
+        default="kilonova",
+        description="Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.",
+    )
+    optionalInjectionParameters: str = Field(
+        default="{}",
+        description="JSON-encoded object of optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able to view the analyses. Defaults to all of requesting user's groups.",
+    )
+
+
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(
+        self,
+        observation_plan_request_id: int,
+        *,
+        query: ObservationPlanSimSurveyGetQuery = None,
+    ):
         """
         ---
         summary: Run a simsurvey analysis for an observation plan request
         description: Perform an efficiency analysis of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-          - in: query
-            name: numberInjections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of simulations to evaluate efficiency with. Defaults to 1000.
-          - in: query
-            name: numberDetections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of detections required for detection. Defaults to 1.
-          - in: query
-            name: detectionThreshold
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Threshold (in sigmas) required for detection. Defaults to 5.
-          - in: query
-            name: minimumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Minimum phase (in days) post event time to consider detections. Defaults to 0.
-          - in: query
-            name: maximumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum phase (in days) post event time to consider detections. Defaults to 3.
-          - in: query
-            name: model_name
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
-          - in: query
-            name: optionalInjectionParameters
-            type: object
-            additionalProperties:
-              type: array
-              items:
-                type: string
-                description: |
-                  Optional parameters to specify the injection type, along
-                  with a list of possible values (to be used in a dropdown UI)
-          - in: query
-            name: group_ids
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-              description: |
-                List of group IDs corresponding to which groups should be
-                able to view the analyses. Defaults to all of requesting user's
-                groups.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanSimSurveyGetQuery)
 
-        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
-        number_of_detections = int(self.get_query_argument("numberDetections", 1))
-        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
-        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
-        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        model_name = self.get_query_argument("modelName", "kilonova")
-        optional_injection_parameters = json.loads(
-            self.get_query_argument("optionalInjectionParameters", "{}")
-        )
+        number_of_injections = query.numberInjections
+        number_of_detections = query.numberDetections
+        detection_threshold = query.detectionThreshold
+        minimum_phase = query.minimumPhase
+        maximum_phase = query.maximumPhase
+        model_name = query.modelName
+        optional_injection_parameters = json.loads(query.optionalInjectionParameters)
 
         if model_name not in ["kilonova", "afterglow", "linear"]:
             return self.error(
@@ -3204,44 +3450,55 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             model_name, optional_injection_parameters
         )
 
-        group_ids = self.get_query_argument("group_ids", None)
-        with self.Session() as session:
+        group_ids = query.group_ids
+
+        try:
+            observation_plan_request_id_int = int(observation_plan_request_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid observation_plan_request_id: {observation_plan_request_id}"
+            )
+
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
             if not group_ids:
-                group_ids = [
-                    g.id for g in self.associated_user_object.accessible_groups
-                ]
+                group_ids = await accessible_group_ids_async(self.current_user, session)
 
             try:
                 stmt = Group.select(self.current_user).where(Group.id.in_(group_ids))
-                groups = session.scalars(stmt).all()
+                groups_result = await session.scalars(stmt)
+                groups = groups_result.all()
             except AccessError:
                 return self.error("Could not find any accessible groups.", status=403)
 
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == observation_plan_request_id_int)
                 .options(
-                    joinedload(ObservationPlanRequest.observation_plans)
-                    .joinedload(EventObservationPlan.planned_observations)
+                    selectinload(ObservationPlanRequest.observation_plans)
+                    .selectinload(EventObservationPlan.planned_observations)
                     .joinedload(PlannedObservation.field)
                 )
             )
-            observation_plan_request = session.scalars(stmt).first()
+            observation_plan_request = await session.scalar(stmt)
 
             if observation_plan_request is None:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == observation_plan_request.allocation_id,
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == observation_plan_request.allocation_id)
+                .options(joinedload(Allocation.instrument))
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
 
             stmt = Localization.select(self.current_user).where(
                 Localization.id == observation_plan_request.localization_id
             )
-            localization = session.scalars(stmt).first()
+            localization = await session.scalar(stmt)
             if localization is None:
                 return self.error(
                     f"Localization with ID {observation_plan_request.localization_id} inaccessible."
@@ -3297,7 +3554,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                 status="running",
             )
             session.add(survey_efficiency_analysis)
-            session.commit()
+            await session.commit()
 
             observations = []
             for ii, o in enumerate(planned_observations):
@@ -3311,7 +3568,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
                         .where(InstrumentField.id == obs_dict["field"]["id"])
                         .options(undefer(InstrumentField.contour_summary))
                     )
-                    field = session.scalars(stmt).first()
+                    field = await session.scalar(stmt)
                     if field is None:
                         return self.error(
                             message=f"Missing field {obs_dict['field']['id']} required to estimate field size"
@@ -3365,60 +3622,54 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    def delete(self, survey_efficiency_analysis_id):
+    async def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a simsurvey efficiency calculation.
         description: Delete a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        try:
+            survey_efficiency_analysis_id_int = int(survey_efficiency_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
+            )
 
-        with self.Session() as session:
-            survey_efficiency_analysis = session.scalars(
+        async with self.AsyncSession() as session:
+            survey_efficiency_analysis = await session.scalar(
                 SurveyEfficiencyForObservationPlan.select(
                     session.user_or_token, mode="delete"
                 ).where(
                     SurveyEfficiencyForObservationPlan.id
-                    == survey_efficiency_analysis_id
+                    == survey_efficiency_analysis_id_int
                 )
-            ).first()
+            )
             if survey_efficiency_analysis is None:
                 return self.error(
                     f"Missing survey_efficiency_analysis for id {survey_efficiency_analysis_id}"
                 )
-            session.delete(survey_efficiency_analysis)
-            session.commit()
+            await session.delete(survey_efficiency_analysis)
+            await session.commit()
 
             return self.success()
 
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create a summary plot for a simsurvey.
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -3426,13 +3677,20 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            survey_efficiency_analysis = session.scalars(
+        try:
+            survey_efficiency_analysis_id_int = int(survey_efficiency_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid survey_efficiency_analysis_id: {survey_efficiency_analysis_id}"
+            )
+
+        async with self.AsyncSession() as session:
+            survey_efficiency_analysis = await session.scalar(
                 SurveyEfficiencyForObservationPlan.select(session.user_or_token).where(
                     SurveyEfficiencyForObservationPlan.id
-                    == survey_efficiency_analysis_id
+                    == survey_efficiency_analysis_id_int
                 )
-            ).first()
+            )
             if survey_efficiency_analysis is None:
                 return self.error(
                     f"Cannot access survey_efficiency_analysis for id {survey_efficiency_analysis_id}"
@@ -3461,38 +3719,62 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class DefaultObservationPlanPostBody(BaseModel):
+    """Request body for creating a default observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    default_plan_name: str | None = Field(
+        None, description="Unique name of the default observation plan."
+    )
+    payload: dict | None = Field(
+        None, description="Content of the default observation plan request."
+    )
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the default observation plan request with."
+        ),
+    )
+    filters: dict | None = Field(
+        None,
+        description=(
+            "Filters to determine which of the default observation plan requests get executed for which events."
+        ),
+    )
+    auto_send: bool | None = Field(
+        None, description="Automatically send to telescope queue?"
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class DefaultObservationPlanPostResponse(BaseModel):
+    """Data payload returned when creating a default observation plan request."""
+
+    id: int = Field(description="New default observation plan request ID")
+
+
 class DefaultObservationPlanRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self):
+    async def post(
+        self, *, body: DefaultObservationPlanPostBody = None
+    ) -> DefaultObservationPlanPostResponse:
         """
         ---
         summary: Create default observation plan requests.
         description: Create default observation plan requests.
         tags:
           - default observation plan
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default observation plan request ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultObservationPlanPostBody)
+        data = body.model_dump(exclude_unset=True)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if "default_plan_name" not in data:
                 return self.error("Missing default_plan_name")
             else:
@@ -3502,7 +3784,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                     DefaultObservationPlanRequest.default_plan_name
                     == data["default_plan_name"]
                 )
-                existing_default_plan = session.scalars(stmt).first()
+                existing_default_plan = await session.scalar(stmt)
                 if existing_default_plan is not None:
                     return self.error(
                         f"A default plan called {data['default_plan_name']} already exists. That name must be unique."
@@ -3510,12 +3792,17 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
 
             target_group_ids = data.pop("target_group_ids", [])
             stmt = Group.select(self.current_user).where(Group.id.in_(target_group_ids))
-            target_groups = session.scalars(stmt).all()
+            target_groups_result = await session.scalars(stmt)
+            target_groups = target_groups_result.all()
 
-            stmt = Allocation.select(session.user_or_token).where(
-                Allocation.id == data["allocation_id"],
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(
+                    joinedload(Allocation.instrument).joinedload(Instrument.telescope)
+                )
             )
-            allocation = session.scalars(stmt).first()
+            allocation = await session.scalar(stmt)
             if allocation is None:
                 return self.error(
                     f"Cannot access allocation with ID: {data['allocation_id']}",
@@ -3526,30 +3813,31 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if instrument.api_classname_obsplan is None:
                 return self.error("Instrument has no remote API.", status=403)
 
-            try:
-                formSchema = instrument.api_class_obsplan.custom_json_schema(
-                    instrument, self.current_user
-                )
-            except AttributeError:
-                formSchema = instrument.api_class_obsplan.form_json_schema
+            def _custom_schema(sync_session):
+                try:
+                    return instrument.api_class_obsplan.custom_json_schema(
+                        instrument, self.current_user
+                    )
+                except AttributeError:
+                    return instrument.api_class_obsplan.form_json_schema
+
+            formSchema = await session.run_sync(_custom_schema)
 
             payload = data["payload"]
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
             else:
-                payload["start_date"] = str(datetime.utcnow())
+                payload["start_date"] = str(utcnow_naive())
 
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
             else:
-                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             if "queue_name" in payload:
                 return self.error("Cannot have queue_name in the payload")
             else:
-                payload["queue_name"] = (
-                    f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}"
-                )
+                payload["queue_name"] = f"ToO_{str(utcnow_naive()).replace(' ', 'T')}"
 
             # validate the payload
             try:
@@ -3590,13 +3878,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 )
 
             session.add(default_observation_plan_request)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
             return self.success(data={"id": default_observation_plan_request.id})
 
     @auth_or_token
-    def get(self, default_observation_plan_id=None):
+    async def get(self, default_observation_plan_id: int | None = None):
         """
         ---
         single:
@@ -3604,12 +3892,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
           description: Retrieve a single default observation plan
           tags:
             - default observation plan
-          parameters:
-            - in: path
-              name: default_observation_plan_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -3635,32 +3917,36 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if default_observation_plan_id is not None:
-                default_observation_plan_request = session.scalars(
+                try:
+                    default_observation_plan_id_int = int(default_observation_plan_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid default_observation_plan_id: {default_observation_plan_id}"
+                    )
+                default_observation_plan_request = await session.scalar(
                     DefaultObservationPlanRequest.select(
                         session.user_or_token,
                         options=[joinedload(DefaultObservationPlanRequest.allocation)],
                     ).where(
-                        DefaultObservationPlanRequest.id == default_observation_plan_id
+                        DefaultObservationPlanRequest.id
+                        == default_observation_plan_id_int
                     )
-                ).first()
+                )
                 if default_observation_plan_request is None:
                     return self.error(
                         f"Cannot find DefaultObservationPlanRequest with ID {default_observation_plan_id}"
                     )
                 return self.success(data=default_observation_plan_request)
 
-            default_observation_plan_requests = (
-                session.scalars(
-                    DefaultObservationPlanRequest.select(
-                        session.user_or_token,
-                        options=[joinedload(DefaultObservationPlanRequest.allocation)],
-                    )
+            result = await session.scalars(
+                DefaultObservationPlanRequest.select(
+                    session.user_or_token,
+                    options=[joinedload(DefaultObservationPlanRequest.allocation)],
                 )
-                .unique()
-                .all()
             )
+            default_observation_plan_requests = result.unique().all()
 
             default_observation_plan_data = []
             for request in default_observation_plan_requests:
@@ -3674,19 +3960,13 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data=default_observation_plan_data)
 
     @permissions(["Manage observation plans"])
-    def delete(self, default_observation_plan_id):
+    async def delete(self, default_observation_plan_id: int):
         """
         ---
         summary: Delete a default observation plan request.
         description: Delete a default observation plan
         tags:
           - filters
-        parameters:
-          - in: path
-            name: default_observation_plan_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -3694,18 +3974,25 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
-                DefaultObservationPlanRequest.id == default_observation_plan_id
+        try:
+            default_observation_plan_id_int = int(default_observation_plan_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid default_observation_plan_id: {default_observation_plan_id}"
             )
-            default_observation_plan_request = session.scalars(stmt).first()
+
+        async with self.AsyncSession() as session:
+            stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
+                DefaultObservationPlanRequest.id == default_observation_plan_id_int
+            )
+            default_observation_plan_request = await session.scalar(stmt)
 
             if default_observation_plan_request is None:
                 return self.error(
                     "Default observation plan with ID {default_observation_plan_id} is not available."
                 )
 
-            session.delete(default_observation_plan_request)
-            session.commit()
+            await session.delete(default_observation_plan_request)
+            await session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS")
             return self.success()

@@ -1,11 +1,13 @@
 import time
 from io import StringIO
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -148,43 +150,65 @@ def delete_catalog(catalog_id):
         Session.remove()
 
 
+class SpatialCatalogGetQuery(BaseModel):
+    """Query parameters for retrieving spatial catalogs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(
+        default=None,
+        description="Name of the catalog being looked up, reported back in the not-found error message.",
+    )
+
+
+class SpatialCatalogPostBody(BaseModel):
+    """Request body for ingesting a spatial catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: Any = Field(default=None, description="Spatial catalog name.")
+    catalog_data: Any = Field(default=None, description="Spatial catalog data")
+
+
+class SpatialCatalogPostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")
+
+
+class SpatialCatalogASCIIFilePostBody(BaseModel):
+    """Request body for uploading a spatial catalog from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalogData: str | None = Field(
+        default=None, description="Catalog data Ascii string"
+    )
+    catalogName: str | None = Field(default=None, description="Spatial catalog name.")
+
+
+class SpatialCatalogASCIIFilePostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")
+
+
 class SpatialCatalogHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(
+        self, *, body: SpatialCatalogPostBody = None
+    ) -> SpatialCatalogPostResponse:
         """
         ---
         summary: Ingest a Spatial Catalog
         description: Ingest a Spatial Catalog
         tags:
           - spatial catalogs
-        requestBody:
-          content:
-            application/json:
-              schema: SpatialCatalogHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spatial catalog ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
 
-        data = self.get_json()
-        catalog_name = data.get("catalog_name")
-        catalog_data = data.get("catalog_data")
+        body = self.parse_body(SpatialCatalogPostBody)
+        catalog_name = body.catalog_name
+        catalog_data = body.catalog_data
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -215,15 +239,15 @@ class SpatialCatalogHandler(BaseHandler):
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(self.current_user).where(
                 SpatialCatalog.catalog_name == catalog_name
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 catalog = SpatialCatalog(catalog_name=catalog_name)
                 session.add(catalog)
-                session.commit()
+                await session.commit()
 
             IOLoop.current().run_in_executor(
                 None, lambda: add_catalog(catalog.id, catalog_data)
@@ -232,7 +256,9 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data={"id": catalog.id})
 
     @auth_or_token
-    async def get(self, catalog_id=None):
+    async def get(
+        self, catalog_id: int | None = None, *, query: SpatialCatalogGetQuery = None
+    ):
         """
         ---
         single:
@@ -240,67 +266,89 @@ class SpatialCatalogHandler(BaseHandler):
           description: Retrieve a SpatialCatalog
           tags:
             - spatial catalogs
-          parameters:
-            - in: path
-              name: catalog_id
-              required: true
-              schema:
-                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           summary: Get all Spatial Catalogs
           description: Retrieve all SpatialCatalogs
           tags:
             - spatial catalogs
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
-        catalog_name = self.get_query_argument("catalog_name", None)
+        query = self.parse_query(SpatialCatalogGetQuery)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if catalog_id is not None:
                 try:
                     catalog_id = int(catalog_id)
                 except ValueError:
                     return self.error("catalog_id must be an integer")
 
-                stmt = SpatialCatalog.select(self.current_user).where(
-                    SpatialCatalog.id == catalog_id
+                stmt = (
+                    SpatialCatalog.select(self.current_user)
+                    .options(selectinload(SpatialCatalog.entries))
+                    .where(SpatialCatalog.id == catalog_id)
                 )
-                catalog = session.scalars(stmt).first()
+                catalog = await session.scalar(stmt)
                 if catalog is None:
-                    return self.error(f"No catalog with name: {catalog_name}")
+                    return self.error(f"No catalog with name: {query.catalog_name}")
 
                 data = catalog.to_dict()
                 data["entries"] = [entry.to_dict() for entry in catalog.entries]
                 return self.success(data=data)
 
             stmt = SpatialCatalog.select(self.current_user)
-            catalogs = session.scalars(stmt).all()
+            result = await session.scalars(stmt)
+            catalogs = result.all()
             data = []
             for catalog in catalogs:
                 count_stmt = SpatialCatalogEntry.select(self.current_user).where(
                     SpatialCatalogEntry.catalog_id == catalog.id
                 )
-
-                entries_count = session.execute(
+                entries_count = await session.scalar(
                     sa.select(func.count()).select_from(count_stmt)
-                ).scalar()
+                )
                 data.append({**catalog.to_dict(), "entries_count": entries_count})
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, catalog_id):
+    async def delete(self, catalog_id: int):
         """
         ---
         summary: Delete a Spatial Catalog
         description: Delete a spatial catalog
         tags:
           - spatial catalogs
-        parameters:
-          - in: path
-            name: catalog_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -311,11 +359,11 @@ class SpatialCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(session.user_or_token, mode="delete").where(
-                SpatialCatalog.id == int(catalog_id)
+                SpatialCatalog.id == catalog_id
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 return self.error(f"Missing catalog with ID {catalog_id}")
 
@@ -327,41 +375,20 @@ class SpatialCatalogHandler(BaseHandler):
 
 class SpatialCatalogASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(
+        self, *, body: SpatialCatalogASCIIFilePostBody = None
+    ) -> SpatialCatalogASCIIFilePostResponse:
         """
         ---
         summary: Upload a Spatial Catalog from ASCII file
         description: Upload spatial catalog from ASCII file
         tags:
           - spatial catalogs
-        requestBody:
-          content:
-            application/json:
-              schema: SpatialCatalogASCIIFileHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spatial catalog ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
 
-        json = self.get_json()
-        catalog_data = json.pop("catalogData", None)
-        catalog_name = json.pop("catalogName", None)
+        body = self.parse_body(SpatialCatalogASCIIFilePostBody)
+        catalog_data = body.catalogData
+        catalog_name = body.catalogName
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
@@ -396,15 +423,15 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(self.current_user).where(
                 SpatialCatalog.catalog_name == catalog_name
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 catalog = SpatialCatalog(catalog_name=catalog_name)
                 session.add(catalog)
-                session.commit()
+                await session.commit()
 
             IOLoop.current().run_in_executor(
                 None, lambda: add_catalog(catalog.id, catalog_data)

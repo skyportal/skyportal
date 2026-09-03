@@ -28,7 +28,7 @@ class FollowUpAPI(_Base):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request):
+    async def submit(request):
         """Submit a follow-up request to a remote observatory.
 
         Parameters
@@ -40,7 +40,7 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def update(request):
+    async def update(request):
         """Update an already submitted request.
 
         Parameters
@@ -52,7 +52,7 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def get(request):
+    async def get(request):
         """Check the status of a submitted request.
 
         Parameters
@@ -64,7 +64,7 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def delete(request):
+    async def delete(request):
         """Delete a submitted request from the facility's queue.
 
         Parameters
@@ -76,7 +76,7 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def send(request):
+    async def send(request):
         """Send an observation plan to the facility's queue.
 
         Parameters
@@ -88,7 +88,7 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def remove(request):
+    async def remove(request):
         """Remove an observation plan from the facility's queue.
 
         Parameters
@@ -100,37 +100,37 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def retrieve():
+    async def retrieve():
         """Retrieve the status of executed observations."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def queued():
+    async def queued():
         """Retrieve the status of planned observations."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def remove_queue():
+    async def remove_queue():
         """Remove a particular queue by name."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def send_skymap():
+    async def send_skymap():
         """Post a skymap-based trigger."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def queued_skymap():
+    async def queued_skymap():
         """Retrieve skymap-based triggers."""
         raise NotImplementedError
 
     # subclasses should implement this if desired
     @staticmethod
-    def remove_skymap():
+    async def remove_skymap():
         """Remove a skymap-based trigger."""
         raise NotImplementedError
 
@@ -148,12 +148,12 @@ class FollowUpAPI(_Base):
 
     # subclasses should implement this if desired
     @staticmethod
-    def retrieve_log():
+    async def retrieve_log():
         """Retrieve the log of an instrument."""
         raise NotImplementedError
 
     @staticmethod
-    def update_status():
+    async def update_status():
         """Retrieve the latest status of an instrument."""
         raise NotImplementedError
 

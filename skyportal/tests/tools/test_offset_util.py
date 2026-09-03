@@ -1,14 +1,17 @@
 import uuid
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as npt
 import pytest
 import requests
-from requests.exceptions import ConnectionError, HTTPError, MissingSchema, Timeout
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from skyportal.models import Photometry
 from skyportal.tests import api
 from skyportal.utils.offset import (
+    IRSA_SEARCH_TIMEOUT,
     _calculate_best_position_for_offset_stars,
     get_finding_chart,
     get_nearby_offset_stars,
@@ -185,24 +188,10 @@ def test_calculate_best_position_with_photometry(
         npt.assert_almost_equal(dec_calc_snr, dec_calc_err, decimal=10)
 
 
-# use a bona fide URL to test to see if the ZTF search facility is working
-ztfref_url = get_ztfref_url(123.0, 33.3, 2)
-# if it's a valid URL, then we can assume that the ZTF search facility is working
-run_ztfref_test = True
-try:
-    if ztfref_url != "":
-        r = requests.get(ztfref_url)
-        r.raise_for_status()
-    else:
-        run_ztfref_test = False
-except (HTTPError, TimeoutError, ConnectionError, MissingSchema) as e:
-    run_ztfref_test = False
-    print(e)
-
-
-@pytest.mark.skipif(not run_ztfref_test, reason="IRSA server down")
 def test_get_ztfref_url():
     url = get_ztfref_url(123.0, 33.3, 2)
+    if url == "":
+        pytest.skip("IRSA server down")
 
     assert isinstance(url, str)
     assert url.find("irsa") != -1
@@ -213,13 +202,14 @@ def test_get_nearby_offset_stars():
     rez = get_nearby_offset_stars(
         123.0, 33.3, "testSource", how_many=how_many, radius_degrees=3 / 60.0
     )
-    # expecting 5 parameters:
+    # expecting 6 parameters:
     #   a list of the source+offset stars,
     #   What query was used against Gaia,
     #   number of queries_issued,
     #   number of offset stars
-    #   whether ZRF ref was used for astrometry
-    assert len(rez) == 5
+    #   whether ZTF ref was used for astrometry
+    #   whether Gaia was reachable (proper motion could be applied)
+    assert len(rez) == 6
     assert isinstance(rez[0], list)
     assert len(rez[0]) == how_many + 1
 
@@ -235,23 +225,18 @@ def test_get_nearby_offset_stars():
         )
 
 
-desi_url = (
+DESI_URL = (
     "http://legacysurvey.org/viewer/fits-cutout/"
     "?ra=123.0&dec=33.0&layer=dr8&pixscale=2.0&bands=r"
 )
 
-# check to see if the DESI server is up. If not, do not run test.
-run_desi_test = True
-try:
-    r = requests.get(desi_url)
-    r.raise_for_status()
-except (HTTPError, Timeout, ConnectionError) as e:
-    run_desi_test = False
-    print(e)
 
-
-@pytest.mark.skipif(not run_desi_test, reason="DESI server down")
 def test_get_desi_finding_chart():
+    try:
+        requests.get(DESI_URL, timeout=10).raise_for_status()
+    except (HTTPError, Timeout, ConnectionError):
+        pytest.skip("DESI server down")
+
     rez = get_finding_chart(
         123.0, 33.3, "testSource", image_source="desi", output_format="pdf"
     )
@@ -274,3 +259,73 @@ def test_get_finding_chart():
     )
     assert isinstance(rez, dict)
     assert not rez["success"]
+
+
+def _fake_response(status_code=200, body=b""):
+    return SimpleNamespace(status_code=status_code, content=body)
+
+
+# A real CSV reply, trimmed to the columns get_ztfref_url reads.
+_IRSA_CSV = b"field,filtercode,qid,ccdid\n600,zr,2,10\n"
+
+
+def _fresh_position():
+    """Coordinates unused by any earlier run.
+
+    _ztfref_url_and_epoch is memoised to disk on (ra, dec, imsize), so a fixed
+    position would be answered from a previous run's cache and the test would
+    never exercise the code it is checking.
+    """
+    return float(np.random.uniform(0, 360)), float(np.random.uniform(-20, 60))
+
+
+def test_ztfref_outage_is_not_cached():
+    """An IRSA outage must not be remembered as 'no reference image here'.
+
+    The lookup is disk-memoised, so caching a transient failure would hide the
+    reference for that position long after IRSA recovered.
+    """
+    ra, dec = _fresh_position()
+    calls = []
+
+    def flaky(url, **kwargs):
+        calls.append(url)
+        if len(calls) == 1:
+            return _fake_response(status_code=502, body=b"<html>Bad Gateway</html>")
+        return _fake_response(body=_IRSA_CSV)
+
+    with patch("skyportal.utils.offset.get_url", side_effect=flaky):
+        first = get_ztfref_url(ra, dec, 2)
+        assert first == "", "an errored lookup should yield no url"
+        second = get_ztfref_url(ra, dec, 2)
+
+    assert len(calls) == 2, "the failure was cached instead of being retried"
+    assert "irsa" in second and second.endswith("_refimg.fits"), second
+
+
+def test_ztfref_absent_reference_is_reported_without_error():
+    """IRSA answering 'nothing here' is a real answer, not a failure."""
+    ra, dec = _fresh_position()
+    empty_csv = _fake_response(body=b"nothing\n")
+    with patch("skyportal.utils.offset.get_url", return_value=empty_csv):
+        assert get_ztfref_url(ra, dec, 2) == ""
+        url, epoch = get_ztfref_url(ra, dec, 2, return_epoch=True)
+    assert url == "" and epoch is None
+
+
+def test_ztfref_lookup_uses_the_short_timeout():
+    """The lookup sits on a worker thread, so it must not use the 20s default."""
+    ra, dec = _fresh_position()
+    seen = {}
+
+    def capture(url, **kwargs):
+        seen.update(kwargs)
+        return _fake_response(body=_IRSA_CSV)
+
+    with patch("skyportal.utils.offset.get_url", side_effect=capture):
+        get_ztfref_url(ra, dec, 2)
+
+    assert seen.get("timeout") == IRSA_SEARCH_TIMEOUT
+    assert IRSA_SEARCH_TIMEOUT[1] <= 10, (
+        "read timeout is back to a thread-stalling value"
+    )

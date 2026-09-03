@@ -1,21 +1,19 @@
-import base64
 import json
-import os
-import urllib
-from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from datetime import timedelta
 
+import aiohttp
 import astropy.units as u
-import requests
 import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -23,10 +21,14 @@ env, cfg = load_env()
 log = make_log("facility_apis/ttt")
 
 
-def get_user_token(user, password):
+async def get_user_token(user, password):
     url = f"{cfg['app.ttt_endpoint']}/auth/get-token/"
-    r = requests.post(url, data={"username": user, "password": password}, verify=False)
-    return r.json()["access"]
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            url, data={"username": user, "password": password}, ssl=False
+        ) as r:
+            content = await r.text()
+    return json.loads(content)["access"]
 
 
 def validate_request_to_ttt(request, proposal_id):
@@ -124,7 +126,7 @@ class TTTAPI(FollowUpAPI):
     """SkyPortal interface to the Two-meter Twin Telescope"""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to TTT.
 
         Parameters
@@ -135,7 +137,18 @@ class TTTAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest, Obj
+
+        # Reload with the chains this method (and validate_request_to_ttt) walk
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj).selectinload(Obj.photometry),
+            )
+        )
 
         if cfg["app.ttt_endpoint"] is not None:
             altdata = request.allocation.altdata
@@ -144,28 +157,26 @@ class TTTAPI(FollowUpAPI):
                 raise ValueError("Missing allocation information.")
 
             payload = validate_request_to_ttt(request, altdata["proposal_id"])
-            token = get_user_token(altdata["username"], altdata["password"])
+            token = await get_user_token(altdata["username"], altdata["password"])
 
             headers = {
                 "Authorization": f"Bearer {token}",
             }
             url = f"{cfg['app.ttt_endpoint']}/observing-runs/"
 
-            r = requests.request(
-                "POST",
-                url,
-                json=payload,
-                headers=headers,
-            )
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
 
-            if r.status_code == 201:
+            if status == 201:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.text}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -207,7 +218,7 @@ class TTTAPI(FollowUpAPI):
             log(f"Failed to send notification: {e}")
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from TTT queue.
 
         Parameters
@@ -220,6 +231,18 @@ class TTTAPI(FollowUpAPI):
 
         from ..models import FacilityTransaction, FollowupRequest
 
+        # Reload with the chains this method walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
+
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
@@ -229,11 +252,7 @@ class TTTAPI(FollowUpAPI):
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            req = session.scalar(
-                sa.select(FollowupRequest).where(FollowupRequest.id == request.id)
-            )
-
-            content = str(req.transactions[-1].response["content"])
+            content = str(request.transactions[-1].response["content"])
             try:
                 content = json.loads(content)
             except json.JSONDecodeError:
@@ -245,20 +264,24 @@ class TTTAPI(FollowUpAPI):
             if not uid:
                 raise ValueError("Unable to find observation ID in response from TTT.")
 
-            token = get_user_token(altdata["username"], altdata["password"])
+            token = await get_user_token(altdata["username"], altdata["password"])
             headers = {
                 "Authorization": f"Bearer {token}",
             }
             url = f"{cfg['app.ttt_endpoint']}/observing-runs/{uid}"
 
-            r = requests.request("DELETE", url, headers=headers)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.delete(url, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
 
-            r.raise_for_status()
+            if status >= 400:
+                raise ValueError(f"Error deleting request: status {status}")
             request.status = "deleted"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("DELETE", url, headers),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -314,14 +337,14 @@ class TTTAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": utcnow_naive().date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive().date() + timedelta(days=7)).isoformat(),
             },
         },
         "required": [

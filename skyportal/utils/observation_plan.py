@@ -20,12 +20,12 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..handlers.api.galaxy import get_galaxies
-from .cache import Cache, array_to_bytes
+from .cache import Cache, array_to_bytes, cache_folder
 
 log = make_log("api/observation_plan")
 
 env, cfg = load_env()
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
@@ -117,9 +117,9 @@ def generate_observation_plan_statistics(
         session.execute("ANALYZE")  # do we need this?
 
     for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
-        plan = session.query(EventObservationPlan).get(observation_plan_id)
-        request = session.query(ObservationPlanRequest).get(request_id)
-        event = session.query(GcnEvent).get(request.gcnevent_id)
+        plan = session.get(EventObservationPlan, observation_plan_id)
+        request = session.get(ObservationPlanRequest, request_id)
+        event = session.get(GcnEvent, request.gcnevent_id)
 
         partition_key = event.dateobs
         # now get the dateobs in the format YYYY_MM
@@ -370,13 +370,13 @@ def generate_plan(
 
         session = Session()
         for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
-            plan = session.query(EventObservationPlan).get(observation_plan_id)
-            request = session.query(ObservationPlanRequest).get(request_id)
+            plan = session.get(EventObservationPlan, observation_plan_id)
+            request = session.get(ObservationPlanRequest, request_id)
 
             plans.append(plan)
             requests.append(request)
 
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         log(
             f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
         )

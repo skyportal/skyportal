@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyPortal</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      try {
+        if (window.localStorage.getItem("skyportal:theme") === "dark") {
+          document.documentElement.style.backgroundColor =
+            window.localStorage.getItem("skyportal:darkScheme") === "graphite"
+              ? "#303030"
+              : "#0e1726";
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="content"></div>
+  </body>
+</html>

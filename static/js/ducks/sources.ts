@@ -1,0 +1,334 @@
+/**
+ * Sources (paginated source listings).
+ *
+ * RTK Query conversion of the old `FETCH_SOURCES` family of ducks. All six list
+ * queries hit `/api/sources` with a different `filterParams` object; the object
+ * becomes the query's cache key automatically, so each distinct page/filter is
+ * cached independently.
+ *
+ * The websocket handlers (`REFRESH_FAVORITE_SOURCES`, `FETCH_GCNEVENT_SOURCES`,
+ * `REFRESH_SOURCE`) are bridged to `Sources` tag invalidation via
+ * `invalidateOnMessage`, preserving the conditional refresh logic of the old
+ * `messageHandler.add(...)` callbacks.
+ */
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+import { buildQueryString, filterOutEmptyValues, pickParams } from "../API";
+import { skyportalApi } from "../api/skyportalApi";
+import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
+
+const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
+const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
+const FETCH_GCNEVENT_SOURCES = "skyportal/FETCH_GCNEVENT_SOURCES";
+
+export type FilterParams = Record<string, any>;
+
+export interface SourcesResult {
+  sources: { [key: string]: any }[] | null;
+  totalMatches: number;
+  pageNumber: number;
+  numPerPage: number;
+  /**
+   * Handle for the backend's cached obj_id list, assigned on the first page.
+   * Echo it back on later pages to skip re-running the full ordering query.
+   */
+  queryID?: string | null;
+  [key: string]: any;
+}
+
+const QUERY_KEYS = [
+  "TNSname",
+  "alias",
+  "annotationsFilter",
+  "annotationsFilterAfter",
+  "annotationsFilterBefore",
+  "annotationsFilterOrigin",
+  "classifications",
+  "classifications_simul",
+  "classified",
+  "commentsFilter",
+  "commentsFilterAfter",
+  "commentsFilterAuthor",
+  "commentsFilterBefore",
+  "createdOrModifiedAfter",
+  "currentUserLabeller",
+  "dec",
+  "deduplicatePhotometry",
+  "detectedWindowEnd",
+  "detectedWindowStart",
+  "endDate",
+  "excludeForcedPhotometry",
+  "followupRequestStatus",
+  "group_ids",
+  "hasBeenLabelled",
+  "hasFollowupRequest",
+  "hasNoSpectrum",
+  "hasNoTNSname",
+  "hasNotBeenLabelled",
+  "hasSpectrum",
+  "hasSpectrumAfter",
+  "hasSpectrumBefore",
+  "hasTNSname",
+  "includeAnalyses",
+  "includeAssociatedObjs",
+  "includeCandidates",
+  "includeColorMagnitude",
+  "includeCommentExists",
+  "includeComments",
+  "includeDetectionStats",
+  "includeGCNCrossmatches",
+  "includeGCNNotes",
+  "includeGeoJSON",
+  "includeHosts",
+  "includeLabellers",
+  "includePeriodExists",
+  "includePhotometry",
+  "includePhotometryExists",
+  "includeRequested",
+  "includeSourcesInGcn",
+  "includeSpectrumExists",
+  "includeSuperObjs",
+  "includeTags",
+  "includeThumbnails",
+  "listName",
+  "localizationCumprob",
+  "localizationDateobs",
+  "localizationName",
+  "localizationRejectSources",
+  "maxLatestMagnitude",
+  "maxPeakMagnitude",
+  "maxRedshift",
+  "minLatestMagnitude",
+  "minPeakMagnitude",
+  "minRedshift",
+  "nonclassifications",
+  "numPerPage",
+  "numberDetections",
+  "origin",
+  "pageNumber",
+  "pendingOnly",
+  "queryID",
+  "ra",
+  "radius",
+  "rejectedSourceIDs",
+  "removeNested",
+  "requireDetections",
+  "saveSummary",
+  "savedAfter",
+  "savedBefore",
+  "savedByCurrentUser",
+  "simbadClass",
+  "sortBy",
+  "sortOrder",
+  "sourceID",
+  "spatialCatalogEntryName",
+  "spatialCatalogName",
+  "startDate",
+  "unclassified",
+  "useCache",
+] as const;
+
+const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
+  const params = { ...filterParams };
+  if (!Object.keys(params).includes("numPerPage")) {
+    params["numPerPage"] = 30;
+  }
+  params["includeColorMagnitude"] = true;
+  params["includeThumbnails"] = true;
+  params["includeDetectionStats"] = true;
+  params["includeLabellers"] = true;
+  params["includeHosts"] = true;
+  return params;
+};
+
+/**
+ * Opt into the backend's server-side query cache (`useCache` + `queryID`).
+ *
+ * `/api/sources` has no LIMIT on its ordering query: it aggregates
+ * MAX(saved_at) over *every* matching source to build the full ordered obj_id
+ * list, because `totalMatches` is the length of that list. On a Fritz-sized
+ * database that is a ~2-3s full scan, and without a queryID it is repeated on
+ * every single page request.
+ *
+ * Passing `useCache=true` makes the backend persist that list and hand back a
+ * `queryID`; echoing the id on later pages serves them from the cached list
+ * instead (measured ~3.3s -> ~1.0s per page). This is the same mechanism the
+ * scanning page already uses via `getCandidates`.
+ *
+ * The handler validates the pairing strictly, so mirror its contract exactly:
+ *   - page 1 must NOT carry a queryID (the backend assigns one)
+ *   - page > 1 must carry one, or the request is rejected
+ * Anything that would violate it falls back to an uncached query rather than
+ * erroring.
+ */
+const withQueryCache = (params: FilterParams): FilterParams => {
+  const p = { ...params };
+  const pageNumber = Number(p["pageNumber"] ?? 1);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 1) {
+    delete p["queryID"];
+    p["useCache"] = true;
+  } else if (p["queryID"]) {
+    p["useCache"] = true;
+  } else {
+    // Page > 1 with no queryID (e.g. a deep-linked page, or a cache entry the
+    // backend has since expired): ask for the full query instead of tripping
+    // the handler's validation.
+    delete p["useCache"];
+  }
+  return p;
+};
+
+/** Build a `/api/sources?...` URL from a filterParams object. */
+const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
+  const filtered = filterOutEmptyValues(
+    pickParams(withQueryCache(params), QUERY_KEYS),
+    true,
+    removeFalse,
+  );
+  const queryString = buildQueryString(filtered);
+  return `/api/sources?${queryString}`;
+};
+
+export const sourcesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    fetchSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) =>
+        buildSourcesUrl(addFilterParamDefaults(filterParams ?? {})),
+      providesTags: ["Sources"],
+    }),
+    fetchSavedGroupSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) =>
+        buildSourcesUrl(addFilterParamDefaults(filterParams ?? {})),
+      providesTags: ["Sources"],
+    }),
+    fetchPendingGroupSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) => {
+        const params = addFilterParamDefaults(filterParams ?? {});
+        params["pendingOnly"] = true;
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchFavoriteSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) => {
+        const params = addFilterParamDefaults(filterParams ?? {});
+        params["listName"] = "favorites";
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchGcnEventSources: build.query<
+      SourcesResult,
+      { dateobs: any; filterParams?: FilterParams }
+    >({
+      query: ({ dateobs, filterParams = {} }) => {
+        const params = addFilterParamDefaults(filterParams);
+        params["localizationDateobs"] = dateobs;
+        // A counterpart is a source detected *during* the window. startDate and
+        // endDate mean something stricter, that the whole detection history
+        // falls inside it, which drops anything still being detected -- so the
+        // time range is sent as a detection window instead.
+        if (params["startDate"] != null) {
+          params["detectedWindowStart"] ??= params["startDate"];
+          delete params["startDate"];
+        }
+        if (params["endDate"] != null) {
+          params["detectedWindowEnd"] ??= params["endDate"];
+          delete params["endDate"];
+        }
+        if (dateobs) {
+          params["detectedWindowStart"] ??= dayjs(dateobs).format(
+            "YYYY-MM-DD HH:mm:ss",
+          );
+          params["detectedWindowEnd"] ??= dayjs(dateobs)
+            .add(7, "day")
+            .format("YYYY-MM-DD HH:mm:ss");
+        }
+        params["includeSourcesInGcn"] = true;
+        params["includeGeoJSON"] = true;
+        return buildSourcesUrl(params, false);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchSpatialCatalogSources: build.query<
+      SourcesResult,
+      { catalogName: string; entryName: string; filterParams?: FilterParams }
+    >({
+      query: ({ catalogName, entryName, filterParams = {} }) => {
+        const params = addFilterParamDefaults(filterParams);
+        params["spatialCatalogName"] = catalogName;
+        params["spatialCatalogEntryName"] = entryName;
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+    // Distinct top-level altdata keys, for offering altdata columns on the table.
+    getAltdataInfo: build.query<{ keys: Record<string, string>[] }, void>({
+      query: () => "api/internal/altdata_info",
+      providesTags: ["AltdataInfo"],
+    }),
+  }),
+});
+
+// Websocket-driven invalidation. Each handler preserves the old conditional
+// refresh logic, returning the `Sources` tag to refetch active list queries or
+// `null` to ignore the message.
+invalidateOnMessage(REFRESH_FAVORITE_SOURCES, () =>
+  window.location.pathname === "/favorites" ? ["Sources"] : null,
+);
+
+// Only refetch when the affected event's sources are actually loaded. Map the
+// pushed gcnEvent id -> dateobs (the query key) via the cached event, then check
+// for a loaded gcn-event-sources query. Pre-RTK this was gated on the currently-
+// viewed event; unconditional invalidation refetched the heavy list every time.
+invalidateOnMessage(FETCH_GCNEVENT_SOURCES, (payload, getState) => {
+  const dateobs =
+    payload?.gcnEvent?.dateobs ??
+    (payload?.gcnEvent?.id != null
+      ? findCachedQueryArg(
+          getState,
+          "getGcnEvent",
+          (data) => data?.id === payload.gcnEvent.id,
+        )
+      : null);
+  if (dateobs == null) return null;
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedEvent = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName === "fetchGcnEventSources" &&
+      entry?.originalArgs?.dateobs === dateobs,
+  );
+  return onLoadedEvent ? ["Sources"] : null;
+});
+
+// Only refetch when the updated source is actually on a currently-loaded page.
+// Pre-RTK this handler was gated on the source being in the list (and merged a
+// single source); refetching the whole heavy list on every REFRESH_SOURCE
+// app-wide — these arrive at alert rates — made the sources page crawl/crash.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedPage = Object.values(queries).some((entry: any) =>
+    (entry?.data?.sources as any[] | undefined)?.some(
+      (s) => s.internal_key === payload?.obj_key,
+    ),
+  );
+  return onLoadedPage ? ["Sources"] : null;
+});
+
+export const {
+  useFetchSourcesQuery,
+  useLazyFetchSourcesQuery,
+  useFetchSavedGroupSourcesQuery,
+  useLazyFetchSavedGroupSourcesQuery,
+  useFetchPendingGroupSourcesQuery,
+  useLazyFetchPendingGroupSourcesQuery,
+  useFetchFavoriteSourcesQuery,
+  useFetchGcnEventSourcesQuery,
+  useFetchSpatialCatalogSourcesQuery,
+  useGetAltdataInfoQuery,
+} = sourcesApi;

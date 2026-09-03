@@ -6,7 +6,9 @@ NORMAL=\033[0m
 PYTHON:=PYTHONPATH=. uv run python
 FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
 
-VER := $(shell uv run python -c "import skyportal; print(skyportal.__version__)")
+# Skip on a fresh clone: uv can't resolve the workspace until the baselayer
+# submodule is checked out, which the rule below does.
+VER := $(if $(wildcard baselayer/pyproject.toml),$(shell uv run python -c "import skyportal; print(skyportal.__version__)"))
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 SKYPORTAL_UID ?= 1000
@@ -22,13 +24,16 @@ help: baselayer/Makefile
 	@echo -e "  To $(BOLD)configure$(NORMAL), copy \`config.yaml.defaults\` to \`config.yaml\` and edit."
 	@echo
 	@echo Please choose one of the following make targets:
-	@$(PYTHON) baselayer/tools/makefile_to_help.py "Web Server":baselayer/Makefile "SkyPortal-specific":Makefile
+	@$(PYTHON) baselayer/tools/makefile_to_help.py "Baselayer":baselayer/Makefile "SkyPortal":Makefile
 	@echo
 
+# Explicit targets bypass the catch-all below, so those that shell out to uv
+# name this as a prerequisite: without the submodule they fail deep inside uv,
+# reporting only that baselayer "is not a workspace member".
 baselayer/Makefile:
 	git submodule update --init
 
-dependencies_no_js:
+dependencies_no_js: | baselayer/Makefile
 	@uv sync --inexact  # don't remove additional dependencies installed by the user
 	@$(PYTHON) ./baselayer/tools/check_app_environment.py
 
@@ -47,7 +52,7 @@ docker-local: ## Build docker images locally
 		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
 		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
 
-doc_reqs:
+doc_reqs: | baselayer/Makefile
 	uv sync --group docs --inexact
 
 api-docs: | doc_reqs
@@ -55,11 +60,23 @@ api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/patch-api-doc-template.py $(FLAGS)
 	rm -f openapi.{yml,json}
 
+typegen: ## Generate TS types from the OpenAPI spec into static/js/types/api.ts
+typegen: | baselayer/Makefile
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	bun x openapi-typescript openapi.json -o static/js/types/api.ts
+	rm -f openapi.{yml,json}
+
+routemap: ## Regenerate static/js/types/routeSchemaMap.ts from openapi.json
+routemap: | baselayer/Makefile
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	$(PYTHON) tools/docs/build-route-schema-map.py
+	rm -f openapi.{yml,json}
+
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; uv run make -C doc html
 
-prepare_seed_data:
+prepare_seed_data: | baselayer/Makefile
 	@$(PYTHON) tools/prepare_seed_data.py $(FLAGS)
 
 load_demo_data: ## Import example dataset
@@ -74,9 +91,18 @@ db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
 
+db_clear_test: ## Drop and recreate only the test database.
+db_clear_test: | baselayer/Makefile
+	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
+
+db_clear: ## Drop and recreate all the databases, and delete the on-disk data tied to them.
+db_clear: | baselayer/Makefile
+	@$(PYTHON) tools/clear_data.py $(FLAGS)
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_clear
+
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
-db_migrate:
+db_migrate: | baselayer/Makefile
 	@$(PYTHON) -m alembic $(FLAGS) upgrade head
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html

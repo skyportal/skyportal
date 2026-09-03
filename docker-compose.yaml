@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres17
+    image: postgres:17
     container_name: postgres17
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
@@ -10,6 +10,31 @@ services:
     restart: on-failure:3
     volumes:
       - ./data/dbdata:/var/lib/postgresql/data:z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyportal -d skyportal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Valkey (redis-protocol) server backing skyportal.utils.valkey_cache.
+  # ALLOW_EMPTY_PASSWORD is for local development only.
+  valkey:
+    image: valkey/valkey:9.1.0
+    container_name: valkey
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - VALKEY_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    ports:
+      - "6379:6379"
+    restart: on-failure:3
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   web:
     build: .
@@ -22,8 +47,29 @@ services:
       # cf. https://stackoverflow.com/a/35222815
       - thumbnails:/skyportal/static/thumbnails:z
       - persistentdata:/skyportal/persistentdata:z
+      - cache:/skyportal/cache:z
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  # run_production does not create tables, so initialize the schema before the
+  # app starts. create_all() is checkfirst=True, so this is a safe no-op against
+  # an already-populated database.
+  db-init:
+    build: .
+    command:
+      [
+        "bash",
+        "-c",
+        "source .venv/bin/activate && PYTHONPATH=. python skyportal/initial_setup.py --config=config.yaml",
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
+  cache:
   dbdata:
   persistentdata:
   thumbnails:
+  valkeydata:

@@ -120,6 +120,7 @@ class CommentMixin:
         return {
             field: getattr(self.author, field)
             for field in (
+                "id",
                 "username",
                 "first_name",
                 "last_name",
@@ -180,6 +181,20 @@ class Comment(Base, CommentMixin):
         "Obj",
         back_populates="comments",
         doc="The Comment's Obj.",
+    )
+
+    channel = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="Conversation the comment belongs to, NULL for the main thread.",
+    )
+
+    system = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether the comment was posted by the app rather than typed by its author.",
     )
 
 

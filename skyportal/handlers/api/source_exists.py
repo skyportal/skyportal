@@ -1,4 +1,5 @@
 import conesearch_alchemy as ca
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 
@@ -9,9 +10,28 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class SourceExistsGetQuery(BaseModel):
+    """Query parameters for checking whether a source already exists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ra: float | None = Field(
+        default=None,
+        description="RA for spatial filtering (in decimal degrees)",
+    )
+    dec: float | None = Field(
+        default=None,
+        description="Declination for spatial filtering (in decimal degrees)",
+    )
+    radius: float | None = Field(
+        default=None,
+        description="Radius for spatial filtering if ra & dec are provided (in decimal degrees)",
+    )
+
+
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id: str = None, *, query: SourceExistsGetQuery = None):
         """
         ---
         single:
@@ -19,52 +39,59 @@ class SourceExistsHandler(BaseHandler):
           description: Check if a source exists by ID
           tags:
             - sources
-          parameters:
-            - in: path
-              name: obj_id
-              required: false
-              schema:
-                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         multiple:
           summary: Check if a source exists by position
           description: Check if a source exists by RA, Dec, and radius
           tags:
             - sources
-          parameters:
-          - in: query
-            name: ra
-            nullable: true
-            schema:
-              type: number
-            description: RA for spatial filtering (in decimal degrees)
-          - in: query
-            name: dec
-            nullable: true
-            schema:
-              type: number
-            description: Declination for spatial filtering (in decimal degrees)
-          - in: query
-            name: radius
-            nullable: true
-            schema:
-              type: number
-            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         """
+        query = self.parse_query(SourceExistsGetQuery)
+        ra, dec, radius = query.ra, query.dec, query.radius
+        has_position = ra is not None and dec is not None and radius is not None
 
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
-
-        if not (all([ra, dec, radius]) or obj_id):
+        if not has_position and not obj_id:
             return self.error(
                 "Provide an obj_id, or either ra, dec, and radius for spatial filtering."
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if obj_id:
-                s = session.scalars(
+                obj_result = await session.scalars(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
-                ).first()
+                )
+                s = obj_result.first()
                 if s is not None:
                     return self.success(
                         {
@@ -72,7 +99,7 @@ class SourceExistsHandler(BaseHandler):
                             "message": f"A source with the name {obj_id} already exists.",
                         }
                     )
-                if not all([ra, dec, radius]):
+                if not has_position:
                     return self.success(
                         {
                             "source_exists": False,
@@ -81,28 +108,17 @@ class SourceExistsHandler(BaseHandler):
                     )
 
             source_query = Source.select(session.user_or_token)
-            try:
-                ra = float(ra)
-                dec = float(dec)
-                radius = float(radius)
-            except ValueError:
-                return self.error(
-                    "Invalid values for ra, dec or radius - could not convert to float"
-                )
             other = ca.Point(ra=ra, dec=dec)
             obj_query = Obj.select(session.user_or_token).where(
                 Obj.within(other, radius)
             )
             obj_subquery = obj_query.subquery()
-            sources = (
-                session.scalars(
-                    source_query.join(
-                        obj_subquery, Source.obj_id == obj_subquery.c.id
-                    ).distinct()
-                )
-                .unique()
-                .all()
+            sources_result = await session.scalars(
+                source_query.join(
+                    obj_subquery, Source.obj_id == obj_subquery.c.id
+                ).distinct()
             )
+            sources = sources_result.unique().all()
             source_names = list({source.obj_id for source in sources})
             if len(source_names) == 1:
                 return self.success(

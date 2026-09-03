@@ -1,5 +1,9 @@
+from typing import Annotated
+
+import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -10,6 +14,51 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 USE_PHOTOMETRY_VALIDATION = cfg.get("misc.photometry_validation", False)
+
+
+def _coerce_validated(value):
+    # Mirror the marshmallow Validator's truthy/falsy coercion so the wire
+    # contract is unchanged: the status strings "validated"/"rejected" are
+    # accepted in addition to booleans (pydantic's native bool validation
+    # handles "true"/"false" and actual booleans).
+    if value == "validated":
+        return True
+    if value == "rejected":
+        return False
+    return value
+
+
+ValidatedField = Annotated[bool | None, BeforeValidator(_coerce_validated)]
+
+
+class PhotometryValidationPostBody(BaseModel):
+    """Request body for validating/rejecting a photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    validated: ValidatedField = Field(
+        default=None,
+        description="Whether the photometry is validated (True) or rejected "
+        "(False). The strings 'validated'/'rejected' are also accepted; null "
+        "leaves the status ambiguous.",
+    )
+    explanation: str | None = Field(
+        default=None,
+        description="Explanation for the validation/rejection decision.",
+    )
+    notes: str | None = Field(
+        default=None, description="Free-form notes about the validation."
+    )
+    magsys: str | None = Field(
+        default=None,
+        description="Magnitude system used for the frontend photometry refresh.",
+    )
+
+
+class PhotometryValidationResponse(BaseModel):
+    """Data payload returned when validating/rejecting a photometry point."""
+
+    id: int = Field(description="The id of the photometry_validation.")
 
 
 class Validator(Schema):
@@ -38,61 +87,25 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, photometry_id):
+    async def post(
+        self, photometry_id: int, *, body: PhotometryValidationPostBody = None
+    ) -> PhotometryValidationResponse:
         """
         ---
         summary: Validate/Reject a photometry point
         description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: int
-            description: Photometry ID
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  validated:
-                    type: boolean
-                    description: Whether the source is validated (True) or rejected (False)
-                required:
-                  - validated
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the photomety_validation
-          400:
-            content:
-              application/json:
-                schema: Error
-
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
 
-        data = self.get_json()
+        body = self.parse_body(PhotometryValidationPostBody)
 
-        validated = data.get("validated")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        magsys = data.get("magsys")
+        validated = body.validated
+        explanation = body.explanation
+        notes = body.notes
+        magsys = body.magsys
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -113,12 +126,12 @@ class PhotometryValidationHandler(BaseHandler):
             return self.error(f"Error parsing query params: {e.args[0]}.")
 
         validated = validator.get("validated", None)
-        with self.Session() as session:
-            phot = session.scalars(
+        async with self.AsyncSession() as session:
+            phot = await session.scalar(
                 Photometry.select(session.user_or_token).where(
                     Photometry.id == photometry_id
                 )
-            ).first()
+            )
 
             if phot is None:
                 return self.error(
@@ -128,7 +141,7 @@ class PhotometryValidationHandler(BaseHandler):
             stmt = PhotometryValidation.select(session.user_or_token).where(
                 PhotometryValidation.photometry_id == photometry_id,
             )
-            photometry_validation = session.scalars(stmt).first()
+            photometry_validation = await session.scalar(stmt)
             if photometry_validation:
                 # if the status and explanation are the same, do nothing
                 if (
@@ -146,7 +159,7 @@ class PhotometryValidationHandler(BaseHandler):
                         photometry_validation.explanation = explanation
                     if notes is not None:
                         photometry_validation.notes = notes
-                    session.commit()
+                    await session.commit()
             else:
                 photometry_validation = PhotometryValidation(
                     photometry_id=photometry_id,
@@ -158,68 +171,34 @@ class PhotometryValidationHandler(BaseHandler):
                 if notes is not None:
                     photometry_validation.notes = notes
                 session.add(photometry_validation)
-                session.commit()
+                await session.commit()
 
+            # Use the FK directly to avoid a lazy load on phot.obj.
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": phot.obj.id, "magsys": magsys},
+                payload={"obj_id": phot.obj_id, "magsys": magsys},
             )
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def patch(self, photometry_id):
+    async def patch(
+        self, photometry_id: int, *, body: PhotometryValidationPostBody = None
+    ) -> PhotometryValidationResponse:
         """
         ---
         summary: Update the validated/rejected status of a photometry point
         description: Update the validated or rejected status of a source in a GCN
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: int
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  validated:
-                    type: boolean
-                    description: Whether the photometry is validated (True) or rejected (False)
-                required:
-                  - validated
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the modified photometry_validation
-          400:
-            content:
-              application/json:
-                schema: Error
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
 
-        data = self.get_json()
-        validated = data.get("validated")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        magsys = data.get("magsys")
+        body = self.parse_body(PhotometryValidationPostBody)
+        validated = body.validated
+        explanation = body.explanation
+        notes = body.notes
+        magsys = body.magsys
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -239,13 +218,13 @@ class PhotometryValidationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = PhotometryValidation.select(
                 session.user_or_token, mode="update"
             ).where(
                 PhotometryValidation.photometry_id == photometry_id,
             )
-            photometry_validation = session.scalars(stmt).first()
+            photometry_validation = await session.scalar(stmt)
 
             if not photometry_validation:
                 return self.error("Photometry is not validated/rejected")
@@ -256,19 +235,23 @@ class PhotometryValidationHandler(BaseHandler):
                 photometry_validation.explanation = explanation
             if notes is not None:
                 photometry_validation.notes = notes
-            session.commit()
+            await session.commit()
 
+            # Resolve the obj_id from the Photometry FK without triggering
+            # a lazy load on photometry_validation.photometry.obj.
+            phot_obj_id = await session.scalar(
+                sa.select(Photometry.obj_id).where(
+                    Photometry.id == photometry_validation.photometry_id
+                )
+            )
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={
-                    "obj_id": photometry_validation.photometry.obj.id,
-                    "magsys": magsys,
-                },
+                payload={"obj_id": phot_obj_id, "magsys": magsys},
             )
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def delete(self, photometry_id):
+    async def delete(self, photometry_id: int):
         """
         ---
         summary: Delete the validated/rejected status of a photometry point
@@ -277,12 +260,6 @@ class PhotometryValidationHandler(BaseHandler):
           Its status can be considered as 'undefined'.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometric_id
-            required: true
-            schema:
-              type: int
         responses:
           200:
             content:
@@ -296,7 +273,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the deleted photometry_validation
           400:
             content:
@@ -316,22 +293,26 @@ class PhotometryValidationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f"Error parsing query params: {e.args[0]}.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = PhotometryValidation.select(
                 session.user_or_token, mode="delete"
             ).where(
                 PhotometryValidation.photometry_id == photometry_id,
             )
-            photometry_validation = session.scalars(stmt).first()
+            photometry_validation = await session.scalar(stmt)
 
             if not photometry_validation:
                 return self.error("Photometry is not validated/rejected")
 
-            obj_id = photometry_validation.photometry.obj.id
+            obj_id = await session.scalar(
+                sa.select(Photometry.obj_id).where(
+                    Photometry.id == photometry_validation.photometry_id
+                )
+            )
             photometry_validation_id = photometry_validation.id
 
-            session.delete(photometry_validation)
-            session.commit()
+            await session.delete(photometry_validation)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",

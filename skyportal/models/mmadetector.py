@@ -1,4 +1,9 @@
-__all__ = ["MMADetector", "MMADetectorSpectrum", "MMADetectorTimeInterval"]
+__all__ = [
+    "GcnEventMMADetector",
+    "MMADetector",
+    "MMADetectorSpectrum",
+    "MMADetectorTimeInterval",
+]
 
 import numpy as np
 import sqlalchemy as sa
@@ -9,7 +14,6 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
     accessible_by_owner,
     join_model,
     public,
@@ -26,12 +30,12 @@ _, cfg = load_env()
 
 def manage_mmadetector_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return sa.select(cls)
     elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return sa.select(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return sa.select(cls).where(cls.id == -1)
 
 
 class MMADetector(Base):
@@ -50,10 +54,20 @@ class MMADetector(Base):
         sa.String, nullable=False, doc="Abbreviated facility name (e.g., H1)."
     )
 
+    aliases = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        server_default="{}",
+        doc="Other names GCN notices use for this detector (e.g. Fermi for "
+        "FermiGBM). An event is linked when a tag matches the nickname or any "
+        "alias.",
+    )
+
     type = sa.Column(
         mma_detector_types,
         nullable=False,
-        doc="MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.",
+        doc="MMA detector type, one of gravitational wave, neutrino, gamma-ray "
+        "burst, or x-ray.",
     )
 
     lat = sa.Column(sa.Float, nullable=True, doc="Latitude in deg.")

@@ -1,6 +1,7 @@
 import astropy.units as u
 import healpix_alchemy as ha
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 
 from baselayer.app.access import permissions
@@ -14,9 +15,27 @@ DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
 
 
+class HealpixUpdatePostQuery(BaseModel):
+    """Query parameters for the healpix backfill."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_SOURCES_PER_PAGE,
+        description=(
+            f"Number of objects to update per paginated request. Defaults to "
+            f"{DEFAULT_SOURCES_PER_PAGE}. Capped at {MAX_SOURCES_PER_PAGE}."
+        ),
+    )
+
+
 class HealpixUpdateHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get a count of sources w/ and w/o Healpix values
@@ -45,15 +64,15 @@ class HealpixUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Obj).where(Obj.healpix.is_(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_missing = session.execute(count_stmt).scalar()
+            total_missing = await session.scalar(count_stmt)
 
             # get the number of Objs with Healpix
             stmt = sa.select(Obj).where(Obj.healpix.isnot(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_healpix = session.execute(count_stmt).scalar()
+            total_healpix = await session.scalar(count_stmt)
 
         results = {
             "totalWithoutHealpix": total_missing,
@@ -62,27 +81,13 @@ class HealpixUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    def post(self):
+    async def post(self, *, query: HealpixUpdatePostQuery = None):
         """
         ---
         summary: Calculate Healpix values for sources w/o them
         description: calculate healpix values for a batch of sources without a Healpix value
         tags:
           - sources
-        parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
         responses:
             200:
               content:
@@ -107,32 +112,26 @@ class HealpixUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-                MAX_SOURCES_PER_PAGE,
-            )
-        except ValueError:
-            return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
-            )
+        query = self.parse_query(HealpixUpdatePostQuery)
 
-        with self.Session() as session:
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, MAX_SOURCES_PER_PAGE)
+
+        async with self.AsyncSession() as session:
             stmt = sa.select(Obj).where(Obj.healpix.is_(None))
             # select only objects that don't have a Healpix value
             count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = await session.scalar(count_stmt)
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            objects = session.execute(stmt).scalars().unique().all()
+            result = await session.scalars(stmt)
+            objects = result.unique().all()
 
             for i, obj in enumerate(objects):
                 obj.healpix = ha.constants.HPX.lonlat_to_healpix(
                     obj.ra * u.deg, obj.dec * u.deg
                 )
-            session.commit()
+            await session.commit()
 
         results = {
             "totalMatches": total_matches,

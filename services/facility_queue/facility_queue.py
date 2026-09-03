@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 from io import StringIO
 
 import astropy.units as u
@@ -18,6 +17,7 @@ from skyportal.models import (
     FacilityTransactionRequest,
     FollowupRequest,
 )
+from skyportal.utils.naive_datetime import utcnow_naive
 
 env, cfg = load_env()
 log = make_log("facility_queue")
@@ -176,7 +176,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
@@ -185,7 +185,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
@@ -194,7 +194,7 @@ def service():
                             if followup_request.status != status:
                                 followup_request.status = status
                                 session.add(followup_request)
-                            req.last_query = datetime.utcnow()
+                            req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")
@@ -232,7 +232,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
@@ -250,7 +250,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
                                 continue
@@ -261,7 +261,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
                                 log(f"Job {req.id}: {status}")
@@ -276,7 +276,7 @@ def service():
                                 if followup_request.status != status:
                                     followup_request.status = status
                                     session.add(followup_request)
-                                req.last_query = datetime.utcnow()
+                                req.last_query = utcnow_naive()
                                 req.status = "complete"
                                 session.add(req)
                                 session.commit()
@@ -307,7 +307,7 @@ def service():
                                     if followup_request.status != status:
                                         followup_request.status = status
                                         session.add(followup_request)
-                                    req.last_query = datetime.utcnow()
+                                    req.last_query = utcnow_naive()
                                     session.add(req)
                                     session.commit()
                                     log(f"Job {req.id}: {status}")
@@ -319,7 +319,7 @@ def service():
                             if followup_request.status != status:
                                 followup_request.status = status
                                 session.add(followup_request)
-                            req.last_query = datetime.utcnow()
+                            req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")
@@ -328,7 +328,7 @@ def service():
                             if followup_request.status != status:
                                 followup_request.status = status
                                 session.add(followup_request)
-                            req.last_query = datetime.utcnow()
+                            req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
                             log(f"Job {req.id}: {status}")

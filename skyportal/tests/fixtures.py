@@ -42,6 +42,7 @@ from skyportal.models import (
     Obj,
     ObservingRun,
     Photometry,
+    Role,
     SourceNotification,
     Spectrum,
     Stream,
@@ -52,7 +53,6 @@ from skyportal.models import (
     UserNotification,
     init_db,
 )
-from skyportal.tests.test_util import set_server_url
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
@@ -60,9 +60,39 @@ env, cfg = load_env()
 print("Loading test configuration from _test_config.yaml")
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f"http://localhost:{cfg['ports.app']}")
 print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
+
+
+def resilient_delete(model, obj_id):
+    """Delete a row by id in a factory teardown, recovering from stale-cascade
+    failures.
+
+    Frontend tests routinely modify association rows (e.g. group_users) through
+    the app. That leaves the shared ORM session's cascade relationships stale, so
+    the teardown's ``delete`` flush raises StaleDataError ("expected to delete N
+    row(s); only M matched") and poisons the session for every later test. On
+    failure we roll back, drop all cached state, and retry against current DB
+    state so a single teardown can never cascade across the suite.
+    """
+    obj = (
+        DBSession()
+        .execute(sa.select(model).filter(model.id == obj_id))
+        .scalars()
+        .first()
+    )
+    if obj is None:
+        return
+    try:
+        DBSession().delete(obj)
+        DBSession().commit()
+    except Exception:
+        DBSession().rollback()
+        DBSession().expire_all()
+        obj = DBSession().get(model, obj_id)
+        if obj is not None:
+            DBSession().delete(obj)
+            DBSession().commit()
 
 
 def load_localization_data(path):
@@ -229,17 +259,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(user_id):
-        user = (
-            DBSession()
-            .execute(sa.select(User).filter(User.id == user_id))
-            .scalars()
-            .first()
-        )
-        if user is not None:
-            # If it is, delete it
-            DBSession().refresh(user)
-            DBSession().delete(user)
-            DBSession().commit()
+        resilient_delete(User, user_id)
 
 
 class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -359,17 +379,7 @@ class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(stream_id):
-        # Fetch fresh instance of stream
-        stream = (
-            DBSession()
-            .execute(sa.select(Stream).filter(Stream.id == stream_id))
-            .scalars()
-            .first()
-        )
-        if stream is not None:
-            # If it is, delete it
-            DBSession().delete(stream)
-            DBSession().commit()
+        resilient_delete(Stream, stream_id)
 
 
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -394,16 +404,7 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(group_id):
-        group = (
-            DBSession()
-            .execute(sa.select(Group).filter(Group.id == group_id))
-            .scalars()
-            .first()
-        )
-        if group is not None:
-            # If it is, delete it
-            DBSession().delete(group)
-            DBSession().commit()
+        resilient_delete(Group, group_id)
 
 
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -759,6 +760,28 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
     trigger_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
 
     @factory.post_generation
+    def groups(self, create, passed_groups=None, **kwargs):
+        # GcnEvent.read is group-scoped, so an event with no groups is invisible
+        # to every non-admin user. Events created through the API get their
+        # groups from resolve_gcnevent_groups, but this factory builds the row
+        # directly and so must attach them itself. Default to the sitewide
+        # public group, matching what the API does for public streams (and
+        # which UserFactory adds every test user to).
+        if passed_groups:
+            self.groups = list(passed_groups)
+        else:
+            self.groups = [
+                DBSession()
+                .scalars(
+                    sa.select(Group).where(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .first()
+            ]
+        DBSession().commit()
+
+    @factory.post_generation
     def aliases(self, created, passed_aliases=None, **kwargs):
         if passed_aliases:
             self.aliases = passed_aliases
@@ -808,7 +831,8 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @factory.post_generation
-    def localizations(self, create, passed_localizations=[], **kwargs):
+    def localizations(self, create, passed_localizations=None, **kwargs):
+        passed_localizations = passed_localizations or []
         if len(passed_localizations) > 0:
             new_localizations = []
             for localization_dict in passed_localizations:
@@ -878,6 +902,26 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     calendar_date = "3021-02-27"
     run_end_utc = "3021-02-27 14:20:24.972000"
     owner = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def groups(self, create, passed_groups=None, **kwargs):
+        # ObservingRun.read is group-scoped, so a run with no groups is
+        # invisible to every non-admin user -- and its assignments with it.
+        # Runs created through the API default to the sitewide public group;
+        # this factory builds the row directly and so must do the same.
+        if passed_groups:
+            self.groups = list(passed_groups)
+        else:
+            self.groups = [
+                DBSession()
+                .scalars(
+                    sa.select(Group).where(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .first()
+            ]
+        DBSession().commit()
 
     @staticmethod
     def teardown(run):
@@ -996,8 +1040,8 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Allocation
 
     instrument = factory.SubFactory(InstrumentFactory)
-    group = (factory.SubFactory(GroupFactory),)
-    pi = (factory.LazyFunction(lambda: uuid.uuid4().hex),)
+    group = factory.SubFactory(GroupFactory)
+    pi = factory.LazyFunction(lambda: uuid.uuid4().hex)
     proposal_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
     hours_allocated = 100
 
@@ -1064,6 +1108,15 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     token = factory.LazyFunction(lambda: uuid.uuid4().hex)
     admin_for_groups = []
+    # role, can_save_to_groups, and can_share_photometry_for_groups are NOT NULL on Invitation;
+    # the handler always sets them, so the factory must too, or the row fails to flush.
+    can_save_to_groups = []
+    can_share_photometry_for_groups = []
+    role = factory.LazyFunction(
+        lambda: (
+            DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
+        )
+    )
     user_email = "user@email.com"
     invited_by = factory.SubFactory(UserFactory)
     used = False

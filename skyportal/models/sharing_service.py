@@ -12,7 +12,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import column_property, deferred, relationship
 from sqlalchemy_utils.types import JSONType
-from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
+from sqlalchemy_utils.types.encrypted.encrypted_type import (
+    AesEngine,
+    StringEncryptedType,
+)
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -92,7 +95,7 @@ class SharingService(Base):
         sa.Integer, doc="Source group ID of the TNS bot.", nullable=True
     )
     _tns_altdata = sa.Column(
-        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
     )
     publish_existing_tns_objects = sa.Column(
         sa.Boolean,

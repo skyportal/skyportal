@@ -2,6 +2,7 @@ import datetime
 import os
 
 import tornado.web
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -12,16 +13,29 @@ from ...base import BaseHandler
 log = make_log("js")
 
 
+class LogPostBody(BaseModel):
+    """Request body for logging a frontend error."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    error: str | None = Field(default=None, description="Error message to log")
+    stack: str | None = Field(
+        default=None, description="Component stack trace of the error"
+    )
+
+
 class LogHandler(BaseHandler):
     @tornado.web.authenticated
-    def post(self, *ignored_args):
+    async def post(self, *ignored_args, body: LogPostBody = None):
         """Log a frontend error to the server logs, tracking user crash reports."""
-        data = self.get_json()
-        log(f"{data['error']}{data['stack']}")
+        body = self.parse_body(LogPostBody)
+        # A report that is missing a field is still worth logging, so read
+        # loosely: this endpoint exists to hear about breakage, not to add to it.
+        log(f"{body.error or 'Unspecified frontend error'}{body.stack or ''}")
         return self.success()
 
     @permissions(["System admin"])
-    def get(self, file_name=None):
+    async def get(self, file_name: str = None):
         """Retrieve the contents of a log file, or list all log files (with human readable size and last_modified) if no file name is provided."""
         if file_name is None:
             # 1. grab the list of file names from the log directory, found in skyportal/log

@@ -27,7 +27,14 @@ from .stream import Stream
 def basic_user_display_info(user):
     return {
         field: getattr(user, field)
-        for field in ("username", "first_name", "last_name", "gravatar_url", "is_bot")
+        for field in (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "gravatar_url",
+            "is_bot",
+        )
     }
 
 
@@ -44,12 +51,12 @@ def user_update_delete_logic(cls, user_or_token):
     or update any user."""
 
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
 
     # non admin users can only update or delete themselves
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
 
-    return DBSession().query(cls).filter(cls.id == user_id)
+    return sa.select(cls).where(cls.id == user_id)
 
 
 @property
@@ -401,12 +408,12 @@ User.observing_runs = relationship(
     doc="Observing Runs this User has created.",
     foreign_keys="ObservingRun.owner_id",
 )
-User.sources_in_gcn = relationship(
-    "SourcesConfirmedInGCN",
+User.gcn_event_objs = relationship(
+    "GcnEventObj",
     cascade="save-update, merge, refresh-expire, expunge",
     passive_deletes=True,
-    doc="SourcesConfirmedInGCN this User has created.",
-    foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+    doc="GcnEventObj rows this User has created.",
+    foreign_keys="GcnEventObj.confirmer_id",
 )
 User.photometryvalidations = relationship(
     "PhotometryValidation",

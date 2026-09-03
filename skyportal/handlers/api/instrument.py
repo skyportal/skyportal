@@ -1,6 +1,7 @@
 import ast
 import time
 from io import StringIO
+from typing import Any, ClassVar
 
 import arrow
 import numpy as np
@@ -12,8 +13,14 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import (
+    scoped_session,
+    selectinload,
+    sessionmaker,
+    undefer,
+)
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -35,13 +42,13 @@ from ...models import (
     Telescope,
 )
 from ...utils.asynchronous import run_async
-from ...utils.cache import Cache, array_to_bytes
+from ...utils.cache import Cache, array_to_bytes, cache_folder
 from ..base import BaseHandler
 
 log = make_log("api/instrument")
 env, cfg = load_env()
 
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
@@ -52,19 +59,219 @@ cache = Cache(
 Session = scoped_session(sessionmaker())
 
 
-class InstrumentHandler(BaseHandler):
-    @permissions(["Manage instruments"])
-    def post(self):
-        # See bottom of this file for redoc docstring -- moved it there so that
-        # it could be made an f-string.
+class InstrumentGetQuery(BaseModel):
+    """Query parameters for retrieving one or all instruments."""
 
-        data = self.get_json()
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {
+            "includeGeoJSON",
+            "includeGeoJSONSummary",
+            "includeRegion",
+            "ignoreCache",
+            "localizationDateobs",
+            "localizationName",
+            "localizationCumprob",
+            "airmassTime",
+        }
+    )
+
+    includeGeoJSON: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated GeoJSON. Defaults to false.",
+    )
+    includeGeoJSONSummary: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to false.",
+    )
+    includeRegion: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated DS9 region. Defaults to false.",
+    )
+    ignoreCache: bool = Field(
+        default=False,
+        description="Boolean indicating whether to ignore field caching. Defaults to false.",
+    )
+    localizationDateobs: str | None = Field(
+        default=None,
+        description=(
+            "Include fields within a given localization. "
+            "Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Each localization is associated with a specific GCNEvent by "
+            "the date the event happened, and this date is used as a unique "
+            "identifier. It can be therefore found as Localization.dateobs, "
+            "queried from the /api/localization endpoint or dateobs in the "
+            "GcnEvent page table."
+        ),
+    )
+    localizationName: str | None = Field(
+        default=None,
+        description=(
+            "Name of localization / skymap to use. "
+            "Can be found in Localization.localization_name queried from "
+            "/api/localization endpoint or skymap name in GcnEvent page table."
+        ),
+    )
+    localizationCumprob: float = Field(
+        default=0.95,
+        description="Cumulative probability up to which to include fields. Defaults to 0.95.",
+    )
+    airmassTime: str | None = Field(
+        default=None,
+        description=(
+            "Time to use for airmass calculation in "
+            "ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). "
+            "Defaults to localizationDateobs if not supplied."
+        ),
+    )
+    name: str | None = Field(
+        default=None,
+        description="Filter by name (exact match)",
+    )
+
+
+class InstrumentPostBody(BaseModel):
+    """Request body for creating an instrument.
+
+    Pass-through blob fields (sensitivity/configuration/field/reference data)
+    are typed permissively; the handler and marshmallow schema enforce the
+    real validation rules.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Instrument name.")
+    acknowledgment: str | None = Field(
+        default=None,
+        description="Sentence to cite this instrument with, used to build a "
+        "source's acknowledgment block. Falls back to the instrument name when "
+        "unset.",
+    )
+    type: str | None = Field(
+        default=None,
+        description="Instrument type, one of Imager, Spectrograph, or Imaging "
+        "Spectrograph.",
+    )
+    band: str | None = Field(
+        default=None,
+        description="The spectral band covered by the instrument (e.g., Optical, IR).",
+    )
+    telescope_id: int | None = Field(
+        default=None,
+        description="The ID of the Telescope that hosts the Instrument.",
+    )
+    filters: list | None = Field(
+        default=None,
+        description="List of filters on the instrument. If the instrument has no "
+        "filters (e.g., because it is a spectrograph), leave blank or pass the "
+        "empty list.",
+    )
+    sensitivity_data: dict[str, Any] | str | None = Field(
+        default=None,
+        description="List of filters and associated limiting magnitude and exposure "
+        "time. Sensitivity_data filters must be a subset of the instrument filters. "
+        "Limiting magnitude assumed to be AB magnitude.",
+    )
+    configuration_data: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Instrument configuration properties such as instrument overhead, "
+        "filter change time, readout, etc.",
+    )
+    field_data: dict[str, Any] | str | None = Field(
+        default=None, description="List of ID, RA, and Dec for each field."
+    )
+    field_region: str | None = Field(
+        default=None,
+        description="Serialized version of a regions.Region describing the shape of "
+        "the instrument field. Note: should only include field_region or "
+        "field_fov_type.",
+    )
+    references: dict[str, Any] | str | None = Field(
+        default=None,
+        description="List of filter, and limiting magnitude for each reference.",
+    )
+    field_fov_type: str | None = Field(
+        default=None,
+        description="Option for instrument field shape. Must be either circle or "
+        "rectangle. Note: should only include field_region or field_fov_type.",
+    )
+    field_fov_attributes: list | float | str | None = Field(
+        default=None,
+        description="Option for instrument field shape parameters. Single float "
+        "radius in degrees in case of circle or list of two floats (height and "
+        "width) in case of a rectangle.",
+    )
+    api_classname: str | None = Field(
+        default=None, description="Name of the instrument's API class."
+    )
+    api_classname_obsplan: str | None = Field(
+        default=None,
+        description="Name of the instrument's ObservationPlan API class.",
+    )
+    listener_classname: str | None = Field(
+        default=None, description="Name of the instrument's listener class."
+    )
+    treasuremap_id: int | None = Field(
+        default=None, description="treasuremap.space API ID for this instrument."
+    )
+    tns_id: int | None = Field(
+        default=None, description="TNS API ID for this instrument."
+    )
+    across_id: str | None = Field(
+        default=None, description="NASA ACROSS instrument UUID."
+    )
+    region: str | None = Field(
+        default=None, description="Instrument astropy.regions representation."
+    )
+    status: dict[str, Any] | None = Field(
+        default=None,
+        description="JSON describing the latest status of the instrument.",
+    )
+    last_status_update: str | None = Field(
+        default=None, description="The time at which the status was last updated."
+    )
+    has_fields: bool | None = Field(
+        default=None, description="Whether the instrument has fields or not."
+    )
+    has_region: bool | None = Field(
+        default=None, description="Whether the instrument has a region or not."
+    )
+
+
+class InstrumentPutBody(InstrumentPostBody):
+    """Request body for updating an instrument (same shape as the post body)."""
+
+
+class InstrumentPostResponse(BaseModel):
+    """Data payload returned when creating an instrument."""
+
+    id: int = Field(description="New instrument ID")
+
+
+class InstrumentHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, *, body: InstrumentPostBody = None) -> InstrumentPostResponse:
+        """
+        ---
+        summary: Add an instrument
+        description: Add a new instrument
+        tags:
+          - instruments
+        """
+        body = self.parse_body(InstrumentPostBody)
+        data = body.model_dump(exclude_unset=True)
         telescope_id = data.get("telescope_id")
-        with self.Session() as session:
-            stmt = Telescope.select(session.user_or_token).filter(
-                Telescope.id == telescope_id
+        try:
+            telescope_id = int(telescope_id) if telescope_id is not None else None
+        except (TypeError, ValueError):
+            return self.error(f"Invalid telescope_id: {telescope_id}")
+        async with self.AsyncSession() as session:
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token).where(
+                    Telescope.id == telescope_id
+                )
             )
-            telescope = session.scalars(stmt).first()
             if not telescope:
                 return self.error(f"No telescope with id {telescope_id}")
 
@@ -183,19 +390,20 @@ class InstrumentHandler(BaseHandler):
                     f"Invalid/missing parameters: {exc.normalized_messages()}"
                 )
 
-            stmt = Instrument.select(session.user_or_token).where(
-                Instrument.name == data.get("name"),
-                Instrument.telescope_id == telescope_id,
+            existing_instrument = await session.scalar(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.name == data.get("name"),
+                    Instrument.telescope_id == telescope_id,
+                )
             )
-            existing_instrument = session.scalars(stmt).first()
             if existing_instrument is not None:
                 return self.error(
                     f"Instrument with name {existing_instrument.name} already exists for telescope {telescope_id}"
                 )
 
-            instrument.telescope = telescope
+            instrument.telescope_id = telescope.id
             session.add(instrument)
-            session.commit()
+            await session.commit()
 
             if references is not None:
                 if not set(references["filter"]).issubset(instrument.filters):
@@ -234,7 +442,9 @@ class InstrumentHandler(BaseHandler):
             return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    async def get(self, instrument_id=None):
+    async def get(
+        self, instrument_id: int | None = None, *, query: InstrumentGetQuery = None
+    ):
         """
         ---
         single:
@@ -242,64 +452,6 @@ class InstrumentHandler(BaseHandler):
           description: Retrieve an instrument
           tags:
             - instruments
-          parameters:
-            - in: path
-              name: instrument_id
-              required: true
-              schema:
-                type: integer
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: includeGeoJSONSummary
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                false.
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Include fields within a given localization.
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
           responses:
             200:
               content:
@@ -314,80 +466,6 @@ class InstrumentHandler(BaseHandler):
           description: Retrieve all instruments
           tags:
             - instruments
-          parameters:
-            - in: query
-              name: name
-              schema:
-                type: string
-              description: Filter by name (exact match)
-            - in: query
-              name: includeGeoJSON
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON. Defaults to
-                false.
-            - in: query
-              name: includeGeoJSONSummary
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                false.
-            - in: query
-              name: includeRegion
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated DS9 region. Defaults to
-                false.
-            - in: query
-              name: ignoreCache
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to ignore field caching. Defaults to
-                false.
-            - in: query
-              name: localizationDateobs
-              schema:
-                type: string
-              description: |
-                Include fields within a given localization.
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Each localization is associated with a specific GCNEvent by
-                the date the event happened, and this date is used as a unique
-                identifier. It can be therefore found as Localization.dateobs,
-                queried from the /api/localization endpoint or dateobs in the
-                GcnEvent page table.
-            - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use.
-                Can be found in Localization.localization_name queried from
-                /api/localization endpoint or skymap name in GcnEvent page
-                table.
-            - in: query
-              name: localizationCumprob
-              schema:
-                type: number
-              description: |
-                Cumulative probability up to which to include fields.
-                Defaults to 0.95.
-            - in: query
-              name: airmassTime
-              schema:
-                type: string
-              description: |
-                Time to use for airmass calculation in
-                ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Defaults to localizationDateobs if not supplied.
           responses:
             200:
               content:
@@ -398,51 +476,66 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        query = self.parse_query(InstrumentGetQuery)
 
-        localization_dateobs = self.get_query_argument("localizationDateobs", None)
-        localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_dateobs = query.localizationDateobs
+        airmass_time = query.airmassTime
 
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
-        includeRegion = self.get_query_argument("includeRegion", False)
-
-        airmass_time = self.get_query_argument("airmassTime", None)
-        ignore_cache = self.get_query_argument("ignoreCache", False)
+        # Parse localization_dateobs into a naive datetime so psycopg3 can bind
+        # the Localization.dateobs (DateTime) comparison correctly.
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
+                )
 
         if airmass_time is None:
             if localization_dateobs is not None:
                 try:
                     airmass_time = Time(arrow.get(localization_dateobs).datetime)
-                except Exception as e:
+                except Exception:
                     return self.error(
-                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
                     )
         else:
             try:
                 airmass_time = Time(arrow.get(airmass_time).datetime)
-            except Exception as e:
+            except Exception:
                 return self.error(
-                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                    f"Invalid date format for airmass_time: '{airmass_time}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
                 )
-
-        if includeGeoJSON:
-            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
-        elif includeGeoJSONSummary:
+        options = []
+        if query.includeGeoJSON:
             options = [
-                joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
+                selectinload(Instrument.telescope),
+                selectinload(Instrument.fields).undefer(InstrumentField.contour),
             ]
-        else:
-            options = []
-        if includeRegion:
+        elif query.includeGeoJSONSummary:
+            options = [
+                selectinload(Instrument.telescope),
+                selectinload(Instrument.fields).undefer(
+                    InstrumentField.contour_summary
+                ),
+            ]
+        if query.includeRegion:
             options.append(undefer(Instrument.region))
+        # Instrument.status is a deferred column accessed in the single-GET
+        # response; undefer so async access doesn't trip MissingGreenlet.
+        # Same for Instrument.region (used inline by region_summary property).
+        if instrument_id is not None:
+            options.append(undefer(Instrument.status))
+            if not query.includeRegion:
+                options.append(undefer(Instrument.region))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if instrument_id is not None:
-                stmt = Instrument.select(self.current_user, options=options).where(
-                    Instrument.id == int(instrument_id)
+                instrument = await session.scalar(
+                    Instrument.select(self.current_user, options=options).where(
+                        Instrument.id == instrument_id
+                    )
                 )
-                instrument = session.scalars(stmt).first()
                 if instrument is None:
                     return self.error(f"No instrument with ID: {instrument_id}")
 
@@ -450,35 +543,35 @@ class InstrumentHandler(BaseHandler):
 
                 data["status"] = instrument.status
 
-                data["log_exists"] = (
-                    session.scalars(
-                        InstrumentLog.select(self.current_user).where(
-                            InstrumentLog.instrument_id == int(instrument_id)
-                        )
-                    ).first()
-                    is not None
+                instrument_log_count = await session.scalar(
+                    sa.select(sa.func.count())
+                    .select_from(InstrumentLog)
+                    .where(InstrumentLog.instrument_id == instrument_id)
                 )
+                data["log_exists"] = bool(instrument_log_count)
 
                 # optional: slice by GcnEvent localization
                 if localization_dateobs is not None:
-                    if localization_name is not None:
-                        localization = session.scalars(
+                    if query.localizationName is not None:
+                        localization = await session.scalar(
                             Localization.select(
                                 self.current_user,
                             )
                             .where(Localization.dateobs == localization_dateobs)
-                            .where(Localization.localization_name == localization_name)
-                        ).first()
+                            .where(
+                                Localization.localization_name == query.localizationName
+                            )
+                        )
                         if localization is None:
                             return self.error("Localization not found", status=404)
                     else:
-                        event = session.scalars(
+                        event = await session.scalar(
                             GcnEvent.select(
                                 self.current_user,
                             )
+                            .options(selectinload(GcnEvent.localizations))
                             .where(GcnEvent.dateobs == localization_dateobs)
-                            .options(joinedload(GcnEvent.localizations))
-                        ).first()
+                        )
                         if event is None:
                             return self.error("GCN event not found", status=404)
                         localization = event.localizations[-1]
@@ -496,16 +589,12 @@ class InstrumentHandler(BaseHandler):
                             "def", LocalizationTile
                         )
                     else:
-                        # check that there is actually a localizationTile with the given localization_id in the partition
-                        # if not, use the default partition
-                        if not (
-                            session.scalars(
-                                localizationtilescls.select(self.current_user).where(
-                                    localizationtilescls.localization_id
-                                    == localization.id
-                                )
-                            ).first()
-                        ):
+                        existing_tile = await session.scalar(
+                            localizationtilescls.select(self.current_user).where(
+                                localizationtilescls.localization_id == localization.id
+                            )
+                        )
+                        if not existing_tile:
                             localizationtilescls = LocalizationTile.partitions.get(
                                 "def", LocalizationTile
                             )
@@ -529,95 +618,80 @@ class InstrumentHandler(BaseHandler):
                             sa.func.min(localizationtile_subquery.columns.probdensity)
                         ).filter(
                             localizationtile_subquery.columns.cum_prob
-                            <= localization_cumprob
+                            <= query.localizationCumprob
                         )
                     ).scalar_subquery()
 
-                    query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(localization_cumprob)}"
+                    query_id = f"{str(localization.id)}_{str(instrument.id)}_{str(query.localizationCumprob)}"
 
-                    if includeGeoJSON or includeGeoJSONSummary:
-                        if includeGeoJSON:
+                    # MATERIALIZED so Postgres drives the overlap from the small set
+                    # of localization tiles (SPGiST index on healpix) instead of
+                    # misestimating and seq-scanning the whole field-tile table.
+                    localization_tiles = (
+                        sa.select(localizationtilescls.healpix.label("healpix"))
+                        .where(
+                            localizationtilescls.localization_id == localization.id,
+                            localizationtilescls.probdensity >= min_probdensity,
+                        )
+                        .cte("localization_tiles")
+                        .prefix_with("MATERIALIZED")
+                    )
+                    overlapping_field_ids = sa.select(
+                        InstrumentFieldTile.instrument_field_id
+                    ).where(
+                        InstrumentFieldTile.instrument_id == instrument.id,
+                        InstrumentFieldTile.healpix.overlaps(
+                            localization_tiles.c.healpix
+                        ),
+                    )
+
+                    if query.includeGeoJSON or query.includeGeoJSONSummary:
+                        if query.includeGeoJSON:
                             undefer_column = InstrumentField.contour
-                        elif includeGeoJSONSummary:
+                        elif query.includeGeoJSONSummary:
                             undefer_column = InstrumentField.contour_summary
 
                         cache_filename = cache[query_id]
-                        if cache_filename is not None and not ignore_cache:
+                        if cache_filename is not None and not query.ignoreCache:
                             field_ids = np.load(cache_filename).tolist()
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField)
-                                    .filter(
-                                        InstrumentField.field_id.in_(field_ids),
-                                        InstrumentField.instrument_id == instrument.id,
-                                    )
-                                    .options(undefer(undefer_column))
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField)
+                                .filter(
+                                    InstrumentField.field_id.in_(field_ids),
+                                    InstrumentField.instrument_id == instrument.id,
                                 )
-                                .unique()
-                                .all()
+                                .options(undefer(undefer_column))
                             )
+                            tiles = tiles_result.unique().all()
                         else:
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField)
-                                    .filter(
-                                        localizationtilescls.localization_id
-                                        == localization.id,
-                                        localizationtilescls.probdensity
-                                        >= min_probdensity,
-                                        InstrumentFieldTile.instrument_id
-                                        == instrument.id,
-                                        InstrumentFieldTile.instrument_field_id
-                                        == InstrumentField.id,
-                                        InstrumentFieldTile.healpix.overlaps(
-                                            localizationtilescls.healpix
-                                        ),
-                                    )
-                                    .options(undefer(undefer_column))
-                                )
-                                .unique()
-                                .all()
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField)
+                                .where(InstrumentField.id.in_(overlapping_field_ids))
+                                .options(undefer(undefer_column))
                             )
+                            tiles = tiles_result.unique().all()
                             if len(tiles) > 0:
                                 cache[query_id] = array_to_bytes(
                                     [tile.field_id for tile in tiles]
                                 )
                     else:
                         cache_filename = cache[query_id]
-                        if cache_filename is not None and not ignore_cache:
+                        if cache_filename is not None and not query.ignoreCache:
                             field_ids = np.load(cache_filename).tolist()
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField).where(
-                                        InstrumentField.field_id.in_(field_ids),
-                                        InstrumentField.instrument_id == instrument.id,
-                                    )
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField).where(
+                                    InstrumentField.field_id.in_(field_ids),
+                                    InstrumentField.instrument_id == instrument.id,
                                 )
-                                .unique()
-                                .all()
                             )
+                            tiles = tiles_result.unique().all()
                         else:
-                            tiles = (
-                                (
-                                    session.scalars(
-                                        sa.select(InstrumentField).where(
-                                            localizationtilescls.localization_id
-                                            == localization.id,
-                                            localizationtilescls.probdensity
-                                            >= min_probdensity,
-                                            InstrumentFieldTile.instrument_id
-                                            == instrument.id,
-                                            InstrumentFieldTile.instrument_field_id
-                                            == InstrumentField.id,
-                                            InstrumentFieldTile.healpix.overlaps(
-                                                localizationtilescls.healpix
-                                            ),
-                                        )
-                                    )
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField).where(
+                                    InstrumentField.id.in_(overlapping_field_ids)
                                 )
-                                .unique()
-                                .all()
                             )
+                            tiles = tiles_result.unique().all()
                             if len(tiles) > 0:
                                 cache[query_id] = array_to_bytes(
                                     [tile.field_id for tile in tiles]
@@ -644,52 +718,58 @@ class InstrumentHandler(BaseHandler):
 
                 return self.success(data=data)
 
-            inst_name = self.get_query_argument("name", None)
-            if includeRegion:
-                stmt = Instrument.select(self.current_user).options(
-                    undefer(Instrument.region)
+            # Always undefer region so the inline `region_summary` property
+            # can read it without a per-instrument lazy load.
+            stmt = Instrument.select(self.current_user).options(
+                selectinload(Instrument.telescope),
+                undefer(Instrument.region),
+            )
+            if query.name is not None:
+                stmt = stmt.filter(Instrument.name == query.name)
+            instruments_result = await session.scalars(stmt)
+            instruments = instruments_result.unique().all()
+
+            # Pre-compute log existence with one query keyed by instrument_id.
+            instrument_ids = [i.id for i in instruments]
+            log_exist_ids = set()
+            field_counts = {}
+            if instrument_ids:
+                log_ids_result = await session.scalars(
+                    sa.select(InstrumentLog.instrument_id)
+                    .where(InstrumentLog.instrument_id.in_(instrument_ids))
+                    .distinct()
                 )
-            else:
-                stmt = Instrument.select(self.current_user)
-            if inst_name is not None:
-                stmt = stmt.filter(Instrument.name == inst_name)
-            instruments = session.scalars(stmt).all()
+                log_exist_ids = set(log_ids_result.all())
+
+                # Field counts in one grouped query instead of a per-instrument
+                # `number_of_fields` lookup (an N+1 across the instrument list).
+                field_count_result = await session.execute(
+                    sa.select(InstrumentField.instrument_id, sa.func.count())
+                    .where(InstrumentField.instrument_id.in_(instrument_ids))
+                    .group_by(InstrumentField.instrument_id)
+                )
+                field_counts = dict(field_count_result.all())
 
             data = [
                 {
                     **instrument.to_dict(),
                     "telescope": instrument.telescope.to_dict(),
-                    "number_of_fields": instrument.number_of_fields,
+                    "number_of_fields": field_counts.get(instrument.id, 0),
                     "region_summary": instrument.region_summary,
-                    "log_exists": session.scalars(
-                        InstrumentLog.select(self.current_user).where(
-                            InstrumentLog.instrument_id == instrument.id
-                        )
-                    ).first()
-                    is not None,
+                    "log_exists": instrument.id in log_exist_ids,
                 }
                 for instrument in instruments
             ]
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    def put(self, instrument_id):
+    async def put(self, instrument_id: int, *, body: InstrumentPutBody = None):
         """
         ---
         summary: Update an instrument
         description: Update instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: InstrumentNoID
         responses:
           200:
             content:
@@ -700,14 +780,17 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        data["id"] = int(instrument_id)
-        with self.Session() as session:
-            # permission check
-            stmt = Instrument.select(session.user_or_token, mode="update").where(
-                Instrument.id == int(instrument_id)
+        body = self.parse_body(InstrumentPutBody)
+        data = body.model_dump(exclude_unset=True)
+        data["id"] = instrument_id
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="update")
+                # undefer `region` (a deferred column) so the has_region branch
+                # below doesn't sync lazy-load it under the async session.
+                .options(selectinload(Instrument.fields), undefer(Instrument.region))
+                .where(Instrument.id == instrument_id)
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -716,15 +799,16 @@ class InstrumentHandler(BaseHandler):
                 if not set(instrument.filters).issubset(set(filters)):
                     new_filters = list(set(instrument.filters).difference(set(filters)))
                     for filt in new_filters:
-                        stmt = Photometry.select(session.user_or_token).where(
-                            Photometry.filter == filt,
-                            Photometry.instrument_id == instrument.id,
+                        count_stmt = (
+                            sa.select(sa.func.count())
+                            .select_from(Photometry)
+                            .where(
+                                Photometry.filter == filt,
+                                Photometry.instrument_id == instrument.id,
+                            )
                         )
-                        count_stmt = sa.select(sa.func.count()).select_from(
-                            stmt.distinct()
-                        )
-                        total_photometry = session.execute(count_stmt).scalar()
-                        if total_photometry > 0:
+                        total_photometry = await session.scalar(count_stmt)
+                        if total_photometry and total_photometry > 0:
                             return self.error(
                                 f"Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted."
                             )
@@ -830,7 +914,9 @@ class InstrumentHandler(BaseHandler):
 
             schema = Instrument.__schema__()
             try:
-                schema.load(data, partial=True)
+                # Validate only; drop the PK so the load_instance schema doesn't
+                # sync-fetch the instance (raises greenlet_spawn under async).
+                schema.load({k: v for k, v in data.items() if k != "id"}, partial=True)
             except ValidationError as e:
                 return self.error(
                     f"Invalid/missing parameters: {e.normalized_messages()}"
@@ -856,15 +942,29 @@ class InstrumentHandler(BaseHandler):
             if configuration_data:
                 instrument.configuration_data = configuration_data
 
-            # temporary, to migrate old instruments
-            if instrument.region is not None or field_region is not None:
+            # temporary, to migrate old instruments. `region` is a deferred
+            # column; fetch it via SQL (rather than the lazy attribute) to avoid
+            # a sync lazy-load under the async session.
+            if "region" in data:
+                region = data["region"]
+            else:
+                region = await session.scalar(
+                    sa.select(Instrument.region).where(Instrument.id == instrument.id)
+                )
+            if region is not None or field_region is not None:
                 instrument.has_region = True
-            if (
-                len(instrument.fields) > 0
-            ):  # here we dont validate field_data, as the addition of fields is done later and might fail
+            # Count fields via SQL: CustomUserAccessControl-emitted statements
+            # don't reliably propagate selectinload across to the lazy
+            # `instrument.fields` collection under the async session.
+            field_count = await session.scalar(
+                sa.select(sa.func.count())
+                .select_from(InstrumentField)
+                .where(InstrumentField.instrument_id == instrument.id)
+            )
+            if (field_count or 0) > 0:
                 instrument.has_fields = True
 
-            session.commit()
+            await session.commit()
 
             if (field_data is not None) or (references is not None):
                 if field_data is not None:
@@ -902,8 +1002,8 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(["Delete instrument"])
-    def delete(self, instrument_id):
+    @permissions(["Manage instruments"])
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument
@@ -911,11 +1011,6 @@ class InstrumentHandler(BaseHandler):
         tags:
           - instruments
         parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
           - in: query
             name: fieldsOnly
             nullable: true
@@ -928,146 +1023,32 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="delete").where(
-                Instrument.id == int(instrument_id)
-            )
-            instrument = session.scalars(stmt).first()
-            if instrument is None:
-                return self.error(f"Missing instrument with ID {instrument_id}")
-
-            session.delete(instrument)
-            session.commit()
-
-        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
-        return self.success()
-
-
-InstrumentHandler.post.__doc__ = f"""
-        ---
-        summary: Add an instrument
-        description: Add a new instrument
-        tags:
-          - instruments
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                - $ref: "#/components/schemas/InstrumentNoID"
-                - type: object
-                  properties:
-                    filters:
-                      type: array
-                      items:
-                        type: string
-                        enum: {list(ALLOWED_BANDPASSES)}
-                      description: >-
-                        List of filters on the instrument. If the instrument
-                        has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list.
-                      default: []
-                    sensitivity_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          enum: {list(ALLOWED_BANDPASSES)}
-                          properties:
-                            limiting_magnitude:
-                              type: float
-                            magsys:
-                              type: string
-                            exposure_time:
-                              type: float
-                              description: |
-                                Exposure time in seconds.
-                      description: |
-                        List of filters and associated limiting magnitude and exposure time.
-                        Sensitivity_data filters must be a subset of the instrument filters.
-                        Limiting magnitude assumed to be AB magnitude.
-                    configuration_data:
-                      type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          properties:
-                            filt_change_time:
-                              type: float
-                              description: |
-                                Time in seconds to change filters
-                            readout:
-                              type: float
-                              description: |
-                                Time in seconds to readout camera
-                            overhead_per_exposure:
-                              type: float
-                              description: |
-                                Non-readout overheads, e.g. instrument settling times, in seconds.
-                            slew_rate:
-                              type: float
-                              description: |
-                                Slew rate for the telescope in deg/s.
-                      description: |
-                        Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
-                    field_data:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of ID, RA, and Dec for each field.
-                    field_region:
-                      type: str
-                      description: |
-                        Serialized version of a regions.Region describing
-                        the shape of the instrument field. Note: should
-                        only include field_region or field_fov_type.
-                    references:
-                      type: dict
-                      items:
-                        type: array
-                      description: |
-                        List of filter, and limiting magnitude for each reference.
-                    field_fov_type:
-                      type: str
-                      description: |
-                        Option for instrument field shape. Must be either
-                        circle or rectangle. Note: should only
-                        include field_region or field_fov_type.
-                    field_fov_attributes:
-                      type: list
-                      description: |
-                        Option for instrument field shape parameters.
-                        Single float radius in degrees in case of circle or
-                        list of two floats (height and width) in case of
-                        a rectangle.
-        responses:
-          200:
-            content:
-              application/json:
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New instrument ID
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="delete").where(
+                    Instrument.id == instrument_id
+                )
+            )
+            if instrument is None:
+                return self.error(f"Missing instrument with ID {instrument_id}")
+
+            await session.delete(instrument)
+            await session.commit()
+
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+        return self.success()
 
 
 def load_field_data(field_data):
@@ -1229,11 +1210,17 @@ def add_tiles(
             zip(ids, field_data["RA"], field_data["Dec"], coords_icrs)
         ):
             if field_id == -1:
-                field = InstrumentField.query.filter(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.ra == ra,
-                    InstrumentField.dec == dec,
-                ).first()
+                field = (
+                    DBSession()
+                    .scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == instrument_id,
+                            InstrumentField.ra == ra,
+                            InstrumentField.dec == dec,
+                        )
+                    )
+                    .first()
+                )
                 if field is not None:
                     field_ids.append(field.field_id)
                     continue
@@ -1426,55 +1413,55 @@ def add_tiles(
 
 
 class InstrumentFieldHandler(BaseHandler):
-    @permissions(["Delete instrument"])
-    def delete(self, instrument_id):
+    @permissions(["Manage instruments"])
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument's fields
         description: Delete fields associated with an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
-
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="delete").where(
-                Instrument.id == int(instrument_id)
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="delete").where(
+                    Instrument.id == instrument_id
+                )
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
-            session.execute(
+            await session.execute(
                 sa.delete(InstrumentField).where(
                     InstrumentFieldTile.instrument_id == instrument.id,
                 )
             )
 
-            instrument = session.scalars(
-                sa.select(Instrument).where(
-                    Instrument.id == instrument_id,
-                )
-            ).first()
+            instrument = await session.scalar(
+                sa.select(Instrument)
+                .options(selectinload(Instrument.fields))
+                .where(Instrument.id == instrument_id)
+            )
             if instrument is not None and len(instrument.fields) > 0:
                 instrument.has_fields = True
             else:
                 instrument.has_fields = False
-            session.commit()
+            await session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()

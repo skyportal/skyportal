@@ -34,6 +34,14 @@ class NumpyArray(sa.types.TypeDecorator):
 
     impl = psql.ARRAY(sa.Float)
 
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        # Convert to a Python list of native floats so psycopg2's Float adapter
+        # handles NaN/Inf correctly (numpy.float64 NaN serializes as unquoted
+        # `nan` which PostgreSQL interprets as a column reference).
+        return [float(x) for x in value]
+
     def process_result_value(self, value, dialect):
         return np.array(value)
 

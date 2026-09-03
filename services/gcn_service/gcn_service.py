@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import traceback
@@ -8,18 +9,25 @@ import sqlalchemy as sa
 import xmlschema
 from gcn_kafka import Consumer
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_json_tags,
     get_tags,
+    post_gcn_circular,
     post_gcnevent_from_json,
     post_gcnevent_from_xml,
     post_skymap_from_notice,
 )
-from skyportal.models import DBSession, GcnEvent, User
-from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
+from skyportal.models import GcnEvent, User
+from skyportal.utils.gcn import (
+    from_igwn_gwalert,
+    get_dateobs,
+    get_skymap_metadata,
+    get_trigger,
+)
 from skyportal.utils.notifications import post_notification
 from skyportal.utils.services import check_loaded
 
@@ -33,6 +41,10 @@ voevent_notice_types = cfg.get("gcn.notice_types.voevent", [])
 json_notice_types = cfg.get("gcn.notice_types.json", [])
 
 reject_tags = cfg.get("gcn.reject_tags", [])
+
+circulars_enabled = cfg.get("gcn.circulars.enabled", False)
+circulars_topic = cfg.get("gcn.circulars.topic", "gcn.circulars")
+circulars_window_hours = cfg.get("gcn.circulars.window_hours", 12)
 
 log = make_log("gcnserver")
 
@@ -77,6 +89,40 @@ def is_configured():
     return True
 
 
+async def _ingest_circular(payload):
+    """Attach one circular from the stream to the event it reports on."""
+    try:
+        circular = json.loads(payload.decode("utf8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        log(f"Failed to decode gcn circular: {e}")
+        return
+    async with models.async_plain_session_factory() as session:
+        user = await session.scalar(sa.select(User).where(User.id == user_id))
+        if user is None:
+            log(f"User {user_id} not found in DB, cannot ingest gcn circular")
+            return
+        session.user_or_token = user
+        try:
+            dateobs = await post_gcn_circular(
+                circular, session, window_hours=circulars_window_hours
+            )
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Failed to ingest gcn circular {circular.get('circularId')}: {e}")
+            return
+        if dateobs is None:
+            # No event for this circular yet; the notice may simply not have
+            # arrived. TACH backfills these later.
+            log(
+                f"No event found for gcn circular {circular.get('circularId')} "
+                f"({circular.get('eventId')})"
+            )
+        else:
+            log(
+                f"Ingested gcn circular {circular.get('circularId')} for event {dateobs}"
+            )
+
+
 @check_loaded(logger=log)
 def poll_events(*args, **kwargs):
     client_group_id = cfg.get("gcn.client_group_id")
@@ -98,8 +144,11 @@ def poll_events(*args, **kwargs):
     except Exception as e:
         log(f"Failed to initiate consumer to poll gcn events: {e}")
         return
+    topics = voevent_notice_types + json_notice_types
+    if circulars_enabled:
+        topics = topics + [circulars_topic]
     try:
-        consumer.subscribe(voevent_notice_types + json_notice_types)
+        consumer.subscribe(topics)
     except Exception as e:
         log(f"Failed to subscribe to gcn events: {e}")
         return
@@ -114,6 +163,10 @@ def poll_events(*args, **kwargs):
                     continue
 
                 if payload.find(b"Broker: Unknown topic or partition") != -1:
+                    continue
+
+                if circulars_enabled and topic == circulars_topic:
+                    asyncio.run(_ingest_circular(payload))
                     continue
 
                 # initialize some variables tht will be used later
@@ -164,7 +217,13 @@ def poll_events(*args, **kwargs):
                 elif any(topic in notice_type for notice_type in json_notice_types):
                     alert_type = "json"
                     payload = json.loads(payload.decode("utf8"))
-                    payload["notice_type"] = notice_type
+                    if "igwn.gwalert" in notice_type:
+                        # LVK JSON alert (GCN Classic LVC VOEvents ceased in 2026):
+                        # normalize to the canonical JSON-notice shape.
+                        payload = from_igwn_gwalert(payload)
+                        notice_type = payload["notice_type"]
+                    else:
+                        payload["notice_type"] = notice_type
                     tags = get_json_tags(payload)
 
                     if payload["notice_type"] == "icecube.lvk_nu_track_search":
@@ -186,108 +245,134 @@ def poll_events(*args, **kwargs):
                     )
                     continue
 
-                with DBSession() as session:
-                    # check if the user exists in the DB, and assign it to the session
-                    user = session.scalar(sa.select(User).where(User.id == user_id))
-                    if user is None:
-                        log(f"User {user_id} not found in DB, cannot ingest gcn_event")
-                        continue
-                    session.user_or_token = user
-
-                    # we skip the ingestion of a retraction of the event does not exist in the DB
-                    if notice_type == "LVC_RETRACTION":
-                        dateobs = get_dateobs(root)
-                        trigger_id = get_trigger(root)
-                        existing_event = None
-                        if trigger_id is not None:
-                            existing_event = session.scalar(
-                                sa.select(GcnEvent).where(
-                                    GcnEvent.trigger_id == trigger_id
-                                )
-                            )
-                        if existing_event is None and dateobs is not None:
-                            existing_event = session.scalar(
-                                sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
-                            )
-                        if existing_event is None:
+                async def _ingest():
+                    dateobs, notice_id = None, None
+                    async with models.async_plain_session_factory() as session:
+                        # check if the user exists in the DB, assign to session
+                        user = await session.scalar(
+                            sa.select(User).where(User.id == user_id)
+                        )
+                        if user is None:
                             log(
-                                f"No event found to retract for gcn_event from {message.topic()}, skipping"
+                                f"User {user_id} not found in DB, cannot ingest gcn_event"
                             )
-                            continue
+                            return
+                        session.user_or_token = user
 
-                    # event ingestion
-                    log(f"Ingesting gcn_event from {message.topic()}")
-                    try:
+                        # skip ingesting a retraction if the event does not exist
+                        # (VOEvent path; JSON retractions are resolved by alias in
+                        # post_gcnevent_from_json).
+                        if alert_type == "voevent" and notice_type == "LVC_RETRACTION":
+                            dateobs = get_dateobs(root)
+                            trigger_id = get_trigger(root)
+                            existing_event = None
+                            if trigger_id is not None:
+                                existing_event = await session.scalar(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.trigger_id == trigger_id
+                                    )
+                                )
+                            if existing_event is None and dateobs is not None:
+                                existing_event = await session.scalar(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.dateobs == dateobs
+                                    )
+                                )
+                            if existing_event is None:
+                                log(
+                                    f"No event found to retract for gcn_event from {message.topic()}, skipping"
+                                )
+                                return
+
+                        # event ingestion
+                        log(f"Ingesting gcn_event from {message.topic()}")
+                        try:
+                            if alert_type == "voevent":
+                                (
+                                    dateobs,
+                                    _,
+                                    notice_id,
+                                ) = await post_gcnevent_from_xml(
+                                    payload,
+                                    user_id,
+                                    session,
+                                    notice_type=notice_type,
+                                    post_skymap=False,
+                                    asynchronous=False,
+                                    notify=False,
+                                )
+                            elif alert_type == "json":
+                                (
+                                    dateobs,
+                                    _,
+                                    notice_id,
+                                ) = await post_gcnevent_from_json(
+                                    payload,
+                                    user_id,
+                                    session,
+                                    post_skymap=False,
+                                    asynchronous=False,
+                                    notify=False,
+                                )
+                        except Exception as e:
+                            traceback.print_exc()
+                            log(
+                                f"Failed to ingest gcn_event from {message.topic()}: {e}"
+                            )
+                            return
+
+                        notified_on_skymap = False
+                        status, metadata = None, None
                         if alert_type == "voevent":
-                            dateobs, _, notice_id = post_gcnevent_from_xml(
-                                payload,
-                                user_id,
-                                session,
-                                notice_type=notice_type,
-                                post_skymap=False,
-                                asynchronous=False,
-                                notify=False,
+                            status, metadata = get_skymap_metadata(
+                                root, notice_type, 15
                             )
                         elif alert_type == "json":
-                            dateobs, _, notice_id = post_gcnevent_from_json(
-                                payload,
-                                user_id,
-                                session,
-                                post_skymap=False,
-                                asynchronous=False,
-                                notify=False,
+                            status, metadata = get_skymap_metadata(
+                                payload, notice_type, 15
                             )
-                    except Exception as e:
-                        traceback.print_exc()
-                        log(f"Failed to ingest gcn_event from {message.topic()}: {e}")
-                        continue
 
-                    notified_on_skymap = False
-                    status, metadata = None, None
-                    if alert_type == "voevent":
-                        status, metadata = get_skymap_metadata(root, notice_type, 15)
-                    elif alert_type == "json":
-                        status, metadata = get_skymap_metadata(payload, notice_type, 15)
-
-                    if status in ["available", "cone"]:
-                        log(
-                            f"Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}"
-                        )
-                        try:
-                            localization_id = post_skymap_from_notice(
-                                dateobs,
-                                notice_id,
-                                user_id,
-                                session,
-                                asynchronous=False,
-                                notify=False,
-                            )
-                            request_body = {
-                                "target_class_name": "Localization",
-                                "target_id": localization_id,
-                            }
-                            notified_on_skymap = post_notification(
-                                request_body, timeout=30
-                            )
-                        except Exception as e:
+                        if status in ["available", "cone", "healpix_file"]:
                             log(
-                                f"Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}"
+                                f"Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}"
                             )
-                    elif status == "unavailable":
-                        log(
-                            f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get('url', None)}"
-                        )
-                    else:
-                        log(
-                            f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}"
-                        )
+                            try:
+                                localization_id = await post_skymap_from_notice(
+                                    dateobs,
+                                    notice_id,
+                                    user_id,
+                                    session,
+                                    asynchronous=False,
+                                    notify=False,
+                                )
+                                request_body = {
+                                    "target_class_name": "Localization",
+                                    "target_id": localization_id,
+                                }
+                                notified_on_skymap = post_notification(
+                                    request_body, timeout=30
+                                )
+                            except Exception as e:
+                                log(
+                                    f"Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}"
+                                )
+                        elif status == "unavailable":
+                            log(
+                                f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get('url', None)}"
+                            )
+                        else:
+                            log(
+                                f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}"
+                            )
 
-                    if not notified_on_skymap:
-                        request_body = {
-                            "target_class_name": "GcnNotice",
-                            "target_id": notice_id,
-                        }
-                        post_notification(request_body, timeout=30)
+                        if not notified_on_skymap:
+                            request_body = {
+                                "target_class_name": "GcnNotice",
+                                "target_id": notice_id,
+                            }
+                            post_notification(request_body, timeout=30)
+
+                asyncio.run(_ingest())
 
         except Exception as e:
             traceback.print_exc()

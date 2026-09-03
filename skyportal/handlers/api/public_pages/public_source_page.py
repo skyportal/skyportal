@@ -1,9 +1,11 @@
 import json
 import operator  # noqa: F401
+from typing import Any
 
 import joblib
 import numpy as np
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import not_, or_
 
 from baselayer.app.access import auth_or_token, permissions
@@ -255,9 +257,31 @@ def delete_auto_published_page(source_id, remaining_group_ids):
         session.commit()
 
 
+class PublicSourcePagePostBody(BaseModel):
+    """Request body for creating a public page for a source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    options: dict[str, Any] | None = Field(
+        default=None, description="Options to manage data to display publicly"
+    )
+    release_id: Any = Field(
+        default=None,
+        description="The ID of the public release where the public source page belongs",
+    )
+
+
+class PublicSourcePagePostResponse(BaseModel):
+    """ID of the newly created public source page."""
+
+    id: int = Field(description="Public source page ID")
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, source_id):
+    async def post(
+        self, source_id: str, *, body: PublicSourcePagePostBody = None
+    ) -> PublicSourcePagePostResponse:
         """
         ---
           summary: Create a public page for a source
@@ -266,50 +290,20 @@ class PublicSourcePageHandler(BaseHandler):
             only if this page does not already exist
           tags:
             - sources
-          parameters:
-            - in: path
-              name: source_id
-              schema:
-                type: string
-                required: true
-                description: The ID of the source from which to create a public page
-          requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            options:
-                                type: object
-                                required: true
-                                description: Options to manage data to display publicly
-                            release_id:
-                                type: integer
-                                required: false
-                                description: The ID of the public release where the public source page belongs
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            400:
-              content:
-                application/json:
-                  schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(PublicSourcePagePostBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
         if source_id is None:
             return self.error("Source ID is required")
-        options = data.get("options")
+        options = body.options
         if options is None:
             return self.error("Options are required")
-        release_id = data.get("release_id")
+        release_id = body.release_id
         if release_id is not None and not isinstance(release_id, int):
             return self.error("Invalid release ID")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 source = await get_source(
                     obj_id=source_id,
@@ -323,6 +317,8 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
+        # get_source returns a plain dict; the publish helpers below are sync.
+        with self.Session() as session:
             release = None
             if release_id is not None:
                 release = session.scalar(
@@ -346,7 +342,7 @@ class PublicSourcePageHandler(BaseHandler):
                 return self.error(str(e))
 
     @auth_or_token
-    def get(self, source_id):
+    async def get(self, source_id: str):
         """
         ---
           summary: Retrieve all public pages for a source
@@ -354,18 +350,19 @@ class PublicSourcePageHandler(BaseHandler):
             Retrieve all public pages for a given source from the most recent to the oldest
           tags:
             - sources
-          parameters:
-            - in: path
-              name: source_id
-              schema:
-                type: string
-                required: true
-                description: The ID of the source for which to retrieve the public page
           responses:
             200:
               content:
                 application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/PublicSourcePage'
             400:
               content:
                 application/json:
@@ -377,31 +374,28 @@ class PublicSourcePageHandler(BaseHandler):
         """
         if source_id is None:
             return self.error("Source ID is required")
-        with self.Session() as session:
-            public_source_pages = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
+                .options(
+                    sa.orm.selectinload(PublicSourcePage.release),
+                    sa.orm.undefer(PublicSourcePage.data),
+                )
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
                 )
                 .order_by(PublicSourcePage.created_at.desc())
-            ).all()
-            return self.success(data=public_source_pages)
+            )
+            return self.success(data=result.all())
 
     @permissions(["Manage sources"])
-    def delete(self, page_id):
+    async def delete(self, page_id: int):
         """
         ---
         summary: Delete a public source page
         description: Delete a public source page
         tags:
           - sources
-        parameters:
-          - in: path
-            name: page_id
-            schema:
-              type: string
-              required: true
-              description: The ID of the public source page to delete
         responses:
           200:
             content:
@@ -415,9 +409,8 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
-
-        with self.Session() as session:
-            public_source_page = session.scalar(
+        async with self.AsyncSession() as session:
+            public_source_page = await session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(
                     PublicSourcePage.id == page_id
                 )
@@ -425,13 +418,14 @@ class PublicSourcePageHandler(BaseHandler):
 
             if public_source_page is None:
                 return self.error("Public source page not found", status=404)
+            source_id = public_source_page.source_id
             public_source_page.remove_from_cache()
 
-            session.delete(public_source_page)
-            session.commit()
+            await session.delete(public_source_page)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-                payload={"source_id": public_source_page.source_id},
+                payload={"source_id": source_id},
             )
             return self.success()

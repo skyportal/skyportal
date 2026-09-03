@@ -1,9 +1,10 @@
-import re
 import time
-from collections.abc import Mapping
+from typing import Annotated, Any
 
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -20,7 +21,84 @@ from ...models import (
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 
+AssociatedResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the annotation is on: must be one of "sources", "spectra", or "photometry."'
+    ),
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the underlying data. This would be a string for an object ID, or an integer for other data types, e.g., a spectrum."
+    ),
+]
+
 log = make_log("api/annotation")
+
+
+class AnnotationPostBody(BaseModel):
+    """Request body for posting an annotation."""
+
+    # Clients still send handler-derived fields (obj_id) that the previous
+    # marshmallow schema silently ignored; ignore rather than reject them.
+    model_config = ConfigDict(extra="ignore")
+
+    origin: str = Field(
+        pattern=r"^\w+",
+        description="String describing the source of this information. "
+        "Only one Annotation per origin is allowed, although each Annotation "
+        "can have multiple fields. To add/change data, use the update method "
+        "instead of trying to post another Annotation from this origin. "
+        "Origin must be a non-empty string starting with an alphanumeric "
+        "character or underscore (it must match the regex: /^\\w+/).",
+    )
+    data: dict[str, Any] = Field(description="Annotation data as {key: value} pairs.")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class AnnotationPostResponse(BaseModel):
+    """Data payload returned when posting an annotation."""
+
+    annotation_id: int = Field(description="New annotation ID")
+
+
+class AnnotationPutBody(BaseModel):
+    """Request body for updating an annotation."""
+
+    # Clients still send handler-derived fields (obj_id, author_id) that the
+    # previous marshmallow schema silently ignored; ignore rather than reject.
+    model_config = ConfigDict(extra="ignore")
+
+    data: dict[str, Any] | None = Field(
+        default=None, description="Annotation data as {key: value} pairs."
+    )
+    origin: str | None = Field(
+        default=None,
+        description="String describing the source of this information.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should "
+        "be able to view the annotation.",
+    )
+
+
+def _coerce_resource_id(associated_resource_type, resource_id):
+    """Cast the resource_id from the URL path to the appropriate type for the
+    target column. obj_id is a string; spectrum_id and photometry_id are
+    integers (psycopg3 requires strict binding).
+    """
+    if associated_resource_type.lower() == "sources":
+        return resource_id
+    try:
+        return int(resource_id)
+    except (TypeError, ValueError):
+        return None
 
 
 class AnnotationHandler(BaseHandler):
@@ -51,7 +129,12 @@ class AnnotationHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, annotation_id=None):
+    async def get(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        annotation_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -61,30 +144,6 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra, photometry]
-              description: |
-                 What underlying data the annotation is on:
-                 must be one of "sources", "spectra", or "photometry."
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                 The ID of the underlying data.
-                 This would be a string for a source ID
-                 or an integer for other data types like spectra.
-            - in: path
-              name: annotation_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -101,25 +160,6 @@ class AnnotationHandler(BaseHandler):
             - annotations
             - sources
             - spectra
-          parameters:
-            - in: path
-              name: associated_resource_type
-              required: true
-              schema:
-                type: string
-                enum: [sources, spectra]
-              description: |
-                 What underlying data the annotation is on:
-                 must be one of either "sources" or "spectra".
-            - in: path
-              name: resource_id
-              required: true
-              schema:
-                type: string
-              description: |
-                The ID of the underlying data.
-                This would be a string for a source ID
-                or an integer for other data types like spectra.
           responses:
             200:
               content:
@@ -135,23 +175,25 @@ class AnnotationHandler(BaseHandler):
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
-        with self.Session() as session:
+        coerced_resource_id = _coerce_resource_id(associated_resource_type, resource_id)
+        if coerced_resource_id is None:
+            return self.error(f"Invalid resource_id: {resource_id}")
+
+        async with self.AsyncSession() as session:
             if annotation_id is None:
-                annotations = (
-                    session.scalars(
-                        associated_resource["class"]
-                        .select(self.current_user)
-                        .where(
-                            getattr(
-                                associated_resource["class"],
-                                associated_resource["id_attr"],
-                            )
-                            == resource_id
+                result = await session.scalars(
+                    associated_resource["class"]
+                    .select(self.current_user)
+                    .options(selectinload(associated_resource["class"].groups))
+                    .where(
+                        getattr(
+                            associated_resource["class"],
+                            associated_resource["id_attr"],
                         )
+                        == coerced_resource_id
                     )
-                    .unique()
-                    .all()
                 )
+                annotations = result.unique().all()
                 query_output = [a.to_dict() for a in annotations]
                 query_size = sizeof(query_output)
                 if query_size >= SIZE_WARNING_THRESHOLD:
@@ -169,11 +211,12 @@ class AnnotationHandler(BaseHandler):
                     "Must provide a valid (scalar integer) annotation ID."
                 )
 
-            annotation = session.scalars(
+            annotation = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user)
+                .options(selectinload(associated_resource["class"].groups))
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
             if annotation is None:
                 return self.error(
                     "Could not find any accessible annotations.", status=403
@@ -196,105 +239,34 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    def post(self, associated_resource_type, resource_id):
+    async def post(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        *,
+        body: AnnotationPostBody = None,
+    ) -> AnnotationPostResponse:
         """
         ---
         summary: Post an annotation
         description: Post an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID,
-               or an integer for other data types,
-               e.g., a spectrum.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  origin:
-                     type: string
-                     description: |
-                        String describing the source of this information.
-                        Only one Annotation per origin is allowed, although
-                        each Annotation can have multiple fields.
-                        To add/change data, use the update method instead
-                        of trying to post another Annotation from this origin.
-                        Origin must be a non-empty string starting with an
-                        alphanumeric character or underscore.
-                        (it must match the regex: /^\\w+/)
-
-                  data:
-                    type: object
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view annotation. Defaults to all of requesting user's
-                      groups.
-
-                required:
-                  - origin
-                  - data
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            annotation_id:
-                              type: integer
-                              description: New annotation ID
         """
-        data = self.get_json()
-        origin = data.get("origin")
+        body = self.parse_body(AnnotationPostBody)
+        origin = body.origin
+        annotation_data = body.data
+        group_ids = body.group_ids or [
+            g.id for g in self.current_user.accessible_groups
+        ]
+        data = {"origin": origin, "data": annotation_data}
 
-        if origin is None:
-            return self.error("origin must be specified")
-
-        if not re.search(r"^\w+", origin):
-            return self.error("Input `origin` must begin with alphanumeric/underscore")
-
-        annotation_data = data.get("data")
-
-        group_ids = data.pop("group_ids", None)
-        if not group_ids:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
-
-        if not isinstance(annotation_data, Mapping):
-            return self.error(
-                "Invalid data: the annotation data must be an object with at least one {key: value} pair"
-            )
-
-        with self.Session() as session:
-            author = self.associated_user_object
-            groups = session.scalars(
+        async with self.AsyncSession() as session:
+            author_id = self.associated_user_object.id
+            groups_result = await session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = list(groups_result.all())
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f"Cannot find one or more groups with IDs: {group_ids}."
@@ -314,20 +286,24 @@ class AnnotationHandler(BaseHandler):
                     data=annotation_data,
                     obj_id=resource_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "spectra":
-                spectrum = session.scalar(
+                try:
+                    spectrum_id = int(resource_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid spectrum id: {resource_id}")
+                spectrum = await session.scalar(
                     Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == resource_id
+                        Spectrum.id == spectrum_id
                     )
                 )
                 if not spectrum:
                     return self.error(
                         f"Could not access spectrum {resource_id}.", status=403
                     )
-                data["spectrum_id"] = resource_id
+                data["spectrum_id"] = spectrum_id
                 data["obj_id"] = spectrum.obj_id
                 schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
                 try:
@@ -339,23 +315,27 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnSpectrum(
                     data=annotation_data,
-                    spectrum_id=resource_id,
+                    spectrum_id=spectrum_id,
                     obj_id=spectrum.obj_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "photometry":
-                photometry = session.scalar(
+                try:
+                    photometry_id = int(resource_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid photometry id: {resource_id}")
+                photometry = await session.scalar(
                     Photometry.select(session.user_or_token).where(
-                        Photometry.id == resource_id
+                        Photometry.id == photometry_id
                     )
                 )
                 if not photometry:
                     return self.error(
                         f"Could not access photometry {resource_id}.", status=403
                     )
-                data["photometry_id"] = resource_id
+                data["photometry_id"] = photometry_id
                 data["obj_id"] = photometry.obj_id
                 schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
                 try:
@@ -367,10 +347,10 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnPhotometry(
                     data=annotation_data,
-                    photometry_id=resource_id,
+                    photometry_id=photometry_id,
                     obj_id=photometry.obj_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             else:
@@ -381,7 +361,7 @@ class AnnotationHandler(BaseHandler):
             session.add(annotation)
 
             try:
-                session.commit()
+                await session.commit()
             except IntegrityError as e:
                 if 'is not present in table "objs"' in str(e).lower():
                     return self.error(f"Obj {resource_id} not found", status=404)
@@ -390,63 +370,36 @@ class AnnotationHandler(BaseHandler):
             if isinstance(
                 annotation, Annotation | AnnotationOnSpectrum
             ):  # annotation on object or object related data
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": annotation.obj.internal_key},
+                obj = await session.scalar(
+                    Obj.select(session.user_or_token).where(Obj.id == annotation.obj_id)
                 )
-            if isinstance(annotation, AnnotationOnSpectrum):
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE_SPECTRA",
-                    payload={"obj_internal_key": annotation.obj.internal_key},
-                )
+                if obj is not None:
+                    self.push_all(
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
+                    if isinstance(annotation, AnnotationOnSpectrum):
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE_SPECTRA",
+                            payload={"obj_internal_key": obj.internal_key},
+                        )
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    def put(self, associated_resource_type, resource_id, annotation_id):
+    async def put(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        annotation_id: int,
+        *,
+        body: AnnotationPutBody = None,
+    ):
         """
         ---
         summary: Update an annotation
         description: Update an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for other data types like spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/AnnotationNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of group IDs corresponding to which groups should be
-                          able to view the annotation.
         responses:
           200:
             content:
@@ -457,6 +410,7 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AnnotationPutBody)
 
         try:
             annotation_id = int(annotation_id)
@@ -465,44 +419,36 @@ class AnnotationHandler(BaseHandler):
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
-        with self.Session() as session:
-            schema = associated_resource["class"].__schema__()
-            a = session.scalars(
+        async with self.AsyncSession() as session:
+            a = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user, mode="update")
+                .options(selectinload(associated_resource["class"].groups))
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
             if a is None:
                 return self.error(
                     "Could not find any accessible annotations.", status=403
                 )
 
-            data = self.get_json()
-            group_ids = data.pop("group_ids", None)
-            data["id"] = annotation_id
+            group_ids = body.group_ids
 
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            if body.data is not None:
+                a.data = body.data
 
-            if "data" in data:
-                a.data = data["data"]
-
-            if "origin" in data:
-                a.origin = data["origin"]
+            if body.origin is not None:
+                a.origin = body.origin
 
             if group_ids is not None:
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(self.current_user).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
-                a.groups = groups
+                a.groups = list(groups)
 
             if str(getattr(a, associated_resource["id_attr"])) != resource_id:
                 return self.error(
@@ -510,54 +456,40 @@ class AnnotationHandler(BaseHandler):
                 )
 
             session.add(a)
-            session.commit()
+            await session.commit()
 
             if associated_resource[
                 "obj_associated"
             ]:  # annotation on object, or object related resources
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": a.obj.internal_key},
+                obj = await session.scalar(
+                    Obj.select(session.user_or_token).where(Obj.id == a.obj_id)
                 )
-            if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE_SPECTRA",
-                    payload={"obj_internal_key": a.obj.internal_key},
-                )
+                if obj is not None:
+                    self.push_all(
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
+                    if isinstance(a, AnnotationOnSpectrum):
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE_SPECTRA",
+                            payload={"obj_internal_key": obj.internal_key},
+                        )
 
             return self.success()
 
     @permissions(["Annotate"])
-    def delete(self, associated_resource_type, resource_id, annotation_id):
+    async def delete(
+        self,
+        associated_resource_type: AssociatedResourceType,
+        resource_id: ResourceId,
+        annotation_id: int,
+    ):
         """
         ---
         summary: Delete an annotation
         description: Delete an annotation
         tags:
           - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the annotation is on:
-               must be one of "sources", "spectra", or "photometry."
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for a spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -571,12 +503,12 @@ class AnnotationHandler(BaseHandler):
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
-        with self.Session() as session:
-            a = session.scalars(
+        async with self.AsyncSession() as session:
+            a = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user, mode="delete")
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
 
             if a is None:
                 return self.error(
@@ -588,19 +520,22 @@ class AnnotationHandler(BaseHandler):
                     f"Annotation resource ID does not match resource ID given in path ({resource_id})"
                 )
 
-            obj_key = a.obj.internal_key
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == a.obj_id)
+            )
+            obj_key = obj.internal_key if obj is not None else None
+            is_spectrum_annotation = isinstance(a, AnnotationOnSpectrum)
 
-            session.delete(a)
-            session.commit()
+            await session.delete(a)
+            await session.commit()
 
-            if associated_resource[
-                "obj_associated"
-            ]:  # annotation on object, or object related resources
+            if associated_resource["obj_associated"] and obj_key is not None:
+                # annotation on object, or object related resources
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key}
                 )
 
-            if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
+            if is_spectrum_annotation and obj_key is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE_SPECTRA",
                     payload={"obj_internal_key": obj_key},

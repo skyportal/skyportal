@@ -3,6 +3,9 @@ groups:
     =id: program_A
   - name: Program B
     =id: program_B
+  # Holds data a fresh login cannot see, and so can ask for.
+  - name: Private Collaboration
+    =id: private_collab
 
 user:
   - username: testadmin
@@ -48,6 +51,67 @@ groups/=program_B/users:
   - userID: =fulluser
     admin: false
 
+groups/=private_collab/users:
+  - userID: =groupadmin
+    admin: true
+
+teams:
+  - name: ZTF
+    nickname: ZTF
+    description: Zwicky Transient Facility
+    primary_color: "#d95f02"
+    secondary_color: "#fdae61"
+    logo_url: /static/images/team_logos/ZTF.png
+    group_ids: ["=program_A", "=program_B"]
+    =id: team_ztf
+  - name: DESC
+    nickname: DESC
+    description: LSST Dark Energy Science Collaboration
+    primary_color: "#1f78b4"
+    secondary_color: "#a6cee3"
+    logo_url: /static/images/team_logos/DESC.png
+    group_ids: ["=program_B"]
+    =id: team_desc
+  - name: TVS
+    nickname: TVS
+    description: LSST Transients and Variable Stars Collaboration
+    primary_color: "#6a3d9a"
+    secondary_color: "#cab2d6"
+    logo_url: /static/images/team_logos/TVS.png
+    group_ids: ["=program_A"]
+    =id: team_tvs
+
+# Alert brokers available out of the box; see doc/broker_plugins.md.
+brokers:
+  - name: ALeRCE
+    broker_classname: ALERCEBROKER
+    active: true
+    default_alert_search: true
+  - name: ANTARES
+    broker_classname: ANTARESBROKER
+    active: true
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: false
+    default_crossmatch: true
+    altdata:
+      protocol: https
+      host: api.kaboom.caltech.edu
+    =id: BOOM
+  - name: Fink
+    broker_classname: FINKBROKER
+    active: true
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
+    active: false
+    altdata:
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: false
+    altdata:
+      endpoint: https://api.lasair.lsst.ac.uk/api
+
 streams:
   - name: ZTF Public
     altdata:
@@ -69,6 +133,12 @@ streams:
       collection: LSST_alerts
       selector: [1]
     =id: lsst
+
+streams/=lsst/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
@@ -96,10 +166,12 @@ filters:
   - name: Yellow transients
     group_id: =program_A
     stream_id: =ztf_partnership
+    broker_id: =BOOM
     =id: example_filter
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    broker_id: =BOOM
     altdata:
       boom:
           filter_id: FILTER_ID
@@ -150,6 +222,10 @@ mmadetector:
     =id: IceCube
   - name: Fermi Gamma-Ray Burst Monitor
     nickname: FermiGBM
+    aliases:
+      - Fermi
+      - Fermi-GBM
+      - GBM
     fixed_location: false
     type: gamma-ray-burst
     =id: FermiGBM
@@ -158,6 +234,16 @@ mmadetector:
     fixed_location: false
     type: gamma-ray-burst
     =id: SwiftGRB
+  # nickname matches the GCN tag EP notices carry, which is what links an event
+  # to its detector
+  - name: Einstein Probe
+    nickname: EP
+    aliases:
+      - Einstein Probe
+      - WXT
+    fixed_location: false
+    type: x-ray
+    =id: EinsteinProbe
 
 telescope:
   - name: Palomar 1.2m
@@ -166,6 +252,7 @@ telescope:
     lon: -116.861944
     elevation: 1706
     diameter: 1.26
+    mpc_obscode: I41
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
     weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
@@ -307,6 +394,14 @@ telescope:
     nickname: PS1
     skycam_link: null
     =id: PS1
+  - diameter: 25.0
+    elevation: 2124.0
+    lat: 34.078745
+    lon: -107.618283
+    name: Karl G. Jansky Very Large Array
+    nickname: VLA
+    skycam_link: null
+    =id: VLA
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -478,6 +573,15 @@ telescope:
     robotic: false
     fixed_location: true
     =id: SSO
+  - name: Palomar 200-inch (Hale) Telescope
+    nickname: P200
+    lat: 33.3563
+    lon: -116.865
+    elevation: 1713
+    diameter: 5.08
+    robotic: false
+    fixed_location: true
+    =id: P200
 
 instrument:
   - name: ZTF
@@ -521,6 +625,13 @@ instrument:
     api_classname: SEDMAPI
     listener_classname: SEDMListener
     =id: SEDM
+  - name: NGPS
+    type: spectrograph
+    band: optical
+    telescope_id: =P200
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
+    api_classname: NGPSAPI
+    =id: NGPS
   - name: IOO
     type: imager
     band: V
@@ -647,7 +758,13 @@ instrument:
     type: imager
     api_classname: PS1API
     =id: PS1
-    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
+    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w', '2massh', '2massj', '2massks', 'bessellv', 'sdssu']
+  - band: radio
+    name: VLA
+    telescope_id: =VLA
+    type: imager
+    filters: ['radio-0.34GHz', 'radio-1.4GHz', 'radio-3GHz', 'radio-6GHz', 'radio-10GHz', 'radio-15GHz', 'radio-22GHz', 'radio-33GHz', 'radio-45GHz']
+    =id: VLA
   - band: optical
     name: KAIT
     telescope_id: =KAIT
@@ -691,6 +808,7 @@ instrument:
     band: optical
     telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    api_classname_obsplan: RUBINMMAAPI
     # field_data:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
@@ -867,6 +985,15 @@ allocation:
     instrument_id: =SEDM
     =id: SEDM_allocation
     default_share_group_ids: [=program_A, =program_B]
+  - pi: Michael Coughlin
+    proposal_id: NGPS-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =NGPS
+    =id: NGPS_allocation
   - pi: Michael Coughlin
     proposal_id: LT-001
     validity_ranges:
@@ -1146,6 +1273,12 @@ galaxy_catalog:
       file: ../data/CLU_mini.hdf5
 
 candidates:
+  - id: ZTF26abmjjnm
+    filter_ids:
+      - =example_filter
+    ra: 12.30653
+    dec: 35.56105
+    passed_at: "2026-08-07 11:00:00"
   - id: ZTF21aaqjmps
     filter_ids:
       - =example_filter
@@ -1190,6 +1323,25 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
+  # Real EP/ZTF pair: optical counterpart to X-ray transient EP260806a
+  # (GCN #45299), reported in a ZTF circular as detected at T0+12 hrs. Paired
+  # with the gcn_event entry below so the GCN crossmatch has a genuine match to
+  # find in demo data.
+  - id: ZTF26abmjjnm
+    ra: 12.30653
+    dec: 35.56105
+    group_ids:
+      - =public_group_id
+      - =program_A
+  - id: AT2017gfo
+    ra: 197.450375
+    dec: -23.381500
+    t0: 57982.5285
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    alias: ["GW170817"]
   - id: ZTF21aaqjmps
     ra: 202.5050541
     dec: 13.4111859
@@ -1269,52 +1421,42 @@ sources:
     origin: TESS
 
 sources/ZTF21aaqjmps/comments:
-  - obj_id: ZTF21aaqjmps
-    text: "Kilroy was here"
-  - obj_id: ZTF21aaqjmps
-    text: "Birds aren't real"
-  - obj_id: ZTF21aaqjmps
-    text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
+  - text: "Kilroy was here"
+  - text: "Birds aren't real"
+  - text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
 sources/ZTF18aabcvnq/comments:
-  - obj_id: ZTF18aabcvnq
-    text: "Gosh, stars are cool"
-  - obj_id: ZTF18aabcvnq
-    text: "You're a star! <3"
+  - text: "Gosh, stars are cool"
+  - text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
-  - obj_id: ZTF21aaqjmps
-    origin: "Program A"
+  - origin: "Program A"
     data:
       numeric_field: 0.11235813
       some_boolean: true
       class: "SNe II"
 
 sources/ZTF18aabcvnq/annotations:
-  - obj_id: ZTF18aabcvnq
-    origin: "Program b"
+  - origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
 
 sources/ZTFe028h94k/annotations:
-  - obj_id: ZTFe028h94k
-    origin: "Program B"
+  - origin: "Program B"
     data:
       period: 0.5281475
     group_ids:
       - =program_B
-  - obj_id: ZTFe028h94k
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 0.5281217208459
     group_ids:
       - =program_B
 
 sources/ZTFrlh6cyjh/annotations:
-  - obj_id: ZTFrlh6cyjh
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 1.107332
     group_ids:
@@ -1372,6 +1514,51 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
+  # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
+  # from the ZTF circular for EP260806a.
+  - obj_id: ZTF26abmjjnm
+    instrument_id: =ZTF
+    file: ZTF26abmjjnm_phot.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # AT2017gfo (GW170817): multi-wavelength demo. Instruments are assigned by
+  # band regime (radio->VLA, X-ray->Swift, optical/IR->PS1), not physically exact.
+  - obj_id: AT2017gfo
+    instrument_id: =VLA
+    file: AT2017gfo_radio.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =UVOTXRT
+    file: AT2017gfo_xray.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =PS1
+    file: AT2017gfo_optical.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  # Private Collaboration only: shows up as unshared data to ask for.
+  - obj_id: AT2017gfo
+    instrument_id: =SEDM
+    filter: sdssr
+    magsys: ab
+    zp: 23.9
+    origin: private_collab_followup
+    mjd: [57983.6, 57984.6, 57985.6, 57986.6]
+    flux: [184.3, 131.9, 96.2, 71.4]
+    fluxerr: [12.2, 10.6, 9.9, 9.1]
+    group_ids:
+      - =private_collab
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
@@ -1524,6 +1711,24 @@ spectrum:
     assignment_id: 1
     units: erg/s/cm/cm/AA
     followup_request_id: =request_3
+  # A pair on one source: the plot marks the first "S" normally and the second
+  # in the unshared colour, which opens a request when clicked.
+  - obj_id: AT2017gfo
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2017-08-19T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =public_group_id
+  - obj_id: AT2017gfo
+    file: spec2.csv
+    instrument_id: =SEDM
+    observed_at: "2017-08-21T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =private_collab
 
 spectra/=spectrum1/annotations:
   - origin: "Kowalski"
@@ -1595,11 +1800,43 @@ gcn_event:
       file: ./GW190814.xml
   - xml:
       file: ./AMON.xml
+  # EP260806a, as a cone localization -- the counterpart above sits 2.1' from
+  # this centre, inside the 3.1' error circle.
+  - dateobs: "2026-08-06T23:02:28"
+    skymap:
+      ra: 12.278
+      dec: 35.588
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
+
+  # A second EP trigger 40 minutes later, 1' from the first: close enough in
+  # time and sky for the two to be proposed as one physical event.
+  - dateobs: "2026-08-06T23:42:11"
+    skymap:
+      ra: 12.291
+      dec: 35.601
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
+
+# Association cuts are per user and gate the search: without one, no pairs are
+# looked for at all.
+gcn_association_rules:
+  - group_id: =program_A
+    detector_type_1: x-ray
+    detector_type_2: x-ray
+    days: 1.0
+    min_consistency: 0.5
+
+# Find the pair now rather than waiting for the crossmatch service's next pass.
+gcn_event/2026-08-06T23:02:28/associations:
+  - {}
 
 gcn_event/1/comments:
   - text: "This is a test comment"
-    author_id: testadmin
-    created_at: "2022-03-18 16:00:00"
 
 earthquake:
   - xml:
@@ -1661,6 +1898,23 @@ default_followup_request:
 
 
 analysis_service:
+  # Upload-only service used to seed an example fit (model_lightcurve overlay)
+  # on ZTF21aaqjmps, so a fresh demo shows the photometry-plot overlay.
+  - name: "Fiesta_Demo"
+    display_name: "Fiesta (demo fit)"
+    description: "Seeded example light-curve fit for the photometry-plot overlay."
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost/none"
+    authentication_type: "none"
+    analysis_type: "lightcurve_fitting"
+    input_data_types: ["photometry"]
+    optional_analysis_parameters: '{}'
+    upload_only: true
+    group_ids:
+      - =program_A
+      - =program_B
+    =id: Fiesta_Demo
   - name: "Demo_Analysis"
     display_name: "Demo analysis service display name"
     description: "Description for demo analysis"
@@ -1742,3 +1996,20 @@ analysis_service/=Demo_Analysis/default_analysis:
       - =program_B
     source_filter: '{"classifications": [{"name": "Supernova", "probability": 0.9}]}'
     daily_limit: 2
+
+# Seed an example completed fit so a fresh demo shows the photometry-plot overlay.
+# Posted to the upload_only Fiesta_Demo service; model_lightcurve tracks the data.
+obj/ZTF21aaqjmps/analysis_upload/=Fiesta_Demo:
+  - analysis:
+      model_name: "ArnettModel"
+      model_lightcurve:
+        file: ZTF21aaqjmps_arnett_lc.json
+      results:
+        model: "ArnettModel"
+        filters: ["ztfg", "ztfr"]
+        note: "seed demo fit"
+    group_ids:
+      - =program_A
+      - =program_B
+    show_plots: true
+    show_parameters: true

@@ -12,5 +12,5 @@ apis = {
 
 class FollowupAPIsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         return self.success(data=apis)

@@ -1,12 +1,39 @@
+import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import selectinload
+
 from baselayer.app.access import permissions
 
-from ...models import Group, Photometry, Spectrum
+from ...models import Group, GroupPhotometry, GroupUser, Photometry, Spectrum
 from ..base import BaseHandler
+
+
+class SharingPostBody(BaseModel):
+    """Request body for sharing data with additional groups/users."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIDs: list[int] = Field(
+        min_length=1,
+        description="List of IDs of groups data will be shared with. To share "
+        "data with a single user, specify their single user group ID here.",
+    )
+    photometryIDs: list[int] | None = Field(
+        default=None,
+        description="IDs of the photometry data to be shared. If `spectrumIDs` "
+        "is not provided, this is required.",
+    )
+    spectrumIDs: list[int] | None = Field(
+        default=None,
+        description="IDs of the spectra to be shared. If `photometryIDs` is "
+        "not provided, this is required.",
+    )
 
 
 class SharingHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self, *, body: SharingPostBody = None):
         """
         ---
         summary: Share data with additional groups/users
@@ -15,55 +42,28 @@ class SharingHandler(BaseHandler):
           - data sharing
           - photometry
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  photometryIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      IDs of the photometry data to be shared. If `spectrumIDs` is not
-                      provided, this is required.
-                  spectrumIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: IDs of the spectra to be shared. If `photometryIDs` is
-                      not provided, this is required.
-                  groupIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups data will be shared with. To share data with
-                      a single user, specify their single user group ID here.
-                required:
-                  - groupIDs
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        group_ids = data.get("groupIDs", None)
-        if group_ids is None or group_ids == []:
-            return self.error("Missing required `groupIDs` field.")
-        phot_ids = data.get("photometryIDs", [])
-        spec_ids = data.get("spectrumIDs", [])
+        body = self.parse_body(SharingPostBody)
+        group_ids = body.groupIDs
+        phot_ids = body.photometryIDs or []
+        spec_ids = body.spectrumIDs or []
         if not phot_ids and not spec_ids:
             return self.error(
                 "One of either `photometryIDs` or `spectrumIDs` must be provided."
             )
 
-        with self.Session() as session:
-            valid_groups = session.scalars(
-                Group.select(self.associated_user_object).where(Group.id.in_(group_ids))
-            ).all()
+        async with self.AsyncSession() as session:
+            valid_groups_result = await session.scalars(
+                Group.select(session.user_or_token)
+                .where(Group.id.in_(group_ids))
+                .distinct()
+            )
+            valid_groups = valid_groups_result.all()
             valid_group_ids = [g.id for g in valid_groups]
             invalid_group_ids = [gid for gid in group_ids if gid not in valid_group_ids]
 
@@ -73,14 +73,29 @@ class SharingHandler(BaseHandler):
 
             phot_obj_ids = []
             spec_obj_internal_keys = []
+            is_system_admin = "System admin" in self.associated_user_object.permissions
 
             if phot_ids:
-                # valid_phot = Photometry.query.filter(Photometry.id.in_(phot_ids))
-                valid_phot = session.scalars(
-                    Photometry.select(self.associated_user_object).where(
-                        Photometry.id.in_(phot_ids)
+                memberships = (
+                    await session.execute(
+                        sa.select(
+                            GroupUser.group_id, GroupUser.can_share_photometry
+                        ).where(GroupUser.user_id == self.associated_user_object.id)
                     )
                 ).all()
+                member_group_ids = {group_id for group_id, _ in memberships}
+                # Groups in which this user may share photometry they don't own.
+                shareable_group_ids = {
+                    group_id for group_id, can_share in memberships if can_share
+                }
+                valid_phot_result = await session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .options(selectinload(Photometry.groups))
+                    .where(Photometry.id.in_(phot_ids))
+                )
+                # unique(): the access-control join fans out over the point's
+                # groups/streams, so a point can come back more than once.
+                valid_phot = valid_phot_result.unique().all()
                 valid_phot_ids = [op.id for op in valid_phot]
                 invalid_phot_ids = [
                     pid for pid in phot_ids if pid not in valid_phot_ids
@@ -89,64 +104,99 @@ class SharingHandler(BaseHandler):
                 if len(invalid_phot_ids) > 0:
                     return self.error(f"Invalid photometry IDs: {invalid_phot_ids}.")
 
+                # `can_share_photometry` only lets a user widen access within
+                # their own collaborations, so re-sharing someone else's point
+                # is limited to groups they belong to. Owners and system admins
+                # keep the unrestricted behavior.
+                if not is_system_admin and any(
+                    phot.owner_id != self.associated_user_object.id
+                    for phot in valid_phot
+                ):
+                    outside_group_ids = [
+                        group.id for group in groups if group.id not in member_group_ids
+                    ]
+                    if outside_group_ids:
+                        return self.error(
+                            "Cannot share photometry you do not own with groups you "
+                            f"are not a member of: {outside_group_ids}."
+                        )
+
                 for phot in valid_phot:
-                    # Ensure user has access to data being shared
+                    existing_group_ids = {g.id for g in phot.groups}
                     if (
                         phot.owner_id != self.associated_user_object.id
-                        and "System admin"
-                        not in self.associated_user_object.permissions
+                        and not is_system_admin
+                        and not existing_group_ids & shareable_group_ids
                     ):
                         return self.error(
-                            f"Cannot share photometry id {phot.id}: you are not the owner of this point."
+                            f"Cannot share photometry id {phot.id}: you are not the owner and do not have sharing rights in any of its groups."
                         )
-                    for group in groups:
-                        phot.groups.append(group)
-                    # Grab obj_id for use in websocket message below
+                    new_group_ids = [
+                        group.id
+                        for group in groups
+                        if group.id not in existing_group_ids
+                    ]
+                    if new_group_ids:
+                        # Insert the join rows directly. Appending to
+                        # phot.groups marks the Photometry dirty, which trips
+                        # its owner-only update check, and adding
+                        # GroupPhotometry through the ORM trips the create
+                        # check, which cannot handle a composite primary key.
+                        # The checks above are the permission boundary here.
+                        await session.execute(
+                            pg_insert(GroupPhotometry.__table__)
+                            .values(
+                                [
+                                    {"photometr_id": phot.id, "group_id": group_id}
+                                    for group_id in new_group_ids
+                                ]
+                            )
+                            .on_conflict_do_nothing()
+                        )
                     phot_obj_ids.append(phot.obj_id)
 
             if spec_ids:
-                valid_spec = session.scalars(
-                    Spectrum.select(self.associated_user_object).where(
-                        Spectrum.id.in_(spec_ids)
+                valid_spec_result = await session.scalars(
+                    Spectrum.select(session.user_or_token, mode="update")
+                    .options(
+                        selectinload(Spectrum.groups),
+                        selectinload(Spectrum.obj),
                     )
-                ).all()
+                    .where(Spectrum.id.in_(spec_ids))
+                )
+                valid_spec = valid_spec_result.all()
                 valid_spec_ids = [os.id for os in valid_spec]
                 invalid_spec_ids = [
                     sid for sid in spec_ids if sid not in valid_spec_ids
                 ]
 
                 if len(invalid_spec_ids) > 0:
-                    return self.error(f"Invalid spectrum IDs: {invalid_spec_ids}.")
+                    return self.error(
+                        f"Cannot share spectrum IDs {invalid_spec_ids}: not found or you are not the owner."
+                    )
 
                 for spec in valid_spec:
-                    # Ensure user has access to data being shared
-                    if (
-                        spec.owner_id != self.associated_user_object.id
-                        and "System admin"
-                        not in self.associated_user_object.permissions
-                    ):
-                        return self.error(
-                            f"Cannot share spectrum id {spec.id}: you are not the owner of this spectrum."
-                        )
+                    existing_group_ids = {g.id for g in spec.groups}
                     for group in groups:
-                        spec.groups.append(group)
-                    # Grab obj_id for use in websocket message below
+                        if group.id not in existing_group_ids:
+                            spec.groups.append(group)
                     spec_obj_internal_keys.append(spec.obj.internal_key)
 
-            session.commit()
+            await session.commit()
 
             phot_obj_ids = set(phot_obj_ids)
             spec_obj_internal_keys = set(spec_obj_internal_keys)
 
-        for obj_id in phot_obj_ids:
-            self.push(
-                action="skyportal/REFRESH_SOURCE_PHOTOMETRY", payload={"obj_id": obj_id}
-            )
+            for obj_id in phot_obj_ids:
+                self.push(
+                    action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
+                    payload={"obj_id": obj_id},
+                )
 
-        for obj_internal_key in spec_obj_internal_keys:
-            self.push(
-                action="skyportal/REFRESH_SOURCE_SPECTRA",
-                payload={"obj_internal_key": obj_internal_key},
-            )
+            for obj_internal_key in spec_obj_internal_keys:
+                self.push(
+                    action="skyportal/REFRESH_SOURCE_SPECTRA",
+                    payload={"obj_internal_key": obj_internal_key},
+                )
 
-        return self.success()
+            return self.success()

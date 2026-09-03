@@ -2,6 +2,7 @@ import astroplan
 import astropy_healpix as ahp
 import numpy as np
 import pandas as pd
+import scipy.stats
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
@@ -16,6 +17,16 @@ RGE = np.array(
         [-0.867666136, -0.198076390, +0.455983795],
     ]
 )
+
+
+def gaussian_sigmas_for(probability):
+    """Sigmas enclosing ``probability`` of a 2D Gaussian.
+
+    1 sigma holds 39% of it, 90% needs 2.15. Converts between a quoted error
+    radius and the radius of a credible region, in either direction.
+    """
+    probability = min(max(float(probability), 0.0), 0.999999)
+    return float(scipy.stats.chi(df=2).ppf(probability))
 
 
 def radec_str2deg(_ra_str, _dec_str):
@@ -195,17 +206,39 @@ def get_airmass(fields: list, time: np.ndarray, below_horizon=np.inf, **kwargs):
     altitude = get_altitude(time, target, observer).to("degree").value
     above = altitude > 0
 
-    # use Pickering (2002) interpolation to calculate the airmass
-    # The Pickering interpolation tends toward 38.7494 as the altitude
-    # approaches zero.
+    airmass = airmass_from_altitude(altitude, below_horizon=below_horizon)
+    airmass = airmass.reshape(output_shape)
+
+    return airmass
+
+
+def airmass_from_altitude(altitude, below_horizon=np.inf):
+    """Convert altitude in degrees to airmass.
+
+    Uses the Pickering (2002) interpolation of the Rayleigh (molecular
+    atmosphere) airmass, which tends toward 38.7494 as the altitude
+    approaches zero.
+
+    Parameters
+    ----------
+    altitude : array-like
+        Altitude above the horizon, in degrees.
+    below_horizon : scalar, Numeric
+        Airmass value to assign when the altitude is less than zero degrees.
+
+    Returns
+    -------
+    airmass : ndarray
+        The airmass at each altitude.
+    """
+    altitude = np.asarray(altitude, dtype=float)
+    above = altitude > 0
+
     sinarg = np.zeros_like(altitude)
     airmass = np.ones_like(altitude) * np.inf
     sinarg[above] = altitude[above] + 244 / (165 + 47 * altitude[above] ** 1.1)
     airmass[above] = 1.0 / np.sin(np.deg2rad(sinarg[above]))
-
-    # set objects below the horizon to an airmass of infinity
     airmass[~above] = below_horizon
-    airmass = airmass.reshape(output_shape)
 
     return airmass
 

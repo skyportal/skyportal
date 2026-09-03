@@ -12,13 +12,13 @@ from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
 
-from ...utils.cache import Cache, dict_to_bytes
+from ...utils.cache import Cache, cache_folder, dict_to_bytes
 from ..group import GroupUser
 from ..source import Source
 
 env, cfg = load_env()
 
-cache_dir = "cache/public_pages/sources"
+cache_dir = f"{cache_folder}/public_pages/sources"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_public_source_pages_cache"] * 60,
@@ -34,7 +34,7 @@ def published_source_access_logic(cls, user_or_token):
     if not user_or_token.is_system_admin:
         query = query.join(Source, cls.source_id == Source.obj_id)
         query = query.join(GroupUser, Source.group_id == GroupUser.group_id)
-        query = query.filter(GroupUser.user_id == user_id, Source.active.is_(True))
+        query = query.where(GroupUser.user_id == user_id, Source.active.is_(True))
     return query
 
 

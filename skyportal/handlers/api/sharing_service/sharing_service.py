@@ -1,7 +1,9 @@
 import json
+from typing import Any
 
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import joinedload
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -12,14 +14,77 @@ from ....models import (
     SharingServiceGroup,
 )
 from ....utils.data_access import (
-    process_instrument_ids,
-    process_stream_ids,
+    process_instrument_ids_async,
+    process_stream_ids_async,
     validate_photometry_options,
 )
 from ....utils.parse import get_list_typed, str_to_bool
 from ...base import BaseHandler
 
 log = make_log("api/sharing_service")
+
+
+class SharingServicePutBody(BaseModel):
+    """Request body for creating or updating a sharing service. On update, only
+    the provided fields are changed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Sharing service name.")
+    owner_group_ids: list[int] | str | None = Field(
+        default=None,
+        description="IDs of the groups that will own the sharing service (used "
+        "on creation).",
+    )
+    instrument_ids: list[int] | str | None = Field(
+        default=None,
+        description="IDs of the instruments to restrict the photometry to when "
+        "publishing.",
+    )
+    stream_ids: list[int] | str | None = Field(
+        default=None,
+        description="IDs of the streams to restrict the photometry to when publishing.",
+    )
+    acknowledgments: str | None = Field(
+        default=None, description="Acknowledgments to use for sharing."
+    )
+    testing: bool | str | None = Field(
+        default=None,
+        description="If true, nothing will be shared but the request's payload "
+        "will be stored.",
+    )
+    photometry_options: dict[str, Any] | None = Field(
+        default=None,
+        description="Photometry options to make some data optional or mandatory "
+        "for manual and auto-publishing.",
+    )
+    enable_sharing_with_hermes: bool | None = Field(
+        default=None, description="Whether to enable publishing to Hermes or not."
+    )
+    enable_sharing_with_tns: bool | None = Field(
+        default=None, description="Whether to enable publishing to TNS or not."
+    )
+    tns_bot_name: str | None = Field(default=None, description="Name of the TNS bot.")
+    tns_bot_id: int | None = Field(default=None, description="ID of the TNS bot.")
+    tns_source_group_id: int | None = Field(
+        default=None, description="Source group ID of the TNS bot."
+    )
+    tns_altdata: dict | str | None = Field(
+        default=None,
+        alias="_tns_altdata",
+        description="TNS altdata (e.g. the API key), as a JSON object or string.",
+    )
+    publish_existing_tns_objects: bool | str | None = Field(
+        default=None,
+        description="Whether to publish objects that already exist in TNS but "
+        "not reported under this internal name.",
+    )
+
+
+class SharingServicePutResponse(BaseModel):
+    """Data payload returned when creating or updating a sharing service."""
+
+    id: int = Field(description="New Sharing Service ID")
 
 
 def validate_tns_fields(sharing_service):
@@ -42,7 +107,7 @@ def validate_tns_fields(sharing_service):
             )
 
 
-def create_sharing_service(
+async def create_sharing_service(
     data,
     owner_group_ids,
     instrument_ids,
@@ -61,8 +126,8 @@ def create_sharing_service(
         List of instrument IDs that can be used for publishing
     stream_ids : list of int
         List of stream IDs that can be used for publishing
-    session : `baselayer.app.models.Session`
-        Database session
+    session : `baselayer.app.models.AsyncSession`
+        Async database session
 
     Returns
     -------
@@ -87,11 +152,22 @@ def create_sharing_service(
         raise ValueError(
             f'Error parsing posted sharing service: "{e.normalized_messages()}"'
         )
-    session.add(sharing_service)
+
+    # Validate instruments before adding the SharingService so we fail early
+    # without leaving a half-built object in the async session.
+    instruments = await process_instrument_ids_async(
+        session, session.user_or_token, instrument_ids
+    )
+    if not instruments:
+        raise ValueError("At least one instrument must be specified for sharing")
+    streams = await process_stream_ids_async(session, session.user_or_token, stream_ids)
+
+    sharing_service.instruments = instruments
+    if streams:
+        sharing_service.streams = streams
 
     owner_groups = [
         SharingServiceGroup(
-            sharing_service_id=sharing_service.id,
             group_id=owner_group_id,
             owner=True,
             auto_share_to_tns=False,
@@ -101,24 +177,14 @@ def create_sharing_service(
         for owner_group_id in owner_group_ids
     ]
     for owner_group in owner_groups:
-        session.add(owner_group)
         sharing_service.groups.append(owner_group)
 
-    instruments = process_instrument_ids(session, session.user_or_token, instrument_ids)
-    if instruments:
-        sharing_service.instruments = instruments
-    else:
-        raise ValueError("At least one instrument must be specified for sharing")
-
-    streams = process_stream_ids(session, session.user_or_token, stream_ids)
-    if streams:
-        sharing_service.streams = streams
-
-    session.commit()
+    session.add(sharing_service)
+    await session.commit()
     return sharing_service.id
 
 
-def update_sharing_service(
+async def update_sharing_service(
     data,
     existing_id,
     instrument_ids,
@@ -137,18 +203,22 @@ def update_sharing_service(
         List of instrument IDs that can be used for publishing
     stream_ids : list of int
         List of stream IDs that can be used for publishing
-    session : `baselayer.app.models.Session`
-        Database session
+    session : `baselayer.app.models.AsyncSession`
+        Async database session
 
     Returns
     -------
     id : int
         The ID of the updated SharingService
     """
-    sharing_service = session.scalar(
-        SharingService.select(session.user_or_token, mode="update").where(
-            SharingService.id == existing_id
+    sharing_service = await session.scalar(
+        SharingService.select(session.user_or_token, mode="update")
+        .options(
+            selectinload(SharingService.groups),
+            selectinload(SharingService.instruments),
+            selectinload(SharingService.streams),
         )
+        .where(SharingService.id == existing_id)
     )
     if sharing_service is None:
         raise ValueError(
@@ -192,61 +262,41 @@ def update_sharing_service(
         data.get("photometry_options", {}), sharing_service.photometry_options
     )
 
-    instruments = process_instrument_ids(session, session.user_or_token, instrument_ids)
+    instruments = await process_instrument_ids_async(
+        session, session.user_or_token, instrument_ids
+    )
     if instruments:
         sharing_service.instruments = instruments
 
     sharing_service.streams = (
-        process_stream_ids(session, session.user_or_token, stream_ids) or []
+        await process_stream_ids_async(session, session.user_or_token, stream_ids) or []
     )
 
     validate_tns_fields(sharing_service)
 
-    session.commit()
+    await session.commit()
     return sharing_service.id
 
 
 class SharingServiceHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def put(self, existing_id=None):
+    async def put(
+        self, existing_id: int | None = None, *, body: SharingServicePutBody = None
+    ) -> SharingServicePutResponse:
         """
         ---
         summary: Create or update a sharing service
         description: Post or update a sharing service
         tags:
           - sharing service
-        requestBody:
-          content:
-            application/json:
-              schema: SharingServiceNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Sharing Service ID
         """
-        try:
-            data = self.get_json()
+        body = self.parse_body(SharingServicePutBody)
+        data = body.model_dump(exclude_unset=True, by_alias=True)
 
-            if "_tns_altdata" in data:
-                if isinstance(data["_tns_altdata"], dict):
-                    data["_tns_altdata"] = json.dumps(data["_tns_altdata"])
-                data["_tns_altdata"] = data["_tns_altdata"].replace("'", '"')
-
-        except Exception as e:
-            return self.error(
-                f"Failed to parse request for create/update sharing service: {e}"
-            )
+        if "_tns_altdata" in data:
+            if isinstance(data["_tns_altdata"], dict):
+                data["_tns_altdata"] = json.dumps(data["_tns_altdata"])
+            data["_tns_altdata"] = data["_tns_altdata"].replace("'", '"')
 
         owner_group_ids = get_list_typed(data.pop("owner_group_ids", []), int)
 
@@ -256,10 +306,10 @@ class SharingServiceHandler(BaseHandler):
         instrument_ids = data.pop("instrument_ids", [])
         stream_ids = data.pop("stream_ids", [])
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # Check for duplicates if we're creating a new sharing service
             if not existing_id:
-                existing_sharing_service = session.scalar(
+                existing_sharing_service = await session.scalar(
                     SharingService.select(session.user_or_token).where(
                         SharingService.name == data["name"]
                     )
@@ -270,17 +320,18 @@ class SharingServiceHandler(BaseHandler):
                     )
 
                 try:
-                    owner_groups = session.scalars(
+                    result = await session.scalars(
                         Group.select(session.user_or_token).where(
                             Group.id.in_(owner_group_ids)
                         )
-                    ).all()
+                    )
+                    owner_groups = result.all()
                     if len(owner_groups) != len(owner_group_ids):
                         return self.error(
                             f"One or more owner groups not found: {owner_group_ids}"
                         )
 
-                    sharing_service_id = create_sharing_service(
+                    sharing_service_id = await create_sharing_service(
                         data,
                         owner_group_ids,
                         instrument_ids,
@@ -295,7 +346,7 @@ class SharingServiceHandler(BaseHandler):
                     return self.error(f"Failed to create sharing service: {e}")
             else:
                 try:
-                    sharing_service_id = update_sharing_service(
+                    sharing_service_id = await update_sharing_service(
                         data,
                         existing_id,
                         instrument_ids,
@@ -310,7 +361,7 @@ class SharingServiceHandler(BaseHandler):
                     return self.error(f"Failed to update sharing service: {e}")
 
     @auth_or_token
-    def get(self, sharing_service_id=None):
+    async def get(self, sharing_service_id: int | None = None):
         """
         ---
         single:
@@ -318,12 +369,6 @@ class SharingServiceHandler(BaseHandler):
           description: Retrieve an external sharing service
           tags:
             - external sharing service
-          parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -348,55 +393,49 @@ class SharingServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SharingService.select(session.user_or_token, mode="read").options(
-                joinedload(SharingService.groups),
-                joinedload(SharingService.coauthors),
-                joinedload(SharingService.instruments),
-                joinedload(SharingService.streams),
+                selectinload(SharingService.groups).selectinload(
+                    SharingServiceGroup.auto_publishers
+                ),
+                selectinload(SharingService.coauthors),
+                selectinload(SharingService.instruments),
+                selectinload(SharingService.streams),
             )
             if sharing_service_id:
-                sharing_service = session.scalar(
+                sharing_service = await session.scalar(
                     stmt.where(SharingService.id == sharing_service_id)
                 )
                 if sharing_service is None:
                     return self.error(
                         f"No sharing service with ID {sharing_service_id}"
                     )
-                # for each of the groups, we load the users, and grab the list of owner groups
+                # for each of the groups, build the list of owner groups
                 owner_group_ids = []
                 for group in sharing_service.groups:
                     if group.owner:
                         owner_group_ids.append(group.group_id)
-                    group.auto_publishers  # we just need to load the users by accessing the attribute
                 sharing_service.owner_group_ids = owner_group_ids
                 return self.success(data=sharing_service)
             else:
-                sharing_services = session.scalars(stmt).unique().all()
-                # for each of the groups, we load the users
+                result = await session.scalars(stmt)
+                sharing_services = result.unique().all()
                 for sharing_service in sharing_services:
                     owner_group_ids = []
                     for group in sharing_service.groups:
                         if group.owner:
                             owner_group_ids.append(group.group_id)
-                        group.auto_publishers  # we just need to load the users by accessing the attribute
                     sharing_service.owner_group_ids = owner_group_ids
                 return self.success(data=sharing_services)
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id):
+    async def delete(self, sharing_service_id: int):
         """
         ---
         summary: Delete an external sharing service
         description: Delete an external sharing service
         tags:
           - external sharing service
-        parameters:
-          - in: path
-            name: sharing_service_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -407,9 +446,13 @@ class SharingServiceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            sharing_service_id = int(sharing_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
 
-        with self.Session() as session:
-            sharing_service = session.scalar(
+        async with self.AsyncSession() as session:
+            sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token, mode="delete").where(
                     SharingService.id == sharing_service_id
                 )
@@ -418,8 +461,8 @@ class SharingServiceHandler(BaseHandler):
                 return self.error(
                     f"No sharing service with ID {sharing_service_id}, or you are not authorized to delete it"
                 )
-            session.delete(sharing_service)
-            session.commit()
+            await session.delete(sharing_service)
+            await session.commit()
             self.push(
                 action="skyportal/REFRESH_SHARING_SERVICES",
             )

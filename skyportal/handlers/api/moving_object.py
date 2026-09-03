@@ -1,29 +1,73 @@
 import traceback
+from typing import Annotated
 
 import arrow
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...models import (
-    DBSession,
-    Instrument,
-)
+from ...models import Instrument
 from ...utils.moving_objects import (
     add_instrument_fields,
     find_observable_sequence,
     get_ephemeris,
 )
-from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
 
 
+class MovingObjectFollowupPostBody(BaseModel):
+    """Request body for a moving object follow-up observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    instrument_id: int | None = Field(
+        default=None, description="ID of the instrument to use"
+    )
+    exposure_count: int | None = Field(default=None, description="Number of exposures")
+    exposure_time: float | None = Field(
+        default=None, description="Exposure time in seconds"
+    )
+    start_time: str | None = Field(
+        default=None, description="Start time of the obversations' time window"
+    )
+    end_time: str | None = Field(
+        default=None, description="End time of the obversations' time window"
+    )
+    filter: str | None = Field(default=None, description="Filter to use")
+    primary_only: bool = Field(
+        default=True,
+        description="Only consider an instrument's fields from it's primary grid, if any",
+    )
+    airmass_limit: float = Field(
+        default=2.5, description="Maximum airmass for observations. Default is 2.5"
+    )
+    moon_distance_limit: float = Field(
+        default=30,
+        description="Minimum distance from the Moon in degrees. Default is 30",
+    )
+    sun_altitude_limit: float = Field(
+        default=-18,
+        description="Maximum altitude of the Sun in degrees. Default is -18",
+    )
+    references_only: bool = Field(
+        default=False,
+        description="Only consider fields that have reference images available",
+    )
+
+
 class MovingObjectFollowupHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_name):
+    async def post(
+        self,
+        obj_name: Annotated[str, Field(description="Name of the moving object")],
+        *,
+        body: MovingObjectFollowupPostBody = None,
+    ):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object
@@ -31,55 +75,6 @@ class MovingObjectFollowupHandler(BaseHandler):
         tags:
         - moving objects
         - follow-up
-        parameters:
-          - in: path
-            name: obj_name
-            required: true
-            schema:
-                type: string
-            description: Name of the moving object
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            instrument_id:
-                                type: integer
-                                description: ID of the instrument to use
-                            exposure_count:
-                                type: integer
-                                description: Number of exposures
-                            exposure_time:
-                                type: number
-                                description: Exposure time in seconds
-                            start_time:
-                                type: string
-                                format: date-time
-                                description: Start time of the obversations' time window
-                            end_time:
-                                type: string
-                                format: date-time
-                                description: End time of the obversations' time window
-                            filter:
-                                type: string
-                                description: Filter to use
-                            primary_only:
-                                type: boolean
-                                description: Only consider an instrument's fields from it's primary grid, if any
-                                required: false
-                            airmass_limit:
-                                type: number
-                                description: Maximum airmass for observations. Default is 2.5
-                                required: false
-                            moon_distance_limit:
-                                type: number
-                                description: Minimum distance from the Moon in degrees. Default is 30
-                                required: false
-                            sun_altitude_limit:
-                                type: number
-                                description: Maximum altitude of the Sun in degrees. Default is -18
-                                required: false
         responses:
             200:
                 content:
@@ -90,18 +85,18 @@ class MovingObjectFollowupHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        data = self.get_json()
-        instrument_id = data.get("instrument_id")
-        nb_obs = data.get("exposure_count")
-        obs_time = data.get("exposure_time")
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
-        band = data.get("filter")
-        primary_only = data.get("primary_only", True)
-        airmass_limit = data.get("airmass_limit", 2.5)
-        moon_distance_limit = data.get("moon_distance_limit", 30)
-        sun_altitude_limit = data.get("sun_altitude_limit", -18)
-        references_only = data.get("references_only", False)
+        body = self.parse_body(MovingObjectFollowupPostBody)
+        instrument_id = body.instrument_id
+        nb_obs = body.exposure_count
+        obs_time = body.exposure_time
+        start_time = body.start_time
+        end_time = body.end_time
+        band = body.filter
+        primary_only = body.primary_only
+        airmass_limit = body.airmass_limit
+        moon_distance_limit = body.moon_distance_limit
+        sun_altitude_limit = body.sun_altitude_limit
+        references_only = body.references_only
 
         if instrument_id is None:
             return self.error("Instrument ID must be provided")
@@ -132,12 +127,12 @@ class MovingObjectFollowupHandler(BaseHandler):
             return self.error("Exposure time must be a number")
 
         try:
-            start_time = arrow.get(start_time).datetime
+            start_time = arrow.get(start_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid start time")
 
         try:
-            end_time = arrow.get(end_time).datetime
+            end_time = arrow.get(end_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 
@@ -145,15 +140,12 @@ class MovingObjectFollowupHandler(BaseHandler):
         if (end_time - start_time).total_seconds() > 7 * 24 * 3600:
             return self.error("Time window must be less than 7 days")
 
-        if str_to_bool(references_only, default=False):
-            references_only = True
-        else:
-            references_only = False
-
-        with DBSession() as session:
+        async with self.AsyncSession() as session:
             try:
-                instrument = session.scalar(
-                    sa.select(Instrument).where(Instrument.id == instrument_id)
+                instrument = await session.scalar(
+                    sa.select(Instrument)
+                    .where(Instrument.id == instrument_id)
+                    .options(joinedload(Instrument.telescope))
                 )
                 if instrument is None:
                     return self.error(f"Instrument {instrument_id} not found")
@@ -172,16 +164,19 @@ class MovingObjectFollowupHandler(BaseHandler):
                     sun_altitude_limit=sun_altitude_limit,
                 )
 
-                dfs, field_id_to_radec = add_instrument_fields(
-                    df,
-                    instrument_id,
-                    instrument_name,
-                    session,
-                    observer,
-                    primary_only=primary_only,
-                    airmass_limit=airmass_limit,
-                    moon_distance_limit=moon_distance_limit,
-                    references_only=references_only,
+                # `add_instrument_fields` does sync DB work — bridge via greenlet
+                dfs, field_id_to_radec = await session.run_sync(
+                    lambda sync_session: add_instrument_fields(
+                        df,
+                        instrument_id,
+                        instrument_name,
+                        sync_session,
+                        observer,
+                        primary_only=primary_only,
+                        airmass_limit=airmass_limit,
+                        moon_distance_limit=moon_distance_limit,
+                        references_only=references_only,
+                    )
                 )
 
                 observations = find_observable_sequence(
