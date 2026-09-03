@@ -39,10 +39,10 @@ An alert becomes a candidate only if all of these are true:
 
 Three names are involved and they are set independently.
 
-* The **survey** name is what the alert carries, and it is the key into
+- The **survey** name is what the alert carries, and it is the key into
   `ZP_PER_SURVEY`.
-* The **stream** name is a SkyPortal label for the same data.
-* The **topic** is the broker's, usually `<survey>_alerts_results`.
+- The **stream** name is a SkyPortal label for the same data.
+- The **topic** is the broker's, usually `<survey>_alerts_results`.
 
 ## Where the configuration lives
 

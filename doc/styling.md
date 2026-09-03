@@ -1,7 +1,7 @@
 # Styling components
 
 SkyPortal is built on top of [Material UI](https://mui.com/material-ui/getting-started/overview/)
-(MUI).  We have evaluated several styling systems, including inline
+(MUI). We have evaluated several styling systems, including inline
 styles, CSS Modules, and Styled Components, and have settled on using
 [MUI's style hooks API](https://mui.com/system/styles/basics/#hook-api).
 
@@ -16,7 +16,7 @@ Sheets) and returns a CSS provider [hook](https://reactjs.org/docs/hooks-referen
 const useStyles = makeStyles({
   root: {
     border: 0,
-    padding: '1rem',
+    padding: "1rem",
   },
 });
 ```
@@ -29,7 +29,7 @@ import Typography from "@mui/material/Typography";
 const Text = () => {
   const classes = useStyles();
   return <Typography className={classes.root}>Text</Typography>;
-}
+};
 ```
 
 It is possible to make nested definitions:
@@ -37,13 +37,13 @@ It is possible to make nested definitions:
 ```js
 const useStyles = makeStyles({
   root: {
-    color: 'red',
-    '& p': {
-      color: 'green',
-      '& span': {
-        color: 'blue'
-      }
-    }
+    color: "red",
+    "& p": {
+      color: "green",
+      "& span": {
+        color: "blue",
+      },
+    },
   },
 });
 ```
@@ -61,10 +61,11 @@ docs](https://mui.com/material-ui/react-autocomplete/) for available
 components and their props and CSS styles.
 
 ## Buttons
+
 Do not use the MUI Button component, instead use SkyPortal's standardized Button component. Import as such (assuming you are editing a component in the `static/js/components` directory):
 
 ```js
-import Button from './Button';
+import Button from "./Button";
 ```
 
 ### Usage
@@ -113,6 +114,7 @@ SkyPortal's Button component accepts all the [same props as regular MUI Buttons]
 ```
 
 ### Icons
+
 Use the `endIcon` prop for adding icons to buttons. (Do not use the `startIcon` prop.)
 
 ```jsx
@@ -127,23 +129,21 @@ import SearchIcon from "@mui/icons-material/Search";
 ```
 
 ### Asynchronous Operations
+
 Use the `async` and `loading` props to make buttons disabled while waiting for an asynchronous operation to complete. Async buttons will always have primary button styling.
 
 ![async button](images/async_button.gif)
+
 ```jsx
-const [loading, setLoading] = useState(false)
+const [loading, setLoading] = useState(false);
 const waitForAsyncOperation = () => {
-  setLoading(true)
+  setLoading(true);
   // async operation here...
-  setLoading(false)
-}
-<Button
-  async
-  loading={loading}
-  onClick={waitForAsyncOperation}
->
+  setLoading(false);
+};
+<Button async loading={loading} onClick={waitForAsyncOperation}>
   Async button
-</Button>
+</Button>;
 ```
 
 ## Sizes
@@ -189,11 +189,11 @@ Use it as follows:
 ```js
 const useStyles = makeStyles({
   root: {
-    backgroundColor: 'blue',
-    [theme.breakpoints.up('md')]: {
-      backgroundColor: 'red',
+    backgroundColor: "blue",
+    [theme.breakpoints.up("md")]: {
+      backgroundColor: "red",
     },
-  }
+  },
 });
 ```
 
@@ -223,7 +223,7 @@ There are two `Grid` types: `container` (outer element) and `item`
 ```
 
 The `xs` above refers to `xs`, the breakpoint from the previous
-section.  In other words, this split of cells will be used from `xs`
+section. In other words, this split of cells will be used from `xs`
 and up.
 [Multiple breakpoints](https://mui.com/material-ui/react-grid/#grid-with-breakpoints)
 can be specified.
