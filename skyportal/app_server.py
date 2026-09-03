@@ -386,18 +386,18 @@ skyportal_handlers = [
         EarthquakeMeasurementHandler,
     ),
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)?/comments(/[0-9]+)?",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+:]+)?/comments(/[0-9]+)?",
         CommentHandler,
     ),
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+:]+)/comments(/[0-9]+)/attachment",
         CommentAttachmentHandler,
     ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+:]+)/comments(/[0-9]+)/attachment.pdf",
         CommentAttachmentHandler,
     ),
     (
@@ -587,7 +587,10 @@ skyportal_handlers = [
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
         SourceObservabilityPlotHandler,
     ),
-    (r"/api/sources/([0-9A-Za-z-_\.\+]+)/comments/channels", CommentChannelHandler),
+    (
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+:]+)/comments/channels",
+        CommentChannelHandler,
+    ),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments", CommentHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?", CommentHandler),
     (
@@ -670,7 +673,6 @@ skyportal_handlers = [
         SharingServiceGroupAutoPublisherHandler,
     ),
     (r"/api/sharing_service(/[0-9]+)?", SharingServiceHandler),
-    #
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
     (r"/api/user/([0-9]+)/profile", UserPublicProfileHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
