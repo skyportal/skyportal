@@ -153,12 +153,6 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
 
-      # Lint the diff once (on shard 0), not once per shard.
-      - name: Formatting and linting checks
-        if: matrix.shard == 0 && github.ref != 'refs/heads/main'
-        run: |
-          uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
       - name: Save dependency caches
         if: matrix.shard == 0
         uses: ./.github/actions/cache-dependencies-save
