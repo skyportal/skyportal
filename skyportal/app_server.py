@@ -237,6 +237,10 @@ from skyportal.handlers.api import (
     UserRoleHandler,
     VizierQueryHandler,
     WeatherHandler,
+    ZooniverseAuthCallbackHandler,
+    ZooniverseAuthHandler,
+    ZooniverseClassificationHandler,
+    ZooniverseSubjectHandler,
 )
 from skyportal.handlers.api.internal import (
     AcrossInstrumentsHandler,
@@ -722,6 +726,10 @@ skyportal_handlers = [
     (r"/api/internal/notifications/all", BulkNotificationHandler),
     (r"/api/internal/notifications_test(/[0-9]+)?", NotificationTestHandler),
     (r"/api/internal/survey_thumbnail", SurveyThumbnailHandler),
+    (r"/api/zooniverse/auth/callback", ZooniverseAuthCallbackHandler),
+    (r"/api/zooniverse/auth", ZooniverseAuthHandler),
+    (r"/api/zooniverse/subject", ZooniverseSubjectHandler),
+    (r"/api/zooniverse/classification", ZooniverseClassificationHandler),
     (r"/api/internal/recent_gcn_events", RecentGcnEventsHandler),
     (r"/api/internal/recent_gcn_extractions", RecentGcnExtractionsHandler),
     (r"/api/.*", InvalidEndpointHandler),

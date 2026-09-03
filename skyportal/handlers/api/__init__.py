@@ -264,3 +264,9 @@ from .user import (
 from .user_obj_list import UserObjListHandler
 from .weather import WeatherHandler
 from .webhook import AnalysisWebhookHandler
+from .zooniverse import (  # noqa: E402
+    ZooniverseAuthCallbackHandler,
+    ZooniverseAuthHandler,
+    ZooniverseClassificationHandler,
+    ZooniverseSubjectHandler,
+)

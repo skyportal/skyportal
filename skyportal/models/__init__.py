@@ -65,5 +65,6 @@ from .user_notification import *
 from .user_token import *
 from .weather import *
 from .webhook import *
+from .zooniverse_token import *
 
 schema.setup_schema()
