@@ -549,6 +549,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         )}
         <div>
           <Form
+            key={selectedAnalysisServiceId}
             schema={AnalysisSelectionFormSchema as any}
             uiSchema={AnalysisSelectionFormUiSchema as any}
             validator={validator}
