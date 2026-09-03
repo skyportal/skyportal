@@ -1,9 +1,12 @@
+import json
 import os
 import re
 import sys
+import tempfile
 import warnings
 
 import eralchemy2
+import pygraphviz
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -69,17 +72,54 @@ html_static_path = ["_static"]
 html_show_sourcelink = False
 
 # create entity relationship diagram for skyportal
-erd_path = os.path.join(os.path.dirname(__file__), "images/erd.svg")
+erd_dir = os.path.dirname(__file__)
 erd_tables = [
     t for t in models.Base.metadata.tables if not re.search(r"_\d{4}_\d{2}$", t)
 ]
-eralchemy2.render_er(models.Base, erd_path, include_tables=erd_tables)
+with tempfile.TemporaryDirectory() as erd_tmp:
+    erd_dot_path = os.path.join(erd_tmp, "erd.dot")
+    eralchemy2.render_er(models.Base, erd_dot_path, include_tables=erd_tables)
+    with open(erd_dot_path) as f:
+        erd_dot = f.read()
 
-with open(erd_path) as f:
-    erd_svg = f.read()
-with open(erd_path, "w") as f:
-    f.write(re.sub(r'(<svg)\s+width="[^"]*"\s+height="[^"]*"', r"\1", erd_svg, count=1))
+erd_enums = {}
+for erd_name in erd_tables:
+    for erd_column in models.Base.metadata.tables[erd_name].columns:
+        rendered = str(erd_column.type)
+        if len(rendered) <= 60:
+            continue
+        inner = getattr(erd_column.type, "item_type", erd_column.type)
+        values = list(getattr(inner, "enums", None) or [])
+        kind = type(erd_column.type).__name__
+        erd_enums[f"{erd_name}.{erd_column.name}"] = values
+        erd_dot = erd_dot.replace(f"[{rendered}]", f"[{kind} ({len(values)} values)]")
+
+with open(os.path.join(erd_dir, "erd-data.html"), "w") as f:
+    payload = json.dumps(erd_enums).replace("<", "\\u003c")
+    f.write(f"<script>window.ERD_ENUMS = {payload};</script>\n")
+
+erd_graph = pygraphviz.AGraph(
+    string=erd_dot.replace('CELLPADDING="4"', 'CELLPADDING="6"')
+)
+erd_graph.graph_attr.update(
+    bgcolor="transparent",
+    rankdir="TB",
+    pack="true",
+    packmode="array",
+    nodesep="0.3",
+    ranksep="0.8",
+)
+erd_graph.edge_attr.update(penwidth="1.1")
+erd_svg = erd_graph.draw(format="svg", prog="dot").decode()
+
+# erd.js sizes the diagram through the viewBox; a fixed width would pin it at 22000px.
+erd_svg = re.sub(r'(<svg)\s+width="[^"]*"\s+height="[^"]*"', r"\1", erd_svg, count=1)
+# database.rst inlines this file, so drop the XML prolog and DOCTYPE it cannot carry.
+with open(os.path.join(erd_dir, "erd.svg"), "w") as f:
+    f.write(erd_svg[erd_svg.index("<svg") :])
 
 
 def setup(app):
     app.add_css_file("output_cells.css")
+    app.add_css_file("erd.css")
+    app.add_js_file("erd.js", loading_method="defer")
