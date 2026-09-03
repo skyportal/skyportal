@@ -87,7 +87,12 @@ const HomePage = () => {
     updateUserPreferences(prefs);
   };
 
-  const { width, containerRef, mounted } = useContainerWidth();
+  // `mounted` only gates anything when the hook is asked to measure first.
+  // Left to its default it starts true, so the grid paints at the hook's
+  // 1280px placeholder width and the columns past it never exist.
+  const { width, containerRef, mounted } = useContainerWidth({
+    measureBeforeMount: true,
+  });
 
   const resetLayouts = () => {
     const prefs = { layouts: defaultLayouts };
