@@ -2665,6 +2665,8 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
+            await session.flush()
+
             phot_stat = (
                 await session.scalars(
                     PhotStat.select(self.associated_user_object, mode="update").where(
@@ -2761,6 +2763,8 @@ class PhotometryHandler(BaseHandler):
             obj_id = photometry.obj_id
 
             await session.delete(photometry)
+
+            await session.flush()
 
             phot_stat = (
                 await session.scalars(
@@ -3093,6 +3097,8 @@ class ObjPhotometryHandler(BaseHandler):
             for phot in photometry_to_delete:
                 await session.delete(phot)
 
+            await session.flush()
+
             stat = (
                 await session.scalars(
                     PhotStat.select(self.associated_user_object, mode="update").where(
@@ -3154,6 +3160,9 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 await session.delete(phot)
 
             obj_ids = {phot.obj_id for phot in photometry_to_delete}
+
+            await session.flush()
+
             for oid in obj_ids:
                 stat = (
                     await session.scalars(
