@@ -3,8 +3,6 @@ import { isMobileOnly } from "react-device-detect";
 import embedVega from "./vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 
-const mjdNow = Date.now() / 86400000.0 + 40587.0;
-
 const spec = (
   url: string | null,
   colorScale: any,
@@ -14,6 +12,10 @@ const spec = (
   hasStyle: boolean,
   style: any,
 ) => {
+  // Baked into the spec as a literal, so it has to be read when the spec is
+  // built. Read once at module load it freezes at page-load time, and a night
+  // of new alerts plots at a negative "days ago" -- i.e. in the future.
+  const mjdNow = Date.now() / 86400000.0 + 40587.0;
   const hasValuesArray = Array.isArray(values);
   const hasDetections =
     !hasValuesArray ||
