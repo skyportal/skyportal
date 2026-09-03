@@ -548,10 +548,6 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           </div>
         )}
         <div>
-          {/* Keyed on the service so switching one out remounts the form.
-              rjsf holds its own state, and swapping only the schema keeps the
-              previous service's values: picking the SN Ia fitter and then NGSF
-              would submit NGSF with a `source`, which it does not accept. */}
           <Form
             key={selectedAnalysisServiceId}
             schema={AnalysisSelectionFormSchema as any}
