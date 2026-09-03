@@ -28,6 +28,7 @@ Entity Relationship Diagram
 The following entity relationship diagram visualizes the structure of the
 SkyPortal database.
 
-.. image:: images/erd.png
+.. image:: images/erd.svg
    :alt: Skyportal Entity Relationship Diagram
-   :target: _images/erd.png
+   :width: 100%
+   :target: _images/erd.svg

@@ -11,6 +11,7 @@
 # serve to show the default.
 
 import os
+import re
 import sys
 import warnings
 
@@ -330,8 +331,16 @@ texinfo_documents = [
 # texinfo_no_detailmenu = False
 
 # create entity relationship diagram for skyportal
-erd_path = os.path.join(os.path.dirname(__file__), "images/erd.png")
-eralchemy2.render_er(models.Base, erd_path)
+erd_path = os.path.join(os.path.dirname(__file__), "images/erd.svg")
+erd_tables = [
+    t for t in models.Base.metadata.tables if not re.search(r"_\d{4}_\d{2}$", t)
+]
+eralchemy2.render_er(models.Base, erd_path, include_tables=erd_tables)
+
+with open(erd_path) as f:
+    erd_svg = f.read()
+with open(erd_path, "w") as f:
+    f.write(re.sub(r'(<svg)\s+width="[^"]*"\s+height="[^"]*"', r"\1", erd_svg, count=1))
 
 
 def setup(app):

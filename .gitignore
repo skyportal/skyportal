@@ -47,7 +47,7 @@ static/index.html
 data/taxonomy_sitewide.yaml
 data/taxonomy_demo.yaml
 .idea
-doc/images/erd.png
+doc/images/erd.svg
 
 # gitlog info
 data/gitlog.txt
