@@ -405,6 +405,10 @@ const FilterCandidateList = ({
       lastDetectionBefore: "",
       numberDetections: "",
       localizationCumprob: "",
+      maxSgscore: 0.7,
+      minNdethist: 2,
+      minAbsGalacticLatitude: 10,
+      promptDeltaT: 2,
     });
   };
 
@@ -545,6 +549,24 @@ const FilterCandidateList = ({
       }
       if (formData.requireDetections === false) {
         data.requireDetections = false;
+      }
+      // These read the GCN crossmatch annotation, so they only mean anything
+      // for candidates matched to an event -- applying them to an unscoped
+      // scan would drop everything that has no crossmatch.
+      if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
+        data.maxSgscore = formData.maxSgscore;
+      }
+      if (formData.minNdethist !== "" && formData.minNdethist != null) {
+        data.minNdethist = formData.minNdethist;
+      }
+      if (
+        formData.minAbsGalacticLatitude !== "" &&
+        formData.minAbsGalacticLatitude != null
+      ) {
+        data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
+      }
+      if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
+        data.promptDeltaT = formData.promptDeltaT;
       }
       if (formData.excludeForcedPhotometry) {
         data.excludeForcedPhotometry = formData.excludeForcedPhotometry;
@@ -1131,6 +1153,62 @@ const FilterCandidateList = ({
                     />
                   )}
                   name="localizationCumprob"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxSgscore"
+                      label="Max star score (sgscore)"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
+                    />
+                  )}
+                  name="maxSgscore"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minNdethist"
+                      label="Min detections in history"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0 } }}
+                    />
+                  )}
+                  name="minNdethist"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minAbsGalacticLatitude"
+                      label="Min |galactic latitude| [deg]"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0, max: 90 } }}
+                    />
+                  )}
+                  name="minAbsGalacticLatitude"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="promptDeltaT"
+                      label="Always show within [days] of event"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="promptDeltaT"
                   control={control}
                 />
                 <Controller

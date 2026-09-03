@@ -185,6 +185,7 @@ from skyportal.handlers.api import (
     ScanReportHandler,
     ScanReportItemHandler,
     ScheduledObservationsHandler,
+    ScoutEphemerisHandler,
     SharingHandler,
     SharingServiceCoauthorHandler,
     SharingServiceGroupAutoPublisherHandler,
@@ -554,6 +555,10 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/host", ObjHostHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets", SourceOffsetsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/finder", SourceFinderHandler),
+    (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/scout_ephemeris",
+        ScoutEphemerisHandler,
+    ),
     (r"/api/finder_chart/facilities", FinderChartFacilitiesHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications", ObjClassificationHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/groups", ObjGroupsHandler),
