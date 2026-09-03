@@ -5,6 +5,7 @@ import time
 import unicodedata
 from typing import Annotated, ClassVar
 
+import arrow
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -243,6 +244,24 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
         return None
 
 
+async def _resolve_comment_resource_id(session, associated_resource_type, resource_id):
+    """The value a comment's resource column holds.
+
+    A GCN event is addressed everywhere else by dateobs, so accept that here too
+    and resolve it to the id CommentOnGCN stores.
+    """
+    coerced = _coerce_comment_resource_id(associated_resource_type, resource_id)
+    if coerced is not None or associated_resource_type.lower() != "gcn_event":
+        return coerced
+    try:
+        dateobs = arrow.get(str(resource_id).strip()).datetime.replace(tzinfo=None)
+    except Exception:
+        return None
+    return await session.scalar(
+        sa.select(GcnEvent.id).where(GcnEvent.dateobs == dateobs)
+    )
+
+
 class CommentGetQuery(BaseModel):
     """Query parameters for retrieving comments."""
 
@@ -344,8 +363,8 @@ class CommentHandler(BaseHandler):
                     table.channel == channel if channel else table.channel.is_(None)
                 )
                 if resource_id is not None:
-                    coerced = _coerce_comment_resource_id(
-                        associated_resource_type, resource_id
+                    coerced = await _resolve_comment_resource_id(
+                        session, associated_resource_type, resource_id
                     )
                     if coerced is None:
                         return self.error(f"Invalid resource_id: {resource_id}")
@@ -626,9 +645,10 @@ class CommentHandler(BaseHandler):
                         )
 
                 elif associated_resource_type.lower() == "gcn_event":
-                    try:
-                        gcnevent_id = int(resource_id)
-                    except (TypeError, ValueError):
+                    gcnevent_id = await _resolve_comment_resource_id(
+                        session, associated_resource_type, resource_id
+                    )
+                    if gcnevent_id is None:
                         return self.error(f"Invalid gcn event id: {resource_id}")
                     gcn_event = await session.scalar(
                         GcnEvent.select(session.user_or_token).where(
@@ -906,7 +926,7 @@ class CommentHandler(BaseHandler):
             except Exception as e:
                 await session.rollback()
                 return self.error(
-                    f"Error posting comment for {associated_resource_type} {resource_id}: {str(e)}"
+                    f"Error posting comment for {associated_resource_type} {resource_id}: {e!s}"
                 )
 
     @permissions(["Comment"])
@@ -1104,7 +1124,7 @@ class CommentHandler(BaseHandler):
                 return self.success()
             except Exception as e:
                 return self.error(
-                    f"Failed to update comment with ID {comment_id}: {str(e)}"
+                    f"Failed to update comment with ID {comment_id}: {e!s}"
                 )
 
     @permissions(["Comment"])
@@ -1412,9 +1432,9 @@ class CommentAttachmentHandler(BaseHandler):
                         attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
-                        log(f"Cannot render {attachment_name} as image: {str(e)}")
+                        log(f"Cannot render {attachment_name} as image: {e!s}")
                         return self.error(
-                            f"Cannot render {attachment_name} as image: {str(e)}"
+                            f"Cannot render {attachment_name} as image: {e!s}"
                         )
 
                 extension = attachment_name.split(".")[-1].strip().lower()
