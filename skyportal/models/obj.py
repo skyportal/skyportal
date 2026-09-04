@@ -284,7 +284,7 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
     )
 
-    healpix = sa.Column(healpix_alchemy.Point)
+    healpix = sa.Column(healpix_alchemy.Point, index=True)
 
     internal_key = sa.Column(
         sa.String,
