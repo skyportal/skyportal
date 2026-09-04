@@ -2665,8 +2665,6 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
-            await session.flush()
-
             phot_stat = (
                 await session.scalars(
                     PhotStat.select(session.user_or_token, mode="update").where(
@@ -2778,9 +2776,6 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                # Flush the delete first, or it is still one of the rows the
-                # stats are recomputed from.
-                await session.flush()
                 all_phot = (
                     await session.scalars(
                         sa.select(Photometry).where(Photometry.obj_id == obj_id)
