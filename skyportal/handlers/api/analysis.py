@@ -1818,6 +1818,8 @@ class AnalysisHandler(BaseHandler):
                             analysis_dict["filename"] = a._full_name
                         analysis_dict["model_lightcurve"] = None
                         analysis_dict["model_lightcurves"] = None
+                        analysis_dict["model_spectrum"] = None
+                        analysis_dict["model_spectrum_summary"] = None
                         analysis_dict["model_name"] = None
                         analysis_dict["n_detections"] = None
                         try:
@@ -1827,6 +1829,14 @@ class AnalysisHandler(BaseHandler):
                             )
                             analysis_dict["model_lightcurves"] = adata.get(
                                 "model_lightcurves"
+                            )
+                            # Best-fit template spectrum + its classification headline
+                            # for the spectrum-plot overlay and its hover.
+                            analysis_dict["model_spectrum"] = adata.get(
+                                "model_spectrum"
+                            )
+                            analysis_dict["model_spectrum_summary"] = adata.get(
+                                "model_spectrum_summary"
                             )
                             analysis_dict["model_name"] = adata.get("model_name")
                             analysis_dict["n_detections"] = adata.get("n_detections")
