@@ -56,13 +56,12 @@ const AllocationList = () => {
           default_observation_plans={defaultObservationPlanList}
           instruments={instrumentList}
           telescopes={telescopeList}
-          deletePermission={hasPermission("Manage observation plans")}
+          managePermission={hasPermission("Manage observation plans")}
         />
       </TabPanel>
       <TabPanel value={3}>
         <DefaultSurveyEfficiencyTable
           default_survey_efficiencies={defaultSurveyEfficiencyList}
-          deletePermission={hasPermission("Manage observation plans")}
         />
       </TabPanel>
     </TabContext>

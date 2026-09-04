@@ -160,6 +160,43 @@ def cone_healpix_prefilter(ra, dec, radius):
     return "(" + " OR ".join(terms) + ")"
 
 
+async def localization_healpix_prefilter(session, partition, localization_id, cumprob):
+    """Index-friendly prefilter clause for a localization, as for a cone above.
+
+    The tiles inside the credible level are merged into contiguous healpix
+    ranges and emitted as literal bounds. Postgres cannot estimate a range
+    containment whose operands are not constants -- it assumes the join is
+    unselective and scans every obj -- so the constants are what let it use the
+    ``objs.healpix`` index. Returns ``None`` if the level covers no tiles.
+    """
+    rows = (
+        await session.execute(
+            sa.text(
+                f"""
+                SELECT lower(rng), upper(rng) FROM (
+                  SELECT unnest(range_agg(ranked.healpix)) AS rng FROM (
+                    SELECT {partition}.healpix,
+                           SUM({partition}.probdensity *
+                               (upper({partition}.healpix) - lower({partition}.healpix))
+                               * 3.6331963520923245e-18
+                           ) OVER (ORDER BY {partition}.probdensity DESC) AS cum_prob
+                    FROM {partition}
+                    WHERE {partition}.localization_id = :localization_id
+                  ) AS ranked
+                  WHERE ranked.cum_prob <= :cumprob
+                ) AS merged"""
+            ),
+            {"localization_id": localization_id, "cumprob": cumprob},
+        )
+    ).all()
+    if not rows:
+        return None
+    terms = [
+        f"(objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)})" for lo, hi in rows
+    ]
+    return "(" + " OR ".join(terms) + ")"
+
+
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
     """
         Distance between two points on the sphere
@@ -1882,6 +1919,15 @@ async def get_sources(
                 # this is twice as fast as if we ran each query (the localization tiles query,
                 # and its overall with the sources) separately.
                 # we used caching for that in prod, but now that we have partitions, we can do it this way
+                # Narrow objs by the localization's merged healpix ranges
+                # first: the containment below is a range operator with
+                # non-constant operands, which the planner cannot estimate, so
+                # on its own it scans every obj.
+                prefilter = await localization_healpix_prefilter(
+                    session, partition, localization_id, localization_cumprob
+                )
+                if prefilter is not None:
+                    localization_queries.append(prefilter)
                 localization_queries.append(
                     f"""EXISTS (
                     SELECT lt.id

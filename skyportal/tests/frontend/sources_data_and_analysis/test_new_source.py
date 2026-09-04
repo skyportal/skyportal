@@ -8,7 +8,16 @@ def test_new_source(page, user, super_admin_token, view_only_token, public_group
     page.goto(f"/become_user/{user.id}")
     page.goto("/sources")
 
-    page.locator('//button[@name="new_source"]').first.click()
+    # The page shows a spinner until the source-list fetch resolves, so the button
+    # only exists once that request lands. Nothing re-issues a dropped fetch, so
+    # reload rather than waiting longer.
+    new_source_button = page.locator('//button[@name="new_source"]').first
+    try:
+        expect(new_source_button).to_be_visible(timeout=30000)
+    except AssertionError:
+        page.reload()
+        expect(new_source_button).to_be_visible(timeout=30000)
+    new_source_button.click()
 
     source_name = uuid.uuid4().hex
     page.locator("//div[@id='selectGroups']").first.click()

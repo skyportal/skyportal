@@ -405,10 +405,10 @@ const FilterCandidateList = ({
       lastDetectionBefore: "",
       numberDetections: "",
       localizationCumprob: "",
-      maxSgscore: 0.7,
-      minNdethist: 2,
-      minAbsGalacticLatitude: 10,
-      promptDeltaT: 2,
+      maxSgscore: scanningProfile?.maxSgscore ?? "",
+      minNdethist: scanningProfile?.minNdethist ?? "",
+      minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
+      promptDeltaT: scanningProfile?.promptDeltaT ?? "",
     });
   };
 
@@ -527,6 +527,24 @@ const FilterCandidateList = ({
     if (formData.redshiftMaximum) {
       data.maxRedshift = formData.redshiftMaximum;
     }
+    // These read the GCN crossmatch annotation, so a candidate without one
+    // cannot pass them. Off unless a scanning profile sets them, so a scan of
+    // a group that is not crossmatched is unaffected.
+    if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
+      data.maxSgscore = formData.maxSgscore;
+    }
+    if (formData.minNdethist !== "" && formData.minNdethist != null) {
+      data.minNdethist = formData.minNdethist;
+    }
+    if (
+      formData.minAbsGalacticLatitude !== "" &&
+      formData.minAbsGalacticLatitude != null
+    ) {
+      data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
+    }
+    if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
+      data.promptDeltaT = formData.promptDeltaT;
+    }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       // data.gcneventid = formData.gcneventid;
       // data.localizationid = formData.localizationid;
@@ -549,24 +567,6 @@ const FilterCandidateList = ({
       }
       if (formData.requireDetections === false) {
         data.requireDetections = false;
-      }
-      // These read the GCN crossmatch annotation, so they only mean anything
-      // for candidates matched to an event -- applying them to an unscoped
-      // scan would drop everything that has no crossmatch.
-      if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
-        data.maxSgscore = formData.maxSgscore;
-      }
-      if (formData.minNdethist !== "" && formData.minNdethist != null) {
-        data.minNdethist = formData.minNdethist;
-      }
-      if (
-        formData.minAbsGalacticLatitude !== "" &&
-        formData.minAbsGalacticLatitude != null
-      ) {
-        data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
-      }
-      if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
-        data.promptDeltaT = formData.promptDeltaT;
       }
       if (formData.excludeForcedPhotometry) {
         data.excludeForcedPhotometry = formData.excludeForcedPhotometry;
