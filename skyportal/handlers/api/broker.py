@@ -928,6 +928,9 @@ class BrokerFilterTestHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support filter preview."
                 )
+            # A windowless preview is rejected upstream as an opaque 400.
+            if params.get("start_jd") is None or params.get("end_jd") is None:
+                return self.error("A filter preview needs both start_jd and end_jd.")
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.test_filter(broker, session, **params)

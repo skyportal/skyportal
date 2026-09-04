@@ -278,24 +278,30 @@ const GcnEventSourcesPage = ({
 
   return (
     <div className={(classes as any).sourceList}>
-      {sources?.["sources"]?.length === 0 && (
-        <Typography variant="h5" align="center">
+      {sources?.["sources"]?.length === 0 ? (
+        <Typography
+          variant="body1"
+          color="textSecondary"
+          align="center"
+          sx={{ py: 3 }}
+        >
           No sources found within localization with these filters.
         </Typography>
+      ) : (
+        <SourceTable
+          title=""
+          sources={sources?.["sources"]}
+          paginateCallback={handleSourcesTablePagination}
+          pageNumber={sources?.["pageNumber"]}
+          totalMatches={sources?.["totalMatches"]}
+          numPerPage={sources?.["numPerPage"]}
+          sortingCallback={handleSourcesTableSorting}
+          downloadCallback={handleSourcesDownload}
+          includeGcnStatus
+          sourceInGcnFilter={sourceFilteringState}
+          gcnEventDateobs={dateobs}
+        />
       )}
-      <SourceTable
-        title=""
-        sources={sources?.["sources"]}
-        paginateCallback={handleSourcesTablePagination}
-        pageNumber={sources?.["pageNumber"]}
-        totalMatches={sources?.["totalMatches"]}
-        numPerPage={sources?.["numPerPage"]}
-        sortingCallback={handleSourcesTableSorting}
-        downloadCallback={handleSourcesDownload}
-        includeGcnStatus
-        sourceInGcnFilter={sourceFilteringState}
-        gcnEventDateobs={dateobs}
-      />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{
@@ -1241,7 +1247,15 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
             {gcnEventObservations?.observations ? (
               <div>
                 {gcnEventObservations?.observations.length === 0 ? (
-                  <Typography variant="h5">None</Typography>
+                  <Typography
+                    variant="body1"
+                    color="textSecondary"
+                    align="center"
+                    sx={{ py: 3 }}
+                  >
+                    No observations found within localization with these
+                    filters.
+                  </Typography>
                 ) : (
                   <div>
                     <ExecutedObservationsTable

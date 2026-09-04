@@ -506,16 +506,18 @@ const MongoQueryDialog = () => {
   const handleRunQuery = async () => {
     // Validate date range before running the query
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
-    if (startDate && endDate) {
-      const diffInMs = endDate - startDate;
-      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-
-      if (diffInDays > 7) {
-        setQueryError(
-          "Date range cannot exceed 7 days. Please select a shorter time period.",
-        );
-        return;
-      }
+    // BOOM rejects a windowless query, so catch it here rather than surfacing
+    // its 400 to the user.
+    if (!startDate || !endDate) {
+      setQueryError("Select a start and end date before running the query.");
+      return;
+    }
+    // Both are Julian dates, so their difference is already in days.
+    if (endDate - startDate > 7) {
+      setQueryError(
+        "Date range cannot exceed 7 days. Please select a shorter time period.",
+      );
+      return;
     }
 
     setIsRunning(true);

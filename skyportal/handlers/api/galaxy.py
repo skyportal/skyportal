@@ -277,13 +277,6 @@ def get_galaxies(
             )
         ).scalar_subquery()
 
-        tile_ids = session.scalars(
-            sa.select(localizationtilescls.id).where(
-                localizationtilescls.localization_id == localization.id,
-                localizationtilescls.probdensity >= min_probdensity,
-            )
-        ).all()
-
         col = [Galaxy.id]
         if sort_by == "prob":
             col.append(localizationtilescls.probdensity)
@@ -318,10 +311,42 @@ def get_galaxies(
                 ).label("mstar_prob_weighted")
             )
 
+        # Postgres cannot estimate the selectivity of a range containment
+        # whose operands are not constants, so it assumes this join is enormous
+        # and scans the whole catalog. Merging the tiles into contiguous ranges
+        # turns the test into a bounds comparison the healpix index can serve.
+        ranges = (
+            sa.select(
+                sa.func.unnest(sa.func.range_agg(localizationtilescls.healpix)).label(
+                    "healpix_range"
+                )
+            )
+            .where(
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
+            )
+            .cte("localization_healpix_ranges")
+            .prefix_with("MATERIALIZED")
+        )
+        candidates_query = sa.select(Galaxy.id).join(
+            ranges,
+            sa.and_(
+                Galaxy.healpix >= sa.func.lower(ranges.c.healpix_range),
+                Galaxy.healpix < sa.func.upper(ranges.c.healpix_range),
+            ),
+        )
+        if catalog is not None:
+            candidates_query = candidates_query.where(Galaxy.catalog_id == catalog.id)
+        candidate_ids = session.scalars(candidates_query).all()
+
+        # The per-tile join still carries probdensity for the sort columns, but
+        # now runs over the handful of galaxies the ranges selected.
         tiles_subquery = (
             sa.select(*col)
             .where(
-                localizationtilescls.id.in_(tile_ids),
+                Galaxy.id.in_(candidate_ids),
+                localizationtilescls.localization_id == localization.id,
+                localizationtilescls.probdensity >= min_probdensity,
                 localizationtilescls.healpix.contains(Galaxy.healpix),
             )
             .subquery()
