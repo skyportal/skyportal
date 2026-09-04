@@ -1424,10 +1424,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              // Ticks sit at round MJD, so this axis lands on fractional days.
-              // Precision follows the spacing Plotly actually chose: deriving
-              // it from the range instead is wrong the moment the axis is
-              // zoomed, which collapses every label to the same whole day.
+              // Ticks land on fractional days, so let the spacing Plotly picked set the precision.
               tickformat: ",.0f",
               tickformatstops: [
                 { dtickrange: [null, 0.1], value: ",.2f" },
@@ -1490,9 +1487,7 @@ const PhotometryPlot = ({
           side: "right",
           showgrid: false,
           zeroline: false,
-          // Same as Days Ago: ticks come from the mag axis, so a fractional DM
-          // leaves every label fractional, and the precision has to follow the
-          // tick spacing rather than the declared range.
+          // Ticks come from the mag axis, so a fractional DM leaves every label fractional.
           tickformat: ".1f",
           tickformatstops: [
             { dtickrange: [null, 0.1], value: ".2f" },
