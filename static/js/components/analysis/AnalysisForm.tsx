@@ -8,6 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -28,6 +29,11 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles()(() => ({
+  loading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -77,7 +83,8 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     () => (associatedGcnsData as any)?.gcns ?? [],
     [associatedGcnsData],
   );
-  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const { data: analysisServiceListData, isLoading: servicesLoading } =
+    useGetAnalysisServicesQuery();
   const analysisServiceList = useMemo(
     () => analysisServiceListData ?? [],
     [analysisServiceListData],
@@ -100,7 +107,8 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   // Only groups the user can access (all groups for sysadmins, member groups
   // otherwise); the shareable list is the intersection of these with the
   // selected service's groups, so users can't share with a group they're not in.
-  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? null;
+  const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
+  const userAccessibleGroups = groupsData?.userAccessible ?? null;
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -337,13 +345,33 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     serviceHasRequiredInputs,
   ]);
 
+  // Returning null while these are still in flight is indistinguishable from
+  // having none, so the form looks permanently missing until they land.
+  if (servicesLoading || groupsLoading) {
+    return (
+      <div className={classes.loading}>
+        <CircularProgress size="1rem" />
+        <Typography variant="body2" color="text.secondary">
+          Loading analysis services...
+        </Typography>
+      </div>
+    );
+  }
+
   if (
     !userAccessibleGroups ||
     userAccessibleGroups.length === 0 ||
     !analysisServiceList ||
-    analysisServiceList.length === 0 ||
-    !selectedAnalysisServiceId
+    analysisServiceList.length === 0
   ) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No analysis services are available to you.
+      </Typography>
+    );
+  }
+
+  if (!selectedAnalysisServiceId) {
     return null;
   }
 
