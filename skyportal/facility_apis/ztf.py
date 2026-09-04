@@ -567,7 +567,11 @@ class ZTFAPI(FollowUpAPI):
                 )
             )
             if transaction is not None:
-                if transaction.status == "complete":
+                # A complete transaction only means ZTF returned the data;
+                # the commit that follows can still fail, leaving a request
+                # stuck mid-commit that this would then refuse to delete.
+                # The request's own status is what records a landed commit.
+                if request.status.startswith("Photometry committed"):
                     raise ValueError("Request already complete. Cannot delete.")
                 await session.delete(transaction)
             await session.delete(request)
