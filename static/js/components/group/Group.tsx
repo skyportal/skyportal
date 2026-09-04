@@ -77,7 +77,7 @@ const Group = () => {
 
   if (groupLoadError) return groupLoadError;
 
-  if (group == null) return <CircularProgress />;
+  if (group == null || currentUser == null) return <CircularProgress />;
 
   const isAdmin = (aUser: any) => {
     const currentGroupUser = group?.["users"]?.filter(
