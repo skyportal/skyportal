@@ -1367,13 +1367,14 @@ analysis_services:
   openai_analysis_service:
     port: 7003
     summary:
-      # set this global API key if the project
-      # will pay for the OpenAI costs. Otherwise
-      # individual users need to set their own key
-      # in the user preferences
-      # Get a global key at:
-      #   https://platform.openai.com/account/api-keys
+      # The instance-wide summarization model, used when a user has set no key
+      # of their own. Any server speaking the OpenAI chat-completions protocol
+      # works: leave base_url unset for api.openai.com (get a key at
+      # https://platform.openai.com/account/api-keys), or point it at a locally
+      # served model, in which case no text leaves the institution.
+      # A user's own key is an OpenAI key and always goes to OpenAI.
       api_key:
+      base_url:
       temperature: 0.3
       max_tokens: 350
       top_p: 1.0

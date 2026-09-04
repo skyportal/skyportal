@@ -27,29 +27,39 @@ const OpenAIPreferences = () => {
   const { data: profileData } = useGetProfileQuery();
   const profile = (profileData?.preferences ?? {}) as any;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const [OpenAIapikey, setOpenAIapikey] = useState(
-    profile.summary?.OpenAI?.openai_apikey,
-  );
-  const [OpenAIapikeyerror, setOpenAIapikeyerror] = useState(false);
+  const [apikey, setApikey] = useState(profile.summary?.OpenAI?.apikey);
+  const [apikeyerror, setApikeyerror] = useState(false);
+  const [baseUrl, setBaseUrl] = useState(profile.summary?.OpenAI?.base_url);
+  const [baseUrlError, setBaseUrlError] = useState(false);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setOpenAIapikey(event.target.value);
+    setApikey(event.target.value);
   };
 
   const handleBlur = () => {
-    if (OpenAIapikey?.startsWith("sk-")) {
-      setOpenAIapikeyerror(false);
-      const prefs = {
-        summary: {
-          OpenAI: {
-            apikey: OpenAIapikey,
-          },
-        },
-      };
-      updateUserPreferences(prefs);
+    if (apikey) {
+      setApikeyerror(false);
+      updateUserPreferences({ summary: { OpenAI: { apikey } } });
     } else {
-      setOpenAIapikeyerror(true);
+      setApikeyerror(true);
     }
+  };
+
+  const handleBaseUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setBaseUrl(event.target.value);
+  };
+
+  // Blank is OpenAI itself; anything else must be a URL we can send a key to.
+  const handleBaseUrlBlur = () => {
+    const trimmed = (baseUrl || "").trim();
+    if (trimmed && !trimmed.startsWith("https://")) {
+      setBaseUrlError(true);
+      return;
+    }
+    setBaseUrlError(false);
+    updateUserPreferences({
+      summary: { OpenAI: { base_url: trimmed || null } },
+    });
   };
 
   const prefToggled = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,17 +93,35 @@ const OpenAIPreferences = () => {
         <div>
           <TextField
             name="openai_apikey"
-            label="OpenAI API KEY"
+            label="API key"
             className={classes.textField}
             fullWidth
-            placeholder="API KEY"
+            placeholder="API key"
             defaultValue={profile.summary?.OpenAI?.apikey}
             onChange={handleChange}
             onBlur={handleBlur}
             margin="normal"
             data-testid="OpenAI_apikey"
-            helperText={OpenAIapikeyerror ? "Must be a OpenAI API KEY" : ""}
-            error={OpenAIapikeyerror}
+            helperText={apikeyerror ? "An API key is required" : ""}
+            error={apikeyerror}
+          />
+          <TextField
+            name="base_url"
+            label="API base URL (optional)"
+            className={classes.textField}
+            fullWidth
+            placeholder="https://api.openai.com/v1"
+            defaultValue={profile.summary?.OpenAI?.base_url}
+            onChange={handleBaseUrlChange}
+            onBlur={handleBaseUrlBlur}
+            margin="normal"
+            data-testid="OpenAI_base_url"
+            helperText={
+              baseUrlError
+                ? "Must be an https:// URL"
+                : "Leave blank for OpenAI. Any service speaking the OpenAI chat-completions protocol works; your key is only ever sent here."
+            }
+            error={baseUrlError}
           />
         </div>
       )}

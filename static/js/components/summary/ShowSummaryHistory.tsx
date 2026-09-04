@@ -40,12 +40,15 @@ interface SummaryHistoryItem {
 
 interface ShowSummaryHistoryProps {
   obj_id?: string | null;
+  // Names the resource in the dialog title when it is not an obj.
+  label?: string | null;
   summaries?: SummaryHistoryItem[] | null;
   button?: boolean;
 }
 
 const ShowSummaryHistory = ({
   obj_id = null,
+  label = null,
   summaries = null,
   button = false,
 }: ShowSummaryHistoryProps) => {
@@ -103,7 +106,7 @@ const ShowSummaryHistory = ({
         maxWidth="lg"
         onClose={() => setDialogOpen(false)}
       >
-        <DialogTitle>Summary History for {obj_id}</DialogTitle>
+        <DialogTitle>Summary History for {label ?? obj_id}</DialogTitle>
         <DialogContent>
           <Table>
             <TableHead>

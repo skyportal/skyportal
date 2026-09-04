@@ -209,7 +209,12 @@ def run_openai_summarization(data_dict):
     try:
         from openai import OpenAI
 
-        client = OpenAI(api_key=analysis_parameters.get("openai_api_key"))
+        # Any OpenAI-compatible server (llama.cpp, vLLM) works by naming its
+        # base_url; unset means api.openai.com.
+        client = OpenAI(
+            api_key=analysis_parameters.get("openai_api_key"),
+            base_url=analysis_parameters.get("base_url") or None,
+        )
 
     except Exception as e:
         rez.update(
