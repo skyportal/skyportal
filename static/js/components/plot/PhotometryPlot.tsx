@@ -1424,16 +1424,13 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              // Ticks sit at round MJD, so this axis lands on fractional days.
-              // Whole days read best, but a young transient spanning a day or
-              // two needs a decimal or every tick reads the same.
-              tickformat:
-                Math.abs(
-                  photStats_value.days_ago.range[0] -
-                    photStats_value.days_ago.range[1],
-                ) >= 10
-                  ? ",.0f"
-                  : ",.1f",
+              // Ticks land on fractional days, so let the spacing Plotly picked set the precision.
+              tickformat: ",.0f",
+              tickformatstops: [
+                { dtickrange: [null, 0.1], value: ",.2f" },
+                { dtickrange: [0.1, 1], value: ",.1f" },
+                { dtickrange: [1, null], value: ",.0f" },
+              ],
               ...BASE_LAYOUT,
               ...axisTheme,
             }
@@ -1490,15 +1487,12 @@ const PhotometryPlot = ({
           side: "right",
           showgrid: false,
           zeroline: false,
-          // Same as Days Ago: ticks come from the mag axis, so a fractional DM
-          // leaves every label fractional. One decimal is the usual precision
-          // for a magnitude; a near-flat curve gets finer ticks and needs two.
-          tickformat:
-            Math.abs(
-              photStats_value.mag.range[0] - photStats_value.mag.range[1],
-            ) >= 1
-              ? ".1f"
-              : ".2f",
+          // Ticks come from the mag axis, so a fractional DM leaves every label fractional.
+          tickformat: ".1f",
+          tickformatstops: [
+            { dtickrange: [null, 0.1], value: ".2f" },
+            { dtickrange: [0.1, null], value: ".1f" },
+          ],
           ...BASE_LAYOUT,
           ...axisTheme,
         };
