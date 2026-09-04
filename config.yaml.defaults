@@ -795,6 +795,8 @@ boom:
     database: null
 
 misc:
+  # Whether a non-admin may delete an Obj they own all the data for.
+  allow_nonadmins_delete_objs: false
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30
   minutes_to_keep_candidate_query_cache: 60
