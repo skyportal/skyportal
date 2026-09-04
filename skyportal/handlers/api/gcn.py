@@ -2863,7 +2863,7 @@ class GcnEventHandler(BaseHandler):
 
             return self.success(data=query_results)
 
-    @permissions(["System admin"])
+    @permissions(["Manage GCNs"])
     async def delete(self, dateobs: str):
         """
         ---

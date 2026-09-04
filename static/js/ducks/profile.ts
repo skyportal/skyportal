@@ -153,3 +153,14 @@ export const useIsAnonymous = (): boolean =>
 // specific ACL. Defaults to read-only while the profile is loading.
 export const useIsReadOnly = (): boolean =>
   (useGetProfileQuery().data?.permissions?.length ?? 0) === 0;
+
+// True when the user holds the given ACL. Mirrors the backend @permissions
+// decorator, where "System admin" satisfies any ACL. Defaults to false while
+// the profile is loading.
+export const useHasPermission = (acl: string): boolean => {
+  const permissions = useGetProfileQuery().data?.permissions;
+  return (
+    !!permissions &&
+    (permissions.includes("System admin") || permissions.includes(acl))
+  );
+};

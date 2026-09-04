@@ -20,7 +20,6 @@ import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
-import { useIsReadOnly } from "../../ducks/profile";
 
 export const isSomeActiveRangeOrNoRange = (
   ranges: any,
@@ -59,7 +58,6 @@ const AllocationTable = ({
   const theme = useTheme();
 
   const dispatch = useAppDispatch();
-  const isReadOnly = useIsReadOnly();
   const [newAllocationDialog, setNewAllocationDialog] = useState(false);
   const [allocationToEdit, setAllocationToEdit] = useState<any>(null);
   const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
@@ -304,7 +302,7 @@ const AllocationTable = ({
 
   const CustomToolbar = () => (
     <DataGridToolbar title={title}>
-      {!isReadOnly && (
+      {managePermission && (
         <IconButton
           name="new_allocation"
           size="small"
