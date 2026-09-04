@@ -463,7 +463,9 @@ async def ingest_sso_alert(
             keys = list(zip(pd["mjd"], pd["filter"]))
             preds = [pred_by_key.get(k) for k in keys]
             seps = [sep_by_key.get(k) for k in keys]
-            altdata = {}
+            # build_photometry_groups already stamped the SSO geometry here, so
+            # merge rather than replace.
+            altdata = pd.get("altdata") or {}
             if any(v is not None for v in preds):
                 altdata["predicted_mag"] = preds
             if any(v is not None for v in seps):

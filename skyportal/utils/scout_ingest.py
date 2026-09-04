@@ -62,6 +62,10 @@ def _scout_annotation_data(event):
         if scout.get(key) is not None
     }
     data["event_type"] = event.get("event_type")
+    # The Obj id is a slug and cannot be mapped back, so the designation the
+    # JPL ephemeris is keyed on is recorded here.
+    if event.get("tdes"):
+        data["tdes"] = event["tdes"]
     data["filters_pass"] = filters.get("passes")
     data["filters_version"] = filters.get("version")
     for key, passed in (filters.get("results") or {}).items():
@@ -152,8 +156,6 @@ def _link_designation(session, obj_id, tdes, iau_designation):
         obj = session.scalar(sa.select(Obj).where(Obj.id == candidate_id))
         if obj is not None:
             super_obj.objs.append(obj)
-
-    return super_obj
 
     return super_obj
 

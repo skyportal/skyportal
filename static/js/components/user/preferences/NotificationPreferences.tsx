@@ -77,6 +77,12 @@ const NOTIFICATIONS = [
       "This allows you to be notified when GCN events receive a new skymap (and optionally when new tags are added to the skymap). You must create at least one notification profile",
   },
   {
+    key: "gcn_extractions",
+    label: "GCN Circular Extractions",
+    tooltip:
+      "This allows you to be notified when a GCN circular is parsed into a classification, for example an X-ray Flash. Leave the class list empty to be notified about every classification.",
+  },
+  {
     key: "facility_transactions",
     label: "Facility Transactions / Follow-up Requests",
     tooltip:
@@ -230,6 +236,26 @@ const NotificationPreferences = () => {
     />
   );
 
+  const [extractionClasses, setExtractionClasses] = useState<string[]>(
+    profile?.notifications?.gcn_extractions?.classifications || [],
+  );
+
+  useEffect(() => {
+    setExtractionClasses(
+      profile?.notifications?.gcn_extractions?.classifications || [],
+    );
+  }, [profile?.notifications?.gcn_extractions?.classifications]);
+
+  const onSubmitExtractions = () => {
+    updateUserPreferences({
+      notifications: {
+        gcn_extractions: {
+          classifications: [...new Set(extractionClasses)],
+        },
+      },
+    });
+  };
+
   const onSubmitSources = () => {
     const prefs = {
       notifications: {
@@ -293,6 +319,26 @@ const NotificationPreferences = () => {
             </Button>
           </div>
         </form>
+      </FormGroup>
+    ),
+    gcn_extractions: (
+      <FormGroup row className={classes.form_group}>
+        <div className={classes.form}>
+          <div className={classes.form_group_with_spacing}>
+            <ClassificationSelect
+              selectedClassifications={extractionClasses}
+              setSelectedClassifications={setExtractionClasses}
+            />
+          </div>
+          <Button
+            secondary
+            onClick={onSubmitExtractions}
+            data-testid="updateExtractionClassesButton"
+            className={classes.button}
+          >
+            Update
+          </Button>
+        </div>
       </FormGroup>
     ),
     gcn_events: (

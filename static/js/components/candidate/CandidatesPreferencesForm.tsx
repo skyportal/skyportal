@@ -241,6 +241,18 @@ const CandidatesPreferencesForm = ({
       data.sortingKey = formData.sortingKey;
       data.sortingOrder = formData.sortingOrder;
     }
+    // GCN crossmatch cuts: only meaningful for a crossmatched group, so they
+    // live on the profile rather than defaulting on for every scanner.
+    [
+      "maxSgscore",
+      "minNdethist",
+      "minAbsGalacticLatitude",
+      "promptDeltaT",
+    ].forEach((key) => {
+      if (formData[key] !== "" && formData[key] != null) {
+        data[key] = formData[key];
+      }
+    });
 
     const existingProfiles = preferences.scanningProfiles || [];
     let currentProfiles: any[];
@@ -433,6 +445,46 @@ const CandidatesPreferencesForm = ({
               defaultValue=""
             />
           </div>
+        </div>
+        <div className={classes.formRow}>
+          <InputLabel>GCN crossmatch cuts (leave blank to disable)</InputLabel>
+          {[
+            { name: "maxSgscore", label: "Max star score", step: 0.05 },
+            { name: "minNdethist", label: "Min detections", step: 1 },
+            {
+              name: "minAbsGalacticLatitude",
+              label: "Min |b| [deg]",
+              step: 1,
+            },
+            {
+              name: "promptDeltaT",
+              label: "Always show within [days]",
+              step: 0.5,
+            },
+          ].map((cut) => (
+            <div className={classes.redshiftField} key={cut.name}>
+              <Controller
+                render={({ field: { onChange, value } }) => (
+                  <TextField
+                    data-testid={`profile-${cut.name}`}
+                    label={cut.label}
+                    type="number"
+                    value={value}
+                    slotProps={{
+                      htmlInput: { step: cut.step },
+                      inputLabel: { shrink: true },
+                    }}
+                    size="small"
+                    margin="dense"
+                    onChange={(event) => onChange(event.target.value)}
+                  />
+                )}
+                name={cut.name as any}
+                control={control}
+                defaultValue={"" as any}
+              />
+            </div>
+          ))}
         </div>
         <div className={classes.formRow}>
           <InputLabel id="profileRejectedCandidatesLabel">

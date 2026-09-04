@@ -25,4 +25,4 @@ DELETE FROM thumbnails WHERE type in ('sdss', 'ps1', 'ls', 'dr8');
 COMMIT;
 ```
 
-This will delete all thumbnails of the 3 surveys, and the micro-service will then generate new ones for all  the objects.
+This will delete all thumbnails of the 3 surveys, and the micro-service will then generate new ones for all the objects.

@@ -1,12 +1,11 @@
 import asyncio
 import json
-import operator  # noqa: F401
+import operator
 import string
 import time
 from threading import Thread
 
 import arrow
-import gcn
 import requests
 import sqlalchemy as sa
 import tornado.escape
@@ -19,8 +18,6 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
-from skyportal.email_utils import send_email
 from skyportal.models import (
     Allocation,
     AnalysisService,
@@ -31,6 +28,7 @@ from skyportal.models import (
     FacilityTransaction,
     FollowupRequest,
     GcnEvent,
+    GcnEventExtraction,
     GcnNotice,
     GcnTag,
     Group,
@@ -47,7 +45,14 @@ from skyportal.models import (
     User,
     UserNotification,
 )
+from skyportal.utils.app import get_app_base_url
+from skyportal.utils.email import send_email
 from skyportal.utils.gcn import get_skymap_properties
+from skyportal.utils.gcn_extraction_tags import (
+    apply_tags,
+    classification_of,
+    wants_classification,
+)
 from skyportal.utils.notifications import (
     gcn_email_notification,
     gcn_notification_content,
@@ -154,6 +159,7 @@ def user_preferences(target, notification_setting, resource_type):
             "sources",
             "favorite_sources",
             "gcn_events",
+            "gcn_extractions",
             "facility_transactions",
             "mention",
             "analysis_services",
@@ -504,6 +510,7 @@ def api(queue):
             is_gcn_localization = target_class_name == "Localization"
             is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
+            is_gcn_extraction = target_class_name == "GcnEventExtraction"
             is_spectra = target_class_name == "Spectrum"
             is_comment = target_class_name == "Comment"
             is_group_admission_request = target_class_name == "GroupAdmissionRequest"
@@ -750,8 +757,44 @@ def api(queue):
                                 .first()
                                 .to_dict()
                             )
+                        elif is_gcn_extraction:
+                            users = session.scalars(
+                                sa.select(User).where(
+                                    User.preferences["notifications"][
+                                        "gcn_extractions"
+                                    ]["active"]
+                                    .astext.cast(sa.Boolean)
+                                    .is_(True)
+                                )
+                            ).all()
+                            target_class = GcnEventExtraction
+                            target_data = (
+                                session.scalars(
+                                    sa.select(GcnEventExtraction).where(
+                                        GcnEventExtraction.id == target_id
+                                    )
+                                )
+                                .first()
+                                .to_dict()
+                            )
                         else:
                             users = []
+
+                    if is_gcn_extraction:
+                        extraction = session.scalar(
+                            sa.select(GcnEventExtraction).where(
+                                GcnEventExtraction.id == target_id
+                            )
+                        )
+                        if extraction is not None:
+                            tagged = apply_tags(
+                                session, extraction, extraction.sent_by_id
+                            )
+                            if tagged:
+                                session.commit()
+                                log(
+                                    f"tagged {', '.join(tagged)} from extraction {target_id}"
+                                )
 
                     failure_count = 0
                     nb_users = len(users)
@@ -1119,6 +1162,35 @@ def api(queue):
                                         session.add(notification)
                                         session.commit()
                                         target = notification.to_dict()
+                                        target = {
+                                            **notification.to_dict(),
+                                            "user": {
+                                                **notification.user.to_dict(),
+                                                "preferences": notification.user.preferences,
+                                            },
+                                        }
+                                        queue.append(target)
+                                elif is_gcn_extraction:
+                                    label = classification_of(target_data.get("data"))
+                                    if wants_classification(pref, label):
+                                        dateobs = target_data["dateobs"]
+                                        circular_id = target_data.get("circular_id")
+                                        source = (
+                                            f"Circular {circular_id}"
+                                            if circular_id
+                                            else "A circular"
+                                        )
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=(
+                                                f"{source} reports *{label}* "
+                                                f"for event *{dateobs}*"
+                                            ),
+                                            notification_type="gcn_extractions",
+                                            url=f"/gcn_events/{dateobs}",
+                                        )
+                                        session.add(notification)
+                                        session.commit()
                                         target = {
                                             **notification.to_dict(),
                                             "user": {

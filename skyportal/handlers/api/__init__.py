@@ -196,6 +196,7 @@ from .public_pages.public_source_page import PublicSourcePageHandler
 from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .roles import RoleHandler, UserRoleHandler
+from .scout import ScoutEphemerisHandler  # noqa: F401
 from .sharing import SharingHandler
 from .sharing_service.sharing_service import SharingServiceHandler
 from .sharing_service.sharing_service_coauthor import (

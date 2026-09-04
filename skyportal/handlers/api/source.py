@@ -103,6 +103,13 @@ from ...utils.offset import (
     source_image_parameters,
 )
 from ...utils.parse import get_page_and_n_per_page
+from ...utils.scout_ephemeris import (
+    position_at as scout_position_at,
+)
+from ...utils.scout_ephemeris import (
+    tdes_from_annotation,
+)
+from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -2821,9 +2828,10 @@ class SourceOffsetsHandler(BaseHandler):
             )
 
 
-def get_finding_chart_callable(
+async def get_finding_chart_callable(
     obj_id,
     session,
+    user,
     imsize,
     use_cache,
     facility,
@@ -2840,8 +2848,11 @@ def get_finding_chart_callable(
 
     obj_id:  str
         The ID of the object for which to generate the finding chart.
-    session: SQLAlchemy session
-        The SQLAlchemy session to use for database queries.
+    session: SQLAlchemy async session
+        The session to use for database queries.
+    user: User or Token
+        Whose access the queries run under. Passed rather than read from the
+        session: only the sync session carries `user_or_token`.
     imsize: float
         The size of the image in arcminutes (default is 4.0).
     use_cache: bool
@@ -2867,9 +2878,7 @@ def get_finding_chart_callable(
 
     Returns a callable that generates the finding chart.
     """
-    source = session.scalars(
-        Obj.select(session.user_or_token).where(Obj.id == obj_id)
-    ).first()
+    source = (await session.scalars(Obj.select(user).where(Obj.id == obj_id))).first()
     if source is None:
         raise ValueError("Source not found")
     if output_type not in ["pdf", "png"]:
@@ -2898,7 +2907,7 @@ def get_finding_chart_callable(
         raise ValueError("`mag_min` must be brighter (smaller) than `mag_limit`")
 
     photometry = (
-        session.scalars(
+        await session.scalars(
             sa.select(Photometry).where(
                 sa.and_(
                     Photometry.obj_id == source.id,
@@ -2928,13 +2937,42 @@ def get_finding_chart_callable(
     except JSONDecodeError:
         flow = Flow()
         flow.push(
-            session.user_or_token.id,
+            user.id,
             action_type="baselayer/SHOW_NOTIFICATION",
             payload={
                 "note": f"Source position using photometry points failed. Reverting to discovery position.",
                 "type": "error",
             },
         )
+
+    # A NEOCP candidate is only somewhere at a time: it is stored at its
+    # discovery position, which for a fast mover is nowhere near where the chart
+    # is being pointed. Ask JPL where it is at obstime instead. A failure here
+    # leaves the stored position in place rather than losing the chart.
+    scout_annotation = (
+        await session.scalars(
+            Annotation.select(user).where(
+                Annotation.obj_id == obj_id,
+                Annotation.origin == SCOUT_ANNOTATION_ORIGIN,
+            )
+        )
+    ).first()
+    tdes = tdes_from_annotation(scout_annotation.data if scout_annotation else None)
+    if tdes:
+        try:
+            when = isoparse(obstime)
+            if when.tzinfo is not None:
+                when = when.replace(tzinfo=None)
+            eph_ra, eph_dec, sigma = await IOLoop.current().run_in_executor(
+                None, functools.partial(scout_position_at, tdes, when)
+            )
+            log(
+                f"{obj_id}: charting JPL Scout position for {tdes} at {obstime} "
+                f"({eph_ra:.5f}, {eph_dec:+.5f}), 1-sigma {sigma} arcmin"
+            )
+            ra, dec = eph_ra, eph_dec
+        except Exception as e:
+            log(f"{obj_id}: no Scout ephemeris for {tdes}, using stored position ({e})")
 
     return functools.partial(
         get_finding_chart,
@@ -3074,11 +3112,12 @@ class SourceFinderHandler(BaseHandler):
         as_json = query.as_json
         use_cache = query.use_cache
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                finder = get_finding_chart_callable(
+                finder = await get_finding_chart_callable(
                     obj_id,
                     session,
+                    self.associated_user_object,
                     imsize,
                     use_cache,
                     facility,

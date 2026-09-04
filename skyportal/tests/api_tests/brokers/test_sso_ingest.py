@@ -462,6 +462,33 @@ def test_backfills_full_history_on_first_sight(
     assert len(phot) == 5
 
 
+def test_photometry_keeps_sso_geometry_alongside_ephemeris(
+    ztf_instrument, ztf_stream, designation, public_group, super_admin_user
+):
+    """Per-point geometry survives next to the ephemeris keys the ingest adds:
+    the outburst statistic needs rh/delta/phase on the same row."""
+    obj_id = designation_to_obj_id(designation)
+    data = alert(designation, 2460000.5, 10.0, 20.0)
+    data["candidate"]["ssmagnr"] = 19.4
+    data["properties"]["sso"].update(
+        {"helio_dist": 2.5, "topo_dist": 1.8, "phase_angle": 12.0}
+    )
+
+    run_ingest(data, designation, super_admin_user.id, [public_group.id])
+
+    session = DBSession()
+    session.expire_all()
+    phot = session.scalars(
+        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+    ).all()
+    assert len(phot) == 1
+    altdata = phot[0].altdata or {}
+    assert altdata.get("rh") == pytest.approx(2.5)
+    assert altdata.get("delta") == pytest.approx(1.8)
+    assert altdata.get("phase") == pytest.approx(12.0)
+    assert altdata.get("predicted_mag") == pytest.approx(19.4)
+
+
 def test_sso_fields_resolve_from_filter_annotations(
     ztf_instrument, ztf_stream, designation, public_group, super_admin_user
 ):

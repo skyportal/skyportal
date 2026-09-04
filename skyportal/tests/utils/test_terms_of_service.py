@@ -10,6 +10,14 @@ from skyportal.tests import api
 from skyportal.utils import terms_of_service as tos_module
 
 
+@pytest.fixture(autouse=True)
+def _forget_file_reads():
+    """The file is read once per path, so drop that cache between tests."""
+    tos_module._text_from_file.cache_clear()
+    yield
+    tos_module._text_from_file.cache_clear()
+
+
 @pytest.fixture()
 def terms_config(monkeypatch):
     terms = tos_module.cfg["app"]["terms_of_service"]
@@ -57,6 +65,39 @@ def test_version_is_stringified(terms_config):
 def test_title_falls_back_when_blank(terms_config):
     terms_config(enabled=True, text="Some terms.", title="")
     assert tos_module.terms_of_service()["title"] == "Terms of Service"
+
+
+def test_text_read_from_a_file(terms_config, tmp_path):
+    terms_file = tmp_path / "terms.md"
+    terms_file.write_text("## Rules\n\nBe **excellent** to each other.\n")
+    terms_config(enabled=True, text="", text_file=str(terms_file))
+    assert (
+        tos_module.terms_of_service()["text"]
+        == "## Rules\n\nBe **excellent** to each other."
+    )
+
+
+def test_inline_text_wins_over_the_file(terms_config, tmp_path):
+    terms_file = tmp_path / "terms.md"
+    terms_file.write_text("From the file.")
+    terms_config(enabled=True, text="Inline.", text_file=str(terms_file))
+    assert tos_module.terms_of_service()["text"] == "Inline."
+
+
+def test_absent_when_the_file_is_missing(terms_config, tmp_path):
+    """An unreadable file is no terms at all, rather than an empty prompt."""
+    terms_config(enabled=True, text="", text_file=str(tmp_path / "nope.md"))
+    assert tos_module.terms_of_service() is None
+
+
+def test_file_is_read_once(terms_config, tmp_path):
+    """Read at startup: an edit needs a restart, so a re-read must not happen."""
+    terms_file = tmp_path / "terms.md"
+    terms_file.write_text("First.")
+    terms_config(enabled=True, text="", text_file=str(terms_file))
+    assert tos_module.terms_of_service()["text"] == "First."
+    terms_file.write_text("Second.")
+    assert tos_module.terms_of_service()["text"] == "First."
 
 
 def test_not_required_when_instance_configures_none(view_only_token):

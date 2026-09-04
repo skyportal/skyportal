@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import ModuleStreams, { surveyToken } from "./ModuleStreams";
 import {
   Dialog,
   DialogTitle,
@@ -62,6 +63,7 @@ const AddSwitchDialog = () => {
   const { customVariables, customListVariables, customSwitchCases } =
     useCurrentBuilder();
   const [switchName, setSwitchName] = useState("");
+  const [moduleStreams, setModuleStreams] = useState<string[]>([]);
   const [targetField, setTargetField] = useState<any>("");
   const [nameError, setNameError] = useState("");
   const [switchCases, setSwitchCases] = useState<any[]>([
@@ -96,6 +98,8 @@ const AddSwitchDialog = () => {
     if (switchDialog.open) {
       // Reset form when dialog opens
       setSwitchName("");
+      const token = surveyToken(stream);
+      setModuleStreams(token ? [token] : []);
       setTargetField("");
       setNameError("");
       setSwitchCases([{ id: uuidv4(), block: defaultBlock(), then: "" }]);
@@ -105,7 +109,7 @@ const AddSwitchDialog = () => {
       // Clear error when dialog closes
       setNameError("");
     }
-  }, [switchDialog.open]);
+  }, [switchDialog.open, stream]);
 
   const validateName = (name: any) => {
     // Normalize the value to handle both string and object formats
@@ -205,7 +209,11 @@ const AddSwitchDialog = () => {
     // Save to database
     postElement({
       name: switchName.trim(),
-      data: { switchCondition, type: "switch_variable", streams: [stream] },
+      data: {
+        switchCondition,
+        type: "switch_variable",
+        streams: moduleStreams,
+      },
       elements: "switchCases",
     });
 
@@ -293,6 +301,7 @@ const AddSwitchDialog = () => {
               setSelectedChip={() => {}}
               setEquationAnchor={() => {}}
             />
+            <ModuleStreams value={moduleStreams} onChange={setModuleStreams} />
             {nameError && (
               <Typography
                 variant="caption"

@@ -16,12 +16,10 @@ import { useIsReadOnly } from "../../ducks/profile";
 
 interface DefaultSurveyEfficiencyTableProps {
   default_survey_efficiencies: any[];
-  deletePermission?: boolean;
 }
 
 const DefaultSurveyEfficiencyTable = ({
   default_survey_efficiencies,
-  deletePermission = false,
 }: DefaultSurveyEfficiencyTableProps) => {
   const dispatch = useAppDispatch();
   const isReadOnly = useIsReadOnly();
@@ -62,7 +60,7 @@ const DefaultSurveyEfficiencyTable = ({
   };
 
   const renderDelete = (params: any) => {
-    if (!deletePermission) return null;
+    if (isReadOnly) return null;
     return (
       <IconButton color="error" onClick={() => openDeleteDialog(params.row.id)}>
         <DeleteIcon />

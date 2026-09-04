@@ -413,7 +413,8 @@ class ATLASAPI(FollowUpAPI):
             )
         )
         if transaction is not None:
-            if transaction.status == "complete":
+            # ATLAS returning data is not a commit; the status records that.
+            if request.status.startswith("Photometry committed"):
                 raise ValueError("Request already complete. Cannot delete.")
             await session.delete(transaction)
         await session.delete(request)

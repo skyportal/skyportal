@@ -75,7 +75,7 @@ const sourcesFormSchema = (
     },
     group_ids: {
       type: "array",
-      items: { type: "number", anyOf: groups.map((g) => ({ const: g.id })) },
+      items: { type: "number", enum: groups.map((g) => g.id) },
       uniqueItems: true,
       default: [] as number[],
       title: "Groups",

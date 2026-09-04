@@ -1509,6 +1509,228 @@ def test_default_analysis_on_save(
     )
 
 
+def test_default_analysis_on_spectrum(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_source,
+    lris,
+):
+    # A spectrum_fitting service backed by the demo analysis server.
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test default analysis on spectrum",
+        "description": "A test default analysis (spectrum-upload trigger)",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "spectrum_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    # A default analysis that fires for any uploaded spectrum (source_filter pins
+    # "spectrum": "any" rather than a group_id or classification).
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": {"spectrum": "any"},
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # Uploading a spectrum to an existing source should auto-trigger it.
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+
+    assert n_retries < 20, "default analysis was not triggered by uploading a spectrum"
+
+
+def _make_spectrum_default_service(
+    analysis_service_token, analysis_token, public_group, source_filter
+):
+    """A spectrum_fitting service + a default analysis with the given source_filter.
+    Returns the analysis_service_id."""
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "analysis_service",
+        data={
+            "name": name,
+            "display_name": name,
+            "description": "spectrum-trigger test service",
+            "version": "1.0",
+            "contact_name": "Vera Rubin",
+            "contact_email": "vr@ls.st",
+            "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+            "authentication_type": "none",
+            "analysis_type": "spectrum_fitting",
+            "input_data_types": [],
+            "timeout": 60,
+            "group_ids": [public_group.id],
+        },
+        token=analysis_service_token,
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": source_filter,
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    return analysis_service_id
+
+
+def test_default_analysis_on_spectrum_group_match(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_source,
+    lris,
+):
+    # Restricted to public_group; a spectrum shared with public_group must trigger.
+    analysis_service_id = _make_spectrum_default_service(
+        analysis_service_token,
+        analysis_token,
+        public_group,
+        {"spectrum": "any", "group_id": public_group.id},
+    )
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+    assert n_retries < 20, (
+        "group-restricted default was not triggered for a spectrum in that group"
+    )
+
+
+def test_default_analysis_on_spectrum_group_mismatch(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_group2,
+    public_source,
+    lris,
+):
+    # Restricted to public_group2; a spectrum shared only with public_group must NOT
+    # trigger it.
+    analysis_service_id = _make_spectrum_default_service(
+        analysis_service_token,
+        analysis_token,
+        public_group,
+        {"spectrum": "any", "group_id": public_group2.id},
+    )
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # Give any (incorrect) trigger time to fire, then confirm none did.
+    for _ in range(8):
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        assert not (status == 200 and len(data["data"]) > 0), (
+            "group-restricted default fired for a spectrum outside its group"
+        )
+        time.sleep(1)
+
+
 def test_default_analysis_multiple_per_service(
     analysis_service_token,
     analysis_token,

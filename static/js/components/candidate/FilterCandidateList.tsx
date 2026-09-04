@@ -405,6 +405,10 @@ const FilterCandidateList = ({
       lastDetectionBefore: "",
       numberDetections: "",
       localizationCumprob: "",
+      maxSgscore: scanningProfile?.maxSgscore ?? "",
+      minNdethist: scanningProfile?.minNdethist ?? "",
+      minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
+      promptDeltaT: scanningProfile?.promptDeltaT ?? "",
     });
   };
 
@@ -522,6 +526,24 @@ const FilterCandidateList = ({
     }
     if (formData.redshiftMaximum) {
       data.maxRedshift = formData.redshiftMaximum;
+    }
+    // These read the GCN crossmatch annotation, so a candidate without one
+    // cannot pass them. Off unless a scanning profile sets them, so a scan of
+    // a group that is not crossmatched is unaffected.
+    if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
+      data.maxSgscore = formData.maxSgscore;
+    }
+    if (formData.minNdethist !== "" && formData.minNdethist != null) {
+      data.minNdethist = formData.minNdethist;
+    }
+    if (
+      formData.minAbsGalacticLatitude !== "" &&
+      formData.minAbsGalacticLatitude != null
+    ) {
+      data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
+    }
+    if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
+      data.promptDeltaT = formData.promptDeltaT;
     }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       // data.gcneventid = formData.gcneventid;
@@ -1131,6 +1153,62 @@ const FilterCandidateList = ({
                     />
                   )}
                   name="localizationCumprob"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxSgscore"
+                      label="Max star score (sgscore)"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
+                    />
+                  )}
+                  name="maxSgscore"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minNdethist"
+                      label="Min detections in history"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0 } }}
+                    />
+                  )}
+                  name="minNdethist"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minAbsGalacticLatitude"
+                      label="Min |galactic latitude| [deg]"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0, max: 90 } }}
+                    />
+                  )}
+                  name="minAbsGalacticLatitude"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="promptDeltaT"
+                      label="Always show within [days] of event"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="promptDeltaT"
                   control={control}
                 />
                 <Controller

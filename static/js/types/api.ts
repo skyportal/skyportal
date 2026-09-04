@@ -2892,6 +2892,16 @@ export interface paths {
                     sortByAnnotationKey?: string | null;
                     /** @description The sort order for annotations - either "asc" or "desc". Defaults to "asc". */
                     sortByAnnotationOrder?: string | null;
+                    /** @description Keep only candidates at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
+                    minAbsGalacticLatitude?: number | null;
+                    /** @description Keep only candidates whose crossmatch star/galaxy score is below this. A high score means the candidate sits on a star. */
+                    maxSgscore?: number | null;
+                    /** @description Keep only candidates with at least this many detections in their alert history. */
+                    minNdethist?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    promptDeltaT?: number | null;
+                    /** @description Annotation origin the crossmatch cuts above are read from, compared lower-cased. */
+                    crossmatchOrigin?: string;
                     /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
                     annotationFilterList?: string | null;
                     /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
@@ -7866,7 +7876,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a GCN Event
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete a GCN event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Delete a GCN event
          */
         delete: {
             parameters: {
@@ -15489,6 +15499,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/scout_ephemeris": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a NEOCP candidate's ephemeris
+         * @description Positions over time for a JPL Scout NEOCP candidate, with the
+         *     plane-of-sky uncertainty at each step.
+         *
+         *     A Scout candidate is stored with one nominal position and a single
+         *     uncertainty, which places it on the sky only when that uncertainty is
+         *     small. Objects with a short arc carry a sigma of degrees and move
+         *     while observed, so a position is only meaningful with a time attached.
+         *
+         *     Fetched from JPL on each request rather than stored, since Scout
+         *     re-fits as new astrometry arrives.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Span to cover, starting now. Shortened if the requested span and step would exceed JPL's 500-row limit. */
+                    hours?: number;
+                    /** @description Minutes between ephemeris rows. */
+                    stepMinutes?: number;
+                    /** @description MPC observatory code the positions are computed for. A near-Earth object's apparent place depends on it, so pass the real site rather than the geocentric default when pointing a telescope. */
+                    obsCode?: string;
+                };
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/finder_chart/facilities": {
         parameters: {
             query?: never;
@@ -16391,7 +16465,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/sources/{obj_id}/comments/channels": {
+    "/api/{associated_resource_type}/{resource_id}/comments/channels": {
         parameters: {
             query?: never;
             header?: never;
@@ -16399,15 +16473,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the conversations opened on a source
-         * @description Retrieve the names of the source's named conversations. A conversation exists as soon as a comment carries its name.
+         * List the conversations opened on a resource
+         * @description Retrieve the names of the resource's named conversations. A conversation exists as soon as a comment carries its name.
          */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    obj_id: string;
+                    associated_resource_type: string;
+                    resource_id: string;
                 };
                 cookie?: never;
             };
@@ -16426,7 +16501,7 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a conversation on a source
+         * Delete a conversation on a resource
          * @description <b>Permission(s) required:</b> <em>Comment (or System admin)</em><br><br>Delete a named conversation and every comment it holds. Restricted to the user who opened it (the author of its first comment) and to system admins.
          */
         delete: {
@@ -16436,7 +16511,8 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    obj_id: string;
+                    associated_resource_type: string;
+                    resource_id: string;
                 };
                 cookie?: never;
             };
@@ -23541,14 +23617,14 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
-            /** @description Conversation the comment belongs to, NULL for the main thread. */
-            channel?: string | null;
-            /** @description Whether the comment was posted by the app rather than typed by its author. */
-            system?: boolean;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23582,12 +23658,12 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
+            /** @description Comment body. */
+            text: string;
             /** @description Conversation the comment belongs to, NULL for the main thread. */
             channel?: string | null;
             /** @description Whether the comment was posted by the app rather than typed by its author. */
             system?: boolean;
-            /** @description Comment body. */
-            text: string;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23625,6 +23701,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23660,6 +23740,10 @@ export interface components {
             earthquake_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23697,6 +23781,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23732,6 +23820,10 @@ export interface components {
             gcn_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23769,6 +23861,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23804,6 +23900,10 @@ export interface components {
             shift_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23845,6 +23945,10 @@ export interface components {
             id?: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */
@@ -23884,6 +23988,10 @@ export interface components {
             spectrum_id: number;
             /** @description Comment body. */
             text: string;
+            /** @description Conversation the comment belongs to, NULL for the main thread. */
+            channel?: string | null;
+            /** @description Whether the comment was posted by the app rather than typed by its author. */
+            system?: boolean;
             /** @description Filename of the attachment. */
             attachment_name?: string | null;
             /** @description file path where the data of the attachment is saved. */

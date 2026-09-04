@@ -29,7 +29,7 @@ import {
   useSaveSourceMutation,
 } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-import { useIsReadOnly } from "../../ducks/profile";
+import { useHasPermission } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -85,7 +85,7 @@ const ExecutedObservationsTable = ({
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const isReadOnly = useIsReadOnly();
+  const canUploadData = useHasPermission("Upload data");
   const [checkSource] = useCheckSourceMutation();
   const [saveSource] = useSaveSourceMutation();
 
@@ -196,7 +196,7 @@ const ExecutedObservationsTable = ({
       ra: observation.field.ra,
       dec: observation.field.dec,
     };
-    if (!observation.target_name || isReadOnly) {
+    if (!observation.target_name || !canUploadData) {
       return <div />;
     }
     return (
@@ -440,7 +440,7 @@ const ExecutedObservationsTable = ({
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-      {!isReadOnly && (
+      {canUploadData && (
         <IconButton
           name="new_executed_observation"
           size="small"

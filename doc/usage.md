@@ -4,12 +4,12 @@
 
 Access to resources in Skyportal is controlled in two ways:
 
-- *ACLs* control which actions a user is allowed to perform: create a new user, upload spectra, post comments, etc.
-- *Groups* are sets of sources that are accessible to members of that group
-    - Members can also be made an *admin* of the group, which gives them group-specific permissions to add new users, etc.
-    - The same source source can belong to multiple groups
+- **ACLs** control which actions a user is allowed to perform: create a new user, upload spectra, post comments, etc.
+- **Groups** are sets of sources that are accessible to members of that group
+  - Members can also be made an _admin_ of the group, which gives them group-specific permissions to add new users, etc.
+  - The same source source can belong to multiple groups
 
-*Roles* are collections of *ACLs*, and are a convenient way of giving
+**Roles** are collections of _ACLs_, and are a convenient way of giving
 users the same subset of permissions.
 
 ## Adding roles to users
@@ -46,6 +46,7 @@ On the frontend, classifications can be managed from an individual source page o
 
 - The API allows classifications to be managed using HTTP requests (see <https://skyportal.io/docs/api.html>).
 - The `GET` request allows existing classifications for a source with id `source_id` to be retrieved:
+
 ```
 status, data = api(
         'GET',
@@ -53,7 +54,9 @@ status, data = api(
         token=classification_token
     )
 ```
+
 - The `POST` request uploads new classifications for multiple sources using the following structure:
+
 ```
 data = {
          'classifications': [
@@ -74,6 +77,7 @@ data = {
          ]
      }
 ```
+
 ```
 status, data = api(
          'POST',
@@ -82,11 +86,12 @@ status, data = api(
          token=classification_token,
      )
 ```
+
 - Classifications can be modified and deleted with the `PUT` and `DELETE` requests, respectively. These requests require the integer classification ID provided by the `GET` request. Both requests are made to the endpoint `'classification/{classification_id}'`.
 
 ## Important Makefile targets
 
-Run `make` to get a list of Makefile targets.  Here are some commonly
+Run `make` to get a list of Makefile targets. Here are some commonly
 used ones:
 
 General:
@@ -113,9 +118,8 @@ Testing:
 Development:
 
 - lint-githook : Install a Git pre-commit hook that lints staged
-                 chunks (this is done automatically when you lint
-                 for the first time).
-
+  chunks (this is done automatically when you lint
+  for the first time).
 
 ## Code formatting / linters
 

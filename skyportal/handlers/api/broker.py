@@ -77,7 +77,7 @@ DEFAULT_FIELDS = {
 }
 
 
-def set_default(session, broker, field, value):
+async def set_default(session, broker, field, value):
     """Make ``broker`` the one holding ``field``, clearing it everywhere else.
 
     Raises ``ValueError`` if the provider cannot serve what the default targets.
@@ -89,7 +89,7 @@ def set_default(session, broker, field, value):
             f"'{field}' broker."
         )
     if value:
-        session.execute(
+        await session.execute(
             sa.update(Broker)
             .where(Broker.id != broker.id)
             .values(**{field: False})
@@ -291,7 +291,7 @@ def broker_to_dict(broker, include_altdata=False):
 
 class BrokerHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, *, body: BrokerPostBody = None):
+    async def post(self, *, body: BrokerPostBody = None):
         """
         ---
         summary: Create a broker
@@ -331,7 +331,7 @@ class BrokerHandler(BaseHandler):
                 f"Invalid broker_classname. Must be one of: {ALLOWED_BROKER_CLASSNAMES}"
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             broker = Broker(
                 name=name,
                 broker_classname=broker_classname,
@@ -347,18 +347,18 @@ class BrokerHandler(BaseHandler):
             broker.altdata = altdata
 
             session.add(broker)
-            session.flush()
+            await session.flush()
             for field in DEFAULT_FIELDS:
                 if getattr(body, field):
                     try:
-                        set_default(session, broker, field, True)
+                        await set_default(session, broker, field, True)
                     except ValueError as e:
                         return self.error(str(e))
-            session.commit()
+            await session.commit()
             return self.success(data={"id": broker.id})
 
     @auth_or_token
-    def get(self, broker_id: int | None = None):
+    async def get(self, broker_id: int | None = None):
         """
         ---
         summary: Retrieve broker(s)
@@ -378,22 +378,26 @@ class BrokerHandler(BaseHandler):
         """
         include_altdata = self.current_user.is_system_admin
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if broker_id is not None:
-                broker = session.scalars(
-                    Broker.select(self.current_user).where(Broker.id == int(broker_id))
+                broker = (
+                    await session.scalars(
+                        Broker.select(self.current_user).where(
+                            Broker.id == int(broker_id)
+                        )
+                    )
                 ).first()
                 if broker is None:
                     return self.error(f"No broker with id {broker_id}")
                 return self.success(data=broker_to_dict(broker, include_altdata))
 
-            brokers = session.scalars(Broker.select(self.current_user)).all()
+            brokers = (await session.scalars(Broker.select(self.current_user))).all()
             return self.success(
                 data=[broker_to_dict(b, include_altdata) for b in brokers]
             )
 
     @permissions(["System admin"])
-    def patch(self, broker_id: int, *, body: BrokerPatchBody = None):
+    async def patch(self, broker_id: int, *, body: BrokerPatchBody = None):
         """
         ---
         summary: Update a broker
@@ -413,10 +417,12 @@ class BrokerHandler(BaseHandler):
                 schema: Error
         """
         body = self.parse_body(BrokerPatchBody)
-        with self.Session() as session:
-            broker = session.scalars(
-                Broker.select(self.current_user, mode="update").where(
-                    Broker.id == int(broker_id)
+        async with self.AsyncSession() as session:
+            broker = (
+                await session.scalars(
+                    Broker.select(self.current_user, mode="update").where(
+                        Broker.id == int(broker_id)
+                    )
                 )
             ).first()
             if broker is None:
@@ -452,15 +458,17 @@ class BrokerHandler(BaseHandler):
             for field in DEFAULT_FIELDS:
                 if field in fields_set:
                     try:
-                        set_default(session, broker, field, bool(getattr(body, field)))
+                        await set_default(
+                            session, broker, field, bool(getattr(body, field))
+                        )
                     except ValueError as e:
                         return self.error(str(e))
 
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["System admin"])
-    def delete(self, broker_id: int):
+    async def delete(self, broker_id: int):
         """
         ---
         summary: Delete a broker
@@ -476,16 +484,18 @@ class BrokerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            broker = session.scalars(
-                Broker.select(self.current_user, mode="delete").where(
-                    Broker.id == int(broker_id)
+        async with self.AsyncSession() as session:
+            broker = (
+                await session.scalars(
+                    Broker.select(self.current_user, mode="delete").where(
+                        Broker.id == int(broker_id)
+                    )
                 )
             ).first()
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
-            session.delete(broker)
-            session.commit()
+            await session.delete(broker)
+            await session.commit()
             return self.success()
 
 
@@ -918,6 +928,9 @@ class BrokerFilterTestHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support filter preview."
                 )
+            # A windowless preview is rejected upstream as an opaque 400.
+            if params.get("start_jd") is None or params.get("end_jd") is None:
+                return self.error("A filter preview needs both start_jd and end_jd.")
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.test_filter(broker, session, **params)
@@ -989,6 +1002,15 @@ class BrokerFilterValidateHandler(BaseHandler):
 def _get_broker(handler, session, broker_id):
     return session.scalars(
         Broker.select(handler.current_user).where(Broker.id == int(broker_id))
+    ).first()
+
+
+async def _get_broker_async(handler, session, broker_id):
+    """`_get_broker` for handlers on the async session."""
+    return (
+        await session.scalars(
+            Broker.select(handler.current_user).where(Broker.id == int(broker_id))
+        )
     ).first()
 
 
@@ -1615,7 +1637,7 @@ class BrokerFilterCatalogGetQuery(BaseModel):
 
 class BrokerFilterCatalogHandler(BaseHandler):
     @auth_or_token
-    def get(self, *, query: BrokerFilterCatalogGetQuery = None):
+    async def get(self, *, query: BrokerFilterCatalogGetQuery = None):
         """
         ---
         summary: List filters and their broker
@@ -1649,7 +1671,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
         except ValueError:
             return self.error("brokerID must be an integer.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = Filter.select(self.current_user).distinct()
             if broker_id == "none":
                 stmt = stmt.where(Filter.broker_id.is_(None))
@@ -1662,13 +1684,15 @@ class BrokerFilterCatalogHandler(BaseHandler):
             if stream_id:
                 stmt = stmt.where(Filter.stream_id == stream_id)
 
-            total_matches = session.scalar(
+            total_matches = await session.scalar(
                 sa.select(sa.func.count()).select_from(stmt.subquery())
             )
-            filters = session.scalars(
-                stmt.order_by(Filter.name, Filter.id)
-                .limit(n_per_page)
-                .offset((page_number - 1) * n_per_page)
+            filters = (
+                await session.scalars(
+                    stmt.order_by(Filter.name, Filter.id)
+                    .limit(n_per_page)
+                    .offset((page_number - 1) * n_per_page)
+                )
             ).all()
             return self.success(
                 data={
@@ -1691,7 +1715,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
 
 class BrokerFilterAttachHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, filter_id: int, *, body: BrokerFilterAttachBody = None):
+    async def post(self, filter_id: int, *, body: BrokerFilterAttachBody = None):
         """
         ---
         summary: Attach a filter to a broker
@@ -1710,17 +1734,19 @@ class BrokerFilterAttachHandler(BaseHandler):
                 schema: Error
         """
         broker_id = self.parse_body(BrokerFilterAttachBody).broker_id
-        with self.Session() as session:
-            broker = _get_broker(self, session, broker_id)
+        async with self.AsyncSession() as session:
+            broker = await _get_broker_async(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
             if broker.broker_class.filter_kind == "none":
                 return self.error(f"Broker {broker.name} does not accept filters.")
-            f = session.scalars(
-                Filter.select(self.current_user, mode="update").where(
-                    Filter.id == int(filter_id)
+            f = (
+                await session.scalars(
+                    Filter.select(self.current_user, mode="update").where(
+                        Filter.id == int(filter_id)
+                    )
                 )
             ).first()
             if f is None:
@@ -1728,5 +1754,5 @@ class BrokerFilterAttachHandler(BaseHandler):
             if f.broker_id not in (None, broker.id):
                 return self.error("This filter is already attached to a broker.")
             f.broker_id = broker.id
-            session.commit()
+            await session.commit()
             return self.success(data={"id": f.id, "broker_id": f.broker_id})

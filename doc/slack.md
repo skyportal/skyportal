@@ -12,7 +12,6 @@ Otherwise to create a new Slack App, see the following section.
 
 ## Slack App Creation: One-time Admin Set Up
 
-
 We first need to create a "Slack App" that acts as a conduit from SkyPortal to Slack. A logged in Slack Admin for a workspace should navigate to:
 
 [https://api.slack.com/apps?new_app=1](https://api.slack.com/apps?new_app=1)
@@ -28,7 +27,6 @@ The Slack admin then creates a name for the application (like `SP_integration`) 
 After the app is created, click on `Incoming Webhooks` in the left-side menu and then activate webhooks with the toggle on the top right:
 
 ![Slack Integration Webhook Enable](images/slack_integration_7.png)
-
 
 ## Connecting SkyPortal Users to Slack
 
@@ -56,7 +54,6 @@ If the `@ mentions` toggle is activated, then all mentions of this user on SkyPo
 
 For the SkyPortal user to stop Slack notifications, they only need to toggle off the Slack Integration button in the **Profile** page.
 
-
 ## Use as an instrument triggering API
 
 We have enabled the use of Slack for instrument "triggering," enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs `SLACKAPI` added as its triggering API, and in the instrument allocation, `_altdata` should look like `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}` with the appropriate values. The Slack endpoint will be POSTed to `{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}`
@@ -65,6 +62,6 @@ We have enabled the use of Slack for instrument "triggering," enabling a push of
 
 Unlike a fault-tolerant pub-sub mechanism like XMPP Jabber, Slack notifications are not guaranteed to be delivered. If any part of the communication fails (e.g., Slack downtime or SkyPortal errors), the Slack messaging will not work. Users should not rely upon receiving Slack messages to perform mission critical work.
 
-The Slack Admin is trusted to verify that the SkyPortal user they send a Webhook URL to is the same person (or entity) represented in their Slack Workspace.  For most use cases this is a reasonable measure to keep SkyPortal data secure. In addition, while the names and URLs of sources are shown in Slack, no other information (such as comments or classification results) is transmitted. So even if identities are mismatched or channels are compromised, a Slack user with unauthorized access will not be able to access substantive information in SkyPortal.
+The Slack Admin is trusted to verify that the SkyPortal user they send a Webhook URL to is the same person (or entity) represented in their Slack Workspace. For most use cases this is a reasonable measure to keep SkyPortal data secure. In addition, while the names and URLs of sources are shown in Slack, no other information (such as comments or classification results) is transmitted. So even if identities are mismatched or channels are compromised, a Slack user with unauthorized access will not be able to access substantive information in SkyPortal.
 
 The Slack admin may delete the Slack App for their workspace at any time, invalidating all webhooks.

@@ -297,6 +297,55 @@ def add_computed_fields(candidate_info, obj):
     candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
 
 
+# The galactic pole, J2000. Latitude is derived from ra/dec rather than stored,
+# so the cut is an expression rather than a column comparison.
+_NGP_RA_DEG = 192.85948
+_NGP_DEC_DEG = 27.12825
+
+# A jsonb text value only casts to float if it looks like a number; Postgres has
+# no try-cast, so the shape is checked before the cast.
+_NUMERIC_RE = r"^-?[0-9]+\.?[0-9]*([eE][-+]?[0-9]+)?$"
+
+
+def abs_galactic_latitude():
+    """|b| in degrees, as an expression over an Obj's ra/dec."""
+    return sa.func.abs(
+        sa.func.degrees(
+            sa.func.asin(
+                sa.func.sind(Obj.dec) * sa.func.sind(_NGP_DEC_DEG)
+                + sa.func.cosd(Obj.dec)
+                * sa.func.cosd(_NGP_DEC_DEG)
+                * sa.func.cosd(Obj.ra - _NGP_RA_DEG)
+            )
+        )
+    )
+
+
+def crossmatch_value_clause(origin, key, comparison):
+    """EXISTS over the crossmatch annotation's per-event entries.
+
+    A GCN crossmatch stores one entry per event keyed by event name, so
+    `delta_t`, `ndethist` and `sgscore` sit one level down; a filter on a
+    top-level key of that name matches nothing. `comparison` receives the
+    numeric value of `key` within an entry and returns the test to apply.
+    """
+    entry = sa.func.jsonb_each(Annotation.data).table_valued("key", "value").lateral()
+    text_value = entry.c.value.op("->>")(key)
+    return (
+        sa.select(sa.literal(1))
+        .select_from(Annotation)
+        .join(entry, sa.true())
+        .where(
+            Annotation.obj_id == Obj.id,
+            sa.func.lower(Annotation.origin) == origin.lower(),
+            sa.func.jsonb_typeof(entry.c.value) == "object",
+            text_value.op("~")(_NUMERIC_RE),
+            comparison(sa.cast(text_value, sa.Float)),
+        )
+        .exists()
+    )
+
+
 class CandidateGetQuery(BaseModel):
     """Query parameters for retrieving a single candidate or querying candidates."""
 
@@ -372,6 +421,44 @@ class CandidateGetQuery(BaseModel):
             'The sort order for annotations - either "asc" or "desc". '
             'Defaults to "asc".'
         ),
+    )
+    minAbsGalacticLatitude: float | None = Field(
+        default=None,
+        description=(
+            "Keep only candidates at least this many degrees from the galactic "
+            "plane, i.e. |b| >= this. Use to require extragalactic candidates."
+        ),
+        ge=0,
+        le=90,
+    )
+    maxSgscore: float | None = Field(
+        default=None,
+        description=(
+            "Keep only candidates whose crossmatch star/galaxy score is below "
+            "this. A high score means the candidate sits on a star."
+        ),
+        ge=0,
+        le=1,
+    )
+    minNdethist: float | None = Field(
+        default=None,
+        description="Keep only candidates with at least this many detections in "
+        "their alert history.",
+        ge=0,
+    )
+    promptDeltaT: float | None = Field(
+        default=None,
+        description=(
+            "Exempt candidates detected within this many days of the event from "
+            "the galactic latitude and detection history cuts, which exist to "
+            "thin late candidates. Those cuts still apply to everything else."
+        ),
+        ge=0,
+    )
+    crossmatchOrigin: str = Field(
+        default="gcn-crossmatch",
+        description="Annotation origin the crossmatch cuts above are read from, "
+        "compared lower-cased.",
     )
     annotationFilterList: str | None = Field(
         default=None,
@@ -846,6 +933,11 @@ class CandidateHandler(BaseHandler):
         filter_ids = query.filterIDs
         sort_by_origin = query.sortByAnnotationOrigin
         annotation_filter_list = query.annotationFilterList
+        min_abs_galactic_latitude = query.minAbsGalacticLatitude
+        max_sgscore = query.maxSgscore
+        min_ndethist = query.minNdethist
+        prompt_delta_t = query.promptDeltaT
+        crossmatch_origin = query.crossmatchOrigin
         classifications = query.classifications
         classifications_reject = query.classificationsReject
         min_redshift = query.minRedshift
@@ -1050,6 +1142,41 @@ class CandidateHandler(BaseHandler):
                 )
 
                 q = q.outerjoin(right, Obj.id == right.c.id).where(right.c.id.is_(None))
+
+            # A source on a star is not a counterpart however promptly it was
+            # seen, so the star cut applies to everything.
+            if max_sgscore is not None:
+                q = q.where(
+                    crossmatch_value_clause(
+                        crossmatch_origin, "sgscore", lambda v: v < max_sgscore
+                    )
+                )
+
+            # The latitude and detection-history cuts thin a backlog of late,
+            # poorly constrained candidates. A candidate seen within
+            # promptDeltaT days of the event is worth a look on that basis
+            # alone, so it is spared them.
+            late_conditions = []
+            if min_ndethist is not None:
+                late_conditions.append(
+                    crossmatch_value_clause(
+                        crossmatch_origin, "ndethist", lambda v: v >= min_ndethist
+                    )
+                )
+            if min_abs_galactic_latitude is not None:
+                late_conditions.append(
+                    abs_galactic_latitude() >= min_abs_galactic_latitude
+                )
+            if late_conditions:
+                if prompt_delta_t is not None:
+                    prompt = crossmatch_value_clause(
+                        crossmatch_origin,
+                        "delta_t",
+                        lambda v: sa.func.abs(v) <= prompt_delta_t,
+                    )
+                    q = q.where(sa.or_(prompt, sa.and_(*late_conditions)))
+                else:
+                    q = q.where(sa.and_(*late_conditions))
 
             if annotation_filter_list is not None:
                 # Parse annotation filter list objects from the query string
@@ -1820,7 +1947,7 @@ async def grab_query_results(
 
 class BulkDeleteCandidatesHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, *, body: BulkDeleteCandidatesPostBody = None):
+    async def post(self, *, body: BulkDeleteCandidatesPostBody = None):
         """
         ---
         summary: Bulk-delete old, unsaved candidates
@@ -1888,30 +2015,32 @@ class BulkDeleteCandidatesHandler(BaseHandler):
             ),
         )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
 
             if dry_run:
-                total = int(session.scalar(count_stmt) or 0)
+                total = int(await session.scalar(count_stmt) or 0)
                 return self.success(
                     data={"deleted": 0, "remaining": total, "dryRun": True}
                 )
 
-            objs = session.scalars(
-                sa.select(Obj)
-                .where(criteria)
-                .order_by(Obj.created_at)
-                .limit(batch_size)
+            objs = (
+                await session.scalars(
+                    sa.select(Obj)
+                    .where(criteria)
+                    .order_by(Obj.created_at)
+                    .limit(batch_size)
+                )
             ).all()
 
             # Per-row delete so ORM cascades and the Obj `before_delete` event
             # (on-disk thumbnail cleanup) fire, rather than a bulk DELETE.
             n = len(objs)
             for obj in objs:
-                session.delete(obj)
-            session.commit()
+                await session.delete(obj)
+            await session.commit()
 
-            remaining = int(session.scalar(count_stmt) or 0)
+            remaining = int(await session.scalar(count_stmt) or 0)
             log(
                 f"Bulk-deleted {n} unsaved candidate object(s) older than "
                 f"{max_age_months} months; {remaining} remaining."

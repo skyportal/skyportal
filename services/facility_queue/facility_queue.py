@@ -152,6 +152,13 @@ def service():
                                             parent_session=session,
                                             duplicates="update",
                                         )
+                                    else:
+                                        # No result file: record it rather than
+                                        # leaving the request mid-commit.
+                                        followup_request.status = (
+                                            "No photometry to commit to database"
+                                        )
+                                        session.add(followup_request)
                                     req.status = "complete"
                                     session.add(req)
                                     session.commit()
