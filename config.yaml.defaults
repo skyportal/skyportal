@@ -43,12 +43,15 @@ app:
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
 
   # Until accepted, every endpoint returns 403. `text` is markdown. Bumping
-  # `version` makes everyone accept again; editing `text` alone does not.
+  # `version` makes everyone accept again; editing the text alone does not.
+  # Give the terms either inline as `text` or as a path to a markdown file,
+  # read once at startup. `text` wins if both are set.
   terms_of_service:
     enabled: false
     version: 1
     title: Terms of Service
     text: ""
+    text_file: ""
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
