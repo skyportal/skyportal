@@ -413,10 +413,7 @@ class ATLASAPI(FollowUpAPI):
             )
         )
         if transaction is not None:
-            # A complete transaction only means ATLAS returned the data; the
-            # commit that follows can still fail, leaving a request stuck at
-            # "Committing photometry to database" that this would then refuse to
-            # delete. The request's own status is what records a landed commit.
+            # ATLAS returning data is not a commit; the status records that.
             if request.status.startswith("Photometry committed"):
                 raise ValueError("Request already complete. Cannot delete.")
             await session.delete(transaction)
