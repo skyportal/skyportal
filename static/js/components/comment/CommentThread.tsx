@@ -1,4 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
+import { ASSISTANT_CHANNEL } from "./channels";
 import { useEffect, useRef, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -6,6 +7,7 @@ import { alpha } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 
 import ReactMarkdown from "react-markdown";
@@ -389,6 +391,13 @@ const CommentThread = ({
     a.created_at < b.created_at ? -1 : 1,
   );
 
+  // In the assistant's channel the last word is its own; while it is a person's,
+  // an answer is still on its way.
+  const awaitingAssistant =
+    channel === ASSISTANT_CHANNEL &&
+    comments.length > 0 &&
+    !comments[comments.length - 1].system;
+
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
@@ -494,6 +503,12 @@ const CommentThread = ({
                 />
               </span>
             ),
+        )}
+        {awaitingAssistant && (
+          <div className={styles.panelEmpty} data-testid="assistant-thinking">
+            <CircularProgress size={12} style={{ marginRight: "0.4rem" }} />
+            Looking that up&hellip;
+          </div>
         )}
       </div>
       {!channel && (

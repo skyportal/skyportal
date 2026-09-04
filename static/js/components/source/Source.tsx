@@ -63,10 +63,8 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import CommentPanel, {
-  INTERESTED_CHANNEL,
-  useCommentPanel,
-} from "../comment/CommentPanel";
+import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
+import { INTERESTED_CHANNEL } from "../comment/channels";
 import SourceInterests from "./SourceInterests";
 import RequestDataAccess from "./RequestDataAccess";
 import UnsharedSpectra from "./UnsharedSpectra";
