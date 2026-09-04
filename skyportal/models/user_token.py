@@ -516,10 +516,12 @@ def accessible_group_ids(self):
 
 def assert_group_accessible(self, group_id):
     """Raise an error if the user or token does not have access to the given group.
+
     Parameters
     ----------
     group_id : int or str
         The ID of the group to check.
+
     Raises
     ------
     AccessError
