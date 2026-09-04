@@ -1,4 +1,4 @@
-__all__ = ["has_accepted", "terms_of_service"]
+__all__ = ["has_accepted", "terms_of_service", "tokens_exempt"]
 
 from functools import cache
 from pathlib import Path
@@ -39,6 +39,15 @@ def terms_of_service():
         "title": terms.get("title") or "Terms of Service",
         "text": text,
     }
+
+
+def tokens_exempt():
+    """Whether an API token may act before its owner has accepted the terms.
+
+    A token cannot be shown a dialog, so gating it blocks every script and
+    service until a human logs in and clicks through.
+    """
+    return bool((cfg.get("app.terms_of_service") or {}).get("exempt_tokens"))
 
 
 def has_accepted(user_id, version):

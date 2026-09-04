@@ -21,6 +21,16 @@ def classification_of(extraction_data):
     return classification.get("classification")
 
 
+def subtype_of(extraction_data):
+    """The finer class an extraction reports, or None.
+
+    A class the taxonomy has no node for rides on the subtype (an X-ray flash is
+    reported as a GRB with subtype "XRF"), and it is the more specific of the two.
+    """
+    classification = (extraction_data or {}).get("classification") or {}
+    return classification.get("subtype")
+
+
 def wants_classification(preferences, label):
     """Whether a user's notification preferences ask for this class.
 
@@ -44,7 +54,9 @@ def tag_name_for(label):
 
 def apply_tags(session, extraction, author_id):
     """Tag every object linked to the extraction's event. Returns the obj ids tagged."""
-    tag_name = tag_name_for(classification_of(extraction.data))
+    tag_name = tag_name_for(subtype_of(extraction.data)) or tag_name_for(
+        classification_of(extraction.data)
+    )
     if tag_name is None:
         return []
 

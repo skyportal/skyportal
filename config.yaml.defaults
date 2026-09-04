@@ -52,6 +52,9 @@ app:
     title: Terms of Service
     text: ""
     text_file: ""
+    # A token cannot be shown the dialog, so gating it blocks every script and
+    # service until its owner logs in and accepts.
+    exempt_tokens: false
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
@@ -511,10 +514,13 @@ app:
       xs: 4
 
   gcn_extraction_tags:
-    # Taxonomy class reported by a circular extraction -> obj tag applied to the
-    # objects of that event. An unmapped class tags nothing. The tag must already
-    # exist as an ObjTagOption.
+    # Class or subtype reported by a circular extraction -> obj tag applied to
+    # the objects of that event. The subtype is looked up first, since it is the
+    # more specific of the two. An unmapped class tags nothing, and the tag must
+    # already exist as an ObjTagOption.
     X-ray Flash: XRFcandidate
+    XRF: XRF
+    XRF candidate: XRFcandidate
 
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how
