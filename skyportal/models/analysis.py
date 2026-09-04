@@ -848,7 +848,7 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
                         spectrum_group_ids = set(
                             session.scalars(
                                 sa.select(GroupSpectrum.group_id).where(
-                                    GroupSpectrum.spectrum_id == target.id
+                                    GroupSpectrum.spectr_id == target.id
                                 )
                             ).all()
                         )
