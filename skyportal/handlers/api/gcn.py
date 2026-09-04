@@ -295,12 +295,7 @@ _SUMMARY_PROMPT = (
 
 
 def _summary_context(event, extractions):
-    """What a reader needs to say what is known about the event, as plain text.
-
-    Built from the structured extractions rather than the circular prose, so the
-    model restates measurements that were already parsed instead of re-reading
-    them.
-    """
+    """The event as plain text, from the parsed extractions rather than the prose."""
     lines = [f"GCN event {event.dateobs} UTC."]
     if event.aliases:
         lines.append(f"Also known as: {', '.join(event.aliases)}.")
@@ -2537,9 +2532,8 @@ class GcnEventSummarizeHandler(BaseHandler):
         ---
         summary: Summarize a GCN event
         description: |
-          Asks the configured chat-completions model to describe the event from
-          its structured extractions, and stores the result as the event
-          summary. The previous one stays in `summary_history`.
+          Describes the event from its extractions using the configured model.
+          The previous summary stays in `summary_history`.
         tags:
           - gcn events
         responses:
@@ -2554,7 +2548,7 @@ class GcnEventSummarizeHandler(BaseHandler):
         """
         if not dateobs:
             return self.error("Missing dateobs")
-        # A user's own account is used in preference to the instance's model.
+        # A user's own account wins over the instance's model.
         settings = user_summarizer(self.associated_user_object)
         if settings is None and not summarizer_configured():
             return self.error("No summarization model is configured")
@@ -3028,9 +3022,8 @@ class GcnEventHandler(BaseHandler):
         ---
         summary: Update a GCN Event
         description: |
-          Sets the event summary. Each summary is prepended to
-          `summary_history`, so an earlier one stays readable after it is
-          replaced.
+          Sets the event summary, prepending the previous one to
+          `summary_history`.
         tags:
           - gcn events
         responses:

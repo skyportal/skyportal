@@ -1,7 +1,4 @@
-"""Give a GcnEvent a summary
-
-Mirrors objs.summary/summary_history: a narrative a human can edit and a
-record of the ones written before it.
+"""Give a GcnEvent a summary, mirroring objs.summary/summary_history
 
 Revision ID: a3f7d21c8b45
 Revises: b1e4a7c92f10

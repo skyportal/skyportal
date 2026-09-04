@@ -136,8 +136,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["GcnEvent"],
     }),
-    // The event's own fields, as `updateSource` is to an obj. Distinct from
-    // `patchGcnEventSummary`, which edits a GcnSummary report.
+    // The event's own fields; `patchGcnEventSummary` edits a GcnSummary report.
     updateGcnEvent: build.mutation<
       any,
       { dateobs: string; payload: Record<string, unknown> }

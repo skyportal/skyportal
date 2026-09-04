@@ -1,9 +1,7 @@
-"""Ask the configured chat-completions model for a summary.
+"""Ask the model named by `analysis_services.openai_analysis_service.summary`.
 
-The endpoint is whatever `analysis_services.openai_analysis_service.summary`
-names: OpenAI, or any server speaking the same protocol (llama.cpp, vLLM) via
-`base_url`. Kept apart from the obj analysis service, which reaches the same
-model through the analysis-service pipeline and cannot carry a GcnEvent.
+Any server speaking the OpenAI chat-completions protocol works, via `base_url`.
+Kept apart from the obj analysis service, which cannot carry a GcnEvent.
 """
 
 __all__ = ["summarize", "summarizer_configured", "user_summarizer"]
@@ -29,11 +27,7 @@ def summarizer_configured():
 
 
 def user_summarizer(user):
-    """A user's own model settings, when they have set a key.
-
-    Their key goes to their own base_url, or to OpenAI, and never to whatever
-    endpoint this deployment configured.
-    """
+    """A user's own model settings: their key, sent only to their own base_url."""
     preferences = (getattr(user, "preferences", None) or {}).get("summary", {})
     settings = (preferences or {}).get("OpenAI") or {}
     if not settings.get("active") or not settings.get("apikey"):
@@ -46,11 +40,7 @@ def user_summarizer(user):
 
 
 def summarize(prompt, context, timeout=60, settings=None):
-    """The model's summary of `context`, or None when it cannot be produced.
-
-    `settings` overrides the instance-wide model, for a user summarizing with
-    their own account.
-    """
+    """The model's summary of `context`, or None. `settings` overrides the instance's."""
     settings = settings or _config()
     api_key = settings.get("api_key")
     if not api_key:

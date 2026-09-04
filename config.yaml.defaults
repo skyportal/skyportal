@@ -1367,13 +1367,9 @@ analysis_services:
   openai_analysis_service:
     port: 7003
     summary:
-      # The instance-wide summarization model, used when a user has set no key
-      # of their own. Any server speaking the OpenAI chat-completions protocol
-      # works: leave base_url unset for api.openai.com (get a key at
-      # https://platform.openai.com/account/api-keys), or point it at a locally
-      # served model, in which case no text leaves the institution.
-      # A user's own key is an OpenAI key and always goes to OpenAI.
+      # The instance-wide model, used unless a user sets a key of their own.
       api_key:
+      # Any OpenAI-compatible server; unset means api.openai.com.
       base_url:
       temperature: 0.3
       max_tokens: 350

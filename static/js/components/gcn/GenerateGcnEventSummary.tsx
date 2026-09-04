@@ -21,8 +21,7 @@ const GenerateGcnEventSummary = ({ dateobs }: GenerateGcnEventSummaryProps) => {
   const { data: config } = useGetConfigQuery() as { data: any };
   const prefs: any = useGetProfileQuery().data?.preferences;
 
-  // Nothing to click unless a model is reachable: the instance's, or the
-  // user's own account.
+  // Nothing to click unless a model is reachable.
   if (!config?.summary_apikey_set && !prefs?.summary?.OpenAI?.active) {
     return null;
   }
