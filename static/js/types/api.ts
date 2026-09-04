@@ -7819,6 +7819,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gcn_event/{dateobs}/summarize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Summarize a GCN event
+         * @description Describes the event from its extractions using the configured model.
+         *     The previous summary stays in `summary_history`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gcn_event/{dateobs}": {
         parameters: {
             query?: never;
@@ -7876,7 +7925,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a GCN Event
-         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Delete a GCN event
+         * @description Delete a GCN event
          */
         delete: {
             parameters: {
@@ -7909,7 +7958,44 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a GCN Event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Sets the event summary, prepending the previous one to
+         *     `summary_history`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    dateobs: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnEventPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/gcn_event": {
@@ -25794,6 +25880,12 @@ export interface components {
             dateobs: string;
             /** @description Trigger ID supplied by instrument */
             trigger_id?: string | null;
+            /** @description Narrative summary of what is known about the event. */
+            summary?: string | null;
+            /** @description Record of the summaries generated and written about this event */
+            summary_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description List of different names for this event, parsed from different GCN notices. */
             aliases?: string[];
             /** @description TACH id associated with a GCN event */
@@ -26141,6 +26233,12 @@ export interface components {
             dateobs: string;
             /** @description Trigger ID supplied by instrument */
             trigger_id?: string | null;
+            /** @description Narrative summary of what is known about the event. */
+            summary?: string | null;
+            /** @description Record of the summaries generated and written about this event */
+            summary_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description List of different names for this event, parsed from different GCN notices. */
             aliases?: string[];
             /** @description TACH id associated with a GCN event */
@@ -40908,6 +41006,27 @@ export interface components {
              * @description ID of the created GCN notice, if any
              */
             notice_id: number | null;
+        };
+        /** GcnEventPatchBody */
+        GcnEventPatchBody: {
+            /**
+             * Summary
+             * @description Narrative summary of the event. Null clears it.
+             * @default null
+             */
+            summary: string | null;
+            /**
+             * Summary Origin
+             * @description What produced this summary, recorded in the history.
+             * @default null
+             */
+            summary_origin: string | null;
+            /**
+             * Is Bot
+             * @description Whether a bot wrote this summary.
+             * @default null
+             */
+            is_bot: boolean | null;
         };
         /**
          * GcnEventObjPostBody

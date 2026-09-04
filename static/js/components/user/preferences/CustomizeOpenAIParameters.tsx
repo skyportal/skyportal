@@ -29,7 +29,7 @@ const CustomizeOpenAIParameters = () => {
   const { classes } = useStyles();
 
   const site_openai_summary_parameters = (useGetConfigQuery().data as any)
-    ?.openai_summary_parameters;
+    ?.summary_parameters;
   const { data: profile } = useGetProfileQuery();
   const user_openai_summary_parameters = (profile?.preferences as any)?.summary
     ?.OpenAI;

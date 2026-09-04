@@ -795,6 +795,8 @@ boom:
     database: null
 
 misc:
+  # Whether a non-admin may delete an Obj they own all the data for.
+  allow_nonadmins_delete_objs: false
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30
   minutes_to_keep_candidate_query_cache: 60
@@ -1367,13 +1369,10 @@ analysis_services:
   openai_analysis_service:
     port: 7003
     summary:
-      # set this global API key if the project
-      # will pay for the OpenAI costs. Otherwise
-      # individual users need to set their own key
-      # in the user preferences
-      # Get a global key at:
-      #   https://platform.openai.com/account/api-keys
+      # The instance-wide model, used unless a user sets a key of their own.
       api_key:
+      # Any OpenAI-compatible server; unset means api.openai.com.
+      base_url:
       temperature: 0.3
       max_tokens: 350
       top_p: 1.0

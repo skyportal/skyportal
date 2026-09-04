@@ -24,8 +24,8 @@ _REQUIRED_KEYS = {
     "bandpassesWavelengths",
     "usePinecone",
     "usePhotometryValidation",
-    "openai_summary_apikey_set",
-    "openai_summary_parameters",
+    "summary_apikey_set",
+    "summary_parameters",
 }
 
 
@@ -49,8 +49,9 @@ def test_config_returns_required_keys(view_only_token):
     assert isinstance(cfg["bandpassesColors"], dict)
     assert isinstance(cfg["bandpassesWavelengths"], dict)
     # The OpenAI api key should never be exposed to the frontend.
-    assert isinstance(cfg["openai_summary_apikey_set"], bool)
-    assert "api_key" not in cfg["openai_summary_parameters"]
+    assert isinstance(cfg["summary_apikey_set"], bool)
+    assert "api_key" not in cfg["summary_parameters"]
+    assert "base_url" not in cfg["summary_parameters"]
 
 
 def test_config_cosmology_params_full_precision(view_only_token):

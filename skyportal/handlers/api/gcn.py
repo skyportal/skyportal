@@ -122,7 +122,9 @@ from ...utils.gcn import (
 from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
+from ...utils.summarize import summarize, summarizer_configured, user_summarizer
 from ..base import BaseHandler
+from .candidate.candidate import update_summary_history_if_relevant
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
 from .observation import MAX_OBSERVATIONS, get_observations
@@ -278,6 +280,81 @@ class GcnEventPostResponse(BaseModel):
     gcnevent_id: int | None = Field(description="New GcnEvent ID")
     dateobs: str | None = Field(description="UTC event timestamp of the event")
     notice_id: int | None = Field(description="ID of the created GCN notice, if any")
+
+
+# Enough rows to show the shape of a light curve without flooding the prompt.
+_SUMMARY_MAX_ROWS = 12
+
+_SUMMARY_PROMPT = (
+    "In one short paragraph, written in the third person for expert "
+    "astronomers, summarize what is known about this transient event: what "
+    "detected it, what follow-up found, how it is classified, and how it is "
+    "evolving. State a redshift if one is given. Say only what the data below "
+    "supports, and note explicitly if a report was retracted."
+)
+
+
+def _summary_context(event, extractions):
+    """The event as plain text, from the parsed extractions rather than the prose."""
+    lines = [f"GCN event {event.dateobs} UTC."]
+    if event.aliases:
+        lines.append(f"Also known as: {', '.join(event.aliases)}.")
+    tags = sorted(event.tags or [])
+    if tags:
+        lines.append(f"Tags: {', '.join(tags)}.")
+
+    for extraction in extractions:
+        data = extraction.data or {}
+        parts = []
+        if circular_id := extraction.circular_id:
+            parts.append(f"GCN {circular_id}")
+        if telescope := data.get("telescope_name"):
+            parts.append(str(telescope))
+        classification = (data.get("classification") or {}).get("classification")
+        subtype = (data.get("classification") or {}).get("subtype")
+        if classification:
+            parts.append(
+                f"classified {classification}" + (f" ({subtype})" if subtype else "")
+            )
+        redshift = (data.get("redshift") or {}).get("redshift")
+        if redshift is not None:
+            parts.append(f"z = {redshift}")
+        rows = data.get("photometry") or []
+        for row in rows[:_SUMMARY_MAX_ROWS]:
+            band = row.get("filter") or row.get("bandpass") or "?"
+            if row.get("mag") is not None:
+                value = f"{band} = {row['mag']}"
+                if row.get("mag_error") is not None:
+                    value += f" +/- {row['mag_error']}"
+            elif row.get("limiting_mag") is not None:
+                value = f"{band} > {row['limiting_mag']}"
+            else:
+                continue
+            if row.get("obs_mjd") is not None:
+                value += f" at MJD {row['obs_mjd']}"
+            parts.append(value)
+        if len(rows) > _SUMMARY_MAX_ROWS:
+            parts.append(f"and {len(rows) - _SUMMARY_MAX_ROWS} further rows")
+        if data.get("retraction"):
+            parts.append("RETRACTION")
+        if parts:
+            lines.append("- " + "; ".join(parts))
+    return "\n".join(lines)
+
+
+class GcnEventPatchBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str | None = Field(
+        default=None,
+        description="Narrative summary of the event. Null clears it.",
+    )
+    summary_origin: str | None = Field(
+        default=None, description="What produced this summary, recorded in the history."
+    )
+    is_bot: bool | None = Field(
+        default=None, description="Whether a bot wrote this summary."
+    )
 
 
 class GcnEventUserPostBody(BaseModel):
@@ -2446,6 +2523,81 @@ class GcnEventGetQuery(BaseModel):
     )
 
 
+class GcnEventSummarizeHandler(BaseHandler):
+    """Write the event's summary from its extractions, using the configured model."""
+
+    @auth_or_token
+    async def post(self, dateobs: str = None):
+        """
+        ---
+        summary: Summarize a GCN event
+        description: |
+          Describes the event from its extractions using the configured model.
+          The previous summary stays in `summary_history`.
+        tags:
+          - gcn events
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if not dateobs:
+            return self.error("Missing dateobs")
+        # A user's own account wins over the instance's model.
+        settings = user_summarizer(self.associated_user_object)
+        if settings is None and not summarizer_configured():
+            return self.error("No summarization model is configured")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs.strip().strip("/")).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(self.current_user, mode="update")
+                .where(GcnEvent.dateobs == dateobs_parsed)
+                .options(selectinload(GcnEvent._tags))
+            )
+            if event is None:
+                return self.error(f"No GCN event with dateobs {dateobs}", status=404)
+
+            extractions = (
+                await session.scalars(
+                    GcnEventExtraction.select(self.current_user)
+                    .where(GcnEventExtraction.dateobs == event.dateobs)
+                    .order_by(GcnEventExtraction.circular_created_at)
+                )
+            ).all()
+            if not extractions:
+                return self.error("Nothing extracted for this event to summarize")
+
+            context = _summary_context(event, extractions)
+            summary = await IOLoop.current().run_in_executor(
+                None, lambda: summarize(_SUMMARY_PROMPT, context, settings=settings)
+            )
+            if not summary:
+                return self.error("The model returned no summary")
+
+            update_summary_history_if_relevant(
+                {"summary": summary, "is_bot": True, "summary_origin": "gcn_event"},
+                event,
+                self.associated_user_object,
+            )
+            await session.commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": dateobs},
+        )
+        return self.success(data={"summary": summary})
+
+
 class GcnEventHandler(BaseHandler):
     @auth_or_token
     async def post(self, *, body: GcnEventPostBody = None) -> GcnEventPostResponse:
@@ -2864,6 +3016,63 @@ class GcnEventHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Manage GCNs"])
+    @auth_or_token
+    async def patch(self, dateobs: str = None, *, body: GcnEventPatchBody = None):
+        """
+        ---
+        summary: Update a GCN Event
+        description: |
+          Sets the event summary, prepending the previous one to
+          `summary_history`.
+        tags:
+          - gcn events
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if not dateobs:
+            return self.error("Missing dateobs")
+        body = self.parse_body(GcnEventPatchBody)
+        if "summary" not in body.model_fields_set:
+            return self.error("Nothing to update")
+
+        try:
+            dateobs_parsed = arrow.get(dateobs.strip().strip("/")).naive
+        except Exception as e:
+            return self.error(f"Invalid dateobs: {e}")
+
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(self.current_user, mode="update").where(
+                    GcnEvent.dateobs == dateobs_parsed
+                )
+            )
+            if event is None:
+                return self.error(f"No GCN event with dateobs {dateobs}", status=404)
+
+            update_summary_history_if_relevant(
+                {
+                    "summary": body.summary,
+                    "summary_origin": body.summary_origin,
+                    "is_bot": bool(body.is_bot),
+                },
+                event,
+                self.associated_user_object,
+            )
+            await session.commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": dateobs},
+        )
+        return self.success()
+
     async def delete(self, dateobs: str):
         """
         ---

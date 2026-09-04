@@ -40,6 +40,10 @@ import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnEventAssociationSummary from "./GcnEventAssociationSummary";
+import UpdateGcnEventSummary from "./UpdateGcnEventSummary";
+import GenerateGcnEventSummary from "./GenerateGcnEventSummary";
+import ShowSummaries from "../summary/ShowSummaries";
+import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
@@ -357,6 +361,50 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               showTitle={!isMobile}
             />
             <GcnEventAssociationSummary dateobs={dateobs} />
+            <Paper
+              style={{
+                marginTop: "0.5rem",
+                padding: gcnEvent.summary
+                  ? "0.25rem 0.25rem 0 0.25rem"
+                  : "0.5rem",
+              }}
+              variant={gcnEvent.summary ? "outlined" : undefined}
+            >
+              <ShowSummaries summaries={gcnEvent.summary_history || []} />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: gcnEvent.summary
+                    ? "flex-end"
+                    : "space-between",
+                  alignItems: "center",
+                  width: "100%",
+                }}
+              >
+                {!gcnEvent.summary && (
+                  <p style={{ fontSize: "0.75rem", color: "grey", margin: 0 }}>
+                    No summary yet.
+                  </p>
+                )}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  {permission && (
+                    <UpdateGcnEventSummary
+                      dateobs={dateobs}
+                      summary={gcnEvent.summary}
+                      summaryHistory={gcnEvent.summary_history}
+                    />
+                  )}
+                  {permission && <GenerateGcnEventSummary dateobs={dateobs} />}
+                  {gcnEvent.summary_history?.length > 0 && (
+                    <ShowSummaryHistory
+                      summaries={gcnEvent.summary_history}
+                      label={dateobs}
+                    />
+                  )}
+                </div>
+              </div>
+            </Paper>
             <GcnAliases gcnEvent={gcnEvent} show_title />
             <GcnAdvocates gcnEvent={gcnEvent} show_title />
           </div>

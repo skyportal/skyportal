@@ -136,6 +136,31 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["GcnEvent"],
     }),
+    // The event's own fields; `patchGcnEventSummary` edits a GcnSummary report.
+    updateGcnEvent: build.mutation<
+      any,
+      { dateobs: string; payload: Record<string, unknown> }
+    >({
+      query: ({ dateobs, payload }) => ({
+        url: `api/gcn_event/${dateobs}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: (_result, _error, { dateobs }) => [
+        "GcnEvent",
+        { type: "GcnEvent", id: dateobs },
+      ],
+    }),
+    summarizeGcnEvent: build.mutation<any, string>({
+      query: (dateobs) => ({
+        url: `api/gcn_event/${dateobs}/summarize`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, dateobs) => [
+        "GcnEvent",
+        { type: "GcnEvent", id: dateobs },
+      ],
+    }),
     postGcnTach: build.mutation<any, string>({
       query: (dateobs) => ({
         url: `api/gcn_event/${dateobs}/tach`,
@@ -481,6 +506,8 @@ export const {
   useGetCommentOnGcnEventTextAttachmentQuery,
   useLazyGetCommentOnGcnEventTextAttachmentQuery,
   useSubmitGcnEventMutation,
+  useUpdateGcnEventMutation,
+  useSummarizeGcnEventMutation,
   usePostGcnTachMutation,
   usePostGcnGraceDBMutation,
   usePostGcnAliasMutation,

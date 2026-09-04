@@ -100,11 +100,12 @@ class ConfigHandler(BaseHandler):
                               type: object
                               description: allowed classifications classes.
         """
-        openai_summary_parameters = copy.deepcopy(
+        summary_parameters = copy.deepcopy(
             cfg["analysis_services.openai_analysis_service.summary"]
         )
-        openai_summary_apikey_set = openai_summary_parameters.get("api_key") is not None
-        openai_summary_parameters.pop("api_key", None)
+        summary_apikey_set = summary_parameters.get("api_key") is not None
+        summary_parameters.pop("api_key", None)
+        summary_parameters.pop("base_url", None)
 
         return self.success(
             data={
@@ -113,8 +114,11 @@ class ConfigHandler(BaseHandler):
                 "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),
-                "openai_summary_apikey_set": openai_summary_apikey_set,
-                "openai_summary_parameters": openai_summary_parameters,
+                "summary_apikey_set": summary_apikey_set,
+                "summary_parameters": summary_parameters,
+                # The old names, until consumers outside this repo have moved.
+                "openai_summary_apikey_set": summary_apikey_set,
+                "openai_summary_parameters": summary_parameters,
                 "cosmoref": cosmo.__doc__,
                 "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,

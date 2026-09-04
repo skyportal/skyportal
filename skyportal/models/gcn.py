@@ -692,6 +692,17 @@ class GcnEvent(Base):
         sa.String, unique=True, doc="Trigger ID supplied by instrument"
     )
 
+    summary = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Narrative summary of what is known about the event.",
+    )
+    summary_history = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="Record of the summaries generated and written about this event",
+    )
+
     gcn_notices = relationship(
         "GcnNotice", back_populates="gcnevent", order_by=GcnNotice.date
     )

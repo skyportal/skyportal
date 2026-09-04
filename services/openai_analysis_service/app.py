@@ -209,7 +209,11 @@ def run_openai_summarization(data_dict):
     try:
         from openai import OpenAI
 
-        client = OpenAI(api_key=analysis_parameters.get("openai_api_key"))
+        # Unset base_url means api.openai.com.
+        client = OpenAI(
+            api_key=analysis_parameters.get("openai_api_key"),
+            base_url=analysis_parameters.get("base_url") or None,
+        )
 
     except Exception as e:
         rez.update(
