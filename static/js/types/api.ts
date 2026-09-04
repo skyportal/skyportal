@@ -7830,9 +7830,8 @@ export interface paths {
         put?: never;
         /**
          * Summarize a GCN event
-         * @description Asks the configured chat-completions model to describe the event from
-         *     its structured extractions, and stores the result as the event
-         *     summary. The previous one stays in `summary_history`.
+         * @description Describes the event from its extractions using the configured model.
+         *     The previous summary stays in `summary_history`.
          */
         post: {
             parameters: {
@@ -7961,9 +7960,8 @@ export interface paths {
         head?: never;
         /**
          * Update a GCN Event
-         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Sets the event summary. Each summary is prepended to
-         *     `summary_history`, so an earlier one stays readable after it is
-         *     replaced.
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Sets the event summary, prepending the previous one to
+         *     `summary_history`.
          */
         patch: {
             parameters: {
