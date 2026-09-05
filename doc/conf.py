@@ -40,7 +40,7 @@ source_suffix = {
 master_doc = "index"
 
 project = "skyportal"
-copyright = "2020–2023, The SkyPortal Team"
+copyright = "2026, The SkyPortal Team"
 author = "The SkyPortal Team"
 
 version = "vUndefined"
