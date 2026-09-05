@@ -353,6 +353,7 @@ def poll_events(*args, **kwargs):
                                     request_body, timeout=30
                                 )
                             except Exception as e:
+                                traceback.print_exc()
                                 log(
                                     f"Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}"
                                 )
