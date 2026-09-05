@@ -521,6 +521,8 @@ app:
     X-ray Flash: XRFcandidate
     XRF: XRF
     XRF candidate: XRFcandidate
+    UV Ceti: Stellar
+    UV Ceti candidate: Stellarcandidate
 
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how

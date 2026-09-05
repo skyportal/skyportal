@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..models import GcnEventObj, ObjTag, ObjTagOption
+from ..models import GcnEventObj, GcnTag, ObjTag, ObjTagOption
 
 env, cfg = load_env()
 log = make_log("gcn_extraction_tags")
@@ -50,6 +50,29 @@ def tag_name_for(label):
         return None
     mapping = cfg.get("app.gcn_extraction_tags") or {}
     return mapping.get(label)
+
+
+def tag_event(session, extraction, author_id):
+    """Tag the event itself. Returns the tag written, or None.
+
+    A circular can classify a trigger without there being any object to tag:
+    "the EP-WXT trigger is likely a stellar flare" names no counterpart.
+    """
+    tag_name = tag_name_for(subtype_of(extraction.data)) or tag_name_for(
+        classification_of(extraction.data)
+    )
+    if tag_name is None:
+        return None
+
+    exists = session.scalar(
+        sa.select(GcnTag).where(
+            GcnTag.dateobs == extraction.dateobs, GcnTag.text == tag_name
+        )
+    )
+    if exists is not None:
+        return None
+    session.add(GcnTag(dateobs=extraction.dateobs, text=tag_name, sent_by_id=author_id))
+    return tag_name
 
 
 def apply_tags(session, extraction, author_id):

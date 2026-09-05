@@ -11,6 +11,10 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 
+FLARE = {
+    "classification": {"classification": "UV Ceti", "subtype": "UV Ceti candidate"}
+}
+
 XRF = {"classification": {"classification": "X-ray Flash", "probability": 1.0}}
 
 
@@ -63,3 +67,15 @@ def test_extraction_without_a_subtype():
     assert subtype_of({"classification": {"classification": "GRB"}}) is None
     assert subtype_of({"classification": None}) is None
     assert subtype_of(None) is None
+
+
+def test_a_flaring_star_maps_to_a_tag():
+    """A trigger classified as a stellar flare is tagged so it can be filtered out."""
+    assert tag_name_for("UV Ceti") == "Stellar"
+    assert tag_name_for("UV Ceti candidate") == "Stellarcandidate"
+
+
+def test_the_hedged_flare_keeps_its_own_tag():
+    # subtype wins over the class, so a hedge is not filed as a certainty
+    assert tag_name_for(subtype_of(FLARE)) == "Stellarcandidate"
+    assert tag_name_for(classification_of(FLARE)) == "Stellar"
