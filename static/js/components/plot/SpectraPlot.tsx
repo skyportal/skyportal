@@ -542,7 +542,8 @@ const SpectraPlot = ({
       );
       const modelTraces = buildModelSpectrumTraces(
         shownFits,
-        (i) => MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length],
+        (i) =>
+          MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length] ?? "#888888",
       );
       setPlotData([...traces, ...lineTraces, ...modelTraces]);
     }

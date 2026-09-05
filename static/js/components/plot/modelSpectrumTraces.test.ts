@@ -36,9 +36,9 @@ describe("buildModelSpectrumTraces", () => {
   it("skips fits with no model_spectrum", () => {
     const empty = { id: 1, model_spectrum: [] } as ModelSpectrumFit;
     expect(buildModelSpectrumTraces([empty], colorOf)).toHaveLength(0);
-    expect(buildModelSpectrumTraces([{} as ModelSpectrumFit], colorOf)).toHaveLength(
-      0,
-    );
+    expect(
+      buildModelSpectrumTraces([{} as ModelSpectrumFit], colorOf),
+    ).toHaveLength(0);
   });
 
   it("returns [] for a non-array input", () => {
@@ -48,7 +48,7 @@ describe("buildModelSpectrumTraces", () => {
 
 describe("buildModelSpectrumTraces hover", () => {
   it("bakes the classification summary into the hovertemplate", () => {
-    const fit: ModelSpectrumFit = {
+    const snidFit: ModelSpectrumFit = {
       id: 3,
       label: "SNID-SAGE",
       summary: "II II-flash · z=0.0025 · MatchQual High",
@@ -57,7 +57,7 @@ describe("buildModelSpectrumTraces hover", () => {
         [5000, 1.0],
       ],
     };
-    const [t] = buildModelSpectrumTraces([fit], () => "red");
+    const [t] = buildModelSpectrumTraces([snidFit], () => "red");
     expect(t.hovertemplate).toContain("II II-flash");
     expect(t.hovertemplate).toContain("Fit: SNID-SAGE");
   });
