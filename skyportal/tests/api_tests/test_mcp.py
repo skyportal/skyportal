@@ -116,6 +116,10 @@ def test_mcp_tools_list(view_only_token):
         "get_spectra",
         "post_spectrum",
         "analyze_light_curve",
+        "list_analysis_services",
+        "get_analyses",
+        "get_analysis",
+        "run_analysis",
         "get_gcn_events",
         "get_gcn_event",
         "get_gcn_event_extractions",
@@ -392,6 +396,33 @@ def test_mcp_tool_request_mapping():
     assert calls == [("POST", "/api/sources", None, body)]
     assert run_tool("post_photometry", {})[0][0][1] == "/api/photometry"
     assert run_tool("post_spectrum", {})[0][0][1] == "/api/spectrum"
+
+
+def test_analysis_tool_request_mapping():
+    calls, _ = run_tool("list_analysis_services", {})
+    assert calls == [("GET", "/api/analysis_service", None, None)]
+
+    calls, _ = run_tool("get_analyses", {"obj_id": "X"})
+    assert calls == [("GET", "/api/obj/X/analysis", {}, None)]
+
+    calls, _ = run_tool("get_analysis", {"analysis_id": 42})
+    assert calls == [
+        ("GET", "/api/obj/analysis/42", {"includeAnalysisData": "true"}, None)
+    ]
+
+    # run_analysis defaults show_plots/show_parameters to true so results render.
+    calls, _ = run_tool(
+        "run_analysis",
+        {
+            "obj_id": "X",
+            "analysis_service_id": 7,
+            "analysis_parameters": {"source": "arnett"},
+        },
+    )
+    method, path, _query, body = calls[0]
+    assert (method, path) == ("POST", "/api/obj/X/analysis/7")
+    assert body["show_plots"] is True and body["show_parameters"] is True
+    assert body["analysis_parameters"] == {"source": "arnett"}
 
 
 def test_mcp_analyze_band():
