@@ -2674,6 +2674,7 @@ class PhotometryHandler(BaseHandler):
             ).first()
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
+                session.add(phot_stat)
 
             # The edit above is still pending, so flush it or the stats are
             # recomputed from the pre-edit rows -- and the expunge below would
@@ -2766,6 +2767,8 @@ class PhotometryHandler(BaseHandler):
 
             await session.delete(photometry)
 
+            await session.flush()
+
             phot_stat = (
                 await session.scalars(
                     PhotStat.select(session.user_or_token, mode="update").where(
@@ -2774,9 +2777,6 @@ class PhotometryHandler(BaseHandler):
                 )
             ).first()
             if phot_stat is not None:
-                # Flush the delete first, or it is still one of the rows the
-                # stats are recomputed from.
-                await session.flush()
                 all_phot = (
                     await session.scalars(
                         sa.select(Photometry).where(Photometry.obj_id == obj_id)
@@ -3016,9 +3016,14 @@ class ObjPhotometryHandler(BaseHandler):
                 series = (
                     (
                         await session.scalars(
-                            PhotometricSeries.select(session.user_or_token).where(
-                                PhotometricSeries.obj_id == obj_id
-                            )
+                            PhotometricSeries.select(
+                                session.user_or_token,
+                                options=[
+                                    joinedload(PhotometricSeries.instrument).joinedload(
+                                        Instrument.telescope
+                                    )
+                                ],
+                            ).where(PhotometricSeries.obj_id == obj_id)
                         )
                     )
                     .unique()
@@ -3100,6 +3105,8 @@ class ObjPhotometryHandler(BaseHandler):
             for phot in photometry_to_delete:
                 await session.delete(phot)
 
+            await session.flush()
+
             stat = (
                 await session.scalars(
                     PhotStat.select(session.user_or_token, mode="update").where(
@@ -3107,12 +3114,13 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                 )
             ).first()
-            all_phot = (
-                await session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == obj_id)
-                )
-            ).all()
-            stat.full_update(all_phot)
+            if stat is not None:
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                    )
+                ).all()
+                stat.full_update(all_phot)
 
             await session.commit()
             return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
@@ -3161,6 +3169,9 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 await session.delete(phot)
 
             obj_ids = {phot.obj_id for phot in photometry_to_delete}
+
+            await session.flush()
+
             for oid in obj_ids:
                 stat = (
                     await session.scalars(
@@ -3169,6 +3180,8 @@ class BulkDeletePhotometryHandler(BaseHandler):
                         )
                     )
                 ).first()
+                if stat is None:
+                    continue
                 all_phot = (
                     await session.scalars(
                         sa.select(Photometry).where(Photometry.obj_id == oid)
