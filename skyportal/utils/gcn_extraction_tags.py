@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..models import GcnEventObj, ObjTag, ObjTagOption
+from ..models import GcnEventObj, GcnTag, ObjTag, ObjTagOption
 
 env, cfg = load_env()
 log = make_log("gcn_extraction_tags")
@@ -19,6 +19,16 @@ def classification_of(extraction_data):
     """The class name an extraction reports, or None."""
     classification = (extraction_data or {}).get("classification") or {}
     return classification.get("classification")
+
+
+def subtype_of(extraction_data):
+    """The finer class an extraction reports, or None.
+
+    A class the taxonomy has no node for rides on the subtype (an X-ray flash is
+    reported as a GRB with subtype "XRF"), and it is the more specific of the two.
+    """
+    classification = (extraction_data or {}).get("classification") or {}
+    return classification.get("subtype")
 
 
 def wants_classification(preferences, label):
@@ -42,9 +52,34 @@ def tag_name_for(label):
     return mapping.get(label)
 
 
+def tag_event(session, extraction, author_id):
+    """Tag the event itself. Returns the tag written, or None.
+
+    A circular can classify a trigger without there being any object to tag:
+    "the EP-WXT trigger is likely a stellar flare" names no counterpart.
+    """
+    tag_name = tag_name_for(subtype_of(extraction.data)) or tag_name_for(
+        classification_of(extraction.data)
+    )
+    if tag_name is None:
+        return None
+
+    exists = session.scalar(
+        sa.select(GcnTag).where(
+            GcnTag.dateobs == extraction.dateobs, GcnTag.text == tag_name
+        )
+    )
+    if exists is not None:
+        return None
+    session.add(GcnTag(dateobs=extraction.dateobs, text=tag_name, sent_by_id=author_id))
+    return tag_name
+
+
 def apply_tags(session, extraction, author_id):
     """Tag every object linked to the extraction's event. Returns the obj ids tagged."""
-    tag_name = tag_name_for(classification_of(extraction.data))
+    tag_name = tag_name_for(subtype_of(extraction.data)) or tag_name_for(
+        classification_of(extraction.data)
+    )
     if tag_name is None:
         return []
 

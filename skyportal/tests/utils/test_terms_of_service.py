@@ -4,8 +4,13 @@ The API tests only cover the disabled default: the test server runs in its own
 process, so enabling the terms there would block every other frontend test.
 """
 
-import pytest
+from types import SimpleNamespace
 
+import pytest
+from tornado.web import Finish
+
+from skyportal.handlers import base as base_module
+from skyportal.handlers.base import BaseHandler
 from skyportal.tests import api
 from skyportal.utils import terms_of_service as tos_module
 
@@ -98,6 +103,65 @@ def test_file_is_read_once(terms_config, tmp_path):
     assert tos_module.terms_of_service()["text"] == "First."
     terms_file.write_text("Second.")
     assert tos_module.terms_of_service()["text"] == "First."
+
+
+def test_tokens_are_gated_by_default():
+    assert tos_module.tokens_exempt() is False
+
+
+def test_tokens_exempt_when_configured(terms_config):
+    terms_config(exempt_tokens=True)
+    assert tos_module.tokens_exempt() is True
+
+
+class _StubHandler:
+    """Enough of a handler to exercise the gate without a running server."""
+
+    terms_of_service_exempt = ()
+    token_from_header = BaseHandler.token_from_header
+
+    def __init__(self, authorization):
+        headers = {"Authorization": authorization} if authorization else {}
+        self.request = SimpleNamespace(headers=headers, method="GET")
+        self.errors = []
+
+    def acting_user_id(self):
+        return 999
+
+    def error(self, message, status=None):
+        self.errors.append((message, status))
+
+
+def _run_gate(authorization):
+    handler = _StubHandler(authorization)
+    try:
+        BaseHandler.enforce_terms_of_service(handler)
+    except Finish:
+        pass
+    return handler.errors
+
+
+def test_a_token_is_refused_until_its_owner_accepts(terms_config, monkeypatch):
+    terms_config(enabled=True, text="Some terms.", exempt_tokens=False)
+    monkeypatch.setattr(base_module, "has_accepted", lambda *_: False)
+    errors = _run_gate("token abc123")
+    assert [status for _, status in errors] == [403]
+
+
+def test_an_exempt_token_acts_before_its_owner_accepts(terms_config, monkeypatch):
+    terms_config(enabled=True, text="Some terms.", exempt_tokens=True)
+    monkeypatch.setattr(base_module, "has_accepted", lambda *_: False)
+    assert _run_gate("token abc123") == []
+
+
+def test_a_browser_session_is_still_gated_when_tokens_are_exempt(
+    terms_config, monkeypatch
+):
+    """The exemption is for tokens only; a signed-in human still sees the dialog."""
+    terms_config(enabled=True, text="Some terms.", exempt_tokens=True)
+    monkeypatch.setattr(base_module, "has_accepted", lambda *_: False)
+    errors = _run_gate(None)
+    assert [status for _, status in errors] == [403]
 
 
 def test_not_required_when_instance_configures_none(view_only_token):

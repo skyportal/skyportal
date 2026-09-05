@@ -6,9 +6,14 @@ against the extraction shape Circex writes.
 
 from skyportal.utils.gcn_extraction_tags import (
     classification_of,
+    subtype_of,
     tag_name_for,
     wants_classification,
 )
+
+FLARE = {
+    "classification": {"classification": "UV Ceti", "subtype": "UV Ceti candidate"}
+}
 
 XRF = {"classification": {"classification": "X-ray Flash", "probability": 1.0}}
 
@@ -49,3 +54,28 @@ def test_unmapped_class_tags_nothing():
 
 def test_configured_class_maps_to_its_tag():
     assert tag_name_for("X-ray Flash") == "XRFcandidate"
+
+
+def test_subtype_read_from_the_extraction():
+    """An X-ray flash is a GRB the taxonomy has no node for, so it is a subtype."""
+    grb_xrf = {"classification": {"classification": "GRB", "subtype": "XRF candidate"}}
+    assert subtype_of(grb_xrf) == "XRF candidate"
+    assert classification_of(grb_xrf) == "GRB"
+
+
+def test_extraction_without_a_subtype():
+    assert subtype_of({"classification": {"classification": "GRB"}}) is None
+    assert subtype_of({"classification": None}) is None
+    assert subtype_of(None) is None
+
+
+def test_a_flaring_star_maps_to_a_tag():
+    """A trigger classified as a stellar flare is tagged so it can be filtered out."""
+    assert tag_name_for("UV Ceti") == "Stellar"
+    assert tag_name_for("UV Ceti candidate") == "Stellarcandidate"
+
+
+def test_the_hedged_flare_keeps_its_own_tag():
+    # subtype wins over the class, so a hedge is not filed as a certainty
+    assert tag_name_for(subtype_of(FLARE)) == "Stellarcandidate"
+    assert tag_name_for(classification_of(FLARE)) == "Stellar"
