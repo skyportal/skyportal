@@ -109,7 +109,7 @@ SkyPortal's Button component accepts all the [same props as regular MUI Buttons]
   secondary
   size="small"
 >
-  I'm small
+  I am small
 </Button>
 ```
 

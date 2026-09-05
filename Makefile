@@ -74,7 +74,7 @@ routemap: | baselayer/Makefile
 
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
-	export SPHINXOPTS=-W; uv run make -C doc html
+	uv run make -C doc html SPHINXOPTS=-W
 
 prepare_seed_data: | baselayer/Makefile
 	@$(PYTHON) tools/prepare_seed_data.py $(FLAGS)
