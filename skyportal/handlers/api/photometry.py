@@ -3016,9 +3016,14 @@ class ObjPhotometryHandler(BaseHandler):
                 series = (
                     (
                         await session.scalars(
-                            PhotometricSeries.select(session.user_or_token).where(
-                                PhotometricSeries.obj_id == obj_id
-                            )
+                            PhotometricSeries.select(
+                                session.user_or_token,
+                                options=[
+                                    joinedload(PhotometricSeries.instrument).joinedload(
+                                        Instrument.telescope
+                                    )
+                                ],
+                            ).where(PhotometricSeries.obj_id == obj_id)
                         )
                     )
                     .unique()
