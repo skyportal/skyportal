@@ -376,6 +376,15 @@ def generate_plan(
             plans.append(plan)
             requests.append(request)
 
+        # M4OPT schedules one telescope at a time, so it takes the whole run
+        # rather than being folded into gwemopt's multi-instrument path.
+        if any(
+            (request.payload or {}).get("scheduler") == "m4opt" for request in requests
+        ):
+            from .m4opt_plan import generate_m4opt_plan
+
+            return generate_m4opt_plan(session, plans, requests)
+
         user = session.get(User, user_id)
         log(
             f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
