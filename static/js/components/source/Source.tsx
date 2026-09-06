@@ -63,8 +63,12 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
-import CommentPanel, { useCommentPanel } from "../comment/CommentPanel";
+import CommentPanel from "../comment/CommentPanel";
 import { INTERESTED_CHANNEL } from "../comment/channels";
+import {
+  useCommentPanel,
+  useCommentTarget,
+} from "../../contexts/CommentPanelContext";
 import SourceInterests from "./SourceInterests";
 import RequestDataAccess from "./RequestDataAccess";
 import UnsharedSpectra from "./UnsharedSpectra";
@@ -283,6 +287,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const commentPanel = useCommentPanel();
+  useCommentTarget(isReadOnly ? null : { type: "source", id: source.id });
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
     useState(false);
@@ -474,10 +479,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             },
           }}
         >
-          <CommentPanel
-            target={{ type: "source", id: source.id }}
-            {...commentPanel}
-          />
+          <CommentPanel inline />
         </Grid>
       )}
       <Grid
@@ -1687,12 +1689,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
           t0={source.t0}
         />
       </Grid>
-      {!isReadOnly && !commentPanel.inline && (
-        <CommentPanel
-          target={{ type: "source", id: source.id }}
-          {...commentPanel}
-        />
-      )}
     </Grid>
   );
 };
