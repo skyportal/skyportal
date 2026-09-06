@@ -1,69 +1,52 @@
-"""What the assistant is asked, and what stops it answering itself."""
+"""What the assistant is asked, and how a tool result is cut down to fit."""
 
 import json
 
 from skyportal.utils.assistant import (
-    assistant_channel,
     build_messages,
     condense,
-    describe_resource,
-    is_addressed_to_assistant,
+    describe_context,
     is_enabled,
     system_prompt,
 )
 
 
-def _comment(text, system=False, channel="assistant", author="ann"):
-    return {"text": text, "system": system, "channel": channel, "author": author}
+def _message(text, system=False):
+    return {"text": text, "system": system}
 
 
-def test_thread_becomes_alternating_roles():
+def test_conversation_becomes_alternating_roles():
     messages = build_messages(
-        "gcn_event",
-        7,
-        [_comment("what is this?"), _comment("An X-ray Flash.", system=True)],
-        40,
+        [_message("what is this?"), _message("An X-ray Flash.", system=True)], 40
     )
     assert [m["role"] for m in messages] == ["system", "user", "assistant"]
-    assert messages[1]["content"] == "ann: what is this?"
+    assert messages[1]["content"] == "what is this?"
 
 
-def test_long_threads_keep_the_newest():
-    comments = [_comment(f"m{i}") for i in range(10)]
-    messages = build_messages("sources", "ZTF21abc", comments, 3)
+def test_long_conversations_keep_the_newest():
+    messages = build_messages([_message(f"m{i}") for i in range(10)], 3)
     # system prompt plus the last three
     assert len(messages) == 4
-    assert messages[-1]["content"].endswith("m9")
+    assert messages[-1]["content"] == "m9"
 
 
-def test_prompt_names_the_resource():
+def test_prompt_names_the_page_the_question_came_from():
     assert "GCN event 7" in system_prompt("gcn_event", 7)
-    assert "source ZTF21abc" in system_prompt("sources", "ZTF21abc")
+    assert "source ZTF21abc" in system_prompt("source", "ZTF21abc")
     # An unknown type still produces a usable phrase.
-    assert describe_resource("comet", 3) == "comet 3"
+    assert describe_context("comet", 3) == "comet 3"
 
 
-def test_its_own_replies_do_not_retrigger_it():
-    assert is_addressed_to_assistant(_comment("hi"), "assistant")
-    assert not is_addressed_to_assistant(_comment("hi", system=True), "assistant")
-
-
-def test_other_channels_are_left_alone():
-    assert not is_addressed_to_assistant(_comment("hi", channel=None), "assistant")
-    assert not is_addressed_to_assistant(
-        _comment("hi", channel="Photometry"), "assistant"
-    )
+def test_prompt_says_nothing_when_there_is_no_page():
+    assert "looking at" not in system_prompt()
+    assert describe_context("source", None) is None
+    assert describe_context(None, "ZTF21abc") is None
 
 
 def test_disabled_until_a_base_url_is_configured():
     assert not is_enabled({"app.assistant": {}})
     assert not is_enabled({"app.assistant": None})
     assert is_enabled({"app.assistant": {"base_url": "http://host/v1"}})
-
-
-def test_channel_name_defaults():
-    assert assistant_channel({"app.assistant": {}}) == "assistant"
-    assert assistant_channel({"app.assistant": {"channel": "ai"}}) == "ai"
 
 
 def test_short_results_are_left_alone():
