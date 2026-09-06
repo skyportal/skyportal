@@ -19,6 +19,7 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
+from .assistant import AssistantConversationHandler, AssistantMessageHandler
 from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,
