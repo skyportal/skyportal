@@ -2,6 +2,7 @@ import { Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { keyframes } from "@emotion/react";
 import SendIcon from "@mui/icons-material/Send";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import { alpha } from "@mui/material/styles";
@@ -55,6 +56,9 @@ const useStyles = makeStyles()((theme) => ({
     marginRight: "1rem",
   },
   label: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.25rem",
     fontSize: "0.7rem",
     marginLeft: "0.75rem",
     color: alpha(theme.palette.text.primary, 0.3),
@@ -137,7 +141,12 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
         )}
         {messages.map((message) => (
           <Fragment key={message.id}>
-            {message.system && <div className={classes.label}>Assistant</div>}
+            {message.system && (
+              <div className={classes.label}>
+                <SmartToyIcon style={{ fontSize: "0.9rem" }} />
+                Assistant
+              </div>
+            )}
             <ReactMarkdown
               className={cx(
                 classes.message,
