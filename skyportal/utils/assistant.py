@@ -31,16 +31,37 @@ def describe_context(context_type, context_id):
     return template.format(type=context_type, id=context_id)
 
 
-def system_prompt(context_type=None, context_id=None):
+def describe_user(user):
+    """How to name the person asking, from what their profile fills in."""
+    if not user:
+        return None
+    name = " ".join(
+        part for part in (user.get("first_name"), user.get("last_name")) if part
+    ).strip()
+    username = user.get("username")
+    if name and username:
+        return f"{name} (@{username})"
+    return name or username or None
+
+
+def system_prompt(context_type=None, context_id=None, user=None):
+    lines = [SYSTEM_PROMPT]
+    person = describe_user(user)
+    if person:
+        lines.append(f"The person asking is {person}. Address them by name.")
     context = describe_context(context_type, context_id)
-    if context is None:
-        return SYSTEM_PROMPT
-    return f"{SYSTEM_PROMPT}\n\nThey are looking at {context}."
+    if context:
+        lines.append(f"They are looking at {context}.")
+    return "\n\n".join(lines)
 
 
-def build_messages(messages, max_messages, context_type=None, context_id=None):
+def build_messages(
+    messages, max_messages, context_type=None, context_id=None, user=None
+):
     """The conversation as chat messages, oldest first, newest kept when it is long."""
-    chat = [{"role": "system", "content": system_prompt(context_type, context_id)}]
+    chat = [
+        {"role": "system", "content": system_prompt(context_type, context_id, user)}
+    ]
     for message in messages[-max_messages:]:
         chat.append(
             {

@@ -6,6 +6,7 @@ from skyportal.utils.assistant import (
     build_messages,
     condense,
     describe_context,
+    describe_user,
     is_enabled,
     system_prompt,
 )
@@ -35,6 +36,22 @@ def test_prompt_names_the_page_the_question_came_from():
     assert "source ZTF21abc" in system_prompt("source", "ZTF21abc")
     # An unknown type still produces a usable phrase.
     assert describe_context("comet", 3) == "comet 3"
+
+
+def test_prompt_names_the_person_asking():
+    prompt = system_prompt(
+        user={"username": "ann", "first_name": "Ann", "last_name": "Smith"}
+    )
+    assert "Ann Smith (@ann)" in prompt
+    # A profile with no name still gives the assistant something to say.
+    assert describe_user({"username": "ann"}) == "ann"
+    assert describe_user({"username": "ann", "first_name": "Ann"}) == "Ann (@ann)"
+
+
+def test_prompt_says_nothing_when_the_person_is_unknown():
+    assert "The person asking is" not in system_prompt()
+    assert describe_user(None) is None
+    assert describe_user({"username": None, "first_name": None}) is None
 
 
 def test_prompt_says_nothing_when_there_is_no_page():

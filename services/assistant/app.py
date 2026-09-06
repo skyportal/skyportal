@@ -18,7 +18,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.models import AssistantMessage, DBSession, Token
+from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import build_messages, condense
 
@@ -118,10 +118,10 @@ def chat(messages, tools):
     return response.json()["choices"][0]["message"]
 
 
-def answer(conversation, context_type, context_id, token):
+def answer(conversation, context_type, context_id, user, token):
     """Work the question through the tools and return the reply text."""
     tools = list_tools(token)
-    messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id)
+    messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
 
     for _ in range(MAX_TOOL_CALLS):
         message = chat(messages, tools)
@@ -196,10 +196,16 @@ def respond(message_id):
         channel = message.channel
         context_type, context_id = message.context_type, message.context_id
         conversation = conversation_of(session, user_id, channel)
+        user = session.scalar(sa.select(User).where(User.id == user_id))
+        profile = {
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        }
         token_id = read_only_token(session, user_id).id
 
         try:
-            text = answer(conversation, context_type, context_id, token_id)
+            text = answer(conversation, context_type, context_id, profile, token_id)
         except Exception as exc:
             log(f"assistant failed on message {message_id}: {exc}")
             text = "Something went wrong while looking that up."
