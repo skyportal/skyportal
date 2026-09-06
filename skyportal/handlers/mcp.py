@@ -15,6 +15,8 @@ catch up.
 
 import base64
 import json
+import math
+import re
 import statistics
 from urllib.parse import urlencode, urlsplit
 
@@ -25,6 +27,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .. import __version__
+from ..utils import sso
 from ..utils.app import get_app_base_url
 from .base import BaseHandler
 
@@ -149,6 +152,12 @@ _GROUP_IDS = _prop(
             items={"type": "string"},
         ),
         "hasSpectrum": _prop("boolean", "Only sources with at least one spectrum."),
+        "isRoid": _prop(
+            "boolean",
+            "Only moving objects (solar system bodies). Pair with "
+            "analyze_solar_system_photometry, which reduces their light curves.",
+        ),
+        "isNotRoid": _prop("boolean", "Exclude moving objects."),
         "savedAfter": _prop("string", "Only sources saved after this UTC datetime."),
         "savedBefore": _prop("string", "Only sources saved before this UTC datetime."),
         "minRedshift": _prop("number", "Minimum redshift."),
@@ -452,6 +461,157 @@ async def analyze_light_curve(handler, args):
         "summary": [_band_summary(name, band) for name, band in bands.items()],
         "bands": bands,
         "skipped_filters": skipped,
+    }
+
+
+def _sso_points(photometry):
+    """Photometry carrying the per-point geometry the reductions need."""
+    points = []
+    for row in photometry:
+        altdata = row.get("altdata") or {}
+        rh, delta, phase = altdata.get("rh"), altdata.get("delta"), altdata.get("phase")
+        if row.get("mag") is None or None in (rh, delta, phase):
+            continue
+        validations = row.get("validations") or []
+        points.append(
+            {
+                "time": row["mjd"],
+                "mag": row["mag"],
+                "magerr": row.get("magerr") or 0.0,
+                "band": re.sub(r"^ztf", "", row.get("filter") or ""),
+                "rh": rh,
+                "delta": delta,
+                "phase": phase,
+                "rejected": bool(validations)
+                and validations[0].get("validated") is False,
+            }
+        )
+    return points
+
+
+def _color_summary(fit):
+    ref = fit["reference"]
+    out = []
+    for band, c in sorted(fit["colors"].items()):
+        if band == ref:
+            continue
+        # "+/- 0.00" would read as a claim of zero error.
+        if math.isnan(c["uncertainty"]):
+            unc = ""
+        elif c["uncertainty"] < 0.005:
+            unc = " +/- <0.01"
+        else:
+            unc = f" +/- {c['uncertainty']:.2f}"
+        out.append(
+            f"{band}-{ref} = {c['offset']:.2f}{unc} mag from {c['nights']} nights"
+        )
+    return out
+
+
+@tool(
+    "analyze_solar_system_photometry",
+    "Reduce a moving object's photometry to a common geometry and summarize it: "
+    "absolute magnitude H, per-band colours fitted by pairing within a night, and "
+    "the outburst statistic over a trailing window. Needs per-point heliocentric "
+    "distance, geocentric distance and phase angle in the photometry altdata "
+    "(rh/delta/phase), which arrive with the alert. Points rejected by photometry "
+    "validation are excluded from every fit. Mirrors the source page's Solar "
+    "System tab.",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "rh_slope": _prop(
+            "number",
+            "Heliocentric exponent of the flux: -2 for sunlight reflected off an "
+            "inert body (default), shallower for an active comet.",
+        ),
+        "window": _prop(
+            "number",
+            "Trailing window in days for the outburst statistic (default 14).",
+            minimum=0,
+        ),
+        "magsys": _prop("string", "Magnitude system (default ab)."),
+    },
+    required=("obj_id",),
+)
+async def analyze_solar_system_photometry(handler, args):
+    obj_id = args["obj_id"]
+    magsys = args.get("magsys", "ab")
+    rh_slope = args.get("rh_slope", -2)
+    window = args.get("window", 14)
+    photometry = await handler.api(
+        "GET",
+        f"/api/sources/{obj_id}/photometry",
+        query={"format": "mag", "magsys": magsys},
+    )
+    points = _sso_points(photometry)
+    if not points:
+        raise ToolError(
+            f"No photometry for {obj_id} carries rh/delta/phase in altdata, so it "
+            "cannot be reduced to a common geometry."
+        )
+
+    usable = sso.fittable(points)
+    fit = sso.fit_band_colors(usable, rh_slope=rh_slope)
+    report = sso.outburst_report(points, window=window, rh_slope=rh_slope)
+
+    # Absolute magnitude: reduce to unit geometry, then take out each band's colour.
+    reduced = sso.reduce_to_unit_geometry(
+        [p["mag"] for p in usable],
+        [p["rh"] for p in usable],
+        [p["delta"] for p in usable],
+        [p["phase"] for p in usable],
+        rh_slope=rh_slope,
+    )
+    offsets = fit["colors"] if fit else {}
+    corrected = [
+        r - offsets.get(p["band"], {}).get("offset", 0.0)
+        for p, r in zip(usable, reduced, strict=True)
+        if math.isfinite(r)
+    ]
+    h_mean = statistics.fmean(corrected) if corrected else None
+    h_scatter = statistics.stdev(corrected) if len(corrected) > 1 else None
+
+    phases = [p["phase"] for p in usable]
+    summary = []
+    if h_mean is not None:
+        scatter = "" if h_scatter is None else f", scatter {h_scatter:.2f} mag"
+        summary.append(
+            f"H(1,1,0) = {h_mean:.2f} mag from {len(corrected)} points{scatter}"
+        )
+    if fit:
+        summary += _color_summary(fit)
+    if report:
+        verdict = "outburst" if report["median_o"] > 3 else "no outburst"
+        summary.append(
+            f"median O = {report['median_o']:.2f} over {window:g} d "
+            f"({report['n_points']} points) -- {verdict}"
+        )
+    return {
+        "obj_id": obj_id,
+        "magsys": magsys,
+        "rh_slope": rh_slope,
+        "n_points": len(points),
+        "n_rejected": len(points) - len(usable),
+        "bands": sorted({p["band"] for p in usable}),
+        "mjd_range": [min(p["time"] for p in usable), max(p["time"] for p in usable)],
+        "phase_angle_range": _rounded([min(phases), max(phases)], 2),
+        "absolute_magnitude": _rounded(
+            {"H": h_mean, "scatter": h_scatter, "n": len(corrected)}, 3
+        ),
+        "reference_band": fit["reference"] if fit else None,
+        "colors": _rounded(fit["colors"], 4) if fit else {},
+        "outburst": _rounded(
+            {
+                "median_o": report["median_o"],
+                "n_points": report["n_points"],
+                "test_band": report["test_band"],
+                "window_days": window,
+            },
+            3,
+        )
+        if report
+        else None,
+        "summary": summary,
     }
 
 

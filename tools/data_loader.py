@@ -186,7 +186,23 @@ if __name__ == "__main__":
                 if filename.endswith("csv"):
                     df = pd.read_csv(filename).replace({np.nan: None})
                     obj.pop("file")
-                    obj.update(df.to_dict(orient="list"))
+                    columns = df.to_dict(orient="list")
+                    # `altdata.<key>` columns carry per-row metadata, which the
+                    # photometry endpoint expands from these parallel lists.
+                    altdata = {
+                        k.split(".", 1)[1]: v
+                        for k, v in columns.items()
+                        if k.startswith("altdata.")
+                    }
+                    obj.update(
+                        {
+                            k: v
+                            for k, v in columns.items()
+                            if not k.startswith("altdata.")
+                        }
+                    )
+                    if altdata:
+                        obj.setdefault("altdata", {}).update(altdata)
                 elif filename.endswith(".png"):
                     return base64.b64encode(open(filename, "rb").read())
                 elif filename.endswith("xml"):
@@ -196,12 +212,7 @@ if __name__ == "__main__":
                 elif filename.endswith("reg"):
                     return Regions.read(filename).serialize(format="ds9")
                 elif filename.endswith(("h5", "hdf5")):
-                    # pandas-HDFStore files expose their raw block layout
-                    # (index, values_block_0, ...) to astropy. Newer astropy
-                    # reads that without error (older versions raised), so the
-                    # real columns are absent. Detect the block layout (or a
-                    # read failure) and send the raw file for the server to read
-                    # with pandas.HDFStore instead.
+                    # astropy reads pandas-HDFStore block columns without error, so send the raw file.
                     df = None
                     try:
                         df = Table.read(filename).to_pandas()
@@ -228,8 +239,7 @@ if __name__ == "__main__":
                     with open(filename) as f:
                         return f.read()
                 elif filename.endswith(".json"):
-                    # Inject a JSON file as the field's value (e.g. a
-                    # model_lightcurve for a seeded analysis_upload).
+                    # Inject a JSON file as the field's value, e.g. a seeded model_lightcurve.
                     with open(filename) as f:
                         return json.load(f)
                 else:
@@ -262,7 +272,11 @@ if __name__ == "__main__":
         try:
             for i, part in enumerate(endpoint_parts):
                 if part.startswith("="):
-                    endpoint_parts[i] = str(references[part[1:]])
+                    value = references[part[1:]]
+                    # Photometry answers with a list even for one row; longer lists cannot address one resource.
+                    if isinstance(value, list) and len(value) == 1:
+                        value = value[0]
+                    endpoint_parts[i] = str(value)
         except KeyError:
             print(
                 f"\nReference {part[1:]} not found while interpolating endpoint {endpoint}; skipping"
@@ -279,15 +293,13 @@ if __name__ == "__main__":
             post_objs = to_post
 
         for obj in post_objs:
-            # Fields that start with =, such as =id, get saved for using as
-            # references later on
+            # Fields starting with =, such as =id, are saved as references.
             saved_fields = {v: k[1:] for k, v in obj.items() if k.startswith("=")}
 
             # Remove all such fields from the object to be posted
             obj = {k: v for k, v in obj.items() if not k.startswith("=")}
 
-            # Replace all references of the format field: =key or [=key, ..]
-            # with the appropriate reference value
+            # Replace references of the form field: =key or [=key, ..] with their value.
             try:
                 inject_references(obj)
             except KeyError:

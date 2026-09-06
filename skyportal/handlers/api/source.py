@@ -1942,6 +1942,14 @@ class SourceGetQuery(BaseModel):
         default=False,
         description="If true, return only those matches without TNS names",
     )
+    isRoid: bool = Field(
+        default=False,
+        description="If true, return only moving objects (solar system bodies)",
+    )
+    isNotRoid: bool = Field(
+        default=False,
+        description="If true, exclude moving objects",
+    )
     hasBeenLabelled: bool = Field(
         default=False,
         description="If true, return only those objects which have been labelled",
@@ -2281,6 +2289,8 @@ class SourceHandler(BaseHandler):
                     origin=query.origin,
                     has_tns_name=query.hasTNSname,
                     has_no_tns_name=query.hasNoTNSname,
+                    is_roid=query.isRoid,
+                    is_not_roid=query.isNotRoid,
                     has_been_labelled=query.hasBeenLabelled,
                     has_not_been_labelled=query.hasNotBeenLabelled,
                     current_user_labeller=query.currentUserLabeller,
