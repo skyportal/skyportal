@@ -1,4 +1,4 @@
-import { KeyboardEvent, Suspense, lazy, useState } from "react";
+import { KeyboardEvent, Suspense, lazy, useEffect, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
 import CloseIcon from "@mui/icons-material/Close";
@@ -22,6 +22,7 @@ import dayjs from "dayjs";
 import type { ChatSpace } from "../../contexts/CommentPanelContext";
 import { useCommentPanel } from "../../contexts/CommentPanelContext";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetProfileQuery } from "../../ducks/profile";
 import {
   useDeleteAssistantConversationMutation,
   useGetAssistantConversationsQuery,
@@ -32,7 +33,9 @@ import {
   useGetConversationsQuery,
 } from "../../ducks/source";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import { INTERESTED_CHANNEL, MAIN_CHANNEL } from "./channels";
+import { DEFAULT_CHAT, INTERESTED_CHANNEL, MAIN_CHANNEL } from "./channels";
+
+const SEEDED_KEY = "assistantChatSeeded";
 
 const CommentThread = lazy(() => import("./CommentThread"));
 const AssistantThread = lazy(() => import("./AssistantThread"));
@@ -86,15 +89,6 @@ const useStyles = makeStyles()((theme) => ({
   title: {
     padding: theme.spacing(0.5, 2, 0),
   },
-  empty: {
-    display: "flex",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "0.75rem",
-    fontStyle: "italic",
-    color: theme.palette.text.secondary,
-  },
   targetName: {
     lineHeight: "1em",
     fontWeight: 900,
@@ -122,6 +116,15 @@ const useStyles = makeStyles()((theme) => ({
     height: "5%",
     backgroundColor: "currentColor",
     transform: "translate(-50%, -50%) rotate(-45deg)",
+  },
+  empty: {
+    display: "flex",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.75rem",
+    fontStyle: "italic",
+    color: theme.palette.text.secondary,
   },
   tabs: {
     display: "flex",
@@ -181,6 +184,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   } = useCommentPanel();
   const assistantEnabled =
     useGetConfigQuery().data?.["assistantEnabled"] === true;
+  const userId = useGetProfileQuery().data?.id;
   const [newChannel, setNewChannel] = useState<string | null>(null);
   const [added, setAdded] = useState<Record<ChatSpace, string[]>>({
     comments: [],
@@ -209,7 +213,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   const { data: openedChannels = [] } = useGetConversationsQuery(
     target?.type === "source" && isComments && visible ? target.id : skipToken,
   );
-  const { data: assistantConversations = [] } =
+  const { data: assistantConversations = [], isSuccess: chatsLoaded } =
     useGetAssistantConversationsQuery(undefined, {
       skip: !assistantEnabled || !visible,
     });
@@ -233,6 +237,23 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
     ),
   ];
   const chats = [...new Set([...assistantConversations, ...added.assistant])];
+
+  // Opened once per user, so deleting the last chat stays final.
+  const seeded =
+    !inline &&
+    chatsLoaded &&
+    userId !== undefined &&
+    assistantConversations.length === 0;
+  useEffect(() => {
+    if (!seeded) return;
+    const key = `${SEEDED_KEY}:${userId}`;
+    if (window.localStorage.getItem(key) === "true") return;
+    window.localStorage.setItem(key, "true");
+    setAdded((current) => ({
+      ...current,
+      assistant: [...current.assistant, DEFAULT_CHAT],
+    }));
+  }, [seeded, userId]);
 
   const channels = isComments ? commentChannels : chats;
   const activeChannel = isComments
