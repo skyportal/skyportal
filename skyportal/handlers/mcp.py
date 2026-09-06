@@ -536,6 +536,102 @@ async def post_gcn_event_comment(handler, args):
     return await handler.api("POST", f"/api/gcn_event/{dateobs}/comments", body=args)
 
 
+@tool(
+    "get_observation_plan_allocations",
+    "List the allocations that can generate observation plans, i.e. the "
+    "instruments a plan may be scheduled on. Use this to find the allocation_id "
+    "that post_observation_plan needs.",
+    {
+        "instrument_id": _prop("integer", "Only allocations on this instrument."),
+        "numPerPage": _prop("integer", "Results per page (default 50)."),
+        "pageNumber": _prop("integer", "1-indexed page."),
+    },
+)
+async def get_observation_plan_allocations(handler, args):
+    return await handler.api(
+        "GET", "/api/allocation", query={**args, "apiType": "api_classname_obsplan"}
+    )
+
+
+@tool(
+    "get_observation_plan_form",
+    "The payload schema each instrument accepts for an observation plan, keyed "
+    "by instrument ID. Read this before post_observation_plan: the fields differ "
+    "per instrument, and where M4OPT is configured the schema offers a "
+    "`scheduler` choice of gwemopt or m4opt whose remaining settings depend on "
+    "which is picked.",
+    {},
+)
+async def get_observation_plan_form(handler, args):
+    return await handler.api(
+        "GET",
+        "/api/internal/instrument_forms",
+        query={"apiType": "api_classname_obsplan"},
+    )
+
+
+@tool(
+    "post_observation_plan",
+    "Request an observation plan for a GCN event localization. The payload must "
+    "validate against that instrument's schema from get_observation_plan_form "
+    "and must carry a queue_name unique across all plans. Planning runs "
+    "asynchronously: poll get_observation_plans for the status and the "
+    "scheduled observations.",
+    {
+        "allocation_id": _prop(
+            "integer",
+            "Allocation to schedule on, from get_observation_plan_allocations.",
+        ),
+        "gcnevent_id": _prop("integer", "The GCN event's numeric ID."),
+        "localization_id": _prop(
+            "integer", "Localization (sky map) to tile, from get_gcn_event."
+        ),
+        "payload": _prop(
+            "object",
+            "Scheduler settings, validated against the instrument's schema. Must "
+            "include queue_name.",
+        ),
+        "target_group_ids": _prop(
+            "array", "Groups to share the plan with.", items={"type": "integer"}
+        ),
+    },
+    required=("allocation_id", "gcnevent_id", "localization_id", "payload"),
+    passthrough="POST /api/observation_plan",
+)
+async def post_observation_plan(handler, args):
+    if "queue_name" not in (args.get("payload") or {}):
+        raise ToolError(
+            "payload needs a queue_name, unique across all observation plans."
+        )
+    return await handler.api("POST", "/api/observation_plan", body=args)
+
+
+@tool(
+    "get_observation_plans",
+    "Observation plan requests and their status. Give observation_plan_request_id "
+    "for one, or dateobs to list an event's plans. The planned observations are "
+    "included only with includePlannedObservations, which is a large response.",
+    {
+        "observation_plan_request_id": _prop("integer", "One plan request."),
+        "dateobs": _prop("string", "Only plans for this event's dateobs."),
+        "includePlannedObservations": _prop(
+            "boolean", "Include the scheduled observations themselves."
+        ),
+        "status": _prop("string", "Only plans with this status, e.g. complete."),
+        "instrumentID": _prop("integer", "Only plans on this instrument."),
+        "numPerPage": _prop("integer", "Results per page."),
+        "pageNumber": _prop("integer", "1-indexed page."),
+    },
+    passthrough="GET /api/observation_plan",
+)
+async def get_observation_plans(handler, args):
+    request_id = args.pop("observation_plan_request_id", None)
+    path = "/api/observation_plan"
+    if request_id is not None:
+        path = f"{path}/{request_id}"
+    return await handler.api("GET", path, query=args)
+
+
 def _versions(filter_record):
     """A broker filter's versions, oldest first, as (fid, pipeline) pairs."""
     return [

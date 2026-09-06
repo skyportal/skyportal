@@ -3,7 +3,7 @@ import base64
 import json
 import uuid
 
-from skyportal.handlers.mcp import TOOLS, _analyze_band, _versions
+from skyportal.handlers.mcp import TOOLS, ToolError, _analyze_band, _versions
 from skyportal.tests import cfg, session
 
 VERSION = "2026-07-28"
@@ -121,6 +121,10 @@ def test_mcp_tools_list(view_only_token):
         "get_gcn_event_extractions",
         "get_gcn_event_comments",
         "post_gcn_event_comment",
+        "get_observation_plan_allocations",
+        "get_observation_plan_form",
+        "post_observation_plan",
+        "get_observation_plans",
         "get_broker_filter",
         "diff_broker_filter_versions",
         "run_broker_filter",
@@ -260,7 +264,13 @@ def test_mcp_header_validation(view_only_token):
         assert data["error"]["code"] == -32020, data
         assert data["id"] == 1
 
-    expect_mismatch(headers={"Mcp-Method": None})
+    # No Mcp-Method selects the deprecated pre-2026 profile, which has no
+    # headers to mirror, so it is answered rather than rejected.
+    status, data = mcp(
+        "server/discover", token=view_only_token, headers={"Mcp-Method": None}
+    )
+    assert status == 200 and "result" in data, data
+
     expect_mismatch(headers={"Mcp-Method": "tools/list"})
     expect_mismatch(headers={"MCP-Protocol-Version": None})
     expect_mismatch(headers={"MCP-Protocol-Version": "2025-06-18"})
@@ -682,13 +692,13 @@ def test_broker_filter_tools_require_their_identifiers():
         "post_broker_filter_version",
         "activate_broker_filter_version",
     ):
-        assert "broker_id" in TOOLS[name]["schema"]["required"], name
+        assert "broker_id" in TOOLS[name]["inputSchema"]["required"], name
 
 
 def test_run_broker_filter_takes_a_pipeline_as_stages():
     # The pipeline is a list of stages; passing a mapping is the mistake that
     # made a broker filter reject every alert.
-    schema = TOOLS["run_broker_filter"]["schema"]
+    schema = TOOLS["run_broker_filter"]["inputSchema"]
     assert schema["properties"]["pipeline"]["type"] == "array"
     assert "pipeline" in schema["required"]
 
@@ -697,6 +707,41 @@ def test_posting_a_version_does_not_activate_it():
     # Activation is a separate step, so a bad version cannot go live by being
     # uploaded.
     assert (
-        "active_fid" not in TOOLS["post_broker_filter_version"]["schema"]["properties"]
+        "active_fid"
+        not in TOOLS["post_broker_filter_version"]["inputSchema"]["properties"]
     )
-    assert "active_fid" in TOOLS["activate_broker_filter_version"]["schema"]["required"]
+    assert (
+        "active_fid"
+        in TOOLS["activate_broker_filter_version"]["inputSchema"]["required"]
+    )
+
+
+def test_observation_plan_requires_a_queue_name():
+    """A plan without queue_name is rejected before it reaches the API."""
+    fn = TOOLS["post_observation_plan"]["fn"]
+    args = {
+        "allocation_id": 1,
+        "gcnevent_id": 2,
+        "localization_id": 3,
+        "payload": {"scheduler": "m4opt"},
+    }
+    try:
+        asyncio.run(fn(None, args))
+    except ToolError as e:
+        assert "queue_name" in str(e)
+    else:
+        raise AssertionError("expected a ToolError")
+
+
+def test_observation_plan_tool_schemas():
+    """The plan tools ask for the ids the API requires."""
+    assert TOOLS["post_observation_plan"]["inputSchema"]["required"] == [
+        "allocation_id",
+        "gcnevent_id",
+        "localization_id",
+        "payload",
+    ]
+    # Discovery takes no arguments: it describes every instrument at once.
+    assert TOOLS["get_observation_plan_form"]["inputSchema"]["properties"] == {}
+    for name in ("get_observation_plan_allocations", "get_observation_plans"):
+        assert TOOLS[name]["inputSchema"]["required"] == []
