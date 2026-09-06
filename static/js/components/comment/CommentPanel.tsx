@@ -86,10 +86,7 @@ const useStyles = makeStyles()((theme) => ({
     marginLeft: "auto",
     flexShrink: 0,
   },
-  title: {
-    padding: theme.spacing(0.5, 2, 0),
-  },
-  targetName: {
+  heading: {
     lineHeight: "1em",
     fontWeight: 900,
   },
@@ -227,15 +224,18 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
     openedChannels.includes(INTERESTED_CHANNEL) ||
     channel === INTERESTED_CHANNEL;
 
-  const commentChannels = [
-    MAIN_CHANNEL,
-    ...(hasInterested ? [INTERESTED_CHANNEL] : []),
-    ...new Set(
-      [...openedChannels, ...added.comments].filter(
-        (name) => name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL,
-      ),
-    ),
-  ];
+  const commentChannels =
+    target?.type === "source"
+      ? [
+          MAIN_CHANNEL,
+          ...(hasInterested ? [INTERESTED_CHANNEL] : []),
+          ...new Set(
+            [...openedChannels, ...added.comments].filter(
+              (name) => name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL,
+            ),
+          ),
+        ]
+      : [MAIN_CHANNEL];
   const chats = [...new Set([...assistantConversations, ...added.assistant])];
 
   // Opened once per user, so deleting the last chat stays final.
@@ -257,7 +257,9 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
 
   const channels = isComments ? commentChannels : chats;
   const activeChannel = isComments
-    ? channel
+    ? commentChannels.includes(channel)
+      ? channel
+      : MAIN_CHANNEL
     : assistantChannel && chats.includes(assistantChannel)
       ? assistantChannel
       : chats[0];
@@ -272,6 +274,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
 
   const closable = (name: string) =>
     !isComments || (name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL);
+  const canAddChannel = !isComments || target?.type === "source";
 
   const addConversation = () => {
     if (isComments) {
@@ -378,14 +381,6 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
       ? target.id
       : dayjs(target.dateobs).format("YYMMDD HH:mm:ss");
 
-  const showHeading =
-    isComments && targetLabel !== null && target?.type !== "source";
-  const heading = (
-    <Typography variant="h6" className={classes.targetName} noWrap>
-      {targetLabel}
-    </Typography>
-  );
-
   if (spaces.length === 0) return null;
 
   const panel = (
@@ -395,117 +390,116 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
       data-testid={isComments ? "source-chat" : undefined}
     >
       {!inline && (
-        <>
-          <div
-            className={cx(
-              classes.header,
-              spaces.length > 1 && classes.headerFlush,
-            )}
-          >
-            {spaces.length > 1 ? (
-              <Tabs
-                value={activeSpace}
-                onChange={(_, value) => setSpace(value)}
-                className={classes.spaceTabs}
-              >
-                <Tab
-                  value="comments"
-                  icon={<ChatIcon fontSize="small" />}
-                  iconPosition="start"
-                  label="Comments"
-                />
-                <Tab
-                  value="assistant"
-                  icon={<SmartToyIcon fontSize="small" />}
-                  iconPosition="start"
-                  label="Assistant"
-                />
-              </Tabs>
-            ) : (
-              showHeading && heading
-            )}
-            <div className={classes.headerActions}>
-              {inlineToggle}
-              <IconButton size="small" onClick={() => setOpen(false)}>
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </div>
-          </div>
-          {spaces.length > 1 && showHeading && (
-            <div className={classes.title}>{heading}</div>
+        <div
+          className={cx(
+            classes.header,
+            spaces.length > 1 && classes.headerFlush,
           )}
-        </>
+        >
+          {spaces.length > 1 ? (
+            <Tabs
+              value={activeSpace}
+              onChange={(_, value) => setSpace(value)}
+              className={classes.spaceTabs}
+            >
+              <Tab
+                value="comments"
+                icon={<ChatIcon fontSize="small" />}
+                iconPosition="start"
+                label="Comments"
+              />
+              <Tab
+                value="assistant"
+                icon={<SmartToyIcon fontSize="small" />}
+                iconPosition="start"
+                label="Assistant"
+              />
+            </Tabs>
+          ) : (
+            !isComments && (
+              <Typography variant="h6" className={classes.heading} noWrap>
+                Assistant
+              </Typography>
+            )
+          )}
+          <div className={classes.headerActions}>
+            {inlineToggle}
+            <IconButton size="small" onClick={() => setOpen(false)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </div>
+        </div>
       )}
-      {(!isComments || target?.type === "source") && (
-        <div className={classes.tabs}>
-          <Tabs
-            value={activeChannel ?? false}
-            onChange={(_, value) => selectChannel(value)}
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            {channels.map((name) => {
-              const label =
-                isComments && name === MAIN_CHANNEL && targetLabel
-                  ? targetLabel
-                  : name;
-              return (
-                <Tab
-                  key={name}
-                  value={name}
-                  disableRipple={renaming?.from === name}
-                  onMouseEnter={() => setHoveredChannel(name)}
-                  onMouseLeave={() => setHoveredChannel(null)}
-                  label={
-                    renaming?.from === name ? (
-                      <TextField
-                        autoFocus
-                        size="small"
-                        variant="standard"
-                        value={renaming.to}
-                        onChange={(event) =>
-                          setRenaming({ from: name, to: event.target.value })
-                        }
-                        onKeyDown={onRenameKeyDown}
-                        onBlur={commitRename}
-                        onMouseDown={(event) => event.stopPropagation()}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                    ) : (
-                      <span
-                        className={classes.tabLabel}
-                        onDoubleClick={
-                          isComments
-                            ? undefined
-                            : () => setRenaming({ from: name, to: name })
-                        }
-                      >
-                        <span className={classes.tabName} title={label}>
-                          {label}
-                        </span>
-                        {closable(name) && (
-                          <CloseIcon
-                            fontSize="inherit"
-                            className={classes.tabClose}
-                            style={{
-                              visibility:
-                                hoveredChannel === name ? "visible" : "hidden",
-                            }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removeChannel(name);
-                            }}
-                            data-testid={`delete-channel-${name}`}
-                          />
-                        )}
+      <div className={classes.tabs}>
+        <Tabs
+          value={activeChannel ?? false}
+          onChange={(_, value) => selectChannel(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          {channels.map((name) => {
+            const label =
+              isComments && name === MAIN_CHANNEL && targetLabel
+                ? targetLabel
+                : name;
+            return (
+              <Tab
+                key={name}
+                value={name}
+                disableRipple={renaming?.from === name}
+                onMouseEnter={() => setHoveredChannel(name)}
+                onMouseLeave={() => setHoveredChannel(null)}
+                label={
+                  renaming?.from === name ? (
+                    <TextField
+                      autoFocus
+                      size="small"
+                      variant="standard"
+                      value={renaming.to}
+                      onChange={(event) =>
+                        setRenaming({ from: name, to: event.target.value })
+                      }
+                      onKeyDown={onRenameKeyDown}
+                      onBlur={commitRename}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  ) : (
+                    <span
+                      className={classes.tabLabel}
+                      onDoubleClick={
+                        isComments
+                          ? undefined
+                          : () => setRenaming({ from: name, to: name })
+                      }
+                    >
+                      <span className={classes.tabName} title={label}>
+                        {label}
                       </span>
-                    )
-                  }
-                />
-              );
-            })}
-          </Tabs>
-          {newChannel === null ? (
+                      {closable(name) && (
+                        <CloseIcon
+                          fontSize="inherit"
+                          className={classes.tabClose}
+                          style={{
+                            visibility:
+                              hoveredChannel === name ? "visible" : "hidden",
+                          }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeChannel(name);
+                          }}
+                          data-testid={`delete-channel-${name}`}
+                        />
+                      )}
+                    </span>
+                  )
+                }
+              />
+            );
+          })}
+        </Tabs>
+        {canAddChannel &&
+          (newChannel === null ? (
             <Tooltip title={isComments ? "New conversation" : "New chat"}>
               <IconButton
                 size="small"
@@ -526,10 +520,9 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               onKeyDown={onNewChannelKeyDown}
               onBlur={createChannel}
             />
-          )}
-          {inline && <div className={classes.detach}>{inlineToggle}</div>}
-        </div>
-      )}
+          ))}
+        {inline && <div className={classes.detach}>{inlineToggle}</div>}
+      </div>
       <div className={classes.body}>
         <Suspense
           fallback={
