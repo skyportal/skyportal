@@ -517,20 +517,17 @@ app:
     X-ray Flash: XRFcandidate
 
   assistant:
-    # Conversational assistant answering in a reserved comment channel. It reaches
-    # the instance through SkyPortal's own MCP endpoint, so it gains a capability
-    # whenever a tool is added there — nothing here is per-pipeline.
-    # Leave base_url unset to disable the service.
-    base_url: # e.g. https://host/llm/qwen3-27b/v1
+    # Conversational assistant users chat with from any page. It reaches the
+    # instance through SkyPortal's own MCP endpoint, so it gains a capability
+    # whenever a tool is added there, nothing here is per-pipeline.
+    # Leave base_url unset to disable the service and hide the panel.
+    base_url: # e.g. https://babamul.umn.edu/llm/qwen3-27b/v1
     model: ""
     api_key: ""
-    # Comments in this channel are addressed to the assistant; its replies carry
-    # system=true so they never retrigger it.
-    channel: assistant
     # Cap on tool round-trips per question, so a looping model cannot run away.
     max_tool_calls: 8
-    # Oldest comments are dropped first when a thread outgrows this.
-    max_context_comments: 40
+    # Oldest messages are dropped first when a conversation outgrows this.
+    max_context_messages: 40
     request_timeout: 300
 
   homepage_widgets:

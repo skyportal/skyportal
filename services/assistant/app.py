@@ -1,8 +1,8 @@
-"""Answers questions asked in a reserved comment channel.
+"""Answers the questions users ask the assistant.
 
-Woken by the app when a comment lands in that channel, it reads the thread, works
-through SkyPortal's MCP endpoint with the asking user's own token, and posts the
-answer back into the same thread.
+Woken by the app when a message is posted, it reads the conversation, works
+through SkyPortal's MCP endpoint with the asking user's own token, and writes
+the answer back into the same conversation.
 """
 
 import json
@@ -15,32 +15,19 @@ import tornado.web
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.models import (
-    Comment,
-    CommentOnEarthquake,
-    CommentOnGCN,
-    CommentOnShift,
-    CommentOnSpectrum,
-    DBSession,
-    Group,
-    Token,
-)
-from skyportal.utils.assistant import (
-    build_messages,
-    condense,
-    is_addressed_to_assistant,
-)
+from skyportal.models import AssistantMessage, DBSession, Token
+from skyportal.utils.app import get_app_base_url
+from skyportal.utils.assistant import build_messages, condense
 
 _, cfg = load_env()
 log = make_log("assistant")
+init_db(**cfg["database"])
 
 PROTOCOL_VERSION = "2026-07-28"
 META = "io.modelcontextprotocol/"
-
-
-def _endpoint():
-    return f"{cfg['server.url'].rstrip('/')}/mcp"
 
 
 def _headers(token, method, tool_name=None):
@@ -63,7 +50,7 @@ def _rpc(token, method, params, timeout, tool_name=None):
         f"{META}clientCapabilities": {},
     }
     response = requests.post(
-        _endpoint(),
+        f"{get_app_base_url()}/mcp",
         headers=_headers(token, method, tool_name),
         json=body,
         timeout=timeout,
@@ -112,20 +99,8 @@ BASE_URL = CONFIG.get("base_url")
 MODEL = CONFIG.get("model") or ""
 API_KEY = CONFIG.get("api_key") or ""
 MAX_TOOL_CALLS = int(CONFIG.get("max_tool_calls", 8))
-MAX_CONTEXT = int(CONFIG.get("max_context_comments", 40))
+MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
-
-
-COMMENT_MODELS = {
-    "sources": (Comment, "obj_id"),
-    "spectra": (CommentOnSpectrum, "spectrum_id"),
-    "gcn_event": (CommentOnGCN, "gcn_id"),
-    "earthquake": (CommentOnEarthquake, "earthquake_id"),
-    "shift": (CommentOnShift, "shift_id"),
-}
-RESOURCE_FOR_MODEL = {
-    model.__name__: name for name, (model, _) in COMMENT_MODELS.items()
-}
 
 
 def chat(messages, tools):
@@ -143,10 +118,10 @@ def chat(messages, tools):
     return response.json()["choices"][0]["message"]
 
 
-def answer(resource_type, resource_id, comments, token):
+def answer(conversation, context_type, context_id, token):
     """Work the question through the tools and return the reply text."""
     tools = list_tools(token)
-    messages = build_messages(resource_type, resource_id, comments, MAX_CONTEXT)
+    messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id)
 
     for _ in range(MAX_TOOL_CALLS):
         message = chat(messages, tools)
@@ -187,82 +162,62 @@ def read_only_token(session, user_id):
     return token
 
 
-def thread_for(session, model, resource_id_col, resource_id, channel):
+def conversation_of(session, user_id, channel):
     """The conversation so far, oldest first."""
-    comments = (
+    messages = (
         session.scalars(
-            sa.select(model)
+            sa.select(AssistantMessage)
             .where(
-                getattr(model, resource_id_col) == resource_id,
-                model.channel == channel,
+                AssistantMessage.user_id == user_id,
+                AssistantMessage.channel == channel
+                if channel
+                else AssistantMessage.channel.is_(None),
             )
-            .order_by(model.created_at)
+            .order_by(AssistantMessage.created_at)
         )
         .unique()
         .all()
     )
     return [
-        {
-            "text": comment.text,
-            "system": bool(comment.system),
-            "channel": comment.channel,
-            "author": comment.author.username if comment.author else None,
-        }
-        for comment in comments
+        {"text": message.text, "system": bool(message.system)} for message in messages
     ]
 
 
-def respond(comment_class, comment_id):
-    """Answer one question and post the reply into the same channel."""
-    model_name = comment_class
-    resource_type = RESOURCE_FOR_MODEL.get(model_name)
-    if resource_type is None:
-        return
-    model, resource_id_col = COMMENT_MODELS[resource_type]
-    channel = CONFIG.get("channel") or "assistant"
-
+def respond(message_id):
+    """Answer one question and write the reply into the same conversation."""
     with DBSession() as session:
-        comment = session.scalar(sa.select(model).where(model.id == comment_id))
-        if comment is None:
-            return
-        if not is_addressed_to_assistant(
-            {"channel": comment.channel, "system": bool(comment.system)}, channel
-        ):
+        message = session.scalar(
+            sa.select(AssistantMessage).where(AssistantMessage.id == message_id)
+        )
+        if message is None or message.system:
             return
 
-        resource_id = getattr(comment, resource_id_col)
-        author_id = comment.author_id
-        group_ids = [group.id for group in comment.groups]
-        comments = thread_for(session, model, resource_id_col, resource_id, channel)
-        token = read_only_token(session, author_id)
-        token_id = token.id
+        user_id = message.user_id
+        channel = message.channel
+        context_type, context_id = message.context_type, message.context_id
+        conversation = conversation_of(session, user_id, channel)
+        token_id = read_only_token(session, user_id).id
 
         try:
-            text = answer(resource_type, resource_id, comments, token_id)
+            text = answer(conversation, context_type, context_id, token_id)
         except Exception as exc:
-            log(f"assistant failed on {model_name} {comment_id}: {exc}")
-            text = None
+            log(f"assistant failed on message {message_id}: {exc}")
+            text = "Something went wrong while looking that up."
         finally:
             session.execute(sa.delete(Token).where(Token.id == token_id))
             session.commit()
 
-        if not text:
-            return
-
-        reply = model(
-            text=text,
-            channel=channel,
-            system=True,
-            bot=True,
-            author_id=author_id,
-            groups=session.scalars(
-                sa.select(Group).where(Group.id.in_(group_ids))
-            ).all(),
-            **{resource_id_col: resource_id},
+        session.add(
+            AssistantMessage(
+                user_id=user_id,
+                channel=channel,
+                text=text or "I could not find an answer to that.",
+                system=True,
+            )
         )
-        session.add(reply)
         session.commit()
-        log(f"answered {model_name} {comment_id} on {resource_type} {resource_id}")
+        Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
+        log(f"answered message {message_id} for user {user_id}")
 
 
 class AssistantHandler(tornado.web.RequestHandler):
@@ -279,11 +234,8 @@ class AssistantHandler(tornado.web.RequestHandler):
                 {"status": "error", "message": "app.assistant.base_url is not set"}
             )
 
-        # Answer out of band: the caller is a database hook, not a user waiting.
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: respond(data["comment_class"], data["comment_id"]),
-        )
+        # Answer out of band: the caller is the API, not a user waiting.
+        IOLoop.current().run_in_executor(None, lambda: respond(data["message_id"]))
         return self.write({"status": "success"})
 
 

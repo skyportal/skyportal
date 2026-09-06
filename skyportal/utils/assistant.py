@@ -1,4 +1,4 @@
-"""Turning a comment thread into a chat exchange, and back again.
+"""Turning a conversation into a chat exchange, and back again.
 
 Kept free of I/O so the parts with judgement in them can be tested directly.
 """
@@ -6,55 +6,49 @@ Kept free of I/O so the parts with judgement in them can be tested directly.
 import json
 
 SYSTEM_PROMPT = """You are an assistant inside SkyPortal, a data platform for \
-time-domain and multi-messenger astronomy. You are answering in a comment thread \
-that other astronomers can read.
-
-You are looking at {resource}.
+time-domain and multi-messenger astronomy. You are talking with an astronomer \
+in a chat panel of the app.
 
 Use the tools to look things up rather than guessing; if the tools do not answer \
 the question, say so plainly. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
-comment, not a report."""
+chat message, not a report."""
 
-RESOURCE_DESCRIPTIONS = {
-    "sources": "source {id}",
+CONTEXT_DESCRIPTIONS = {
+    "source": "source {id}",
     "gcn_event": "GCN event {id}",
-    "spectra": "spectrum {id}",
+    "spectrum": "spectrum {id}",
     "earthquake": "earthquake {id}",
     "shift": "shift {id}",
 }
 
 
-def describe_resource(resource_type, resource_id):
-    """A short phrase naming what the thread is attached to."""
-    template = RESOURCE_DESCRIPTIONS.get(resource_type, "{type} {id}")
-    return template.format(type=resource_type, id=resource_id)
+def describe_context(context_type, context_id):
+    """A short phrase naming the page the question was asked from."""
+    if not context_type or context_id in (None, ""):
+        return None
+    template = CONTEXT_DESCRIPTIONS.get(context_type, "{type} {id}")
+    return template.format(type=context_type, id=context_id)
 
 
-def system_prompt(resource_type, resource_id):
-    return SYSTEM_PROMPT.format(resource=describe_resource(resource_type, resource_id))
+def system_prompt(context_type=None, context_id=None):
+    context = describe_context(context_type, context_id)
+    if context is None:
+        return SYSTEM_PROMPT
+    return f"{SYSTEM_PROMPT}\n\nThey are looking at {context}."
 
 
-def build_messages(resource_type, resource_id, comments, max_comments):
-    """The thread as chat messages, oldest first, newest kept when it is long."""
-    messages = [
-        {"role": "system", "content": system_prompt(resource_type, resource_id)}
-    ]
-    for comment in comments[-max_comments:]:
-        role = "assistant" if comment["system"] else "user"
-        text = comment["text"]
-        if role == "user" and comment.get("author"):
-            text = f"{comment['author']}: {text}"
-        messages.append({"role": role, "content": text})
-    return messages
-
-
-def is_addressed_to_assistant(comment, channel):
-    """Whether a new comment is a question for the assistant.
-
-    Its own replies carry system=True, which is what stops the reply to a reply.
-    """
-    return comment.get("channel") == channel and not comment.get("system")
+def build_messages(messages, max_messages, context_type=None, context_id=None):
+    """The conversation as chat messages, oldest first, newest kept when it is long."""
+    chat = [{"role": "system", "content": system_prompt(context_type, context_id)}]
+    for message in messages[-max_messages:]:
+        chat.append(
+            {
+                "role": "assistant" if message["system"] else "user",
+                "content": message["text"],
+            }
+        )
+    return chat
 
 
 def is_enabled(cfg):
@@ -62,24 +56,16 @@ def is_enabled(cfg):
     return bool((cfg.get("app.assistant") or {}).get("base_url"))
 
 
-def assistant_channel(cfg):
-    return (cfg.get("app.assistant") or {}).get("channel") or "assistant"
-
-
-def post_to_assistant(cfg, comment_class, comment_id, timeout=2):
-    """Ask the assistant service to answer a comment. Fire and forget."""
+def post_to_assistant(cfg, message_id, timeout=2):
+    """Ask the assistant service to answer a message. Fire and forget."""
     import requests
 
     url = f"http://{cfg['hosts.assistant']}:{cfg['ports.assistant']}"
     try:
-        requests.post(
-            url,
-            json={"comment_class": comment_class, "comment_id": comment_id},
-            timeout=timeout,
-        )
+        requests.post(url, json={"message_id": message_id}, timeout=timeout)
     except requests.exceptions.RequestException:
         # The assistant is optional; a question going unanswered must not break
-        # the comment that asked it.
+        # the message that asked it.
         return False
     return True
 
