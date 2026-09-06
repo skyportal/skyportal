@@ -1,7 +1,7 @@
-import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import { keyframes } from "@emotion/react";
 import SendIcon from "@mui/icons-material/Send";
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import { alpha } from "@mui/material/styles";
@@ -14,6 +14,10 @@ import {
   useAskAssistantMutation,
   useGetAssistantConversationQuery,
 } from "../../ducks/assistant";
+
+const spin = keyframes({
+  to: { transform: "rotate(360deg)" },
+});
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -32,7 +36,7 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: "90%",
     borderRadius: "1rem",
     padding: "0.3125rem 0.75rem",
-    marginBottom: "0.375rem",
+    marginBottom: "0.5rem",
     "& > p": {
       margin: 0,
     },
@@ -42,12 +46,18 @@ const useStyles = makeStyles()((theme) => ({
     wordWrap: "break-word",
   },
   question: {
-    marginLeft: "2rem",
-    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+    width: "fit-content",
+    maxWidth: "85%",
+    marginLeft: "auto",
+    backgroundColor: alpha(theme.palette.text.primary, 0.05),
   },
   answer: {
     marginRight: "1rem",
-    backgroundColor: alpha(theme.palette.text.primary, 0.05),
+  },
+  label: {
+    fontSize: "0.7rem",
+    marginLeft: "0.75rem",
+    color: alpha(theme.palette.text.primary, 0.3),
   },
   aside: {
     display: "flex",
@@ -59,6 +69,11 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: "0.75rem",
     fontStyle: "italic",
     color: theme.palette.text.secondary,
+  },
+  spinner: {
+    width: "0.9rem",
+    height: "0.9rem",
+    animation: `${spin} 1.2s linear infinite`,
   },
   composer: {
     display: "flex",
@@ -74,7 +89,7 @@ interface AssistantThreadProps {
 }
 
 const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
-  const { classes, cx } = useStyles();
+  const { classes, cx, theme } = useStyles();
   const { data: messages = [] } = useGetAssistantConversationQuery(channel);
   const [askAssistant] = useAskAssistantMutation();
   const [question, setQuestion] = useState("");
@@ -121,20 +136,28 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
           </div>
         )}
         {messages.map((message) => (
-          <ReactMarkdown
-            key={message.id}
-            className={cx(
-              classes.message,
-              message.system ? classes.answer : classes.question,
-            )}
-          >
-            {message.text}
-          </ReactMarkdown>
+          <Fragment key={message.id}>
+            {message.system && <div className={classes.label}>Assistant</div>}
+            <ReactMarkdown
+              className={cx(
+                classes.message,
+                message.system ? classes.answer : classes.question,
+              )}
+            >
+              {message.text}
+            </ReactMarkdown>
+          </Fragment>
         ))}
         {!answered && (
           <div className={classes.aside}>
-            <CircularProgress size={12} />
-            Looking that up&hellip;
+            <img
+              className={classes.spinner}
+              src={`/static/images/skyportal_logo${
+                theme.palette.mode === "dark" ? "_dark" : ""
+              }.png`}
+              alt=""
+            />
+            Thinking...
           </div>
         )}
       </div>
