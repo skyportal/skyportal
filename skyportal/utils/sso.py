@@ -1,7 +1,10 @@
-"""Solar-system photometry math, mirroring BOOM's per-alert statistic (M. Kelley).
+"""Solar-system photometry: correct apparent magnitudes for observing geometry
+and per-band colour, and score a recent brightening.
 
-Kept in step with the browser copy in static/js/components/plot/ssoTransforms.ts;
-skyportal/tests/utils/test_sso.py pins the two together.
+The HG12* phase function (Penttila 2016) evaluates precomputed spline
+coefficients, so there is no linear solve here. Kept in step with the browser
+copy in static/js/components/plot/ssoTransforms.ts, which the tests pin together
+against sbpy fixtures.
 """
 
 import math

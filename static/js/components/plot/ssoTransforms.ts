@@ -1,4 +1,7 @@
-// Display-side mirror of BOOM's solar-system photometry math (M. Kelley), whose per-alert statistic stays authoritative.
+// Solar-system photometry for the light-curve tab: correct apparent magnitudes
+// for observing geometry and per-band colour, and score a recent brightening.
+// The HG12* phase function (Penttila 2016) evaluates precomputed spline
+// coefficients, so there is no linear solve here; the test pins it to sbpy.
 
 interface Spline {
   nodes: number[];
