@@ -76,23 +76,22 @@ Now, you may browse to SkyPortal at `http://localhost:5000` (or any other port y
 
 If you want to use a specific configuration file at runtime (that can then be different from the one used to build the image), you can mount it as a volume when starting the container. For example, if you had a `config.yaml` file in a directory called `config`, you would add to your `docker-compose.yaml` file:
 
-````yaml
-    web:
-        ...
-        volumes:
-        - ./config/config.yaml:/etc/skyportal/config.yaml
-    ```
-````
+```yaml
+web:
+  # ...
+  volumes:
+    - ./config/config.yaml:/etc/skyportal/config.yaml
+```
 
 This will mount the `config.yaml` file from the `config` directory to the `/etc/skyportal/config.yaml` path in the container. You could technically directly have it mounted to `/skyportal/config.yaml`, but we recommend using a different path to not lose track of the original configuration file used to build the image.
 
 You would need to pass the `--config=config.yaml` flag when calling any `make` commands. For the container to use this configuration file on startup, set the FLAG environment variable in the `docker-compose.yaml` file:
 
 ```yaml
-    web:
-        ...
-        environment:
-        - FLAGS=--config=/etc/skyportal/config.yaml
+web:
+  # ...
+  environment:
+    - FLAGS=--config=/etc/skyportal/config.yaml
 ```
 
 **Note: Elements of the configuration used to customize the frontend need to be set in the configuration file used to build the image (`docker.yaml`), as they are used to build the web application's bundle which only happens once at build time, and will not take effect if changed at runtime.**

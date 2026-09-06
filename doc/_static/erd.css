@@ -1,0 +1,289 @@
+.erd {
+  --erd-plane: #f9f9f7;
+  --erd-surface: #fcfcfb;
+  --erd-header: #eef4fc;
+  --erd-ink: #0b0b0b;
+  --erd-ink-soft: #52514e;
+  --erd-muted: #898781;
+  --erd-line: #c3c2b7;
+  --erd-hair: #e1e0d9;
+  --erd-accent: #2a78d6;
+  --erd-accent-wash: #dbe8f8;
+  --erd-ring: rgb(11 11 11 / 10%);
+  --erd-dim: 0.13;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+html[data-theme="dark"] .erd {
+  --erd-plane: #0d0d0d;
+  --erd-surface: #1a1a19;
+  --erd-header: #1f2a38;
+  --erd-ink: #fff;
+  --erd-ink-soft: #c3c2b7;
+  --erd-line: #383835;
+  --erd-hair: #2c2c2a;
+  --erd-accent: #3987e5;
+  --erd-accent-wash: #24374f;
+  --erd-ring: rgb(255 255 255 / 10%);
+  --erd-dim: 0.17;
+}
+
+.erd-bar,
+.erd-tools,
+.erd-rel {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.erd-bar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.erd-rel {
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.erd-find {
+  position: relative;
+  flex: 1 1 14rem;
+  min-width: 11rem;
+}
+
+.erd-input,
+.erd-btn,
+.erd-chip,
+.erd-enum,
+.erd-hits {
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--erd-ink-soft);
+  background: var(--erd-surface);
+  border: 1px solid var(--erd-line);
+  border-radius: 6px;
+}
+
+.erd-input {
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.875rem;
+  color: var(--erd-ink);
+}
+
+.erd-input::placeholder {
+  color: var(--erd-muted);
+}
+
+:is(.erd-input, .erd-btn, .erd-chip, .erd-stage):focus-visible {
+  outline: 2px solid var(--erd-accent);
+  outline-offset: 1px;
+}
+
+.erd-hits {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 3px);
+  right: 0;
+  left: 0;
+  max-height: 16rem;
+  padding: 0.25rem;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+  box-shadow: 0 8px 20px var(--erd-ring);
+}
+
+.erd-hits li {
+  margin: 0;
+}
+
+.erd-hits button {
+  display: block;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--erd-ink);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+}
+
+.erd-hits button:hover {
+  background: var(--erd-accent-wash);
+}
+
+.erd-btn,
+.erd-chip {
+  cursor: pointer;
+}
+
+.erd-btn {
+  min-width: 2rem;
+  padding: 0.3rem 0.6rem;
+  line-height: 1.4;
+}
+
+.erd-chip {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  border-color: var(--erd-hair);
+  border-radius: 999px;
+}
+
+.erd-btn:hover,
+.erd-chip:hover {
+  color: var(--erd-ink);
+  border-color: var(--erd-accent);
+}
+
+.erd-level,
+.erd-status,
+.erd-rel-label {
+  color: var(--erd-muted);
+}
+
+.erd-level {
+  min-width: 3.25rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.erd-status {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.erd-rel-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.erd-enum {
+  padding: 0.35rem 0.6rem;
+  border-color: var(--erd-hair);
+}
+
+.erd-enum > summary {
+  color: var(--erd-accent);
+  cursor: pointer;
+}
+
+.erd-enum > p {
+  max-height: 11rem;
+  margin: 0.5rem 0 0;
+  overflow-y: auto;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.erd-stage {
+  position: relative;
+  height: min(72vh, 760px);
+  overflow: hidden;
+  cursor: grab;
+  background: var(--erd-plane);
+  border: 1px solid var(--erd-line);
+  border-radius: 8px;
+  touch-action: none;
+}
+
+.erd-stage.is-panning {
+  cursor: grabbing;
+}
+
+.erd-stage > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.erd-stage .graph > polygon {
+  fill: transparent;
+}
+
+.erd-stage .node {
+  cursor: pointer;
+}
+
+.erd-stage .node polygon {
+  fill: var(--erd-surface);
+  stroke: var(--erd-hair);
+}
+
+.erd-stage .node polygon:first-of-type {
+  fill: var(--erd-header);
+  stroke: var(--erd-line);
+}
+
+.erd-stage .node text {
+  fill: var(--erd-ink-soft);
+}
+
+.erd-stage .node text[font-weight="bold"] {
+  fill: var(--erd-ink);
+}
+
+.erd-stage .edge text {
+  fill: var(--erd-muted);
+}
+
+.erd-stage .edge path {
+  stroke: var(--erd-line);
+}
+
+.erd-stage.has-focus .node,
+.erd-stage.has-focus .edge {
+  opacity: var(--erd-dim);
+}
+
+.erd-stage.has-focus .node.is-on,
+.erd-stage.has-focus .edge.is-on {
+  opacity: 1;
+}
+
+.erd-stage .edge.is-on path {
+  stroke: var(--erd-accent);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+
+.erd-stage .node.is-hit polygon {
+  stroke: var(--erd-accent);
+  stroke-width: 2;
+}
+
+.erd-stage .node.is-hit polygon:first-of-type {
+  fill: var(--erd-accent-wash);
+}
+
+.erd:fullscreen {
+  padding: 1rem;
+  background: var(--erd-plane);
+}
+
+.erd:fullscreen .erd-stage {
+  height: calc(100vh - 7rem);
+}
+
+@media (max-width: 40rem) {
+  .erd-stage {
+    height: 60vh;
+  }
+
+  .erd-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

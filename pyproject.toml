@@ -139,6 +139,7 @@ docs = [
     "numpydoc",
     "jsx-lexer",
     "eralchemy2",
+    "pygraphviz",
     "jinja2<3.2.0",
 ]
 

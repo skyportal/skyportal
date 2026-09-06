@@ -870,7 +870,9 @@ class GcnEvent(Base):
     @retracted.expression
     def retracted(cls):
         """Check if event is retracted."""
-        return sa.literal("retracted").in_(cls.tags)
+        return sa.literal("retracted").in_(
+            sa.select(GcnTag.text).where(GcnTag.dateobs == cls.dateobs)
+        )
 
     @property
     def lightcurve(self):
