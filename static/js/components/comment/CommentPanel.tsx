@@ -104,7 +104,7 @@ const useStyles = makeStyles()((theme) => ({
     "& .MuiTab-root": {
       minHeight: "auto",
       minWidth: "auto",
-      padding: theme.spacing(0.25, 1),
+      padding: theme.spacing(0.75, 1),
       fontSize: "0.8rem",
       textTransform: "none",
     },
@@ -113,11 +113,6 @@ const useStyles = makeStyles()((theme) => ({
     position: "relative",
     width: "1.5rem",
     height: "1.5rem",
-  },
-  splitHalf: {
-    position: "absolute",
-    top: 0,
-    left: 0,
   },
   splitBar: {
     position: "absolute",
@@ -574,7 +569,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             bothSpaces
               ? "Comments and assistant"
               : assistantOnly
-                ? "Ask the assistant"
+                ? "Assistant"
                 : "Comments"
           }
           placement="left"
@@ -591,12 +586,14 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             ) : bothSpaces ? (
               <span className={classes.splitIcon}>
                 <ChatIcon
-                  className={classes.splitHalf}
-                  style={{ clipPath: "polygon(0 0, 0 90%, 90% 0)" }}
+                  sx={{ position: "absolute", top: -3, left: -3 }}
+                  style={{ clipPath: "polygon(0 0, 0 110%, 110% 0)" }}
                 />
                 <SmartToyIcon
-                  className={classes.splitHalf}
-                  style={{ clipPath: "polygon(100% 100%, 10% 100%, 100% 10%)" }}
+                  sx={{ position: "absolute", top: 3, left: 3 }}
+                  style={{
+                    clipPath: "polygon(100% 100%, -10% 100%, 100% -10%)",
+                  }}
                 />
                 <span className={classes.splitBar} />
               </span>
