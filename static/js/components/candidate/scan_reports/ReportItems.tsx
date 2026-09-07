@@ -93,6 +93,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
             <FieldTitle>observing run / priority</FieldTitle>
+            <FieldTitle>spectra</FieldTitle>
             <FieldTitle>detections (survey)</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>z (DESI)</FieldTitle>
@@ -268,6 +269,27 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                       >
                         <Chip
                           label={`${assignment.instrument}: ${assignment.priority}`}
+                          size="small"
+                        />
+                      </Tooltip>
+                    ),
+                  )}
+                </Field>
+                <Field>
+                  {reportItem.data.spectra?.map(
+                    (spectrum: any, index: number) => (
+                      <Tooltip
+                        title={`${spectrum.instrument ?? "spectrum"}${
+                          spectrum.observed_at
+                            ? ` — ${spectrum.observed_at}`
+                            : ""
+                        }${spectrum.origin ? ` — ${spectrum.origin}` : ""}`}
+                        key={index}
+                      >
+                        <Chip
+                          label={`${spectrum.instrument ?? "?"}: ${
+                            spectrum.observed_at?.split("T")[0] ?? "?"
+                          }`}
                           size="small"
                         />
                       </Tooltip>

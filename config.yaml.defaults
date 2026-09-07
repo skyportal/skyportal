@@ -1209,6 +1209,13 @@ hosts:
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by
 # lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+assignments:
+  # An uploaded spectrum marks a matching observing-run assignment "done".
+  # A spectrum naming its assignment always settles it; otherwise the run's
+  # instrument must match and its calendar date fall within this many days of
+  # the exposure. Set to null to only close assignments a spectrum names.
+  auto_observed_window_days: 1
+
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
