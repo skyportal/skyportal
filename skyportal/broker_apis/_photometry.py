@@ -5,26 +5,22 @@ and returns the per-(survey, programid) groups built by
 ``_save.build_photometry_groups``. This module holds everything downstream of
 that — the broker-agnostic half — so a provider only implements the fetch.
 
-The pattern is broker-canonical / marshal-as-cache: Postgres stays the system of
-record for *saved* photometry, but display-only views (a source page, a candidate
-lightcurve) are served straight from the broker through a Valkey read-through
-cache, and **nothing here writes photometry to Postgres**.
+The pattern is broker-canonical: Postgres stays the system of record for *saved*
+photometry, but display-only views (a source page, a candidate lightcurve) are
+served straight from the broker, and **nothing here writes photometry to
+Postgres**.
 
 Design points:
 
-* The cache key includes a hash of the requester's access scope (groups +
-  streams), and broker points are scope-filtered *before* caching, so a cached
-  payload is already scope-correct and can never leak across scopes.
+* Broker points are filtered against the requester's accessible streams, so the
+  passthrough applies the same gating the persisted-row query would.
 * The unit conversions and programid->stream mapping come from
   ``build_photometry_groups``, shared verbatim with the persisting path, so the
   passthrough can never drift from what the saved rows would have been.
-* The pure functions (scope/variant hashing, the scope filter, the merge) carry
-  the security-critical logic and are directly unit-testable with no broker or
-  Valkey.
+* The pure functions (the scope filter, the merge) carry the security-critical
+  logic and are directly unit-testable with no broker.
 """
 
-import hashlib
-import json
 import traceback
 
 from baselayer.log import make_log
@@ -49,59 +45,15 @@ _PAYLOAD_KEYS = (
 )
 
 
-def _canonical(value) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-
-
-def _short_sha(value) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()[:16]
-
-
-def scope_hash(user_id, group_ids, stream_ids, is_admin=False) -> str:
-    """Hash the access-determining identity that gates *which* photometry a user
-    may see.
-
-    Mirrors the row-level-security inputs: the user's id plus their accessible
-    group and stream ids (sorted, so membership order is irrelevant). Admins,
-    who bypass row filtering, collapse to a single ``"admin"`` bucket.
-
-    Putting this in the cache key is the no-leakage guarantee: a payload cached
-    for one access scope can never be served to a different scope (the key
-    differs), and a membership change moves the requester to a different key
-    automatically — the stale entry simply ages out.
-    """
-    if is_admin:
-        return "admin"
-    payload = {
-        "u": int(user_id),
-        "g": sorted(int(g) for g in (group_ids or [])),
-        "s": sorted(int(s) for s in (stream_ids or [])),
-    }
-    return _short_sha(payload)
-
-
-def variant_hash(params: dict) -> str:
-    """Hash the serialization-shape args (e.g. ``format``/``magsys``) that change
-    *how* a response renders but not *which* rows are visible. Kept separate from
-    :func:`scope_hash` so visibility and rendering are never conflated."""
-    return _short_sha({k: params[k] for k in sorted(params or {})})
-
-
-def photometry_key(broker_id, obj_id, scope, variant, version="v1") -> str:
-    """Full cache key for an ephemeral photometry payload. Keyed by broker too:
-    two brokers may serve the same object with different data."""
-    return f"photcache:{version}:{broker_id}:{obj_id}:{scope}:{variant}"
-
-
 def filter_groups_by_streams(groups, accessible_stream_ids, is_admin=False):
     """Drop photometry groups the requester is not permitted to see.
 
     ``groups`` is the mapping from ``build_photometry_groups`` — keyed by
     ``(survey, programid)``, each value carrying the ``stream_ids`` that gate it.
     A group is kept iff the requester is an admin, or at least one of the group's
-    ``stream_ids`` is in ``accessible_stream_ids``. This reproduces, before
-    caching, the same stream gating the persisted-row query would apply (e.g.
-    ZTF partnership vs public programs).
+    ``stream_ids`` is in ``accessible_stream_ids``. This reproduces the same
+    stream gating the persisted-row query would apply (e.g. ZTF partnership vs
+    public programs).
     """
     if is_admin:
         return dict(groups)
@@ -186,20 +138,18 @@ async def display_photometry(
     session,
     user,
     *,
-    cache=None,
     survey=None,
     outsys="ab",
     fmt="mag",
-    refresh=False,
 ):
     """Object photometry for display: the persisted, access-controlled DB rows
     merged with photometry fetched on demand from the broker.
 
-    The broker half is scope-filtered *before* being cached (per object + access
-    scope) and is never written to Postgres; a broker failure degrades to DB-only
-    rather than erroring, since this backs the source-page lightcurve. On a fresh
-    broker fetch, the object's PhotStat summary is recomputed fire-and-forget.
-    Shared by every provider via the interface's default ``get_photometry``.
+    The broker half is scope-filtered and is never written to Postgres; a broker
+    failure degrades to DB-only rather than erroring, since this backs the
+    source-page lightcurve. On a broker fetch, the object's PhotStat summary is
+    recomputed fire-and-forget. Shared by every provider via the interface's
+    default ``get_photometry``.
     """
     survey = (
         survey
@@ -207,41 +157,30 @@ async def display_photometry(
         or (broker.altdata or {}).get("survey")
     )
 
-    user_id, group_ids, stream_ids, is_admin = await resolve_scope(user, session)
-    key = photometry_key(
-        broker.id,
-        object_id,
-        scope_hash(user_id, group_ids, stream_ids, is_admin),
-        variant_hash({"format": fmt, "magsys": outsys}),
-    )
+    stream_ids, is_admin = await resolve_scope(user, session)
+    broker_points = []
+    try:
+        groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
+        kept = filter_groups_by_streams(groups or {}, stream_ids, is_admin)
+        broker_points = await serialized_broker_points(
+            kept, session, outsys=outsys, fmt=fmt
+        )
+        # Fresh broker data: refresh the object's PhotStat (from the full DB ∪
+        # broker set) so listings/scanning reflect it. Fire-and-forget via
+        # spawn_callback — the IOLoop keeps the task alive (a bare
+        # ensure_future can be GC'd before it runs) and logs any exception.
+        if groups:
+            from tornado.ioloop import IOLoop
 
-    broker_points = None if (refresh or cache is None) else await cache.get_json(key)
-    if broker_points is None:
+            IOLoop.current().spawn_callback(
+                update_phot_stat_from_broker, object_id, groups
+            )
+    except Exception:
+        log(
+            f"passthrough broker fetch failed for {survey}/{object_id}; "
+            f"serving DB photometry only: {traceback.format_exc()}"
+        )
         broker_points = []
-        try:
-            groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
-            kept = filter_groups_by_streams(groups or {}, stream_ids, is_admin)
-            broker_points = await serialized_broker_points(
-                kept, session, outsys=outsys, fmt=fmt
-            )
-            if cache is not None:
-                await cache.set_json(key, broker_points)
-            # Fresh broker data: refresh the object's PhotStat (from the full DB ∪
-            # broker set) so listings/scanning reflect it. Fire-and-forget via
-            # spawn_callback — the IOLoop keeps the task alive (a bare
-            # ensure_future can be GC'd before it runs) and logs any exception.
-            if groups:
-                from tornado.ioloop import IOLoop
-
-                IOLoop.current().spawn_callback(
-                    update_phot_stat_from_broker, object_id, groups
-                )
-        except Exception:
-            log(
-                f"passthrough broker fetch failed for {survey}/{object_id}; "
-                f"serving DB photometry only: {traceback.format_exc()}"
-            )
-            broker_points = []
 
     db_points = await db_photometry_points(
         object_id, user, session, outsys=outsys, fmt=fmt
@@ -250,22 +189,17 @@ async def display_photometry(
 
 
 async def resolve_scope(user, session):
-    """Resolve the (user, accessible groups, accessible streams) tuple that gates
-    which photometry is visible — part of the cache key, and used to scope-filter
-    broker points before caching. Admins bypass row-level filtering and share one
-    bucket. Explicit selects avoid lazy relationship loads under the async
-    session."""
-    from ..models import Group, Stream
+    """Resolve the accessible streams that gate which photometry is visible, used
+    to scope-filter broker points. Admins bypass row-level filtering. An explicit
+    select avoids lazy relationship loads under the async session."""
+    from ..models import Stream
 
     if user.is_admin:
-        return user.id, [], [], True
-    group_ids = list(
-        (await session.scalars(Group.select(user).with_only_columns(Group.id))).all()
-    )
+        return [], True
     stream_ids = list(
         (await session.scalars(Stream.select(user).with_only_columns(Stream.id))).all()
     )
-    return user.id, group_ids, stream_ids, False
+    return stream_ids, False
 
 
 async def transient_photometry(groups, session):

@@ -102,15 +102,13 @@ export const brokersApi = skyportalApi.injectEndpoints({
         survey?: string;
         format?: string;
         magsys?: string;
-        refresh?: boolean;
       }
     >({
-      query: ({ brokerId, alertId, survey, format, magsys, refresh }) => {
+      query: ({ brokerId, alertId, survey, format, magsys }) => {
         const params = new URLSearchParams();
         if (survey) params.set("survey", survey);
         if (format) params.set("format", format);
         if (magsys) params.set("magsys", magsys);
-        if (refresh) params.set("refresh", "true");
         const qs = params.toString();
         return `api/brokers/${brokerId}/alerts/${alertId}/photometry${
           qs ? `?${qs}` : ""
