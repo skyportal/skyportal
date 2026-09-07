@@ -32,6 +32,7 @@ def test_db_stats_history(super_admin_token, public_candidate):
     history = data["data"]
     assert history["interval"] == "day"
     assert "candidates" in history["tables"]
+    assert history["bins"][0] == history["startDate"]
     assert set(history["counts"]) == {"candidates", "sources"}
     for counts in history["counts"].values():
         assert len(counts) == len(history["bins"])

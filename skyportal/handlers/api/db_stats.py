@@ -214,7 +214,8 @@ class StatsHistoryHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable UTC datetime; only rows created at or after this
-              time are counted. Defaults to 30 days ago.
+              time are counted, rounded down to the start of its bucket so the
+              first bin is complete. Defaults to 30 days ago.
           - in: query
             name: endDate
             schema:
@@ -296,9 +297,11 @@ class StatsHistoryHandler(BaseHandler):
         if start >= end:
             return self.error("startDate must be before endDate")
 
-        # Bins align with date_trunc buckets, so the first can precede start.
+        # Align on date_trunc buckets, otherwise the first bin is partial.
+        start = start.floor(interval)
+
         bins = []
-        bin_start = start.floor(interval)
+        bin_start = start
         while bin_start < end:
             bins.append(bin_start.naive)
             if len(bins) > MAX_HISTORY_BINS:

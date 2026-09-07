@@ -19672,7 +19672,8 @@ export interface paths {
                     interval?: "hour" | "day" | "week" | "month";
                     /**
                      * @description Arrow-parseable UTC datetime; only rows created at or after this
-                     *     time are counted. Defaults to 30 days ago.
+                     *     time are counted, rounded down to the start of its bucket so the
+                     *     first bin is complete. Defaults to 30 days ago.
                      */
                     startDate?: string;
                     /**
