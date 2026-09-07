@@ -26,7 +26,6 @@ def test_conversation_becomes_alternating_roles():
 
 def test_long_conversations_keep_the_newest():
     messages = build_messages([_message(f"m{i}") for i in range(10)], 3)
-    # system prompt plus the last three
     assert len(messages) == 4
     assert messages[-1]["content"] == "m9"
 
@@ -34,7 +33,6 @@ def test_long_conversations_keep_the_newest():
 def test_prompt_names_the_page_the_question_came_from():
     assert "GCN event 7" in system_prompt("gcn_event", 7)
     assert "source ZTF21abc" in system_prompt("source", "ZTF21abc")
-    # An unknown type still produces a usable phrase.
     assert describe_context("comet", 3) == "comet 3"
 
 
@@ -43,7 +41,6 @@ def test_prompt_names_the_person_asking():
         user={"username": "ann", "first_name": "Ann", "last_name": "Smith"}
     )
     assert "Ann Smith (@ann)" in prompt
-    # A profile with no name still gives the assistant something to say.
     assert describe_user({"username": "ann"}) == "ann"
     assert describe_user({"username": "ann", "first_name": "Ann"}) == "Ann (@ann)"
 
@@ -71,8 +68,6 @@ def test_short_results_are_left_alone():
 
 
 def test_the_bulky_field_is_dropped_and_named():
-    # A GCN event's healpix tiles run to megabytes; the rest of the record is
-    # what the assistant needs.
     payload = json.dumps(
         {
             "dateobs": "2023-03-07T15:44:07",
@@ -90,7 +85,6 @@ def test_the_bulky_field_is_dropped_and_named():
 def test_long_lists_keep_whole_items():
     payload = json.dumps([{"id": i, "text": "y" * 200} for i in range(50)])
     result = json.loads(condense(payload, budget=2000))
-    # every item that survived is intact, and the count is stated
     assert all(set(item) == {"id", "text"} for item in result["items"])
     assert "of 50 not shown" in result["note"]
 

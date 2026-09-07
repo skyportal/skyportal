@@ -31,23 +31,15 @@ class AssistantMessagePostBody(BaseModel):
     )
 
 
-class AssistantMessageGetQuery(BaseModel):
-    """Query parameters for retrieving a conversation."""
+class AssistantChannelQuery(BaseModel):
+    """Query parameters naming a conversation."""
 
     model_config = ConfigDict(extra="forbid")
 
     channel: str | None = Field(
         default=None,
-        description="Conversation to read. Defaults to the one with no name.",
+        description="Conversation name. The one with no name when omitted.",
     )
-
-
-class AssistantConversationQuery(BaseModel):
-    """Query parameters naming a conversation."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    channel: str | None = Field(default=None, description="Conversation name.")
 
 
 class AssistantConversationPatchBody(BaseModel):
@@ -59,7 +51,6 @@ class AssistantConversationPatchBody(BaseModel):
 
 
 def _mine(user_id, channel=None):
-    """Messages of one of a user's conversations."""
     return [
         AssistantMessage.user_id == user_id,
         AssistantMessage.channel == channel
@@ -70,7 +61,7 @@ def _mine(user_id, channel=None):
 
 class AssistantMessageHandler(BaseHandler):
     @auth_or_token
-    async def get(self, *, query: AssistantMessageGetQuery = None):
+    async def get(self, *, query: AssistantChannelQuery = None):
         """
         ---
         summary: Read a conversation with the assistant
@@ -83,7 +74,7 @@ class AssistantMessageHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        query = self.parse_query(AssistantMessageGetQuery)
+        query = self.parse_query(AssistantChannelQuery)
 
         async with self.AsyncSession() as session:
             messages = await session.scalars(
@@ -168,7 +159,7 @@ class AssistantConversationHandler(BaseHandler):
     async def patch(
         self,
         *,
-        query: AssistantConversationQuery = None,
+        query: AssistantChannelQuery = None,
         body: AssistantConversationPatchBody = None,
     ):
         """
@@ -183,7 +174,7 @@ class AssistantConversationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        query = self.parse_query(AssistantConversationQuery)
+        query = self.parse_query(AssistantChannelQuery)
         body = self.parse_body(AssistantConversationPatchBody)
         name = body.name.strip()
         if not query.channel:
@@ -212,7 +203,7 @@ class AssistantConversationHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, *, query: AssistantConversationQuery = None):
+    async def delete(self, *, query: AssistantChannelQuery = None):
         """
         ---
         summary: Delete a conversation with the assistant
@@ -225,7 +216,7 @@ class AssistantConversationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        query = self.parse_query(AssistantConversationQuery)
+        query = self.parse_query(AssistantChannelQuery)
         if not query.channel:
             return self.error("`channel` must be provided")
 

@@ -1,9 +1,6 @@
-"""Turning a conversation into a chat exchange, and back again.
-
-Kept free of I/O so the parts with judgement in them can be tested directly.
-"""
-
 import json
+
+import requests
 
 SYSTEM_PROMPT = """You are an assistant inside SkyPortal, a data platform for \
 time-domain and multi-messenger astronomy. You are talking with an astronomer \
@@ -24,7 +21,6 @@ CONTEXT_DESCRIPTIONS = {
 
 
 def describe_context(context_type, context_id):
-    """A short phrase naming the page the question was asked from."""
     if not context_type or context_id in (None, ""):
         return None
     template = CONTEXT_DESCRIPTIONS.get(context_type, "{type} {id}")
@@ -32,7 +28,6 @@ def describe_context(context_type, context_id):
 
 
 def describe_user(user):
-    """How to name the person asking, from what their profile fills in."""
     if not user:
         return None
     name = " ".join(
@@ -48,7 +43,7 @@ def system_prompt(context_type=None, context_id=None, user=None):
     lines = [SYSTEM_PROMPT]
     person = describe_user(user)
     if person:
-        lines.append(f"The person asking is {person}, from their SkyPortal profile. ")
+        lines.append(f"The person asking is {person}, from their SkyPortal profile.")
     context = describe_context(context_type, context_id)
     if context:
         lines.append(f"They are looking at {context}.")
@@ -58,46 +53,33 @@ def system_prompt(context_type=None, context_id=None, user=None):
 def build_messages(
     messages, max_messages, context_type=None, context_id=None, user=None
 ):
-    """The conversation as chat messages, oldest first, newest kept when it is long."""
-    chat = [
-        {"role": "system", "content": system_prompt(context_type, context_id, user)}
-    ]
-    for message in messages[-max_messages:]:
-        chat.append(
+    return [
+        {"role": "system", "content": system_prompt(context_type, context_id, user)},
+        *(
             {
                 "role": "assistant" if message["system"] else "user",
                 "content": message["text"],
             }
-        )
-    return chat
+            for message in messages[-max_messages:]
+        ),
+    ]
 
 
 def is_enabled(cfg):
-    """Whether the instance has an assistant configured."""
     return bool((cfg.get("app.assistant") or {}).get("base_url"))
 
 
 def post_to_assistant(cfg, message_id, timeout=2):
-    """Ask the assistant service to answer a message. Fire and forget."""
-    import requests
-
     url = f"http://{cfg['hosts.assistant']}:{cfg['ports.assistant']}"
     try:
         requests.post(url, json={"message_id": message_id}, timeout=timeout)
     except requests.exceptions.RequestException:
-        # The assistant is optional; a question going unanswered must not break
-        # the message that asked it.
         return False
     return True
 
 
 def condense(text, budget=6000):
-    """Fit a tool result into a context budget without handing back broken JSON.
-
-    A record's bulk usually sits in one or two fields (an event's healpix tiles
-    run to megabytes), so those are dropped whole and named, leaving the rest
-    readable.
-    """
+    """Fit a tool result into a context budget without handing back broken JSON."""
     if len(text) <= budget:
         return text
 

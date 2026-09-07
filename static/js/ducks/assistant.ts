@@ -1,9 +1,3 @@
-/**
- * The user's conversations with the assistant.
- *
- * Answers are written back out of band by the assistant service, which pushes
- * REFRESH_ASSISTANT to the asking user once it has one.
- */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -22,10 +16,8 @@ export interface AssistantQuestion {
   context_id?: string | undefined;
 }
 
-const messagesUrl = (channel: string | null) =>
-  channel
-    ? `api/assistant/messages?channel=${encodeURIComponent(channel)}`
-    : "api/assistant/messages";
+const conversationUrl = (channel: string) =>
+  `api/assistant/conversations?channel=${encodeURIComponent(channel)}`;
 
 export const assistantApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -34,7 +26,10 @@ export const assistantApi = skyportalApi.injectEndpoints({
       providesTags: ["Assistant"],
     }),
     getAssistantConversation: build.query<AssistantMessage[], string | null>({
-      query: (channel) => messagesUrl(channel),
+      query: (channel) =>
+        channel
+          ? `api/assistant/messages?channel=${encodeURIComponent(channel)}`
+          : "api/assistant/messages",
       providesTags: ["Assistant"],
     }),
     askAssistant: build.mutation<{ id: number }, AssistantQuestion>({
@@ -50,7 +45,7 @@ export const assistantApi = skyportalApi.injectEndpoints({
       { channel: string; name: string }
     >({
       query: ({ channel, name }) => ({
-        url: `api/assistant/conversations?channel=${encodeURIComponent(channel)}`,
+        url: conversationUrl(channel),
         method: "PATCH",
         body: { name },
       }),
@@ -58,7 +53,7 @@ export const assistantApi = skyportalApi.injectEndpoints({
     }),
     deleteAssistantConversation: build.mutation<unknown, string>({
       query: (channel) => ({
-        url: `api/assistant/conversations?channel=${encodeURIComponent(channel)}`,
+        url: conversationUrl(channel),
         method: "DELETE",
       }),
       invalidatesTags: ["Assistant"],

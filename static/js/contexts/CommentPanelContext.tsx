@@ -13,7 +13,6 @@ export type CommentTarget =
   | { type: "source"; id: string }
   | { type: "gcn_event"; id: number; dateobs: string };
 
-/** The two halves of the chat panel: a resource's comments, and the assistant. */
 export type ChatSpace = "comments" | "assistant";
 
 const INLINE_KEY = "sourceChatInline";
@@ -91,27 +90,12 @@ export const useCommentPanel = (): CommentPanelState => {
   return state;
 };
 
-/**
- * Tell the globally mounted panel what the page is about, so its comments and
- * the assistant both follow the user around. Pass null on pages with nothing to
- * comment on, or when the viewer may not comment.
- */
 export const useCommentTarget = (target: CommentTarget | null) => {
   const { setTarget } = useCommentPanel();
-  const type = target?.type ?? null;
-  const id = target?.id ?? null;
-  const dateobs = target && target.type === "gcn_event" ? target.dateobs : null;
+  const key = target && JSON.stringify(target);
 
   useEffect(() => {
-    if (type === null || id === null) {
-      setTarget(null);
-      return undefined;
-    }
-    setTarget(
-      type === "gcn_event"
-        ? { type, id: id as number, dateobs: dateobs as string }
-        : { type, id: id as string },
-    );
+    setTarget(key ? JSON.parse(key) : null);
     return () => setTarget(null);
-  }, [setTarget, type, id, dateobs]);
+  }, [setTarget, key]);
 };

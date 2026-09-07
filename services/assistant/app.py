@@ -1,9 +1,4 @@
-"""Answers the questions users ask the assistant.
-
-Woken by the app when a message is posted, it reads the conversation, works
-through SkyPortal's MCP endpoint with the asking user's own token, and writes
-the answer back into the same conversation.
-"""
+"""Woken by the app when a message is posted, answers it through the MCP endpoint."""
 
 import json
 import uuid
@@ -29,8 +24,16 @@ init_db(**cfg["database"])
 PROTOCOL_VERSION = "2026-07-28"
 META = "io.modelcontextprotocol/"
 
+CONFIG = cfg["app.assistant"] or {}
+BASE_URL = CONFIG.get("base_url")
+MODEL = CONFIG.get("model") or ""
+API_KEY = CONFIG.get("api_key") or ""
+MAX_TOOL_CALLS = int(CONFIG.get("max_tool_calls", 8))
+MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
+TIMEOUT = float(CONFIG.get("request_timeout", 300))
 
-def _headers(token, method, tool_name=None):
+
+def _rpc(token, method, params, timeout, tool_name=None):
     headers = {
         "Authorization": f"token {token}",
         "Content-Type": "application/json",
@@ -40,19 +43,21 @@ def _headers(token, method, tool_name=None):
     }
     if tool_name is not None:
         headers["Mcp-Name"] = tool_name
-    return headers
-
-
-def _rpc(token, method, params, timeout, tool_name=None):
-    body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": dict(params)}
-    body["params"]["_meta"] = {
-        f"{META}protocolVersion": PROTOCOL_VERSION,
-        f"{META}clientCapabilities": {},
-    }
     response = requests.post(
         f"{get_app_base_url()}/mcp",
-        headers=_headers(token, method, tool_name),
-        json=body,
+        headers=headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": method,
+            "params": {
+                **params,
+                "_meta": {
+                    f"{META}protocolVersion": PROTOCOL_VERSION,
+                    f"{META}clientCapabilities": {},
+                },
+            },
+        },
         timeout=timeout,
     )
     payload = response.json()
@@ -64,8 +69,6 @@ def _rpc(token, method, params, timeout, tool_name=None):
 
 
 def list_tools(token, timeout=60):
-    """Tool definitions in the shape an OpenAI-compatible chat API expects."""
-    tools = _rpc(token, "tools/list", {}, timeout)["tools"]
     return [
         {
             "type": "function",
@@ -75,12 +78,11 @@ def list_tools(token, timeout=60):
                 "parameters": tool.get("inputSchema", {"type": "object"}),
             },
         }
-        for tool in tools
+        for tool in _rpc(token, "tools/list", {}, timeout)["tools"]
     ]
 
 
 def call_tool(token, name, arguments, timeout=120):
-    """Run one tool and return its text content."""
     result = _rpc(
         token,
         "tools/call",
@@ -88,25 +90,14 @@ def call_tool(token, name, arguments, timeout=120):
         timeout,
         tool_name=name,
     )
-    parts = [
+    return "\n".join(
         block.get("text", "")
         for block in result.get("content", [])
         if block.get("type", "text") == "text"
-    ]
-    return "\n".join(parts)
-
-
-CONFIG = cfg["app.assistant"] or {}
-BASE_URL = CONFIG.get("base_url")
-MODEL = CONFIG.get("model") or ""
-API_KEY = CONFIG.get("api_key") or ""
-MAX_TOOL_CALLS = int(CONFIG.get("max_tool_calls", 8))
-MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
-TIMEOUT = float(CONFIG.get("request_timeout", 300))
+    )
 
 
 def chat(messages, tools):
-    """One completion from an OpenAI-compatible endpoint."""
     headers = {"Content-Type": "application/json"}
     if API_KEY:
         headers["Authorization"] = f"Bearer {API_KEY}"
@@ -121,7 +112,6 @@ def chat(messages, tools):
 
 
 def answer(conversation, context_type, context_id, user, token):
-    """Work the question through the tools and return the reply text."""
     tools = list_tools(token)
     messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
 
@@ -165,7 +155,6 @@ def read_only_token(session, user_id):
 
 
 def conversation_of(session, user_id, channel):
-    """The conversation so far, oldest first."""
     messages = (
         session.scalars(
             sa.select(AssistantMessage)
@@ -186,7 +175,6 @@ def conversation_of(session, user_id, channel):
 
 
 def respond(message_id):
-    """Answer one question and write the reply into the same conversation."""
     with DBSession() as session:
         message = session.scalar(
             sa.select(AssistantMessage).where(AssistantMessage.id == message_id)

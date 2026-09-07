@@ -5,6 +5,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PictureInPictureAltIcon from "@mui/icons-material/PictureInPictureAlt";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import VerticalSplitIcon from "@mui/icons-material/VerticalSplit";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Fab from "@mui/material/Fab";
 import IconButton from "@mui/material/IconButton";
@@ -15,7 +16,6 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { makeStyles } from "tss-react/mui";
 import { skipToken } from "@reduxjs/toolkit/query";
 import dayjs from "dayjs";
 
@@ -33,139 +33,23 @@ import {
   useGetConversationsQuery,
 } from "../../ducks/source";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import { DEFAULT_CHAT, INTERESTED_CHANNEL, MAIN_CHANNEL } from "./channels";
-
-const SEEDED_KEY = "assistantChatSeeded";
+import { INTERESTED_CHANNEL, MAIN_CHANNEL } from "./channels";
 
 const CommentThread = lazy(() => import("./CommentThread"));
 const AssistantThread = lazy(() => import("./AssistantThread"));
 
-const useStyles = makeStyles()((theme) => ({
-  fab: {
-    position: "fixed",
-    right: "1.5rem",
-    bottom: "1.5rem",
-    zIndex: theme.zIndex.drawer,
-  },
-  inlinePanel: {
-    display: "flex",
-    flexDirection: "column",
-    height: "60vh",
-    overflow: "hidden",
-  },
-  panel: {
-    position: "fixed",
-    right: "1.5rem",
-    bottom: "5.5rem",
-    zIndex: theme.zIndex.drawer,
-    display: "flex",
-    flexDirection: "column",
-    width: "26rem",
-    maxWidth: "calc(100vw - 3rem)",
-    height: "70vh",
-    maxHeight: "calc(100vh - 10rem)",
-    overflow: "hidden",
-    [theme.breakpoints.down("sm")]: {
-      inset: 0,
-      width: "100%",
-      maxWidth: "100%",
-      height: "100%",
-      maxHeight: "100%",
-      borderRadius: 0,
-    },
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    padding: theme.spacing(1, 1, 0, 2),
-  },
-  headerFlush: {
-    padding: theme.spacing(0, 1, 0, 0),
-  },
-  headerActions: {
-    marginLeft: "auto",
-    flexShrink: 0,
-  },
-  heading: {
-    lineHeight: "1em",
-    fontWeight: 900,
-  },
-  spaceTabs: {
-    minHeight: "auto",
-    "& .MuiTab-root": {
-      minHeight: "auto",
-      minWidth: "auto",
-      padding: theme.spacing(0.75, 1),
-      fontSize: "0.8rem",
-      textTransform: "none",
-    },
-  },
-  splitIcon: {
-    position: "relative",
-    width: "1.5rem",
-    height: "1.5rem",
-  },
-  splitBar: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    width: "141%",
-    height: "5%",
-    backgroundColor: "currentColor",
-    transform: "translate(-50%, -50%) rotate(-45deg)",
-  },
-  empty: {
-    display: "flex",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "0.75rem",
-    fontStyle: "italic",
-    color: theme.palette.text.secondary,
-  },
-  tabs: {
-    display: "flex",
-    alignItems: "center",
-    borderBottom: `1px solid ${theme.palette.divider}`,
-  },
-  tabLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.25rem",
-  },
-  tabName: {
-    maxWidth: "8rem",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  detach: {
-    marginLeft: "auto",
-    paddingRight: "0.25rem",
-  },
-  tabClose: {
-    "&:hover": { color: theme.palette.error.main },
-  },
-  body: {
-    flexGrow: 1,
-    minHeight: 0,
-  },
-  loader: {
-    display: "flex",
-    flexGrow: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-  },
-}));
+const centeredSx = {
+  display: "flex",
+  height: "100%",
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
 
 interface CommentPanelProps {
-  /** Set on the instance a page renders in its own layout. */
   inline?: boolean;
 }
 
 const CommentPanel = ({ inline = false }: CommentPanelProps) => {
-  const { classes, cx } = useStyles();
   const {
     target,
     inline: commentsInline,
@@ -190,21 +74,14 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(
     null,
   );
-  const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
 
-  const commentsOnThePage = commentsInline && target?.type === "source";
-  const spaces: ChatSpace[] = [
-    ...(target && (inline || !commentsOnThePage)
-      ? (["comments"] as const)
-      : []),
-    ...(!inline && assistantEnabled ? (["assistant"] as const) : []),
-  ];
-  const activeSpace: ChatSpace = spaces.includes(space)
-    ? space
-    : (spaces[0] ?? "assistant");
-  const isComments = activeSpace === "comments";
+  const showComments =
+    !!target && (inline || !commentsInline || target.type !== "source");
+  const showAssistant = !inline && assistantEnabled;
+  const isComments = showComments && (space === "comments" || !showAssistant);
+  const activeSpace: ChatSpace = isComments ? "comments" : "assistant";
   const visible = inline || open;
 
   const { data: openedChannels = [] } = useGetConversationsQuery(
@@ -246,12 +123,12 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
     assistantConversations.length === 0;
   useEffect(() => {
     if (!seeded) return;
-    const key = `${SEEDED_KEY}:${userId}`;
+    const key = `assistantChatSeeded:${userId}`;
     if (window.localStorage.getItem(key) === "true") return;
     window.localStorage.setItem(key, "true");
     setAdded((current) => ({
       ...current,
-      assistant: [...current.assistant, DEFAULT_CHAT],
+      assistant: [...current.assistant, "Chat 1"],
     }));
   }, [seeded, userId]);
 
@@ -271,10 +148,6 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
       setAssistantChannel(name);
     }
   };
-
-  const closable = (name: string) =>
-    !isComments || (name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL);
-  const canAddChannel = !isComments || target?.type === "source";
 
   const addConversation = () => {
     if (isComments) {
@@ -361,11 +234,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   const inlineToggle =
     isComments && target?.type === "source" ? (
       <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
-        <IconButton
-          size="small"
-          onClick={toggleInline}
-          data-testid="toggle-inline-chat"
-        >
+        <IconButton size="small" onClick={toggleInline}>
           {inline ? (
             <PictureInPictureAltIcon fontSize="small" />
           ) : (
@@ -381,26 +250,62 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
       ? target.id
       : dayjs(target.dateobs).format("YYMMDD HH:mm:ss");
 
-  if (spaces.length === 0) return null;
+  if (!showComments && !showAssistant) return null;
+
+  const bothSpaces = showComments && showAssistant;
 
   const panel = (
     <Paper
-      className={inline ? classes.inlinePanel : classes.panel}
       elevation={inline ? 1 : 8}
       data-testid={isComments ? "source-chat" : undefined}
+      sx={(theme) => ({
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        ...(inline
+          ? { height: "60vh" }
+          : {
+              position: "fixed",
+              right: "1.5rem",
+              bottom: "5.5rem",
+              zIndex: theme.zIndex.drawer,
+              width: "26rem",
+              maxWidth: "calc(100vw - 3rem)",
+              height: "70vh",
+              maxHeight: "calc(100vh - 10rem)",
+              [theme.breakpoints.down("sm")]: {
+                inset: 0,
+                width: "100%",
+                maxWidth: "100%",
+                height: "100%",
+                maxHeight: "100%",
+                borderRadius: 0,
+              },
+            }),
+      })}
     >
       {!inline && (
-        <div
-          className={cx(
-            classes.header,
-            spaces.length > 1 && classes.headerFlush,
-          )}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            padding: bothSpaces ? "0 0.5rem 0 0" : "0.5rem 0.5rem 0 1rem",
+          }}
         >
-          {spaces.length > 1 ? (
+          {bothSpaces ? (
             <Tabs
               value={activeSpace}
               onChange={(_, value) => setSpace(value)}
-              className={classes.spaceTabs}
+              sx={{
+                minHeight: "auto",
+                "& .MuiTab-root": {
+                  minHeight: "auto",
+                  minWidth: "auto",
+                  padding: "0.375rem 0.5rem",
+                  fontSize: "0.8rem",
+                  textTransform: "none",
+                },
+              }}
             >
               <Tab
                 value="comments"
@@ -417,20 +322,31 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             </Tabs>
           ) : (
             !isComments && (
-              <Typography variant="h6" className={classes.heading} noWrap>
+              <Typography
+                variant="h6"
+                noWrap
+                sx={{ lineHeight: "1em", fontWeight: 900 }}
+              >
                 Assistant
               </Typography>
             )
           )}
-          <div className={classes.headerActions}>
+          <Box sx={{ marginLeft: "auto", flexShrink: 0 }}>
             {inlineToggle}
             <IconButton size="small" onClick={() => setOpen(false)}>
               <CloseIcon fontSize="small" />
             </IconButton>
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
-      <div className={classes.tabs}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
         <Tabs
           value={activeChannel ?? false}
           onChange={(_, value) => selectChannel(value)}
@@ -442,13 +358,14 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               isComments && name === MAIN_CHANNEL && targetLabel
                 ? targetLabel
                 : name;
+            const closable =
+              !isComments ||
+              (name !== MAIN_CHANNEL && name !== INTERESTED_CHANNEL);
             return (
               <Tab
                 key={name}
                 value={name}
                 disableRipple={renaming?.from === name}
-                onMouseEnter={() => setHoveredChannel(name)}
-                onMouseLeave={() => setHoveredChannel(null)}
                 label={
                   renaming?.from === name ? (
                     <TextField
@@ -465,47 +382,56 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
                       onClick={(event) => event.stopPropagation()}
                     />
                   ) : (
-                    <span
-                      className={classes.tabLabel}
+                    <Box
+                      component="span"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                      }}
                       onDoubleClick={
                         isComments
                           ? undefined
                           : () => setRenaming({ from: name, to: name })
                       }
                     >
-                      <span className={classes.tabName} title={label}>
+                      <Box
+                        component="span"
+                        title={label}
+                        sx={{
+                          maxWidth: "8rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {label}
-                      </span>
-                      {closable(name) && (
+                      </Box>
+                      {closable && (
                         <CloseIcon
                           fontSize="inherit"
-                          className={classes.tabClose}
-                          style={{
-                            visibility:
-                              hoveredChannel === name ? "visible" : "hidden",
+                          sx={{
+                            visibility: "hidden",
+                            ".MuiTab-root:hover &": { visibility: "visible" },
+                            "&:hover": { color: "error.main" },
                           }}
                           onClick={(event) => {
                             event.stopPropagation();
                             removeChannel(name);
                           }}
-                          data-testid={`delete-channel-${name}`}
                         />
                       )}
-                    </span>
+                    </Box>
                   )
                 }
               />
             );
           })}
         </Tabs>
-        {canAddChannel &&
+        {(!isComments || target?.type === "source") &&
           (newChannel === null ? (
             <Tooltip title={isComments ? "New conversation" : "New chat"}>
-              <IconButton
-                size="small"
-                onClick={addConversation}
-                data-testid="new-channel-button"
-              >
+              <IconButton size="small" onClick={addConversation}>
                 <AddIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -521,14 +447,18 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               onBlur={createChannel}
             />
           ))}
-        {inline && <div className={classes.detach}>{inlineToggle}</div>}
-      </div>
-      <div className={classes.body}>
+        {inline && (
+          <Box sx={{ marginLeft: "auto", paddingRight: "0.25rem" }}>
+            {inlineToggle}
+          </Box>
+        )}
+      </Box>
+      <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         <Suspense
           fallback={
-            <div className={classes.loader}>
+            <Box sx={centeredSx}>
               <CircularProgress />
-            </div>
+            </Box>
           }
         >
           {!isComments ? (
@@ -539,9 +469,16 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
                 target={target}
               />
             ) : (
-              <div className={classes.empty}>
+              <Box
+                sx={{
+                  ...centeredSx,
+                  fontSize: "0.75rem",
+                  fontStyle: "italic",
+                  color: "text.secondary",
+                }}
+              >
                 No chat yet. Start one with the + above.
-              </div>
+              </Box>
             )
           ) : target?.type === "source" ? (
             <CommentThread
@@ -560,7 +497,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             )
           )}
         </Suspense>
-      </div>
+      </Box>
       <ConfirmDeletionDialog
         dialogOpen={channelToDelete !== null}
         closeDialog={() => setChannelToDelete(null)}
@@ -572,9 +509,6 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
 
   if (inline) return panel;
 
-  const bothSpaces = spaces.length > 1;
-  const assistantOnly = !bothSpaces && spaces[0] === "assistant";
-
   return (
     <>
       {!(downSm && open) && (
@@ -582,7 +516,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
           title={
             bothSpaces
               ? "Comments and assistant"
-              : assistantOnly
+              : showAssistant
                 ? "Assistant"
                 : "Comments"
           }
@@ -591,27 +525,52 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
           <Fab
             color="primary"
             size="medium"
-            className={classes.fab}
             onClick={() => setOpen(!open)}
             data-testid="source-chat-button"
+            sx={{
+              position: "fixed",
+              right: "1.5rem",
+              bottom: "1.5rem",
+              zIndex: "drawer",
+            }}
           >
             {open ? (
               <CloseIcon />
             ) : bothSpaces ? (
-              <span className={classes.splitIcon}>
+              <Box
+                component="span"
+                sx={{ position: "relative", width: "1.5rem", height: "1.5rem" }}
+              >
                 <ChatIcon
-                  sx={{ position: "absolute", top: -3, left: -3 }}
-                  style={{ clipPath: "polygon(0 0, 0 110%, 110% 0)" }}
+                  sx={{
+                    position: "absolute",
+                    top: -3,
+                    left: -3,
+                    clipPath: "polygon(0 0, 0 110%, 110% 0)",
+                  }}
                 />
                 <SmartToyIcon
-                  sx={{ position: "absolute", top: 3, left: 3 }}
-                  style={{
+                  sx={{
+                    position: "absolute",
+                    top: 3,
+                    left: 3,
                     clipPath: "polygon(100% 100%, -10% 100%, 100% -10%)",
                   }}
                 />
-                <span className={classes.splitBar} />
-              </span>
-            ) : assistantOnly ? (
+                <Box
+                  component="span"
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    width: "141%",
+                    height: "5%",
+                    backgroundColor: "currentColor",
+                    transform: "translate(-50%, -50%) rotate(-45deg)",
+                  }}
+                />
+              </Box>
+            ) : showAssistant ? (
               <SmartToyIcon />
             ) : (
               <ChatIcon />

@@ -517,10 +517,9 @@ app:
     X-ray Flash: XRFcandidate
 
   assistant:
-    # Conversational assistant users chat with from any page. It reaches the
-    # instance through SkyPortal's own MCP endpoint, so it gains a capability
-    # whenever a tool is added there, nothing here is per-pipeline.
-    # Leave base_url unset to disable the service and hide the panel.
+    # Conversational assistant users chat with from any page. It answers through
+    # an OpenAI-compatible endpoint, using SkyPortal's own MCP tools to look
+    # things up. Leave base_url unset to disable it and hide the panel.
     base_url: # e.g. https://babamul.umn.edu/llm/qwen3-27b/v1
     model: ""
     api_key: ""
