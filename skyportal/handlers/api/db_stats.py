@@ -311,20 +311,25 @@ class StatsHistoryHandler(BaseHandler):
                 )
             bin_start = bin_start.shift(**{f"{interval}s": 1})
 
-        counts = {}
+        queries = []
+        for table in tables:
+            created_at = HISTORY_MODELS[table].created_at
+            bucket = sa.func.date_trunc(interval, created_at).label("bucket")
+            queries.append(
+                sa.select(
+                    sa.cast(sa.literal(table), sa.Text).label("table"),
+                    bucket,
+                    sa.func.count(),
+                )
+                .where(created_at >= start.naive, created_at < end.naive)
+                .group_by(bucket)
+            )
+
+        bin_index = {b: i for i, b in enumerate(bins)}
+        counts = {table: [0] * len(bins) for table in tables}
         async with self.AsyncSession() as session:
-            for table in tables:
-                created_at = HISTORY_MODELS[table].created_at
-                bucket = sa.func.date_trunc(interval, created_at).label("bucket")
-                rows = (
-                    await session.execute(
-                        sa.select(bucket, sa.func.count())
-                        .where(created_at >= start.naive, created_at < end.naive)
-                        .group_by(bucket)
-                    )
-                ).all()
-                by_bucket = dict(rows)
-                counts[table] = [by_bucket.get(b, 0) for b in bins]
+            for table, bucket, count in await session.execute(sa.union_all(*queries)):
+                counts[table][bin_index[bucket]] = count
 
         return self.success(
             data={
