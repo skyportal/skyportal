@@ -55,7 +55,7 @@ app:
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
-  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # login. Non-safe methods are refused with a 403, whatever ACLs that account holds.
   # The account is auto-provisioned (in the public group) when this is enabled.
   anonymous_access: false
   anonymous_user: anonymous
