@@ -1002,11 +1002,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           variant="scrollable"
           {...({ xs: 12 } as any)}
           sx={{
-            display: {
-              maxWidth: "95vw",
-              width: "100&",
-              "& > button": { lineHeight: "1.5rem" },
-            },
+            maxWidth: "95vw",
+            width: "100%",
+            "& > button": { lineHeight: "1.5rem" },
           }}
         >
           {/* the first tab called skymap has to be hidden until we reach the sm breakpoint */}
