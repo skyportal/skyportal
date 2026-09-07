@@ -11,7 +11,7 @@ export interface AssistantMessage {
 
 export interface AssistantQuestion {
   text: string;
-  channel?: string | null | undefined;
+  channel: string;
   context_type?: string | undefined;
   context_id?: string | undefined;
 }
@@ -25,11 +25,9 @@ export const assistantApi = skyportalApi.injectEndpoints({
       query: () => "api/assistant/conversations",
       providesTags: ["Assistant"],
     }),
-    getAssistantConversation: build.query<AssistantMessage[], string | null>({
+    getAssistantConversation: build.query<AssistantMessage[], string>({
       query: (channel) =>
-        channel
-          ? `api/assistant/messages?channel=${encodeURIComponent(channel)}`
-          : "api/assistant/messages",
+        `api/assistant/messages?channel=${encodeURIComponent(channel)}`,
       providesTags: ["Assistant"],
     }),
     askAssistant: build.mutation<{ id: number }, AssistantQuestion>({

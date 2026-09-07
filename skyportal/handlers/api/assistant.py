@@ -50,7 +50,7 @@ class AssistantConversationPatchBody(BaseModel):
     name: str = Field(description="New name for the conversation")
 
 
-def _mine(user_id, channel=None):
+def _mine(user_id, channel):
     return [
         AssistantMessage.user_id == user_id,
         AssistantMessage.channel == channel

@@ -38,7 +38,7 @@ const asideSx = {
 } as const;
 
 interface AssistantThreadProps {
-  channel: string | null;
+  channel: string;
   target: CommentTarget | null;
 }
 

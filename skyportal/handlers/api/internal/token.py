@@ -197,18 +197,16 @@ class TokenHandler(BaseHandler):
                     )
 
                 if body.user_id is not None:
-                    user_id = body.user_id
                     user = await session.scalar(
                         User.select(session.user_or_token)
                         .options(
                             selectinload(User.acls),
                             selectinload(User.roles),
                         )
-                        .where(User.id == user_id)
+                        .where(User.id == body.user_id)
                     )
                 else:
                     user = self.associated_user_object
-                    user_id = user.id
 
                 if body.name is not None:
                     if body.name.startswith(SERVICE_TOKEN_PREFIX):
