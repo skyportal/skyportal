@@ -15,7 +15,7 @@ from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.assistant import build_messages, condense
+from skyportal.utils.assistant import SERVICE_TOKEN_PREFIX, build_messages, condense
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -68,7 +68,7 @@ def _rpc(token, method, params, timeout, tool_name=None):
     return payload["result"]
 
 
-def list_tools(token, timeout=60):
+def list_tools(token):
     return [
         {
             "type": "function",
@@ -78,16 +78,16 @@ def list_tools(token, timeout=60):
                 "parameters": tool.get("inputSchema", {"type": "object"}),
             },
         }
-        for tool in _rpc(token, "tools/list", {}, timeout)["tools"]
+        for tool in _rpc(token, "tools/list", {}, 60)["tools"]
     ]
 
 
-def call_tool(token, name, arguments, timeout=120):
+def call_tool(token, name, arguments):
     result = _rpc(
         token,
         "tools/call",
         {"name": name, "arguments": arguments},
-        timeout,
+        120,
         tool_name=name,
     )
     return "\n".join(
@@ -148,10 +148,24 @@ def answer(conversation, context_type, context_id, user, token):
 
 def read_only_token(session, user_id):
     """A token carrying the user's group access but no ACLs, so it cannot write."""
-    token = Token(created_by_id=user_id, name=f"assistant-{uuid.uuid4().hex[:8]}")
+    token = Token(
+        created_by_id=user_id, name=f"{SERVICE_TOKEN_PREFIX}{uuid.uuid4().hex}"
+    )
     session.add(token)
     session.commit()
     return token
+
+
+def clear_service_tokens():
+    """Drop the tokens a previous run left behind by dying mid-answer."""
+    session_context_id.set(uuid.uuid4().hex)
+    with DBSession() as session:
+        cleared = session.execute(
+            sa.delete(Token).where(Token.name.like(f"{SERVICE_TOKEN_PREFIX}%"))
+        ).rowcount
+        session.commit()
+    if cleared:
+        log(f"cleared {cleared} token(s) left by a previous run")
 
 
 def conversation_of(session, user_id, channel):
@@ -245,6 +259,7 @@ def make_app():
 if __name__ == "__main__":
     if not BASE_URL:
         log("app.assistant.base_url is not set; the service will refuse requests")
+    clear_service_tokens()
     port = int(cfg["ports.assistant"])
     make_app().listen(port)
     log(f"listening on port {port}")

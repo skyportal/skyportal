@@ -11,6 +11,9 @@ the question, say so plainly. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
 chat message, not a report."""
 
+# Reserved, so sweeping the service's own tokens cannot hit a user's.
+SERVICE_TOKEN_PREFIX = "assistant-service-"
+
 CONTEXT_DESCRIPTIONS = {
     "source": "source {id}",
     "gcn_event": "GCN event {id}",
@@ -69,11 +72,11 @@ def is_enabled(cfg):
     return bool((cfg.get("app.assistant") or {}).get("base_url"))
 
 
-def post_to_assistant(cfg, message_id, timeout=2):
+def post_to_assistant(cfg, message_id):
     url = f"http://{cfg['hosts.assistant']}:{cfg['ports.assistant']}"
     try:
         requests.post(
-            url, json={"message_id": message_id}, timeout=timeout
+            url, json={"message_id": message_id}, timeout=2
         ).raise_for_status()
     except requests.exceptions.RequestException:
         return False

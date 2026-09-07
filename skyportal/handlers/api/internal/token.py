@@ -5,6 +5,7 @@ from baselayer.app.access import auth_or_token
 
 from ....model_util import create_token
 from ....models import ACL, Token, User
+from ....utils.assistant import SERVICE_TOKEN_PREFIX
 from ...base import BaseHandler
 
 
@@ -51,6 +52,11 @@ class TokenHandler(BaseHandler):
         """
         body = self.parse_body(TokenPostBody)
 
+        if body.name.startswith(SERVICE_TOKEN_PREFIX):
+            return self.error(
+                f'A token name cannot start with "{SERVICE_TOKEN_PREFIX}"'
+            )
+
         async with self.AsyncSession() as session:
             if body.user_id is not None:
                 user_id = body.user_id
@@ -74,7 +80,8 @@ class TokenHandler(BaseHandler):
                 )
             existing_result = await session.scalars(
                 Token.select(session.user_or_token).where(
-                    Token.created_by_id == user_id
+                    Token.created_by_id == user_id,
+                    Token.name.notlike(f"{SERVICE_TOKEN_PREFIX}%"),
                 )
             )
             existing_tokens = existing_result.all()
@@ -204,6 +211,10 @@ class TokenHandler(BaseHandler):
                     user_id = user.id
 
                 if body.name is not None:
+                    if body.name.startswith(SERVICE_TOKEN_PREFIX):
+                        return self.error(
+                            f'A token name cannot start with "{SERVICE_TOKEN_PREFIX}"'
+                        )
                     token.name = body.name
 
                 if body.acls is not None:
