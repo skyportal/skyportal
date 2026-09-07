@@ -72,7 +72,9 @@ def is_enabled(cfg):
 def post_to_assistant(cfg, message_id, timeout=2):
     url = f"http://{cfg['hosts.assistant']}:{cfg['ports.assistant']}"
     try:
-        requests.post(url, json={"message_id": message_id}, timeout=timeout)
+        requests.post(
+            url, json={"message_id": message_id}, timeout=timeout
+        ).raise_for_status()
     except requests.exceptions.RequestException:
         return False
     return True

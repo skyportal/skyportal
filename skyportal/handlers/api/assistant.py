@@ -119,9 +119,14 @@ class AssistantMessageHandler(BaseHandler):
             await session.commit()
 
             message_id = message.id
-            IOLoop.current().run_in_executor(
+            posted = await IOLoop.current().run_in_executor(
                 None, lambda: post_to_assistant(cfg, message_id)
             )
+            if not posted:
+                # Nothing else will ever answer it, so do not leave it waiting.
+                await session.delete(message)
+                await session.commit()
+                return self.error("The assistant is not responding right now.")
             return self.success(data={"id": message_id})
 
 

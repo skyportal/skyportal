@@ -11,7 +11,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import init_db
+from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
@@ -175,6 +175,8 @@ def conversation_of(session, user_id, channel):
 
 
 def respond(message_id):
+    session_context_id.set(uuid.uuid4().hex)
+
     with DBSession() as session:
         message = session.scalar(
             sa.select(AssistantMessage).where(AssistantMessage.id == message_id)
@@ -194,15 +196,15 @@ def respond(message_id):
         }
         token_id = read_only_token(session, user_id).id
 
-        try:
-            text = answer(conversation, context_type, context_id, profile, token_id)
-        except Exception as exc:
-            log(f"assistant failed on message {message_id}: {exc}")
-            text = "Something went wrong while looking that up."
-        finally:
-            session.execute(sa.delete(Token).where(Token.id == token_id))
-            session.commit()
+    # Answering takes minutes, so no connection is held while it runs.
+    try:
+        text = answer(conversation, context_type, context_id, profile, token_id)
+    except Exception as exc:
+        log(f"assistant failed on message {message_id}: {exc}")
+        text = "Something went wrong while looking that up."
 
+    with DBSession() as session:
+        session.execute(sa.delete(Token).where(Token.id == token_id))
         session.add(
             AssistantMessage(
                 user_id=user_id,
@@ -212,8 +214,9 @@ def respond(message_id):
             )
         )
         session.commit()
-        Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
-        log(f"answered message {message_id} for user {user_id}")
+
+    Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
+    log(f"answered message {message_id} for user {user_id}")
 
 
 class AssistantHandler(tornado.web.RequestHandler):
