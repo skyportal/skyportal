@@ -3,6 +3,7 @@
 import json
 
 from skyportal.utils.assistant import (
+    answer_text,
     build_messages,
     condense,
     describe_context,
@@ -18,9 +19,14 @@ def _message(text, system=False):
 
 def test_conversation_becomes_alternating_roles():
     messages = build_messages(
-        [_message("what is this?"), _message("An X-ray Flash.", system=True)], 40
+        [
+            _message("what is this?"),
+            _message("An X-ray Flash.", system=True),
+            _message("how bright?"),
+        ],
+        40,
     )
-    assert [m["role"] for m in messages] == ["system", "user", "assistant"]
+    assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
     assert messages[1]["content"] == "what is this?"
 
 
@@ -93,3 +99,49 @@ def test_non_json_is_truncated_with_its_length():
     result = condense("z" * 9000, budget=100)
     assert result.startswith("z" * 100)
     assert "9000 characters in total" in result
+
+
+def test_the_answer_is_the_content_a_model_returns():
+    assert answer_text({"content": "r = 22.73 at T+12.6 h"}) == "r = 22.73 at T+12.6 h"
+    assert answer_text({"content": "  spaced  "}) == "spaced"
+
+
+def test_a_reasoning_model_answers_from_reasoning_content():
+    """Some models leave `content` empty and put their text elsewhere."""
+    assert (
+        answer_text({"content": "", "reasoning_content": "the burst faded"})
+        == "the burst faded"
+    )
+    assert answer_text({"reasoning_content": "the burst faded"}) == "the burst faded"
+
+
+def test_content_wins_when_a_model_returns_both():
+    assert answer_text({"content": "final", "reasoning_content": "thinking"}) == "final"
+
+
+def test_an_empty_reply_is_empty():
+    assert answer_text({}) == ""
+    assert answer_text({"content": None, "reasoning_content": None}) == ""
+
+
+def test_the_last_turn_sent_is_a_question():
+    """An OpenAI-compatible server refuses a list ending in assistant turns, so a
+    previous failure's apology must not be the last thing the model sees."""
+    conversation = [
+        {"text": "what is this source?", "system": False},
+        {"text": "Something went wrong while looking that up.", "system": True},
+        {"text": "Something went wrong while looking that up.", "system": True},
+    ]
+    messages = build_messages(conversation, 40)
+    assert messages[-1]["role"] == "user"
+    assert messages[-1]["content"] == "what is this source?"
+
+
+def test_an_answered_exchange_still_ends_on_the_new_question():
+    conversation = [
+        {"text": "first question", "system": False},
+        {"text": "first answer", "system": True},
+        {"text": "second question", "system": False},
+    ]
+    messages = build_messages(conversation, 40)
+    assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]

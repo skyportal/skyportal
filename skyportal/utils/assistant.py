@@ -56,15 +56,20 @@ def system_prompt(context_type=None, context_id=None, user=None):
 def build_messages(
     messages, max_messages, context_type=None, context_id=None, user=None
 ):
+    turns = [
+        {
+            "role": "assistant" if message["system"] else "user",
+            "content": message["text"],
+        }
+        for message in messages[-max_messages:]
+    ]
+    # A model answers a question, so the last turn has to be one. Trailing
+    # assistant turns are refused outright by an OpenAI-compatible server.
+    while turns and turns[-1]["role"] == "assistant":
+        turns.pop()
     return [
         {"role": "system", "content": system_prompt(context_type, context_id, user)},
-        *(
-            {
-                "role": "assistant" if message["system"] else "user",
-                "content": message["text"],
-            }
-            for message in messages[-max_messages:]
-        ),
+        *turns,
     ]
 
 
@@ -81,6 +86,18 @@ def post_to_assistant(cfg, message_id):
     except requests.exceptions.RequestException:
         return False
     return True
+
+
+def answer_text(message):
+    """The answer in a model's reply.
+
+    A reasoning model can leave `content` empty and put its text in
+    `reasoning_content`; returning that beats returning nothing.
+    """
+    for key in ("content", "reasoning_content"):
+        if text := (message.get(key) or "").strip():
+            return text
+    return ""
 
 
 def condense(text, budget=6000):

@@ -15,7 +15,12 @@ from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.assistant import SERVICE_TOKEN_PREFIX, build_messages, condense
+from skyportal.utils.assistant import (
+    SERVICE_TOKEN_PREFIX,
+    answer_text,
+    build_messages,
+    condense,
+)
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -119,7 +124,7 @@ def answer(conversation, context_type, context_id, user, token):
         message = chat(messages, tools)
         calls = message.get("tool_calls") or []
         if not calls:
-            return (message.get("content") or "").strip()
+            return answer_text(message)
         messages.append(message)
         for call in calls:
             name = call["function"]["name"]
@@ -143,7 +148,7 @@ def answer(conversation, context_type, context_id, user, token):
             "content": "Answer now from what you have, and say what is still unknown.",
         }
     )
-    return (chat(messages, tools).get("content") or "").strip()
+    return answer_text(chat(messages, tools))
 
 
 def read_only_token(session, user_id):
@@ -174,20 +179,41 @@ def clear_service_tokens():
         log(f"cleared {cleared} token(s) left by a previous run")
 
 
-def conversation_of(session, user_id, channel):
-    messages = (
-        session.scalars(
-            sa.select(AssistantMessage)
+def already_answered(session, message):
+    """Whether a reply to this message has already been written."""
+    return (
+        session.scalar(
+            sa.select(AssistantMessage.id)
             .where(
-                AssistantMessage.user_id == user_id,
-                AssistantMessage.channel == channel
-                if channel
+                AssistantMessage.user_id == message.user_id,
+                AssistantMessage.channel == message.channel
+                if message.channel
                 else AssistantMessage.channel.is_(None),
+                AssistantMessage.system.is_(True),
+                AssistantMessage.id > message.id,
             )
-            .order_by(AssistantMessage.created_at)
+            .limit(1)
         )
-        .unique()
-        .all()
+        is not None
+    )
+
+
+def conversation_of(session, user_id, channel, up_to_id=None):
+    """The conversation as it stood when `up_to_id` was asked.
+
+    Anything written afterwards, including an earlier failure's apology, is not
+    context for this answer.
+    """
+    query = sa.select(AssistantMessage).where(
+        AssistantMessage.user_id == user_id,
+        AssistantMessage.channel == channel
+        if channel
+        else AssistantMessage.channel.is_(None),
+    )
+    if up_to_id is not None:
+        query = query.where(AssistantMessage.id <= up_to_id)
+    messages = (
+        session.scalars(query.order_by(AssistantMessage.created_at)).unique().all()
     )
     return [
         {"text": message.text, "system": bool(message.system)} for message in messages
@@ -207,7 +233,12 @@ def respond(message_id):
             user_id = message.user_id
             channel = message.channel
             context_type, context_id = message.context_type, message.context_id
-            conversation = conversation_of(session, user_id, channel)
+            if already_answered(session, message):
+                log(f"message {message_id} already has an answer; not answering twice")
+                return
+            conversation = conversation_of(
+                session, user_id, channel, up_to_id=message.id
+            )
             user = session.scalar(sa.select(User).where(User.id == user_id))
             profile = {
                 "username": user.username,
