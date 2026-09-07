@@ -89,6 +89,9 @@ const DBStatsHistory = () => {
           x: data.bins,
           y,
           type: cumulative ? "scatter" : "bar",
+          marker: {
+            opacity: counts.map((_, i) => (i === counts.length - 1 ? 0.4 : 1)),
+          },
           name: `${labelFor(table)} (${total.toLocaleString()})`,
           hovertemplate: `%{y:,} ${labelFor(table)}<extra></extra>`,
         };
@@ -198,6 +201,10 @@ const DBStatsHistory = () => {
           useResizeHandler
         />
       )}
+      <Typography variant="caption" color="text.secondary">
+        Times are UTC. The last interval is still in progress, so its count is
+        incomplete.
+      </Typography>
     </Box>
   );
 };
