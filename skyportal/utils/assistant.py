@@ -100,6 +100,9 @@ def condense(text, budget=6000):
             if len(json.dumps(kept)) > budget:
                 kept.pop()
                 break
+        if not kept:
+            note = f"first of {len(payload)} shown, trimmed"
+            return condense(json.dumps(payload[0], default=str), budget) + f"\n{note}"
         note = f"{len(payload) - len(kept)} more of {len(payload)} not shown"
         return json.dumps({"items": kept, "note": note})
 
@@ -109,10 +112,10 @@ def condense(text, budget=6000):
     dropped = []
     by_size = sorted(payload, key=lambda k: -len(json.dumps(payload[k], default=str)))
     for key in by_size:
-        if len(json.dumps(payload, default=str)) <= budget:
-            break
+        current = json.dumps(payload, default=str)
+        if len(current) <= budget:
+            return current
         payload.pop(key)
         dropped.append(key)
-    if dropped:
         payload["_dropped"] = f"fields too large to show: {', '.join(dropped)}"
-    return json.dumps(payload, default=str)[:budget]
+    return json.dumps(payload, default=str)
