@@ -58,6 +58,8 @@ def _rpc(token, method, params, timeout, tool_name=None):
     payload = response.json()
     if "error" in payload:
         raise RuntimeError(payload["error"].get("message", "MCP call failed"))
+    if "result" not in payload:
+        raise RuntimeError(payload.get("message") or "MCP call failed")
     return payload["result"]
 
 

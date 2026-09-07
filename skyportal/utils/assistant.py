@@ -48,7 +48,7 @@ def system_prompt(context_type=None, context_id=None, user=None):
     lines = [SYSTEM_PROMPT]
     person = describe_user(user)
     if person:
-        lines.append(f"The person asking is {person}. Address them by name.")
+        lines.append(f"The person asking is {person}, from their SkyPortal profile. ")
     context = describe_context(context_type, context_id)
     if context:
         lines.append(f"They are looking at {context}.")
