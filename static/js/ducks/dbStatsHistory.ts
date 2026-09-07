@@ -1,9 +1,3 @@
-/**
- * Row counts per time interval for the DB Stats history plot.
- *
- * Wraps `GET /api/db_stats/history`, which buckets `created_at` for a
- * selection of tables and returns one zero-filled count array per table.
- */
 import { skyportalApi } from "../api/skyportalApi";
 
 export type DBStatsInterval = "hour" | "day" | "week" | "month";
@@ -17,7 +11,7 @@ export interface DBStatsHistory {
   counts: Record<string, number[]>;
 }
 
-export interface DBStatsHistoryArgs {
+interface DBStatsHistoryArgs {
   tables: string;
   interval: DBStatsInterval;
   startDate: string;

@@ -35,7 +35,6 @@ const RANGES = [
   { key: "1y", label: "1 year", ms: 365 * DAY_MS },
 ];
 
-// Widths are approximate: they only gate which range/interval pairs are offered.
 const INTERVALS: { key: DBStatsInterval; label: string; ms: number }[] = [
   { key: "hour", label: "Hourly", ms: HOUR_MS },
   { key: "day", label: "Daily", ms: DAY_MS },
@@ -47,14 +46,15 @@ const MIN_BINS = 3;
 const MAX_BINS = 2000;
 
 const allowedIntervals = (rangeMs: number) =>
-  INTERVALS.filter(({ ms }) => rangeMs / ms >= MIN_BINS && rangeMs / ms <= MAX_BINS);
+  INTERVALS.filter(
+    ({ ms }) => rangeMs / ms >= MIN_BINS && rangeMs / ms <= MAX_BINS,
+  );
 
 const labelFor = (table: string) => table.replace(/_/g, " ");
 
 const DBStatsHistory = () => {
   const theme = useTheme();
-  // Captured once so the query args (and therefore the RTK Query cache key)
-  // stay stable across renders.
+  // A fresh Date.now() per render would change the query key and refetch forever.
   const [now] = useState(() => Date.now());
   const [range, setRange] = useState(RANGES[2]!);
   const [intervalKey, setIntervalKey] = useState<DBStatsInterval>("day");
@@ -62,27 +62,14 @@ const DBStatsHistory = () => {
   const [cumulative, setCumulative] = useState(false);
 
   const intervals = allowedIntervals(range.ms);
-  const interval = intervals.some((i) => i.key === intervalKey)
-    ? intervalKey
-    : intervals[0]!.key;
-
-  const startDate = new Date(now - range.ms).toISOString();
+  const interval =
+    intervals.find((i) => i.key === intervalKey)?.key ?? intervals[0]!.key;
 
   const { data, isFetching, isError } = useGetDbStatsHistoryQuery({
     tables: tables.join(","),
     interval,
-    startDate,
+    startDate: new Date(now - range.ms).toISOString(),
   });
-
-  const onRangeChange = (key: string | null) => {
-    const next = RANGES.find((r) => r.key === key);
-    if (!next) return;
-    setRange(next);
-    const nextIntervals = allowedIntervals(next.ms);
-    if (!nextIntervals.some((i) => i.key === intervalKey)) {
-      setIntervalKey(nextIntervals[0]!.key);
-    }
-  };
 
   const traces = useMemo(() => {
     if (!data) return [];
@@ -111,22 +98,18 @@ const DBStatsHistory = () => {
   const axisTheme = plotAxisTheme(theme);
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Typography variant="h6">Rows added per interval</Typography>
       <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 2,
-          my: 1,
-        }}
+        sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2 }}
       >
         <ToggleButtonGroup
           size="small"
           exclusive
           value={range.key}
-          onChange={(_e, value) => onRangeChange(value)}
+          onChange={(_e, value) =>
+            setRange(RANGES.find((r) => r.key === value) ?? range)
+          }
         >
           {RANGES.map((r) => (
             <ToggleButton key={r.key} value={r.key}>
@@ -144,7 +127,7 @@ const DBStatsHistory = () => {
             <ToggleButton
               key={i.key}
               value={i.key}
-              disabled={!intervals.some((allowed) => allowed.key === i.key)}
+              disabled={!intervals.includes(i)}
             >
               {i.label}
             </ToggleButton>

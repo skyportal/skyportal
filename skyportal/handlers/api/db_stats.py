@@ -25,9 +25,7 @@ from ...models import (
 )
 from ..base import BaseHandler
 
-# Tables the history plot can chart. Restricted to models with an indexed
-# created_at: photometry and thumbnails opt out of that index, so bucketing
-# them would force a sequential scan.
+# Only models with an indexed created_at: bucketing photometry would sequential-scan it.
 HISTORY_MODELS = {
     "candidates": Candidate,
     "sources": Source,
@@ -274,9 +272,9 @@ class StatsHistoryHandler(BaseHandler):
             )
 
         tables = [
-            table.strip()
+            name
             for table in self.get_query_argument("tables", "candidates").split(",")
-            if table.strip()
+            if (name := table.strip())
         ]
         if not tables:
             return self.error("At least one table must be requested")
@@ -298,12 +296,11 @@ class StatsHistoryHandler(BaseHandler):
         if start >= end:
             return self.error("startDate must be before endDate")
 
-        # Postgres date_trunc snaps to the start of the bucket, so the first bin
-        # covers the whole interval containing startDate.
+        # Bins align with date_trunc buckets, so the first can precede start.
         bins = []
         bin_start = start.floor(interval)
         while bin_start < end:
-            bins.append(bin_start)
+            bins.append(bin_start.naive)
             if len(bins) > MAX_HISTORY_BINS:
                 return self.error(
                     f"Requested range spans more than {MAX_HISTORY_BINS} "
@@ -311,7 +308,6 @@ class StatsHistoryHandler(BaseHandler):
                 )
             bin_start = bin_start.shift(**{f"{interval}s": 1})
 
-        index = {b.naive: i for i, b in enumerate(bins)}
         counts = {}
         async with self.AsyncSession() as session:
             for table in tables:
@@ -324,17 +320,15 @@ class StatsHistoryHandler(BaseHandler):
                         .group_by(bucket)
                     )
                 ).all()
-                counts[table] = [0] * len(bins)
-                for bucket_start, count in rows:
-                    if (i := index.get(bucket_start)) is not None:
-                        counts[table][i] = count
+                by_bucket = dict(rows)
+                counts[table] = [by_bucket.get(b, 0) for b in bins]
 
         return self.success(
             data={
                 "interval": interval,
                 "startDate": start.naive.isoformat(),
                 "endDate": end.naive.isoformat(),
-                "bins": [b.naive.isoformat() for b in bins],
+                "bins": [b.isoformat() for b in bins],
                 "tables": list(HISTORY_MODELS),
                 "counts": counts,
             }
