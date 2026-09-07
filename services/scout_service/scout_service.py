@@ -86,24 +86,27 @@ def handle_message(payload):
         return
 
     session_context_id.set(uuid.uuid4().hex)
-    with DBSession() as session:
-        try:
-            result = ingest_scout_event(
-                session,
-                event,
-                group_ids,
-                bot_user_id,
-                allow_relaxed=allow_relaxed,
-            )
-            session.commit()
-            log(f"{result['obj_id']}: {result['action']}")
-        except ScoutIngestError as e:
-            session.rollback()
-            log(f"Rejected scout message: {e}")
-        except Exception as e:
-            session.rollback()
-            log(f"Error ingesting scout message: {e}")
-            traceback.print_exc()
+    try:
+        with DBSession() as session:
+            try:
+                result = ingest_scout_event(
+                    session,
+                    event,
+                    group_ids,
+                    bot_user_id,
+                    allow_relaxed=allow_relaxed,
+                )
+                session.commit()
+                log(f"{result['obj_id']}: {result['action']}")
+            except ScoutIngestError as e:
+                session.rollback()
+                log(f"Rejected scout message: {e}")
+            except Exception as e:
+                session.rollback()
+                log(f"Error ingesting scout message: {e}")
+                traceback.print_exc()
+    finally:
+        DBSession.remove()
 
 
 @check_loaded(logger=log)
