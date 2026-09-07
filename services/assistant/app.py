@@ -225,15 +225,25 @@ def respond(message_id):
 
         with DBSession() as session:
             session.execute(sa.delete(Token).where(Token.id == token_id))
-            session.add(
-                AssistantMessage(
-                    user_id=user_id,
-                    channel=channel,
-                    text=text or "I could not find an answer to that.",
-                    system=True,
+            asked = session.execute(
+                sa.select(AssistantMessage.channel).where(
+                    AssistantMessage.id == message_id
                 )
-            )
+            ).one_or_none()
+            if asked is not None:
+                session.add(
+                    AssistantMessage(
+                        user_id=user_id,
+                        channel=asked[0],
+                        text=text or "I could not find an answer to that.",
+                        system=True,
+                    )
+                )
             session.commit()
+
+        if asked is None:
+            log(f"message {message_id} is gone; dropping the answer")
+            return
 
         Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
         log(f"answered message {message_id} for user {user_id}")
