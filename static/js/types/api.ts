@@ -19790,7 +19790,7 @@ export interface paths {
         delete: {
             parameters: {
                 query?: {
-                    /** @description Conversation name. */
+                    /** @description Conversation name. The one with no name when omitted. */
                     channel?: string | null;
                 };
                 header?: never;
@@ -19818,7 +19818,7 @@ export interface paths {
         patch: {
             parameters: {
                 query?: {
-                    /** @description Conversation name. */
+                    /** @description Conversation name. The one with no name when omitted. */
                     channel?: string | null;
                 };
                 header?: never;
@@ -19857,7 +19857,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Conversation to read. Defaults to the one with no name. */
+                    /** @description Conversation name. The one with no name when omitted. */
                     channel?: string | null;
                 };
                 header?: never;
