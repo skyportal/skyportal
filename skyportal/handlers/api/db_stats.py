@@ -1,3 +1,4 @@
+import arrow
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
@@ -5,9 +6,11 @@ from baselayer.app.access import permissions
 from ...models import (
     Annotation,
     Candidate,
+    Classification,
     Comment,
     CronJobRun,
     Filter,
+    FollowupRequest,
     GcnEvent,
     Group,
     Instrument,
@@ -21,6 +24,27 @@ from ...models import (
     User,
 )
 from ..base import BaseHandler
+
+# Tables the history plot can chart. Restricted to models with an indexed
+# created_at: photometry and thumbnails opt out of that index, so bucketing
+# them would force a sequential scan.
+HISTORY_MODELS = {
+    "candidates": Candidate,
+    "sources": Source,
+    "objs": Obj,
+    "spectra": Spectrum,
+    "classifications": Classification,
+    "comments": Comment,
+    "annotations": Annotation,
+    "followup_requests": FollowupRequest,
+    "gcn_events": GcnEvent,
+    "source_views": SourceView,
+    "users": User,
+}
+
+HISTORY_INTERVALS = ("hour", "day", "week", "month")
+
+MAX_HISTORY_BINS = 2000
 
 
 class StatsHandler(BaseHandler):
@@ -158,3 +182,160 @@ class StatsHandler(BaseHandler):
                     }
                 )
             return self.success(data=data)
+
+
+class StatsHistoryHandler(BaseHandler):
+    @permissions(["System admin"])
+    async def get(self):
+        """
+        ---
+        summary: Get DB row counts per time interval
+        description: |
+          Number of rows added per time interval (bucketed on created_at) for a
+          selection of tables, for plotting ingest rates on the DB Stats page.
+          Buckets with no rows are returned with a count of zero.
+        tags:
+          - system info
+        parameters:
+          - in: query
+            name: tables
+            schema:
+              type: string
+            description: |
+              Comma-separated list of tables to count. Defaults to `candidates`.
+              Allowed values are returned in the `tables` field of the response.
+          - in: query
+            name: interval
+            schema:
+              type: string
+              enum: [hour, day, week, month]
+            description: Bucket width. Defaults to `day`.
+          - in: query
+            name: startDate
+            schema:
+              type: string
+            description: |
+              Arrow-parseable UTC datetime; only rows created at or after this
+              time are counted. Defaults to 30 days ago.
+          - in: query
+            name: endDate
+            schema:
+              type: string
+            description: |
+              Arrow-parseable UTC datetime; only rows created before this time
+              are counted. Defaults to now.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            interval:
+                              type: string
+                            startDate:
+                              type: string
+                            endDate:
+                              type: string
+                            bins:
+                              type: array
+                              description: |
+                                Start of each bucket, as a UTC datetime without
+                                an offset (as are `startDate` and `endDate`).
+                              items:
+                                type: string
+                            tables:
+                              type: array
+                              description: Every table this endpoint can count.
+                              items:
+                                type: string
+                            counts:
+                              type: object
+                              description: |
+                                Per requested table, one count per entry of `bins`.
+                              additionalProperties:
+                                type: array
+                                items:
+                                  type: integer
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        interval = self.get_query_argument("interval", "day")
+        if interval not in HISTORY_INTERVALS:
+            return self.error(
+                f"Invalid interval, must be one of {', '.join(HISTORY_INTERVALS)}"
+            )
+
+        tables = [
+            table.strip()
+            for table in self.get_query_argument("tables", "candidates").split(",")
+            if table.strip()
+        ]
+        if not tables:
+            return self.error("At least one table must be requested")
+        if unknown := [table for table in tables if table not in HISTORY_MODELS]:
+            return self.error(
+                f"Unknown table(s) {', '.join(unknown)}, must be one of "
+                f"{', '.join(HISTORY_MODELS)}"
+            )
+
+        try:
+            end = arrow.get(
+                self.get_query_argument("endDate", None) or arrow.utcnow()
+            ).to("utc")
+            start = arrow.get(
+                self.get_query_argument("startDate", None) or end.shift(days=-30)
+            ).to("utc")
+        except (arrow.parser.ParserError, ValueError) as e:
+            return self.error(f"Invalid date: {e}")
+        if start >= end:
+            return self.error("startDate must be before endDate")
+
+        # Postgres date_trunc snaps to the start of the bucket, so the first bin
+        # covers the whole interval containing startDate.
+        bins = []
+        bin_start = start.floor(interval)
+        while bin_start < end:
+            bins.append(bin_start)
+            if len(bins) > MAX_HISTORY_BINS:
+                return self.error(
+                    f"Requested range spans more than {MAX_HISTORY_BINS} "
+                    f"{interval} bins; narrow it or use a wider interval"
+                )
+            bin_start = bin_start.shift(**{f"{interval}s": 1})
+
+        index = {b.naive: i for i, b in enumerate(bins)}
+        counts = {}
+        async with self.AsyncSession() as session:
+            for table in tables:
+                created_at = HISTORY_MODELS[table].created_at
+                bucket = sa.func.date_trunc(interval, created_at).label("bucket")
+                rows = (
+                    await session.execute(
+                        sa.select(bucket, sa.func.count())
+                        .where(created_at >= start.naive, created_at < end.naive)
+                        .group_by(bucket)
+                    )
+                ).all()
+                counts[table] = [0] * len(bins)
+                for bucket_start, count in rows:
+                    if (i := index.get(bucket_start)) is not None:
+                        counts[table][i] = count
+
+        return self.success(
+            data={
+                "interval": interval,
+                "startDate": start.naive.isoformat(),
+                "endDate": end.naive.isoformat(),
+                "bins": [b.naive.isoformat() for b in bins],
+                "tables": list(HISTORY_MODELS),
+                "counts": counts,
+            }
+        )

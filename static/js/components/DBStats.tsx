@@ -13,6 +13,8 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Button from "./Button";
 
+import DBStatsHistory from "./DBStatsHistory";
+
 import { useGetDbStatsQuery } from "../ducks/dbStats";
 
 const DBStats = () => {
@@ -27,23 +29,16 @@ const DBStats = () => {
 
   const dialogOpen = Boolean(clickedCronjobOutput);
 
-  if (dbStats == null) {
-    return (
-      <>
-        <br />
-        <CircularProgress />
-      </>
-    );
-  }
-
   return (
     <>
       <br />
       <Typography variant="h5">DB Stats</Typography>
+      <DBStatsHistory />
       <br />
+      {dbStats == null && <CircularProgress />}
       <Table>
         <TableBody>
-          {Object.keys(dbStats).map((key) => (
+          {Object.keys(dbStats ?? {}).map((key) => (
             <TableRow key={key}>
               <TableCell>
                 <em>{key}</em>
