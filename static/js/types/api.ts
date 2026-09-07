@@ -19647,6 +19647,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/db_stats/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get DB row counts per time interval
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Number of rows added per time interval (bucketed on created_at) for a
+         *     selection of tables, for plotting ingest rates on the DB Stats page.
+         *     Buckets with no rows are returned with a count of zero.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /**
+                     * @description Comma-separated list of tables to count. Defaults to `candidates`.
+                     *     Allowed values are returned in the `tables` field of the response.
+                     */
+                    tables?: string;
+                    /** @description Bucket width. Defaults to `day`. */
+                    interval?: "hour" | "day" | "week" | "month";
+                    /**
+                     * @description Arrow-parseable UTC datetime; only rows created at or after this
+                     *     time are counted. Defaults to 30 days ago.
+                     */
+                    startDate?: string;
+                    /**
+                     * @description Arrow-parseable UTC datetime; only rows created before this time
+                     *     are counted. Defaults to now.
+                     */
+                    endDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                interval?: string;
+                                startDate?: string;
+                                endDate?: string;
+                                /**
+                                 * @description Start of each bucket, as a UTC datetime without
+                                 *     an offset (as are `startDate` and `endDate`).
+                                 */
+                                bins?: string[];
+                                /** @description Every table this endpoint can count. */
+                                tables?: string[];
+                                /** @description Per requested table, one count per entry of `bins`. */
+                                counts?: {
+                                    [key: string]: number[];
+                                };
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sysinfo": {
         parameters: {
             query?: never;
