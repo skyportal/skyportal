@@ -23,6 +23,36 @@ CONTEXT_DESCRIPTIONS = {
 }
 
 
+# Every subject a tool name can carry. A tool matching none of them is general,
+# so it stays on offer whatever page the question came from.
+SUBJECTS = ("source", "photometry", "spectr", "light_curve", "gcn", "filter")
+
+# The subjects each page's questions are about. A page not named here is offered
+# every tool.
+CONTEXT_SUBJECTS = {
+    "source": ("source", "photometry", "spectr", "light_curve"),
+    "spectrum": ("spectr", "source", "photometry"),
+    "gcn_event": ("gcn",),
+}
+
+
+def select_tools(tools, context_type):
+    """The tools worth offering a question asked from this page.
+
+    Every round-trip re-sends the whole list, so a tool the page's subject will
+    never need is paid for on each one.
+    """
+    subjects = CONTEXT_SUBJECTS.get(context_type)
+    if not subjects:
+        return tools
+    return [
+        tool
+        for tool in tools
+        if any(subject in tool["name"] for subject in subjects)
+        or not any(subject in tool["name"] for subject in SUBJECTS)
+    ]
+
+
 def describe_context(context_type, context_id):
     if not context_type or context_id in (None, ""):
         return None
@@ -86,18 +116,6 @@ def post_to_assistant(cfg, message_id):
     except requests.exceptions.RequestException:
         return False
     return True
-
-
-def answer_text(message):
-    """The answer in a model's reply.
-
-    A reasoning model can leave `content` empty and put its text in
-    `reasoning_content`; returning that beats returning nothing.
-    """
-    for key in ("content", "reasoning_content"):
-        if text := (message.get(key) or "").strip():
-            return text
-    return ""
 
 
 def condense(text, budget=6000):

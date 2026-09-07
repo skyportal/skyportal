@@ -1,6 +1,7 @@
 """Woken by the app when a message is posted, answers it through the MCP endpoint."""
 
 import json
+import time
 import uuid
 
 import requests
@@ -17,9 +18,9 @@ from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
     SERVICE_TOKEN_PREFIX,
-    answer_text,
     build_messages,
     condense,
+    select_tools,
 )
 
 _, cfg = load_env()
@@ -34,6 +35,11 @@ BASE_URL = CONFIG.get("base_url")
 MODEL = CONFIG.get("model") or ""
 API_KEY = CONFIG.get("api_key") or ""
 MAX_TOOL_CALLS = int(CONFIG.get("max_tool_calls", 8))
+# request_timeout bounds one call; a question is many, so bound those too.
+ANSWER_TIMEOUT = float(CONFIG.get("answer_timeout", 180))
+# A reasoning model spends most of its tokens thinking, which a chat answer
+# drawn from tool results does not need.
+THINKING = bool(CONFIG.get("thinking", False))
 MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
 
@@ -73,7 +79,17 @@ def _rpc(token, method, params, timeout, tool_name=None):
     return payload["result"]
 
 
-def list_tools(token):
+def list_tools(token, context_type=None):
+    """The tools to offer, narrowed to what this question could need.
+
+    The service holds a read-only token, so a tool that writes would only fail;
+    and the page the question came from says which subjects are in play.
+    """
+    tools = [
+        tool
+        for tool in _rpc(token, "tools/list", {}, 60)["tools"]
+        if tool.get("annotations", {}).get("readOnlyHint")
+    ]
     return [
         {
             "type": "function",
@@ -83,7 +99,7 @@ def list_tools(token):
                 "parameters": tool.get("inputSchema", {"type": "object"}),
             },
         }
-        for tool in _rpc(token, "tools/list", {}, 60)["tools"]
+        for tool in select_tools(tools, context_type)
     ]
 
 
@@ -102,29 +118,47 @@ def call_tool(token, name, arguments):
     )
 
 
-def chat(messages, tools):
+def chat(messages, tools, timeout=None):
     headers = {"Content-Type": "application/json"}
     if API_KEY:
         headers["Authorization"] = f"Bearer {API_KEY}"
     response = requests.post(
         f"{BASE_URL.rstrip('/')}/chat/completions",
         headers=headers,
-        json={"model": MODEL, "messages": messages, "tools": tools, "temperature": 0},
-        timeout=TIMEOUT,
+        json={
+            "model": MODEL,
+            "messages": messages,
+            "tools": tools,
+            "temperature": 0,
+            **(
+                {} if THINKING else {"chat_template_kwargs": {"enable_thinking": False}}
+            ),
+        },
+        timeout=timeout or TIMEOUT,
     )
     response.raise_for_status()
     return response.json()["choices"][0]["message"]
 
 
+def remaining(deadline, floor=5.0):
+    """Seconds left before the answer is due, or None when too few to be useful."""
+    left = deadline - time.monotonic()
+    return left if left >= floor else None
+
+
 def answer(conversation, context_type, context_id, user, token):
-    tools = list_tools(token)
+    tools = list_tools(token, context_type)
     messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
 
+    deadline = time.monotonic() + ANSWER_TIMEOUT
     for _ in range(MAX_TOOL_CALLS):
-        message = chat(messages, tools)
+        if (left := remaining(deadline)) is None:
+            log("out of time before the model finished; answering from what it has")
+            break
+        message = chat(messages, tools, timeout=left)
         calls = message.get("tool_calls") or []
         if not calls:
-            return answer_text(message)
+            return (message.get("content") or "").strip()
         messages.append(message)
         for call in calls:
             name = call["function"]["name"]
@@ -148,7 +182,9 @@ def answer(conversation, context_type, context_id, user, token):
             "content": "Answer now from what you have, and say what is still unknown.",
         }
     )
-    return answer_text(chat(messages, tools))
+    if (left := remaining(deadline)) is None:
+        return "I ran out of time working that out. Please ask again, or narrow the question."
+    return (chat(messages, tools, timeout=left).get("content") or "").strip()
 
 
 def read_only_token(session, user_id):

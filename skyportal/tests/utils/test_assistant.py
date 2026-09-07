@@ -3,12 +3,12 @@
 import json
 
 from skyportal.utils.assistant import (
-    answer_text,
     build_messages,
     condense,
     describe_context,
     describe_user,
     is_enabled,
+    select_tools,
     system_prompt,
 )
 
@@ -101,29 +101,6 @@ def test_non_json_is_truncated_with_its_length():
     assert "9000 characters in total" in result
 
 
-def test_the_answer_is_the_content_a_model_returns():
-    assert answer_text({"content": "r = 22.73 at T+12.6 h"}) == "r = 22.73 at T+12.6 h"
-    assert answer_text({"content": "  spaced  "}) == "spaced"
-
-
-def test_a_reasoning_model_answers_from_reasoning_content():
-    """Some models leave `content` empty and put their text elsewhere."""
-    assert (
-        answer_text({"content": "", "reasoning_content": "the burst faded"})
-        == "the burst faded"
-    )
-    assert answer_text({"reasoning_content": "the burst faded"}) == "the burst faded"
-
-
-def test_content_wins_when_a_model_returns_both():
-    assert answer_text({"content": "final", "reasoning_content": "thinking"}) == "final"
-
-
-def test_an_empty_reply_is_empty():
-    assert answer_text({}) == ""
-    assert answer_text({"content": None, "reasoning_content": None}) == ""
-
-
 def test_the_last_turn_sent_is_a_question():
     """An OpenAI-compatible server refuses a list ending in assistant turns, so a
     previous failure's apology must not be the last thing the model sees."""
@@ -145,3 +122,34 @@ def test_an_answered_exchange_still_ends_on_the_new_question():
     ]
     messages = build_messages(conversation, 40)
     assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
+
+
+_TOOLS = [
+    {"name": "get_sources"},
+    {"name": "get_photometry"},
+    {"name": "analyze_light_curve"},
+    {"name": "get_gcn_event_extractions"},
+    {"name": "get_broker_filter"},
+    {"name": "convert_time"},
+]
+
+
+def _names(tools):
+    return {tool["name"] for tool in tools}
+
+
+def test_a_page_is_offered_only_its_own_subjects():
+    assert _names(select_tools(_TOOLS, "gcn_event")) == {
+        "get_gcn_event_extractions",
+        "convert_time",
+    }
+
+
+def test_a_tool_belonging_to_no_subject_is_offered_everywhere():
+    for context in (None, "source", "gcn_event", "earthquake"):
+        assert "convert_time" in _names(select_tools(_TOOLS, context))
+
+
+def test_a_page_with_no_subjects_is_offered_everything():
+    assert select_tools(_TOOLS, "earthquake") == _TOOLS
+    assert select_tools(_TOOLS, None) == _TOOLS

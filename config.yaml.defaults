@@ -525,6 +525,11 @@ app:
     api_key: ""
     # Cap on tool round-trips per question, so a looping model cannot run away.
     max_tool_calls: 8
+    # Let a reasoning model think before it answers. It roughly doubles how long
+    # a question takes, for an answer that is quoting tool results either way.
+    thinking: false
+    # Budget for a whole question, across all its round-trips.
+    answer_timeout: 180
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
