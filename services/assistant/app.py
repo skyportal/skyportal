@@ -159,11 +159,17 @@ def read_only_token(session, user_id):
 def clear_service_tokens():
     """Drop the tokens a previous run left behind by dying mid-answer."""
     session_context_id.set(uuid.uuid4().hex)
-    with DBSession() as session:
-        cleared = session.execute(
-            sa.delete(Token).where(Token.name.like(f"{SERVICE_TOKEN_PREFIX}%"))
-        ).rowcount
-        session.commit()
+    try:
+        with DBSession() as session:
+            cleared = session.execute(
+                sa.delete(Token).where(Token.name.like(f"{SERVICE_TOKEN_PREFIX}%"))
+            ).rowcount
+            session.commit()
+    except Exception as exc:
+        log(f"could not clear the tokens of a previous run: {exc}")
+        return
+    finally:
+        DBSession.remove()
     if cleared:
         log(f"cleared {cleared} token(s) left by a previous run")
 
@@ -190,47 +196,49 @@ def conversation_of(session, user_id, channel):
 
 def respond(message_id):
     session_context_id.set(uuid.uuid4().hex)
-
-    with DBSession() as session:
-        message = session.scalar(
-            sa.select(AssistantMessage).where(AssistantMessage.id == message_id)
-        )
-        if message is None or message.system:
-            return
-
-        user_id = message.user_id
-        channel = message.channel
-        context_type, context_id = message.context_type, message.context_id
-        conversation = conversation_of(session, user_id, channel)
-        user = session.scalar(sa.select(User).where(User.id == user_id))
-        profile = {
-            "username": user.username,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-        }
-        token_id = read_only_token(session, user_id).id
-
-    # Answering takes minutes, so no connection is held while it runs.
     try:
-        text = answer(conversation, context_type, context_id, profile, token_id)
-    except Exception as exc:
-        log(f"assistant failed on message {message_id}: {exc}")
-        text = "Something went wrong while looking that up."
-
-    with DBSession() as session:
-        session.execute(sa.delete(Token).where(Token.id == token_id))
-        session.add(
-            AssistantMessage(
-                user_id=user_id,
-                channel=channel,
-                text=text or "I could not find an answer to that.",
-                system=True,
+        with DBSession() as session:
+            message = session.scalar(
+                sa.select(AssistantMessage).where(AssistantMessage.id == message_id)
             )
-        )
-        session.commit()
+            if message is None or message.system:
+                return
 
-    Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
-    log(f"answered message {message_id} for user {user_id}")
+            user_id = message.user_id
+            channel = message.channel
+            context_type, context_id = message.context_type, message.context_id
+            conversation = conversation_of(session, user_id, channel)
+            user = session.scalar(sa.select(User).where(User.id == user_id))
+            profile = {
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            }
+            token_id = read_only_token(session, user_id).id
+
+        # Answering takes minutes, so no connection is held while it runs.
+        try:
+            text = answer(conversation, context_type, context_id, profile, token_id)
+        except Exception as exc:
+            log(f"assistant failed on message {message_id}: {exc}")
+            text = "Something went wrong while looking that up."
+
+        with DBSession() as session:
+            session.execute(sa.delete(Token).where(Token.id == token_id))
+            session.add(
+                AssistantMessage(
+                    user_id=user_id,
+                    channel=channel,
+                    text=text or "I could not find an answer to that.",
+                    system=True,
+                )
+            )
+            session.commit()
+
+        Flow().push(user_id, "skyportal/REFRESH_ASSISTANT")
+        log(f"answered message {message_id} for user {user_id}")
+    finally:
+        DBSession.remove()
 
 
 class AssistantHandler(tornado.web.RequestHandler):

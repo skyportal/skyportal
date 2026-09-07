@@ -67,7 +67,9 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
       ...(target
         ? { context_type: target.type, context_id: String(target.id) }
         : {}),
-    });
+    })
+      .unwrap()
+      .catch(() => setQuestion(text));
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
