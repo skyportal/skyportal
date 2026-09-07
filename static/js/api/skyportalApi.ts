@@ -118,6 +118,7 @@ const skyportalBaseQuery: BaseQueryFn<
  */
 export const TAG_TYPES = [
   "SysInfo",
+  "Assistant",
   "Broker",
   "DBStats",
   "DBInfo",

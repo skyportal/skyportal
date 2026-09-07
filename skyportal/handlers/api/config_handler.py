@@ -7,6 +7,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
+from skyportal.utils.assistant import is_enabled as assistant_enabled
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from ...enum_types import (
@@ -110,6 +111,7 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "assistantEnabled": assistant_enabled(cfg),
                 "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),

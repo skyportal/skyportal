@@ -17,6 +17,9 @@ TOUR_FILES = [
 
 _TARGET_RE = re.compile(r'\[data-testid="([^"]+)"\]')
 _ATTR_RE = re.compile(r'data-testid="([^"]+)"')
+# Conditional form data-testid={cond ? "a" : "b"}: only value-position strings are ids.
+_EXPR_RE = re.compile(r"data-testid=\{[^}]*\}")
+_EXPR_VALUE_RE = re.compile(r'[?:]\s*"([^"]+)"')
 # Some components take the id as a prop and render it as data-testid.
 _PROP_RE = re.compile(r'testId:\s*"([^"]+)"')
 _SRC_SUFFIXES = {".tsx", ".ts", ".jsx", ".js", ".template"}
@@ -38,6 +41,8 @@ def _testids_used_in_static_js():
             continue
         text = path.read_text(errors="ignore")
         used.update(_ATTR_RE.findall(text))
+        for expr in _EXPR_RE.findall(text):
+            used.update(_EXPR_VALUE_RE.findall(expr))
         used.update(_PROP_RE.findall(text))
     return used
 

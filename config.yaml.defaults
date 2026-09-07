@@ -516,6 +516,19 @@ app:
     # exist as an ObjTagOption.
     X-ray Flash: XRFcandidate
 
+  assistant:
+    # Conversational assistant users chat with from any page. It answers through
+    # an OpenAI-compatible endpoint, using SkyPortal's own MCP tools to look
+    # things up. Leave base_url unset to disable it and hide the panel.
+    base_url: # e.g. https://babamul.umn.edu/llm/qwen3-27b/v1
+    model: ""
+    api_key: ""
+    # Cap on tool round-trips per question, so a looping model cannot run away.
+    max_tool_calls: 8
+    # Oldest messages are dropped first when a conversation outgrows this.
+    max_context_messages: 40
+    request_timeout: 300
+
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how
     # they are laid out by default on the grid of the page.
@@ -1179,6 +1192,7 @@ ports:
   notification_queue: 64610
   tns_retrieval_queue: 64810
   jpl_sbident_queue: 64820
+  assistant: 64830
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -1190,6 +1204,7 @@ hosts:
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
   jpl_sbident_queue: 127.0.0.1
+  assistant: 127.0.0.1
   slack: 127.0.0.1
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by

@@ -19751,6 +19751,165 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the requesting user's conversations with the assistant
+         * @description Retrieve the names of the user's named conversations. A conversation exists as soon as a message carries its name.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a conversation with the assistant
+         * @description Delete a named conversation and every message it holds.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    /** @description Conversation name. The one with no name when omitted. */
+                    channel?: string | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Rename a conversation with the assistant
+         * @description Rename a conversation and every message it holds.
+         */
+        patch: {
+            parameters: {
+                query?: {
+                    /** @description Conversation name. The one with no name when omitted. */
+                    channel?: string | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/assistant/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a conversation with the assistant
+         * @description Retrieve the requesting user's messages in one conversation.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Conversation name. The one with no name when omitted. */
+                    channel?: string | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Ask the assistant something
+         * @description Post a message to the assistant. The answer is written back into the same conversation out of band, once the assistant has worked it out.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssistantMessagePostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/taxonomy/{taxonomy_id}": {
         parameters: {
             query?: never;
@@ -23016,6 +23175,64 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["AssignmentSchema"][];
+        };
+        AssistantMessage: {
+            /** @description The User the conversation belongs to. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the User the conversation belongs to. */
+            user_id: number;
+            /** @description Conversation the message belongs to, NULL for the default one. */
+            channel?: string | null;
+            /** @description Message body. */
+            text: string;
+            /** @description Whether the assistant wrote the message rather than the user. */
+            system?: boolean;
+            /** @description Kind of resource the user was looking at when they asked, if any. */
+            context_type?: string | null;
+            /** @description ID of that resource, if any. */
+            context_id?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleAssistantMessage: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantMessage"];
+        };
+        ArrayOfAssistantMessages: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantMessage"][];
+        };
+        AssistantMessageNoID: {
+            /** @description The User the conversation belongs to. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the User the conversation belongs to. */
+            user_id: number;
+            /** @description Conversation the message belongs to, NULL for the default one. */
+            channel?: string | null;
+            /** @description Message body. */
+            text: string;
+            /** @description Whether the assistant wrote the message rather than the user. */
+            system?: boolean;
+            /** @description Kind of resource the user was looking at when they asked, if any. */
+            context_type?: string | null;
+            /** @description ID of that resource, if any. */
+            context_id?: string | null;
+        };
+        SingleAssistantMessageNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantMessageNoID"];
+        };
+        ArrayOfAssistantMessageNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantMessageNoID"][];
         };
         Association: {
             /** @description Unique object identifier. */
@@ -37493,6 +37710,7 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly comments?: components["schemas"]["Comment"][];
+            readonly assistant_messages?: components["schemas"]["AssistantMessage"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly annotations?: components["schemas"]["Annotation"][];
             readonly photometry?: components["schemas"]["Photometry"][];
@@ -37669,6 +37887,7 @@ export interface components {
             readonly groups?: components["schemas"]["Group"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly comments?: components["schemas"]["Comment"][];
+            readonly assistant_messages?: components["schemas"]["AssistantMessage"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly annotations?: components["schemas"]["Annotation"][];
             readonly photometry?: components["schemas"]["Photometry"][];
@@ -45236,6 +45455,46 @@ export interface components {
              * @default null
              */
             remove_obj_ids: string[] | null;
+        };
+        /**
+         * AssistantConversationPatchBody
+         * @description Request body for renaming a conversation.
+         */
+        AssistantConversationPatchBody: {
+            /**
+             * Name
+             * @description New name for the conversation
+             */
+            name: string;
+        };
+        /**
+         * AssistantMessagePostBody
+         * @description Request body for asking the assistant something.
+         */
+        AssistantMessagePostBody: {
+            /**
+             * Text
+             * @description Message body
+             */
+            text: string;
+            /**
+             * Channel
+             * @description Conversation the message belongs to; the default one if unset.
+             * @default null
+             */
+            channel: string | null;
+            /**
+             * Context Type
+             * @description Kind of resource the user is looking at, e.g. source or gcn_event.
+             * @default null
+             */
+            context_type: string | null;
+            /**
+             * Context Id
+             * @description ID of the resource the user is looking at.
+             * @default null
+             */
+            context_id: string | null;
         };
         /**
          * TaxonomyPostBody

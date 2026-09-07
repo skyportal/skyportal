@@ -33,7 +33,7 @@ import Spinner from "../Spinner";
 import ObservationPlanRequestForm from "../observation_plan/ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "../observation_plan/ObservationPlanRequestLists";
 
-import CommentPanel from "../comment/CommentPanel";
+import { useCommentTarget } from "../../contexts/CommentPanelContext";
 import DisplayGraceDB from "./DisplayGraceDB";
 import GcnAdvocates from "./GcnAdvocates";
 import GcnAliases from "./GcnAliases";
@@ -218,7 +218,11 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
     currentUser?.permissions?.includes("Manage GCNs");
 
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  useCommentTarget(
+    gcnEvent?.id && gcnEvent?.dateobs === route?.dateobs
+      ? { type: "gcn_event", id: gcnEvent.id, dateobs: gcnEvent.dateobs }
+      : null,
+  );
 
   const toggleDrawer = (open: boolean) => (event: any) => {
     if (
@@ -495,12 +499,6 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
           </div>
         </Drawer>
       </React.Fragment>
-      <CommentPanel
-        target={{ type: "gcn_event", id: gcnEvent.id, dateobs }}
-        inline={false}
-        open={chatOpen}
-        setOpen={setChatOpen}
-      />
     </div>
   );
 };

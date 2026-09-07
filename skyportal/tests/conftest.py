@@ -21,6 +21,7 @@ from skyportal.models import (
     AnalysisService,
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
+    AssistantMessage,
     Broker,
     Candidate,
     CatalogQuery,
@@ -5731,6 +5732,28 @@ def public_listing(public_source, user):
     row = (
         DBSession()
         .execute(sa.select(Listing).filter(Listing.id == listing_id))
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_assistant_message(user):
+    message = AssistantMessage(
+        user_id=user.id,
+        channel=str(uuid.uuid4()),
+        text="What is this source?",
+    )
+    DBSession.add(message)
+    DBSession.commit()
+    message_id = message.id
+    yield message
+    row = (
+        DBSession()
+        .execute(sa.select(AssistantMessage).filter(AssistantMessage.id == message_id))
         .scalars()
         .first()
     )

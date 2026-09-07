@@ -127,6 +127,13 @@ User.comments = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.assistant_messages = relationship(
+    "AssistantMessage",
+    back_populates="user",
+    foreign_keys="AssistantMessage.user_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.reminders = relationship(
     "Reminder",
     back_populates="user",

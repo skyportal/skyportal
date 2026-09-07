@@ -22,6 +22,7 @@ from ....models import (
     Token,
     User,
 )
+from ....utils.assistant import SERVICE_TOKEN_PREFIX
 from ...base import BaseHandler
 
 
@@ -143,6 +144,7 @@ class ProfileHandler(BaseHandler):
                     "created_at": token.created_at,
                 }
                 for token in user.tokens
+                if not token.name.startswith(SERVICE_TOKEN_PREFIX)
             ]
             user_info = user.to_dict()
             user_info["roles"] = user_roles
