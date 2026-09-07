@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from baselayer.app.models import session_context_id
+from baselayer.app.models import DBSession, session_context_id
 from baselayer.log import make_log
 
 log = make_log("async")
@@ -26,6 +26,8 @@ def run_async(func, *args, **kwargs):
             func(*args, **kwargs)
         except Exception as e:
             log(f"Error running async function {func.__name__}: {e}")
+        finally:
+            DBSession.remove()
 
     try:
         event_loop = asyncio.get_event_loop()

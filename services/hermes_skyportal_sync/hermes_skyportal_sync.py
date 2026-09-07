@@ -564,13 +564,16 @@ class HermesSyncService:
                 return
 
             session_context_id.set(uuid.uuid4().hex)
-            with DBSession() as session:
-                try:
-                    self.processor.process_message(session, data)
-                except Exception as e:
-                    log(f"Error processing message: {e}")
-                    traceback.print_exc()
-                    session.rollback()
+            try:
+                with DBSession() as session:
+                    try:
+                        self.processor.process_message(session, data)
+                    except Exception as e:
+                        log(f"Error processing message: {e}")
+                        traceback.print_exc()
+                        session.rollback()
+            finally:
+                DBSession.remove()
 
         except Exception as e:
             log(f"Error in Kafka message handler: {e}")
