@@ -3,7 +3,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
-from ...models import FollowupRequest
+from ...models import Allocation, FollowupRequest
 from ..base import BaseHandler
 
 
@@ -53,7 +53,9 @@ class PhotometryRequestHandler(BaseHandler):
                     FollowupRequest.select(self.associated_user_object)
                     .where(FollowupRequest.id == request_id_int)
                     .options(
-                        selectinload(FollowupRequest.instrument),
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.instrument
+                        ),
                         selectinload(FollowupRequest.obj),
                     )
                 )
@@ -67,14 +69,11 @@ class PhotometryRequestHandler(BaseHandler):
                 followup_request.last_modified_by_id = self.associated_user_object.id
                 internal_key = followup_request.obj.internal_key
 
-                # Bridge sync facility-API call via greenlet on async connection
-                await session.run_sync(
-                    lambda sync_session: api.get(
-                        followup_request,
-                        sync_session,
-                        refresh_source=refresh_source,
-                        refresh_requests=refresh_requests,
-                    )
+                await api.get(
+                    followup_request,
+                    session,
+                    refresh_source=refresh_source,
+                    refresh_requests=refresh_requests,
                 )
                 await session.commit()
 
