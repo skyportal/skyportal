@@ -18,9 +18,12 @@ class BecomeUserHandler(BaseHandler):
 
         sa = user.social_auth.first()
         self.clear_cookie("user_id")
-        self.clear_cookie("user_oauth_id")
+        self.clear_cookie("user_oauth_uid")
         self.clear_cookie("auth_token")
         self.set_secure_cookie("user_id", new_user_id.encode("ascii"))
-        if sa is not None:
-            self.set_secure_cookie("user_oauth_id", sa.uid.encode("ascii"))
+        # baselayer ignores the session unless both cookies are set, and machine
+        # generated users have no social auth row to take a uid from.
+        self.set_secure_cookie(
+            "user_oauth_uid", (sa.uid if sa is not None else user.username).encode()
+        )
         return self.success()
