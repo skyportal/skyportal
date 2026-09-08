@@ -42,6 +42,9 @@ const INTERVALS: { key: DBStatsInterval; label: string; ms: number }[] = [
   { key: "month", label: "Monthly", ms: 30 * DAY_MS },
 ];
 
+const PLOT_CONFIG = { displaylogo: false, responsive: true };
+const PLOT_STYLE = { width: "100%" };
+
 const MIN_BINS = 3;
 const MAX_BINS = 2000;
 
@@ -98,7 +101,27 @@ const DBStatsHistory = () => {
       });
   }, [data, tables, cumulative]);
 
-  const axisTheme = plotAxisTheme(theme);
+  const layout = useMemo(() => {
+    const axisTheme = plotAxisTheme(theme);
+    return {
+      ...plotCanvasTheme(theme),
+      height: 400,
+      margin: { t: 20, r: 20, b: 60, l: 70 },
+      barmode: "group",
+      bargap: 0.1,
+      hovermode: "x unified",
+      showlegend: true,
+      legend: { orientation: "h", y: -0.2 },
+      xaxis: { ...BASE_LAYOUT, ...axisTheme, type: "date" },
+      yaxis: {
+        ...BASE_LAYOUT,
+        ...axisTheme,
+        title: { text: cumulative ? "Cumulative rows" : "Rows added" },
+        rangemode: "tozero",
+        minallowed: 0,
+      },
+    };
+  }, [theme, cumulative, range.key, interval]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -176,31 +199,16 @@ const DBStatsHistory = () => {
       </Box>
       {isError ? (
         <Typography color="error">Could not load DB history.</Typography>
-      ) : (
+      ) : data ? (
         <Plot
           data={traces}
-          layout={{
-            ...plotCanvasTheme(theme),
-            height: 400,
-            margin: { t: 20, r: 20, b: 60, l: 70 },
-            barmode: "group",
-            bargap: 0.1,
-            hovermode: "x unified",
-            showlegend: true,
-            legend: { orientation: "h", y: -0.2 },
-            xaxis: { ...BASE_LAYOUT, ...axisTheme, type: "date" },
-            yaxis: {
-              ...BASE_LAYOUT,
-              ...axisTheme,
-              title: { text: cumulative ? "Cumulative rows" : "Rows added" },
-              rangemode: "tozero",
-              minallowed: 0,
-            },
-          }}
-          config={{ displaylogo: false, responsive: true }}
-          style={{ width: "100%" }}
+          layout={layout}
+          config={PLOT_CONFIG}
+          style={PLOT_STYLE}
           useResizeHandler
         />
+      ) : (
+        <Box sx={{ height: 400 }} />
       )}
       <Typography variant="caption" color="text.secondary">
         Times are UTC. The last interval is still in progress, so its count is
