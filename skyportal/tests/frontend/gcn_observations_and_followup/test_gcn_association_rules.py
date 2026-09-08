@@ -13,7 +13,7 @@ import pytest
 from astropy.time import Time
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, retry_until
 
 
 @pytest.mark.flaky(reruns=3)
@@ -50,11 +50,16 @@ def test_association_rules_tab(page, super_admin_user, super_admin_token):
     ]
     assert added, data["data"]
 
-    # and it can be taken away again
+    # and it can be taken away again. The click only starts the delete, so poll
+    # for it: asserting once races the request that carries it out.
     page.get_by_label(f"delete rule {added[0]['id']}").click()
-    status, data = api("GET", "gcn_association_rules", token=super_admin_token)
-    assert status == 200, data
-    assert not [r for r in data["data"] if r["id"] == added[0]["id"]]
+
+    def rule_is_gone():
+        status, data = api("GET", "gcn_association_rules", token=super_admin_token)
+        assert status == 200, data
+        assert not [r for r in data["data"] if r["id"] == added[0]["id"]]
+
+    retry_until(rule_is_gone, timeout=30)
 
 
 @pytest.mark.flaky(reruns=3)

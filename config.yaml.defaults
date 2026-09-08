@@ -81,6 +81,36 @@ app:
     use_parallel: False
     Ncores: 1
 
+  # M4OPT as an alternative scheduler to gwemopt, offered per request when
+  # enabled. It solves a MILP rather than scheduling greedily, and needs a
+  # solver SkyPortal does not depend on, so it runs as a subprocess against its
+  # own environment: `executable` must resolve there.
+  m4opt:
+    enabled: false
+    executable: m4opt
+    # Which MILP solver runs the schedule. Deliberately not offered in the
+    # request form: it is a property of the deployment, not of the science, and
+    # picking one the server has no license for only produces a failure. scip
+    # is the default because it needs no license; change it to gurobi or cplex
+    # only on a server where that license is actually installed. Naming it also
+    # stops M4OPT auto-detecting a size-limited CPLEX that happens to be present.
+    solver: scip
+    # M4OPT models a specific telescope, so each instrument it can schedule
+    # must be mapped to one of its missions (uvex, ztf, rubin, ultrasat).
+    missions: {}
+    nside: 128
+    # Default when the request does not set one. The problem grows roughly
+    # quadratically in this, so raise the time limit alongside it.
+    max_fields: 50
+    # Without a time limit the solver runs essentially forever on these models.
+    timelimit: 300
+    subprocess_timeout: 3600
+    # Only used for missions with no sky grid identifiers of their own (UVEX,
+    # ULTRASAT), where a pointing has to be matched on position instead. ZTF
+    # and Rubin report their own field ids and join exactly.
+    match_separation_deg: 1.0
+    extra_args: []
+
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 
   # this endpoint does not actually do anything -- it is just for testing

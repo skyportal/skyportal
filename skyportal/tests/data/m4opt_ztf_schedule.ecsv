@@ -1,0 +1,163 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: action, datatype: string, description: Action for the spacecraft}
+# - {name: start_time, datatype: string, description: Start time of segment}
+# - {name: duration, unit: s, datatype: float64, description: Duration of segment}
+# - name: observer_location.x
+#   unit: m
+#   datatype: float64
+#   description: Position of the spacecraft
+#   meta: !!omap
+#   - {source: IRAF Observatory Database}
+#   - {timezone: US/Pacific}
+# - name: observer_location.y
+#   unit: m
+#   datatype: float64
+#   description: Position of the spacecraft
+#   meta: !!omap
+#   - {source: IRAF Observatory Database}
+#   - {timezone: US/Pacific}
+# - name: observer_location.z
+#   unit: m
+#   datatype: float64
+#   description: Position of the spacecraft
+#   meta: !!omap
+#   - {source: IRAF Observatory Database}
+#   - {timezone: US/Pacific}
+# - {name: target_coord.ra, unit: deg, datatype: float64}
+# - {name: target_coord.dec, unit: deg, datatype: float64}
+# - {name: roll, unit: deg, datatype: float64, description: Position angle of the FOV}
+# - {name: bandpass, datatype: string, description: Detector bandpass}
+# - {name: field_index, datatype: int64, description: Row of the field in the mission sky grid}
+# - {name: field_id, datatype: int64, description: Identifier the mission gives the field}
+# meta: !!omap
+# - {command: /Users/mcoughlin/miniforge3/envs/m4opt/bin/m4opt schedule /var/folders/fn/00zl2mgj5w1_bhvyzl0w1tp00000gn/T/tmp1rpvuyep/skymap.multiorder.fits
+#     /var/folders/fn/00zl2mgj5w1_bhvyzl0w1tp00000gn/T/tmp1rpvuyep/schedule.ecsv --mission=ztf --delay=0.0s --deadline=21600.0s --nside=32
+#     --timelimit=60s --max-fields=30 --bandpass=ztfg --bandpass=ztfr --visits=2 --exptime-min=300.0s --exptime-max=300.0s --no-appmag-dist}
+# - {version: 0.1.dev894+g3f2799561.d20260905}
+# - args:
+#     absmag_mean: null
+#     absmag_stdev: 0.0
+#     appmag_dist: false
+#     bandpass: [ztfg, ztfr]
+#     cutoff: null
+#     deadline: !astropy.units.Quantity
+#       unit: &id001 !astropy.units.Unit {unit: s}
+#       value: 21600.0
+#     delay: !astropy.units.Quantity
+#       unit: *id001
+#       value: 0.0
+#     event_time: '2026-09-05T00:00:00.000'
+#     exptime_max: !astropy.units.Quantity
+#       unit: *id001
+#       value: 300.0
+#     exptime_min: !astropy.units.Quantity
+#       unit: *id001
+#       value: 300.0
+#     max_fields: 30
+#     mission: ztf
+#     nside: 32
+#     skygrid: null
+#     skymap: /var/folders/fn/00zl2mgj5w1_bhvyzl0w1tp00000gn/T/tmp1rpvuyep/skymap.multiorder.fits
+#     snr: 5.0
+#     time_step: !astropy.units.Quantity
+#       unit: !astropy.units.Unit {unit: min}
+#       value: 1.0
+#     visits: 2
+# - {objective_value: 1.0}
+# - {has_observable_fields: true}
+# - {has_solution: true}
+# - {best_bound: 1.0}
+# - {solution_status: optimal}
+# - solution_time: !astropy.units.Quantity
+#     unit: *id001
+#     value: 0.149002
+# - total_time:
+#     observe: !astropy.units.Quantity
+#       unit: *id001
+#       value: 600.0
+#     slack: !astropy.units.Quantity
+#       unit: *id001
+#       value: 20890.0
+#     slew: !astropy.units.Quantity
+#       unit: *id001
+#       value: 110.0
+# - __serialized_columns__:
+#     duration:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: *id001
+#       value: !astropy.table.SerializedColumn {name: duration}
+#     observer_location:
+#       __class__: astropy.coordinates.earth.EarthLocation
+#       __info__:
+#         description: Position of the spacecraft
+#         meta: {source: IRAF Observatory Database, timezone: US/Pacific}
+#       ellipsoid: WGS84
+#       x: !astropy.table.SerializedColumn
+#         __class__: astropy.units.quantity.Quantity
+#         __info__:
+#           description: Position of the spacecraft
+#           meta: {source: IRAF Observatory Database, timezone: US/Pacific}
+#         unit: &id002 !astropy.units.Unit {unit: m}
+#         value: !astropy.table.SerializedColumn
+#           __class__: astropy.utils.masked.core.MaskedNDArray
+#           data: !astropy.table.SerializedColumn {name: observer_location.x}
+#       y: !astropy.table.SerializedColumn
+#         __class__: astropy.units.quantity.Quantity
+#         __info__:
+#           description: Position of the spacecraft
+#           meta: {source: IRAF Observatory Database, timezone: US/Pacific}
+#         unit: *id002
+#         value: !astropy.table.SerializedColumn
+#           __class__: astropy.utils.masked.core.MaskedNDArray
+#           data: !astropy.table.SerializedColumn {name: observer_location.y}
+#       z: !astropy.table.SerializedColumn
+#         __class__: astropy.units.quantity.Quantity
+#         __info__:
+#           description: Position of the spacecraft
+#           meta: {source: IRAF Observatory Database, timezone: US/Pacific}
+#         unit: *id002
+#         value: !astropy.table.SerializedColumn
+#           __class__: astropy.utils.masked.core.MaskedNDArray
+#           data: !astropy.table.SerializedColumn {name: observer_location.z}
+#     roll:
+#       __class__: astropy.units.quantity.Quantity
+#       __info__: {description: Position angle of the FOV}
+#       unit: &id003 !astropy.units.Unit {unit: deg}
+#       value: !astropy.table.SerializedColumn
+#         __class__: astropy.utils.masked.core.MaskedNDArray
+#         data: !astropy.table.SerializedColumn {name: roll}
+#     start_time:
+#       __class__: astropy.time.core.Time
+#       format: iso
+#       in_subfmt: '*'
+#       out_subfmt: '*'
+#       precision: 3
+#       scale: utc
+#       value: !astropy.table.SerializedColumn {name: start_time}
+#     target_coord:
+#       __class__: astropy.coordinates.sky_coordinate.SkyCoord
+#       __info__: {description: Coordinates of the center of the FOV}
+#       dec: !astropy.table.SerializedColumn
+#         __class__: astropy.coordinates.angles.core.Latitude
+#         unit: *id003
+#         value: !astropy.table.SerializedColumn
+#           __class__: astropy.utils.masked.core.MaskedNDArray
+#           data: !astropy.table.SerializedColumn {name: target_coord.dec}
+#       frame: icrs
+#       ra: !astropy.table.SerializedColumn
+#         __class__: astropy.coordinates.angles.core.Longitude
+#         unit: *id003
+#         value: !astropy.table.SerializedColumn
+#           __class__: astropy.utils.masked.core.MaskedNDArray
+#           data: !astropy.table.SerializedColumn {name: target_coord.ra}
+#         wrap_angle: !astropy.coordinates.Angle
+#           unit: *id003
+#           value: 360.0
+#       representation_type: spherical
+# schema: astropy-2.0
+action start_time duration observer_location.x observer_location.y observer_location.z target_coord.ra target_coord.dec roll bandpass field_index field_id
+observe "2026-09-05 04:02:00.000" 300.0 -2410346.7821765793 -4758666.825040505 3487942.9750245656 313.94476 8.15 0.0 ztfg 1418 1538
+slew "2026-09-05 04:07:00.000" 110.0 "" "" "" "" "" "" "" -1 ""
+observe "2026-09-05 04:37:00.000" 300.0 -2410346.7821765793 -4758666.825040505 3487942.9750245656 313.94476 8.15 0.0 ztfr 1418 1538
