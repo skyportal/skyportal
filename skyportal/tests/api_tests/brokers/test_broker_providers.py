@@ -41,7 +41,11 @@ from skyportal.broker_apis.fink import (
 from skyportal.broker_apis.interface import survey_permissions
 from skyportal.broker_apis.lasair import LASAIRBROKER
 from skyportal.broker_apis.lasair import _normalize_object as _normalize_lasair
-from skyportal.broker_apis.pittgoogle import _normalize_pubsub_alert, _normalize_rows
+from skyportal.broker_apis.pittgoogle import (
+    PITTGOOGLEBROKER,
+    _normalize_pubsub_alert,
+    _normalize_rows,
+)
 
 CASSETTE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "broker_cassettes"
@@ -1053,8 +1057,11 @@ def test_ingestion_gate_suppresses_failing_alert(public_filter, super_admin_user
 
 def test_get_photometry_capability_gated_on_get_alert():
     """get_photometry is a base default: advertised iff the provider can fetch an
-    object (implements get_alert), exactly like save_as_source."""
+    object (implements get_alert) and does not opt out of the passthrough."""
     assert BOOMBROKER.implements()["get_photometry"] is True
+    assert ANTARESBROKER.implements()["save_as_source"] is True
+    assert ANTARESBROKER.implements()["get_photometry"] is False
+    assert PITTGOOGLEBROKER.implements()["get_photometry"] is False
 
     from skyportal.broker_apis.interface import BrokerAPI
 

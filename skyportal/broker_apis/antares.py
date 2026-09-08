@@ -248,6 +248,8 @@ class ANTARESBROKER(BrokerAPI):
 
     surveys = ["ZTF", "LSST"]
 
+    photometry_passthrough = False
+
     form_json_schema_config = {
         "type": "object",
         "properties": {
