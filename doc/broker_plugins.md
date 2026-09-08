@@ -1,6 +1,6 @@
 # Broker plugins
 
-SkyPortal integrates with external alert **brokers** (e.g. BOOM, Kowalski, Fink,
+SkyPortal integrates with external alert **brokers** (e.g. BOOM, Fink,
 Lasair) through a pluggable provider interface, modeled on the follow-up
 facility APIs (`skyportal/facility_apis/`). A broker provider is a registered
 class; a configured connection to a broker is a `Broker` database record that

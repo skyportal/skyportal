@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
 
-from skyportal.handlers.api.gcn import add_default_gcn_tags
+from skyportal.handlers.api.gcn import _summary_context, add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
 from skyportal.tests import api, retry_until
 from skyportal.tests.external.test_moving_objects import (
@@ -1859,3 +1859,133 @@ def test_gcn_tags_can_be_filtered_by_messenger(super_admin_token):
     assert other_tag not in data["data"], (
         "a tag from an event of another messenger was offered"
     )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_gcn_event_summary(super_admin_token, view_only_token):
+    """The summary round-trips, keeps a history, and clears."""
+    datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+
+    dateobs = "2019-04-25 08:18:05"
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    if status == 404:
+        status, data = api(
+            "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
+        )
+        assert status == 200
+
+    status, data = api(
+        "PATCH",
+        f"gcn_event/{dateobs}",
+        data={"summary": "A binary neutron star merger."},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["summary"] == "A binary neutron star merger."
+    history = data["data"]["summary_history"]
+    assert history[0]["summary"] == "A binary neutron star merger."
+    assert history[0]["is_bot"] is False
+
+    # A second summary is prepended, leaving the first readable.
+    status, _ = api(
+        "PATCH",
+        f"gcn_event/{dateobs}",
+        data={"summary": "Now with an optical counterpart."},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    history = data["data"]["summary_history"]
+    assert [entry["summary"] for entry in history[:2]] == [
+        "Now with an optical counterpart.",
+        "A binary neutron star merger.",
+    ]
+
+    # Clearing empties the summary but keeps the record of what was there.
+    status, _ = api(
+        "PATCH", f"gcn_event/{dateobs}", data={"summary": None}, token=super_admin_token
+    )
+    assert status == 200
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert data["data"]["summary"] is None
+    assert len(data["data"]["summary_history"]) == 3
+
+    # A read-only token cannot write one: the update-mode select raises
+    # AccessError, which baselayer answers with a 401.
+    status, _ = api(
+        "PATCH",
+        f"gcn_event/{dateobs}",
+        data={"summary": "Not allowed."},
+        token=view_only_token,
+    )
+    assert status == 401
+
+
+def test_gcn_event_patch_without_a_summary(super_admin_token):
+    status, data = api(
+        "PATCH", "gcn_event/2019-04-25 08:18:05", data={}, token=super_admin_token
+    )
+    assert status == 400
+    assert "Nothing to update" in data["message"]
+
+
+def test_summary_context_states_the_measurements():
+    """The model is handed parsed values, not the circular prose."""
+    from types import SimpleNamespace
+
+    event = SimpleNamespace(
+        dateobs="2026-09-03T12:36:47",
+        aliases=["GRB 260903A"],
+        tags=["SVOM"],
+    )
+    extractions = [
+        SimpleNamespace(
+            circular_id=45517,
+            data={
+                "classification": {"classification": "GRB", "subtype": "XRF candidate"}
+            },
+        ),
+        SimpleNamespace(
+            circular_id=45516,
+            data={
+                "telescope_name": "Liverpool Telescope",
+                "photometry": [
+                    {
+                        "filter": "r",
+                        "mag": 22.73,
+                        "mag_error": 0.26,
+                        "obs_mjd": 61287.04889,
+                    },
+                    {"filter": "g", "limiting_mag": 22.37, "obs_mjd": 61287.03369},
+                ],
+            },
+        ),
+        SimpleNamespace(circular_id=45503, data={"retraction": True}),
+    ]
+    context = _summary_context(event, extractions)
+    assert "GRB 260903A" in context
+    assert "classified GRB (XRF candidate)" in context
+    assert "r = 22.73 +/- 0.26 at MJD 61287.04889" in context
+    assert "g > 22.37" in context
+    assert "RETRACTION" in context
+
+
+def test_summary_context_caps_the_photometry():
+    """A long light curve is truncated rather than flooding the prompt."""
+    from types import SimpleNamespace
+
+    from skyportal.handlers.api.gcn import _SUMMARY_MAX_ROWS
+
+    rows = [
+        {"filter": "r", "mag": 20.0 + i / 100} for i in range(_SUMMARY_MAX_ROWS + 5)
+    ]
+    context = _summary_context(
+        SimpleNamespace(dateobs="2026-01-01T00:00:00", aliases=[], tags=[]),
+        [SimpleNamespace(circular_id=1, data={"photometry": rows})],
+    )
+    assert "and 5 further rows" in context

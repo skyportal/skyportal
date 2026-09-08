@@ -1,11 +1,7 @@
-// Client-side outburst transforms for the SSO light-curve tab: geometry- and
-// colour-correct apparent magnitudes and recompute the outburst statistic in the
-// browser so the tab can render the corrected light curve. The authoritative,
-// per-alert statistic is BOOM's (M. Kelley); this mirrors that math for display.
-//
-// The HG1G2 / HG12* (Penttila 2016) basis splines are stored as precomputed
-// piecewise-cubic coefficients (so this only evaluates polynomials, no linear
-// solve); the phase function is checked against sbpy fixtures in the test.
+// Solar-system photometry for the light-curve tab: correct apparent magnitudes
+// for observing geometry and per-band colour, and score a recent brightening.
+// The HG12* phase function (Penttila 2016) evaluates precomputed spline
+// coefficients, so there is no linear solve here; the test pins it to sbpy.
 
 interface Spline {
   nodes: number[];
@@ -139,6 +135,26 @@ export const scaleByGeometry = (
   );
 };
 
+/** Reduce to rh = delta = 1 au; rhSlope is the heliocentric flux exponent (-2 inert). */
+export const reduceToUnitGeometry = (
+  m: number[],
+  rh: number[],
+  delta: number[],
+  phase: number[],
+  { rhSlope = -2, deltaSlope = -2, removePhase = true } = {},
+): number[] =>
+  m.map((mk, k) => {
+    const rhk = rh[k]!;
+    const deltak = delta[k]!;
+    if (!(rhk > 0) || !(deltak > 0) || !Number.isFinite(mk)) return NaN;
+    return (
+      mk +
+      2.5 * rhSlope * Math.log10(rhk) +
+      2.5 * deltaSlope * Math.log10(deltak) -
+      (removePhase ? hg12PhaseFunction(phase[k]!) : 0)
+    );
+  });
+
 const weightedMean = (x: number[], unc: number[]): [number, number] => {
   let sw = 0;
   let swx = 0;
@@ -153,8 +169,7 @@ const weightedMean = (x: number[], unc: number[]): [number, number] => {
   return sw === 0 ? [NaN, NaN] : [swx / sw, sw ** -0.5];
 };
 
-// Per-band colour offsets scaling each band to the test point's band. `m` must
-// already be geometry-corrected; the test point (last) is excluded from averages.
+// Colour offsets onto the (excluded) test point's band, from geometry-corrected m.
 export const colorScales = (
   m: number[],
   unc: number[],
@@ -181,6 +196,108 @@ export const colorScales = (
   return color;
 };
 
+// Reference band when several are equally well observed, best first.
+const REFERENCE_PREFERENCE = ["r", "g", "i", "z", "y", "u"];
+
+export interface BandColor {
+  /** Magnitudes to subtract from this band to bring it onto the reference. */
+  offset: number;
+  uncertainty: number;
+  /** Nights on which both this band and the reference were observed. */
+  nights: number;
+}
+
+const stddev = (a: number[], mean: number): number =>
+  a.length < 2
+    ? NaN
+    : Math.sqrt(
+        a.reduce((acc, x) => acc + (x - mean) ** 2, 0) / (a.length - 1),
+      );
+
+/** Fit per-band colours pairing within a night, which cancels geometry and rotation. */
+export const fitBandColors = (
+  points: SsoPoint[],
+  { rhSlope = -2, deltaSlope = -2 } = {},
+): { reference: string; colors: Record<string, BandColor> } | null => {
+  const usable = fittable(points).filter(
+    (p) => Number.isFinite(p.mag) && p.rh > 0 && p.delta > 0,
+  );
+  if (usable.length === 0) return null;
+
+  const reduced = reduceToUnitGeometry(
+    usable.map((p) => p.mag),
+    usable.map((p) => p.rh),
+    usable.map((p) => p.delta),
+    usable.map((p) => p.phase),
+    { rhSlope, deltaSlope },
+  );
+
+  // One mean per band per night; a night is a whole MJD.
+  const nightly = new Map<number, Map<string, number[]>>();
+  usable.forEach((p, k) => {
+    if (!Number.isFinite(reduced[k]!)) return;
+    const night = Math.floor(p.time);
+    if (!nightly.has(night)) nightly.set(night, new Map());
+    const bands = nightly.get(night)!;
+    if (!bands.has(p.band)) bands.set(p.band, []);
+    bands.get(p.band)!.push(reduced[k]!);
+  });
+
+  const nightsPerBand = new Map<string, number>();
+  nightly.forEach((bands) =>
+    bands.forEach((_v, band) =>
+      nightsPerBand.set(band, (nightsPerBand.get(band) ?? 0) + 1),
+    ),
+  );
+  // Most nights wins; ties go to the redder workhorse band, as colours are quoted.
+  const pointsPerBand = new Map<string, number>();
+  usable.forEach((p) =>
+    pointsPerBand.set(p.band, (pointsPerBand.get(p.band) ?? 0) + 1),
+  );
+  const preference = (band: string) => {
+    const rank = REFERENCE_PREFERENCE.indexOf(band);
+    return rank === -1 ? REFERENCE_PREFERENCE.length : rank;
+  };
+  const reference = [...nightsPerBand.entries()].sort(
+    (a, b) =>
+      b[1] - a[1] ||
+      (pointsPerBand.get(b[0]) ?? 0) - (pointsPerBand.get(a[0]) ?? 0) ||
+      preference(a[0]) - preference(b[0]) ||
+      a[0].localeCompare(b[0]),
+  )[0]![0];
+
+  const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+  const colors: Record<string, BandColor> = {
+    [reference]: {
+      offset: 0,
+      uncertainty: 0,
+      nights: nightsPerBand.get(reference)!,
+    },
+  };
+
+  nightsPerBand.forEach((_count, band) => {
+    if (band === reference) return;
+    const diffs: number[] = [];
+    nightly.forEach((bands) => {
+      const here = bands.get(band);
+      const there = bands.get(reference);
+      if (here?.length && there?.length) diffs.push(mean(here) - mean(there));
+    });
+    if (diffs.length === 0) return;
+    const offset = mean(diffs);
+    colors[band] = {
+      offset,
+      uncertainty:
+        diffs.length < 2
+          ? NaN
+          : stddev(diffs, offset) / Math.sqrt(diffs.length),
+      nights: diffs.length,
+    };
+  });
+
+  return { reference, colors };
+};
+
 export interface OutburstReport {
   medianO: number;
   nPoints: number;
@@ -202,7 +319,7 @@ const median = (a: number[]): number => {
   return v.length % 2 ? v[mid]! : (v[mid - 1]! + v[mid]!) / 2;
 };
 
-export interface OutburstPoint {
+export interface SsoPoint {
   time: number;
   mag: number;
   magerr: number;
@@ -210,14 +327,46 @@ export interface OutburstPoint {
   rh: number;
   delta: number;
   phase: number;
+  /** Rejected by photometry validation. Still plotted, never fitted. */
+  rejected?: boolean;
 }
+
+/** Points a fit may use: a rejected measurement is someone saying it is wrong. */
+export const fittable = (points: SsoPoint[]): SsoPoint[] =>
+  points.filter((p) => !p.rejected);
+
+// plotly.js-basic-dist ships only bar/pie/scatter, so bin here and draw bars.
+export const histogram = (
+  values: number[],
+  binCount = 20,
+): { centers: number[]; counts: number[]; width: number } => {
+  const finite = values.filter((v) => Number.isFinite(v));
+  if (finite.length === 0) return { centers: [], counts: [], width: 1 };
+  const lo = Math.min(...finite);
+  const hi = Math.max(...finite);
+  // One distinct value still deserves a single visible bar.
+  const bins = hi > lo ? binCount : 1;
+  const width = hi > lo ? (hi - lo) / bins : 1;
+  const counts = new Array(bins).fill(0);
+  finite.forEach((v) => {
+    counts[Math.min(bins - 1, Math.floor((v - lo) / width))] += 1;
+  });
+  return {
+    // A lone value's bar is centred on the value, not half a bin past it.
+    centers: Array.from({ length: bins }, (_, k) =>
+      hi > lo ? lo + width * (k + 0.5) : lo,
+    ),
+    counts,
+    width,
+  };
+};
 
 // Run the statistic on the trailing `window` days (most recent point tested).
 export const outburstReport = (
-  points: OutburstPoint[],
+  points: SsoPoint[],
   { window = 14, rhSlope = -2, deltaSlope = -2 } = {},
 ): OutburstReport | null => {
-  const sorted = [...points].sort((a, b) => a.time - b.time);
+  const sorted = fittable(points).sort((a, b) => a.time - b.time);
   if (sorted.length < 2) return null;
   const tLast = sorted[sorted.length - 1]!.time;
   const win = sorted.filter(

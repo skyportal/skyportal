@@ -55,8 +55,7 @@ def altdata_filter_modules(broker, elements, name=None):
 class BrokerAPI(_Base):
     """An interface that broker providers must implement.
 
-    A "broker" is an external source of alerts (e.g. BOOM, Kowalski, Fink,
-    Lasair). A provider is a registered class that knows how to talk to one
+    A "broker" is an external source of alerts (e.g. BOOM, Fink, Lasair). A provider is a registered class that knows how to talk to one
     broker; a configured instance lives in the ``Broker`` model, which supplies
     per-instance credentials/endpoints via its encrypted ``altdata``.
 

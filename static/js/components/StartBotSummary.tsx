@@ -124,7 +124,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
 
   if (
     !analysisServiceList?.some((service: any) => service.is_summary) ||
-    (!prefs?.summary?.OpenAI?.active && !config?.openai_summary_apikey_set)
+    (!prefs?.summary?.OpenAI?.active && !config?.summary_apikey_set)
   ) {
     return null;
   }

@@ -52,10 +52,13 @@ app:
     title: Terms of Service
     text: ""
     text_file: ""
+    # A token cannot be shown the dialog, so gating it blocks every script and
+    # service until its owner logs in and accepts.
+    exempt_tokens: false
 
   # Anonymous read-only access. When true, visitors who are not signed in are
   # served as `anonymous_user` (a "View only" account) so pages render without a
-  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # login. Non-safe methods are refused with a 403, whatever ACLs that account holds.
   # The account is auto-provisioned (in the public group) when this is enabled.
   anonymous_access: false
   anonymous_user: anonymous
@@ -77,6 +80,36 @@ app:
     use_skyportal_fields: True
     use_parallel: False
     Ncores: 1
+
+  # M4OPT as an alternative scheduler to gwemopt, offered per request when
+  # enabled. It solves a MILP rather than scheduling greedily, and needs a
+  # solver SkyPortal does not depend on, so it runs as a subprocess against its
+  # own environment: `executable` must resolve there.
+  m4opt:
+    enabled: false
+    executable: m4opt
+    # Which MILP solver runs the schedule. Deliberately not offered in the
+    # request form: it is a property of the deployment, not of the science, and
+    # picking one the server has no license for only produces a failure. scip
+    # is the default because it needs no license; change it to gurobi or cplex
+    # only on a server where that license is actually installed. Naming it also
+    # stops M4OPT auto-detecting a size-limited CPLEX that happens to be present.
+    solver: scip
+    # M4OPT models a specific telescope, so each instrument it can schedule
+    # must be mapped to one of its missions (uvex, ztf, rubin, ultrasat).
+    missions: {}
+    nside: 128
+    # Default when the request does not set one. The problem grows roughly
+    # quadratically in this, so raise the time limit alongside it.
+    max_fields: 50
+    # Without a time limit the solver runs essentially forever on these models.
+    timelimit: 300
+    subprocess_timeout: 3600
+    # Only used for missions with no sky grid identifiers of their own (UVEX,
+    # ULTRASAT), where a pointing has to be matched on position instead. ZTF
+    # and Rubin report their own field ids and join exactly.
+    match_separation_deg: 1.0
+    extra_args: []
 
   heasarc_endpoint: https://heasarc.gsfc.nasa.gov
 
@@ -511,10 +544,15 @@ app:
       xs: 4
 
   gcn_extraction_tags:
-    # Taxonomy class reported by a circular extraction -> obj tag applied to the
-    # objects of that event. An unmapped class tags nothing. The tag must already
-    # exist as an ObjTagOption.
+    # Class or subtype reported by a circular extraction -> obj tag applied to
+    # the objects of that event. The subtype is looked up first, since it is the
+    # more specific of the two. An unmapped class tags nothing, and the tag must
+    # already exist as an ObjTagOption.
     X-ray Flash: XRFcandidate
+    XRF: XRF
+    XRF candidate: XRFcandidate
+    UV Ceti: Stellar
+    UV Ceti candidate: Stellarcandidate
 
   assistant:
     # Conversational assistant users chat with from any page. It answers through
@@ -525,6 +563,14 @@ app:
     api_key: ""
     # Cap on tool round-trips per question, so a looping model cannot run away.
     max_tool_calls: 8
+    # Let a reasoning model think before it answers. It roughly doubles how long
+    # a question takes, for an answer that is quoting tool results either way.
+    thinking: false
+    # Budget for a whole question, across all its round-trips.
+    answer_timeout: 180
+    # Characters of one tool result the model sees. A result larger than this is
+    # cut down, never dropped, so raising it buys breadth rather than accuracy.
+    result_budget: 20000
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
@@ -755,7 +801,7 @@ server:
 services:
   dask: False
 
-# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
 # here; see doc/broker_plugins.md. Providers are registered in
 # skyportal/broker_apis/.
@@ -782,6 +828,8 @@ boom:
     database: null
 
 misc:
+  # Whether a non-admin may delete an Obj they own all the data for.
+  allow_nonadmins_delete_objs: false
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30
   minutes_to_keep_candidate_query_cache: 60
@@ -1184,6 +1232,13 @@ hosts:
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by
 # lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+assignments:
+  # An uploaded spectrum marks a matching observing-run assignment "done".
+  # A spectrum naming its assignment always settles it; otherwise the run's
+  # instrument must match and its calendar date fall within this many days of
+  # the exposure. Set to null to only close assignments a spectrum names.
+  auto_observed_window_days: 1
+
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
@@ -1195,6 +1250,18 @@ scout:
   # The bridge can publish under a `relaxed_test` filter mode that waives all but
   # the identity filters. Off by default so test traffic can't look like a trigger.
   allow_relaxed_test: False
+
+neofixer:
+  # NEOFixer (https://neofixer.arizona.edu) ranks NEOs needing follow-up per
+  # telescope site. When enabled, its score is annotated onto the solar system
+  # objects this instance already tracks, matched on mpc_name.
+  enabled: False
+  endpoint: https://neofixerapi.arizona.edu/targets/
+  site: 500 # NEOFixer site id; 500 is the geocentric 1 m default
+  interval_seconds: 3600 # the site list is tens of MB, so poll sparingly
+  timeout_seconds: 300
+  group_ids: [] # groups the annotations are visible to
+  bot_user_id: # user recorded as the annotation author
 
 gcn:
   server: gcn.nasa.gov
@@ -1357,13 +1424,10 @@ analysis_services:
   openai_analysis_service:
     port: 7003
     summary:
-      # set this global API key if the project
-      # will pay for the OpenAI costs. Otherwise
-      # individual users need to set their own key
-      # in the user preferences
-      # Get a global key at:
-      #   https://platform.openai.com/account/api-keys
+      # The instance-wide model, used unless a user sets a key of their own.
       api_key:
+      # Any OpenAI-compatible server; unset means api.openai.com.
+      base_url:
       temperature: 0.3
       max_tokens: 350
       top_p: 1.0

@@ -22,6 +22,7 @@ from ....models import (
     ObservingRun,
     Photometry,
     Source,
+    Spectrum,
 )
 from ....models.phot_stat import PHOT_DETECTION_THRESHOLD
 from ....models.scan_report.scan_report_item import ScanReportItem
@@ -263,6 +264,7 @@ def _build_scan_report_item(
     previous=None,
     associated_photstats=None,
     groups_saved_to=None,
+    spectra=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
@@ -320,6 +322,20 @@ def _build_scan_report_item(
             "requester": followup.requester.username if followup.requester else None,
         }
         for followup in followup_requests
+    ] or None
+
+    # Spectra taken of this object, newest first. A scanner comparing these
+    # dates against an observing run's tells whether the run's assignment was
+    # actually observed.
+    spectra_taken = [
+        {
+            "instrument": spectrum.instrument.name if spectrum.instrument else None,
+            "observed_at": (
+                spectrum.observed_at.isoformat() if spectrum.observed_at else None
+            ),
+            "origin": spectrum.origin,
+        }
+        for spectrum in spectra or []
     ] or None
 
     assignments = [
@@ -390,6 +406,7 @@ def _build_scan_report_item(
             "groups_saved_to": groups_saved_to,
             "followups": followups,
             "assignments": assignments,
+            "spectra": spectra_taken,
             "detections_by_survey": detections_by_survey,
             # Present only for an event-scoped report: how this object relates to
             # the event, and the scanner's verdict on it.
@@ -477,6 +494,7 @@ async def create_scan_report_items(
     previous_by_obj = {}  # obj_id -> {mag, mjd, filter} of the detection before the last
     photstat_by_assoc_obj = {}  # assoc_obj_id -> PhotStat, for associated_objs' surveys
     groups_by_obj = defaultdict(list)  # obj_id -> group names currently saved to
+    spectra_by_obj = defaultdict(list)  # obj_id -> spectra, newest first
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -594,6 +612,16 @@ async def create_scan_report_items(
         ).all():
             assignments_by_obj[assignment.obj_id].append(assignment)
 
+        for spectrum in (
+            await session.scalars(
+                Spectrum.select(user_or_token, mode="read")
+                .options(joinedload(Spectrum.instrument))
+                .where(Spectrum.obj_id.in_(chunk_obj_ids))
+                .order_by(Spectrum.observed_at.desc())
+            )
+        ).all():
+            spectra_by_obj[spectrum.obj_id].append(spectrum)
+
         for comment in (
             await session.scalars(
                 Comment.select(user_or_token, mode="read")
@@ -686,6 +714,7 @@ async def create_scan_report_items(
                 ]
                 or None,
                 groups_saved_to=sorted(groups_by_obj.get(obj_id, [])) or None,
+                spectra=spectra_by_obj.get(obj_id, []),
             )
         )
     return items

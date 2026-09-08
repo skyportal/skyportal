@@ -61,7 +61,7 @@ from .data_access_request import (
     DuplicateSchedulingHandler,
     ScheduledObservationsHandler,
 )
-from .db_stats import StatsHandler
+from .db_stats import StatsHandler, StatsHistoryHandler
 from .earthquake import (
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -99,6 +99,7 @@ from .gcn import (
     GcnEventNoticeDownloadHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
+    GcnEventSummarizeHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventTagsHandler,
     GcnEventTriggerHandler,

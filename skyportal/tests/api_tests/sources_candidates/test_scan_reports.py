@@ -16,7 +16,12 @@ from skyportal.models import (
     SuperObj,
 )
 from skyportal.tests import api
-from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
+from skyportal.tests.fixtures import (
+    CommentFactory,
+    ObjFactory,
+    PhotometryFactory,
+    SpectrumFactory,
+)
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -228,6 +233,71 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert sorted(item["data"]["groups_saved_to"]) == sorted(
         [public_group.name, public_group2.name]
     )
+
+
+def test_scan_report_item_includes_spectra(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+    lris,
+    cleanup_reports,
+):
+    """Spectra dates let a scanner tell whether a run's assignment was observed."""
+    now = utcnow_naive()
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group.id, saved_by_id=user.id))
+    DBSession.commit()
+
+    observed_at = now - timedelta(hours=6)
+    spectrum = SpectrumFactory(
+        obj=obj,
+        instrument=lris,
+        observed_at=observed_at,
+        groups=[public_group],
+        owner_id=user.id,
+    )
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    spectra = item["data"]["spectra"]
+    assert spectra is not None
+    entry = next(s for s in spectra if s["instrument"] == lris.name)
+    assert entry["observed_at"].startswith(observed_at.strftime("%Y-%m-%dT%H:%M"))
+
+    SpectrumFactory.teardown(spectrum)
 
 
 def test_scan_report_item_includes_associated_objs(

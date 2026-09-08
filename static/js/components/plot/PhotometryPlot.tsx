@@ -68,8 +68,12 @@ import {
   SpectrumAvailability,
   useGetDataAvailabilityQuery,
 } from "../../ducks/dataAccessRequests";
-import OutburstPlot from "./OutburstPlot";
-import { OutburstPoint } from "./outburstTransforms";
+import SolarSystemPlot, {
+  SolarSystemControls,
+  useSolarSystemPlot,
+} from "./SolarSystemPlot";
+import { getValidationStatus } from "../photometry/PhotometryValidation";
+import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -339,7 +343,7 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
-  // Solar-system object flag; enables the geometry-corrected "Outburst" tab.
+  // Solar-system object flag; enables the geometry-corrected "Solar System" tab.
   is_roid?: boolean;
   // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
   // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
@@ -651,12 +655,9 @@ const PhotometryPlot = ({
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
 
-  // Solar-system objects (is_roid) get an extra "Outburst" tab (the
-  // geometry-corrected light-curve view). Points need per-point geometry
-  // (rh/delta/phase in photometry altdata, supplied by BOOM); the tab is empty
-  // until that exists.
-  const isOutburstTab = is_roid && tabIndex === 3;
-  const outburstPoints = useMemo<OutburstPoint[]>(
+  // Needs per-point geometry (rh/delta/phase in altdata, from BOOM) to fill in.
+  const isSolarSystemTab = is_roid && tabIndex === 3;
+  const solarSystemPoints = useMemo<SsoPoint[]>(
     () =>
       (mainPhotometry || [])
         .filter(
@@ -674,9 +675,12 @@ const PhotometryPlot = ({
           rh: p.altdata.rh,
           delta: p.altdata.delta,
           phase: p.altdata.phase,
+          // Validation doubles as masking: shown on the plot, never fitted.
+          rejected: getValidationStatus(p) === "rejected",
         })),
     [mainPhotometry],
   );
+  const solarSystemCtrl = useSolarSystemPlot(solarSystemPoints);
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -1375,8 +1379,7 @@ const PhotometryPlot = ({
 
       return newPlotData;
     }
-    // No traces for a tab that draws its own plot (Outburst). Callers push
-    // onto this, so it must stay a list.
+    // A tab drawing its own plot has no traces, but callers still push onto this.
     return [];
   };
 
@@ -1710,8 +1713,7 @@ const PhotometryPlot = ({
   // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
-    // The Outburst tab renders its own plot, so there are no main-plot traces
-    // to rebuild when it is selected.
+    // The Solar System tab draws its own plot, so there is nothing to rebuild.
     if (initialized && filter2color && tabToPlotType(tabIndex)) {
       const traces = createTraces(
         data,
@@ -2005,17 +2007,17 @@ const PhotometryPlot = ({
         <Tab label="Mag" />
         <Tab label="Flux" />
         <Tab label="Period" />
-        {is_roid && <Tab label="Outburst" />}
+        {is_roid && <Tab label="Solar System" />}
       </Tabs>
 
-      {isOutburstTab && <OutburstPlot points={outburstPoints} />}
+      {isSolarSystemTab && <SolarSystemPlot ctrl={solarSystemCtrl} />}
 
       <div
         style={{
           width: "100%",
           height: plotStyle?.height || "70vh",
           overflowX: "scroll",
-          display: isOutburstTab ? "none" : undefined,
+          display: isSolarSystemTab ? "none" : undefined,
         }}
       >
         <Plot
@@ -2295,380 +2297,407 @@ const PhotometryPlot = ({
         </DialogContent>
       </Dialog>
       <div className={classes.gridContainer}>
-        <div className={classes.gridItem} style={{ columnGap: 0 }}>
-          <div
-            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-          >
-            <Typography id="photometry-show-hide" noWrap>
-              Non-Detections
-            </Typography>
-            <Tooltip
-              title={
-                showExtinctionCorrection
-                  ? "Non-detections are hidden when extinction correction is enabled"
-                  : ""
-              }
-            >
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={showNonDetections && !showExtinctionCorrection}
-                  onChange={() => setShowNonDetections(!showNonDetections)}
-                  disabled={showExtinctionCorrection}
-                  slotProps={{ input: { "aria-label": "controlled" } }}
-                  size="small"
-                />
-              </div>
-            </Tooltip>
-          </div>
-          <div
-            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-          >
-            <Typography id="photometry-show-hide" noWrap>
-              Forced Photometry
-            </Typography>
-            <div className={classes.switchContainer}>
-              <Switch
-                checked={showForcedPhotometry}
-                onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
-                slotProps={{ input: { "aria-label": "controlled" } }}
-                size="small"
-              />
-            </div>
-          </div>
-        </div>
-        <div className={classes.gridItem}>
-          {t0 && (
+        {isSolarSystemTab && (
+          <SolarSystemControls
+            ctrl={solarSystemCtrl}
+            gridItemClass={classes.gridItem}
+          />
+        )}
+        {/* The rest drive the mag/flux/period plots only. */}
+        <div style={{ display: isSolarSystemTab ? "none" : "contents" }}>
+          <div className={classes.gridItem} style={{ columnGap: 0 }}>
             <div
               style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
             >
-              <Typography id="T0-start-range" noWrap>
-                X axis since T0
+              <Typography id="photometry-show-hide" noWrap>
+                Non-Detections
               </Typography>
-              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+              <Tooltip
+                title={
+                  showExtinctionCorrection
+                    ? "Non-detections are hidden when extinction correction is enabled"
+                    : ""
+                }
+              >
                 <div className={classes.switchContainer}>
                   <Switch
-                    disabled={t0 >= t0Max}
-                    checked={displayXAxisSinceT0}
-                    onChange={() => {
-                      setDisplayXAxisInlog(!displayXAxisSinceT0);
-                      setDisplayXAxisSinceT0(!displayXAxisSinceT0);
-                    }}
+                    checked={showNonDetections && !showExtinctionCorrection}
+                    onChange={() => setShowNonDetections(!showNonDetections)}
+                    disabled={showExtinctionCorrection}
                     slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
               </Tooltip>
             </div>
-          )}
-          {t0 && displayXAxisSinceT0 && (
             <div
               style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
             >
-              <Typography id="T0-start-range" noWrap>
-                T - T0 in log
+              <Typography id="photometry-show-hide" noWrap>
+                Forced Photometry
               </Typography>
               <div className={classes.switchContainer}>
                 <Switch
-                  checked={displayXAxisInlog}
-                  onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
-                  slotProps={{ input: { "aria-label": "controlled" } }}
-                  size="small"
-                />
-              </div>
-            </div>
-          )}
-          {tabToPlotType(tabIndex) === "flux" && (
-            <div
-              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-            >
-              <Typography noWrap>Flux in log</Typography>
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={displayFluxAxisInLog}
+                  checked={showForcedPhotometry}
                   onChange={() =>
-                    setDisplayFluxAxisInLog(!displayFluxAxisInLog)
+                    setshowForcedPhotometry(!showForcedPhotometry)
                   }
                   slotProps={{ input: { "aria-label": "controlled" } }}
                   size="small"
                 />
               </div>
             </div>
-          )}
-          {tabToPlotType(tabIndex) === "flux" && (
-            <div
-              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-            >
-              <Typography noWrap>Flux unit</Typography>
-              <Select
-                value={fluxUnit}
-                onChange={(e) => setFluxUnit(e.target.value)}
-                size="small"
-                data-testid="fluxUnitSelect"
+          </div>
+          <div className={classes.gridItem}>
+            {t0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
               >
-                {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
-                  <MenuItem key={unit} value={unit}>
-                    {unit}
-                  </MenuItem>
-                ))}
-              </Select>
-            </div>
-          )}
-          {config?.usePhotometryValidation && (
-            <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
-            >
-              <Typography id="photometry-validation-filter" noWrap>
-                Validated Only
-              </Typography>
-              <Tooltip title="Show only photometry points that have been validated">
+                <Typography id="T0-start-range" noWrap>
+                  X axis since T0
+                </Typography>
+                <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      disabled={t0 >= t0Max}
+                      checked={displayXAxisSinceT0}
+                      onChange={() => {
+                        setDisplayXAxisInlog(!displayXAxisSinceT0);
+                        setDisplayXAxisSinceT0(!displayXAxisSinceT0);
+                      }}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </div>
+            )}
+            {t0 && displayXAxisSinceT0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography id="T0-start-range" noWrap>
+                  T - T0 in log
+                </Typography>
                 <div className={classes.switchContainer}>
                   <Switch
-                    checked={showOnlyValidated}
-                    onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                    checked={displayXAxisInlog}
+                    onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
                     slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-        <div
-          className={classes.gridItem}
-          style={{
-            alignItems: "end",
-          }}
-        >
-          <div
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography id="input-slider" noWrap>
-              Marker Size
-            </Typography>
-            <div style={{ display: "flex", gap: "0.2rem" }}>
-              <IconButton
-                onClick={() =>
-                  setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
-                }
-                style={{ padding: 0 }}
-              >
-                <RemoveIcon />
-              </IconButton>
-              <TextField
-                value={markerSize}
-                onChange={(e) => {
-                  const newValue = parseInt(e.target.value, 10);
-                  if (!Number.isNaN(newValue)) {
-                    setMarkerSize(Math.max(Math.min(20, newValue), 1));
-                  } else {
-                    setMarkerSize(e.target.value);
-                  }
+              </div>
+            )}
+            {tabToPlotType(tabIndex) === "flux" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
                 }}
-                margin="dense"
-                type="text"
-                size="small"
-                slotProps={{
-                  htmlInput: {
-                    style: { textAlign: "center", padding: "4.5px" },
-                  },
-                }}
-                style={{ width: "3rem", margin: 0 }}
-              />
-              <IconButton
-                onClick={() =>
-                  setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
-                }
-                style={{ padding: 0 }}
               >
-                <AddIcon />
-              </IconButton>
-            </div>
+                <Typography noWrap>Flux in log</Typography>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={displayFluxAxisInLog}
+                    onChange={() =>
+                      setDisplayFluxAxisInLog(!displayFluxAxisInLog)
+                    }
+                    slotProps={{ input: { "aria-label": "controlled" } }}
+                    size="small"
+                  />
+                </div>
+              </div>
+            )}
+            {tabToPlotType(tabIndex) === "flux" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography noWrap>Flux unit</Typography>
+                <Select
+                  value={fluxUnit}
+                  onChange={(e) => setFluxUnit(e.target.value)}
+                  size="small"
+                  data-testid="fluxUnitSelect"
+                >
+                  {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
+                    <MenuItem key={unit} value={unit}>
+                      {unit}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {config?.usePhotometryValidation && (
+              <div
+                style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+              >
+                <Typography id="photometry-validation-filter" noWrap>
+                  Validated Only
+                </Typography>
+                <Tooltip title="Show only photometry points that have been validated">
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      checked={showOnlyValidated}
+                      onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </div>
+            )}
           </div>
-        </div>
-        {duplicateOptions?.length > 0 && (
           <div
             className={classes.gridItem}
-            style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}
+            style={{
+              alignItems: "end",
+            }}
           >
-            <Typography id="input-slider">Possible Duplicates</Typography>
-            <div className={classes.switchContainer}>
-              <Select
-                value={selectedDuplicates as any}
-                onChange={(e: any) => {
-                  if (e.target.value.includes("Select all")) {
-                    if (
-                      e.target.value?.length !==
-                      duplicateOptions.length + 1
-                    ) {
-                      setSelectedDuplicates(
-                        duplicateOptions.map((d) => d.obj_id),
-                      );
-                    } else {
-                      setSelectedDuplicates([]);
-                    }
-                  } else {
-                    setSelectedDuplicates(e.target.value);
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
+              <Typography id="input-slider" noWrap>
+                Marker Size
+              </Typography>
+              <div style={{ display: "flex", gap: "0.2rem" }}>
+                <IconButton
+                  onClick={() =>
+                    setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
                   }
-                }}
-                style={{ minWidth: "100%" }}
-                size="small"
-                multiple
-                renderValue={(selected: any) => {
-                  // show chips for each
-                  const duplicatesValue = duplicateOptions.filter((d) =>
-                    selected.includes(d.obj_id),
-                  );
-                  return (
-                    <div className={(classes as any).chips}>
-                      {duplicatesValue.map((d) => (
-                        <Chip
-                          key={d.obj_id}
-                          label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
-                          className={(classes as any).chip}
-                        />
-                      ))}
-                    </div>
-                  );
-                }}
-              >
-                {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
-                {duplicateOptions.length > 1 && (
-                  <MenuItem value="Select all" key="Select all">
-                    <Checkbox
-                      size="small"
-                      checked={
-                        selectedDuplicates.length === duplicateOptions.length
+                  style={{ padding: 0 }}
+                >
+                  <RemoveIcon />
+                </IconButton>
+                <TextField
+                  value={markerSize}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(newValue)) {
+                      setMarkerSize(Math.max(Math.min(20, newValue), 1));
+                    } else {
+                      setMarkerSize(e.target.value);
+                    }
+                  }}
+                  margin="dense"
+                  type="text"
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      style: { textAlign: "center", padding: "4.5px" },
+                    },
+                  }}
+                  style={{ width: "3rem", margin: 0 }}
+                />
+                <IconButton
+                  onClick={() =>
+                    setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
+                  }
+                  style={{ padding: 0 }}
+                >
+                  <AddIcon />
+                </IconButton>
+              </div>
+            </div>
+          </div>
+          {duplicateOptions?.length > 0 && (
+            <div
+              className={classes.gridItem}
+              style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}
+            >
+              <Typography id="input-slider">Possible Duplicates</Typography>
+              <div className={classes.switchContainer}>
+                <Select
+                  value={selectedDuplicates as any}
+                  onChange={(e: any) => {
+                    if (e.target.value.includes("Select all")) {
+                      if (
+                        e.target.value?.length !==
+                        duplicateOptions.length + 1
+                      ) {
+                        setSelectedDuplicates(
+                          duplicateOptions.map((d) => d.obj_id),
+                        );
+                      } else {
+                        setSelectedDuplicates([]);
                       }
-                    />
-                    Select all
-                  </MenuItem>
-                )}
-                {duplicateOptions.map((d) => (
-                  <MenuItem key={d.obj_id} value={d.obj_id}>
-                    <Checkbox
-                      checked={selectedDuplicates.includes(d.obj_id)}
-                      size="small"
-                    />
-                    {d.obj_id} ({d.separation.toFixed(2)} arcsec)
-                  </MenuItem>
-                ))}
-              </Select>
+                    } else {
+                      setSelectedDuplicates(e.target.value);
+                    }
+                  }}
+                  style={{ minWidth: "100%" }}
+                  size="small"
+                  multiple
+                  renderValue={(selected: any) => {
+                    // show chips for each
+                    const duplicatesValue = duplicateOptions.filter((d) =>
+                      selected.includes(d.obj_id),
+                    );
+                    return (
+                      <div className={(classes as any).chips}>
+                        {duplicatesValue.map((d) => (
+                          <Chip
+                            key={d.obj_id}
+                            label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
+                            className={(classes as any).chip}
+                          />
+                        ))}
+                      </div>
+                    );
+                  }}
+                >
+                  {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
+                  {duplicateOptions.length > 1 && (
+                    <MenuItem value="Select all" key="Select all">
+                      <Checkbox
+                        size="small"
+                        checked={
+                          selectedDuplicates.length === duplicateOptions.length
+                        }
+                      />
+                      Select all
+                    </MenuItem>
+                  )}
+                  {duplicateOptions.map((d) => (
+                    <MenuItem key={d.obj_id} value={d.obj_id}>
+                      <Checkbox
+                        checked={selectedDuplicates.includes(d.obj_id)}
+                        size="small"
+                      />
+                      {d.obj_id} ({d.separation.toFixed(2)} arcsec)
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "1 / -1" }}>
-            <Typography id="input-slider">Period</Typography>
-            <div className={classes.periodContainer}>
-              <Slider
-                value={period}
-                onChange={(_e, newValue) => setPeriod(newValue)}
-                aria-labelledby="input-slider"
-                valueLabelDisplay="auto"
-                step={0.1}
-                min={0.1}
-                max={365}
-                style={{ minWidth: "14rem", width: "100%" }}
-              />
-              <TextField
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                margin="dense"
-                type="number"
-                slotProps={{
-                  htmlInput: {
-                    step: 0.1,
-                    min: 0.1,
-                    max: 365,
-                    "aria-labelledby": "input-slider",
-                  },
-                }}
-                style={{ minWidth: "8rem", width: "100%" }}
-                size="small"
-              />
-              <Select
-                value={periodUnit}
-                onChange={(e) => setPeriodUnit(e.target.value)}
-                style={{ width: "8rem" }}
-                size="small"
-              >
-                <MenuItem value="minutes">minutes</MenuItem>
-                <MenuItem value="hours">hours</MenuItem>
-                <MenuItem value="days">days</MenuItem>
-              </Select>
-              <Button
-                onClick={() => setPeriod(period * 2)}
-                variant="contained"
-                color="primary"
-              >
-                x2
-              </Button>
-              <Button
-                onClick={() => setPeriod(period / 2)}
-                variant="contained"
-                color="primary"
-              >
-                /2
-              </Button>
-              <PeriodAnnotationDialog
-                obj_id={obj_id}
-                period={period}
-                periodUnit={periodUnit}
-              />
+          )}
+          {tabIndex === 2 && (
+            <div className={classes.gridItem} style={{ gridColumn: "1 / -1" }}>
+              <Typography id="input-slider">Period</Typography>
+              <div className={classes.periodContainer}>
+                <Slider
+                  value={period}
+                  onChange={(_e, newValue) => setPeriod(newValue)}
+                  aria-labelledby="input-slider"
+                  valueLabelDisplay="auto"
+                  step={0.1}
+                  min={0.1}
+                  max={365}
+                  style={{ minWidth: "14rem", width: "100%" }}
+                />
+                <TextField
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  margin="dense"
+                  type="number"
+                  slotProps={{
+                    htmlInput: {
+                      step: 0.1,
+                      min: 0.1,
+                      max: 365,
+                      "aria-labelledby": "input-slider",
+                    },
+                  }}
+                  style={{ minWidth: "8rem", width: "100%" }}
+                  size="small"
+                />
+                <Select
+                  value={periodUnit}
+                  onChange={(e) => setPeriodUnit(e.target.value)}
+                  style={{ width: "8rem" }}
+                  size="small"
+                >
+                  <MenuItem value="minutes">minutes</MenuItem>
+                  <MenuItem value="hours">hours</MenuItem>
+                  <MenuItem value="days">days</MenuItem>
+                </Select>
+                <Button
+                  onClick={() => setPeriod(period * 2)}
+                  variant="contained"
+                  color="primary"
+                >
+                  x2
+                </Button>
+                <Button
+                  onClick={() => setPeriod(period / 2)}
+                  variant="contained"
+                  color="primary"
+                >
+                  /2
+                </Button>
+                <PeriodAnnotationDialog
+                  obj_id={obj_id}
+                  period={period}
+                  periodUnit={periodUnit}
+                />
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={`${classes.gridItem} ${classes.gridItemWide}`}>
-            <Typography id="input-slider">Smoothing</Typography>
-            <div className={classes.sliderContainer}>
-              <Slider
-                value={smoothing}
-                onChange={(_e, newValue) => setSmoothing(newValue)}
-                aria-labelledby="input-slider"
-                valueLabelDisplay="auto"
-                step={1}
-                min={0}
-                max={100}
-              />
-              <TextField
-                value={smoothing}
-                onChange={(e) => setSmoothing(e.target.value)}
-                margin="dense"
-                type="number"
-                slotProps={{
-                  htmlInput: {
-                    step: 1,
-                    min: 0,
-                    max: 100,
-                    type: "number",
-                    "aria-labelledby": "input-slider",
-                  },
-                }}
-                size="small"
-              />
+          )}
+          {tabIndex === 2 && (
+            <div className={`${classes.gridItem} ${classes.gridItemWide}`}>
+              <Typography id="input-slider">Smoothing</Typography>
+              <div className={classes.sliderContainer}>
+                <Slider
+                  value={smoothing}
+                  onChange={(_e, newValue) => setSmoothing(newValue)}
+                  aria-labelledby="input-slider"
+                  valueLabelDisplay="auto"
+                  step={1}
+                  min={0}
+                  max={100}
+                />
+                <TextField
+                  value={smoothing}
+                  onChange={(e) => setSmoothing(e.target.value)}
+                  margin="dense"
+                  type="number"
+                  slotProps={{
+                    htmlInput: {
+                      step: 1,
+                      min: 0,
+                      max: 100,
+                      type: "number",
+                      "aria-labelledby": "input-slider",
+                    },
+                  }}
+                  size="small"
+                />
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
-            <Typography id="input-slider">Phase</Typography>
-            <div className={classes.doubleSwitch}>
-              <Typography>1</Typography>
-              <Switch
-                checked={phase === 2}
-                onChange={() => setPhase(phase === 2 ? 1 : 2)}
-                slotProps={{ input: { "aria-label": "controlled" } }}
-              />
-              <Typography>2</Typography>
+          )}
+          {tabIndex === 2 && (
+            <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+              <Typography id="input-slider">Phase</Typography>
+              <div className={classes.doubleSwitch}>
+                <Typography>1</Typography>
+                <Switch
+                  checked={phase === 2}
+                  onChange={() => setPhase(phase === 2 ? 1 : 2)}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
+                />
+                <Typography>2</Typography>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

@@ -15,6 +15,8 @@ catch up.
 
 import base64
 import json
+import math
+import re
 import statistics
 from urllib.parse import urlencode, urlsplit
 
@@ -25,6 +27,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .. import __version__
+from ..utils import sso
 from ..utils.app import get_app_base_url
 from .base import BaseHandler
 
@@ -80,12 +83,13 @@ UNSUPPORTED_PROTOCOL_VERSION = -32022
 TOOLS = {}
 
 
-def tool(name, description, properties, required=(), passthrough=None):
+def tool(name, description, properties, required=(), passthrough=None, writes=False):
     """Register a tool. The wrapped `async fn(handler, args)` returns the tool's
     content: a JSON value (also sent as structuredContent) or a plain string.
     Raise ToolError, or let handler.api() raise APIError, to report a tool
     execution error. `passthrough` names the endpoint whose remaining
-    parameters are accepted verbatim."""
+    parameters are accepted verbatim. `writes` marks a tool that changes state,
+    so a caller holding a read-only token can leave it out."""
 
     schema = {"type": "object", "properties": properties, "required": list(required)}
     if passthrough:
@@ -102,6 +106,7 @@ def tool(name, description, properties, required=(), passthrough=None):
             "name": name,
             "description": description,
             "inputSchema": schema,
+            "annotations": {"readOnlyHint": not writes},
             "validator": jsonschema.Draft202012Validator(schema),
             "fn": fn,
         }
@@ -149,6 +154,12 @@ _GROUP_IDS = _prop(
             items={"type": "string"},
         ),
         "hasSpectrum": _prop("boolean", "Only sources with at least one spectrum."),
+        "isRoid": _prop(
+            "boolean",
+            "Only moving objects (solar system bodies). Pair with "
+            "analyze_solar_system_photometry, which reduces their light curves.",
+        ),
+        "isNotRoid": _prop("boolean", "Exclude moving objects."),
         "savedAfter": _prop("string", "Only sources saved after this UTC datetime."),
         "savedBefore": _prop("string", "Only sources saved before this UTC datetime."),
         "minRedshift": _prop("number", "Minimum redshift."),
@@ -187,6 +198,7 @@ async def get_sources(handler, args):
     },
     required=("id", "ra", "dec"),
     passthrough="POST /api/sources",
+    writes=True,
 )
 async def post_source(handler, args):
     return await handler.api("POST", "/api/sources", body=args)
@@ -248,6 +260,7 @@ async def get_photometry(handler, args):
     },
     required=("obj_id", "instrument_id", "mjd", "filter", "magsys"),
     passthrough="POST /api/photometry",
+    writes=True,
 )
 async def post_photometry(handler, args):
     return await handler.api("POST", "/api/photometry", body=args)
@@ -297,6 +310,7 @@ async def get_spectra(handler, args):
     },
     required=("obj_id", "instrument_id", "observed_at", "wavelengths", "fluxes"),
     passthrough="POST /api/spectrum",
+    writes=True,
 )
 async def post_spectrum(handler, args):
     return await handler.api("POST", "/api/spectrum", body=args)
@@ -455,6 +469,237 @@ async def analyze_light_curve(handler, args):
     }
 
 
+def _sso_points(photometry):
+    """Photometry carrying the per-point geometry the reductions need."""
+    points = []
+    for row in photometry:
+        altdata = row.get("altdata") or {}
+        rh, delta, phase = altdata.get("rh"), altdata.get("delta"), altdata.get("phase")
+        if row.get("mag") is None or None in (rh, delta, phase):
+            continue
+        validations = row.get("validations") or []
+        points.append(
+            {
+                "time": row["mjd"],
+                "mag": row["mag"],
+                "magerr": row.get("magerr") or 0.0,
+                "band": re.sub(r"^ztf", "", row.get("filter") or ""),
+                "rh": rh,
+                "delta": delta,
+                "phase": phase,
+                "rejected": bool(validations)
+                and validations[0].get("validated") is False,
+            }
+        )
+    return points
+
+
+def _color_summary(fit):
+    ref = fit["reference"]
+    out = []
+    for band, c in sorted(fit["colors"].items()):
+        if band == ref:
+            continue
+        # "+/- 0.00" would read as a claim of zero error.
+        if math.isnan(c["uncertainty"]):
+            unc = ""
+        elif c["uncertainty"] < 0.005:
+            unc = " +/- <0.01"
+        else:
+            unc = f" +/- {c['uncertainty']:.2f}"
+        out.append(
+            f"{band}-{ref} = {c['offset']:.2f}{unc} mag from {c['nights']} nights"
+        )
+    return out
+
+
+@tool(
+    "analyze_solar_system_photometry",
+    "Reduce a moving object's photometry to a common geometry and summarize it: "
+    "absolute magnitude H, per-band colours fitted by pairing within a night, and "
+    "the outburst statistic over a trailing window. Needs per-point heliocentric "
+    "distance, geocentric distance and phase angle in the photometry altdata "
+    "(rh/delta/phase), which arrive with the alert. Points rejected by photometry "
+    "validation are excluded from every fit. Mirrors the source page's Solar "
+    "System tab.",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "rh_slope": _prop(
+            "number",
+            "Heliocentric exponent of the flux: -2 for sunlight reflected off an "
+            "inert body (default), shallower for an active comet.",
+        ),
+        "window": _prop(
+            "number",
+            "Trailing window in days for the outburst statistic (default 14).",
+            minimum=0,
+        ),
+        "magsys": _prop("string", "Magnitude system (default ab)."),
+    },
+    required=("obj_id",),
+)
+async def analyze_solar_system_photometry(handler, args):
+    obj_id = args["obj_id"]
+    magsys = args.get("magsys", "ab")
+    rh_slope = args.get("rh_slope", -2)
+    window = args.get("window", 14)
+    photometry = await handler.api(
+        "GET",
+        f"/api/sources/{obj_id}/photometry",
+        query={"format": "mag", "magsys": magsys},
+    )
+    points = _sso_points(photometry)
+    if not points:
+        raise ToolError(
+            f"No photometry for {obj_id} carries rh/delta/phase in altdata, so it "
+            "cannot be reduced to a common geometry."
+        )
+
+    usable = sso.fittable(points)
+    fit = sso.fit_band_colors(usable, rh_slope=rh_slope)
+    report = sso.outburst_report(points, window=window, rh_slope=rh_slope)
+
+    # Absolute magnitude: reduce to unit geometry, then take out each band's colour.
+    reduced = sso.reduce_to_unit_geometry(
+        [p["mag"] for p in usable],
+        [p["rh"] for p in usable],
+        [p["delta"] for p in usable],
+        [p["phase"] for p in usable],
+        rh_slope=rh_slope,
+    )
+    offsets = fit["colors"] if fit else {}
+    corrected = [
+        r - offsets.get(p["band"], {}).get("offset", 0.0)
+        for p, r in zip(usable, reduced, strict=True)
+        if math.isfinite(r)
+    ]
+    h_mean = statistics.fmean(corrected) if corrected else None
+    h_scatter = statistics.stdev(corrected) if len(corrected) > 1 else None
+
+    phases = [p["phase"] for p in usable]
+    summary = []
+    if h_mean is not None:
+        scatter = "" if h_scatter is None else f", scatter {h_scatter:.2f} mag"
+        summary.append(
+            f"H(1,1,0) = {h_mean:.2f} mag from {len(corrected)} points{scatter}"
+        )
+    if fit:
+        summary += _color_summary(fit)
+    if report:
+        verdict = "outburst" if report["median_o"] > 3 else "no outburst"
+        summary.append(
+            f"median O = {report['median_o']:.2f} over {window:g} d "
+            f"({report['n_points']} points) -- {verdict}"
+        )
+    return {
+        "obj_id": obj_id,
+        "magsys": magsys,
+        "rh_slope": rh_slope,
+        "n_points": len(points),
+        "n_rejected": len(points) - len(usable),
+        "bands": sorted({p["band"] for p in usable}),
+        "mjd_range": [min(p["time"] for p in usable), max(p["time"] for p in usable)],
+        "phase_angle_range": _rounded([min(phases), max(phases)], 2),
+        "absolute_magnitude": _rounded(
+            {"H": h_mean, "scatter": h_scatter, "n": len(corrected)}, 3
+        ),
+        "reference_band": fit["reference"] if fit else None,
+        "colors": _rounded(fit["colors"], 4) if fit else {},
+        "outburst": _rounded(
+            {
+                "median_o": report["median_o"],
+                "n_points": report["n_points"],
+                "test_band": report["test_band"],
+                "window_days": window,
+            },
+            3,
+        )
+        if report
+        else None,
+        "summary": summary,
+    }
+
+
+@tool(
+    "list_analysis_services",
+    "List the AnalysisServices that can be run on a source: light-curve fitters "
+    "(e.g. Fiesta, Redback, MOSFiT), the PyGRB GW targeted search, and spectral "
+    "classifiers (NGSF, SNID-SAGE). Returns each service's id, name, analysis type "
+    "and required input data types; use the id with run_analysis.",
+    {},
+)
+async def list_analysis_services(handler, args):
+    return await handler.api("GET", "/api/analysis_service")
+
+
+@tool(
+    "get_analyses",
+    "List the analyses that have run on a source, with their status, service, "
+    "parameters and (when available) the fit/classification headline. Use "
+    "get_analysis for the full result of one.",
+    {"obj_id": _prop("string", "Source ID.")},
+    required=("obj_id",),
+    passthrough="GET /api/obj/analysis",
+)
+async def get_analyses(handler, args):
+    obj_id = args.pop("obj_id")
+    return await handler.api("GET", f"/api/obj/{obj_id}/analysis", query=args)
+
+
+@tool(
+    "get_analysis",
+    "Get one analysis's full result: status and, for a completed run, the fit or "
+    "classification -- e.g. a SNID-SAGE/NGSF spectral type, subtype, redshift, match "
+    "quality and ranked template matches, or a light-curve model's best-fit "
+    "parameters. Includes model_lightcurve / model_spectrum overlay data when present.",
+    {"analysis_id": _prop("integer", "The ObjAnalysis id (from get_analyses).")},
+    required=("analysis_id",),
+)
+async def get_analysis(handler, args):
+    analysis_id = args["analysis_id"]
+    return await handler.api(
+        "GET",
+        f"/api/obj/analysis/{analysis_id}",
+        query={"includeAnalysisData": "true"},
+    )
+
+
+@tool(
+    "run_analysis",
+    "Trigger an AnalysisService run on a source: a Fiesta/Redback/MOSFiT light-curve "
+    "fit, a PyGRB search, or an NGSF/SNID-SAGE spectral classification. WRITE: this "
+    "queues a real job. show_plots and show_parameters default to true so the "
+    "result's plots and the fit overlay are visible on the source page (the API "
+    "default is false, which hides them).",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "analysis_service_id": _prop(
+            "integer", "Service id (from list_analysis_services)."
+        ),
+        "analysis_parameters": _prop(
+            "object",
+            'Service-specific params, e.g. {"source": "arnett"} or {"wrapper": '
+            '"snid"}; only keys the service\'s dropdown allows are valid.',
+        ),
+        "group_ids": _GROUP_IDS,
+        "show_plots": _prop(
+            "boolean", "Show the result's plots/overlay on the source page."
+        ),
+        "show_parameters": _prop("boolean", "Show the analysis parameters."),
+        "show_corner": _prop("boolean", "Show the corner/posterior plot."),
+    },
+    required=("obj_id", "analysis_service_id"),
+)
+async def run_analysis(handler, args):
+    obj_id = args.pop("obj_id")
+    service_id = args.pop("analysis_service_id")
+    args.setdefault("show_plots", True)
+    args.setdefault("show_parameters", True)
+    return await handler.api(
+        "POST", f"/api/obj/{obj_id}/analysis/{service_id}", body=args
+    )
+
+
 @tool(
     "get_gcn_events",
     "List GCN events (gravitational-wave, GRB, neutrino and other multi-messenger "
@@ -530,10 +775,107 @@ async def get_gcn_event_comments(handler, args):
         "group_ids": _GROUP_IDS,
     },
     required=("dateobs", "text"),
+    writes=True,
 )
 async def post_gcn_event_comment(handler, args):
     dateobs = args.pop("dateobs")
     return await handler.api("POST", f"/api/gcn_event/{dateobs}/comments", body=args)
+
+
+@tool(
+    "get_observation_plan_allocations",
+    "List the allocations that can generate observation plans, i.e. the "
+    "instruments a plan may be scheduled on. Use this to find the allocation_id "
+    "that post_observation_plan needs.",
+    {
+        "instrument_id": _prop("integer", "Only allocations on this instrument."),
+        "numPerPage": _prop("integer", "Results per page (default 50)."),
+        "pageNumber": _prop("integer", "1-indexed page."),
+    },
+)
+async def get_observation_plan_allocations(handler, args):
+    return await handler.api(
+        "GET", "/api/allocation", query={**args, "apiType": "api_classname_obsplan"}
+    )
+
+
+@tool(
+    "get_observation_plan_form",
+    "The payload schema each instrument accepts for an observation plan, keyed "
+    "by instrument ID. Read this before post_observation_plan: the fields differ "
+    "per instrument, and where M4OPT is configured the schema offers a "
+    "`scheduler` choice of gwemopt or m4opt whose remaining settings depend on "
+    "which is picked.",
+    {},
+)
+async def get_observation_plan_form(handler, args):
+    return await handler.api(
+        "GET",
+        "/api/internal/instrument_forms",
+        query={"apiType": "api_classname_obsplan"},
+    )
+
+
+@tool(
+    "post_observation_plan",
+    "Request an observation plan for a GCN event localization. The payload must "
+    "validate against that instrument's schema from get_observation_plan_form "
+    "and must carry a queue_name unique across all plans. Planning runs "
+    "asynchronously: poll get_observation_plans for the status and the "
+    "scheduled observations.",
+    {
+        "allocation_id": _prop(
+            "integer",
+            "Allocation to schedule on, from get_observation_plan_allocations.",
+        ),
+        "gcnevent_id": _prop("integer", "The GCN event's numeric ID."),
+        "localization_id": _prop(
+            "integer", "Localization (sky map) to tile, from get_gcn_event."
+        ),
+        "payload": _prop(
+            "object",
+            "Scheduler settings, validated against the instrument's schema. Must "
+            "include queue_name.",
+        ),
+        "target_group_ids": _prop(
+            "array", "Groups to share the plan with.", items={"type": "integer"}
+        ),
+    },
+    required=("allocation_id", "gcnevent_id", "localization_id", "payload"),
+    passthrough="POST /api/observation_plan",
+)
+async def post_observation_plan(handler, args):
+    if "queue_name" not in (args.get("payload") or {}):
+        raise ToolError(
+            "payload needs a queue_name, unique across all observation plans."
+        )
+    return await handler.api("POST", "/api/observation_plan", body=args)
+
+
+@tool(
+    "get_observation_plans",
+    "Observation plan requests and their status. Give observation_plan_request_id "
+    "for one, or dateobs to list an event's plans. The planned observations are "
+    "included only with includePlannedObservations, which is a large response.",
+    {
+        "observation_plan_request_id": _prop("integer", "One plan request."),
+        "dateobs": _prop("string", "Only plans for this event's dateobs."),
+        "includePlannedObservations": _prop(
+            "boolean", "Include the scheduled observations themselves."
+        ),
+        "status": _prop("string", "Only plans with this status, e.g. complete."),
+        "instrumentID": _prop("integer", "Only plans on this instrument."),
+        "numPerPage": _prop("integer", "Results per page."),
+        "pageNumber": _prop("integer", "1-indexed page."),
+    },
+    passthrough="GET /api/observation_plan",
+)
+async def get_observation_plans(handler, args):
+    request_id = args.pop("observation_plan_request_id", None)
+    path = "/api/observation_plan"
+    if request_id is not None:
+        path = f"{path}/{request_id}"
+    return await handler.api("GET", path, query=args)
 
 
 def _versions(filter_record):
@@ -668,6 +1010,7 @@ async def run_broker_filter(handler, args):
         "name": _prop("string", "Informational name for the version."),
     },
     required=("broker_id", "filter_id", "altdata"),
+    writes=True,
 )
 async def post_broker_filter_version(handler, args):
     broker_id = args.pop("broker_id")
@@ -697,6 +1040,7 @@ async def post_broker_filter_version(handler, args):
     },
     required=("broker_id", "filter_id", "active_fid"),
     passthrough="PATCH /api/brokers/{broker_id}/filters/{filter_id}",
+    writes=True,
 )
 async def activate_broker_filter_version(handler, args):
     broker_id = args.pop("broker_id")
@@ -719,6 +1063,7 @@ async def activate_broker_filter_version(handler, args):
     },
     required=("name", "stream_id", "group_id"),
     passthrough="POST /api/filters",
+    writes=True,
 )
 async def post_filter(handler, args):
     return await handler.api("POST", "/api/filters", body=args)
@@ -967,7 +1312,10 @@ class MCPHandler(BaseHandler):
         if method == "tools/list":
             return {
                 "tools": [
-                    {k: t[k] for k in ("name", "description", "inputSchema")}
+                    {
+                        k: t[k]
+                        for k in ("name", "description", "inputSchema", "annotations")
+                    }
                     for t in TOOLS.values()
                 ],
                 "ttlMs": LIST_TTL_MS,

@@ -793,6 +793,8 @@ async def get_sources(
     detected_window_end=None,
     has_tns_name=False,
     has_no_tns_name=False,
+    is_roid=False,
+    is_not_roid=False,
     has_spectrum=False,
     has_no_spectrum=False,
     has_followup_request=False,
@@ -1085,6 +1087,20 @@ async def get_sources(
                 late_statements.append(galactic_statement)
             else:
                 statements.append(galactic_statement)
+        # `IS NOT TRUE` rather than `IS FALSE`: the column is nullable and a
+        # null has never been marked a moving object.
+        if is_roid:
+            statements.append(
+                """
+                objs.is_roid IS TRUE
+                """
+            )
+        elif is_not_roid:
+            statements.append(
+                """
+                objs.is_roid IS NOT TRUE
+                """
+            )
         if has_tns_name:
             statements.append(
                 """
