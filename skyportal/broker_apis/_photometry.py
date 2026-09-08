@@ -154,6 +154,8 @@ async def display_photometry(
 
 
 async def transient_photometry(groups, session):
+    from sqlalchemy.orm.attributes import set_committed_value
+
     from ..handlers.api.photometry import standardize_photometry_data
     from ..models import Photometry
 
@@ -178,7 +180,8 @@ async def transient_photometry(groups, session):
             # serialize()/PhotStat read phot.instrument, which no query would load here
             instrument = instrument_cache.get(row["instrument_id"])
             if instrument is not None:
-                phot.instrument = instrument
+                # a plain assignment would append to Instrument.photometry
+                set_committed_value(phot, "instrument", instrument)
             phots.append(phot)
     return phots
 
