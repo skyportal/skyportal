@@ -3,13 +3,29 @@ downstream of the ``_save.build_photometry_groups`` transform, so a provider onl
 implements the broker fetch. Nothing here writes photometry to Postgres.
 """
 
+import time
 import traceback
 
+import numpy as np
+
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from ..utils.survey import survey_from_object_id
 
+_, cfg = load_env()
+
 log = make_log("broker/photometry")
+
+cache = Cache(
+    cache_dir=f"{cache_folder}/broker_photometry",
+    max_age=cfg.get("misc.minutes_to_keep_broker_photometry_cache", 30) * 60,
+)
+
+_FETCH_TIMEOUT_SECONDS = 10
+_FAILURE_SKIP_SECONDS = 60
+_skip_until: dict = {}
 
 # stream_ids is left out: it gates visibility, not serialization.
 _PAYLOAD_KEYS = (
@@ -73,14 +89,23 @@ def _serialize_points(phots, outsys, fmt, groups=False):
 
 
 async def fetch_broker_groups(cls, broker, object_id, survey, session):
-    """Fetch the object's broker photometry as skyportal-unit groups, persisting
-    nothing, or None if the broker has no data for it."""
+    """The object's broker photometry as skyportal-unit groups, empty when the
+    broker has no data for it (or last failed less than
+    ``_FAILURE_SKIP_SECONDS`` ago), read through a cache so a page reload does
+    not re-query the broker. Persists no photometry."""
     import asyncio
 
     import sqlalchemy as sa
 
     from ..models import Instrument
     from ._save import build_photometry_groups, programid_to_stream_ids
+
+    key = f"{broker.id}_{survey}_{object_id}"
+    cached = cache[key]
+    if cached is not None:
+        return np.load(cached, allow_pickle=True).item()
+    if time.monotonic() < _skip_until.get((broker.id, survey), 0):
+        return {}
 
     instrument_id = await session.scalar(
         sa.select(Instrument.id).where(Instrument.name == survey)
@@ -89,15 +114,54 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
         raise ValueError(f"Instrument '{survey}' not found in the database.")
     programid2streamid = await programid_to_stream_ids(session)
 
-    data = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: cls.get_alert(broker, object_id, None, survey=survey, permissions=None),
+    # a provider's timeout bounds one request, not its pagination walk
+    data = await asyncio.wait_for(
+        asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: cls.get_alert(
+                broker, object_id, None, survey=survey, permissions=None
+            ),
+        ),
+        timeout=_FETCH_TIMEOUT_SECONDS,
     )
-    if not data:
-        return None
-    return build_photometry_groups(
-        object_id, survey, data, instrument_id, programid2streamid
+    groups = (
+        build_photometry_groups(
+            object_id, survey, data, instrument_id, programid2streamid
+        )
+        if data
+        else {}
     )
+    cache[key] = dict_to_bytes(groups)
+    if groups:
+        from tornado.ioloop import IOLoop
+
+        # spawn_callback, not ensure_future: a bare task can be GC'd before it runs
+        IOLoop.current().spawn_callback(update_phot_stat_from_broker, object_id, groups)
+    return groups
+
+
+async def super_obj_obj_ids(object_id, session):
+    """``object_id`` plus every obj sharing a SuperObj with it (an LSST and a ZTF
+    entry for the same astrophysical object), mirroring what
+    ``includeSuperObjsPhotometry`` expands to on GET /sources/{id}/photometry."""
+    import sqlalchemy as sa
+    from sqlalchemy.orm import selectinload
+
+    from ..models import Obj, SuperObj
+
+    super_objs = (
+        (
+            await session.scalars(
+                sa.select(SuperObj)
+                .options(selectinload(SuperObj.objs))
+                .where(SuperObj.objs.any(Obj.id == object_id))
+            )
+        )
+        .unique()
+        .all()
+    )
+    members = (obj.id for super_obj in super_objs for obj in super_obj.objs)
+    return list(dict.fromkeys([object_id, *members]))
 
 
 async def display_photometry(
@@ -129,21 +193,16 @@ async def display_photometry(
 
     try:
         groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
-        kept = filter_groups_by_streams(groups or {}, stream_ids, is_admin)
+        kept = filter_groups_by_streams(groups, stream_ids, is_admin)
         broker_points = _serialize_points(
             await transient_photometry(kept, session), outsys, fmt
         )
-        if groups:
-            from tornado.ioloop import IOLoop
-
-            # spawn_callback, not ensure_future: a bare task can be GC'd before it runs
-            IOLoop.current().spawn_callback(
-                update_phot_stat_from_broker, object_id, groups
-            )
     except Exception:
+        _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
         log(
-            f"passthrough broker fetch failed for {survey}/{object_id}; "
-            f"serving DB photometry only: {traceback.format_exc()}"
+            f"passthrough broker fetch failed for {survey}/{object_id}; serving DB "
+            f"photometry only and skipping {broker.name}/{survey} for "
+            f"{_FAILURE_SKIP_SECONDS}s: {traceback.format_exc()}"
         )
         broker_points = []
 

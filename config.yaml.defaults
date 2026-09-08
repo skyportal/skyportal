@@ -791,6 +791,7 @@ misc:
   max_items_in_localization_instrument_query_cache: 100
   minutes_to_keep_public_source_pages_cache: 1440 # 1 day
   minutes_to_keep_reports_cache: 1440 # 1 day
+  minutes_to_keep_broker_photometry_cache: 30
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
