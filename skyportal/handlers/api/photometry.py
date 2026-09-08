@@ -500,14 +500,17 @@ def serialize(
 
     filter = phot.filter
 
-    if filter == "swiftxrt":
-        outsys = "ab"
-
     magsys_db = sncosmo.get_magsystem("ab")
     outsys = sncosmo.get_magsystem(outsys)
 
     try:
-        relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+        try:
+            relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+        except ValueError:
+            # Vega cannot measure a bandpass outside its spectrum (X-ray,
+            # radio); AB is analytic, so report the point there instead.
+            outsys = magsys_db
+            relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
 
         # note: these are not the actual zeropoints for magnitudes in the db or
         # packet, just ones that can be used to derive corrections when

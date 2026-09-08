@@ -723,21 +723,10 @@ def test_fink_survey_routing():
 
 
 # --- photometry passthrough --------------------------------------------------
-#
-# The broker-canonical photometry passthrough (GET
-# /api/brokers/{id}/alerts/{oid}/photometry) is a base default free to any
-# provider that implements get_alert. These cover the pure, security-critical
-# pieces with no broker or cache: the transform shared with the save path, the
-# access-scope hash / stream filter (the no-leakage guarantee), the DB∪broker
-# merge, and the capability gating. The live fetch/cache path is an integration
-# concern.
 
 from skyportal.broker_apis._photometry import (  # noqa: E402
     filter_groups_by_streams,
     merge_photometry_points,
-    photometry_key,
-    scope_hash,
-    variant_hash,
 )
 from skyportal.broker_apis._save import (  # noqa: E402
     _passes_criteria,
@@ -894,29 +883,6 @@ def test_build_photometry_groups_drops_ungated_programs():
     }
     # only programid 1 is mapped -> the programid-2 point has no home
     assert build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]}) == {}
-
-
-def test_scope_hash_order_independent_and_sensitive():
-    assert scope_hash(7, [3, 1], [9, 5]) == scope_hash(7, [1, 3], [5, 9])
-    base = scope_hash(7, [1], [9])
-    assert base != scope_hash(8, [1], [9])  # user
-    assert base != scope_hash(7, [1, 2], [9])  # groups
-    assert base != scope_hash(7, [1], [9, 10])  # streams
-    assert scope_hash(7, [1], [9], is_admin=True) == "admin"
-
-
-def test_variant_hash_separates_shape_from_visibility():
-    assert variant_hash({"format": "mag", "magsys": "ab"}) == variant_hash(
-        {"magsys": "ab", "format": "mag"}
-    )
-    assert variant_hash({"format": "mag"}) != variant_hash({"format": "flux"})
-
-
-def test_photometry_key_is_broker_and_object_scoped():
-    a = photometry_key(1, "ZTF1", "admin", variant_hash({"format": "mag"}))
-    assert a.startswith("photcache:v1:1:ZTF1:")
-    # a different broker serving the same object gets a different key
-    assert a != photometry_key(2, "ZTF1", "admin", variant_hash({"format": "mag"}))
 
 
 def _scoped_groups():

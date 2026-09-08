@@ -99,6 +99,7 @@ from .gcn import (
     GcnEventNoticeDownloadHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
+    GcnEventSummarizeHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventTagsHandler,
     GcnEventTriggerHandler,

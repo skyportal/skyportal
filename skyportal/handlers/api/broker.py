@@ -735,10 +735,6 @@ class BrokerPhotometryGetQuery(BaseModel):
     magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
         default="ab", description="Magnitude system."
     )
-    refresh: bool = Field(
-        default=False,
-        description="Bypass any cached broker payload and re-fetch.",
-    )
 
 
 class BrokerPhotometryHandler(BaseHandler):
@@ -757,10 +753,9 @@ class BrokerPhotometryHandler(BaseHandler):
           Return an object's photometry for display: the persisted,
           access-controlled photometry from the database merged with photometry
           fetched on demand from the broker (deduped by instrument/filter/mjd,
-          so the broker only augments saved points). The broker half is held in
-          a read-through cache keyed by the object and the requester's access
-          scope, and is never written to the database. Returns a bare list of
-          points, matching GET /sources/{id}/photometry.
+          so the broker only augments saved points). The broker half is
+          scope-filtered and never written to the database. Returns a bare list
+          of points, matching GET /sources/{id}/photometry.
         tags:
           - brokers
           - photometry
@@ -789,32 +784,29 @@ class BrokerPhotometryHandler(BaseHandler):
             return await self._respond_photometry(session, broker, alert_id, query)
 
     async def _respond_photometry(self, session, broker, object_id, query):
-        """Serve merged DB + on-demand broker photometry for ``object_id``. When
-        ``broker`` is None (no configured provider for the survey), degrade to
-        the object's access-controlled DB photometry so the caller still works."""
+        """Serve merged DB + on-demand broker photometry for ``object_id``, or the
+        DB photometry alone when ``broker`` is None."""
         from ...broker_apis._photometry import db_photometry_points
-        from ...utils.valkey_cache import get_cache
 
         if broker is None:
-            db_points = await db_photometry_points(
-                object_id,
-                self.associated_user_object,
-                session,
-                outsys=query.magsys,
-                fmt=query.format,
+            return self.success(
+                data=await db_photometry_points(
+                    object_id,
+                    self.associated_user_object,
+                    session,
+                    outsys=query.magsys,
+                    fmt=query.format,
+                )
             )
-            return self.success(data=db_points)
         try:
             merged = await broker.broker_class.get_photometry(
                 broker,
                 object_id,
                 session,
                 self.associated_user_object,
-                cache=get_cache(),
                 survey=query.survey,
                 outsys=query.magsys,
                 fmt=query.format,
-                refresh=query.refresh,
             )
         except Exception as e:
             return self.error(f"Error fetching photometry from {broker.name}: {e}")

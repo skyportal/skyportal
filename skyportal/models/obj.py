@@ -72,7 +72,7 @@ if any(
 def delete_obj_if_all_data_owned(cls, user_or_token):
     from .source import Source
 
-    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"]
+    allow_nonadmins = cfg.get("misc.allow_nonadmins_delete_objs", False)
 
     deletable_photometry = Photometry.select(user_or_token, mode="delete").subquery()
     nondeletable_photometry = (

@@ -2003,6 +2003,48 @@ def test_sources_filter_by_latest_mag(
     assert data["data"]["sources"][0]["id"] == obj_id2
 
 
+def test_sources_filter_by_is_roid(upload_data_token, view_only_token, public_group):
+    roid_id, static_id = str(uuid.uuid4()), str(uuid.uuid4())
+    for obj_id, is_roid in ((roid_id, True), (static_id, False)):
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": obj_id,
+                "ra": 234.22,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+                "is_roid": is_roid,
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Query one object at a time: the group accumulates sources across tests, so
+    # an unscoped listing would page the new ones out.
+    def matches(obj_id, **params):
+        status, data = api(
+            "GET",
+            "sources",
+            params={
+                "sourceID": obj_id,
+                "group_ids": f"{public_group.id}",
+                **params,
+            },
+            token=view_only_token,
+        )
+        assert status == 200
+        return [s["id"] for s in data["data"]["sources"]]
+
+    assert matches(roid_id, isRoid="true") == [roid_id]
+    assert matches(static_id, isRoid="true") == []
+    assert matches(static_id, isNotRoid="true") == [static_id]
+    assert matches(roid_id, isNotRoid="true") == []
+
+    # An explicit "false" must not enable the filter.
+    assert matches(roid_id, isRoid="false") == [roid_id]
+
+
 def test_sources_filter_by_has_tns_name(
     upload_data_token, view_only_token, public_group
 ):

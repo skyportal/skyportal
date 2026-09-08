@@ -91,32 +91,6 @@ export const brokersApi = skyportalApi.injectEndpoints({
       query: ({ brokerId, ra, dec, radius, radiusUnits = "arcsec" }) =>
         `api/brokers/${brokerId}/cone_search?ra=${ra}&dec=${dec}&radius=${radius}&radius_units=${radiusUnits}`,
     }),
-    // Display photometry for an object: persisted DB rows merged with photometry
-    // fetched on demand from the broker (never written to Postgres). Returns the
-    // same point shape as GET /sources/{id}/photometry.
-    getBrokerPhotometry: build.query<
-      any[],
-      {
-        brokerId: number;
-        alertId: string;
-        survey?: string;
-        format?: string;
-        magsys?: string;
-        refresh?: boolean;
-      }
-    >({
-      query: ({ brokerId, alertId, survey, format, magsys, refresh }) => {
-        const params = new URLSearchParams();
-        if (survey) params.set("survey", survey);
-        if (format) params.set("format", format);
-        if (magsys) params.set("magsys", magsys);
-        if (refresh) params.set("refresh", "true");
-        const qs = params.toString();
-        return `api/brokers/${brokerId}/alerts/${alertId}/photometry${
-          qs ? `?${qs}` : ""
-        }`;
-      },
-    }),
     // Preview a broker filter (params are filter_kind-specific).
     testBrokerFilter: build.query<
       unknown,
@@ -258,7 +232,6 @@ export const {
   useGetBrokerAlertsQuery,
   useLazyGetBrokerAlertsQuery,
   useGetBrokerAlertQuery,
-  useGetBrokerPhotometryQuery,
   useLazyGetBrokerConeSearchQuery,
   useGetSourceIfSavedQuery,
   useSaveBrokerAlertAsSourceMutation,

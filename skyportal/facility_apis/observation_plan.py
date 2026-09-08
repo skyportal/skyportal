@@ -502,16 +502,19 @@ class MMAAPI(FollowUpAPI):
                     "default": end_date,
                 },
                 "filter_strategy": {
+                    "title": "Filter strategy",
                     "type": "string",
                     "enum": ["block", "integrated"],
                     "default": "block",
                 },
                 "schedule_type": {
+                    "title": "Schedule type",
                     "type": "string",
                     "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
                     "default": "greedy",
                 },
                 "schedule_strategy": {
+                    "title": "Schedule strategy",
                     "type": "string",
                     "enum": ["tiling", "galaxy"],
                     "default": "tiling",
@@ -730,6 +733,69 @@ class MMAAPI(FollowUpAPI):
                 "title": "Use fields with references only?",
                 "type": "boolean",
                 "default": True,
+            }
+
+        # Only offered where M4OPT is configured and knows this telescope;
+        # elsewhere the choice would be one that cannot succeed.
+        from ..utils.m4opt_plan import m4opt_enabled, mission_for
+
+        if m4opt_enabled() and mission_for(instrument.name):
+            form_json_schema["properties"]["scheduler"] = {
+                "title": "Scheduler",
+                "type": "string",
+                "enum": ["gwemopt", "m4opt"],
+                "default": "gwemopt",
+                "description": (
+                    "gwemopt tiles greedily; m4opt solves for the schedule and "
+                    "takes longer. The settings below change with the choice."
+                ),
+            }
+            # The two schedulers take different settings, so show only the ones
+            # that apply rather than leaving the others to be silently ignored.
+            gwemopt_only = {
+                key: form_json_schema["properties"].pop(key)
+                for key in ("filter_strategy", "schedule_type", "schedule_strategy")
+            }
+            form_json_schema["required"] = [
+                key for key in form_json_schema["required"] if key not in gwemopt_only
+            ]
+            form_json_schema["dependencies"]["scheduler"] = {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "scheduler": {"enum": ["gwemopt"]},
+                            **gwemopt_only,
+                        },
+                        "required": list(gwemopt_only),
+                    },
+                    {
+                        "properties": {
+                            "scheduler": {"enum": ["m4opt"]},
+                            "visits": {
+                                "title": "Visits per field",
+                                "type": "integer",
+                                "default": 2,
+                                "minimum": 1,
+                                "description": (
+                                    "Visits cycle through the filters above, so "
+                                    "two visits with g,r observes each field in "
+                                    "g then r."
+                                ),
+                            },
+                            "max_fields": {
+                                "title": "Maximum number of fields to consider",
+                                "type": "integer",
+                                "default": 50,
+                                "minimum": 1,
+                                "description": (
+                                    "Raising this grows the problem roughly "
+                                    "quadratically; raise the time limit with it."
+                                ),
+                            },
+                        },
+                        "required": ["visits"],
+                    },
+                ]
             }
         return form_json_schema
 

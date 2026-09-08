@@ -45,6 +45,7 @@ from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
 )
+from ...utils.assignment_status import mark_assignments_observed
 from ...utils.data_access import (
     accessible_group_ids_async,
     default_extra_share_group_ids,
@@ -434,6 +435,14 @@ async def post_spectrum(data, user_id, session):
     for observer in observers:
         observer.spectr_id = spec.id
         session.add(observer)
+
+    # Closing out the observing-run assignment by hand is easy to forget, so a
+    # spectrum that satisfies one marks it done in the same transaction.
+    await mark_assignments_observed(
+        session,
+        spec,
+        window_days=cfg.get("assignments.auto_observed_window_days", 1),
+    )
 
     await session.commit()
 

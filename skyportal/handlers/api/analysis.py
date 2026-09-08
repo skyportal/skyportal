@@ -1616,6 +1616,10 @@ class AnalysisHandler(BaseHandler):
                     analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
                     user_pref_openai.pop("apikey", None)
                     user_pref_openai.pop("active", None)
+                    # A personal key goes only to its owner's base_url, or OpenAI.
+                    user_pref_openai["base_url"] = (
+                        user_pref_openai.get("base_url") or None
+                    )
                     analysis_parameters["summary_parameters"] = user_pref_openai
                 elif openai_api_key is not None:
                     analysis_parameters["openai_api_key"] = openai_api_key
@@ -1818,6 +1822,8 @@ class AnalysisHandler(BaseHandler):
                             analysis_dict["filename"] = a._full_name
                         analysis_dict["model_lightcurve"] = None
                         analysis_dict["model_lightcurves"] = None
+                        analysis_dict["model_spectrum"] = None
+                        analysis_dict["model_spectrum_summary"] = None
                         analysis_dict["model_name"] = None
                         analysis_dict["n_detections"] = None
                         try:
@@ -1827,6 +1833,14 @@ class AnalysisHandler(BaseHandler):
                             )
                             analysis_dict["model_lightcurves"] = adata.get(
                                 "model_lightcurves"
+                            )
+                            # Best-fit template spectrum + its classification headline
+                            # for the spectrum-plot overlay and its hover.
+                            analysis_dict["model_spectrum"] = adata.get(
+                                "model_spectrum"
+                            )
+                            analysis_dict["model_spectrum_summary"] = adata.get(
+                                "model_spectrum_summary"
                             )
                             analysis_dict["model_name"] = adata.get("model_name")
                             analysis_dict["n_detections"] = adata.get("n_detections")
