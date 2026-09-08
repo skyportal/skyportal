@@ -176,15 +176,15 @@ async def display_photometry(
     survey=None,
     outsys="ab",
     fmt="mag",
+    include_super_objs=False,
 ):
     """Object photometry for display: the access-controlled DB rows merged with
-    photometry fetched on demand from the broker, degrading to DB-only on failure."""
-    survey = (
-        survey
-        or survey_from_object_id(object_id, cls.surveys)
-        or (broker.altdata or {}).get("survey")
-    )
+    photometry fetched on demand from the broker, degrading to DB-only on failure.
 
+    With ``include_super_objs`` the objs sharing a SuperObj with ``object_id`` are
+    served too, each fetched under its own survey, so a ZTF+LSST pair is complete
+    on both halves.
+    """
     from ..models import Stream
 
     permissions = (
@@ -192,27 +192,43 @@ async def display_photometry(
         if user.is_system_admin
         else survey_permissions((await session.scalars(Stream.select(user))).all())
     )
+    obj_ids = (
+        await super_obj_obj_ids(object_id, session)
+        if include_super_objs
+        else [object_id]
+    )
+    served = cls.configured_surveys(broker.altdata)
 
-    try:
-        groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
-        broker_points = _serialize_points(
-            await transient_photometry(
-                filter_groups_by_scope(groups, permissions), session
-            ),
-            outsys,
-            fmt,
+    broker_points = []
+    for obj_id in obj_ids:
+        obj_survey = (
+            (survey if obj_id == object_id else None)
+            or survey_from_object_id(obj_id)
+            or (broker.altdata or {}).get("survey")
         )
-    except Exception:
-        _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
-        log(
-            f"passthrough broker fetch failed for {survey}/{object_id}; serving DB "
-            f"photometry only and skipping {broker.name}/{survey} for "
-            f"{_FAILURE_SKIP_SECONDS}s: {traceback.format_exc()}"
-        )
-        broker_points = []
+        if served and obj_survey not in served:
+            continue
+        try:
+            groups = await fetch_broker_groups(cls, broker, obj_id, obj_survey, session)
+            broker_points += _serialize_points(
+                await transient_photometry(
+                    filter_groups_by_scope(groups, permissions), session
+                ),
+                outsys,
+                fmt,
+            )
+        except Exception:
+            _skip_until[(broker.id, obj_survey)] = (
+                time.monotonic() + _FAILURE_SKIP_SECONDS
+            )
+            log(
+                f"passthrough broker fetch failed for {obj_survey}/{obj_id}; serving "
+                f"DB photometry only and skipping {broker.name}/{obj_survey} for "
+                f"{_FAILURE_SKIP_SECONDS}s: {traceback.format_exc()}"
+            )
 
     return merge_photometry_points(
-        await db_photometry_points(object_id, user, session, outsys=outsys, fmt=fmt),
+        await db_photometry_points(obj_ids, user, session, outsys=outsys, fmt=fmt),
         broker_points,
     )
 
@@ -250,8 +266,8 @@ async def transient_photometry(groups, session):
     return phots
 
 
-async def db_photometry_points(object_id, user, session, outsys="ab", fmt="mag"):
-    """Serialize the object's persisted photometry, eager-loading what ``serialize()``
+async def db_photometry_points(obj_ids, user, session, outsys="ab", fmt="mag"):
+    """Serialize the objects' persisted photometry, eager-loading what ``serialize()``
     reads (a lazy load would raise under the async session)."""
     from sqlalchemy.orm import joinedload
 
@@ -259,7 +275,7 @@ async def db_photometry_points(object_id, user, session, outsys="ab", fmt="mag")
 
     stmt = (
         Photometry.select(user)
-        .where(Photometry.obj_id == object_id)
+        .where(Photometry.obj_id.in_(obj_ids))
         .options(
             joinedload(Photometry.instrument).load_only(Instrument.name),
             joinedload(Photometry.groups).load_only(

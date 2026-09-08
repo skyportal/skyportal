@@ -280,6 +280,79 @@ def test_default_photometry_broker_serves_object_photometry(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_default_photometry_broker_serves_super_obj_photometry(
+    super_admin_token,
+    upload_data_token,
+    public_source,
+    public_source_group2,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    """With includeSuperObjsPhotometry the passthrough serves every obj of the
+    SuperObj, matching GET /sources/{id}/photometry."""
+    for obj_id, token, group_id, mjd in (
+        (public_source.id, upload_data_token, public_group.id, 58000.0),
+        (public_source_group2.id, super_admin_token, public_group2.id, 58001.0),
+    ):
+        status, data = api(
+            "POST",
+            "photometry",
+            data={
+                "obj_id": str(obj_id),
+                "mjd": mjd,
+                "instrument_id": ztf_camera.id,
+                "flux": 12.24,
+                "fluxerr": 0.031,
+                "zp": 25.0,
+                "magsys": "ab",
+                "filter": "ztfg",
+                "group_ids": [group_id],
+            },
+            token=token,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "POST",
+        "super_objs",
+        data={"obj_ids": [str(public_source.id), str(public_source_group2.id)]},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    super_obj_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "GET", f"brokers/photometry/{public_source.id}", token=super_admin_token
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {str(public_source.id)}
+
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?includeSuperObjsPhotometry=true",
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {
+            str(public_source.id),
+            str(public_source_group2.id),
+        }
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+        api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
+
+
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)

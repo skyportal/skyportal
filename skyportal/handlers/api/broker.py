@@ -9,7 +9,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...broker_apis._photometry import db_photometry_points
+from ...broker_apis._photometry import (
+    db_photometry_points,
+    super_obj_obj_ids,
+)
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
 from ...models import Broker, Filter, GroupUser, Stream, set_autosave
@@ -762,6 +765,10 @@ class BrokerPhotometryGetQuery(BaseModel):
     magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
         default="ab", description="Magnitude system."
     )
+    includeSuperObjsPhotometry: bool = Field(
+        default=False,
+        description="Also serve the objs sharing a SuperObj with this one.",
+    )
 
 
 class BrokerPhotometryHandler(BaseHandler):
@@ -827,6 +834,7 @@ class BrokerPhotometryHandler(BaseHandler):
                         survey=query.survey,
                         outsys=query.magsys,
                         fmt=query.format,
+                        include_super_objs=query.includeSuperObjsPhotometry,
                     )
                 )
             except Exception as e:
@@ -839,9 +847,14 @@ class BrokerPhotometryHandler(BaseHandler):
                     f"photometry only: {e}"
                 )
                 await session.rollback()
+        obj_ids = (
+            await super_obj_obj_ids(object_id, session)
+            if query.includeSuperObjsPhotometry
+            else [object_id]
+        )
         return self.success(
             data=await db_photometry_points(
-                object_id,
+                obj_ids,
                 self.associated_user_object,
                 session,
                 outsys=query.magsys,
