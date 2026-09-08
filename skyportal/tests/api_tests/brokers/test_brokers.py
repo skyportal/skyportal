@@ -231,29 +231,35 @@ def test_broker_defaults_are_exclusive(super_admin_token):
         api("DELETE", f"brokers/{second_id}", token=super_admin_token)
 
 
+def _post_photometry(token, obj_id, instrument_id, group_ids, mjd):
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(obj_id),
+            "mjd": mjd,
+            "instrument_id": instrument_id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": group_ids,
+        },
+        token=token,
+    )
+    assert status == 200, data
+
+
 def test_default_photometry_broker_serves_object_photometry(
     super_admin_token, upload_data_token, public_source, public_group, ztf_camera
 ):
     """The broker-address-free passthrough the source page calls serves the
     object's DB photometry when no broker is the photometry default, and still
     serves it when the default one cannot be reached."""
-    status, data = api(
-        "POST",
-        "photometry",
-        data={
-            "obj_id": str(public_source.id),
-            "mjd": 58000.0,
-            "instrument_id": ztf_camera.id,
-            "flux": 12.24,
-            "fluxerr": 0.031,
-            "zp": 25.0,
-            "magsys": "ab",
-            "filter": "ztfg",
-            "group_ids": [public_group.id],
-        },
-        token=upload_data_token,
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58000.0
     )
-    assert status == 200, data
 
     status, data = api(
         "GET", f"brokers/photometry/{public_source.id}", token=upload_data_token
@@ -291,27 +297,16 @@ def test_default_photometry_broker_serves_super_obj_photometry(
 ):
     """With includeSuperObjsPhotometry the passthrough serves every obj of the
     SuperObj, matching GET /sources/{id}/photometry."""
-    for obj_id, token, group_id, mjd in (
-        (public_source.id, upload_data_token, public_group.id, 58000.0),
-        (public_source_group2.id, super_admin_token, public_group2.id, 58001.0),
-    ):
-        status, data = api(
-            "POST",
-            "photometry",
-            data={
-                "obj_id": str(obj_id),
-                "mjd": mjd,
-                "instrument_id": ztf_camera.id,
-                "flux": 12.24,
-                "fluxerr": 0.031,
-                "zp": 25.0,
-                "magsys": "ab",
-                "filter": "ztfg",
-                "group_ids": [group_id],
-            },
-            token=token,
-        )
-        assert status == 200, data
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58000.0
+    )
+    _post_photometry(
+        super_admin_token,
+        public_source_group2.id,
+        ztf_camera.id,
+        [public_group2.id],
+        58001.0,
+    )
 
     status, data = api(
         "POST",

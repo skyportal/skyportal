@@ -293,9 +293,7 @@ class BrokerAPI(_Base):
     # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
     cross_match_catalogs = False
 
-    # whether get_alert can back the source page's photometry passthrough, which
-    # runs on every page view under a 10s bound. ANTARES walks its whole paginated
-    # alert history; Pitt-Google bills the deployment for each BigQuery job.
+    # False where get_alert is too slow or too costly to run on every page view.
     photometry_passthrough = True
 
     # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no

@@ -44,11 +44,10 @@ _PAYLOAD_KEYS = (
 
 
 def filter_groups_by_scope(groups, permissions):
-    """Keep the groups whose ``(survey, programid)`` the requester's streams cover
-    (``permissions`` as built by ``survey_permissions``); ``None`` is the system
-    admin's unrestricted scope and keeps everything."""
+    """Keep the groups whose ``(survey, programid)`` the requester's streams cover.
+    ``permissions`` is ``survey_permissions()``, ``None`` the admin's full scope."""
     if permissions is None:
-        return dict(groups)
+        return groups
     return {
         key: group
         for key, group in groups.items()
@@ -56,13 +55,20 @@ def filter_groups_by_scope(groups, permissions):
     }
 
 
+def _round_mjd(mjd):
+    return round(mjd, 6) if mjd is not None else None
+
+
 def _dedup_key(point):
-    mjd = point.get("mjd")
     return (
         point.get("instrument_id"),
         point.get("filter"),
-        round(mjd, 6) if mjd is not None else None,
+        _round_mjd(point.get("mjd")),
     )
+
+
+def _phot_dedup_key(phot):
+    return (phot.instrument_id, phot.filter, _round_mjd(phot.mjd))
 
 
 def merge_photometry_points(db_points, broker_points):
@@ -91,10 +97,8 @@ def _serialize_points(phots, outsys, fmt, groups=False):
 
 
 async def fetch_broker_groups(cls, broker, object_id, survey, session):
-    """The object's broker photometry as skyportal-unit groups, empty when the
-    broker has no data for it (or last failed less than
-    ``_FAILURE_SKIP_SECONDS`` ago), read through a cache so a page reload does
-    not re-query the broker. Persists no photometry."""
+    """The object's broker photometry as skyportal-unit groups, read through a cache
+    and empty when the broker has no data for it or just failed. Persists nothing."""
     import asyncio
 
     import sqlalchemy as sa
@@ -143,27 +147,22 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
 
 
 async def super_obj_obj_ids(object_id, session):
-    """``object_id`` plus every obj sharing a SuperObj with it (an LSST and a ZTF
-    entry for the same astrophysical object), mirroring what
+    """``object_id`` plus the objs it shares a SuperObj with, what
     ``includeSuperObjsPhotometry`` expands to on GET /sources/{id}/photometry."""
     import sqlalchemy as sa
-    from sqlalchemy.orm import selectinload
 
-    from ..models import Obj, SuperObj
+    from ..models import ObjToSuperObj
 
-    super_objs = (
-        (
-            await session.scalars(
-                sa.select(SuperObj)
-                .options(selectinload(SuperObj.objs))
-                .where(SuperObj.objs.any(Obj.id == object_id))
+    members = await session.scalars(
+        sa.select(ObjToSuperObj.obj_id).where(
+            ObjToSuperObj.super_obj_id.in_(
+                sa.select(ObjToSuperObj.super_obj_id).where(
+                    ObjToSuperObj.obj_id == object_id
+                )
             )
         )
-        .unique()
-        .all()
     )
-    members = (obj.id for super_obj in super_objs for obj in super_obj.objs)
-    return list(dict.fromkeys([object_id, *members]))
+    return list(dict.fromkeys([object_id, *members.all()]))
 
 
 async def display_photometry(
@@ -180,11 +179,8 @@ async def display_photometry(
 ):
     """Object photometry for display: the access-controlled DB rows merged with
     photometry fetched on demand from the broker, degrading to DB-only on failure.
-
-    With ``include_super_objs`` the objs sharing a SuperObj with ``object_id`` are
-    served too, each fetched under its own survey, so a ZTF+LSST pair is complete
-    on both halves.
-    """
+    ``include_super_objs`` serves the objs sharing a SuperObj too, each fetched
+    under its own survey."""
     from ..models import Stream
 
     permissions = (
@@ -210,13 +206,10 @@ async def display_photometry(
             continue
         try:
             groups = await fetch_broker_groups(cls, broker, obj_id, obj_survey, session)
-            broker_points += _serialize_points(
-                await transient_photometry(
-                    filter_groups_by_scope(groups, permissions), session
-                ),
-                outsys,
-                fmt,
+            phots = await transient_photometry(
+                filter_groups_by_scope(groups, permissions), session
             )
+            broker_points += _serialize_points(phots, outsys, fmt)
         except Exception:
             _skip_until[(broker.id, obj_survey)] = (
                 time.monotonic() + _FAILURE_SKIP_SECONDS
@@ -304,19 +297,10 @@ async def update_phot_stat_from_broker(object_id, groups):
                     sa.select(Photometry).where(Photometry.obj_id == object_id)
                 )
             ).all()
-            seen = {
-                (p.instrument_id, p.filter, round(p.mjd, 6))
-                for p in db_phot
-                if p.mjd is not None
-            }
+            seen = {_phot_dedup_key(p) for p in db_phot}
             merged = [
                 *db_phot,
-                *(
-                    p
-                    for p in broker_phot
-                    if p.mjd is None
-                    or (p.instrument_id, p.filter, round(p.mjd, 6)) not in seen
-                ),
+                *(p for p in broker_phot if _phot_dedup_key(p) not in seen),
             ]
             if not merged:
                 return

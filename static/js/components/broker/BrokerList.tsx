@@ -49,7 +49,6 @@ import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
 
-// Which of the unified capabilities a broker actually exposes.
 const capabilityChips = (caps: Record<string, boolean>) =>
   [
     { label: "search", on: Boolean(caps?.["query_alerts"]) },
@@ -159,9 +158,20 @@ const DEFAULT_TOGGLES = [
   },
 ] as const;
 
-// Admin/config view for every broker (searchable AND ingestion-only), where any
-// provider can be configured, activated, and removed — distinct from the alert
-// search page.
+const defaultBlockedReason = (
+  b: any,
+  toggle: (typeof DEFAULT_TOGGLES)[number],
+  isSystemAdmin: boolean,
+) => {
+  const clearing = Boolean(b[toggle.field]);
+  if (!isSystemAdmin) return "Only system admins can change the defaults.";
+  if (clearing) return "";
+  if (!b.capabilities?.[toggle.capability]) return toggle.unsupported;
+  if (!b.active) return "Activate this broker to make it the default.";
+  return "";
+};
+
+// Admin view for every broker, distinct from the alert search page.
 const BrokerList = () => {
   const navigate = useNavigate();
   const { data: brokers, isLoading } = useGetBrokersQuery();
@@ -349,49 +359,41 @@ const BrokerList = () => {
                         }
                       />
                     </TableCell>
-                    {DEFAULT_TOGGLES.map(
-                      ({ field, capability, unsupported }) => {
-                        const isDefault = Boolean(b[field]);
-                        const reason = !isSystemAdmin
-                          ? "Only system admins can change the defaults."
-                          : isDefault
-                            ? ""
-                            : !b.capabilities?.[capability]
-                              ? unsupported
-                              : !b.active
-                                ? "Activate this broker to make it the default."
-                                : "";
-                        return (
-                          <TableCell
-                            key={field}
-                            onClick={(e) => e.stopPropagation()}
+                    {DEFAULT_TOGGLES.map((toggle) => {
+                      const isDefault = Boolean(b[toggle.field]);
+                      const blocked = defaultBlockedReason(
+                        b,
+                        toggle,
+                        isSystemAdmin,
+                      );
+                      return (
+                        <TableCell
+                          key={toggle.field}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Tooltip
+                            title={
+                              blocked ||
+                              (isDefault ? "Click to clear this default." : "")
+                            }
                           >
-                            <Tooltip
-                              title={
-                                reason ||
-                                (isDefault
-                                  ? "Click to clear this default."
-                                  : "")
-                              }
-                            >
-                              <span>
-                                <Radio
-                                  size="small"
-                                  checked={isDefault}
-                                  disabled={Boolean(reason)}
-                                  onClick={() =>
-                                    updateBroker({
-                                      id: b.id,
-                                      patch: { [field]: !isDefault },
-                                    })
-                                  }
-                                />
-                              </span>
-                            </Tooltip>
-                          </TableCell>
-                        );
-                      },
-                    )}
+                            <span>
+                              <Radio
+                                size="small"
+                                checked={isDefault}
+                                disabled={Boolean(blocked)}
+                                onClick={() =>
+                                  updateBroker({
+                                    id: b.id,
+                                    patch: { [toggle.field]: !isDefault },
+                                  })
+                                }
+                              />
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      );
+                    })}
                     <TableCell
                       align="right"
                       onClick={(e) => e.stopPropagation()}

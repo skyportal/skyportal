@@ -1,14 +1,6 @@
 /**
- * Source photometry.
- *
- * RTK Query conversion of the old `FETCH_SOURCE_PHOTOMETRY` duck. The query
- * fetches a source's photometry and is tagged `Photometry`; the mutations
+ * Source photometry: the query is tagged `Photometry` and the mutations
  * (delete, submit, update) invalidate it so the list refetches.
- *
- * The websocket `REFRESH_SOURCE_PHOTOMETRY` message is bridged to `Photometry`
- * tag invalidation via `invalidateOnMessage`, preserving the old conditional
- * logic (only refresh when the currently-loaded source matches the pushed
- * obj_id).
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
@@ -26,18 +18,12 @@ export interface PhotometryPoint {
 
 export const photometryApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    // Photometry points carry many optional, app-specific fields, so the element
-    // type is `any` (the `PhotometryPoint` interface above documents the stable
-    // fields).
     fetchSourcePhotometry: build.query<
       PhotometryPoint[],
       { id: number | string; params?: { [key: string]: any } }
     >({
       async queryFn({ id, params = {} }, api, _extraOptions, baseQuery) {
-        // The broker flagged `default_photometry`, if any, serves this fetch:
-        // saved points merged with on-demand broker photometry, same response
-        // shape. Its list is awaited, not read from the store, which is still
-        // empty when a page first renders.
+        // awaited, not read from the store, which is empty on a page's first render
         const { data: brokers } = await api.dispatch(
           brokersApi.endpoints.getBrokers.initiate(undefined, {
             subscribe: false,
@@ -95,8 +81,7 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Scoped to the pushed object, so a push about one source does not refetch the
-// photometry another page is showing.
+// scoped to the pushed object, so one source's push cannot refetch another page's
 invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload) =>
   payload?.obj_id != null ? photometryTag(payload.obj_id) : null,
 );

@@ -9,10 +9,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...broker_apis._photometry import (
-    db_photometry_points,
-    super_obj_obj_ids,
-)
+from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
 from ...models import Broker, Filter, GroupUser, Stream, set_autosave
@@ -820,9 +817,8 @@ class BrokerPhotometryHandler(BaseHandler):
     async def _respond_photometry(
         self, session, broker, object_id, query, *, degrade=False
     ):
-        """Serve merged DB + on-demand broker photometry for ``object_id``, or the
-        DB photometry alone when ``broker`` is None or, with ``degrade``, when the
-        broker cannot be served."""
+        """Serve merged DB + on-demand broker photometry, or the DB photometry alone
+        when there is no broker or, with ``degrade``, when the broker fails."""
         if broker is not None:
             try:
                 return self.success(
@@ -865,9 +861,8 @@ class BrokerPhotometryHandler(BaseHandler):
 
 class BrokerDefaultPhotometryGetQuery(BrokerPhotometryGetQuery):
     """Query parameters for displaying an object's photometry via the default
-    photometry broker. The includeOwnerInfo/includeStreamInfo/
-    includeValidationInfo/includeExtinction/includeSuperObjsPhotometry flags of
-    GET /sources/{id}/photometry are accepted and ignored, so the source page
+    photometry broker. The source page's includeOwnerInfo/includeStreamInfo/
+    includeValidationInfo/includeExtinction flags are accepted and ignored, so it
     can call this endpoint with the parameters it already sends."""
 
     includeOwnerInfo: bool = Field(default=False, description="Ignored.")

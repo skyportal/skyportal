@@ -35,8 +35,7 @@ class _Base:
     def implements(cls):
         caps = {name: cls._isimplemented(name) for name in cls._methods}
         # save_as_source and get_photometry are base defaults (interface.py) for
-        # any provider that can fetch an object, so gate both on get_alert; a
-        # provider too slow for the read-only passthrough opts out of it.
+        # any provider that can fetch an object, so gate both on get_alert.
         caps["save_as_source"] = cls._isimplemented("get_alert")
         caps["get_photometry"] = (
             cls._isimplemented("get_alert") and cls.photometry_passthrough
