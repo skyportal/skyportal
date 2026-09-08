@@ -1616,6 +1616,10 @@ class AnalysisHandler(BaseHandler):
                     analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
                     user_pref_openai.pop("apikey", None)
                     user_pref_openai.pop("active", None)
+                    # A personal key goes only to its owner's base_url, or OpenAI.
+                    user_pref_openai["base_url"] = (
+                        user_pref_openai.get("base_url") or None
+                    )
                     analysis_parameters["summary_parameters"] = user_pref_openai
                 elif openai_api_key is not None:
                     analysis_parameters["openai_api_key"] = openai_api_key
