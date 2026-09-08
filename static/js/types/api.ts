@@ -42148,7 +42148,7 @@ export interface components {
             } | string) | null;
             /**
              * Field Data
-             * @description List of ID, RA, and Dec for each field.
+             * @description List of ID, RA, and Dec for each field. May also carry a rotation (degrees east of north) per field, for a survey whose footprint rolls between pointings.
              * @default null
              */
             field_data: ({
@@ -42319,7 +42319,7 @@ export interface components {
             } | string) | null;
             /**
              * Field Data
-             * @description List of ID, RA, and Dec for each field.
+             * @description List of ID, RA, and Dec for each field. May also carry a rotation (degrees east of north) per field, for a survey whose footprint rolls between pointings.
              * @default null
              */
             field_data: ({

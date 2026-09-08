@@ -116,6 +116,7 @@ def test_mcp_tools_list(view_only_token):
         "get_spectra",
         "post_spectrum",
         "analyze_light_curve",
+        "analyze_solar_system_photometry",
         "list_analysis_services",
         "get_analyses",
         "get_analysis",
