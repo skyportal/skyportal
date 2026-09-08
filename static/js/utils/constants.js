@@ -2,7 +2,6 @@ const C = 299792.458; // km/s
 const PHOT_ZP = 23.9; // AB mag zero point
 
 const BASE_LAYOUT = {
-  // base layout for all plotly plots
   automargin: true,
   ticks: "outside",
   nticks: 8,
@@ -16,8 +15,6 @@ const BASE_LAYOUT = {
   tickfont: { size: 14 },
 };
 
-// Plotly has no notion of the MUI theme, so axis/canvas colours are derived
-// from it here and merged into each plot's layout.
 const plotAxisTheme = (theme) => ({
   gridcolor: theme.palette.divider,
   linecolor: theme.palette.text.secondary,
@@ -32,21 +29,20 @@ const plotCanvasTheme = (theme) => ({
   font: { color: theme.palette.text.primary },
 });
 
-// Spectral-line colours were picked for a white canvas; on a dark one the
-// darkest of them disappear. Raise lightness while holding the hue so a line
-// stays recognisable as "the blue one".
-const hexLuminance = (hex) => {
+const hexToRgb = (hex) => {
   const v = hex.replace("#", "");
-  const rgb = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
-  const lin = rgb.map((x) =>
+  return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+};
+
+const hexLuminance = (hex) => {
+  const [r, g, b] = hexToRgb(hex).map((x) =>
     x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4,
   );
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
 const lightenForDark = (hex, target = 0.35) => {
-  const v = hex.replace("#", "");
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+  const [r, g, b] = hexToRgb(hex);
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   let h = 0;
@@ -73,14 +69,13 @@ const lightenForDark = (hex, target = 0.35) => {
       [x, 0, c],
       [c, 0, x],
     ][seg];
-    const channels = rgb
+    return `#${rgb
       .map((ch) =>
         Math.round((ch + m) * 255)
           .toString(16)
           .padStart(2, "0"),
       )
-      .join("");
-    return `#${channels}`;
+      .join("")}`;
   };
   let light = l;
   let out = toHex(light);
@@ -92,13 +87,13 @@ const lightenForDark = (hex, target = 0.35) => {
 };
 
 const legibleLineColors = (lines, dark) =>
-  !dark
-    ? lines
-    : lines.map((line) =>
+  dark
+    ? lines.map((line) =>
         line?.color && hexLuminance(line.color) < 0.18
           ? { ...line, color: lightenForDark(line.color) }
           : line,
-      );
+      )
+    : lines;
 
 const LINES = [
   {
