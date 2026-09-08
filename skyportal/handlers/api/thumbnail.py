@@ -451,9 +451,6 @@ class ThumbnailPathHandler(BaseHandler):
                               type: integer
 
         """
-        # need to import this here because alert.py might import this file
-        from .alert import alert_available
-
         query = self.parse_query(ThumbnailPathPatchQuery)
 
         types = query.types
@@ -485,7 +482,7 @@ class ThumbnailPathHandler(BaseHandler):
                     continue
 
                 # the delete is committed in check_thumbnail_file
-                if alert_available and not await check_thumbnail_file(
+                if not await check_thumbnail_file(
                     t, self.associated_user_object.id, session
                 ):
                     continue
@@ -649,9 +646,6 @@ async def check_thumbnail_file(thumbnail, user_id, session):
     Returns True when the file is usable; when it is missing the row is dropped
     and the cutouts are re-fetched, so the caller should skip this thumbnail.
     """
-    # need to import this here because alert.py might import this file
-    from .alert import alert_available, post_alert
-
     if os.path.isfile(thumbnail.file_uri) and os.stat(thumbnail.file_uri).st_size != 0:
         return True
 
@@ -663,17 +657,6 @@ async def check_thumbnail_file(thumbnail, user_id, session):
     await session.delete(thumbnail)
     await session.commit()
 
-    if alert_available:
-        # Fritz overrides this stub; await it there if it was made async.
-        post_alert(
-            object_id=obj_id,
-            candid=None,
-            group_ids="all",
-            user_id=user_id,
-            session=session,
-            thumbnails_only=True,
-        )
-    else:
-        await recreate_thumbnails_from_broker(obj_id, user_id, session)
+    await recreate_thumbnails_from_broker(obj_id, user_id, session)
 
     return False
