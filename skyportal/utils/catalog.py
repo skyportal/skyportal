@@ -100,8 +100,6 @@ def query_fink(
     verbose=True,
 ):
     """Query Fink and apply the selection criteria
-    token : str
-        Kowalski token
     jd_trigger : float
         Time of the event (in JD)
     ra_center : list of float
@@ -121,7 +119,7 @@ def query_fink(
     after_trigger : bool
         Check for detections only after the trigger. Defaults to True.
     verbose : bool
-        Kowalski verbosity. Defaults to False.
+        Verbosity. Defaults to False.
     """
 
     time_min = Time(jd_trigger + min_days, format="jd")

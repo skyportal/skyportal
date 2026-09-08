@@ -20,8 +20,8 @@ _, cfg = load_env()
 
 
 class Broker(Base):
-    """A configured connection to an external alert broker (e.g. BOOM,
-    Kowalski, Fink, Lasair).
+    """A configured connection to an external alert broker (e.g. BOOM, Fink,
+    Lasair).
 
     The provider logic lives in a registered ``skyportal.broker_apis.BrokerAPI``
     subclass named by ``broker_classname``; this row supplies the per-instance

@@ -57,7 +57,7 @@ SkyPortal uses a microservice architecture managed with supervisord, which allow
 
 ## Broker plugins
 
-SkyPortal connects to external alert brokers (BOOM, Kowalski, Fink, Lasair, ...) through a pluggable provider interface in `skyportal/broker_apis/`, modeled on the follow-up facility APIs. A provider is a registered `BrokerAPI` subclass; a configured connection is a `Broker` database record holding the provider name and encrypted credentials. See the [broker plugins guide](./doc/broker_plugins.md).
+SkyPortal connects to external alert brokers (BOOM, Fink, Lasair, ...) through a pluggable provider interface in `skyportal/broker_apis/`, modeled on the follow-up facility APIs. A provider is a registered `BrokerAPI` subclass; a configured connection is a `Broker` database record holding the provider name and encrypted credentials. See the [broker plugins guide](./doc/broker_plugins.md).
 
 ## Testing
 
