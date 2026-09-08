@@ -164,14 +164,9 @@ class BrokerAPI(_Base):
     @classmethod
     async def get_photometry(cls, broker, alert_id, session, user, **kwargs):
         """Display-only photometry for an object (``alert_id`` = objectId): the
-        persisted, access-controlled DB photometry merged with photometry fetched
-        on demand from the broker, cached per access scope and never written to
-        Postgres (the broker-canonical / marshal-as-cache pattern).
-
-        Default implementation, free to any provider that implements
-        ``get_alert``: fetch the object and hand off to the shared, survey-keyed
-        transform + cache (``_photometry.display_photometry``). Override only for
-        a non-standard alert shape.
+        access-controlled DB photometry merged with photometry fetched on demand
+        from the broker, never written to Postgres. Free to any provider that
+        implements ``get_alert``; override only for a non-standard alert shape.
         """
         from ._photometry import display_photometry
 
