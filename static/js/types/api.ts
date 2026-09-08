@@ -2054,10 +2054,9 @@ export interface paths {
          * @description Return an object's photometry for display: the persisted,
          *     access-controlled photometry from the database merged with photometry
          *     fetched on demand from the broker (deduped by instrument/filter/mjd,
-         *     so the broker only augments saved points). The broker half is held in
-         *     a read-through cache keyed by the object and the requester's access
-         *     scope, and is never written to the database. Returns a bare list of
-         *     points, matching GET /sources/{id}/photometry.
+         *     so the broker only augments saved points). The broker half is
+         *     scope-filtered and never written to the database. Returns a bare list
+         *     of points, matching GET /sources/{id}/photometry.
          */
         get: {
             parameters: {
@@ -2068,8 +2067,6 @@ export interface paths {
                     format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
-                    /** @description Bypass any cached broker payload and re-fetch. */
-                    refresh?: boolean;
                 };
                 header?: never;
                 path: {
@@ -2134,8 +2131,6 @@ export interface paths {
                     format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
-                    /** @description Bypass any cached broker payload and re-fetch. */
-                    refresh?: boolean;
                     /** @description Ignored. */
                     includeOwnerInfo?: boolean;
                     /** @description Ignored. */
