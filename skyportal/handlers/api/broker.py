@@ -78,17 +78,27 @@ DEFAULT_FIELDS = {
 }
 
 
-async def set_default(session, broker, field, value):
+async def set_default(session, broker, field, value, *, check_connection=True):
     """Make ``broker`` the one holding ``field``, clearing it everywhere else.
 
-    Raises ``ValueError`` if the provider cannot serve what the default targets.
+    Raises ``ValueError`` if the provider cannot serve what the default targets,
+    or if an active broker no longer answers with its stored credentials.
     """
     capability = DEFAULT_FIELDS[field]
-    if value and not broker.broker_class.implements()[capability]:
+    implements = broker.broker_class.implements()
+    if value and not implements[capability]:
         raise ValueError(
             f"{broker.name} does not implement '{capability}' and cannot be the "
             f"'{field}' broker."
         )
+    if value and check_connection and broker.active and implements["test_connection"]:
+        try:
+            broker.broker_class.test_connection(broker)
+        except Exception as e:
+            raise ValueError(
+                f"{broker.name} cannot be reached and cannot be the '{field}' "
+                f"broker: {e}"
+            )
     if value:
         await session.execute(
             sa.update(Broker)
@@ -453,6 +463,7 @@ class BrokerHandler(BaseHandler):
                 broker.altdata = altdata
             if "active" in fields_set:
                 broker.active = body.active
+            tested = False
             if (
                 checks_credentials
                 and broker.active
@@ -465,11 +476,16 @@ class BrokerHandler(BaseHandler):
                     return self.error(
                         f"Wrong {broker.name} credentials, it cannot {action}: {e}"
                     )
+                tested = True
             for field in DEFAULT_FIELDS:
                 if field in fields_set:
                     try:
                         await set_default(
-                            session, broker, field, bool(getattr(body, field))
+                            session,
+                            broker,
+                            field,
+                            bool(getattr(body, field)),
+                            check_connection=not tested,
                         )
                     except ValueError as e:
                         return self.error(str(e))
