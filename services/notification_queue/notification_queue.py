@@ -51,6 +51,7 @@ from skyportal.utils.gcn import get_skymap_properties
 from skyportal.utils.gcn_extraction_tags import (
     apply_tags,
     classification_of,
+    tag_event,
     wants_classification,
 )
 from skyportal.utils.notifications import (
@@ -790,10 +791,21 @@ def api(queue):
                             tagged = apply_tags(
                                 session, extraction, extraction.sent_by_id
                             )
-                            if tagged:
+                            # The event carries the tag too, since a circular can
+                            # classify a trigger that has no object to tag.
+                            event_tag = tag_event(
+                                session, extraction, extraction.sent_by_id
+                            )
+                            if tagged or event_tag:
                                 session.commit()
+                            if tagged:
                                 log(
                                     f"tagged {', '.join(tagged)} from extraction {target_id}"
+                                )
+                            if event_tag:
+                                log(
+                                    f"tagged event {extraction.dateobs} "
+                                    f"{event_tag} from extraction {target_id}"
                                 )
 
                     failure_count = 0
