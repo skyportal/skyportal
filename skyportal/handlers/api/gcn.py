@@ -926,8 +926,12 @@ async def post_skymap_from_notice(
     """Post skymap to database from gcn notice."""
     user = await session.get(User, user_id)
 
+    # `content` is deferred, and reading it below would emit lazy IO the async
+    # session cannot serve.
     gcn_notice = await session.scalar(
-        GcnNotice.select(user).where(GcnNotice.id == notice_id)
+        GcnNotice.select(user)
+        .options(undefer(GcnNotice.content))
+        .where(GcnNotice.id == notice_id)
     )
 
     if gcn_notice is None:

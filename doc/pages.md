@@ -82,7 +82,7 @@ Recurring APIs Page: This page provides the list of recurring APIs registered, i
 Taxonomies Page: This page provides the list of taxonomies registered, including information such as the hierarchy, version and provenance. It also allows for the creation and modification of taxonomies.
 /taxonomies
 
-Database Statistics Page: This page provides a list of typical database statistics, including the number of sources, photometry points, users, and other data. This page is only accessible to administrators.
+Database Statistics Page: This page provides a list of typical database statistics, including the number of sources, photometry points, users, and other data, plus a plot of the rows added per time interval for a selection of tables. This page is only accessible to administrators.
 /db_stats
 
 User Management Page: This page provides a list of users, including their name, username, email, roles, ACLs, and groups. This page also allows for the invitation of new users. This page is only accessible to administrators.

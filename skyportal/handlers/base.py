@@ -15,7 +15,7 @@ from ..utils.api_validate import (
     path_adapters_for,
     query_dict_from,
 )
-from ..utils.terms_of_service import has_accepted, terms_of_service
+from ..utils.terms_of_service import has_accepted, terms_of_service, tokens_exempt
 
 
 def format_doc(**kwargs):
@@ -59,6 +59,8 @@ class BaseHandler(BaselayerHandler):
         terms = terms_of_service()
         if terms is None or self.request.method in self.terms_of_service_exempt:
             return
+        if self.token_from_header() is not None and tokens_exempt():
+            return
         user_id = self.acting_user_id()
         if user_id is None or has_accepted(user_id, terms["version"]):
             return
@@ -68,15 +70,20 @@ class BaseHandler(BaselayerHandler):
         )
         raise Finish()
 
+    def token_from_header(self):
+        """The API token this request authenticates with, if it uses one."""
+        header = self.request.headers.get("Authorization") or ""
+        if not header.startswith("token "):
+            return None
+        return header.removeprefix("token").strip()
+
     def acting_user_id(self):
         # prepare() runs before auth_or_token, so the token is not resolved yet.
-        header = self.request.headers.get("Authorization") or ""
-        if header.startswith("token "):
+        token = self.token_from_header()
+        if token is not None:
             with DBSession() as session:
                 return session.scalar(
-                    sa.select(Token.created_by_id).where(
-                        Token.id == header.removeprefix("token").strip()
-                    )
+                    sa.select(Token.created_by_id).where(Token.id == token)
                 )
         if self.current_user is None or getattr(self, "is_anonymous_user", False):
             return None
