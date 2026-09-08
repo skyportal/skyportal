@@ -81,7 +81,12 @@ const optionalSchema = (node: any): any => {
   };
 };
 
-const COLUMNS = [
+const COLUMNS: {
+  id: string;
+  label: string;
+  tooltip?: string;
+  value: (b: any) => string | number;
+}[] = [
   { id: "name", label: "Name", value: (b: any) => b.name || "" },
   {
     id: "provider",
@@ -109,16 +114,27 @@ const COLUMNS = [
   {
     id: "default_alert_search",
     label: "Default search",
+    tooltip:
+      "Broker the source page's \"Search alerts\" button and the sidebar's " +
+      "alert search open. Unset: no alert search is offered.",
     value: (b: any) => Number(Boolean(b.default_alert_search)),
   },
   {
     id: "default_crossmatch",
     label: "Default cross-match",
+    tooltip:
+      "Broker the source page's centroid plot cross-matches against " +
+      "(cone search on reference catalogs). Unset: the first broker that " +
+      "returns catalogs is used.",
     value: (b: any) => Number(Boolean(b.default_crossmatch)),
   },
   {
     id: "default_photometry",
     label: "Default photometry",
+    tooltip:
+      "Broker the source page's lightcurve pulls photometry from on the fly, " +
+      "shown on top of the saved points and never written to the database. " +
+      "Unset: only saved photometry is shown, and no broker is queried.",
     value: (b: any) => Number(Boolean(b.default_photometry)),
   },
 ];
@@ -277,13 +293,15 @@ const BrokerList = () => {
                       key={c.id}
                       sortDirection={orderBy === c.id ? order : false}
                     >
-                      <TableSortLabel
-                        active={orderBy === c.id}
-                        direction={orderBy === c.id ? order : "asc"}
-                        onClick={() => onSort(c.id)}
-                      >
-                        {c.label}
-                      </TableSortLabel>
+                      <Tooltip title={c.tooltip || ""}>
+                        <TableSortLabel
+                          active={orderBy === c.id}
+                          direction={orderBy === c.id ? order : "asc"}
+                          onClick={() => onSort(c.id)}
+                        >
+                          {c.label}
+                        </TableSortLabel>
+                      </Tooltip>
                     </TableCell>
                   ))}
                   <TableCell align="right">Actions</TableCell>
@@ -333,28 +351,38 @@ const BrokerList = () => {
                     </TableCell>
                     {DEFAULT_TOGGLES.map(
                       ({ field, capability, unsupported }) => {
-                        const reason = !b.capabilities?.[capability]
-                          ? unsupported
-                          : !b.active
-                            ? "Activate this broker to make it the default."
-                            : !isSystemAdmin
-                              ? "Only system admins can change the defaults."
-                              : "";
+                        const isDefault = Boolean(b[field]);
+                        const reason = !isSystemAdmin
+                          ? "Only system admins can change the defaults."
+                          : isDefault
+                            ? ""
+                            : !b.capabilities?.[capability]
+                              ? unsupported
+                              : !b.active
+                                ? "Activate this broker to make it the default."
+                                : "";
                         return (
                           <TableCell
                             key={field}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Tooltip title={reason}>
+                            <Tooltip
+                              title={
+                                reason ||
+                                (isDefault
+                                  ? "Click to clear this default."
+                                  : "")
+                              }
+                            >
                               <span>
                                 <Radio
                                   size="small"
-                                  checked={Boolean(b[field])}
+                                  checked={isDefault}
                                   disabled={Boolean(reason)}
-                                  onChange={() =>
+                                  onClick={() =>
                                     updateBroker({
                                       id: b.id,
-                                      patch: { [field]: true },
+                                      patch: { [field]: !isDefault },
                                     })
                                   }
                                 />
