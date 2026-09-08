@@ -74,6 +74,7 @@ def merge_altdata(stored, incoming):
 DEFAULT_FIELDS = {
     "default_alert_search": "query_alerts",
     "default_crossmatch": "cross_match_catalogs",
+    "default_photometry": "get_photometry",
 }
 
 
@@ -121,6 +122,10 @@ class BrokerPostBody(BaseModel):
     default_crossmatch: bool = Field(
         default=False, description="Make this the broker cross-matches are run against."
     )
+    default_photometry: bool = Field(
+        default=False,
+        description="Make this the broker serving the source page's photometry.",
+    )
 
 
 class BrokerPatchBody(BaseModel):
@@ -141,6 +146,10 @@ class BrokerPatchBody(BaseModel):
     )
     default_crossmatch: bool | None = Field(
         default=None, description="Make this the broker cross-matches are run against."
+    )
+    default_photometry: bool | None = Field(
+        default=None,
+        description="Make this the broker serving the source page's photometry.",
     )
 
 
@@ -276,6 +285,7 @@ def broker_to_dict(broker, include_altdata=False):
         "active": broker.active,
         "default_alert_search": broker.default_alert_search,
         "default_crossmatch": broker.default_crossmatch,
+        "default_photometry": broker.default_photometry,
         "capabilities": broker.broker_class.implements(),
         # Per-record surveys (what THIS connection serves), so survey-based
         # routing is deterministic for one-deployment-per-survey providers.
@@ -860,28 +870,17 @@ class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
               application/json:
                 schema: Error
         """
-        query = self.parse_query(BrokerSurveyPhotometryGetQuery)
+        query = self.parse_query(BrokerDefaultPhotometryGetQuery)
 
         async with self.AsyncSession() as session:
-            # First active provider that can fetch photometry for this survey.
-            # A deployment typically configures one such broker per survey.
-            brokers = (
-                await session.scalars(
-                    Broker.select(self.current_user)
-                    .where(Broker.active.is_(True))
-                    .order_by(Broker.id)
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(
+                    Broker.active.is_(True), Broker.default_photometry.is_(True)
                 )
-            ).all()
-            broker = next(
-                (
-                    b
-                    for b in brokers
-                    if query.survey in b.broker_class.surveys
-                    and b.broker_class.implements()["get_photometry"]
-                ),
-                None,
             )
-            return await self._respond_photometry(session, broker, object_id, query)
+            return await self._respond_photometry(
+                session, broker, object_id, query, degrade=True
+            )
 
 
 class BrokerFilterTestHandler(BaseHandler):

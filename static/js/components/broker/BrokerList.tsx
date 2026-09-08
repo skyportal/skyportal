@@ -116,6 +116,11 @@ const COLUMNS = [
     label: "Default cross-match",
     value: (b: any) => Number(Boolean(b.default_crossmatch)),
   },
+  {
+    id: "default_photometry",
+    label: "Default photometry",
+    value: (b: any) => Number(Boolean(b.default_photometry)),
+  },
 ];
 
 const DEFAULT_TOGGLES = [
@@ -128,6 +133,13 @@ const DEFAULT_TOGGLES = [
     field: "default_crossmatch",
     capability: "cross_match_catalogs",
     unsupported: "This broker does not support catalog cross-match.",
+  },
+  {
+    field: "default_photometry",
+    capability: "get_photometry",
+    unsupported:
+      "This broker cannot serve the source page's photometry: it has no " +
+      "object fetch, or its fetch is too slow to sit in a page load.",
   },
 ] as const;
 

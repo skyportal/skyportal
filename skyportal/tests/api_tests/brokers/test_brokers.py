@@ -173,7 +173,7 @@ def test_default_requires_the_capability(super_admin_token):
         status, data = api(
             "PATCH",
             f"brokers/{generic_id}",
-            data={"default_alert_search": True},
+            data={"default_alert_search": True, "default_photometry": True},
             token=super_admin_token,
         )
         assert status == 200, data
@@ -190,6 +190,7 @@ def test_broker_defaults_are_exclusive(super_admin_token):
             altdata={"host": "boom.test"},
             default_alert_search=True,
             default_crossmatch=True,
+            default_photometry=True,
         ),
         token=super_admin_token,
     )
@@ -206,11 +207,12 @@ def test_broker_defaults_are_exclusive(super_admin_token):
         status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is True
         assert data["data"]["default_crossmatch"] is True
+        assert data["data"]["default_photometry"] is True
 
         status, data = api(
             "PATCH",
             f"brokers/{second_id}",
-            data={"default_alert_search": True},
+            data={"default_alert_search": True, "default_photometry": True},
             token=super_admin_token,
         )
         assert status == 200, data
@@ -218,13 +220,64 @@ def test_broker_defaults_are_exclusive(super_admin_token):
         status, data = api("GET", f"brokers/{second_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is True
         assert data["data"]["default_crossmatch"] is False
+        assert data["data"]["default_photometry"] is True
 
         status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is False
         assert data["data"]["default_crossmatch"] is True
+        assert data["data"]["default_photometry"] is False
     finally:
         api("DELETE", f"brokers/{first_id}", token=super_admin_token)
         api("DELETE", f"brokers/{second_id}", token=super_admin_token)
+
+
+def test_default_photometry_broker_serves_object_photometry(
+    super_admin_token, upload_data_token, public_source, public_group, ztf_camera
+):
+    """The broker-address-free passthrough the source page calls serves the
+    object's DB photometry when no broker is the photometry default, and still
+    serves it when the default one cannot be reached."""
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"brokers/photometry/{public_source.id}", token=upload_data_token
+    )
+    assert status == 200, data
+    assert any(point["mjd"] == 58000.0 for point in data["data"])
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "GET", f"brokers/photometry/{public_source.id}", token=upload_data_token
+        )
+        assert status == 200, data
+        assert any(point["mjd"] == 58000.0 for point in data["data"])
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
 def test_broker_invalid_classname(super_admin_token):

@@ -30,6 +30,7 @@ from skyportal.handlers.api import (
     BrokerAPIsHandler,
     BrokerConeSearchHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
     BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
@@ -39,7 +40,6 @@ from skyportal.handlers.api import (
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
-    BrokerSurveyPhotometryHandler,
     BulkDeleteCandidatesHandler,
     BulkDeletePhotometryHandler,
     BulkSpectraHandler,
@@ -325,10 +325,10 @@ skyportal_handlers = [
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
     (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
-    # Survey-addressed passthrough for the source-page lightcurve (resolves the
+    # Default-broker passthrough for the source-page lightcurve (resolves the
     # broker server-side); "photometry" is non-numeric so it never shadows the
     # numeric /api/brokers/{id} routes.
-    (r"/api/brokers/photometry/([^/]+)", BrokerSurveyPhotometryHandler),
+    (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/alerts(?:/(.+))?", BrokerAlertsHandler),
     (r"/api/brokers(?:/([0-9]+))?", BrokerHandler),

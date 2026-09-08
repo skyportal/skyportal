@@ -13,8 +13,7 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import { photometryTag } from "./photometryTags";
-import store from "../store";
-import { configApi } from "./config";
+import { brokersApi } from "./brokers";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
@@ -34,28 +33,33 @@ export const photometryApi = skyportalApi.injectEndpoints({
       PhotometryPoint[],
       { id: number | string; params?: { [key: string]: any } }
     >({
-      query: ({ id, params = {} }) => {
-        // A deployment can route the source-page photometry fetch through a
-        // custom endpoint via the `photometry_display_endpoint` config (e.g. a
-        // broker passthrough that merges saved DB photometry with on-demand
-        // broker photometry). "{id}" is substituted with the object id; when
-        // unset, the standard sources endpoint is used. The endpoint must
-        // return the same response shape (a bare list of photometry points).
-        const template = configApi.endpoints.getConfig.select()(
-          store.getState() as any,
-        )?.data?.["photometryDisplayEndpoint"] as string | undefined;
-        const url = template
-          ? template.replace("{id}", encodeURIComponent(String(id)))
-          : `/api/sources/${id}/photometry`;
-        return {
-          url,
+      async queryFn({ id, params = {} }, api, _extraOptions, baseQuery) {
+        // The broker flagged `default_photometry`, if any, serves this fetch:
+        // saved points merged with on-demand broker photometry, same response
+        // shape. Its list is awaited, not read from the store, which is still
+        // empty when a page first renders.
+        const { data: brokers } = await api.dispatch(
+          brokersApi.endpoints.getBrokers.initiate(undefined, {
+            subscribe: false,
+          }),
+        );
+        const broker = (brokers || []).find(
+          (b) =>
+            b.active &&
+            b.capabilities?.["get_photometry"] &&
+            b.default_photometry,
+        );
+        return baseQuery({
+          url: broker
+            ? `/api/brokers/photometry/${encodeURIComponent(String(id))}`
+            : `/api/sources/${id}/photometry`,
           params: {
             includeOwnerInfo: true,
             includeStreamInfo: true,
             includeValidationInfo: true,
             ...params,
           },
-        };
+        }) as Promise<{ data: PhotometryPoint[] }>;
       },
       providesTags: (_result, _error, arg) => photometryTag(arg.id),
     }),
