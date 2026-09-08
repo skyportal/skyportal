@@ -83,12 +83,13 @@ UNSUPPORTED_PROTOCOL_VERSION = -32022
 TOOLS = {}
 
 
-def tool(name, description, properties, required=(), passthrough=None):
+def tool(name, description, properties, required=(), passthrough=None, writes=False):
     """Register a tool. The wrapped `async fn(handler, args)` returns the tool's
     content: a JSON value (also sent as structuredContent) or a plain string.
     Raise ToolError, or let handler.api() raise APIError, to report a tool
     execution error. `passthrough` names the endpoint whose remaining
-    parameters are accepted verbatim."""
+    parameters are accepted verbatim. `writes` marks a tool that changes state,
+    so a caller holding a read-only token can leave it out."""
 
     schema = {"type": "object", "properties": properties, "required": list(required)}
     if passthrough:
@@ -105,6 +106,7 @@ def tool(name, description, properties, required=(), passthrough=None):
             "name": name,
             "description": description,
             "inputSchema": schema,
+            "annotations": {"readOnlyHint": not writes},
             "validator": jsonschema.Draft202012Validator(schema),
             "fn": fn,
         }
@@ -196,6 +198,7 @@ async def get_sources(handler, args):
     },
     required=("id", "ra", "dec"),
     passthrough="POST /api/sources",
+    writes=True,
 )
 async def post_source(handler, args):
     return await handler.api("POST", "/api/sources", body=args)
@@ -257,6 +260,7 @@ async def get_photometry(handler, args):
     },
     required=("obj_id", "instrument_id", "mjd", "filter", "magsys"),
     passthrough="POST /api/photometry",
+    writes=True,
 )
 async def post_photometry(handler, args):
     return await handler.api("POST", "/api/photometry", body=args)
@@ -306,6 +310,7 @@ async def get_spectra(handler, args):
     },
     required=("obj_id", "instrument_id", "observed_at", "wavelengths", "fluxes"),
     passthrough="POST /api/spectrum",
+    writes=True,
 )
 async def post_spectrum(handler, args):
     return await handler.api("POST", "/api/spectrum", body=args)
@@ -770,6 +775,7 @@ async def get_gcn_event_comments(handler, args):
         "group_ids": _GROUP_IDS,
     },
     required=("dateobs", "text"),
+    writes=True,
 )
 async def post_gcn_event_comment(handler, args):
     dateobs = args.pop("dateobs")
@@ -908,6 +914,7 @@ async def run_broker_filter(handler, args):
         "name": _prop("string", "Informational name for the version."),
     },
     required=("broker_id", "filter_id", "altdata"),
+    writes=True,
 )
 async def post_broker_filter_version(handler, args):
     broker_id = args.pop("broker_id")
@@ -937,6 +944,7 @@ async def post_broker_filter_version(handler, args):
     },
     required=("broker_id", "filter_id", "active_fid"),
     passthrough="PATCH /api/brokers/{broker_id}/filters/{filter_id}",
+    writes=True,
 )
 async def activate_broker_filter_version(handler, args):
     broker_id = args.pop("broker_id")
@@ -959,6 +967,7 @@ async def activate_broker_filter_version(handler, args):
     },
     required=("name", "stream_id", "group_id"),
     passthrough="POST /api/filters",
+    writes=True,
 )
 async def post_filter(handler, args):
     return await handler.api("POST", "/api/filters", body=args)
@@ -1207,7 +1216,10 @@ class MCPHandler(BaseHandler):
         if method == "tools/list":
             return {
                 "tools": [
-                    {k: t[k] for k in ("name", "description", "inputSchema")}
+                    {
+                        k: t[k]
+                        for k in ("name", "description", "inputSchema", "annotations")
+                    }
                     for t in TOOLS.values()
                 ],
                 "ttlMs": LIST_TTL_MS,

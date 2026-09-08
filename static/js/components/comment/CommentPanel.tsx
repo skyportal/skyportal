@@ -77,8 +77,9 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
 
+  const hasComments = target?.type === "source" || target?.type === "gcn_event";
   const showComments =
-    !!target && (inline || !commentsInline || target.type !== "source");
+    hasComments && (inline || !commentsInline || target.type !== "source");
   const showAssistant = !inline && assistantEnabled;
   const isComments = showComments && (space === "comments" || !showAssistant);
   const activeSpace: ChatSpace = isComments ? "comments" : "assistant";
@@ -248,7 +249,9 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
     ? null
     : target.type === "source"
       ? target.id
-      : dayjs(target.dateobs).format("YYMMDD HH:mm:ss");
+      : target.type === "filter"
+        ? `filter ${target.id}`
+        : dayjs(target.dateobs).format("YYMMDD HH:mm:ss");
 
   if (!showComments && !showAssistant) return null;
 

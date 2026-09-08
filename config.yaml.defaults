@@ -533,6 +533,14 @@ app:
     api_key: ""
     # Cap on tool round-trips per question, so a looping model cannot run away.
     max_tool_calls: 8
+    # Let a reasoning model think before it answers. It roughly doubles how long
+    # a question takes, for an answer that is quoting tool results either way.
+    thinking: false
+    # Budget for a whole question, across all its round-trips.
+    answer_timeout: 180
+    # Characters of one tool result the model sees. A result larger than this is
+    # cut down, never dropped, so raising it buys breadth rather than accuracy.
+    result_budget: 20000
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
@@ -1201,6 +1209,13 @@ hosts:
 
 # JPL Scout NEO Target-of-Opportunity candidates, published by
 # lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
+assignments:
+  # An uploaded spectrum marks a matching observing-run assignment "done".
+  # A spectrum naming its assignment always settles it; otherwise the run's
+  # instrument must match and its calendar date fall within this many days of
+  # the exposure. Set to null to only close assignments a spectrum names.
+  auto_observed_window_days: 1
+
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
