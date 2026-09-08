@@ -18,8 +18,10 @@ DEFAULT_API_URL = "https://api.antares.noirlab.edu/v1/"
 DEFAULT_TIMEOUT = 60  # seconds
 
 
-def _survey(broker):
-    return ((broker.altdata or {}).get("survey") or "ZTF").upper()
+def _survey(broker, kwargs=None):
+    return (
+        (kwargs or {}).get("survey") or (broker.altdata or {}).get("survey") or "ZTF"
+    ).upper()
 
 
 def _api_url(broker):
@@ -281,7 +283,7 @@ class ANTARESBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        survey = _survey(broker)
+        survey = _survey(broker, kwargs)
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
             return [ANTARESBROKER.get_alert(broker, object_id, session, **kwargs)]
@@ -295,7 +297,7 @@ class ANTARESBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        survey = _survey(broker)
+        survey = _survey(broker, kwargs)
         locus = _locus(broker, alert_id, survey)
         if locus is None:
             raise ValueError(f"No ANTARES locus for {alert_id}")
@@ -303,7 +305,7 @@ class ANTARESBROKER(BrokerAPI):
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
-        survey = _survey(broker)
+        survey = _survey(broker, kwargs)
         loci = _search_loci(broker, _cone_query(ra, dec, radius), DEFAULT_LIMIT)
         return [_normalize(locus, survey) for locus in loci]
 
@@ -312,7 +314,7 @@ class ANTARESBROKER(BrokerAPI):
         """Fetch the latest alert's science/template/difference thumbnails (PNG)
         and return them as data: URLs (the frontend uses them directly).
         ``alert_id`` is the objectId."""
-        locus = _locus(broker, alert_id, _survey(broker))
+        locus = _locus(broker, alert_id, _survey(broker, kwargs))
         if locus is None:
             return {}
         alerts = sorted(getattr(locus, "alerts", None) or [], key=lambda a: a.mjd or 0)
