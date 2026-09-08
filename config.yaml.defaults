@@ -789,7 +789,7 @@ server:
 services:
   dask: False
 
-# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
 # here; see doc/broker_plugins.md. Providers are registered in
 # skyportal/broker_apis/.
