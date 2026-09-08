@@ -2893,7 +2893,9 @@ export interface paths {
                     maxSgscore?: number | null;
                     /** @description Keep only candidates with at least this many detections in their alert history. */
                     minNdethist?: number | null;
-                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    /** @description Keep only candidates detected within this many days of the event, i.e. |delta_t| <= this. Applies to every candidate. */
+                    maxDeltaT?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. With neither of those cuts set there is nothing to exempt, so this acts as maxDeltaT. */
                     promptDeltaT?: number | null;
                     /** @description Annotation origin the crossmatch cuts above are read from, compared lower-cased. */
                     crossmatchOrigin?: string;
@@ -17575,7 +17577,9 @@ export interface paths {
                     simbadClass?: string | null;
                     /** @description Keep only sources at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
                     minAbsGalacticLatitude?: number | null;
-                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    /** @description Keep only sources detected within this many days of the event, i.e. |delta_t| <= this. Applies to every source. */
+                    maxDeltaT?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. With neither of those cuts set there is nothing to exempt, so this acts as maxDeltaT. */
                     promptDeltaT?: number | null;
                     /** @description additional name for the same object */
                     alias?: string | null;

@@ -1917,12 +1917,22 @@ class SourceGetQuery(BaseModel):
         ge=0,
         le=90,
     )
+    maxDeltaT: float | None = Field(
+        default=None,
+        description=(
+            "Keep only sources detected within this many days of the event, "
+            "i.e. |delta_t| <= this. Applies to every source."
+        ),
+        ge=0,
+    )
     promptDeltaT: float | None = Field(
         default=None,
         description=(
             "Exempt candidates detected within this many days of the event from "
             "the galactic latitude and detection history cuts, which exist to "
-            "thin late candidates. Those cuts still apply to everything else."
+            "thin late candidates. Those cuts still apply to everything else. "
+            "With neither of those cuts set there is nothing to exempt, so this "
+            "acts as maxDeltaT."
         ),
         ge=0,
     )
@@ -2285,6 +2295,7 @@ class SourceHandler(BaseHandler):
                     simbad_class=query.simbadClass,
                     min_abs_galactic_latitude=query.minAbsGalacticLatitude,
                     prompt_delta_t=query.promptDeltaT,
+                    max_delta_t=query.maxDeltaT,
                     alias=query.alias,
                     origin=query.origin,
                     has_tns_name=query.hasTNSname,
