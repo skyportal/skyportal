@@ -194,6 +194,7 @@ const DBStatsHistory = () => {
               ...axisTheme,
               title: { text: cumulative ? "Cumulative rows" : "Rows added" },
               rangemode: "tozero",
+              minallowed: 0,
             },
           }}
           config={{ displaylogo: false, responsive: true }}
