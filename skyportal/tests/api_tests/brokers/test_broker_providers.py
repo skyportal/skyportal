@@ -725,7 +725,7 @@ def test_fink_survey_routing():
 # --- photometry passthrough --------------------------------------------------
 
 from skyportal.broker_apis._photometry import (  # noqa: E402
-    filter_groups_by_streams,
+    filter_groups_by_scope,
     merge_photometry_points,
 )
 from skyportal.broker_apis._save import (  # noqa: E402
@@ -885,22 +885,20 @@ def test_build_photometry_groups_drops_ungated_programs():
     assert build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]}) == {}
 
 
-def _scoped_groups():
-    return {
-        ("ZTF", 1): {"stream_ids": [10], "mjd": [1.0]},  # public
-        ("ZTF", 2): {"stream_ids": [20], "mjd": [2.0]},  # partnership
-    }
-
-
 def test_scope_filter_no_leakage():
-    """A requester with only the public stream must never receive the
-    partnership group; admins see everything; no streams sees nothing."""
-    assert set(filter_groups_by_streams(_scoped_groups(), [10])) == {("ZTF", 1)}
-    assert filter_groups_by_streams(_scoped_groups(), []) == {}
-    assert set(filter_groups_by_streams(_scoped_groups(), [], is_admin=True)) == {
-        ("ZTF", 1),
-        ("ZTF", 2),
+    """A requester whose streams cover only the public programid must never
+    receive the partnership group; the system admin's ``None`` scope keeps all."""
+    groups = {
+        ("ZTF", 1): {"mjd": [1.0]},
+        ("ZTF", 2): {"mjd": [2.0]},
+        ("LSST", 1): {"mjd": [3.0]},
     }
+    assert set(filter_groups_by_scope(groups, {"ZTF": [1]})) == {("ZTF", 1)}
+    assert set(filter_groups_by_scope(groups, {"ZTF": [1, 2, 3], "LSST": [1]})) == set(
+        groups
+    )
+    assert filter_groups_by_scope(groups, {}) == {}
+    assert set(filter_groups_by_scope(groups, None)) == set(groups)
 
 
 def test_merge_broker_augments_db_and_dedups():

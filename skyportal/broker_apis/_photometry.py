@@ -13,6 +13,7 @@ from baselayer.log import make_log
 
 from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from ..utils.survey import survey_from_object_id
+from .interface import survey_permissions
 
 _, cfg = load_env()
 
@@ -42,15 +43,16 @@ _PAYLOAD_KEYS = (
 )
 
 
-def filter_groups_by_streams(groups, accessible_stream_ids, is_admin=False):
-    """Keep the groups gated by a stream the requester can access; admins keep all."""
-    if is_admin:
+def filter_groups_by_scope(groups, permissions):
+    """Keep the groups whose ``(survey, programid)`` the requester's streams cover
+    (``permissions`` as built by ``survey_permissions``); ``None`` is the system
+    admin's unrestricted scope and keeps everything."""
+    if permissions is None:
         return dict(groups)
-    accessible = {int(s) for s in (accessible_stream_ids or [])}
     return {
         key: group
         for key, group in groups.items()
-        if {int(s) for s in (group.get("stream_ids") or [])} & accessible
+        if key[1] in (permissions.get(key[0]) or [])
     }
 
 
@@ -177,25 +179,28 @@ async def display_photometry(
 ):
     """Object photometry for display: the access-controlled DB rows merged with
     photometry fetched on demand from the broker, degrading to DB-only on failure."""
-    from ..models import Stream
-
     survey = (
         survey
         or survey_from_object_id(object_id, cls.surveys)
         or (broker.altdata or {}).get("survey")
     )
 
-    stream_ids, is_admin = [], user.is_admin
-    if not is_admin:
-        stream_ids = (
-            await session.scalars(Stream.select(user).with_only_columns(Stream.id))
-        ).all()
+    from ..models import Stream
+
+    permissions = (
+        None
+        if user.is_system_admin
+        else survey_permissions((await session.scalars(Stream.select(user))).all())
+    )
 
     try:
         groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
-        kept = filter_groups_by_streams(groups, stream_ids, is_admin)
         broker_points = _serialize_points(
-            await transient_photometry(kept, session), outsys, fmt
+            await transient_photometry(
+                filter_groups_by_scope(groups, permissions), session
+            ),
+            outsys,
+            fmt,
         )
     except Exception:
         _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
