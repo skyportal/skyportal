@@ -61,6 +61,7 @@ def _round_mjd(mjd):
 
 def _dedup_key(point):
     return (
+        point.get("obj_id"),
         point.get("instrument_id"),
         point.get("filter"),
         _round_mjd(point.get("mjd")),
@@ -68,16 +69,28 @@ def _dedup_key(point):
 
 
 def _phot_dedup_key(phot):
-    return (phot.instrument_id, phot.filter, _round_mjd(phot.mjd))
+    return (phot.obj_id, phot.instrument_id, phot.filter, _round_mjd(phot.mjd))
 
 
 def merge_photometry_points(db_points, broker_points):
-    """Union DB and broker photometry, the DB point winning on (instrument, filter, mjd)."""
+    """Union DB and broker photometry, the DB point winning on (obj, instrument, filter, mjd)."""
     seen = {_dedup_key(p) for p in db_points}
     return [*db_points, *(p for p in broker_points if _dedup_key(p) not in seen)]
 
 
-def _serialize_points(phots, outsys, fmt, groups=False):
+def _serialize_points(
+    phots,
+    outsys,
+    fmt,
+    *,
+    groups=False,
+    created_at=False,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction_by_obj=None,
+):
     from ..handlers.api.photometry import serialize
 
     return [
@@ -85,12 +98,13 @@ def _serialize_points(phots, outsys, fmt, groups=False):
             phot,
             outsys,
             fmt,
-            created_at=False,
+            created_at=created_at,
             groups=groups,
-            annotations=False,
-            owner=False,
-            stream=False,
-            validation=False,
+            annotations=annotations,
+            owner=owner,
+            stream=stream,
+            validation=validation,
+            extinction_dict=(extinction_by_obj or {}).get(phot.obj_id),
         )
         for phot in phots
     ]
@@ -120,16 +134,20 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
         raise ValueError(f"Instrument '{survey}' not found in the database.")
     programid2streamid = await programid_to_stream_ids(session)
 
-    # a provider's timeout bounds one request, not its pagination walk
-    data = await asyncio.wait_for(
-        asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: cls.get_alert(
-                broker, object_id, None, survey=survey, permissions=None
+    try:
+        # a provider's timeout bounds one request, not its pagination walk
+        data = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: cls.get_alert(
+                    broker, object_id, None, survey=survey, permissions=None
+                ),
             ),
-        ),
-        timeout=_FETCH_TIMEOUT_SECONDS,
-    )
+            timeout=_FETCH_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
+        raise
     groups = (
         build_photometry_groups(
             object_id, survey, data, instrument_id, programid2streamid
@@ -146,23 +164,32 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
     return groups
 
 
-async def super_obj_obj_ids(object_id, session):
-    """``object_id`` plus the objs it shares a SuperObj with, what
-    ``includeSuperObjsPhotometry`` expands to on GET /sources/{id}/photometry."""
+async def super_obj_obj_ids(object_id, user, session):
+    """``object_id`` plus the objs the requester can read that share a SuperObj with
+    it, what ``includeSuperObjsPhotometry`` expands to on GET /sources/{id}/photometry."""
     import sqlalchemy as sa
 
-    from ..models import ObjToSuperObj
+    from ..models import Obj, ObjToSuperObj
 
-    members = await session.scalars(
-        sa.select(ObjToSuperObj.obj_id).where(
-            ObjToSuperObj.super_obj_id.in_(
-                sa.select(ObjToSuperObj.super_obj_id).where(
-                    ObjToSuperObj.obj_id == object_id
+    members = (
+        await session.scalars(
+            sa.select(ObjToSuperObj.obj_id).where(
+                ObjToSuperObj.super_obj_id.in_(
+                    sa.select(ObjToSuperObj.super_obj_id).where(
+                        ObjToSuperObj.obj_id == object_id
+                    )
                 )
             )
         )
+    ).all()
+    readable = set(
+        (
+            await session.scalars(
+                Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(members))
+            )
+        ).all()
     )
-    return list(dict.fromkeys([object_id, *members.all()]))
+    return list(dict.fromkeys([object_id, *(m for m in members if m in readable)]))
 
 
 async def display_photometry(
@@ -176,11 +203,18 @@ async def display_photometry(
     outsys="ab",
     fmt="mag",
     include_super_objs=False,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction=False,
 ):
     """Object photometry for display: the access-controlled DB rows merged with
     photometry fetched on demand from the broker, degrading to DB-only on failure.
     ``include_super_objs`` serves the objs sharing a SuperObj too, each fetched
-    under its own survey."""
+    under its own survey. The ``owner``/``stream``/``validation``/``annotations``/
+    ``extinction`` flags mirror GET /sources/{id}/photometry and only ever apply to
+    the DB half: a broker point is not persisted, so it has none of those."""
     from ..models import Stream
 
     permissions = (
@@ -189,13 +223,13 @@ async def display_photometry(
         else survey_permissions((await session.scalars(Stream.select(user))).all())
     )
     obj_ids = (
-        await super_obj_obj_ids(object_id, session)
+        await super_obj_obj_ids(object_id, user, session)
         if include_super_objs
         else [object_id]
     )
     served = cls.configured_surveys(broker.altdata)
 
-    broker_points = []
+    broker_phots = []
     for obj_id in obj_ids:
         obj_survey = (
             (survey if obj_id == object_id else None)
@@ -206,24 +240,65 @@ async def display_photometry(
             continue
         try:
             groups = await fetch_broker_groups(cls, broker, obj_id, obj_survey, session)
-            phots = await transient_photometry(
+            broker_phots += await transient_photometry(
                 filter_groups_by_scope(groups, permissions), session
             )
-            broker_points += _serialize_points(phots, outsys, fmt)
         except Exception:
-            _skip_until[(broker.id, obj_survey)] = (
-                time.monotonic() + _FAILURE_SKIP_SECONDS
-            )
             log(
                 f"passthrough broker fetch failed for {obj_survey}/{obj_id}; serving "
-                f"DB photometry only and skipping {broker.name}/{obj_survey} for "
-                f"{_FAILURE_SKIP_SECONDS}s: {traceback.format_exc()}"
+                f"DB photometry only: {traceback.format_exc()}"
             )
 
     return merge_photometry_points(
-        await db_photometry_points(obj_ids, user, session, outsys=outsys, fmt=fmt),
-        broker_points,
+        await db_photometry_points(
+            obj_ids,
+            user,
+            session,
+            outsys=outsys,
+            fmt=fmt,
+            owner=owner,
+            stream=stream,
+            validation=validation,
+            annotations=annotations,
+            extinction=extinction,
+        ),
+        _serialize_points(
+            broker_phots,
+            outsys,
+            fmt,
+            extinction_by_obj=(
+                await extinction_by_filter(broker_phots, session)
+                if extinction and fmt != "plot"
+                else None
+            ),
+        ),
     )
+
+
+async def extinction_by_filter(phots, session):
+    """``{obj_id: {filter: extinction}}`` for the filters the points actually use,
+    what ``serialize(extinction_dict=...)`` reads."""
+    import sqlalchemy as sa
+
+    from ..handlers.api.photometry import nan_to_none
+    from ..models import Obj
+    from ..utils.extinction import calculate_extinction
+
+    filters = {}
+    for phot in phots:
+        filters.setdefault(phot.obj_id, set()).add(phot.filter)
+    if not filters:
+        return None
+    rows = (
+        await session.execute(
+            sa.select(Obj.id, Obj.ra, Obj.dec).where(Obj.id.in_(filters))
+        )
+    ).all()
+    return {
+        obj_id: {filt: calculate_extinction(ra, dec, filt) for filt in filters[obj_id]}
+        for obj_id, ra, dec in rows
+        if nan_to_none(ra) is not None and nan_to_none(dec) is not None
+    }
 
 
 async def transient_photometry(groups, session):
@@ -259,25 +334,65 @@ async def transient_photometry(groups, session):
     return phots
 
 
-async def db_photometry_points(obj_ids, user, session, outsys="ab", fmt="mag"):
+async def db_photometry_points(
+    obj_ids,
+    user,
+    session,
+    outsys="ab",
+    fmt="mag",
+    *,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction=False,
+):
     """Serialize the objects' persisted photometry, eager-loading what ``serialize()``
     reads (a lazy load would raise under the async session)."""
-    from sqlalchemy.orm import joinedload
+    from sqlalchemy.orm import joinedload, selectinload
 
-    from ..models import Group, Instrument, Photometry
+    from ..handlers.api.photometry_validation import USE_PHOTOMETRY_VALIDATION
+    from ..models import Group, Instrument, Photometry, Stream, User
 
-    stmt = (
-        Photometry.select(user)
-        .where(Photometry.obj_id.in_(obj_ids))
-        .options(
-            joinedload(Photometry.instrument).load_only(Instrument.name),
-            joinedload(Photometry.groups).load_only(
-                Group.id, Group.name, Group.nickname, Group.single_user_group
-            ),
+    options = [
+        joinedload(Photometry.instrument).load_only(Instrument.name),
+        joinedload(Photometry.groups).load_only(
+            Group.id, Group.name, Group.nickname, Group.single_user_group
+        ),
+    ]
+    if annotations:
+        options.append(joinedload(Photometry.annotations))
+    if owner:
+        options.append(
+            joinedload(Photometry.owner).load_only(
+                User.id, User.username, User.first_name, User.last_name
+            )
         )
+    if stream:
+        options.append(joinedload(Photometry.streams).load_only(Stream.id, Stream.name))
+    if validation and USE_PHOTOMETRY_VALIDATION:
+        options.append(selectinload(Photometry.validations))
+
+    stmt = Photometry.select(user, options=options).where(
+        Photometry.obj_id.in_(obj_ids)
     )
-    phot = (await session.scalars(stmt)).unique().all()
-    return _serialize_points(phot, outsys, fmt, groups=True)
+    phots = (await session.scalars(stmt)).unique().all()
+    return _serialize_points(
+        phots,
+        outsys,
+        fmt,
+        groups=True,
+        created_at=True,
+        owner=owner,
+        stream=stream,
+        validation=validation,
+        annotations=annotations,
+        extinction_by_obj=(
+            await extinction_by_filter(phots, session)
+            if extinction and fmt != "plot"
+            else None
+        ),
+    )
 
 
 async def update_phot_stat_from_broker(object_id, groups):

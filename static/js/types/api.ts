@@ -2069,6 +2069,16 @@ export interface paths {
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                     /** @description Also serve the objs sharing a SuperObj with this one. */
                     includeSuperObjsPhotometry?: boolean;
+                    /** @description Include each saved point's owner. */
+                    includeOwnerInfo?: boolean;
+                    /** @description Include each saved point's streams. */
+                    includeStreamInfo?: boolean;
+                    /** @description Include each saved point's validations. */
+                    includeValidationInfo?: boolean;
+                    /** @description Include each saved point's annotations. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Include Galactic extinction and extinction-corrected values. */
+                    includeExtinction?: boolean;
                 };
                 header?: never;
                 path: {
@@ -2089,6 +2099,14 @@ export interface paths {
                     };
                 };
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2134,13 +2152,15 @@ export interface paths {
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
                     /** @description Also serve the objs sharing a SuperObj with this one. */
                     includeSuperObjsPhotometry?: boolean;
-                    /** @description Ignored. */
+                    /** @description Include each saved point's owner. */
                     includeOwnerInfo?: boolean;
-                    /** @description Ignored. */
+                    /** @description Include each saved point's streams. */
                     includeStreamInfo?: boolean;
-                    /** @description Ignored. */
+                    /** @description Include each saved point's validations. */
                     includeValidationInfo?: boolean;
-                    /** @description Ignored. */
+                    /** @description Include each saved point's annotations. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Include Galactic extinction and extinction-corrected values. */
                     includeExtinction?: boolean;
                 };
                 header?: never;
@@ -2160,6 +2180,14 @@ export interface paths {
                     };
                 };
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };

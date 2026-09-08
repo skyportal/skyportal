@@ -12,7 +12,7 @@ from baselayer.log import make_log
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
-from ...models import Broker, Filter, GroupUser, Stream, set_autosave
+from ...models import Broker, Filter, GroupUser, Obj, Stream, set_autosave
 from ..base import BaseHandler
 
 log = make_log("api/broker")
@@ -766,6 +766,22 @@ class BrokerPhotometryGetQuery(BaseModel):
         default=False,
         description="Also serve the objs sharing a SuperObj with this one.",
     )
+    includeOwnerInfo: bool = Field(
+        default=False, description="Include each saved point's owner."
+    )
+    includeStreamInfo: bool = Field(
+        default=False, description="Include each saved point's streams."
+    )
+    includeValidationInfo: bool = Field(
+        default=False, description="Include each saved point's validations."
+    )
+    includeAnnotationInfo: bool = Field(
+        default=False, description="Include each saved point's annotations."
+    )
+    includeExtinction: bool = Field(
+        default=False,
+        description="Include Galactic extinction and extinction-corrected values.",
+    )
 
 
 class BrokerPhotometryHandler(BaseHandler):
@@ -799,6 +815,10 @@ class BrokerPhotometryHandler(BaseHandler):
             content:
               application/json:
                 schema: Error
+          403:
+            content:
+              application/json:
+                schema: Error
         """
         query = self.parse_query(BrokerPhotometryGetQuery)
 
@@ -819,6 +839,22 @@ class BrokerPhotometryHandler(BaseHandler):
     ):
         """Serve merged DB + on-demand broker photometry, or the DB photometry alone
         when there is no broker or, with ``degrade``, when the broker fails."""
+        user = self.associated_user_object
+        if not await session.scalar(
+            Obj.select(user, columns=[Obj.id]).where(Obj.id == object_id)
+        ):
+            return self.error(
+                f"Insufficient permissions for User {self.current_user.id} to read "
+                f"Obj {object_id}",
+                status=403,
+            )
+        flags = {
+            "owner": query.includeOwnerInfo,
+            "stream": query.includeStreamInfo,
+            "validation": query.includeValidationInfo,
+            "annotations": query.includeAnnotationInfo,
+            "extinction": query.includeExtinction,
+        }
         if broker is not None:
             try:
                 return self.success(
@@ -826,11 +862,12 @@ class BrokerPhotometryHandler(BaseHandler):
                         broker,
                         object_id,
                         session,
-                        self.associated_user_object,
+                        user,
                         survey=query.survey,
                         outsys=query.magsys,
                         fmt=query.format,
                         include_super_objs=query.includeSuperObjsPhotometry,
+                        **flags,
                     )
                 )
             except Exception as e:
@@ -844,36 +881,25 @@ class BrokerPhotometryHandler(BaseHandler):
                 )
                 await session.rollback()
         obj_ids = (
-            await super_obj_obj_ids(object_id, session)
+            await super_obj_obj_ids(object_id, user, session)
             if query.includeSuperObjsPhotometry
             else [object_id]
         )
         return self.success(
             data=await db_photometry_points(
                 obj_ids,
-                self.associated_user_object,
+                user,
                 session,
                 outsys=query.magsys,
                 fmt=query.format,
+                **flags,
             )
         )
 
 
-class BrokerDefaultPhotometryGetQuery(BrokerPhotometryGetQuery):
-    """Query parameters for displaying an object's photometry via the default
-    photometry broker. The source page's includeOwnerInfo/includeStreamInfo/
-    includeValidationInfo/includeExtinction flags are accepted and ignored, so it
-    can call this endpoint with the parameters it already sends."""
-
-    includeOwnerInfo: bool = Field(default=False, description="Ignored.")
-    includeStreamInfo: bool = Field(default=False, description="Ignored.")
-    includeValidationInfo: bool = Field(default=False, description="Ignored.")
-    includeExtinction: bool = Field(default=False, description="Ignored.")
-
-
 class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
     @auth_or_token
-    async def get(self, object_id, *, query: BrokerDefaultPhotometryGetQuery = None):
+    async def get(self, object_id, *, query: BrokerPhotometryGetQuery = None):
         """
         ---
         summary: Display photometry for an object via the default broker
@@ -897,8 +923,12 @@ class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
             content:
               application/json:
                 schema: Error
+          403:
+            content:
+              application/json:
+                schema: Error
         """
-        query = self.parse_query(BrokerDefaultPhotometryGetQuery)
+        query = self.parse_query(BrokerPhotometryGetQuery)
 
         async with self.AsyncSession() as session:
             broker = await session.scalar(
@@ -906,6 +936,11 @@ class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
                     Broker.active.is_(True), Broker.default_photometry.is_(True)
                 )
             )
+            if (
+                broker is not None
+                and not broker.broker_class.implements()["get_photometry"]
+            ):
+                broker = None
             return await self._respond_photometry(
                 session, broker, object_id, query, degrade=True
             )

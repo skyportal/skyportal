@@ -1,7 +1,7 @@
 """broker default_photometry
 
 Revision ID: c3a8f1d27b94
-Revises: e5c1a83f7d92
+Revises: a3f7d21c8b45
 Create Date: 2026-09-07
 
 """

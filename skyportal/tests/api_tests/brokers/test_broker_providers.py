@@ -907,18 +907,50 @@ def test_scope_filter_no_leakage():
 
 def test_merge_broker_augments_db_and_dedups():
     """DB is authoritative: a broker point matching a DB point on
-    (instrument, filter, mjd) is dropped (float noise absorbed), broker-only
+    (obj, instrument, filter, mjd) is dropped (float noise absorbed), broker-only
     points are appended, DB points keep their identity."""
-    db = [{"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}]
+    db = [
+        {"obj_id": "A", "instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}
+    ]
     broker = [
-        {"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0000001, "id": None},
-        {"instrument_id": 1, "filter": "ztfg", "mjd": 59002.5, "id": None},
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0000001,
+            "id": None,
+        },
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59002.5,
+            "id": None,
+        },
     ]
     merged = merge_photometry_points(db, broker)
     assert [p for p in merged if p.get("id") is not None] == db
     appended = [p for p in merged if p.get("id") is None]
     assert len(appended) == 1 and appended[0]["mjd"] == 59002.5
     assert merge_photometry_points([], []) == []
+
+
+def test_merge_dedups_per_obj():
+    """Under includeSuperObjsPhotometry the points of several objs are merged at
+    once: a saved point on one obj must not suppress the same epoch on another."""
+    db = [
+        {"obj_id": "A", "instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}
+    ]
+    broker = [
+        {
+            "obj_id": "B",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0,
+            "id": None,
+        }
+    ]
+    assert len(merge_photometry_points(db, broker)) == 2
 
 
 def _lc(*points):

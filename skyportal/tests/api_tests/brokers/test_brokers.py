@@ -343,9 +343,71 @@ def test_default_photometry_broker_serves_super_obj_photometry(
             str(public_source.id),
             str(public_source_group2.id),
         }
+
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?includeSuperObjsPhotometry=true",
+            token=upload_data_token,
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {str(public_source.id)}
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
         api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
+
+
+def test_photometry_passthrough_requires_obj_access(
+    super_admin_token, view_only_token, public_source_group2
+):
+    """The passthrough is not a way around source access control: GET
+    /sources/{id}/photometry 403s for an unreadable obj, and so must this."""
+    status, data = api(
+        "GET",
+        f"brokers/photometry/{public_source_group2.id}",
+        token=view_only_token,
+    )
+    assert status == 403, data
+
+
+def test_photometry_passthrough_keeps_the_source_page_contract(
+    super_admin_token, upload_data_token, public_source, public_group, ztf_camera
+):
+    """The passthrough serves the same fields as GET /sources/{id}/photometry, so
+    routing the source page through it does not silently drop owner, groups,
+    created_at or the extinction-corrected values."""
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58002.0
+    )
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        params = (
+            "includeOwnerInfo=true&includeStreamInfo=true&"
+            "includeValidationInfo=true&includeExtinction=true"
+        )
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?{params}",
+            token=upload_data_token,
+        )
+        assert status == 200, data
+        point = next(p for p in data["data"] if p["mjd"] == 58002.0)
+        assert point["owner"]["id"] is not None
+        assert public_group.id in [group["id"] for group in point["groups"]]
+        assert point["created_at"] is not None
+        assert point["streams"] == []
+        assert point["extinction"] is not None
+        assert point["mag_corr"] is not None
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
 def test_broker_invalid_classname(super_admin_token):
