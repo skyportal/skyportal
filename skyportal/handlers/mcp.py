@@ -456,6 +456,86 @@ async def analyze_light_curve(handler, args):
 
 
 @tool(
+    "list_analysis_services",
+    "List the AnalysisServices that can be run on a source: light-curve fitters "
+    "(e.g. Fiesta, Redback, MOSFiT), the PyGRB GW targeted search, and spectral "
+    "classifiers (NGSF, SNID-SAGE). Returns each service's id, name, analysis type "
+    "and required input data types; use the id with run_analysis.",
+    {},
+)
+async def list_analysis_services(handler, args):
+    return await handler.api("GET", "/api/analysis_service")
+
+
+@tool(
+    "get_analyses",
+    "List the analyses that have run on a source, with their status, service, "
+    "parameters and (when available) the fit/classification headline. Use "
+    "get_analysis for the full result of one.",
+    {"obj_id": _prop("string", "Source ID.")},
+    required=("obj_id",),
+    passthrough="GET /api/obj/analysis",
+)
+async def get_analyses(handler, args):
+    obj_id = args.pop("obj_id")
+    return await handler.api("GET", f"/api/obj/{obj_id}/analysis", query=args)
+
+
+@tool(
+    "get_analysis",
+    "Get one analysis's full result: status and, for a completed run, the fit or "
+    "classification -- e.g. a SNID-SAGE/NGSF spectral type, subtype, redshift, match "
+    "quality and ranked template matches, or a light-curve model's best-fit "
+    "parameters. Includes model_lightcurve / model_spectrum overlay data when present.",
+    {"analysis_id": _prop("integer", "The ObjAnalysis id (from get_analyses).")},
+    required=("analysis_id",),
+)
+async def get_analysis(handler, args):
+    analysis_id = args["analysis_id"]
+    return await handler.api(
+        "GET",
+        f"/api/obj/analysis/{analysis_id}",
+        query={"includeAnalysisData": "true"},
+    )
+
+
+@tool(
+    "run_analysis",
+    "Trigger an AnalysisService run on a source: a Fiesta/Redback/MOSFiT light-curve "
+    "fit, a PyGRB search, or an NGSF/SNID-SAGE spectral classification. WRITE: this "
+    "queues a real job. show_plots and show_parameters default to true so the "
+    "result's plots and the fit overlay are visible on the source page (the API "
+    "default is false, which hides them).",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "analysis_service_id": _prop(
+            "integer", "Service id (from list_analysis_services)."
+        ),
+        "analysis_parameters": _prop(
+            "object",
+            'Service-specific params, e.g. {"source": "arnett"} or {"wrapper": '
+            '"snid"}; only keys the service\'s dropdown allows are valid.',
+        ),
+        "group_ids": _GROUP_IDS,
+        "show_plots": _prop(
+            "boolean", "Show the result's plots/overlay on the source page."
+        ),
+        "show_parameters": _prop("boolean", "Show the analysis parameters."),
+        "show_corner": _prop("boolean", "Show the corner/posterior plot."),
+    },
+    required=("obj_id", "analysis_service_id"),
+)
+async def run_analysis(handler, args):
+    obj_id = args.pop("obj_id")
+    service_id = args.pop("analysis_service_id")
+    args.setdefault("show_plots", True)
+    args.setdefault("show_parameters", True)
+    return await handler.api(
+        "POST", f"/api/obj/{obj_id}/analysis/{service_id}", body=args
+    )
+
+
+@tool(
     "get_gcn_events",
     "List GCN events (gravitational-wave, GRB, neutrino and other multi-messenger "
     "triggers). Filter by date range, or by name with partialdateobs, which "
