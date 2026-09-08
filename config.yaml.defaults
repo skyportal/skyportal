@@ -1229,6 +1229,18 @@ scout:
   # the identity filters. Off by default so test traffic can't look like a trigger.
   allow_relaxed_test: False
 
+neofixer:
+  # NEOFixer (https://neofixer.arizona.edu) ranks NEOs needing follow-up per
+  # telescope site. When enabled, its score is annotated onto the solar system
+  # objects this instance already tracks, matched on mpc_name.
+  enabled: False
+  endpoint: https://neofixerapi.arizona.edu/targets/
+  site: 500 # NEOFixer site id; 500 is the geocentric 1 m default
+  interval_seconds: 3600 # the site list is tens of MB, so poll sparingly
+  timeout_seconds: 300
+  group_ids: [] # groups the annotations are visible to
+  bot_user_id: # user recorded as the annotation author
+
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart

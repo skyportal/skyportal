@@ -17504,6 +17504,10 @@ export interface paths {
                     hasTNSname?: boolean;
                     /** @description If true, return only those matches without TNS names */
                     hasNoTNSname?: boolean;
+                    /** @description If true, return only moving objects (solar system bodies) */
+                    isRoid?: boolean;
+                    /** @description If true, exclude moving objects */
+                    isNotRoid?: boolean;
                     /** @description If true, return only those objects which have been labelled */
                     hasBeenLabelled?: boolean;
                     /** @description If true, return only those objects which have not been labelled */

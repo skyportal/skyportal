@@ -1644,6 +1644,21 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
+  # A moving object, for the Solar System tab. The photometry is synthetic:
+  # generated from H = 15.2 with g-r = 0.51 and r-i = -0.12, real HG12* phase
+  # behaviour and two apparitions of changing geometry, so reducing it should
+  # flatten the curve and recover those numbers. Three deliberately bad points
+  # are rejected below, and the last few nights carry a real brightening for the
+  # outburst statistic to find.
+  - id: SSO2026DM1
+    ra: 138.4471
+    dec: 19.2033
+    is_roid: true
+    mpc_name: "2026 DM1"
+    alias: ["SSO 2026 DM1"]
+    group_ids:
+      - =public_group_id
+      - =program_A
   # Real EP/ZTF pair: optical counterpart to X-ray transient EP260806a
   # (GCN #45299), reported in a ZTF circular as detected at T0+12 hrs. Paired
   # with the gcn_event entry below so the GCN crossmatch has a genuine match to
@@ -1835,6 +1850,73 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
+  # Solar-system demo: per-point rh/delta/phase in altdata is what the Solar
+  # System tab reduces with. Without it the tab has nothing to plot.
+  - obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+    file: SSO2026DM1_phot.csv
+  - =ids: sso_bad_1
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60004.003]
+    filter: ["ztfr"]
+    mag: [16.848]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.4026]
+      delta: [1.4468]
+      phase: [12.714]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # Rejected below; posted alone so it has an id of its own to validate.
+  - =ids: sso_bad_2
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60026.028]
+    filter: ["ztfg"]
+    mag: [20.625]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.0846]
+      delta: [1.2242]
+      phase: [5.857]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # Rejected below; posted alone so it has an id of its own to validate.
+  - =ids: sso_bad_3
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60706.028]
+    filter: ["ztfg"]
+    mag: [17.134]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.4831]
+      delta: [1.5481]
+      phase: [11.571]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
   # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
   # from the ZTF circular for EP260806a.
   - obj_id: ZTF26abmjjnm
@@ -2372,3 +2454,16 @@ obj/ZTF21aaqjmps/analysis_upload/=Fiesta_Demo:
       - =program_B
     show_plots: true
     show_parameters: true
+
+photometry/=sso_bad_1/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."
+photometry/=sso_bad_2/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."
+photometry/=sso_bad_3/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."
