@@ -23,7 +23,7 @@ const plotAxisTheme = (theme) => ({
   linecolor: theme.palette.text.secondary,
   tickcolor: theme.palette.text.secondary,
   zerolinecolor: theme.palette.divider,
-  minor: { tickcolor: theme.palette.text.secondary },
+  minor: { ...BASE_LAYOUT.minor, tickcolor: theme.palette.text.secondary },
 });
 
 const plotCanvasTheme = (theme) => ({
