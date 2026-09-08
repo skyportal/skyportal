@@ -9,6 +9,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
+from ...broker_apis._photometry import db_photometry_points
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
 from ...models import Broker, Filter, GroupUser, Stream, set_autosave
@@ -809,70 +810,73 @@ class BrokerPhotometryHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} does not support photometry.")
             return await self._respond_photometry(session, broker, alert_id, query)
 
-    async def _respond_photometry(self, session, broker, object_id, query):
+    async def _respond_photometry(
+        self, session, broker, object_id, query, *, degrade=False
+    ):
         """Serve merged DB + on-demand broker photometry for ``object_id``, or the
-        DB photometry alone when ``broker`` is None."""
-        from ...broker_apis._photometry import db_photometry_points
-
-        if broker is None:
-            return self.success(
-                data=await db_photometry_points(
-                    object_id,
-                    self.associated_user_object,
-                    session,
-                    outsys=query.magsys,
-                    fmt=query.format,
+        DB photometry alone when ``broker`` is None or, with ``degrade``, when the
+        broker cannot be served."""
+        if broker is not None:
+            try:
+                return self.success(
+                    data=await broker.broker_class.get_photometry(
+                        broker,
+                        object_id,
+                        session,
+                        self.associated_user_object,
+                        survey=query.survey,
+                        outsys=query.magsys,
+                        fmt=query.format,
+                    )
                 )
-            )
-        try:
-            merged = await broker.broker_class.get_photometry(
-                broker,
+            except Exception as e:
+                if not degrade:
+                    return self.error(
+                        f"Error fetching photometry from {broker.name}: {e}"
+                    )
+                log(
+                    f"{broker.name} photometry failed for {object_id}, serving DB "
+                    f"photometry only: {e}"
+                )
+                await session.rollback()
+        return self.success(
+            data=await db_photometry_points(
                 object_id,
-                session,
                 self.associated_user_object,
-                survey=query.survey,
+                session,
                 outsys=query.magsys,
                 fmt=query.format,
             )
-        except Exception as e:
-            return self.error(f"Error fetching photometry from {broker.name}: {e}")
-        return self.success(data=merged)
+        )
 
 
-class BrokerSurveyPhotometryGetQuery(BrokerPhotometryGetQuery):
-    """Query parameters for displaying an object's photometry via its survey's
-    broker. The includeOwnerInfo/includeStreamInfo/includeValidationInfo/
-    includeExtinction/includeSuperObjsPhotometry flags of
-    GET /sources/{id}/photometry are accepted and
-    ignored, so this endpoint can be dropped in as `photometry_display_endpoint`
-    for the source page, which sends them."""
+class BrokerDefaultPhotometryGetQuery(BrokerPhotometryGetQuery):
+    """Query parameters for displaying an object's photometry via the default
+    photometry broker. The includeOwnerInfo/includeStreamInfo/
+    includeValidationInfo/includeExtinction/includeSuperObjsPhotometry flags of
+    GET /sources/{id}/photometry are accepted and ignored, so the source page
+    can call this endpoint with the parameters it already sends."""
 
-    survey: str = Field(
-        min_length=1,
-        description="Survey whose configured broker serves the photometry.",
-    )
     includeOwnerInfo: bool = Field(default=False, description="Ignored.")
     includeStreamInfo: bool = Field(default=False, description="Ignored.")
     includeValidationInfo: bool = Field(default=False, description="Ignored.")
     includeExtinction: bool = Field(default=False, description="Ignored.")
-    includeSuperObjsPhotometry: bool = Field(default=False, description="Ignored.")
 
 
-class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
+class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
     @auth_or_token
-    async def get(self, object_id, *, query: BrokerSurveyPhotometryGetQuery = None):
+    async def get(self, object_id, *, query: BrokerDefaultPhotometryGetQuery = None):
         """
         ---
-        summary: Display photometry for an object via the survey's broker
+        summary: Display photometry for an object via the default broker
         description: |
-          Broker-address-free variant of the photometry passthrough for the
-          source-page lightcurve: resolves the active provider that supports
-          get_photometry for ``?survey=`` server-side, so a deployment can set
-          `photometry_display_endpoint:
-          /api/brokers/photometry/{id}?survey=ZTF` without pinning a broker id.
-          If no such broker is configured, degrades to the object's DB
-          photometry. Returns a bare list of points, matching
-          GET /sources/{id}/photometry.
+          Broker-address-free variant of the photometry passthrough, backing the
+          source page's lightcurve: the broker flagged ``default_photometry`` is
+          resolved server-side, so the frontend does not pin a broker id. If no
+          such broker is configured, or it cannot be reached, degrades to the
+          object's DB photometry (the failure is logged, never returned as an
+          error, so the lightcurve always renders). Returns a bare list of
+          points, matching GET /sources/{id}/photometry.
         tags:
           - brokers
           - photometry
