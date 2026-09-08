@@ -723,13 +723,6 @@ def test_fink_survey_routing():
 
 
 # --- photometry passthrough --------------------------------------------------
-#
-# The broker-canonical photometry passthrough (GET
-# /api/brokers/{id}/alerts/{oid}/photometry) is a base default free to any
-# provider that implements get_alert. These cover the pure, security-critical
-# pieces with no broker: the transform shared with the save path, the stream
-# filter (the no-leakage guarantee), the DB∪broker merge, and the capability
-# gating. The live fetch path is an integration concern.
 
 from skyportal.broker_apis._photometry import (  # noqa: E402
     filter_groups_by_streams,

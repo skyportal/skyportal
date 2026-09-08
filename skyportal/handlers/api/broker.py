@@ -784,20 +784,20 @@ class BrokerPhotometryHandler(BaseHandler):
             return await self._respond_photometry(session, broker, alert_id, query)
 
     async def _respond_photometry(self, session, broker, object_id, query):
-        """Serve merged DB + on-demand broker photometry for ``object_id``. When
-        ``broker`` is None (no configured provider for the survey), degrade to
-        the object's access-controlled DB photometry so the caller still works."""
+        """Serve merged DB + on-demand broker photometry for ``object_id``, or the
+        DB photometry alone when ``broker`` is None."""
         from ...broker_apis._photometry import db_photometry_points
 
         if broker is None:
-            db_points = await db_photometry_points(
-                object_id,
-                self.associated_user_object,
-                session,
-                outsys=query.magsys,
-                fmt=query.format,
+            return self.success(
+                data=await db_photometry_points(
+                    object_id,
+                    self.associated_user_object,
+                    session,
+                    outsys=query.magsys,
+                    fmt=query.format,
+                )
             )
-            return self.success(data=db_points)
         try:
             merged = await broker.broker_class.get_photometry(
                 broker,
