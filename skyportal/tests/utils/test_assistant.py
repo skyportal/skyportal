@@ -8,7 +8,6 @@ from skyportal.utils.assistant import (
     describe_context,
     describe_user,
     is_enabled,
-    select_tools,
     system_prompt,
 )
 
@@ -95,6 +94,48 @@ def test_long_lists_keep_whole_items():
     assert "of 50 not shown" in result["note"]
 
 
+def test_a_long_run_of_numbers_becomes_its_range():
+    """An answer can use the range a spectrum covers, never its fluxes."""
+    payload = json.dumps(
+        {"obj_id": "ZTF26abpanks", "wavelengths": list(range(3000, 9000))}
+    )
+    result = json.loads(condense(payload, budget=2000))
+    assert result["wavelengths"] == {"n": 6000, "min": 3000, "max": 8999}
+    assert "_dropped" not in result
+
+
+def test_a_bulky_field_is_cut_down_before_it_is_dropped():
+    payload = json.dumps(
+        {
+            "obj_id": "ZTF26abpanks",
+            "spectra": [{"id": i, "flux": "y" * 4000} for i in range(6)],
+        }
+    )
+    result = json.loads(condense(payload, budget=2000))
+    assert result["obj_id"] == "ZTF26abpanks"
+    assert "spectra" in result, "the one field asked about must not be dropped whole"
+
+
+def test_every_item_is_shown_when_none_of_them_fit_whole():
+    payload = json.dumps([{"id": i, "text": "y" * 4000} for i in range(6)])
+    result = json.loads(condense(payload, budget=2000))
+    assert [item["id"] for item in result["items"]] == [0, 1, 2, 3, 4, 5]
+    assert "cut down to fit" in result["note"]
+    assert "will not add to it" in result["note"], "the model must not page for more"
+
+
+def test_a_list_shows_whichever_form_names_more_items():
+    """Two events kept whole answer less than every event cut to its date."""
+    payload = json.dumps([{"id": i, "text": "y" * 2000} for i in range(37)])
+    result = json.loads(condense(payload, budget=20000))
+    assert len(result["items"]) == 37
+
+
+def test_a_trimmed_list_is_still_valid_json():
+    payload = json.dumps([{"id": i, "text": "y" * 9000} for i in range(3)])
+    json.loads(condense(payload, budget=500))
+
+
 def test_non_json_is_truncated_with_its_length():
     result = condense("z" * 9000, budget=100)
     assert result.startswith("z" * 100)
@@ -122,34 +163,3 @@ def test_an_answered_exchange_still_ends_on_the_new_question():
     ]
     messages = build_messages(conversation, 40)
     assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
-
-
-_TOOLS = [
-    {"name": "get_sources"},
-    {"name": "get_photometry"},
-    {"name": "analyze_light_curve"},
-    {"name": "get_gcn_event_extractions"},
-    {"name": "get_broker_filter"},
-    {"name": "convert_time"},
-]
-
-
-def _names(tools):
-    return {tool["name"] for tool in tools}
-
-
-def test_a_page_is_offered_only_its_own_subjects():
-    assert _names(select_tools(_TOOLS, "gcn_event")) == {
-        "get_gcn_event_extractions",
-        "convert_time",
-    }
-
-
-def test_a_tool_belonging_to_no_subject_is_offered_everywhere():
-    for context in (None, "source", "gcn_event", "earthquake"):
-        assert "convert_time" in _names(select_tools(_TOOLS, context))
-
-
-def test_a_page_with_no_subjects_is_offered_everything():
-    assert select_tools(_TOOLS, "earthquake") == _TOOLS
-    assert select_tools(_TOOLS, None) == _TOOLS

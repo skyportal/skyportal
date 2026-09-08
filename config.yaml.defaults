@@ -530,6 +530,9 @@ app:
     thinking: false
     # Budget for a whole question, across all its round-trips.
     answer_timeout: 180
+    # Characters of one tool result the model sees. A result larger than this is
+    # cut down, never dropped, so raising it buys breadth rather than accuracy.
+    result_budget: 20000
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300

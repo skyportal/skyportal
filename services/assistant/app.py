@@ -12,16 +12,11 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import init_db, session_context_id
+from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import AssistantMessage, DBSession, Token, User
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.assistant import (
-    SERVICE_TOKEN_PREFIX,
-    build_messages,
-    condense,
-    select_tools,
-)
+from skyportal.utils.assistant import SERVICE_TOKEN_PREFIX, build_messages, condense
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -41,6 +36,9 @@ ANSWER_TIMEOUT = float(CONFIG.get("answer_timeout", 180))
 # drawn from tool results does not need.
 THINKING = bool(CONFIG.get("thinking", False))
 MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
+# How much of one tool result the model gets to see. Prompt processing is cheap
+# next to generation, so this buys breadth for very little time.
+RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
 
 
@@ -79,12 +77,9 @@ def _rpc(token, method, params, timeout, tool_name=None):
     return payload["result"]
 
 
-def list_tools(token, context_type=None):
-    """The tools to offer, narrowed to what this question could need.
-
-    The service holds a read-only token, so a tool that writes would only fail;
-    and the page the question came from says which subjects are in play.
-    """
+def list_tools(token):
+    """The read-only tools. A tool that writes is never offered, and `call_tool`
+    refuses anything that was not."""
     tools = [
         tool
         for tool in _rpc(token, "tools/list", {}, 60)["tools"]
@@ -99,11 +94,18 @@ def list_tools(token, context_type=None):
                 "parameters": tool.get("inputSchema", {"type": "object"}),
             },
         }
-        for tool in select_tools(tools, context_type)
+        for tool in tools
     ]
 
 
-def call_tool(token, name, arguments):
+def call_tool(token, name, arguments, offered):
+    """Run one tool, refusing any that was not offered.
+
+    The token carries the user's own permissions, so this is what stops a model
+    talked into it by the text of a circular from writing anything.
+    """
+    if name not in offered:
+        raise PermissionError(f"{name} was not offered for this question")
     result = _rpc(
         token,
         "tools/call",
@@ -147,11 +149,15 @@ def remaining(deadline, floor=5.0):
 
 
 def answer(conversation, context_type, context_id, user, token):
-    tools = list_tools(token, context_type)
+    tools = list_tools(token)
+    offered = {tool["function"]["name"] for tool in tools}
     messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
 
     deadline = time.monotonic() + ANSWER_TIMEOUT
-    for _ in range(MAX_TOOL_CALLS):
+    # One round-trip can ask for several tools at once, so count the calls
+    # themselves. Counting round-trips lets a paging model run four times over.
+    calls_made = 0
+    while calls_made < MAX_TOOL_CALLS:
         if (left := remaining(deadline)) is None:
             log("out of time before the model finished; answering from what it has")
             break
@@ -160,11 +166,12 @@ def answer(conversation, context_type, context_id, user, token):
         if not calls:
             return (message.get("content") or "").strip()
         messages.append(message)
+        calls_made += len(calls)
         for call in calls:
             name = call["function"]["name"]
             try:
                 arguments = json.loads(call["function"]["arguments"] or "{}")
-                result = call_tool(token, name, arguments)
+                result = call_tool(token, name, arguments, offered)
             except Exception as exc:
                 result = f"tool {name} failed: {exc}"
                 log(result)
@@ -172,7 +179,7 @@ def answer(conversation, context_type, context_id, user, token):
                 {
                     "role": "tool",
                     "tool_call_id": call["id"],
-                    "content": condense(result),
+                    "content": condense(result, RESULT_BUDGET),
                 }
             )
 
@@ -184,14 +191,26 @@ def answer(conversation, context_type, context_id, user, token):
     )
     if (left := remaining(deadline)) is None:
         return "I ran out of time working that out. Please ask again, or narrow the question."
-    return (chat(messages, tools, timeout=left).get("content") or "").strip()
+    # No tools on the last word, or the model asks for another instead of
+    # answering and the reply comes back empty.
+    return (chat(messages, [], timeout=left).get("content") or "").strip()
 
 
-def read_only_token(session, user_id):
-    """A token carrying the user's group access but no ACLs, so it cannot write."""
+def service_token(session, user_id):
+    """A short-lived token carrying the user's own access.
+
+    An admin sees things through an ACL rather than through group membership, so
+    a token without their ACLs would leave the assistant insisting a filter they
+    are looking at does not exist. Writing is refused in `call_tool` instead.
+    """
+    user = session.scalar(sa.select(User).where(User.id == user_id))
     token = Token(
         created_by_id=user_id, name=f"{SERVICE_TOKEN_PREFIX}{uuid.uuid4().hex}"
     )
+    # permissions, not acls: most of a user's ACLs reach them through a role.
+    token.acls = session.scalars(
+        sa.select(ACL).where(ACL.id.in_(user.permissions))
+    ).all()
     session.add(token)
     session.commit()
     return token
@@ -281,7 +300,7 @@ def respond(message_id):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
             }
-            token_id = read_only_token(session, user_id).id
+            token_id = service_token(session, user_id).id
 
         # Answering takes minutes, so no connection is held while it runs.
         try:

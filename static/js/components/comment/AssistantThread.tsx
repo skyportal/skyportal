@@ -65,7 +65,13 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
       text,
       channel,
       ...(target
-        ? { context_type: target.type, context_id: String(target.id) }
+        ? {
+            context_type: target.type,
+            context_id:
+              target.type === "filter"
+                ? `${target.brokerId}/${target.id}`
+                : String(target.id),
+          }
         : {}),
     })
       .unwrap()
