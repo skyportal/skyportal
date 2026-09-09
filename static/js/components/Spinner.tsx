@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
+import Backdrop from "@mui/material/Backdrop";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 
 import { POST } from "../API";
@@ -13,10 +15,14 @@ const STUCK_AFTER_MS = 15000;
 
 const REPORT_STALL = "skyportal/REPORT_STALL";
 
+const BEHIND_SIDEBAR_AND_TOP_BAR = 130;
+
 interface SlowLoadNoticeProps {
   stuckAfterMs?: number;
   /** Named in the report, so the logs say which part of the app stalled. */
   context?: string | undefined;
+  /** Draw it as a card in the middle of the page, over a dimmed background. */
+  overlay?: boolean | undefined;
 }
 
 /**
@@ -27,8 +33,10 @@ interface SlowLoadNoticeProps {
 export const SlowLoadNotice = ({
   stuckAfterMs = STUCK_AFTER_MS,
   context = "unknown",
+  overlay = false,
 }: SlowLoadNoticeProps) => {
   const [stuck, setStuck] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -47,9 +55,9 @@ export const SlowLoadNotice = ({
     return () => clearTimeout(timer);
   }, [stuckAfterMs, context, dispatch]);
 
-  if (!stuck) return null;
+  if (!stuck || dismissed) return null;
 
-  return (
+  const notice = (
     <div
       style={{
         display: "flex",
@@ -59,7 +67,7 @@ export const SlowLoadNotice = ({
         padding: "1rem",
       }}
     >
-      <Typography variant="body2" color="textSecondary">
+      <Typography>
         This is taking longer than usual. The page may be stuck.
       </Typography>
       <Button
@@ -70,6 +78,24 @@ export const SlowLoadNotice = ({
         Reload the page
       </Button>
     </div>
+  );
+
+  if (!overlay) return notice;
+
+  return (
+    <Backdrop
+      open
+      sx={{ zIndex: BEHIND_SIDEBAR_AND_TOP_BAR }}
+      onClick={() => setDismissed(true)}
+    >
+      <Paper
+        elevation={8}
+        sx={{ padding: "0 1rem" }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {notice}
+      </Paper>
+    </Backdrop>
   );
 };
 

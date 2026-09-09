@@ -139,6 +139,11 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
       labelFontSize: 15,
     },
     components: {
+      MuiSkeleton: {
+        defaultProps: {
+          animation: "wave",
+        },
+      },
       MuiLink: {
         defaultProps: {
           color: dark ? lighten(primaryColor, 0.5) : undefined,
