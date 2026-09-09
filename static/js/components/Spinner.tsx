@@ -1,42 +1,40 @@
 import { useEffect, useState } from "react";
 
+import Backdrop from "@mui/material/Backdrop";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 
 import { POST } from "../API";
 import { useAppDispatch } from "../types/hooks";
 
-// A placeholder that never resolves looks exactly like one that is about to, so
-// after this long say the page may be stuck and offer a way out of it.
 const STUCK_AFTER_MS = 15000;
 
 const REPORT_STALL = "skyportal/REPORT_STALL";
 
+const BEHIND_SIDEBAR_AND_TOP_BAR = 130;
+
 interface SlowLoadNoticeProps {
   stuckAfterMs?: number;
-  /** Named in the report, so the logs say which part of the app stalled. */
   context?: string | undefined;
+  overlay?: boolean | undefined;
 }
 
-/**
- * Shown by anything that stands in for content still loading -- the spinner
- * below, or a skeleton page -- once waiting has gone on long enough to suggest
- * something is wrong.
- */
 export const SlowLoadNotice = ({
   stuckAfterMs = STUCK_AFTER_MS,
   context = "unknown",
+  overlay = false,
 }: SlowLoadNoticeProps) => {
   const [stuck, setStuck] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     if (!stuckAfterMs) return undefined;
     const timer = setTimeout(() => {
       setStuck(true);
-      // Report it: a page that hangs for one user is otherwise only heard
-      // about if they think to say so.
       dispatch(
         POST("/api/internal/log", REPORT_STALL, {
           error: `Still loading after ${Math.round(stuckAfterMs / 1000)}s (${context})`,
@@ -47,19 +45,19 @@ export const SlowLoadNotice = ({
     return () => clearTimeout(timer);
   }, [stuckAfterMs, context, dispatch]);
 
-  if (!stuck) return null;
+  if (!stuck || dismissed) return null;
 
-  return (
-    <div
-      style={{
+  const notice = (
+    <Box
+      sx={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "0.75rem",
-        padding: "1rem",
+        gap: 1.5,
+        padding: 2,
       }}
     >
-      <Typography variant="body2" color="textSecondary">
+      <Typography>
         This is taking longer than usual. The page may be stuck.
       </Typography>
       <Button
@@ -69,7 +67,25 @@ export const SlowLoadNotice = ({
       >
         Reload the page
       </Button>
-    </div>
+    </Box>
+  );
+
+  if (!overlay) return notice;
+
+  return (
+    <Backdrop
+      open
+      sx={{ zIndex: BEHIND_SIDEBAR_AND_TOP_BAR }}
+      onClick={() => setDismissed(true)}
+    >
+      <Paper
+        elevation={8}
+        sx={{ paddingX: 2 }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {notice}
+      </Paper>
+    </Backdrop>
   );
 };
 
@@ -77,15 +93,13 @@ const Spinner = ({
   stuckAfterMs = STUCK_AFTER_MS,
   context,
 }: SlowLoadNoticeProps) => (
-  <div
-    style={{
+  <Box
+    sx={{
       position: "fixed",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: "1rem",
-      marginLeft: "auto",
-      marginRight: "auto",
+      gap: 2,
       top: "50%",
       left: "50%",
       transform: "translate(-50%, -50%)",
@@ -93,7 +107,7 @@ const Spinner = ({
   >
     <CircularProgress />
     <SlowLoadNotice stuckAfterMs={stuckAfterMs} context={context} />
-  </div>
+  </Box>
 );
 
 export default Spinner;
