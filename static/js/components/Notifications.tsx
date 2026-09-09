@@ -96,7 +96,10 @@ const Notifications = () => {
     <>
       <Tooltip title={open ? "" : "Notifications"}>
         <IconButton
-          onClick={(event) => setAnchorEl(open ? null : event.currentTarget)}
+          onClick={(event) => {
+            setTab("notifications");
+            setAnchorEl(open ? null : event.currentTarget);
+          }}
           data-testid="notificationsButton"
           size="large"
           sx={{ p: 0, m: 0 }}
