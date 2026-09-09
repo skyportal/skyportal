@@ -360,37 +360,35 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
 PROMPT_EXEMPT_ANNOTATIONS = ("ndethist",)
 
 
-def _prompt_candidate_clause(
-    prompt_delta_t,
+def _delta_t_clause(
+    delta_t,
     origins,
     localization_dateobs,
     is_admin,
     accessible_group_ids,
     params,
+    prefix="prompt",
 ):
-    """Candidates detected close enough in time to the event to be shown anyway.
+    """Objects whose crossmatch puts them within `delta_t` days of the event.
 
-    A counterpart seen within `prompt_delta_t` days of the event is worth a look
-    on that basis alone, so it is spared the cuts that exist to thin a backlog of
-    late, poorly constrained candidates -- the galactic plane and detection
-    history cuts. Those cuts still apply to everything else.
+    Used two ways. As the prompt exemption, a counterpart seen this close to the
+    event is worth a look on that basis alone and is spared the cuts that thin a
+    backlog of late, poorly constrained candidates. As the maximum age, it is a
+    cut in its own right. `prefix` keeps the two sets of bind parameters apart.
     """
-    params.append(
-        bindparam("prompt_delta_t", value=float(prompt_delta_t), type_=sa.Float)
-    )
+    param = f"{prefix}_delta_t"
+    params.append(bindparam(param, value=float(delta_t), type_=sa.Float))
     condition = (
         f"(value ->> 'delta_t') ~ '{_NUMERIC_RE}'"
-        " AND abs((value ->> 'delta_t')::float) <= :prompt_delta_t"
+        f" AND abs((value ->> 'delta_t')::float) <= :{param}"
     )
-    nested = _nested_annotation_clause(
-        "prompt", condition, localization_dateobs, params
-    )
+    nested = _nested_annotation_clause(prefix, condition, localization_dateobs, params)
     origin_clause = ""
     if origins:
         origin_str, origin_bindparams = array2sql(
             [str(origin).lower() for origin in origins],
             type=sa.String,
-            prefix="prompt_annotations_origin",
+            prefix=f"{prefix}_annotations_origin",
         )
         params.extend(origin_bindparams)
         origin_clause = f" AND lower(annotations.origin) IN {origin_str}"
@@ -402,7 +400,7 @@ def _prompt_candidate_clause(
             group_str, group_bindparams = array2sql(
                 accessible_group_ids,
                 type=sa.Integer,
-                prefix="prompt_annotations_group_ids",
+                prefix=f"{prefix}_annotations_group_ids",
             )
             params.extend(group_bindparams)
             group_clause = (
@@ -817,6 +815,7 @@ async def get_sources(
     simbad_class=None,
     min_abs_galactic_latitude=None,
     prompt_delta_t=None,
+    max_delta_t=None,
     alias=None,
     origin=None,
     min_redshift=None,
@@ -1831,20 +1830,42 @@ async def get_sources(
                     statements.append(annotations_query)
                     query_params.extend(annotations_query_params)
 
-        if late_statements:
-            if prompt_delta_t is not None:
-                prompt_clause = _prompt_candidate_clause(
-                    prompt_delta_t,
+        # A counterpart is not one however well it scores if it arrived long
+        # after the event, so the age cut applies to everything.
+        if max_delta_t is not None:
+            statements.append(
+                _delta_t_clause(
+                    max_delta_t,
                     annotations_filter_origin,
                     localization_dateobs,
                     is_admin,
                     group_ids,
                     query_params,
+                    prefix="maxdt",
                 )
+            )
+
+        prompt_clause = (
+            _delta_t_clause(
+                prompt_delta_t,
+                annotations_filter_origin,
+                localization_dateobs,
+                is_admin,
+                group_ids,
+                query_params,
+            )
+            if prompt_delta_t is not None
+            else None
+        )
+        if late_statements:
+            if prompt_clause is not None:
                 late = " AND ".join(f"({stmt})" for stmt in late_statements)
                 statements.append(f"(({prompt_clause}) OR ({late}))")
             else:
                 statements.extend(late_statements)
+        elif prompt_clause is not None:
+            # Nothing to be spared, so the exemption is an age cut in its own right.
+            statements.append(prompt_clause)
 
         # COMMENTS
         comments_query = []

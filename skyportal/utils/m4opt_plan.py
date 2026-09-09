@@ -257,6 +257,12 @@ def generate_m4opt_plan(session, plans, requests):
 
     ids = ",".join(str(plan.id) for plan in plans)
     try:
+        # A solve takes minutes, and Postgres closes a transaction left idle
+        # that long, so read everything the solve needs and commit before
+        # starting it. Objects must survive that commit with their values, or
+        # the reload would open the very transaction this avoids.
+        session.expire_on_commit = False
+        jobs = []
         for plan, request in zip(plans, requests):
             instrument = request.instrument
             mission = mission_for(instrument.name)
@@ -264,24 +270,6 @@ def generate_m4opt_plan(session, plans, requests):
                 raise M4OPTError(
                     f"M4OPT has no mission configured for {instrument.name}."
                 )
-
-            payload = request.payload or {}
-            event_time = Time(request.gcnevent.dateobs, format="datetime", scale="utc")
-            table = run_m4opt(
-                request.localization,
-                mission,
-                start_time=Time(payload["start_date"], format="iso", scale="utc"),
-                end_time=Time(payload["end_date"], format="iso", scale="utc"),
-                event_time=event_time,
-                bandpasses=[
-                    f.strip()
-                    for f in (payload.get("filters") or "").split(",")
-                    if f.strip()
-                ],
-                visits=payload.get("visits"),
-                max_fields=payload.get("max_fields"),
-                exposure_time=payload.get("exposure_time"),
-            )
 
             fields = (
                 session.scalars(
@@ -295,13 +283,55 @@ def generate_m4opt_plan(session, plans, requests):
             if not fields:
                 raise M4OPTError(f"{instrument.name} has no fields to schedule.")
 
-            overhead = (instrument.configuration_data or {}).get(
-                "overhead_per_exposure", 0.0
+            # The sky map is built from deferred columns, so read it now: a
+            # lazy load during the solve would reopen the transaction this
+            # commit exists to close.
+            localization = request.localization
+            localization.table
+
+            jobs.append(
+                {
+                    "plan": plan,
+                    "instrument": instrument,
+                    "mission": mission,
+                    "payload": request.payload or {},
+                    "dateobs": request.gcnevent.dateobs,
+                    "localization": localization,
+                    "fields": fields,
+                    "overhead": (instrument.configuration_data or {}).get(
+                        "overhead_per_exposure", 0.0
+                    ),
+                }
             )
+        session.commit()
+
+        for job in jobs:
+            payload = job["payload"]
+            job["table"] = run_m4opt(
+                job["localization"],
+                job["mission"],
+                start_time=Time(payload["start_date"], format="iso", scale="utc"),
+                end_time=Time(payload["end_date"], format="iso", scale="utc"),
+                event_time=Time(job["dateobs"], format="datetime", scale="utc"),
+                bandpasses=[
+                    f.strip()
+                    for f in (payload.get("filters") or "").split(",")
+                    if f.strip()
+                ],
+                visits=payload.get("visits"),
+                max_fields=payload.get("max_fields"),
+                exposure_time=payload.get("exposure_time"),
+            )
+
+        for job in jobs:
+            plan = job["plan"]
+            instrument = job["instrument"]
+            payload = job["payload"]
+            table, fields, overhead = job["table"], job["fields"], job["overhead"]
             planned = [
                 PlannedObservation(
                     obstime=obstime,
-                    dateobs=request.gcnevent.dateobs,
+                    dateobs=job["dateobs"],
                     field_id=field.id,
                     exposure_time=exposure_time,
                     weight=1.0,

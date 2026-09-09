@@ -1,4 +1,5 @@
 import io
+from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
 
@@ -1759,21 +1760,32 @@ class ObjSpectraHandler(BaseHandler):
             spectra_result = await session.scalars(stmt)
             spectra = spectra_result.unique().all()
 
+            # One query each for the comments and annotations of every spectrum,
+            # rather than a pair per spectrum: an object can carry dozens.
+            spectrum_ids = [spec.id for spec in spectra]
+            comments_result = await session.scalars(
+                CommentOnSpectrum.select(session.user_or_token)
+                .options(selectinload(CommentOnSpectrum.author))
+                .where(CommentOnSpectrum.spectrum_id.in_(spectrum_ids))
+            )
+            comments_by_spectrum = defaultdict(list)
+            for comment in comments_result.unique().all():
+                comments_by_spectrum[comment.spectrum_id].append(comment)
+
+            annotations_result = await session.scalars(
+                AnnotationOnSpectrum.select(session.user_or_token)
+                .options(selectinload(AnnotationOnSpectrum.author))
+                .where(AnnotationOnSpectrum.spectrum_id.in_(spectrum_ids))
+            )
+            annotations_by_spectrum = defaultdict(list)
+            for annotation in annotations_result.unique().all():
+                annotations_by_spectrum[annotation.spectrum_id].append(annotation)
+
             return_values = []
             for spec in spectra:
                 spec_dict = recursive_to_dict(spec)
-                comments_result = await session.scalars(
-                    CommentOnSpectrum.select(session.user_or_token)
-                    .options(selectinload(CommentOnSpectrum.author))
-                    .where(CommentOnSpectrum.spectrum_id == spec.id)
-                )
-                comments = comments_result.unique().all()
-                annotations_result = await session.scalars(
-                    AnnotationOnSpectrum.select(session.user_or_token)
-                    .options(selectinload(AnnotationOnSpectrum.author))
-                    .where(AnnotationOnSpectrum.spectrum_id == spec.id)
-                )
-                annotations = annotations_result.unique().all()
+                comments = comments_by_spectrum.get(spec.id, [])
+                annotations = annotations_by_spectrum.get(spec.id, [])
 
                 spec_dict["comments"] = sorted(
                     (

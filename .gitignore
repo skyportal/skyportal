@@ -94,3 +94,6 @@ key.json
 
 !flake.lock
 .direnv
+
+# NGSF repo + template bank cloned/downloaded at runtime by the analysis service
+services/ngsf_analysis_service/NGSF/

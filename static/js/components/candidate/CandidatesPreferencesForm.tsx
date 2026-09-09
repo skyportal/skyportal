@@ -248,6 +248,7 @@ const CandidatesPreferencesForm = ({
       "minNdethist",
       "minAbsGalacticLatitude",
       "promptDeltaT",
+      "maxDeltaT",
     ].forEach((key) => {
       if (formData[key] !== "" && formData[key] != null) {
         data[key] = formData[key];
@@ -459,6 +460,11 @@ const CandidatesPreferencesForm = ({
             {
               name: "promptDeltaT",
               label: "Always show within [days]",
+              step: 0.5,
+            },
+            {
+              name: "maxDeltaT",
+              label: "Max days since event",
               step: 0.5,
             },
           ].map((cut) => (

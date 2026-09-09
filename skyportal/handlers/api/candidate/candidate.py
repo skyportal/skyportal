@@ -446,12 +446,22 @@ class CandidateGetQuery(BaseModel):
         "their alert history.",
         ge=0,
     )
+    maxDeltaT: float | None = Field(
+        default=None,
+        description=(
+            "Keep only candidates detected within this many days of the event, "
+            "i.e. |delta_t| <= this. Applies to every candidate."
+        ),
+        ge=0,
+    )
     promptDeltaT: float | None = Field(
         default=None,
         description=(
             "Exempt candidates detected within this many days of the event from "
             "the galactic latitude and detection history cuts, which exist to "
-            "thin late candidates. Those cuts still apply to everything else."
+            "thin late candidates. Those cuts still apply to everything else. "
+            "With neither of those cuts set there is nothing to exempt, so this "
+            "acts as maxDeltaT."
         ),
         ge=0,
     )
@@ -937,6 +947,7 @@ class CandidateHandler(BaseHandler):
         max_sgscore = query.maxSgscore
         min_ndethist = query.minNdethist
         prompt_delta_t = query.promptDeltaT
+        max_delta_t = query.maxDeltaT
         crossmatch_origin = query.crossmatchOrigin
         classifications = query.classifications
         classifications_reject = query.classificationsReject
@@ -1152,10 +1163,22 @@ class CandidateHandler(BaseHandler):
                     )
                 )
 
+            # A counterpart is not one however well it scores if it arrived long
+            # after the event, so the age cut applies to everything.
+            if max_delta_t is not None:
+                q = q.where(
+                    crossmatch_value_clause(
+                        crossmatch_origin,
+                        "delta_t",
+                        lambda v: sa.func.abs(v) <= max_delta_t,
+                    )
+                )
+
             # The latitude and detection-history cuts thin a backlog of late,
             # poorly constrained candidates. A candidate seen within
             # promptDeltaT days of the event is worth a look on that basis
-            # alone, so it is spared them.
+            # alone, so it is spared them. With neither cut set there is nothing
+            # to be spared, and promptDeltaT is an age cut in its own right.
             late_conditions = []
             if min_ndethist is not None:
                 late_conditions.append(
@@ -1167,16 +1190,22 @@ class CandidateHandler(BaseHandler):
                 late_conditions.append(
                     abs_galactic_latitude() >= min_abs_galactic_latitude
                 )
+            prompt = (
+                crossmatch_value_clause(
+                    crossmatch_origin,
+                    "delta_t",
+                    lambda v: sa.func.abs(v) <= prompt_delta_t,
+                )
+                if prompt_delta_t is not None
+                else None
+            )
             if late_conditions:
-                if prompt_delta_t is not None:
-                    prompt = crossmatch_value_clause(
-                        crossmatch_origin,
-                        "delta_t",
-                        lambda v: sa.func.abs(v) <= prompt_delta_t,
-                    )
+                if prompt is not None:
                     q = q.where(sa.or_(prompt, sa.and_(*late_conditions)))
                 else:
                     q = q.where(sa.and_(*late_conditions))
+            elif prompt is not None:
+                q = q.where(prompt)
 
             if annotation_filter_list is not None:
                 # Parse annotation filter list objects from the query string
