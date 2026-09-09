@@ -125,7 +125,10 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
     cached = cache[key]
     if cached is not None:
         # a read touches the file, so Cache's max_age never expires a hot source
-        payload = np.load(cached, allow_pickle=True).item()
+        try:
+            payload = np.load(cached, allow_pickle=True).item()
+        except Exception:
+            payload = {}
         if time.time() - (payload.get("fetched_at") or 0) < _CACHE_MAX_AGE:
             return payload["groups"]
     if time.monotonic() < _skip_until.get((broker.id, survey), 0):

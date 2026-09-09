@@ -19,6 +19,7 @@ Every broker thus has a deterministic test backed by real recorded data.
 
 import json
 import os
+import time
 
 import fastavro
 import pytest
@@ -983,8 +984,6 @@ def test_fetch_skips_the_broker_only_on_a_timeout():
     """A 404 means the broker does not know this object, not that it is down: it
     must be cached as empty and must not disable the passthrough for every other
     object. Only a timeout, which is what stalls a source page, arms the skip."""
-    import time
-
     from skyportal.broker_apis import _photometry
 
     class NotFound:
@@ -1047,6 +1046,27 @@ def test_cached_groups_expire_on_their_fetch_time():
     finally:
         _photometry._CACHE_MAX_AGE = max_age
         del _photometry.cache[f"{_FakePhotometryBroker.id}_ZTF_ZTFfresh"]
+
+
+def test_an_unreadable_cache_entry_is_a_miss():
+    """A write cut short by a crash leaves a truncated file that reading touches,
+    so it would never expire either: it has to count as a miss and be rewritten."""
+    from skyportal.broker_apis import _photometry
+    from skyportal.utils.cache import dict_to_bytes
+
+    class Empty:
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            return None
+
+    key = f"{_FakePhotometryBroker.id}_ZTF_ZTFtruncated"
+    blob = dict_to_bytes({"fetched_at": time.time(), "groups": {}})
+    _photometry.cache[key] = blob[: len(blob) // 2]
+    try:
+        assert _fetch_groups(Empty, "ZTFtruncated") == {}
+        assert _fetch_groups(Empty, "ZTFtruncated") == {}
+    finally:
+        del _photometry.cache[key]
 
 
 def _lc(*points):
