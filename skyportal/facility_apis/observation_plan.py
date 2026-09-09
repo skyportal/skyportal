@@ -319,38 +319,48 @@ class MMAAPI(FollowUpAPI):
 
         if plan is None:
             # check payload
+            # The request form offers each scheduler only the settings it
+            # reads, so requiring the other's would reject a well-formed
+            # request. Absent, the scheduler is gwemopt, as the form defaults.
+            scheduler = request.payload.get("scheduler") or "gwemopt"
             required_parameters = {
                 "start_date",
                 "end_date",
-                "schedule_type",
-                "schedule_strategy",
-                "filter_strategy",
                 "exposure_time",
                 "filters",
                 "maximum_airmass",
                 "integrated_probability",
             }
+            if scheduler == "m4opt":
+                required_parameters.add("visits")
+            else:
+                required_parameters |= {
+                    "schedule_type",
+                    "schedule_strategy",
+                    "filter_strategy",
+                }
 
             if not required_parameters.issubset(set(request.payload.keys())):
                 raise ValueError("Missing required planning parameter")
 
-            if (
-                request.payload["filter_strategy"] == "integrated"
-                and "minimum_time_difference" not in request.payload
-            ):
-                raise ValueError(
-                    "minimum_time_difference must be defined for integrated scheduling"
-                )
+            if scheduler != "m4opt":
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        "minimum_time_difference must be defined for integrated scheduling"
+                    )
 
-            if request.payload["schedule_type"] not in [
-                "greedy",
-                "greedy_slew",
-                "sear",
-                "airmass_weighted",
-            ]:
-                raise ValueError(
-                    "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
-                )
+                if request.payload["schedule_type"] not in [
+                    "greedy",
+                    "greedy_slew",
+                    "sear",
+                    "airmass_weighted",
+                ]:
+                    raise ValueError(
+                        "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
+                    )
 
             if (
                 request.payload["integrated_probability"] < 0
@@ -358,7 +368,10 @@ class MMAAPI(FollowUpAPI):
             ):
                 raise ValueError("integrated_probability must be between 0 and 100")
 
-            if request.payload["filter_strategy"] not in ["block", "integrated"]:
+            if scheduler != "m4opt" and request.payload["filter_strategy"] not in [
+                "block",
+                "integrated",
+            ]:
                 raise ValueError("filter_strategy must be either block or integrated")
 
             start_time = Time(request.payload["start_date"], format="iso", scale="utc")

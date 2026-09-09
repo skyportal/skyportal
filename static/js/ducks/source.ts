@@ -580,6 +580,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      invalidatesTags: ["Photometry", "Spectra"],
     }),
     uploadPhotometry: build.mutation<any, Record<string, any>>({
       query: (data) => ({
