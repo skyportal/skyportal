@@ -22,6 +22,7 @@ import os
 
 import fastavro
 import pytest
+import requests
 import vcr
 
 from skyportal.broker_apis.alerce import ALERCEBROKER, _normalize_object
@@ -951,6 +952,101 @@ def test_merge_dedups_per_obj():
         }
     ]
     assert len(merge_photometry_points(db, broker)) == 2
+
+
+class _FakePhotometrySession:
+    async def scalar(self, _stmt):
+        return 1
+
+    async def scalars(self, _stmt):
+        return type("_Result", (), {"all": staticmethod(list)})()
+
+
+class _FakePhotometryBroker:
+    id = 987654
+    altdata: dict = {}
+
+
+def _fetch_groups(cls, object_id):
+    import asyncio
+
+    from skyportal.broker_apis._photometry import fetch_broker_groups
+
+    return asyncio.run(
+        fetch_broker_groups(
+            cls, _FakePhotometryBroker(), object_id, "ZTF", _FakePhotometrySession()
+        )
+    )
+
+
+def test_fetch_skips_the_broker_only_on_a_timeout():
+    """A 404 means the broker does not know this object, not that it is down: it
+    must be cached as empty and must not disable the passthrough for every other
+    object. Only a timeout, which is what stalls a source page, arms the skip."""
+    import time
+
+    from skyportal.broker_apis import _photometry
+
+    class NotFound:
+        calls = 0
+
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            NotFound.calls += 1
+            response = requests.Response()
+            response.status_code = 404
+            response.raise_for_status()
+
+    class Stalling:
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            time.sleep(_photometry._FETCH_TIMEOUT_SECONDS + 0.5)
+
+    _photometry._skip_until.clear()
+    timeout = _photometry._FETCH_TIMEOUT_SECONDS
+    _photometry._FETCH_TIMEOUT_SECONDS = 0.2
+    try:
+        assert _fetch_groups(NotFound, "ZTFunknown") == {}
+        assert _photometry._skip_until == {}
+        assert _fetch_groups(NotFound, "ZTFunknown") == {}
+        assert NotFound.calls == 1
+
+        with pytest.raises(TimeoutError):
+            _fetch_groups(Stalling, "ZTFstalling")
+        assert _photometry._skip_until
+    finally:
+        _photometry._FETCH_TIMEOUT_SECONDS = timeout
+        _photometry._skip_until.clear()
+        del _photometry.cache[f"{_FakePhotometryBroker.id}_ZTF_ZTFunknown"]
+
+
+def test_cached_groups_expire_on_their_fetch_time():
+    """Reading a cache entry touches its file, so ``Cache``'s own max_age would
+    never expire a source that is looked at often: the entry ages on the fetch
+    time stored in it."""
+    from skyportal.broker_apis import _photometry
+
+    class Empty:
+        calls = 0
+
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            Empty.calls += 1
+            return None
+
+    max_age = _photometry._CACHE_MAX_AGE
+    _photometry._CACHE_MAX_AGE = 3600
+    try:
+        _fetch_groups(Empty, "ZTFfresh")
+        _fetch_groups(Empty, "ZTFfresh")
+        assert Empty.calls == 1
+
+        _photometry._CACHE_MAX_AGE = 0
+        _fetch_groups(Empty, "ZTFfresh")
+        assert Empty.calls == 2
+    finally:
+        _photometry._CACHE_MAX_AGE = max_age
+        del _photometry.cache[f"{_FakePhotometryBroker.id}_ZTF_ZTFfresh"]
 
 
 def _lc(*points):
