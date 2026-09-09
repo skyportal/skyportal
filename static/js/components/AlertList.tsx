@@ -28,6 +28,13 @@ export type Severity = "error" | "warning" | "success";
 const severityOf = (type?: string): Severity =>
   type === "error" ? "error" : type === "warning" ? "warning" : "success";
 
+const worstSeverityOf = (alerts: Alert[]): Severity =>
+  alerts.some((alert) => alert.type === "error")
+    ? "error"
+    : alerts.some((alert) => alert.type === "warning")
+      ? "warning"
+      : "success";
+
 const severityIcon = {
   error: <ErrorIcon />,
   warning: <WarningIcon />,
@@ -71,17 +78,11 @@ export const useAlerts = (visible: boolean) => {
     }
   }
 
-  const worstSeverity: Severity = alerts.some((alert) => alert.type === "error")
-    ? "error"
-    : alerts.some((alert) => alert.type === "warning")
-      ? "warning"
-      : "success";
-
   return {
     groups,
     count: alerts.length,
     unseenCount: Math.max(0, alerts.length - seenCount),
-    worstSeverity,
+    worstSeverity: worstSeverityOf(alerts.slice(seenCount)),
     deleteAll: () => setAlerts([]),
     deleteGroup: (lastIndex: number, duplicates: number) =>
       setAlerts(

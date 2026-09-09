@@ -33,6 +33,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 import ReactMarkdown from "react-markdown";
 
+import { Link } from "react-router-dom";
+
 import { PanelEmptyState } from "./HeaderPanel";
 import { UserNotification } from "../ducks/userNotifications";
 
@@ -77,12 +79,14 @@ const typeIcon = (notificationType?: string | null, url?: string | null) => {
 
 interface NotificationListProps {
   notifications: UserNotification[];
+  onOpen: (notificationID: number, url?: string | null) => void;
   onSetViewed: (notificationID: number, viewed: boolean) => void;
   onDelete: (notificationID: number) => void;
 }
 
 const NotificationList = ({
   notifications,
+  onOpen,
   onSetViewed,
   onDelete,
 }: NotificationListProps) => {
@@ -152,9 +156,11 @@ const NotificationList = ({
             }
           >
             <ListItemButton
-              component="a"
-              href={url || undefined}
-              onClick={() => onSetViewed(id, true)}
+              {...({
+                component: url ? Link : "div",
+                to: url || undefined,
+              } as any)}
+              onClick={() => onOpen(id, url)}
               data-testid={`notification${id}`}
               sx={{ alignItems: "flex-start", gap: 1.5, py: 1.5 }}
             >

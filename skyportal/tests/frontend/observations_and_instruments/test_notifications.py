@@ -50,19 +50,24 @@ def _enable_switch(page, name, attempts=3):
 
 
 def expect_unread_badge(page, count=1, attempts=3):
-    """Wait for the notification bell to show `count` unread, reloading between tries.
+    """Open the panel and wait for its notifications tab to count `count` unread.
 
-    A notification is created after the API call that triggers it has returned,
-    and the page only hears about it over a websocket. One created in the gap
-    between the page's first fetch and its socket connecting is missed until
-    something refetches, so reload rather than wait it out.
+    The bell badge sums unread notifications and unseen alerts, so the per-tab
+    count is the one tied to notifications alone. A notification is created after
+    the API call that triggers it has returned, and the page only hears about it
+    over a websocket. One created in the gap between the page's first fetch and
+    its socket connecting is missed until something refetches, so reload rather
+    than wait it out. The panel is left closed.
     """
-    badge = page.locator(
-        f'//*[@data-testid="notificationsBadge"]//span[text()="{count}"]'
+    bell = page.locator('//*[@data-testid="notificationsButton"]').first
+    unread = page.locator(
+        f'//*[@data-testid="notificationsTab"]//span[text()="{count}"]'
     ).first
     for attempt in range(attempts):
+        bell.click()
         try:
-            expect(badge).to_be_visible(timeout=10000)
+            expect(unread).to_be_visible(timeout=10000)
+            page.keyboard.press("Escape")
             return
         except AssertionError:
             if attempt == attempts - 1:

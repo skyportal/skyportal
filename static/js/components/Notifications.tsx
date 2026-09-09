@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import Badge from "@mui/material/Badge";
 import Chip from "@mui/material/Chip";
@@ -84,15 +84,22 @@ const Notifications = () => {
   const unreadCount = notifications.filter((n) => !n.viewed).length;
   const hasUnread = unreadCount > 0;
 
-  const close = () => setAnchorEl(null);
+  const close = useCallback(() => setAnchorEl(null), []);
   const setViewed = (notificationID: number, viewed: boolean) =>
     updateNotification({ notificationID, data: { viewed } });
+  const openNotification = (notificationID: number, url?: string | null) => {
+    setViewed(notificationID, true);
+    if (url) close();
+  };
 
   return (
     <>
       <Tooltip title={open ? "" : "Notifications"}>
         <IconButton
-          onClick={(event) => setAnchorEl(open ? null : event.currentTarget)}
+          onClick={(event) => {
+            setTab("notifications");
+            setAnchorEl(open ? null : event.currentTarget);
+          }}
           data-testid="notificationsButton"
           size="large"
           sx={{ p: 0, m: 0 }}
@@ -173,6 +180,7 @@ const Notifications = () => {
         ) : (
           <NotificationList
             notifications={notifications}
+            onOpen={openNotification}
             onSetViewed={setViewed}
             onDelete={deleteNotification}
           />
