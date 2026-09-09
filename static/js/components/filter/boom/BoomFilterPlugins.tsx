@@ -159,8 +159,8 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   // Auto-actions run when an object passes: save to the filter's group (skipping
   // objects already in an ignore/junk group), annotate, and/or trigger followup.
-  // Stored in the filter's altdata.
-  const autoSaveOn = !!filter_v?.altdata?.autoSave;
+  // Auto-save lives in the `autosave` column that ingestion reads; the rest in altdata.
+  const autoSaveOn = !!filter_v?.autosave;
   const autoAnnotateOn = !!filter_v?.altdata?.autoAnnotate;
   const autoFollowupOn = !!filter_v?.altdata?.autoFollowup;
   const ignoreGroupIds: number[] =

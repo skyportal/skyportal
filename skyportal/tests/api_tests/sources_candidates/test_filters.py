@@ -235,33 +235,23 @@ def test_update_filter_autosave(manage_groups_token, public_filter):
     assert data["data"]["autosave"] is False
 
 
-def test_set_autosave_keeps_broker_ui_mirror_in_step():
-    """The broker UI reads altdata['autoSave']; it must not disagree with the column."""
-    from types import SimpleNamespace
+def test_update_filter_autosave_writes_no_altdata_mirror(
+    manage_groups_token, public_filter
+):
+    """The column is the only store: nothing mirrors it into altdata, where it
+    could drift and let a filter auto-save while the UI shows it off."""
+    status, _ = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"autosave": True},
+        token=manage_groups_token,
+    )
+    assert status == 200
 
-    from skyportal.models import set_autosave
-
-    # A broker filter carries the mirror, and it tracks the column.
-    f = SimpleNamespace(autosave=False, altdata={"boom": {}, "autoSave": False})
-    set_autosave(f, True)
-    assert f.autosave is True
-    assert f.altdata["autoSave"] is True
-
-    set_autosave(f, False)
-    assert f.autosave is False
-    assert f.altdata["autoSave"] is False
-
-    # A filter without the mirror gains no spurious key.
-    g = SimpleNamespace(autosave=False, altdata={"lasair": {}})
-    set_autosave(g, True)
-    assert g.autosave is True
-    assert "autoSave" not in g.altdata
-
-    # ... and neither does one with no altdata at all.
-    h = SimpleNamespace(autosave=False, altdata=None)
-    set_autosave(h, True)
-    assert h.autosave is True
-    assert h.altdata is None
+    status, data = api("GET", f"filters/{public_filter.id}", token=manage_groups_token)
+    assert status == 200
+    assert data["data"]["autosave"] is True
+    assert "autoSave" not in (data["data"].get("altdata") or {})
 
 
 def test_attach_a_broker_to_an_existing_filter(super_admin_token, public_filter):

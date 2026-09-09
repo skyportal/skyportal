@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Broker, Filter, set_autosave
+from ...models import Broker, Filter
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
 
@@ -281,7 +281,7 @@ class FilterHandler(BaseHandler):
             if body.altdata is not None:
                 f.altdata = body.altdata
             if body.autosave is not None:
-                set_autosave(f, body.autosave)
+                f.autosave = body.autosave
 
             await session.commit()
             return self.success()

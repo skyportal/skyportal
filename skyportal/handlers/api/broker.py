@@ -11,7 +11,7 @@ from baselayer.log import make_log
 
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
-from ...models import Broker, Filter, GroupUser, Stream, set_autosave
+from ...models import Broker, Filter, GroupUser, Stream
 from ..base import BaseHandler
 
 log = make_log("api/broker")
@@ -1326,7 +1326,7 @@ class BrokerFiltersHandler(BaseHandler):
                     )
                 f.broker_id = broker.id
                 if "autosave" in body.model_fields_set:
-                    set_autosave(f, body.autosave)
+                    f.autosave = bool(body.autosave)
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
                 ad["lasair"] = {
                     "selected": selected,
@@ -1371,7 +1371,6 @@ class BrokerFiltersHandler(BaseHandler):
                     f.altdata = {
                         "boom": {"filter_id": resp["id"]},
                         "autoAnnotate": True,
-                        "autoSave": False,
                         "autoFollowup": False,
                         "filters": [{"fid": new_fid, "version": body.filters}],
                     }
@@ -1480,13 +1479,13 @@ class BrokerFiltersHandler(BaseHandler):
                         active_fid=body.active_fid,
                         skip_validation=True,
                     )
-                for flag in ("autoAnnotate", "autoSave", "autoFollowup"):
+                for flag in ("autoAnnotate", "autoFollowup"):
                     if flag in body.model_fields_set:
                         f.altdata[flag] = getattr(body, flag)
                         flag_modified(f, "altdata")
                 # autoSave is the UI's name for the column ingestion reads.
                 if "autoSave" in body.model_fields_set:
-                    set_autosave(f, body.autoSave)
+                    f.autosave = bool(body.autoSave)
                 # Groups whose members are not auto-saved (e.g. junk).
                 if "autoSaveIgnoreGroupIds" in body.model_fields_set:
                     f.altdata["autoSaveIgnoreGroupIds"] = [
