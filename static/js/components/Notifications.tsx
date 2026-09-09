@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import Badge from "@mui/material/Badge";
 import Chip from "@mui/material/Chip";
@@ -84,7 +84,7 @@ const Notifications = () => {
   const unreadCount = notifications.filter((n) => !n.viewed).length;
   const hasUnread = unreadCount > 0;
 
-  const close = () => setAnchorEl(null);
+  const close = useCallback(() => setAnchorEl(null), []);
   const setViewed = (notificationID: number, viewed: boolean) =>
     updateNotification({ notificationID, data: { viewed } });
   const openNotification = (notificationID: number, url?: string | null) => {
