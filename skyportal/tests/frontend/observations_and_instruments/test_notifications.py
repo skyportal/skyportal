@@ -92,7 +92,9 @@ def test_mention_generates_notification_then_mark_read_and_delete(
         page.locator('//*[text()=" mentioned you in a comment on "]').first
     ).to_be_visible()
     page.locator('//*[contains(@data-testid, "markReadButton")]').first.click()
-    expect(page.locator("//button[text()='Mark unread']").first).to_be_visible()
+    expect(
+        page.locator('//*[contains(@data-testid, "markUnreadButton")]').first
+    ).to_be_visible()
     page.locator(
         '//*[contains(@data-testid, "deleteNotificationButton")]'
     ).first.click()

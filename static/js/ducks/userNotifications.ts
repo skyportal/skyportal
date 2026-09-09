@@ -18,6 +18,8 @@ export interface UserNotification {
   text: string;
   url?: string | null;
   viewed: boolean;
+  notification_type?: string | null;
+  created_at?: string | null;
   [key: string]: unknown;
 }
 

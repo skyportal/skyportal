@@ -201,9 +201,7 @@ def test_shift(
 
     page.locator('//*[@data-testid="notificationsBadge"]').first.click()
 
-    notification_xpath = (
-        f'//ul/div/a/p[contains(text(),"needs a replacement for shift: {name}")]'
-    )
+    notification_xpath = f'//ul//a[contains(.,"needs a replacement for shift: {name}")]'
     page.locator(notification_xpath).first.click()
 
     page.locator(
