@@ -38,17 +38,38 @@ const TABS_SX = {
   },
 };
 
-const countSx = (color: "primary" | Severity) => ({
-  height: "1.125rem",
-  fontSize: "0.68rem",
-  fontWeight: 700,
-  bgcolor: (theme: Theme) => alpha(theme.palette[color].main, 0.18),
-  color: `${color}.main`,
-  "& .MuiChip-label": { px: 0.75 },
-});
+const countChip = (count: number, color: "primary" | Severity) =>
+  count > 0 ? (
+    <Chip
+      label={count}
+      size="small"
+      sx={{
+        height: "1.125rem",
+        fontSize: "0.68rem",
+        fontWeight: 700,
+        bgcolor: (theme: Theme) => alpha(theme.palette[color].main, 0.18),
+        color: `${color}.main`,
+        "& .MuiChip-label": { px: 0.75 },
+      }}
+    />
+  ) : undefined;
+
+const DeleteAllButton = ({
+  onClick,
+  testId,
+}: {
+  onClick: () => void;
+  testId: string;
+}) => (
+  <Tooltip title="Delete all">
+    <IconButton size="small" onClick={onClick} data-testid={testId}>
+      <DeleteSweepIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
+);
 
 const Notifications = () => {
-  const { data } = useGetNotificationsQuery();
+  const { data: notifications = [] } = useGetNotificationsQuery();
   const [updateNotification] = useUpdateNotificationMutation();
   const [updateAllNotifications] = useUpdateAllNotificationsMutation();
   const [deleteNotification] = useDeleteNotificationMutation();
@@ -60,7 +81,6 @@ const Notifications = () => {
   const showingAlerts = tab === "alerts";
   const alerts = useAlerts(open && showingAlerts);
 
-  const notifications = data || [];
   const unreadCount = notifications.filter((n) => !n.viewed).length;
   const hasUnread = unreadCount > 0;
 
@@ -75,7 +95,7 @@ const Notifications = () => {
           onClick={(event) => setAnchorEl(open ? null : event.currentTarget)}
           data-testid="notificationsButton"
           size="large"
-          style={{ padding: 0, margin: 0 }}
+          sx={{ p: 0, m: 0 }}
         >
           <Badge
             badgeContent={unreadCount + alerts.unseenCount}
@@ -97,45 +117,24 @@ const Notifications = () => {
               label="Notifications"
               data-testid="notificationsTab"
               iconPosition="end"
-              icon={
-                hasUnread ? (
-                  <Chip
-                    label={unreadCount}
-                    size="small"
-                    sx={countSx("primary")}
-                  />
-                ) : undefined
-              }
+              icon={countChip(unreadCount, "primary")}
             />
             <Tab
               value="alerts"
               label="Alerts"
               data-testid="alertsTab"
               iconPosition="end"
-              icon={
-                alerts.unseenCount > 0 ? (
-                  <Chip
-                    label={alerts.unseenCount}
-                    size="small"
-                    sx={countSx(alerts.worstSeverity)}
-                  />
-                ) : undefined
-              }
+              icon={countChip(alerts.unseenCount, alerts.worstSeverity)}
             />
           </Tabs>
         }
         actions={
           showingAlerts
             ? alerts.count > 0 && (
-                <Tooltip title="Delete all">
-                  <IconButton
-                    size="small"
-                    onClick={alerts.deleteAll}
-                    data-testid="deleteAllAlertsButton"
-                  >
-                    <DeleteSweepIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <DeleteAllButton
+                  onClick={alerts.deleteAll}
+                  testId="deleteAllAlertsButton"
+                />
               )
             : notifications.length > 0 && (
                 <>
@@ -158,24 +157,19 @@ const Notifications = () => {
                       )}
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Delete all">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        deleteAllNotifications();
-                        close();
-                      }}
-                      data-testid="deleteAllNotificationsButton"
-                    >
-                      <DeleteSweepIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  <DeleteAllButton
+                    onClick={() => {
+                      deleteAllNotifications();
+                      close();
+                    }}
+                    testId="deleteAllNotificationsButton"
+                  />
                 </>
               )
         }
       >
         {showingAlerts ? (
-          <AlertList groups={alerts.groups} onDelete={alerts.delete} />
+          <AlertList groups={alerts.groups} onDelete={alerts.deleteGroup} />
         ) : (
           <NotificationList
             notifications={notifications}

@@ -17,7 +17,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { PanelEmptyState } from "./HeaderPanel";
 import { useAppSelector } from "../types/hooks";
 
-export interface Alert {
+interface Alert {
   id?: string | number;
   note?: string;
   type?: string;
@@ -34,7 +34,7 @@ const severityIcon = {
   success: <SuccessIcon />,
 };
 
-export interface AlertGroup {
+interface AlertGroup {
   alert: Alert;
   index: number;
   duplicates: number;
@@ -83,7 +83,7 @@ export const useAlerts = (visible: boolean) => {
     unseenCount: Math.max(0, alerts.length - seenCount),
     worstSeverity,
     deleteAll: () => setAlerts([]),
-    delete: (lastIndex: number, duplicates: number) =>
+    deleteGroup: (lastIndex: number, duplicates: number) =>
       setAlerts(
         alerts.filter(
           (_, index) => index > lastIndex || index < lastIndex - duplicates,
