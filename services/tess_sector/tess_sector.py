@@ -35,6 +35,9 @@ enabled = tess_cfg.get("enabled", False)
 instrument_name = tess_cfg.get("instrument_name", INSTRUMENT_NAME)
 interval = tess_cfg.get("interval_seconds", 3600)
 batch_size = tess_cfg.get("batch_size", 500)
+# A stubborn object that never clears its condition would otherwise sweep
+# forever; the remainder is simply picked up next cycle.
+max_passes = int(tess_cfg.get("max_passes", 1000))
 group_ids = tess_cfg.get("group_ids") or []
 bot_user_id = tess_cfg.get("bot_user_id")
 
@@ -142,9 +145,26 @@ def poll_once():
         added = load_fields(session, instrument)
         if added:
             log(f"Loaded {added} TESS camera footprints")
-        annotated = annotate_batch(session, instrument)
-        if annotated:
-            log(f"Annotated TESS coverage for {annotated} objects")
+
+        # Sweep until nothing is left rather than doing one batch a cycle:
+        # batch_size bounds a transaction, not the rate, so a backlog of
+        # candidates drains in one pass instead of over weeks.
+        total = 0
+        passes = 0
+        while True:
+            annotated = annotate_batch(session, instrument)
+            total += annotated
+            passes += 1
+            if annotated < batch_size:
+                break
+            if passes >= max_passes:
+                log(
+                    f"Stopped after {max_passes} passes with {total} annotated; "
+                    "the rest waits for the next cycle"
+                )
+                break
+        if total:
+            log(f"Annotated TESS coverage for {total} objects in {passes} pass(es)")
 
 
 @check_loaded(logger=log)

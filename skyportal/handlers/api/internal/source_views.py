@@ -92,17 +92,27 @@ class SourceViewsHandler(BaseHandler):
             for tag in tags:
                 tags_dict[tag["obj_id"]].append(tag)
 
+            # One query for every object, rather than one each: this list is as
+            # long as the top-views list, and each object pulls its thumbnails
+            # and classifications behind it.
+            objs_result = await session.scalars(
+                Obj.select(
+                    session.user_or_token,
+                    options=[
+                        selectinload(Obj.thumbnails),
+                        selectinload(Obj.classifications),
+                    ],
+                ).where(Obj.id.in_([obj_id for _, obj_id in query_results]))
+            )
+            objs_by_id = {obj.id: obj for obj in objs_result.unique().all()}
+
             sources = []
             for view, obj_id in query_results:
-                s = await session.scalar(
-                    Obj.select(
-                        session.user_or_token,
-                        options=[
-                            selectinload(Obj.thumbnails),
-                            selectinload(Obj.classifications),
-                        ],
-                    ).where(Obj.id == obj_id)
-                )
+                s = objs_by_id.get(obj_id)
+                # An object the requester cannot read is left out rather than
+                # failing the whole list.
+                if s is None:
+                    continue
                 sources.append(
                     {
                         "obj_id": s.id,
