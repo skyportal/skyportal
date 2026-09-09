@@ -15,8 +15,7 @@ const POPPER_MODIFIERS = [
 interface HeaderPanelProps {
   anchorEl: HTMLElement | null;
   onClose: () => void;
-  title: string;
-  titleAdornment?: ReactNode;
+  header: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }
@@ -24,8 +23,7 @@ interface HeaderPanelProps {
 const HeaderPanel = ({
   anchorEl,
   onClose,
-  title,
-  titleAdornment,
+  header,
   actions,
   children,
 }: HeaderPanelProps) => {
@@ -63,14 +61,11 @@ const HeaderPanel = ({
               display: "flex",
               alignItems: "center",
               gap: 1,
-              px: 2,
-              py: 1.25,
+              pr: 1.5,
               bgcolor: "action.hover",
             }}
           >
-            <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
-            {titleAdornment}
-            <Box sx={{ flexGrow: 1 }} />
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>{header}</Box>
             {actions}
           </Box>
           <Divider />

@@ -1,45 +1,21 @@
 import { useState } from "react";
 
 import Badge from "@mui/material/Badge";
-import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import { alpha, Theme } from "@mui/material/styles";
 
-import MUINotificationsIcon from "@mui/icons-material/NotificationsOutlined";
-import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
-import DoneIcon from "@mui/icons-material/Done";
+import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
-import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweepOutlined";
-import ChatBubbleIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
-import CategoryIcon from "@mui/icons-material/CategoryOutlined";
-import ArticleIcon from "@mui/icons-material/ArticleOutlined";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
-import FlareIcon from "@mui/icons-material/FlareOutlined";
-import StarIcon from "@mui/icons-material/Star";
-import SourceIcon from "@mui/icons-material/AdjustOutlined";
-import LockIcon from "@mui/icons-material/LockOutlined";
-import GroupIcon from "@mui/icons-material/GroupOutlined";
-import EventIcon from "@mui/icons-material/EventOutlined";
-import AlarmIcon from "@mui/icons-material/AlarmOutlined";
-import ScienceIcon from "@mui/icons-material/ScienceOutlined";
-import SendIcon from "@mui/icons-material/SendOutlined";
-import VisibilityIcon from "@mui/icons-material/VisibilityOutlined";
-import AutorenewIcon from "@mui/icons-material/AutorenewOutlined";
 
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import utc from "dayjs/plugin/utc";
-import ReactMarkdown from "react-markdown";
-
-import HeaderPanel, { PanelEmptyState } from "./HeaderPanel";
+import HeaderPanel from "./HeaderPanel";
+import NotificationList from "./NotificationList";
+import AlertList, { Severity, useAlerts } from "./AlertList";
 import {
   useGetNotificationsQuery,
   useUpdateNotificationMutation,
@@ -48,44 +24,28 @@ import {
   useDeleteAllNotificationsMutation,
 } from "../ducks/userNotifications";
 
-dayjs.extend(relativeTime);
-dayjs.extend(utc);
-
-const unreadTint = (theme: Theme, light: number, dark: number) =>
-  alpha(
-    theme.palette.primary.main,
-    theme.palette.mode === "dark" ? dark : light,
-  );
-
-const typeIcon = (notificationType?: string | null, url?: string | null) => {
-  const type = (notificationType || "").toLowerCase();
-  if (type.includes("mention") || type.includes("comment"))
-    return <ChatBubbleIcon />;
-  if (type.includes("reminder")) return <AlarmIcon />;
-  if (type.includes("report") || type.includes("summary"))
-    return <ArticleIcon />;
-  if (type.includes("classification")) return <CategoryIcon />;
-  if (type.includes("spectrum") || type.includes("photometry"))
-    return <ShowChartIcon />;
-  if (type.includes("gcn")) return <FlareIcon />;
-  if (type.includes("favorite")) return <StarIcon />;
-  if (type.includes("group") || type.includes("user")) return <GroupIcon />;
-  if (type.includes("shift")) return <EventIcon />;
-  if (type.includes("analysis")) return <ScienceIcon />;
-  if (type.includes("facility") || type.includes("followup"))
-    return <SendIcon />;
-  if (type.includes("observation")) return <VisibilityIcon />;
-  if (type.includes("api")) return <AutorenewIcon />;
-
-  // many notifications have no type at all, so fall back on where they point to
-  const target = url || "";
-  if (target.startsWith("/shift")) return <EventIcon />;
-  if (target.startsWith("/group")) return <GroupIcon />;
-  if (target.startsWith("/gcn_events")) return <FlareIcon />;
-  if (target.startsWith("/data_access")) return <LockIcon />;
-  if (target.startsWith("/source")) return <SourceIcon />;
-  return <MUINotificationsIcon />;
+const TABS_SX = {
+  minHeight: 0,
+  "& .MuiTab-root": {
+    minHeight: 0,
+    minWidth: 0,
+    gap: 0.75,
+    px: 2,
+    py: 1.5,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    textTransform: "none",
+  },
 };
+
+const countSx = (color: "primary" | Severity) => ({
+  height: "1.125rem",
+  fontSize: "0.68rem",
+  fontWeight: 700,
+  bgcolor: (theme: Theme) => alpha(theme.palette[color].main, 0.18),
+  color: `${color}.main`,
+  "& .MuiChip-label": { px: 0.75 },
+});
 
 const Notifications = () => {
   const { data } = useGetNotificationsQuery();
@@ -94,6 +54,11 @@ const Notifications = () => {
   const [deleteNotification] = useDeleteNotificationMutation();
   const [deleteAllNotifications] = useDeleteAllNotificationsMutation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [tab, setTab] = useState<"notifications" | "alerts">("notifications");
+
+  const open = Boolean(anchorEl);
+  const showingAlerts = tab === "alerts";
+  const alerts = useAlerts(open && showingAlerts);
 
   const notifications = data || [];
   const unreadCount = notifications.filter((n) => !n.viewed).length;
@@ -102,197 +67,121 @@ const Notifications = () => {
   const close = () => setAnchorEl(null);
   const setViewed = (notificationID: number, viewed: boolean) =>
     updateNotification({ notificationID, data: { viewed } });
-  const clearAll = () => {
-    deleteAllNotifications();
-    close();
-  };
 
   return (
     <>
-      <Tooltip title={anchorEl ? "" : "Notifications"}>
+      <Tooltip title={open ? "" : "Notifications"}>
         <IconButton
-          onClick={(event) =>
-            setAnchorEl(anchorEl ? null : event.currentTarget)
-          }
+          onClick={(event) => setAnchorEl(open ? null : event.currentTarget)}
           data-testid="notificationsButton"
           size="large"
           style={{ padding: 0, margin: 0 }}
         >
           <Badge
-            badgeContent={unreadCount}
+            badgeContent={unreadCount + alerts.unseenCount}
             overlap="circular"
-            color={hasUnread ? "error" : "primary"}
+            color="error"
             data-testid="notificationsBadge"
           >
-            <MUINotificationsIcon fontSize="large" color="primary" />
+            <NotificationsIcon fontSize="large" color="primary" />
           </Badge>
         </IconButton>
       </Tooltip>
       <HeaderPanel
         anchorEl={anchorEl}
         onClose={close}
-        title="Notifications"
-        titleAdornment={
-          hasUnread && (
-            <Chip
-              label={`${unreadCount} new`}
-              size="small"
-              color="primary"
-              sx={{ height: "1.25rem", fontSize: "0.7rem", fontWeight: 600 }}
+        header={
+          <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={TABS_SX}>
+            <Tab
+              value="notifications"
+              label="Notifications"
+              data-testid="notificationsTab"
+              iconPosition="end"
+              icon={
+                hasUnread ? (
+                  <Chip
+                    label={unreadCount}
+                    size="small"
+                    sx={countSx("primary")}
+                  />
+                ) : undefined
+              }
             />
-          )
+            <Tab
+              value="alerts"
+              label="Alerts"
+              data-testid="alertsTab"
+              iconPosition="end"
+              icon={
+                alerts.unseenCount > 0 ? (
+                  <Chip
+                    label={alerts.unseenCount}
+                    size="small"
+                    sx={countSx(alerts.worstSeverity)}
+                  />
+                ) : undefined
+              }
+            />
+          </Tabs>
         }
         actions={
-          notifications.length > 0 && (
-            <>
-              <Tooltip title={hasUnread ? "Mark all read" : "Mark all unread"}>
-                <IconButton
-                  size="small"
-                  onClick={() => updateAllNotifications({ viewed: hasUnread })}
-                  data-testid={
-                    hasUnread ? "markAllReadButton" : "markAllUnreadButton"
-                  }
-                >
-                  {hasUnread ? (
-                    <DoneAllIcon fontSize="small" />
-                  ) : (
-                    <RemoveDoneIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Delete all">
-                <IconButton
-                  size="small"
-                  onClick={clearAll}
-                  data-testid="deleteAllNotificationsButton"
-                >
-                  <DeleteSweepIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </>
-          )
+          showingAlerts
+            ? alerts.count > 0 && (
+                <Tooltip title="Delete all">
+                  <IconButton
+                    size="small"
+                    onClick={alerts.deleteAll}
+                    data-testid="deleteAllAlertsButton"
+                  >
+                    <DeleteSweepIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )
+            : notifications.length > 0 && (
+                <>
+                  <Tooltip
+                    title={hasUnread ? "Mark all read" : "Mark all unread"}
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        updateAllNotifications({ viewed: hasUnread })
+                      }
+                      data-testid={
+                        hasUnread ? "markAllReadButton" : "markAllUnreadButton"
+                      }
+                    >
+                      {hasUnread ? (
+                        <DoneAllIcon fontSize="small" />
+                      ) : (
+                        <RemoveDoneIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete all">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        deleteAllNotifications();
+                        close();
+                      }}
+                      data-testid="deleteAllNotificationsButton"
+                    >
+                      <DeleteSweepIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )
         }
       >
-        {notifications.length === 0 ? (
-          <PanelEmptyState
-            icon={<NotificationsOffIcon />}
-            text="No notifications"
-          />
+        {showingAlerts ? (
+          <AlertList groups={alerts.groups} onDelete={alerts.delete} />
         ) : (
-          <List disablePadding>
-            {notifications.map(
-              (
-                { id, text, url, viewed, notification_type, created_at },
-                index,
-              ) => (
-                <ListItem
-                  key={id}
-                  disablePadding
-                  divider={index < notifications.length - 1}
-                  sx={{
-                    ...(!viewed && {
-                      bgcolor: (theme) => unreadTint(theme, 0.07, 0.14),
-                      "& > .MuiListItemButton-root:hover": {
-                        bgcolor: (theme: Theme) =>
-                          unreadTint(theme, 0.14, 0.22),
-                      },
-                    }),
-                    "& > .MuiListItemButton-root": { pr: 10 },
-                    "& .MuiListItemSecondaryAction-root": {
-                      opacity: 0,
-                      transition: "opacity 150ms",
-                    },
-                    "&:hover .MuiListItemSecondaryAction-root, &:focus-within .MuiListItemSecondaryAction-root":
-                      {
-                        opacity: 1,
-                      },
-                    "@media (hover: none)": {
-                      "& .MuiListItemSecondaryAction-root": { opacity: 1 },
-                    },
-                  }}
-                  secondaryAction={
-                    <Box sx={{ display: "flex" }}>
-                      <Tooltip title={viewed ? "Mark unread" : "Mark read"}>
-                        <IconButton
-                          size="small"
-                          data-testid={`${
-                            viewed ? "markUnreadButton" : "markReadButton"
-                          }${id}`}
-                          onClick={() => setViewed(id, !viewed)}
-                        >
-                          {viewed ? (
-                            <RemoveDoneIcon fontSize="small" />
-                          ) : (
-                            <DoneIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          data-testid={`deleteNotificationButton${id}`}
-                          onClick={() => deleteNotification(id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  }
-                >
-                  <ListItemButton
-                    component="a"
-                    href={url || undefined}
-                    onClick={() => setViewed(id, true)}
-                    data-testid={`notification${id}`}
-                    sx={{ alignItems: "flex-start", gap: 1.5, py: 1.5 }}
-                  >
-                    <Box
-                      sx={{
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: "2rem",
-                        height: "2rem",
-                        borderRadius: "50%",
-                        bgcolor: (theme) =>
-                          viewed
-                            ? theme.palette.action.hover
-                            : alpha(theme.palette.primary.main, 0.2),
-                        color: viewed ? "text.secondary" : "primary.main",
-                        "& svg": { fontSize: "1.2rem" },
-                      }}
-                    >
-                      {typeIcon(notification_type, url)}
-                    </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box
-                        sx={{
-                          fontSize: "0.875rem",
-                          lineHeight: 1.45,
-                          overflowWrap: "anywhere",
-                          fontWeight: viewed ? 400 : 600,
-                          "& p": { m: 0 },
-                          "& em": { fontStyle: "normal", fontWeight: 600 },
-                        }}
-                      >
-                        <ReactMarkdown>{text}</ReactMarkdown>
-                      </Box>
-                      {created_at && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: 0.25 }}
-                        >
-                          {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        </Typography>
-                      )}
-                    </Box>
-                  </ListItemButton>
-                </ListItem>
-              ),
-            )}
-          </List>
+          <NotificationList
+            notifications={notifications}
+            onSetViewed={setViewed}
+            onDelete={deleteNotification}
+          />
         )}
       </HeaderPanel>
     </>
