@@ -409,6 +409,7 @@ const FilterCandidateList = ({
       minNdethist: scanningProfile?.minNdethist ?? "",
       minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
       promptDeltaT: scanningProfile?.promptDeltaT ?? "",
+      maxDeltaT: scanningProfile?.maxDeltaT ?? "",
     });
   };
 
@@ -544,6 +545,9 @@ const FilterCandidateList = ({
     }
     if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
       data.promptDeltaT = formData.promptDeltaT;
+    }
+    if (formData.maxDeltaT !== "" && formData.maxDeltaT != null) {
+      data.maxDeltaT = formData.maxDeltaT;
     }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       // data.gcneventid = formData.gcneventid;
@@ -1209,6 +1213,20 @@ const FilterCandidateList = ({
                     />
                   )}
                   name="promptDeltaT"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxDeltaT"
+                      label="Max days since event"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="maxDeltaT"
                   control={control}
                 />
                 <Controller
