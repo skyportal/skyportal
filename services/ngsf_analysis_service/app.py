@@ -124,7 +124,7 @@ def run_ngsf_model(data_dict):
     # SUPERFIT_PATH/NGSF the importable package; the template bank downloads
     # alongside it.
     NGSF = "https://github.com/skyportal/NGSF.git"
-    NGSF_COMMIT = "1ddf277"
+    NGSF_COMMIT = "f1129ac"
     # Bank mirror hosted on the fork's releases: WISeREP rate-limits and 403s
     # repeated automated pulls, which breaks a fresh clone's first fit.
     NGSF_bank = "https://github.com/skyportal/NGSF/releases/download/template-bank-v1/supyfit_bank.zip"
