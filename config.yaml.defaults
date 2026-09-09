@@ -1239,6 +1239,17 @@ assignments:
   # the exposure. Set to null to only close assignments a spectrum names.
   auto_observed_window_days: 1
 
+tess:
+  # Loads each TESS sector's four camera footprints as instrument fields, then
+  # annotates objects with the sectors covering them, so scanning can filter on
+  # TESS coverage. Create an instrument named below first; its fields fill in.
+  enabled: False
+  instrument_name: TESS
+  interval_seconds: 3600
+  batch_size: 500 # objects annotated per cycle
+  group_ids: [] # groups the annotations are visible to
+  bot_user_id: # user recorded as the annotation author
+
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
