@@ -90,14 +90,11 @@ async def post_thumbnail(data, user_id, session):
     if await session.scalar(Obj.select(user).where(Obj.id == obj_id)) is None:
         raise AttributeError(f"Invalid obj_id: {obj_id}")
 
-    basedir = Path(os.path.dirname(__file__)) / ".." / ".."
+    basedir = Path(__file__).parents[3]
     obj_hash = hashlib.sha256(obj_id.encode("utf-8")).hexdigest()
 
     required_depth = 2
     subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
-
-    if os.path.abspath(basedir).endswith("skyportal/skyportal"):
-        basedir = basedir / ".."
 
     # BOOM emits title-case names ("Ztf"), which the constraint reads as not "ZTF".
     survey = (data.get("survey") or "").strip().upper() or None

@@ -179,7 +179,10 @@ class InstrumentPostBody(BaseModel):
         "filter change time, readout, etc.",
     )
     field_data: dict[str, Any] | str | None = Field(
-        default=None, description="List of ID, RA, and Dec for each field."
+        default=None,
+        description="List of ID, RA, and Dec for each field. May also carry a "
+        "rotation (degrees east of north) per field, for a survey whose "
+        "footprint rolls between pointings.",
     )
     field_region: str | None = Field(
         default=None,
@@ -1151,10 +1154,19 @@ def add_tiles(
             session.commit()
             return
 
-        # Loop over the telescope tiles and create fields for each
+        # Loop over the telescope tiles and create fields for each.
+        # A survey whose footprint rolls between pointings (TESS's cameras roll
+        # every sector) gives a rotation per field, so the shape is turned as
+        # well as moved.
+        frame_kwargs = {}
+        rotation = field_data.get("rotation")
+        if rotation is not None:
+            frame_kwargs["rotation"] = coordinates.Angle(
+                np.asarray(rotation, dtype=float), unit=u.deg
+            )
         skyoffset_frames = coordinates.SkyCoord(
             field_data["RA"], field_data["Dec"], unit=u.deg
-        ).skyoffset_frame()
+        ).skyoffset_frame(**frame_kwargs)
 
         # code expects to loop over regions
         if type(regions) in [RectangleSkyRegion, CircleSkyRegion, PolygonSkyRegion]:
@@ -1176,6 +1188,12 @@ def add_tiles(
                         (-width / 2.0, -height / 2.0),
                     ]
                 )
+                # A rectangle carrying an angle is not axis-aligned.
+                angle = getattr(reg, "angle", None)
+                if angle is not None and angle.value:
+                    theta = angle.to_value(u.rad)
+                    cos_t, sin_t = np.cos(theta), np.sin(theta)
+                    geometry = geometry @ np.array([[cos_t, sin_t], [-sin_t, cos_t]])
                 ra_tmp = geometry[:, 0]
                 dec_tmp = geometry[:, 1]
             elif isinstance(reg, CircleSkyRegion):

@@ -2893,7 +2893,9 @@ export interface paths {
                     maxSgscore?: number | null;
                     /** @description Keep only candidates with at least this many detections in their alert history. */
                     minNdethist?: number | null;
-                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    /** @description Keep only candidates detected within this many days of the event, i.e. |delta_t| <= this. Applies to every candidate. */
+                    maxDeltaT?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. With neither of those cuts set there is nothing to exempt, so this acts as maxDeltaT. */
                     promptDeltaT?: number | null;
                     /** @description Annotation origin the crossmatch cuts above are read from, compared lower-cased. */
                     crossmatchOrigin?: string;
@@ -13566,6 +13568,8 @@ export interface paths {
                     duplicate_ignore_flux?: boolean;
                     /** @description If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of existing rows (duplicates) with the new values. Applies only to rows with an origin already specified. If existing duplicates have no origin, the update will be skipped. */
                     overwrite_flux?: boolean;
+                    /** @description If true, merge the posted altdata into existing rows that duplicate the new points. Only applies when duplicate_ignore_flux is false, so the duplicate is matched on the full deduplication index and is therefore a single identified row; unlike overwrite_flux this needs no origin and never changes a measurement. */
+                    overwrite_altdata?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -17575,7 +17579,9 @@ export interface paths {
                     simbadClass?: string | null;
                     /** @description Keep only sources at least this many degrees from the galactic plane, i.e. |b| >= this. Use to require extragalactic candidates. */
                     minAbsGalacticLatitude?: number | null;
-                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. */
+                    /** @description Keep only sources detected within this many days of the event, i.e. |delta_t| <= this. Applies to every source. */
+                    maxDeltaT?: number | null;
+                    /** @description Exempt candidates detected within this many days of the event from the galactic latitude and detection history cuts, which exist to thin late candidates. Those cuts still apply to everything else. With neither of those cuts set there is nothing to exempt, so this acts as maxDeltaT. */
                     promptDeltaT?: number | null;
                     /** @description additional name for the same object */
                     alias?: string | null;
@@ -42148,7 +42154,7 @@ export interface components {
             } | string) | null;
             /**
              * Field Data
-             * @description List of ID, RA, and Dec for each field.
+             * @description List of ID, RA, and Dec for each field. May also carry a rotation (degrees east of north) per field, for a survey whose footprint rolls between pointings.
              * @default null
              */
             field_data: ({
@@ -42319,7 +42325,7 @@ export interface components {
             } | string) | null;
             /**
              * Field Data
-             * @description List of ID, RA, and Dec for each field.
+             * @description List of ID, RA, and Dec for each field. May also carry a rotation (degrees east of north) per field, for a survey whose footprint rolls between pointings.
              * @default null
              */
             field_data: ({
