@@ -17,7 +17,7 @@ from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload, selectinload  # noqa: F401
+from sqlalchemy.orm import aliased, joinedload, selectinload  # noqa: F401
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import Values, bindparam, column, text
 from sqlalchemy.sql.expression import case, cast, func
@@ -1062,7 +1062,7 @@ class CandidateHandler(BaseHandler):
             q = sa.select(Obj.id).join(
                 candidate_subquery, Obj.id == candidate_subquery.c.obj_id
             )
-            if sort_by_origin is not None or annotation_filter_list is not None:
+            if annotation_filter_list is not None:
                 q = q.outerjoin(Annotation)
 
             if classifications:
@@ -1251,15 +1251,28 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None:
                 sort_by_key = query.sortByAnnotationKey
                 sort_by_order = query.sortByAnnotationOrder
-                # Define a custom sort order to have annotations from the correct origin first, all others afterward
+                # Sorting joins only the origin being sorted on. Joining every
+                # annotation instead multiplies the candidate rows by however
+                # many an object carries, which the DISTINCT ON below then has
+                # to collapse -- enough to hit the statement timeout.
+                sort_annotation = aliased(Annotation)
+                q = q.outerjoin(
+                    sort_annotation,
+                    sa.and_(
+                        Obj.id == sort_annotation.obj_id,
+                        sort_annotation.origin == sort_by_origin,
+                    ),
+                )
+                # Objects carrying that origin still sort ahead of those without
+                # it, as they did when every annotation was joined.
                 origin_sort_order = case(
-                    (Annotation.origin == sort_by_origin, 1),
+                    (sort_annotation.id.isnot(None), 1),
                     else_=None,
                 )
                 annotation_sort_criterion = (
-                    Annotation.data[sort_by_key].desc().nullslast()
+                    sort_annotation.data[sort_by_key].desc().nullslast()
                     if sort_by_order == "desc"
-                    else Annotation.data[sort_by_key].nullslast()
+                    else sort_annotation.data[sort_by_key].nullslast()
                 )
                 # Don't apply the order by just yet. Save it so we can pass it to
                 # the LIMIT/OFFSET helper function.
