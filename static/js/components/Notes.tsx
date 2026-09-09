@@ -45,30 +45,8 @@ const severityIcon = {
   success: <SuccessIcon />,
 };
 
-// TEMP: demo rows to eyeball the styling, remove before merging
-const DEMO_NOTES: Note[] = [
-  {
-    id: "demo-1",
-    note: "Source ZTF26aaaqrst saved to group ZTF Partnership",
-    type: "info",
-  },
-  { id: "demo-2", note: "Classification submitted", type: "info" },
-  { id: "demo-3", note: "Classification submitted", type: "info" },
-  { id: "demo-4", note: "Classification submitted", type: "info" },
-  {
-    id: "demo-5",
-    note: "Photometry upload partially failed: 3 of 128 points were rejected",
-    type: "warning",
-  },
-  {
-    id: "demo-6",
-    note: "Error uploading spectrum: instrument Keck1/LRIS not found",
-    type: "error",
-  },
-];
-
 const Notes = () => {
-  const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
+  const [notes, setNotes] = useState<Note[]>([]);
   const NotesState = useAppSelector(
     (state) => (state as any).notifications.notes,
   ) as Note[];
