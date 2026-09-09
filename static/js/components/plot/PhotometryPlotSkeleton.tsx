@@ -1,24 +1,20 @@
+import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 
 const TAB_WIDTHS = ["2.5rem", "2.5rem", "3.5rem"];
 
 const CONTROL_ROWS = [2, 3, 2, 2, 1, 2];
 
-interface PhotometryPlotSkeletonProps {
-  /** The height the plot itself will take, so nothing moves once it is drawn. */
-  height: string;
-}
-
 const ControlRow = () => (
-  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
     <Skeleton variant="text" width="7rem" height={24} />
     <Skeleton variant="rounded" width={32} height={16} />
-  </div>
+  </Box>
 );
 
-const PhotometryPlotSkeleton = ({ height }: PhotometryPlotSkeletonProps) => (
-  <div style={{ width: "100%" }}>
-    <div style={{ display: "flex", gap: "1.5rem", padding: "0.75rem 1rem" }}>
+const PhotometryPlotSkeleton = ({ height }: { height: string }) => (
+  <Box sx={{ width: "100%" }}>
+    <Box sx={{ display: "flex", gap: 3, paddingX: 2, paddingY: 1.5 }}>
       {TAB_WIDTHS.map((width, index) => (
         <Skeleton
           key={`tab-${index}`}
@@ -27,25 +23,26 @@ const PhotometryPlotSkeleton = ({ height }: PhotometryPlotSkeletonProps) => (
           height={24}
         />
       ))}
-    </div>
+    </Box>
     <Skeleton variant="rounded" width="100%" height={height} />
-    <div
-      style={{
+    <Box
+      sx={{
         display: "grid",
         gridTemplateColumns: "repeat(3, 1fr)",
-        columnGap: "2rem",
-        padding: "0.5rem 1rem 0 1rem",
+        columnGap: 4,
+        paddingX: 2,
+        paddingTop: 1,
       }}
     >
       {CONTROL_ROWS.map((rows, index) => (
-        <div key={`control-${index}`}>
+        <Box key={`control-${index}`}>
           {[...Array(rows)].map((_, row) => (
             <ControlRow key={`control-${index}-${row}`} />
           ))}
-        </div>
+        </Box>
       ))}
-    </div>
-  </div>
+    </Box>
+  </Box>
 );
 
 export default PhotometryPlotSkeleton;
