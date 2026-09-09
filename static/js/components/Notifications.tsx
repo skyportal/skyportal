@@ -87,6 +87,10 @@ const Notifications = () => {
   const close = () => setAnchorEl(null);
   const setViewed = (notificationID: number, viewed: boolean) =>
     updateNotification({ notificationID, data: { viewed } });
+  const openNotification = (notificationID: number, url?: string | null) => {
+    setViewed(notificationID, true);
+    if (url) close();
+  };
 
   return (
     <>
@@ -173,6 +177,7 @@ const Notifications = () => {
         ) : (
           <NotificationList
             notifications={notifications}
+            onOpen={openNotification}
             onSetViewed={setViewed}
             onDelete={deleteNotification}
           />
