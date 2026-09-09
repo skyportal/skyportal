@@ -13568,6 +13568,8 @@ export interface paths {
                     duplicate_ignore_flux?: boolean;
                     /** @description If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of existing rows (duplicates) with the new values. Applies only to rows with an origin already specified. If existing duplicates have no origin, the update will be skipped. */
                     overwrite_flux?: boolean;
+                    /** @description If true, merge the posted altdata into existing rows that duplicate the new points. Only applies when duplicate_ignore_flux is false, so the duplicate is matched on the full deduplication index and is therefore a single identified row; unlike overwrite_flux this needs no origin and never changes a measurement. */
+                    overwrite_altdata?: boolean;
                 };
                 header?: never;
                 path?: never;
