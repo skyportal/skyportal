@@ -145,9 +145,14 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
             ),
             timeout=_FETCH_TIMEOUT_SECONDS,
         )
-    except Exception:
+    except TimeoutError:
+        # only a stall is broker-wide; a per-object failure must not skip the rest
         _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
         raise
+    except Exception as e:
+        if getattr(getattr(e, "response", None), "status_code", None) != 404:
+            raise
+        data = None
     groups = (
         build_photometry_groups(
             object_id, survey, data, instrument_id, programid2streamid
@@ -155,7 +160,7 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
         if data
         else {}
     )
-    cache[key] = dict_to_bytes(groups)
+    cache[key] = dict_to_bytes({"fetched_at": time.time(), "groups": groups})
     if groups:
         from tornado.ioloop import IOLoop
 

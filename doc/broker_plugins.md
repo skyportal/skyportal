@@ -43,8 +43,10 @@ of forking SkyPortal or re-deriving the same integration in every deployment.
   every saved row regardless of who is looking. Making an active broker a
   default re-runs its `test_connection`, so an unreachable one is refused; a
   broker that goes down later never breaks a source page, the lightcurve falls
-  back to the saved photometry, the failure is logged, and the broker is skipped
-  for a minute so an outage does not make every source page wait for a timeout.
+  back to the saved photometry, the failure is logged, and a broker that times
+  out is skipped for a minute so an outage does not make every source page wait
+  for one. An object the broker simply does not know (a 404) is cached as empty
+  and leaves the passthrough on for every other object.
 
 ## Operations
 
