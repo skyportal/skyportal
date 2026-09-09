@@ -558,7 +558,11 @@ async def post_followup_request_async(
         # the following constraints are spatial and require position and radius
         radius = constraints.get("radius", 0.5) / 3600
         obj = await session.scalar(
-            Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
+            Obj.select(session.user_or_token)
+            .where(Obj.id == data["obj_id"])
+            # A facility's submit() reads photstats from sync code, which an
+            # async session cannot lazy-load.
+            .options(selectinload(Obj.photstats))
         )
         if obj is None:
             raise ValueError(f"Could not find source with ID {data['obj_id']}.")
@@ -766,7 +770,11 @@ async def post_followup_request_async(
     result = await session.scalars(stmt)
     target_groups = result.all()
     obj = await session.scalar(
-        Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
+        Obj.select(session.user_or_token)
+        .where(Obj.id == data["obj_id"])
+        # A facility's submit() reads photstats from sync code, which an async
+        # session cannot lazy-load.
+        .options(selectinload(Obj.photstats))
     )
     requester = await session.scalar(
         User.select(session.user_or_token).where(User.id == data["requester_id"])
@@ -892,7 +900,13 @@ async def _post_default_followup_requests_async(
         obj = None
         n_retries = 0
         while obj is None and n_retries < 3:
-            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            obj = await session.scalar(
+                sa.select(Obj)
+                .where(Obj.id == obj_id)
+                # A facility's submit() reads photstats from sync code, which
+                # an async session cannot lazy-load.
+                .options(selectinload(Obj.photstats))
+            )
             n_retries += 1
             if obj is None:
                 await asyncio.sleep(1)

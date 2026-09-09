@@ -72,6 +72,7 @@ import SolarSystemPlot, {
   SolarSystemControls,
   useSolarSystemPlot,
 } from "./SolarSystemPlot";
+import PhotometryPlotSkeleton from "./PhotometryPlotSkeleton";
 import { getValidationStatus } from "../photometry/PhotometryValidation";
 import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
@@ -1985,7 +1986,7 @@ const PhotometryPlot = ({
     : [];
 
   if (!(photometry && config && photStats)) {
-    return <CircularProgress color="secondary" />;
+    return <PhotometryPlotSkeleton height={plotStyle?.height || "70vh"} />;
   }
 
   return (

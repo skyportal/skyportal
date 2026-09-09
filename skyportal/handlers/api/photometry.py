@@ -1833,6 +1833,16 @@ class PhotometryPutQuery(BaseModel):
             "duplicates have no origin, the update will be skipped."
         ),
     )
+    overwrite_altdata: bool = Field(
+        default=False,
+        description=(
+            "If true, merge the posted altdata into existing rows that duplicate "
+            "the new points. Only applies when duplicate_ignore_flux is false, so "
+            "the duplicate is matched on the full deduplication index and is "
+            "therefore a single identified row; unlike overwrite_flux this needs "
+            "no origin and never changes a measurement."
+        ),
+    )
 
 
 class PhotometryPatchQuery(BaseModel):
@@ -2246,6 +2256,7 @@ class PhotometryHandler(BaseHandler):
         refresh = query.refresh
         overwrite_flux = query.overwrite_flux
         ignore_flux = query.duplicate_ignore_flux
+        overwrite_altdata = query.overwrite_altdata
 
         # if ignore_flux is True, verify that the current_user is a super admin
         if ignore_flux and not self.associated_user_object.is_admin:
@@ -2345,6 +2356,28 @@ class PhotometryHandler(BaseHandler):
                             log(
                                 f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                             )
+
+                    # Matched on the full dedup index, so this is one identified
+                    # row and refreshing its altdata cannot land on a different
+                    # measurement -- no origin needed, unlike the flux overwrite.
+                    if overwrite_altdata and not ignore_flux:
+                        posted = df.loc[df_index].get("altdata")
+                        if isinstance(posted, dict) and posted:
+                            # Rows written by the flux overwrite below hold a JSON
+                            # string rather than an object, so accept either.
+                            stored = duplicate.altdata
+                            if isinstance(stored, str):
+                                try:
+                                    stored = json.loads(stored)
+                                except json.JSONDecodeError:
+                                    stored = None
+                            stored = stored if isinstance(stored, dict) else {}
+                            merged = {**stored, **posted}
+                            if merged != stored:
+                                duplicate.altdata = merged
+                                duplicate.modified = utcnow_naive()
+                                if duplicate.id not in updated_ids:
+                                    updated_ids.append(duplicate.id)
 
                     # update duplicate's flux and fluxerr if we are ignoring flux deduplication
                     # and both the duplicate and the new datapoint have origins that are not None, '', 'nan', or 'null'

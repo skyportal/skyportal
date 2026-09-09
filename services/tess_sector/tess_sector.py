@@ -19,6 +19,7 @@ from skyportal.utils.tess import (
     ANNOTATION_ORIGIN,
     INSTRUMENT_NAME,
     camera_region,
+    current_sector,
     missing_field_data,
 )
 from skyportal.utils.tess_ingest import annotate_object
@@ -34,6 +35,9 @@ enabled = tess_cfg.get("enabled", False)
 instrument_name = tess_cfg.get("instrument_name", INSTRUMENT_NAME)
 interval = tess_cfg.get("interval_seconds", 3600)
 batch_size = tess_cfg.get("batch_size", 500)
+# A stubborn object that never clears its condition would otherwise sweep
+# forever; the remainder is simply picked up next cycle.
+max_passes = int(tess_cfg.get("max_passes", 1000))
 group_ids = tess_cfg.get("group_ids") or []
 bot_user_id = tess_cfg.get("bot_user_id")
 
@@ -86,8 +90,28 @@ def load_fields(session, instrument):
     return len(field_data["ID"])
 
 
+def stale_obj_ids(now):
+    """Objects whose stored annotation disagrees with the sector observing now.
+
+    `sectors` only grows, but which one is current changes every few weeks, so an
+    annotation goes stale where the object did not.
+    """
+    stored = Annotation.data["in_current_sector"].astext.cast(sa.Boolean)
+    if now is None:
+        # Between sectors nothing is in one, so any stored true is stale.
+        stale = stored.is_(True)
+    else:
+        in_now = Annotation.data["sectors"].contains(sa.func.to_jsonb(sa.literal(now)))
+        stale = stored.is_distinct_from(in_now)
+    return (
+        sa.select(Annotation.obj_id)
+        .where(Annotation.origin == ANNOTATION_ORIGIN, stale)
+        .scalar_subquery()
+    )
+
+
 def annotate_batch(session, instrument):
-    """Annotate candidates that have no TESS annotation yet."""
+    """Annotate candidates with no TESS annotation, and refresh stale ones."""
     annotated = (
         sa.select(Annotation.obj_id)
         .where(Annotation.origin == ANNOTATION_ORIGIN)
@@ -98,7 +122,10 @@ def annotate_batch(session, instrument):
         .where(
             Obj.id.in_(sa.select(Candidate.obj_id)),
             Obj.healpix.isnot(None),
-            Obj.id.notin_(annotated),
+            sa.or_(
+                Obj.id.notin_(annotated),
+                Obj.id.in_(stale_obj_ids(current_sector())),
+            ),
         )
         .limit(batch_size)
     ).all()
@@ -118,9 +145,26 @@ def poll_once():
         added = load_fields(session, instrument)
         if added:
             log(f"Loaded {added} TESS camera footprints")
-        annotated = annotate_batch(session, instrument)
-        if annotated:
-            log(f"Annotated TESS coverage for {annotated} objects")
+
+        # Sweep until nothing is left rather than doing one batch a cycle:
+        # batch_size bounds a transaction, not the rate, so a backlog of
+        # candidates drains in one pass instead of over weeks.
+        total = 0
+        passes = 0
+        while True:
+            annotated = annotate_batch(session, instrument)
+            total += annotated
+            passes += 1
+            if annotated < batch_size:
+                break
+            if passes >= max_passes:
+                log(
+                    f"Stopped after {max_passes} passes with {total} annotated; "
+                    "the rest waits for the next cycle"
+                )
+                break
+        if total:
+            log(f"Annotated TESS coverage for {total} objects in {passes} pass(es)")
 
 
 @check_loaded(logger=log)
