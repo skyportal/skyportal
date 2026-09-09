@@ -356,16 +356,12 @@ def test_default_photometry_broker_serves_super_obj_photometry(
         api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
 
 
-def test_photometry_passthrough_requires_obj_access(
-    super_admin_token, view_only_token, public_source_group2
-):
-    """The passthrough is not a way around source access control: GET
-    /sources/{id}/photometry 403s for an unreadable obj, and so must this."""
-    status, data = api(
-        "GET",
-        f"brokers/photometry/{public_source_group2.id}",
-        token=view_only_token,
-    )
+def test_photometry_passthrough_refuses_an_unknown_obj(view_only_token):
+    """``Obj.read`` is public, so the guard is an existence check: the passthrough
+    refuses an id with no obj exactly like GET /sources/{id}/photometry does. The
+    access control that matters is on the points themselves, and is covered by
+    test_default_photometry_broker_serves_super_obj_photometry."""
+    status, data = api("GET", "brokers/photometry/NOSUCHOBJ", token=view_only_token)
     assert status == 403, data
 
 
