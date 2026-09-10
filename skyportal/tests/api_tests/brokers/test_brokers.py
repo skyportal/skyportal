@@ -313,7 +313,7 @@ def test_secret_config_fields_cover_every_provider():
         "BOOMBROKER": ["password"],
         "FINKBROKER": ["fink.password"],
         "GENERICBROKER": ["token"],
-        "LASAIRBROKER": ["token"],
+        "LASAIRBROKER": ["token", "kafka.password"],
         "PITTGOOGLEBROKER": ["service_account_key"],
     }
     for name, paths in expected.items():
