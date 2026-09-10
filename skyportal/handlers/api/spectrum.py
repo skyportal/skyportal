@@ -1781,6 +1781,26 @@ class ObjSpectraHandler(BaseHandler):
             for annotation in annotations_result.unique().all():
                 annotations_by_spectrum[annotation.spectrum_id].append(annotation)
 
+            # One query per association table rather than three per spectrum,
+            # matching the comments and annotations above. The row is kept, not
+            # just its value: an existing row whose value is null is reported as
+            # null, while a missing row leaves the key out entirely.
+            externals = {}
+            for model, attr in (
+                (SpectrumPI, "external_pi"),
+                (SpectrumReducer, "external_reducer"),
+                (SpectrumObserver, "external_observer"),
+            ):
+                rows = await session.scalars(
+                    model.select(session.user_or_token).where(
+                        model.spectr_id.in_(spectrum_ids)
+                    )
+                )
+                by_spectrum = {}
+                for row in rows.unique().all():
+                    by_spectrum.setdefault(row.spectr_id, row)
+                externals[attr] = by_spectrum
+
             return_values = []
             for spec in spectra:
                 spec_dict = recursive_to_dict(spec)
@@ -1819,29 +1839,10 @@ class ObjSpectraHandler(BaseHandler):
                 spec_dict["observers"] = spec.observers
                 spec_dict["observed_at_mjd"] = Time(spec.observed_at).mjd
 
-                external_pi = await session.scalar(
-                    SpectrumPI.select(session.user_or_token).where(
-                        SpectrumPI.spectr_id == spec.id
-                    )
-                )
-                if external_pi is not None:
-                    spec_dict["external_pi"] = external_pi.external_pi
-
-                external_reducer = await session.scalar(
-                    SpectrumReducer.select(session.user_or_token).where(
-                        SpectrumReducer.spectr_id == spec.id
-                    )
-                )
-                if external_reducer is not None:
-                    spec_dict["external_reducer"] = external_reducer.external_reducer
-
-                external_observer = await session.scalar(
-                    SpectrumObserver.select(session.user_or_token).where(
-                        SpectrumObserver.spectr_id == spec.id
-                    )
-                )
-                if external_observer is not None:
-                    spec_dict["external_observer"] = external_observer.external_observer
+                for attr, by_spectrum in externals.items():
+                    row = by_spectrum.get(spec.id)
+                    if row is not None:
+                        spec_dict[attr] = getattr(row, attr)
 
                 spec_dict["owner"] = spec.owner
 

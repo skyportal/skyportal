@@ -305,6 +305,8 @@ const FilterCandidateList = ({
 
   const [showAllGroups, setShowAllGroups] = useState(true);
 
+  const [annotationFilteringKeyOptions, setAnnotationFilteringKeyOptions] =
+    useState<any[]>([]);
   const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
     useState<any[]>([]);
 
@@ -410,6 +412,11 @@ const FilterCandidateList = ({
       minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
       promptDeltaT: scanningProfile?.promptDeltaT ?? "",
       maxDeltaT: scanningProfile?.maxDeltaT ?? "",
+      filterOrigin: null,
+      filterKey: null,
+      filterValue: "",
+      filterMin: "",
+      filterMax: "",
     });
   };
 
@@ -478,6 +485,46 @@ const FilterCandidateList = ({
       return formState.startDate <= formState.endDate;
     }
     return true;
+  };
+
+  // The endpoint takes either a value or both bounds, so a half-filled
+  // annotation filter is rejected here rather than server-side.
+  const validateAnnotationFilter = () => {
+    const f = getValues();
+    if (!f.filterOrigin) return true;
+    if (!f.filterKey) return false;
+    const hasValue = String(f.filterValue ?? "") !== "";
+    const hasMin = String(f.filterMin ?? "") !== "";
+    const hasMax = String(f.filterMax ?? "") !== "";
+    return hasValue ? !hasMin && !hasMax : hasMin && hasMax;
+  };
+
+  // "true"/"false" become booleans: the endpoint casts the stored value to
+  // boolean for those, and compares as text otherwise.
+  const buildAnnotationFilter = (f: any) => {
+    if (!f.filterOrigin || !f.filterKey) return null;
+    const value = String(f.filterValue ?? "");
+    if (value !== "") {
+      const lowered = value.trim().toLowerCase();
+      const parsed =
+        lowered === "true" ? true : lowered === "false" ? false : value;
+      return JSON.stringify({
+        origin: f.filterOrigin,
+        key: f.filterKey,
+        value: parsed,
+      });
+    }
+    const min = String(f.filterMin ?? "");
+    const max = String(f.filterMax ?? "");
+    if (min !== "" && max !== "") {
+      return JSON.stringify({
+        origin: f.filterOrigin,
+        key: f.filterKey,
+        min,
+        max,
+      });
+    }
+    return null;
   };
 
   const validateSorting = () => {
@@ -587,7 +634,10 @@ const FilterCandidateList = ({
     }
 
     // Submit a new search for candidates
-    if (annotationFilterList) {
+    const annotationFilter = buildAnnotationFilter(formData);
+    if (annotationFilter) {
+      data.annotationFilterList = annotationFilter;
+    } else if (annotationFilterList) {
       data.annotationFilterList = annotationFilterList;
     }
     // Which groups to display columns for: the selected filters' groups when
@@ -1310,6 +1360,128 @@ const FilterCandidateList = ({
                   label="Ignore Forced Photometry"
                 />
               </Tooltip>
+            </div>
+            <div
+              className={classes.formRow}
+              style={{ marginTop: "0.5rem", marginBottom: 0 }}
+            >
+              <Typography variant="h6" className={classes.title}>
+                Annotation Filtering
+              </Typography>
+              {errors["filterOrigin"] && (
+                <FormValidationError message="Choose an origin and key, then either a value or both bounds" />
+              )}
+              <div className={classes.annotationSorting}>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterOrigin"
+                    control={control}
+                    defaultValue={null}
+                    render={({ field: { onChange, value } }) => (
+                      <SearchableSelect
+                        id="annotationFilteringOriginSelect"
+                        label="Origin"
+                        data-testid="annotationFilteringOriginSelect"
+                        options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => {
+                          onChange(newValue);
+                          if (newValue === null) {
+                            reset({
+                              ...getValues(),
+                              filterOrigin: null,
+                              filterKey: null,
+                              filterValue: "",
+                              filterMin: "",
+                              filterMax: "",
+                            });
+                            setAnnotationFilteringKeyOptions([]);
+                          } else {
+                            setAnnotationFilteringKeyOptions(
+                              (availableAnnotationsInfo[newValue] || [])
+                                .map((annotation: any) =>
+                                  Object.keys(annotation || {}),
+                                )
+                                .flat(),
+                            );
+                          }
+                        }}
+                      />
+                    )}
+                    rules={{ validate: validateAnnotationFilter }}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterKey"
+                    control={control}
+                    defaultValue={null}
+                    render={({ field: { onChange, value } }) => (
+                      <SearchableSelect
+                        id="annotationFilteringKeySelect"
+                        label="Key"
+                        data-testid="annotationFilteringKeySelect"
+                        options={annotationFilteringKeyOptions}
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => onChange(newValue)}
+                      />
+                    )}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterValue"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Tooltip title="Exact match. Use true or false for a boolean; leave blank to filter on a numeric range instead.">
+                        <TextField
+                          id="annotationFilteringValue"
+                          label="Value"
+                          type="text"
+                          value={value ?? ""}
+                          onChange={(event) => onChange(event.target.value)}
+                          style={{ minWidth: "100%" }}
+                        />
+                      </Tooltip>
+                    )}
+                  />
+                </div>
+                <div
+                  style={{ display: "flex", gap: "0.5rem", minWidth: "100%" }}
+                >
+                  <Controller
+                    name="filterMin"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        id="annotationFilteringMin"
+                        label="Min"
+                        type="number"
+                        value={value ?? ""}
+                        onChange={(event) => onChange(event.target.value)}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="filterMax"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        id="annotationFilteringMax"
+                        label="Max"
+                        type="number"
+                        value={value ?? ""}
+                        onChange={(event) => onChange(event.target.value)}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
             </div>
             <div
               className={classes.formRow}

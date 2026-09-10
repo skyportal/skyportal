@@ -4033,6 +4033,8 @@ class LocalizationNoticeHandler(BaseHandler):
 
         # first get the notice, if it exists
         async with self.AsyncSession() as session:
+            # `content` is deferred, and both parse attempts below read it, so
+            # the async session cannot serve it lazily.
             gcn_notice = await session.scalar(
                 GcnNotice.select(session.user_or_token)
                 .options(undefer(GcnNotice.content))
