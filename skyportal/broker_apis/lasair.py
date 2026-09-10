@@ -138,17 +138,67 @@ def _compile_tree_to_sql(node):
 
 
 def _lasair_schema(survey):
-    """A minimal Avro-style schema of queryable Lasair ``objects`` columns for the
-    builder's field dropdowns (so users pick valid columns instead of typing SQL).
-    Column names differ by instance (ZTF vs LSST)."""
+    """Queryable Lasair columns for the builder's field dropdowns, so users pick
+    valid columns instead of typing SQL.
+
+    Covers the tables a filter may join -- ``objects`` plus ``watchlist_hits``,
+    ``sherlock_classifications`` and ``crossmatch_tns`` -- whose columns are
+    otherwise unreachable from the builder. Column names differ by instance
+    (ZTF vs LSST).
+
+    Two kinds of joinable table are deliberately absent, because neither offers
+    columns to choose from: a watchmap is a membership test with no attributes,
+    and an annotator is named after itself with a schema-free ``classdict`` JSON
+    payload. Both are reached by naming them in the tables clause and writing the
+    condition as SQL (``JSON_EXTRACT(<annotator>.classdict, '$.key')``).
+    """
     if survey == "LSST":
         fields = [
             {"name": "objects.diaObjectId", "type": "string"},
             {"name": "objects.ra", "type": "double"},
             {"name": "objects.decl", "type": "double"},
             {"name": "objects.nDiaSources", "type": "int"},
+            {"name": "objects.nPosDiaSources", "type": "int"},
+            {"name": "objects.firstDiaSourceMjdTai", "type": "double"},
+            {"name": "objects.lastDiaSourceMjdTai", "type": "double"},
             {"name": "objects.gPSFluxMean", "type": "double"},
             {"name": "objects.rPSFluxMean", "type": "double"},
+            {"name": "objects.g_psfFlux", "type": "double"},
+            {"name": "objects.r_psfFlux", "type": "double"},
+            {"name": "objects.absMag", "type": "double"},
+            {"name": "objects.glat", "type": "double"},
+            {"name": "objects.ebv", "type": "double"},
+            {"name": "objects.tns_name", "type": "string"},
+            # Watchlist matches: the join that drives a watchlist-based filter.
+            {"name": "watchlist_hits.diaObjectId", "type": "string"},
+            {"name": "watchlist_hits.name", "type": "string"},
+            {"name": "watchlist_hits.arcsec", "type": "double"},
+            {"name": "watchlist_hits.wl_id", "type": "int"},
+            {"name": "watchlist_hits.cone_id", "type": "int"},
+            {"name": "sherlock_classifications.diaObjectId", "type": "string"},
+            {"name": "sherlock_classifications.classification", "type": "string"},
+            {"name": "sherlock_classifications.association_type", "type": "string"},
+            {
+                "name": "sherlock_classifications.catalogue_object_type",
+                "type": "string",
+            },
+            {"name": "sherlock_classifications.separationArcsec", "type": "double"},
+            {
+                "name": "sherlock_classifications.physical_separation_kpc",
+                "type": "double",
+            },
+            {"name": "sherlock_classifications.z", "type": "double"},
+            {"name": "sherlock_classifications.photoZ", "type": "double"},
+            {
+                "name": "sherlock_classifications.classificationReliability",
+                "type": "int",
+            },
+            {"name": "crossmatch_tns.tns_name", "type": "string"},
+            {"name": "crossmatch_tns.tns_prefix", "type": "string"},
+            {"name": "crossmatch_tns.type", "type": "string"},
+            {"name": "crossmatch_tns.z", "type": "double"},
+            {"name": "crossmatch_tns.disc_mag", "type": "double"},
+            {"name": "crossmatch_tns.host_name", "type": "string"},
         ]
     else:
         fields = [
@@ -156,8 +206,29 @@ def _lasair_schema(survey):
             {"name": "objects.ramean", "type": "double"},
             {"name": "objects.decmean", "type": "double"},
             {"name": "objects.ndethist", "type": "int"},
+            {"name": "objects.ncand", "type": "int"},
+            {"name": "objects.jdmax", "type": "double"},
             {"name": "objects.gmag", "type": "double"},
             {"name": "objects.rmag", "type": "double"},
+            {"name": "objects.sgscore1", "type": "double"},
+            {"name": "objects.sgmag1", "type": "double"},
+            {"name": "objects.glatmean", "type": "double"},
+            # Watchlist matches: the join that drives a watchlist-based filter.
+            {"name": "watchlist_hits.objectId", "type": "string"},
+            {"name": "watchlist_hits.name", "type": "string"},
+            {"name": "watchlist_hits.arcsec", "type": "double"},
+            {"name": "watchlist_hits.wl_id", "type": "int"},
+            {"name": "watchlist_hits.cone_id", "type": "int"},
+            {"name": "sherlock_classifications.objectId", "type": "string"},
+            {"name": "sherlock_classifications.classification", "type": "string"},
+            {"name": "sherlock_classifications.raDeg", "type": "double"},
+            {"name": "sherlock_classifications.decDeg", "type": "double"},
+            {"name": "sherlock_classifications.distance", "type": "double"},
+            {"name": "sherlock_classifications.z", "type": "double"},
+            {"name": "crossmatch_tns.tns_name", "type": "string"},
+            {"name": "crossmatch_tns.type", "type": "string"},
+            {"name": "crossmatch_tns.z", "type": "double"},
+            {"name": "crossmatch_tns.host_name", "type": "string"},
         ]
     return {"type": "record", "name": "objects", "fields": fields}
 
@@ -235,6 +306,124 @@ def _query(broker, selected, tables, conditions, limit=1000):
     )
 
 
+def _cutouts_from_object(obj, alert_id):
+    """Base64 cutouts from an already-fetched Lasair object.
+
+    Takes the object rather than fetching it so an ingest that already holds one
+    does not spend a second API call on the same record: Lasair allows 100 calls
+    an hour for a standard account.
+    """
+    # The image-URL location differs by Lasair instance:
+    #  - ZTF: the latest candidate carries ``image_urls``
+    #  - LSST: ``lasairData.imageUrls`` (a list of per-epoch url dicts)
+    image_urls = {}
+    candidates = obj.get("candidates") or []
+    if (
+        candidates
+        and isinstance(candidates[0], dict)
+        and candidates[0].get("image_urls")
+    ):
+        image_urls = candidates[0]["image_urls"]
+    elif obj.get("image_urls"):
+        image_urls = obj["image_urls"]
+    else:
+        urls = (obj.get("lasairData", {}) or {}).get("imageUrls")
+        if isinstance(urls, list) and urls:
+            image_urls = urls[0]
+        elif isinstance(urls, dict):
+            image_urls = urls
+    cutouts = {}
+    for kind, field in _CUTOUT_KINDS.items():
+        url = image_urls.get(kind)
+        if not url:
+            continue
+        try:
+            response = requests.get(url, timeout=DEFAULT_TIMEOUT)
+            response.raise_for_status()
+            cutouts[field] = base64.b64encode(response.content).decode("utf-8")
+        except Exception as e:
+            log(f"Failed to fetch {kind} cutout for {alert_id}: {e}")
+    return cutouts
+
+
+async def _ingest_object(broker, oid, survey, filter_ids):
+    """Build the standard alert for one Lasair object and register it as a
+    Candidate, then save any annotator annotations it carried.
+
+    Shared by both ingestion modes: the SQL poller and the Kafka consumer differ
+    only in how they learn an objectId.
+    """
+    import asyncio
+
+    import sqlalchemy as sa
+
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import User
+    from ._save import save_object_as_candidate
+
+    obj = await asyncio.to_thread(_object, broker, oid)
+    data = _normalize_object(obj, oid)
+    try:
+        cutouts = await asyncio.to_thread(_cutouts_from_object, obj, oid)
+    except Exception:
+        cutouts = None
+    async with async_plain_session_factory() as session:
+        user = await session.scalar(sa.select(User).where(User.id == 1))
+        await save_object_as_candidate(
+            data,
+            survey,
+            session,
+            user,
+            filter_ids,
+            passing_alert_id=data.get("candidate", {}).get("candid"),
+            cutouts=cutouts or None,
+        )
+        # save_object_as_candidate committed; save annotator data next.
+        lasair_annotations = data.get("annotations") or []
+        if lasair_annotations:
+            await _save_annotator_annotations(
+                session, user, oid, filter_ids, lasair_annotations
+            )
+            await session.commit()
+
+
+def _object_id_from_message(payload):
+    """The objectId carried by a Lasair stream message, under any of the keys
+    Lasair uses across its LSST and ZTF deployments."""
+    if not isinstance(payload, dict):
+        return None
+    for key in ("diaObjectId", "objectId", "object", "objectID"):
+        value = payload.get(key)
+        if value is not None:
+            return str(value)
+    return None
+
+
+def _decode_stream_message(value):
+    """Decode one Lasair Kafka message. Lasair streams JSON; Avro is accepted so
+    a future schema change does not need a new code path."""
+    import json as _json
+
+    if value is None:
+        return None
+    try:
+        payload = _json.loads(
+            value.decode("utf-8") if isinstance(value, bytes) else value
+        )
+    except (UnicodeDecodeError, ValueError):
+        from ._kafka import read_avro
+
+        payload = read_avro(value)
+    # A filter's stream may wrap the row, e.g. {"objectData": {...}}.
+    if isinstance(payload, dict) and _object_id_from_message(payload) is None:
+        for key in ("objectData", "object", "data"):
+            nested = payload.get(key)
+            if isinstance(nested, dict) and _object_id_from_message(nested):
+                return nested
+    return payload
+
+
 async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotations):
     """Upsert Lasair annotator annotations onto ``obj_id``, scoped to the groups
     of the ingesting filters. Origin is ``"lasair:{topic}"``."""
@@ -275,6 +464,78 @@ async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotat
                     .values(group_id=gid, annotation_id=annotation_id)
                     .on_conflict_do_nothing()
                 )
+
+
+def _stream_configured(altdata):
+    """Whether this broker should consume Lasair's Kafka streams rather than poll
+    its SQL API. Listing topics (or routing them) is what selects streaming."""
+    kafka = (altdata or {}).get("kafka") or {}
+    return bool(kafka.get("topics") or kafka.get("topic_filter_ids"))
+
+
+async def _run_kafka_ingestion(broker, survey, stop=None, max_messages=None):
+    """Consume Lasair's per-filter Kafka streams and register each object as a
+    Candidate.
+
+    A Lasair topic is one of its filters, so routing is per topic:
+    ``altdata['kafka']['topic_filter_ids']`` maps a topic to the skyportal Filters
+    its objects become candidates for, falling back to the broker-wide
+    ``filter_ids``. The message only has to carry an objectId -- the full object,
+    photometry, cutouts and annotator data are fetched through the REST API, the
+    same path the SQL poller uses.
+    """
+    import asyncio
+
+    from confluent_kafka import Consumer
+
+    from ._kafka import kafka_consumer_config
+
+    altdata = broker.altdata or {}
+    kafka = altdata.get("kafka") or {}
+    default_filter_ids = altdata.get("filter_ids") or []
+    topic_filter_ids = {
+        str(k): v for k, v in (kafka.get("topic_filter_ids") or {}).items()
+    }
+    topics = list(dict.fromkeys((kafka.get("topics") or []) + list(topic_filter_ids)))
+    if not topics:
+        raise ValueError(
+            "Lasair Kafka ingestion requires altdata['kafka']['topics'] or "
+            "['topic_filter_ids'] (a Lasair topic is one of its filters)."
+        )
+    maxtimeout = float(kafka.get("maxtimeout", 5))
+
+    config = kafka_consumer_config(kafka, f"skyportal-broker-{broker.id}")
+    consumer = Consumer(config)
+    consumer.subscribe(topics)
+    log(f"Lasair Kafka ingestion (broker {broker.id}): subscribed to {topics}")
+
+    count = 0
+    try:
+        while not (stop is not None and stop.is_set()):
+            msg = await asyncio.to_thread(consumer.poll, maxtimeout)
+            if msg is None or msg.error():
+                continue
+            filter_ids = topic_filter_ids.get(msg.topic(), default_filter_ids)
+            try:
+                payload = _decode_stream_message(msg.value())
+            except Exception as e:
+                log(f"Error decoding Lasair message on {msg.topic()}: {e}")
+                continue
+            oid = _object_id_from_message(payload)
+            if oid is None:
+                log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
+                continue
+            try:
+                await _ingest_object(broker, oid, survey, filter_ids)
+            except Exception as e:
+                log(f"Error ingesting Lasair object {oid}: {e}")
+            count += 1
+            if max_messages is not None and count >= max_messages:
+                break
+    finally:
+        consumer.close()
+    log(f"Lasair Kafka ingestion (broker {broker.id}): consumed {count} messages")
+    return count
 
 
 class LASAIRBROKER(BrokerAPI):
@@ -338,10 +599,87 @@ class LASAIRBROKER(BrokerAPI):
                 "default": 1000,
                 "description": "Maximum objects returned per Lasair query.",
             },
+            "kafka": {
+                "type": "object",
+                "title": "Kafka stream (optional)",
+                "description": (
+                    "Consume Lasair's per-filter streams instead of polling its "
+                    "SQL API. Setting topics or topic_filter_ids switches this "
+                    "broker to streaming; leave empty to keep polling."
+                ),
+                "properties": {
+                    "host": {
+                        "type": "string",
+                        "title": "Kafka host",
+                        "default": "lasair-lsst-kafka_pub.lsst.ac.uk",
+                        "description": (
+                            "Lasair Kafka broker host. The LSST instance's public "
+                            "stream is lasair-lsst-kafka_pub.lsst.ac.uk:9092, which "
+                            "needs no credentials -- the API token is still needed "
+                            "to fetch each object."
+                        ),
+                    },
+                    "port": {
+                        "type": "integer",
+                        "title": "Kafka port",
+                        "default": 9092,
+                    },
+                    "group_id": {
+                        "type": "string",
+                        "title": "Consumer group id",
+                        "description": (
+                            "Defaults to skyportal-broker-<id>. Lasair resumes a "
+                            "known group from its last delivered alert; a new group "
+                            "replays the 7-day cache, so keep this stable."
+                        ),
+                    },
+                    "username": {"type": "string", "title": "SASL username"},
+                    "password": {"type": "string", "title": "SASL password"},
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "title": "Topics",
+                        "description": (
+                            "Lasair topics to consume. A topic is one of your "
+                            "Lasair filters, named lasair_<account id><filter "
+                            "name>, e.g. lasair_2Hasabsmag. Objects from a topic "
+                            "not listed in the routing map below become candidates "
+                            "under the broker-wide filter_ids."
+                        ),
+                    },
+                    "topic_filter_ids": {
+                        "type": "object",
+                        "title": "Topic -> filter ids",
+                        "description": (
+                            "Route each topic to the skyportal Filters its objects "
+                            "become candidates for, e.g. "
+                            '{"lasair_2SN-likecandidates": [1234]}.'
+                        ),
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                        },
+                    },
+                    "maxtimeout": {
+                        "type": "number",
+                        "title": "Poll timeout (seconds)",
+                        "default": 5,
+                    },
+                    "auto_offset_reset": {
+                        "type": "string",
+                        "enum": ["earliest", "latest"],
+                        "default": "earliest",
+                        "title": "Start position for a new consumer group",
+                    },
+                },
+            },
         },
     }
 
-    ui_json_schema = {"token": {"ui:widget": "password"}}
+    ui_json_schema = {
+        "token": {"ui:widget": "password"},
+        "kafka": {"password": {"ui:widget": "password"}},
+    }
 
     @staticmethod
     def validate_config(altdata):
@@ -435,42 +773,14 @@ class LASAIRBROKER(BrokerAPI):
         # Lasair keys cutouts by object (not candid): the object record carries
         # FITS image URLs under lasairData.imageUrls; download and base64-encode
         # them into the standard cutout fields.
-        obj = _object(broker, alert_id)
-        # The image-URL location differs by Lasair instance:
-        #  - ZTF: the latest candidate carries ``image_urls``
-        #  - LSST: ``lasairData.imageUrls`` (a list of per-epoch url dicts)
-        image_urls = {}
-        candidates = obj.get("candidates") or []
-        if (
-            candidates
-            and isinstance(candidates[0], dict)
-            and candidates[0].get("image_urls")
-        ):
-            image_urls = candidates[0]["image_urls"]
-        elif obj.get("image_urls"):
-            image_urls = obj["image_urls"]
-        else:
-            urls = (obj.get("lasairData", {}) or {}).get("imageUrls")
-            if isinstance(urls, list) and urls:
-                image_urls = urls[0]
-            elif isinstance(urls, dict):
-                image_urls = urls
-        cutouts = {}
-        for kind, field in _CUTOUT_KINDS.items():
-            url = image_urls.get(kind)
-            if not url:
-                continue
-            try:
-                response = requests.get(url, timeout=DEFAULT_TIMEOUT)
-                response.raise_for_status()
-                cutouts[field] = base64.b64encode(response.content).decode("utf-8")
-            except Exception as e:
-                log(f"Failed to fetch {kind} cutout for {alert_id}: {e}")
-        return cutouts
+        return _cutouts_from_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
-        """Poll Lasair: run each configured SQL query, and for every returned
+        """Ingest from Lasair, by Kafka stream when one is configured and by
+        polling its SQL API otherwise.
+
+        Polling mode: run each configured SQL query, and for every returned
         object reuse this provider's own ``get_alert``/``get_cutouts`` to build the
         standard alert, then register a Candidate under ``filter_ids``. Config in
         ``broker.altdata``: ``queries`` (list of {name, fields, tables, conditions,
@@ -482,11 +792,16 @@ class LASAIRBROKER(BrokerAPI):
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import Filter, User
-        from ._save import save_object_as_candidate
+        from ..models import Filter
 
         altdata = broker.altdata or {}
         survey = _survey(broker)
+        # Kafka when a stream is configured, otherwise the SQL poller. A topic is
+        # a Lasair filter, so the stream is live where the poller is per-interval.
+        if _stream_configured(altdata):
+            return await _run_kafka_ingestion(
+                broker, survey, stop=stop, max_messages=max_messages
+            )
         default_filter_ids = altdata.get("filter_ids") or []
         legacy_queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))
@@ -568,36 +883,7 @@ class LASAIRBROKER(BrokerAPI):
                         continue
                     oid = str(oid)
                     try:
-                        obj = await asyncio.to_thread(_object, broker, oid)
-                        data = _normalize_object(obj, oid)
-                        try:
-                            cutouts = await asyncio.to_thread(
-                                LASAIRBROKER.get_cutouts, broker, oid, None
-                            )
-                        except Exception:
-                            cutouts = None
-                        async with async_plain_session_factory() as session:
-                            user = await session.scalar(
-                                sa.select(User).where(User.id == 1)
-                            )
-                            await save_object_as_candidate(
-                                data,
-                                survey,
-                                session,
-                                user,
-                                filter_ids,
-                                passing_alert_id=data.get("candidate", {}).get(
-                                    "candid"
-                                ),
-                                cutouts=cutouts or None,
-                            )
-                            # _ingest_object committed; save annotator data next.
-                            lasair_annotations = data.get("annotations") or []
-                            if lasair_annotations:
-                                await _save_annotator_annotations(
-                                    session, user, oid, filter_ids, lasair_annotations
-                                )
-                                await session.commit()
+                        await _ingest_object(broker, oid, survey, filter_ids)
                     except Exception as e:
                         log(f"Error ingesting Lasair object {oid}: {e}")
                     count += 1

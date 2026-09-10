@@ -1211,6 +1211,27 @@ additional_bandpasses:
     wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
     transmission: [0, 1, 1, 0]
     description: "SMA 0.75mm tophat centered at 400 GHz"
+  # Euclid. Nominal passband edges as tophats, following the entries above.
+  - name: "euclidvis"
+    filterset: "euclid"
+    wavelength: [5300, 5500, 9000, 9200]
+    transmission: [0, 1, 1, 0]
+    description: "Euclid VIS broad optical tophat, 550-900 nm"
+  - name: "euclidy"
+    filterset: "euclid"
+    wavelength: [9300, 9500, 11920, 12120]
+    transmission: [0, 1, 1, 0]
+    description: "Euclid NISP Y_E tophat, 0.95-1.192 um"
+  - name: "euclidj"
+    filterset: "euclid"
+    wavelength: [11720, 11920, 15440, 15640]
+    transmission: [0, 1, 1, 0]
+    description: "Euclid NISP J_E tophat, 1.192-1.544 um"
+  - name: "euclidh"
+    filterset: "euclid"
+    wavelength: [15240, 15440, 20200, 20400]
+    transmission: [0, 1, 1, 0]
+    description: "Euclid NISP H_E tophat, 1.544-2.020 um"
 
 user:
   default_role: "Full user"

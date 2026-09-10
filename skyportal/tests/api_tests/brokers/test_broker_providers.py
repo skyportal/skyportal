@@ -1253,3 +1253,96 @@ def test_decode_cutout_rejects_a_url_placeholder():
 
     with pytest.raises(ValueError, match="not valid base64"):
         decode_cutout("https://example.test/cutout.fits", "ZTF")
+
+
+def test_lasair_stream_message_object_ids():
+    """Lasair streams carry the objectId under different keys per deployment, and
+    a filter's stream may wrap the row, so all of those must resolve."""
+    from skyportal.broker_apis.lasair import (
+        _decode_stream_message,
+        _object_id_from_message,
+    )
+
+    def oid(raw):
+        return _object_id_from_message(_decode_stream_message(raw))
+
+    assert oid(b'{"diaObjectId": 123456789}') == "123456789"  # LSST
+    assert oid(b'{"objectId": "ZTF26absuusx"}') == "ZTF26absuusx"  # ZTF
+    assert oid(b'{"object": "ZTF18abcdefg"}') == "ZTF18abcdefg"
+    assert oid('{"objectId": "ZTF21bbb"}') == "ZTF21bbb"  # str, not bytes
+    assert oid(b'{"objectData": {"objectId": "ZTF20aaa"}}') == "ZTF20aaa"  # wrapped
+    assert oid(b'{"ramean": 1.0}') is None  # nothing to ingest
+
+
+def test_lasair_stream_message_accepts_avro():
+    """JSON today, but an Avro payload decodes rather than raising."""
+    import io
+
+    import fastavro
+
+    from skyportal.broker_apis.lasair import (
+        _decode_stream_message,
+        _object_id_from_message,
+    )
+
+    buf = io.BytesIO()
+    fastavro.writer(
+        buf,
+        {
+            "type": "record",
+            "name": "L",
+            "fields": [{"name": "objectId", "type": "string"}],
+        },
+        [{"objectId": "ZTF22avro"}],
+    )
+    assert (
+        _object_id_from_message(_decode_stream_message(buf.getvalue())) == "ZTF22avro"
+    )
+
+
+def test_lasair_ingestion_uses_kafka_when_configured(monkeypatch):
+    """A configured stream takes precedence over the SQL poller, and topics route
+    to their own filters."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    seen = {}
+
+    async def fake_kafka(broker, survey, stop=None, max_messages=None):
+        seen["survey"] = survey
+        seen["topics"] = (broker.altdata["kafka"] or {}).get("topics")
+        return 7
+
+    monkeypatch.setattr(lasair_mod, "_run_kafka_ingestion", fake_kafka)
+    broker = types.SimpleNamespace(
+        id=9,
+        altdata={
+            "survey": "LSST",
+            "token": "x",
+            "endpoint": "https://api.lasair.lsst.ac.uk/api",
+            "kafka": {"host": "kafka.test", "topics": ["lasair_2SN-likecandidates"]},
+        },
+    )
+    count = asyncio.run(LASAIRBROKER.run_ingestion(broker, max_messages=1))
+    assert count == 7, "the Kafka path was not taken"
+    assert seen["survey"] == "LSST"
+    assert seen["topics"] == ["lasair_2SN-likecandidates"]
+
+
+def test_lasair_stream_selected_only_when_topics_configured():
+    """Streaming is opt-in: a broker with no topics keeps polling, so existing
+    Lasair brokers are unaffected by the Kafka path."""
+    from skyportal.broker_apis.lasair import _stream_configured
+
+    assert _stream_configured({"kafka": {"topics": ["lasair_2SN"]}}) is True
+    assert (
+        _stream_configured({"kafka": {"topic_filter_ids": {"lasair_2SN": [1]}}}) is True
+    )
+    # host alone is not enough -- there is nothing to subscribe to
+    assert _stream_configured({"kafka": {"host": "kafka.test"}}) is False
+    assert _stream_configured({"kafka": {"topics": []}}) is False
+    assert _stream_configured({"queries": []}) is False
+    assert _stream_configured({}) is False
+    assert _stream_configured(None) is False

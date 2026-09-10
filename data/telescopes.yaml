@@ -638,6 +638,11 @@
   diameter: 0.5
   fixed_location: false
   =id: Gaia
+- name: Euclid
+  nickname: Euclid
+  diameter: 1.2
+  fixed_location: false
+  =id: Euclid
 - name: SOAR Telescope
   nickname: SOAR
   lat: -30.2379
