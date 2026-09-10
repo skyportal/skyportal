@@ -12,7 +12,7 @@ import aiohttp
 import pandas as pd
 import sqlalchemy as sa
 from astropy.time import Time
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from swifttools.swift_too import Data, ObsQuery, Swift_TOO, UVOT_mode
 from swifttools.xrt_prods import XRTProductRequest
 from tornado.ioloop import IOLoop
@@ -334,13 +334,9 @@ def download_observations(request_id, oq):
         Swift observation query
     """
 
-    from ..models import Comment, DBSession, FollowupRequest, Group, get_db_engine
+    from ..models import Comment, DBSession, FollowupRequest, Group, new_session
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     try:
         req = session.scalars(
@@ -406,7 +402,6 @@ def download_observations(request_id, oq):
         log(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class UVOTXRTAPI(FollowUpAPI):

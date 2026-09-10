@@ -6,7 +6,6 @@ import astropy.units as u
 import requests
 from astropy.coordinates import Angle
 from astropy.time import Time
-from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -17,14 +16,12 @@ from baselayer.log import make_log
 from ...models import (
     Obj,
     User,
-    get_db_engine,
+    new_session,
 )
 from ..base import BaseHandler
 
 env, cfg = load_env()
 log = make_log("api/mpc")
-
-Session = scoped_session(sessionmaker())
 
 MPC_ENDPOINT = cfg["app.mpc_endpoint"]
 mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
@@ -171,10 +168,7 @@ def query_mpc(obj_id, user_id, url):
         MPC query URL
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     log(f"Querying MPC for {obj_id}: {url}")
 
@@ -214,4 +208,3 @@ def query_mpc(obj_id, user_id, url):
         session.rollback()
     finally:
         session.close()
-        Session.remove()

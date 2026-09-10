@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from astropy.time import Time, TimeDelta
 from paramiko import AutoAddPolicy, SSHClient
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -589,13 +589,9 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         End time for the request.
     """
 
-    from ..models import InstrumentLog, get_db_engine
+    from ..models import InstrumentLog, new_session
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     try:
         days = np.arange(np.floor(request_start.mjd), np.ceil(request_end.mjd) + 1)
@@ -642,4 +638,3 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
         log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")
     finally:
         session.close()
-        Session.remove()

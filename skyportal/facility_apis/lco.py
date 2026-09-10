@@ -7,7 +7,7 @@ from datetime import UTC, timedelta
 import aiohttp
 import arrow
 import sqlalchemy as sa
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -516,13 +516,9 @@ def download_observations(request_id, results, count):
         Number of frames returned by the archive query
     """
 
-    from ..models import Comment, FollowupRequest, Group, get_db_engine
+    from ..models import Comment, FollowupRequest, Group, new_session
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     try:
         req = session.scalars(
@@ -554,7 +550,6 @@ def download_observations(request_id, results, count):
         log(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class LCOAPI(FollowUpAPI):

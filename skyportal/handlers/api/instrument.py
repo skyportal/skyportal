@@ -14,9 +14,7 @@ from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
 from sqlalchemy.orm import (
-    scoped_session,
     selectinload,
-    sessionmaker,
     undefer,
 )
 from tornado.ioloop import IOLoop
@@ -38,7 +36,7 @@ from ...models import (
     LocalizationTile,
     Photometry,
     Telescope,
-    get_db_engine,
+    new_session,
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes
@@ -54,8 +52,6 @@ cache = Cache(
     max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
     * 60,  # defaults to 1 day
 )
-
-Session = scoped_session(sessionmaker())
 
 
 class InstrumentHandler(BaseHandler):
@@ -1137,11 +1133,9 @@ def add_tiles(
     session=None,
 ):
     field_ids = []
-    if session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=get_db_engine())
+    own_session = session is None
+    if own_session:
+        session = new_session()
 
     try:
         if references is not None:
@@ -1435,7 +1429,8 @@ def add_tiles(
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
-        Session.remove()
+        if own_session:
+            session.close()
         return field_ids
 
 

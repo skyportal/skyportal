@@ -1,18 +1,16 @@
 import numpy as np
 import sqlalchemy as sa
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
+from baselayer.app.models import DBSession
 from baselayer.log import make_log
 
-from ...models import GcnReport, get_db_engine
+from ...models import GcnReport
 from ...utils.cache import Cache
 from ..base import BaseHandler
 
 log = make_log("api/galaxy")
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 cache_dir = "cache/public_pages/reports"
 cache = Cache(
@@ -53,20 +51,16 @@ class ReportHandler(BaseHandler):
             cache_key = f"{report_type}_{report_id}"
             cached = cache[cache_key]
             if cached is None:
-                if Session.registry.has():
-                    session = Session()
-                else:
-                    session = Session(bind=get_db_engine())
-
-                # if report_type == "gcn":
-                report = session.scalar(
-                    sa.select(GcnReport).where(GcnReport.id == report_id)
-                )
-                if report is None:
-                    return self.error(f"Could not load GCN report {report_id}")
-                if not report.published:
-                    return self.error(f"GCN report {report_id} not yet published")
-                report.generate_report()
+                with DBSession() as session:
+                    # if report_type == "gcn":
+                    report = session.scalar(
+                        sa.select(GcnReport).where(GcnReport.id == report_id)
+                    )
+                    if report is None:
+                        return self.error(f"Could not load GCN report {report_id}")
+                    if not report.published:
+                        return self.error(f"GCN report {report_id} not yet published")
+                    report.generate_report()
                 cached = cache[cache_key]
 
             data = np.load(cached, allow_pickle=True)
@@ -81,24 +75,21 @@ class ReportHandler(BaseHandler):
             else:
                 return self.error(f"Report {report_id} not yet published")
         else:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=get_db_engine())
-
-            if report_type == "gcn":
-                reports = session.scalars(
-                    sa.select(GcnReport)
-                    .where(GcnReport.published.is_(True))
-                    .order_by(GcnReport.dateobs.desc())
-                ).all()
-                reports = [
-                    {
-                        **report.to_dict(),
-                        "group_name": report.group.name,
-                    }
-                    for report in reports
-                ]
-                return self.render(
-                    "public_pages/reports/gcn_reports_template.html", reports=reports
-                )
+            with DBSession() as session:
+                if report_type == "gcn":
+                    reports = session.scalars(
+                        sa.select(GcnReport)
+                        .where(GcnReport.published.is_(True))
+                        .order_by(GcnReport.dateobs.desc())
+                    ).all()
+                    reports = [
+                        {
+                            **report.to_dict(),
+                            "group_name": report.group.name,
+                        }
+                        for report in reports
+                    ]
+                    return self.render(
+                        "public_pages/reports/gcn_reports_template.html",
+                        reports=reports,
+                    )

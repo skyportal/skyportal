@@ -12,7 +12,7 @@ import swifttools.ukssdc.query as uq
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -39,7 +39,7 @@ from ...models import (
     Telescope,
     User,
     UserNotification,
-    get_db_engine,
+    new_session,
 )
 from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
@@ -55,8 +55,6 @@ _, cfg = load_env()
 TESS_URL = cfg["app.tess_endpoint"]
 
 log = make_log("api/catalogs")
-
-Session = scoped_session(sessionmaker())
 
 
 class CatalogQueryHandler(BaseHandler):
@@ -142,10 +140,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
         Payload for the catalog query
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     obj_ids = []
 
@@ -377,6 +372,8 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
     except Exception as e:
         return log(f"Unable to commit transient catalog: {e}")
+    finally:
+        session.close()
 
 
 class SwiftLSXPSQueryHandler(BaseHandler):
@@ -461,10 +458,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
         List of group IDs to save to
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     obj_ids = []
 
@@ -600,6 +594,8 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
 
     except Exception as e:
         return log(f"Unable to commit Swift XRT transient catalog: {e}")
+    finally:
+        session.close()
 
 
 class GaiaPhotometricAlertsQueryHandler(BaseHandler):
@@ -702,10 +698,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
         Dictionary containing filtering parameters
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     obj_ids = []
 
@@ -823,6 +816,8 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
         return obj_ids
     except Exception as e:
         return log(f"Unable to commit Gaia Photometric Alert catalog: {e}")
+    finally:
+        session.close()
 
 
 class TessTransientsQueryHandler(BaseHandler):
@@ -927,10 +922,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
         Dictionary containing filtering parameters
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     obj_ids = []
 
@@ -1082,3 +1074,5 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
         return obj_ids
     except Exception as e:
         return log(f"Unable to commit TESS transient catalog: {e}")
+    finally:
+        session.close()

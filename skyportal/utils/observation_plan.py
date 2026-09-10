@@ -13,7 +13,6 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 from ligo.skymap.bayestar import derasterize, rasterize
 from regions import Regions
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -350,14 +349,10 @@ def generate_plan(
         ObservationPlanRequest,
         PlannedObservation,
         User,
-        get_db_engine,
+        new_session,
     )
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=get_db_engine())
+    session = new_session()
 
     plans, requests = [], []
     observation_plan_id_strings = [str(x) for x in observation_plan_ids]
@@ -368,7 +363,6 @@ def generate_plan(
             f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
         )
 
-        session = Session()
         for observation_plan_id, request_id in zip(observation_plan_ids, request_ids):
             plan = session.get(EventObservationPlan, observation_plan_id)
             request = session.get(ObservationPlanRequest, request_id)
@@ -913,7 +907,6 @@ def generate_plan(
         session.commit()
 
     session.close()
-    Session.remove()
 
 
 def convert_plan_to_rubin_format(plan):

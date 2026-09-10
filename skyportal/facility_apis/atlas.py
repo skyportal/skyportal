@@ -9,7 +9,7 @@ import requests
 import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -99,16 +99,9 @@ def commit_photometry(
         Session to use for database transactions. If None, a new session will be created.
     """
 
-    from ..models import FollowupRequest, Instrument, get_db_engine
+    from ..models import FollowupRequest, Instrument, new_session
 
-    if parent_session is None:
-        Session = scoped_session(sessionmaker())
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=get_db_engine())
-    else:
-        session = parent_session
+    session = new_session() if parent_session is None else parent_session
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -264,7 +257,6 @@ def commit_photometry(
     finally:
         if parent_session is None:
             session.close()
-            Session.remove()
 
 
 class ATLASAPI(FollowUpAPI):
