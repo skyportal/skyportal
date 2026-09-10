@@ -20,7 +20,7 @@ interface LasairFilterBuilderProps {
   brokerId: number;
   survey: string;
   onPreview: (params: Record<string, unknown>) => void;
-  initialFilterId?: number;
+  initialFilterId?: number | undefined;
 }
 
 // Lasair's query API is Select / From tables / Where (raw SQL parts), which is

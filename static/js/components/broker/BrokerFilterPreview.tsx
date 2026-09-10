@@ -42,7 +42,8 @@ const BrokerFilterPreview = ({
       </Typography>
     );
   }
-  const cols = Object.keys(rows[0]);
+  // rows is non-empty here, but indexing is still possibly-undefined to tsc.
+  const cols = Object.keys(rows[0] ?? {});
   return (
     <>
       <Typography variant="body2" sx={{ mt: 2 }}>
