@@ -113,8 +113,6 @@ else:
     if cfg["database.database"] == "skyportal_test":
         USE_PINECONE = True
         log("Setting USE_PINECONE=True as it seems like we are in a test environment")
-    else:
-        log("No valid pinecone configuration found. Please check the config file.")
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):

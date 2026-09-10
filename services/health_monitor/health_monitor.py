@@ -35,8 +35,8 @@ def migrated():
         )
         data = r.json()
         return data["migrated"]
-    except Exception as e:
-        print(f"Exception while retrieving migration status: {e}")
+    except Exception:
+        log("Migration manager not answering; assuming the database is not ready")
         return False
 
 
