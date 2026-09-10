@@ -5,7 +5,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import { photometryTag } from "./photometryTags";
-import { brokersApi } from "./brokers";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
@@ -22,31 +21,15 @@ export const photometryApi = skyportalApi.injectEndpoints({
       PhotometryPoint[],
       { id: number | string; params?: { [key: string]: any } }
     >({
-      async queryFn({ id, params = {} }, api, _extraOptions, baseQuery) {
-        // awaited, not read from the store, which is empty on a page's first render
-        const { data: brokers } = await api.dispatch(
-          brokersApi.endpoints.getBrokers.initiate(undefined, {
-            subscribe: false,
-          }),
-        );
-        const broker = (brokers || []).find(
-          (b) =>
-            b.active &&
-            b.capabilities?.["get_photometry"] &&
-            b.default_photometry,
-        );
-        return baseQuery({
-          url: broker
-            ? `/api/brokers/photometry/${encodeURIComponent(String(id))}`
-            : `/api/sources/${id}/photometry`,
-          params: {
-            includeOwnerInfo: true,
-            includeStreamInfo: true,
-            includeValidationInfo: true,
-            ...params,
-          },
-        }) as Promise<{ data: PhotometryPoint[] }>;
-      },
+      query: ({ id, params = {} }) => ({
+        url: `/api/brokers/photometry/${encodeURIComponent(String(id))}`,
+        params: {
+          includeOwnerInfo: true,
+          includeStreamInfo: true,
+          includeValidationInfo: true,
+          ...params,
+        },
+      }),
       providesTags: (_result, _error, arg) => photometryTag(arg.id),
     }),
     deletePhotometry: build.mutation<

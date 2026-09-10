@@ -406,6 +406,24 @@ def test_photometry_passthrough_keeps_the_source_page_contract(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_photometry_passthrough_serves_photometric_series(
+    super_admin_token, public_source, public_photometric_series
+):
+    """The source page reads its lightcurve from the passthrough for every
+    deployment, so it must serve the photometric series and the mjd order
+    GET /sources/{id}/photometry does."""
+    status, data = api(
+        "GET", f"brokers/photometry/{public_source.id}", token=super_admin_token
+    )
+    assert status == 200, data
+    assert [
+        point
+        for point in data["data"]
+        if point["origin"] == public_photometric_series.origin
+    ]
+    assert data["data"] == sorted(data["data"], key=lambda point: point["mjd"])
+
+
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)

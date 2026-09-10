@@ -76,7 +76,10 @@ def _phot_dedup_key(phot):
 def merge_photometry_points(db_points, broker_points):
     """Union DB and broker photometry, the DB point winning on (obj, instrument, filter, mjd)."""
     seen = {_dedup_key(p) for p in db_points}
-    return [*db_points, *(p for p in broker_points if _dedup_key(p) not in seen)]
+    return sorted(
+        [*db_points, *(p for p in broker_points if _dedup_key(p) not in seen)],
+        key=lambda point: point["mjd"],
+    )
 
 
 def _serialize_points(
@@ -359,12 +362,13 @@ async def db_photometry_points(
     annotations=False,
     extinction=False,
 ):
-    """Serialize the objects' persisted photometry, eager-loading what ``serialize()``
-    reads (a lazy load would raise under the async session)."""
+    """Serialize the objects' persisted photometry and photometric series, sorted by
+    mjd, eager-loading what ``serialize()`` reads (a lazy load would raise under the
+    async session)."""
     from sqlalchemy.orm import joinedload, selectinload
 
     from ..handlers.api.photometry_validation import USE_PHOTOMETRY_VALIDATION
-    from ..models import Group, Instrument, Photometry, Stream, User
+    from ..models import Group, Instrument, PhotometricSeries, Photometry, Stream, User
 
     options = [
         joinedload(Photometry.instrument).load_only(Instrument.name),
@@ -389,7 +393,7 @@ async def db_photometry_points(
         Photometry.obj_id.in_(obj_ids)
     )
     phots = (await session.scalars(stmt)).unique().all()
-    return _serialize_points(
+    points = _serialize_points(
         phots,
         outsys,
         fmt,
@@ -405,6 +409,25 @@ async def db_photometry_points(
             else None
         ),
     )
+    series = (
+        (
+            await session.scalars(
+                PhotometricSeries.select(
+                    user,
+                    options=[
+                        joinedload(PhotometricSeries.instrument).joinedload(
+                            Instrument.telescope
+                        )
+                    ],
+                ).where(PhotometricSeries.obj_id.in_(obj_ids))
+            )
+        )
+        .unique()
+        .all()
+    )
+    for one_series in series:
+        points += one_series.get_data_with_extra_columns().to_dict(orient="records")
+    return sorted(points, key=lambda point: point["mjd"])
 
 
 async def update_phot_stat_from_broker(object_id, groups):

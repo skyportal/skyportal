@@ -186,6 +186,7 @@ const BrokerList = () => {
   const [newName, setNewName] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
 
+  const [pendingDefaults, setPendingDefaults] = useState<string[]>([]);
   const [tab, setTab] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
@@ -366,31 +367,45 @@ const BrokerList = () => {
                         toggle,
                         isSystemAdmin,
                       );
+                      const pendingKey = `${b.id}:${toggle.field}`;
                       return (
                         <TableCell
                           key={toggle.field}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Tooltip
-                            title={
-                              blocked ||
-                              (isDefault ? "Click to clear this default." : "")
-                            }
-                          >
-                            <span>
-                              <Radio
-                                size="small"
-                                checked={isDefault}
-                                disabled={Boolean(blocked)}
-                                onClick={() =>
-                                  updateBroker({
-                                    id: b.id,
-                                    patch: { [toggle.field]: !isDefault },
-                                  })
-                                }
-                              />
-                            </span>
-                          </Tooltip>
+                          {pendingDefaults.includes(pendingKey) ? (
+                            <CircularProgress size={20} sx={{ m: "5px" }} />
+                          ) : (
+                            <Tooltip
+                              title={
+                                blocked ||
+                                (isDefault
+                                  ? "Click to clear this default."
+                                  : "")
+                              }
+                            >
+                              <span>
+                                <Radio
+                                  size="small"
+                                  checked={isDefault}
+                                  disabled={Boolean(blocked)}
+                                  onClick={async () => {
+                                    setPendingDefaults((p) => [
+                                      ...p,
+                                      pendingKey,
+                                    ]);
+                                    await updateBroker({
+                                      id: b.id,
+                                      patch: { [toggle.field]: !isDefault },
+                                    });
+                                    setPendingDefaults((p) =>
+                                      p.filter((k) => k !== pendingKey),
+                                    );
+                                  }}
+                                />
+                              </span>
+                            </Tooltip>
+                          )}
                         </TableCell>
                       );
                     })}
