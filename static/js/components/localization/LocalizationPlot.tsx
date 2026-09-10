@@ -204,6 +204,7 @@ const AladinGlobe = ({
   useEffect(() => {
     if (!supported) return undefined;
     let cancelled = false;
+    const container = containerRef.current;
     A.init
       .then(() => {
         if (cancelled || !containerRef.current || aladinRef.current) return;
@@ -315,6 +316,18 @@ const AladinGlobe = ({
       .catch(() => {});
     return () => {
       cancelled = true;
+      container
+        ?.querySelectorAll<HTMLCanvasElement>("canvas.aladin-imageCanvas")
+        .forEach((canvas) => {
+          canvas
+            .getContext("webgl2")
+            ?.getExtension("WEBGL_lose_context")
+            ?.loseContext();
+        });
+      container?.replaceChildren();
+      aladinRef.current = null;
+      layers.current = {};
+      didCenter.current = false;
     };
     // Mount once: Aladin is initialized a single time and the layer effects
     // below handle all subsequent data/selection updates.
