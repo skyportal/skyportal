@@ -19,9 +19,11 @@ Every broker thus has a deterministic test backed by real recorded data.
 
 import json
 import os
+import time
 
 import fastavro
 import pytest
+import requests
 import vcr
 
 from skyportal.broker_apis.alerce import ALERCEBROKER, _normalize_object
@@ -41,7 +43,11 @@ from skyportal.broker_apis.fink import (
 from skyportal.broker_apis.interface import survey_permissions
 from skyportal.broker_apis.lasair import LASAIRBROKER
 from skyportal.broker_apis.lasair import _normalize_object as _normalize_lasair
-from skyportal.broker_apis.pittgoogle import _normalize_pubsub_alert, _normalize_rows
+from skyportal.broker_apis.pittgoogle import (
+    PITTGOOGLEBROKER,
+    _normalize_pubsub_alert,
+    _normalize_rows,
+)
 
 CASSETTE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "broker_cassettes"
@@ -725,7 +731,7 @@ def test_fink_survey_routing():
 # --- photometry passthrough --------------------------------------------------
 
 from skyportal.broker_apis._photometry import (  # noqa: E402
-    filter_groups_by_streams,
+    filter_groups_by_scope,
     merge_photometry_points,
 )
 from skyportal.broker_apis._save import (  # noqa: E402
@@ -885,38 +891,182 @@ def test_build_photometry_groups_drops_ungated_programs():
     assert build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]}) == {}
 
 
-def _scoped_groups():
-    return {
-        ("ZTF", 1): {"stream_ids": [10], "mjd": [1.0]},  # public
-        ("ZTF", 2): {"stream_ids": [20], "mjd": [2.0]},  # partnership
-    }
-
-
 def test_scope_filter_no_leakage():
-    """A requester with only the public stream must never receive the
-    partnership group; admins see everything; no streams sees nothing."""
-    assert set(filter_groups_by_streams(_scoped_groups(), [10])) == {("ZTF", 1)}
-    assert filter_groups_by_streams(_scoped_groups(), []) == {}
-    assert set(filter_groups_by_streams(_scoped_groups(), [], is_admin=True)) == {
-        ("ZTF", 1),
-        ("ZTF", 2),
+    """A requester whose streams cover only the public programid must never
+    receive the partnership group; the system admin's ``None`` scope keeps all."""
+    groups = {
+        ("ZTF", 1): {"mjd": [1.0]},
+        ("ZTF", 2): {"mjd": [2.0]},
+        ("LSST", 1): {"mjd": [3.0]},
     }
+    assert set(filter_groups_by_scope(groups, {"ZTF": [1]})) == {("ZTF", 1)}
+    assert set(filter_groups_by_scope(groups, {"ZTF": [1, 2, 3], "LSST": [1]})) == set(
+        groups
+    )
+    assert filter_groups_by_scope(groups, {}) == {}
+    assert set(filter_groups_by_scope(groups, None)) == set(groups)
 
 
 def test_merge_broker_augments_db_and_dedups():
     """DB is authoritative: a broker point matching a DB point on
-    (instrument, filter, mjd) is dropped (float noise absorbed), broker-only
+    (obj, instrument, filter, mjd) is dropped (float noise absorbed), broker-only
     points are appended, DB points keep their identity."""
-    db = [{"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}]
+    db = [
+        {"obj_id": "A", "instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}
+    ]
     broker = [
-        {"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0000001, "id": None},
-        {"instrument_id": 1, "filter": "ztfg", "mjd": 59002.5, "id": None},
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0000001,
+            "id": None,
+        },
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59002.5,
+            "id": None,
+        },
     ]
     merged = merge_photometry_points(db, broker)
     assert [p for p in merged if p.get("id") is not None] == db
     appended = [p for p in merged if p.get("id") is None]
     assert len(appended) == 1 and appended[0]["mjd"] == 59002.5
     assert merge_photometry_points([], []) == []
+
+
+def test_merge_dedups_per_obj():
+    """Under includeSuperObjsPhotometry the points of several objs are merged at
+    once: a saved point on one obj must not suppress the same epoch on another."""
+    db = [
+        {"obj_id": "A", "instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}
+    ]
+    broker = [
+        {
+            "obj_id": "B",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0,
+            "id": None,
+        }
+    ]
+    assert len(merge_photometry_points(db, broker)) == 2
+
+
+class _FakePhotometrySession:
+    async def scalar(self, _stmt):
+        return 1
+
+    async def scalars(self, _stmt):
+        return type("_Result", (), {"all": staticmethod(list)})()
+
+
+class _FakePhotometryBroker:
+    id = 987654
+    altdata: dict = {}
+
+
+def _fetch_groups(cls, object_id):
+    import asyncio
+
+    from skyportal.broker_apis._photometry import fetch_broker_groups
+
+    return asyncio.run(
+        fetch_broker_groups(
+            cls, _FakePhotometryBroker(), object_id, "ZTF", _FakePhotometrySession()
+        )
+    )
+
+
+def test_fetch_skips_the_broker_only_on_a_timeout():
+    """A 404 means the broker does not know this object, not that it is down: it
+    must be cached as empty and must not disable the passthrough for every other
+    object. Only a timeout, which is what stalls a source page, arms the skip."""
+    from skyportal.broker_apis import _photometry
+
+    class NotFound:
+        calls = 0
+
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            NotFound.calls += 1
+            response = requests.Response()
+            response.status_code = 404
+            response.raise_for_status()
+
+    class Stalling:
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            time.sleep(_photometry._FETCH_TIMEOUT_SECONDS + 0.5)
+
+    _photometry._skip_until.clear()
+    timeout = _photometry._FETCH_TIMEOUT_SECONDS
+    _photometry._FETCH_TIMEOUT_SECONDS = 0.2
+    try:
+        assert _fetch_groups(NotFound, "ZTFunknown") == {}
+        assert _photometry._skip_until == {}
+        assert _fetch_groups(NotFound, "ZTFunknown") == {}
+        assert NotFound.calls == 1
+
+        with pytest.raises(TimeoutError):
+            _fetch_groups(Stalling, "ZTFstalling")
+        assert _photometry._skip_until
+    finally:
+        _photometry._FETCH_TIMEOUT_SECONDS = timeout
+        _photometry._skip_until.clear()
+        del _photometry.cache[f"{_FakePhotometryBroker.id}_ZTF_ZTFunknown"]
+
+
+def test_cached_groups_expire_on_their_fetch_time():
+    """Reading a cache entry touches its file, so ``Cache``'s own max_age would
+    never expire a source that is looked at often: the entry ages on the fetch
+    time stored in it."""
+    from skyportal.broker_apis import _photometry
+
+    class Empty:
+        calls = 0
+
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            Empty.calls += 1
+            return None
+
+    max_age = _photometry._CACHE_MAX_AGE
+    _photometry._CACHE_MAX_AGE = 3600
+    try:
+        _fetch_groups(Empty, "ZTFfresh")
+        _fetch_groups(Empty, "ZTFfresh")
+        assert Empty.calls == 1
+
+        _photometry._CACHE_MAX_AGE = 0
+        _fetch_groups(Empty, "ZTFfresh")
+        assert Empty.calls == 2
+    finally:
+        _photometry._CACHE_MAX_AGE = max_age
+        del _photometry.cache[f"{_FakePhotometryBroker.id}_ZTF_ZTFfresh"]
+
+
+def test_an_unreadable_cache_entry_is_a_miss():
+    """A write cut short by a crash leaves a truncated file that reading touches,
+    so it would never expire either: it has to count as a miss and be rewritten."""
+    from skyportal.broker_apis import _photometry
+    from skyportal.utils.cache import dict_to_bytes
+
+    class Empty:
+        @staticmethod
+        def get_alert(_broker, _object_id, _session, **_kwargs):
+            return None
+
+    key = f"{_FakePhotometryBroker.id}_ZTF_ZTFtruncated"
+    blob = dict_to_bytes({"fetched_at": time.time(), "groups": {}})
+    _photometry.cache[key] = blob[: len(blob) // 2]
+    try:
+        assert _fetch_groups(Empty, "ZTFtruncated") == {}
+        assert _fetch_groups(Empty, "ZTFtruncated") == {}
+    finally:
+        del _photometry.cache[key]
 
 
 def _lc(*points):
@@ -1055,8 +1205,11 @@ def test_ingestion_gate_suppresses_failing_alert(public_filter, super_admin_user
 
 def test_get_photometry_capability_gated_on_get_alert():
     """get_photometry is a base default: advertised iff the provider can fetch an
-    object (implements get_alert), exactly like save_as_source."""
+    object (implements get_alert) and does not opt out of the passthrough."""
     assert BOOMBROKER.implements()["get_photometry"] is True
+    assert ANTARESBROKER.implements()["save_as_source"] is True
+    assert ANTARESBROKER.implements()["get_photometry"] is False
+    assert PITTGOOGLEBROKER.implements()["get_photometry"] is False
 
     from skyportal.broker_apis.interface import BrokerAPI
 

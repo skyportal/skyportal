@@ -17,10 +17,10 @@ X_RANGE = f"""() => {{
 # Plotly is imported as a module, so there is no window.Plotly to relayout
 # through: the zoom has to come from real mouse events on the drag layer.
 def _drag_zoom(page):
-    drag = page.locator(DRAG_LAYER).first
-    drag.scroll_into_view_if_needed()
+    # not the drag layer: plotly rebuilds it on every redraw
+    page.locator(PLOT).first.scroll_into_view_if_needed()
     page.wait_for_timeout(500)
-    box = drag.bounding_box()
+    box = page.locator(DRAG_LAYER).first.bounding_box()
     assert box, "photometry plot has no drag layer to zoom on"
     y = box["y"] + box["height"] / 2
     page.mouse.move(box["x"] + box["width"] * 0.35, y)

@@ -265,16 +265,18 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const groupNames = (item: any) =>
     item.groups.map((group: any) => group.name).join(", ");
 
-  const photRows = (photometry ?? []).map((phot: any) => ({
-    id: phot.id,
-    mjd: Number(phot.mjd).toFixed(3),
-    mag: phot.mag === null ? null : Number(phot.mag).toFixed(4),
-    magerr: phot.magerr === null ? null : Number(phot.magerr).toFixed(4),
-    limiting_mag: Number(phot.limiting_mag).toFixed(2),
-    instrument: phot.instrument_name,
-    filter: phot.filter,
-    groups: groupNames(phot),
-  }));
+  const photRows = (photometry ?? [])
+    .filter((phot: any) => phot.id != null)
+    .map((phot: any) => ({
+      id: phot.id,
+      mjd: Number(phot.mjd).toFixed(3),
+      mag: phot.mag === null ? null : Number(phot.mag).toFixed(4),
+      magerr: phot.magerr === null ? null : Number(phot.magerr).toFixed(4),
+      limiting_mag: Number(phot.limiting_mag).toFixed(2),
+      instrument: phot.instrument_name,
+      filter: phot.filter,
+      groups: groupNames(phot),
+    }));
 
   const specRows = (spectra ?? []).map((spec: any) => ({
     ...spec,

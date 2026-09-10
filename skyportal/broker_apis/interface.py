@@ -292,6 +292,9 @@ class BrokerAPI(_Base):
     # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
     cross_match_catalogs = False
 
+    # False where get_alert is too slow or too costly to run on every page view.
+    photometry_passthrough = True
+
     # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
     # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo
     # pipeline and runs an unconstrained query instead of erroring, so callers

@@ -131,6 +131,8 @@ class PITTGOOGLEBROKER(BrokerAPI):
 
     surveys = ["ZTF"]
 
+    photometry_passthrough = False
+
     form_json_schema_config = {
         "type": "object",
         "required": ["service_account_key", "project_id"],

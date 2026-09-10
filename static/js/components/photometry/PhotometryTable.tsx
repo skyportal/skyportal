@@ -111,10 +111,12 @@ const PhotometryTable = ({
   // manage_photometry_access_logic in skyportal/models/photometry.py). Read
   // access is broader, so only show the edit/delete controls when the user can
   // actually modify the point.
+  const isSaved = (phot: any) => phot?.id != null;
   const canManagePhotometry = (phot: any) =>
-    permissions.includes("System admin") ||
-    permissions.includes("Manage photometry") ||
-    (phot?.owner?.id != null && phot.owner.id === currentUserId);
+    isSaved(phot) &&
+    (permissions.includes("System admin") ||
+      permissions.includes("Manage photometry") ||
+      (phot?.owner?.id != null && phot.owner.id === currentUserId));
 
   const { classes } = useStyles();
   const [deletePhotometry] = useDeletePhotometryMutation();
@@ -307,7 +309,12 @@ const PhotometryTable = ({
               {...({ name: `${phot.id}_validation_status` } as any)}
             >
               {statusIcon}
-              <PhotometryValidation phot={phot} magsys={magsys ?? undefined} />
+              {isSaved(phot) && (
+                <PhotometryValidation
+                  phot={phot}
+                  magsys={magsys ?? undefined}
+                />
+              )}
             </div>
           );
         },
@@ -448,6 +455,10 @@ const PhotometryTable = ({
         <Box sx={{ height: "calc(100vh - 8rem)", width: "100%" }}>
           <StyledDataGrid
             rows={data}
+            getRowId={(row: any) =>
+              row.id ??
+              `${row.obj_id}-${row.instrument_id}-${row.filter}-${row.mjd}`
+            }
             columns={columns}
             columnVisibilityModel={columnVisibilityModel}
             onColumnVisibilityModelChange={setColumnVisibilityModel}
