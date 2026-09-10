@@ -4034,7 +4034,9 @@ class LocalizationNoticeHandler(BaseHandler):
         # first get the notice, if it exists
         async with self.AsyncSession() as session:
             gcn_notice = await session.scalar(
-                GcnNotice.select(session.user_or_token).where(
+                GcnNotice.select(session.user_or_token)
+                .options(undefer(GcnNotice.content))
+                .where(
                     GcnNotice.dateobs == dateobs_parsed,
                     GcnNotice.id == notice_id_int,
                 )
