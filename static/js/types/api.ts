@@ -26335,7 +26335,7 @@ export interface components {
              * @description When this event was last queried for this filter.
              */
             last_queried?: string | null;
-            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed. */
             last_alert_jd?: number | null;
             /** @description One of: pending, processing, done, failed. */
             status?: string;
@@ -26378,7 +26378,7 @@ export interface components {
              * @description When this event was last queried for this filter.
              */
             last_queried?: string | null;
-            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed, mirroring the watchlist service's last_got_candidates_at. */
+            /** @description JD of the newest alert seen for this event through this filter. Used as the lower bound of the next query so late-arriving alerts are not missed. */
             last_alert_jd?: number | null;
             /** @description One of: pending, processing, done, failed. */
             status?: string;
@@ -29108,7 +29108,7 @@ export interface components {
             obj_id: string;
             /** @description Name of the list, e.g., 'favorites'. */
             list_name: string;
-            /** @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. */
+            /** @description Optional free-form parameters attached to the listing. */
             params?: {
                 [key: string]: unknown;
             } | null;
@@ -29138,7 +29138,7 @@ export interface components {
             obj_id: string;
             /** @description Name of the list, e.g., 'favorites'. */
             list_name: string;
-            /** @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. */
+            /** @description Optional free-form parameters attached to the listing. */
             params?: {
                 [key: string]: unknown;
             } | null;
@@ -41937,7 +41937,7 @@ export interface components {
             user_id: number | null;
             /**
              * Params
-             * @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. For example, if you want to search for new candidates around a given object, you can specify the search radius and the number of candidates to return. The parameters are passed to the microservice that is responsible for processing the listing. The microservice will return a list of candidates that match the given parameters, and ingest them.
+             * @description Optional free-form parameters attached to the listing.
              * @default null
              */
             params: {
