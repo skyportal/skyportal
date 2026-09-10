@@ -80,7 +80,6 @@ services:
     - tns_retrieval_queue
     - jpl_sbident_queue
     - external_publishing_submission_queue
-    - watch_list
     - ngsf_analysis_service
     # Auto-fetches external survey images (sdss/ls/ps1) for every obj's
     # thumbnails; tests create thumbnails directly, so it only adds external

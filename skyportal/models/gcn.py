@@ -1163,7 +1163,7 @@ class GcnEventCrossmatchState(Base):
         doc=(
             "JD of the newest alert seen for this event through this filter. Used as "
             "the lower bound of the next query so late-arriving alerts are not "
-            "missed, mirroring the watchlist service's last_got_candidates_at."
+            "missed."
         ),
     )
 

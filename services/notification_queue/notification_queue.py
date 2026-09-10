@@ -272,8 +272,6 @@ def send_email_notification(target):
                 subject = f"{cfg['app.title']} - New spectrum on a favorite source"
             elif target["notification_type"] == "favorite_sources_new_comment":
                 subject = f"{cfg['app.title']} - New comment on a favorite source"
-            elif target["notification_type"] == "favorite_sources_new_activity":
-                subject = f"{cfg['app.title']} - New activity on a favorite source"
 
         elif resource_type == "mention":
             if target.get("content"):
@@ -518,7 +516,6 @@ def api(queue):
             is_analysis_service = target_class_name == "ObjAnalysis"
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
-            is_listing = target_class_name == "Listing"
 
             with DBSession() as session:
                 try:
@@ -736,24 +733,6 @@ def api(queue):
                             target_data = (
                                 session.scalars(
                                     sa.select(Comment).where(Comment.id == target_id)
-                                )
-                                .first()
-                                .to_dict()
-                            )
-                        elif is_listing:
-                            users = session.scalars(
-                                sa.select(User).where(
-                                    User.preferences["notifications"][
-                                        "favorite_sources"
-                                    ]["active"]
-                                    .astext.cast(sa.Boolean)
-                                    .is_(True)
-                                )
-                            ).all()
-                            target_class = Listing
-                            target_data = (
-                                session.scalars(
-                                    sa.select(Listing).where(Listing.id == target_id)
                                 )
                                 .first()
                                 .to_dict()
@@ -1558,31 +1537,6 @@ def api(queue):
                                                     user=user,
                                                     text=f"New comment on favorite source *{target_data['obj_id']}*",
                                                     notification_type="favorite_sources_new_comment",
-                                                    url=f"/source/{target_data['obj_id']}",
-                                                )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
-                                    elif is_listing:
-                                        if (
-                                            len(favorite_sources) > 0
-                                            and "favorite_sources" in pref
-                                        ):
-                                            if any(
-                                                target_data["obj_id"] == source.obj_id
-                                                for source in favorite_sources
-                                            ):
-                                                notification = UserNotification(
-                                                    user=user,
-                                                    text=f"New activity around favorite source *{target_data['obj_id']}* (within {target_data['params'].get('arcsec', 5.0)} arcsec)",
-                                                    notification_type="favorite_sources_new_activity",
                                                     url=f"/source/{target_data['obj_id']}",
                                                 )
                                                 session.add(notification)

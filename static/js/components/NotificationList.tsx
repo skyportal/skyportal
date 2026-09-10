@@ -17,7 +17,6 @@ import CategoryIcon from "@mui/icons-material/CategoryOutlined";
 import ArticleIcon from "@mui/icons-material/ArticleOutlined";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import FlareIcon from "@mui/icons-material/FlareOutlined";
-import StarIcon from "@mui/icons-material/Star";
 import SourceIcon from "@mui/icons-material/AdjustOutlined";
 import LockIcon from "@mui/icons-material/LockOutlined";
 import GroupIcon from "@mui/icons-material/GroupOutlined";
@@ -56,7 +55,6 @@ const typeIcon = (notificationType?: string | null, url?: string | null) => {
   if (type.includes("spectrum") || type.includes("photometry"))
     return <ShowChartIcon />;
   if (type.includes("gcn")) return <FlareIcon />;
-  if (type.includes("favorite")) return <StarIcon />;
   if (type.includes("group") || type.includes("user")) return <GroupIcon />;
   if (type.includes("shift")) return <EventIcon />;
   if (type.includes("analysis")) return <ScienceIcon />;
