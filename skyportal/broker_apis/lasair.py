@@ -85,8 +85,13 @@ def _normalize_object(obj, object_id):
         "objectId": obj.get("objectId") or object_id,
         "candidate": {
             "candid": latest.get("candid"),
-            "ra": latest.get("ra") or object_data.get("ramean"),
-            "dec": latest.get("dec") or object_data.get("decmean"),
+            "ra": latest.get("ra")
+            or object_data.get("ramean")
+            or object_data.get("ra"),
+            "dec": latest.get("dec")
+            or object_data.get("decmean")
+            or object_data.get("decl")
+            or object_data.get("dec"),
             "magpsf": latest.get("magpsf"),
             "jd": latest.get("jd"),
             "band": _band(latest),

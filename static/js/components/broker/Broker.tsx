@@ -163,7 +163,7 @@ const Broker = () => {
     },
     {
       label: "New filter",
-      enabled: broker?.filter_kind === "pipeline",
+      enabled: hasFilters,
       reason: `${broker?.name} does not support filters creation.`,
     },
   ];
@@ -379,18 +379,18 @@ const Broker = () => {
           )}
 
           {activeTab === 1 &&
-            (broker.filter_kind === "pipeline" ? (
-              <FilterCatalog brokerId={brokerId} />
-            ) : broker.filter_kind === "query" && canPreview ? (
+            (broker.broker_classname === "LASAIRBROKER" && canPreview ? (
               <LasairFilterBuilder
                 brokerId={brokerId}
                 survey={searchSurvey}
                 onPreview={onPreview}
               />
+            ) : broker.broker_classname === "BOOMBROKER" ? (
+              <FilterCatalog brokerId={brokerId} />
             ) : (
               <div className={classes.form}>
                 <Typography variant="body2" color="text.secondary">
-                  {`Filter kind: ${broker.filter_kind} — editor coming soon.`}
+                  {`${broker.name} — filter editor coming soon.`}
                 </Typography>
               </div>
             ))}
