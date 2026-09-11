@@ -2160,9 +2160,9 @@ export interface paths {
          * @description Return an object's photometry for display: the persisted,
          *     access-controlled photometry from the database merged with photometry
          *     fetched on demand from the broker (deduped by instrument/filter/mjd,
-         *     so the broker only augments saved points). The broker half is
-         *     scope-filtered and never written to the database. Returns a bare list
-         *     of points, matching GET /sources/{id}/photometry.
+         *     so the broker only augments saved points). The broker half is cached
+         *     per object and never written to the database. Returns a bare list of
+         *     points, matching GET /sources/{id}/photometry.
          */
         get: {
             parameters: {
@@ -2173,6 +2173,18 @@ export interface paths {
                     format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
+                    /** @description Also serve the objs sharing a SuperObj with this one. */
+                    includeSuperObjsPhotometry?: boolean;
+                    /** @description Include each saved point's owner. */
+                    includeOwnerInfo?: boolean;
+                    /** @description Include each saved point's streams. */
+                    includeStreamInfo?: boolean;
+                    /** @description Include each saved point's validations. */
+                    includeValidationInfo?: boolean;
+                    /** @description Include each saved point's annotations. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Include Galactic extinction and extinction-corrected values. */
+                    includeExtinction?: boolean;
                 };
                 header?: never;
                 path: {
@@ -2200,6 +2212,14 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         put?: never;
@@ -2218,35 +2238,36 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Display photometry for an object via the survey's broker
-         * @description Broker-address-free variant of the photometry passthrough for the
-         *     source-page lightcurve: resolves the active provider that supports
-         *     get_photometry for ``?survey=`` server-side, so a deployment can set
-         *     `photometry_display_endpoint:
-         *     /api/brokers/photometry/{id}?survey=ZTF` without pinning a broker id.
-         *     If no such broker is configured, degrades to the object's DB
-         *     photometry. Returns a bare list of points, matching
-         *     GET /sources/{id}/photometry.
+         * Display photometry for an object via the default broker
+         * @description Broker-address-free variant of the photometry passthrough, backing the
+         *     source page's lightcurve: the broker flagged ``default_photometry`` is
+         *     resolved server-side, so the frontend does not pin a broker id. If no
+         *     such broker is configured, or it cannot be reached, degrades to the
+         *     object's DB photometry (the failure is logged, never returned as an
+         *     error, so the lightcurve always renders). Returns a bare list of
+         *     points, matching GET /sources/{id}/photometry.
          */
         get: {
             parameters: {
-                query: {
-                    /** @description Survey whose configured broker serves the photometry. */
-                    survey: string;
+                query?: {
+                    /** @description Survey the photometry is fetched for. */
+                    survey?: string | null;
                     /** @description Photometry format. */
                     format?: "mag" | "flux" | "both";
                     /** @description Magnitude system. */
                     magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
-                    /** @description Ignored. */
-                    includeOwnerInfo?: boolean;
-                    /** @description Ignored. */
-                    includeStreamInfo?: boolean;
-                    /** @description Ignored. */
-                    includeValidationInfo?: boolean;
-                    /** @description Ignored. */
-                    includeExtinction?: boolean;
-                    /** @description Ignored. */
+                    /** @description Also serve the objs sharing a SuperObj with this one. */
                     includeSuperObjsPhotometry?: boolean;
+                    /** @description Include each saved point's owner. */
+                    includeOwnerInfo?: boolean;
+                    /** @description Include each saved point's streams. */
+                    includeStreamInfo?: boolean;
+                    /** @description Include each saved point's validations. */
+                    includeValidationInfo?: boolean;
+                    /** @description Include each saved point's annotations. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Include Galactic extinction and extinction-corrected values. */
+                    includeExtinction?: boolean;
                 };
                 header?: never;
                 path: {
@@ -2265,6 +2286,14 @@ export interface paths {
                     };
                 };
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -23572,6 +23601,8 @@ export interface components {
             default_alert_search?: boolean;
             /** @description Whether this broker is the one cross-matches (cone searches) target. */
             default_crossmatch?: boolean;
+            /** @description Whether this broker is the one serving the source page's photometry. */
+            default_photometry?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
             /** @description Unique object identifier. */
@@ -23670,6 +23701,8 @@ export interface components {
             default_alert_search?: boolean;
             /** @description Whether this broker is the one cross-matches (cone searches) target. */
             default_crossmatch?: boolean;
+            /** @description Whether this broker is the one serving the source page's photometry. */
+            default_photometry?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
         };
@@ -39408,6 +39441,12 @@ export interface components {
              * @default false
              */
             default_crossmatch: boolean;
+            /**
+             * Default Photometry
+             * @description Make this the broker serving the source page's photometry.
+             * @default false
+             */
+            default_photometry: boolean;
         };
         /**
          * BrokerPatchBody
@@ -39446,6 +39485,12 @@ export interface components {
              * @default null
              */
             default_crossmatch: boolean | null;
+            /**
+             * Default Photometry
+             * @description Make this the broker serving the source page's photometry.
+             * @default null
+             */
+            default_photometry: boolean | null;
         };
         /**
          * ScanReportItemPatchBody

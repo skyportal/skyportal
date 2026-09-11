@@ -46,7 +46,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        request = session.query(FollowupRequest).get(request_id)
+        request = session.get(FollowupRequest, request_id)
         allocation = request.allocation
         if not allocation:
             raise ValueError("Missing request's allocation information.")

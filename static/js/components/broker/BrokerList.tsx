@@ -49,7 +49,6 @@ import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
 
-// Which of the unified capabilities a broker actually exposes.
 const capabilityChips = (caps: Record<string, boolean>) =>
   [
     { label: "search", on: Boolean(caps?.["query_alerts"]) },
@@ -81,7 +80,12 @@ const optionalSchema = (node: any): any => {
   };
 };
 
-const COLUMNS = [
+const COLUMNS: {
+  id: string;
+  label: string;
+  tooltip?: string;
+  value: (b: any) => string | number;
+}[] = [
   { id: "name", label: "Name", value: (b: any) => b.name || "" },
   {
     id: "provider",
@@ -109,12 +113,28 @@ const COLUMNS = [
   {
     id: "default_alert_search",
     label: "Default search",
+    tooltip:
+      "Broker the source page's \"Search alerts\" button and the sidebar's " +
+      "alert search open. Unset: no alert search is offered.",
     value: (b: any) => Number(Boolean(b.default_alert_search)),
   },
   {
     id: "default_crossmatch",
     label: "Default cross-match",
+    tooltip:
+      "Broker the source page's centroid plot cross-matches against " +
+      "(cone search on reference catalogs). Unset: the first broker that " +
+      "returns catalogs is used.",
     value: (b: any) => Number(Boolean(b.default_crossmatch)),
+  },
+  {
+    id: "default_photometry",
+    label: "Default photometry",
+    tooltip:
+      "Broker the source page's lightcurve pulls photometry from on the fly, " +
+      "shown on top of the saved points and never written to the database. " +
+      "Unset: only saved photometry is shown, and no broker is queried.",
+    value: (b: any) => Number(Boolean(b.default_photometry)),
   },
 ];
 
@@ -129,11 +149,29 @@ const DEFAULT_TOGGLES = [
     capability: "cross_match_catalogs",
     unsupported: "This broker does not support catalog cross-match.",
   },
+  {
+    field: "default_photometry",
+    capability: "get_photometry",
+    unsupported:
+      "This broker cannot serve the source page's photometry: it has no " +
+      "object fetch, or its fetch is too slow to sit in a page load.",
+  },
 ] as const;
 
-// Admin/config view for every broker (searchable AND ingestion-only), where any
-// provider can be configured, activated, and removed — distinct from the alert
-// search page.
+const defaultBlockedReason = (
+  b: any,
+  toggle: (typeof DEFAULT_TOGGLES)[number],
+  isSystemAdmin: boolean,
+) => {
+  const clearing = Boolean(b[toggle.field]);
+  if (!isSystemAdmin) return "Only system admins can change the defaults.";
+  if (clearing) return "";
+  if (!b.capabilities?.[toggle.capability]) return toggle.unsupported;
+  if (!b.active) return "Activate this broker to make it the default.";
+  return "";
+};
+
+// Admin view for every broker, distinct from the alert search page.
 const BrokerList = () => {
   const navigate = useNavigate();
   const { data: brokers, isLoading } = useGetBrokersQuery();
@@ -148,6 +186,7 @@ const BrokerList = () => {
   const [newName, setNewName] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
 
+  const [pendingDefaults, setPendingDefaults] = useState<string[]>([]);
   const [tab, setTab] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
@@ -265,13 +304,15 @@ const BrokerList = () => {
                       key={c.id}
                       sortDirection={orderBy === c.id ? order : false}
                     >
-                      <TableSortLabel
-                        active={orderBy === c.id}
-                        direction={orderBy === c.id ? order : "asc"}
-                        onClick={() => onSort(c.id)}
-                      >
-                        {c.label}
-                      </TableSortLabel>
+                      <Tooltip title={c.tooltip || ""}>
+                        <TableSortLabel
+                          active={orderBy === c.id}
+                          direction={orderBy === c.id ? order : "asc"}
+                          onClick={() => onSort(c.id)}
+                        >
+                          {c.label}
+                        </TableSortLabel>
+                      </Tooltip>
                     </TableCell>
                   ))}
                   <TableCell align="right">Actions</TableCell>
@@ -319,39 +360,55 @@ const BrokerList = () => {
                         }
                       />
                     </TableCell>
-                    {DEFAULT_TOGGLES.map(
-                      ({ field, capability, unsupported }) => {
-                        const reason = !b.capabilities?.[capability]
-                          ? unsupported
-                          : !b.active
-                            ? "Activate this broker to make it the default."
-                            : !isSystemAdmin
-                              ? "Only system admins can change the defaults."
-                              : "";
-                        return (
-                          <TableCell
-                            key={field}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Tooltip title={reason}>
+                    {DEFAULT_TOGGLES.map((toggle) => {
+                      const isDefault = Boolean(b[toggle.field]);
+                      const blocked = defaultBlockedReason(
+                        b,
+                        toggle,
+                        isSystemAdmin,
+                      );
+                      const pendingKey = `${b.id}:${toggle.field}`;
+                      return (
+                        <TableCell
+                          key={toggle.field}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {pendingDefaults.includes(pendingKey) ? (
+                            <CircularProgress size={20} sx={{ m: "5px" }} />
+                          ) : (
+                            <Tooltip
+                              title={
+                                blocked ||
+                                (isDefault
+                                  ? "Click to clear this default."
+                                  : "")
+                              }
+                            >
                               <span>
                                 <Radio
                                   size="small"
-                                  checked={Boolean(b[field])}
-                                  disabled={Boolean(reason)}
-                                  onChange={() =>
-                                    updateBroker({
+                                  checked={isDefault}
+                                  disabled={Boolean(blocked)}
+                                  onClick={async () => {
+                                    setPendingDefaults((p) => [
+                                      ...p,
+                                      pendingKey,
+                                    ]);
+                                    await updateBroker({
                                       id: b.id,
-                                      patch: { [field]: true },
-                                    })
-                                  }
+                                      patch: { [toggle.field]: !isDefault },
+                                    });
+                                    setPendingDefaults((p) =>
+                                      p.filter((k) => k !== pendingKey),
+                                    );
+                                  }}
                                 />
                               </span>
                             </Tooltip>
-                          </TableCell>
-                        );
-                      },
-                    )}
+                          )}
+                        </TableCell>
+                      );
+                    })}
                     <TableCell
                       align="right"
                       onClick={(e) => e.stopPropagation()}

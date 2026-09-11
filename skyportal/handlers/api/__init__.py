@@ -25,6 +25,7 @@ from .broker import (
     BrokerConeSearchHandler,
     BrokerCredentialHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
     BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
@@ -34,7 +35,6 @@ from .broker import (
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
-    BrokerSurveyPhotometryHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
