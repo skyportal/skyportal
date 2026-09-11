@@ -12,6 +12,7 @@ export interface Broker {
   active: boolean;
   default_alert_search: boolean;
   default_crossmatch: boolean;
+  default_photometry: boolean;
   capabilities: Record<string, boolean>;
   surveys: string[];
   filter_kind: string;
@@ -41,7 +42,11 @@ export interface FilterCatalogQuery {
   brokerID?: number | "" | "none" | undefined;
 }
 
-const DEFAULT_FIELDS = ["default_alert_search", "default_crossmatch"] as const;
+const DEFAULT_FIELDS = [
+  "default_alert_search",
+  "default_crossmatch",
+  "default_photometry",
+] as const;
 
 const buildQuery = (params: Record<string, string | number | undefined>) => {
   const qs = buildQueryString(params);

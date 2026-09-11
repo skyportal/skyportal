@@ -569,6 +569,29 @@ def generate_plan(
                     for field in fields
                 }
 
+                # A field the requester named by hand but which has no reference
+                # in every filter asked for is dropped inside the scheduler, so
+                # say which and why: otherwise the plan just comes back smaller
+                # than the selection with nothing to explain it.
+                requested_fields = request.payload.get("field_ids") or []
+                if requested_fields:
+                    wanted = {
+                        f.strip()
+                        for f in (request.payload.get("filters") or "").split(",")
+                        if f.strip()
+                    }
+                    unusable = sorted(
+                        field.field_id
+                        for field in fields
+                        if not wanted.issubset(set(field.reference_filters or []))
+                    )
+                    if unusable:
+                        log(
+                            f"Request {request.id}: fields {unusable} have no "
+                            f"reference in all of {sorted(wanted)} and will be "
+                            f"dropped, since use_references is set"
+                        )
+
         params["config"] = config
 
         if request.payload["schedule_strategy"] == "galaxy":

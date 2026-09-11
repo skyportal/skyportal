@@ -173,7 +173,7 @@ def test_default_requires_the_capability(super_admin_token):
         status, data = api(
             "PATCH",
             f"brokers/{generic_id}",
-            data={"default_alert_search": True},
+            data={"default_alert_search": True, "default_photometry": True},
             token=super_admin_token,
         )
         assert status == 200, data
@@ -190,6 +190,7 @@ def test_broker_defaults_are_exclusive(super_admin_token):
             altdata={"host": "boom.test"},
             default_alert_search=True,
             default_crossmatch=True,
+            default_photometry=True,
         ),
         token=super_admin_token,
     )
@@ -206,11 +207,12 @@ def test_broker_defaults_are_exclusive(super_admin_token):
         status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is True
         assert data["data"]["default_crossmatch"] is True
+        assert data["data"]["default_photometry"] is True
 
         status, data = api(
             "PATCH",
             f"brokers/{second_id}",
-            data={"default_alert_search": True},
+            data={"default_alert_search": True, "default_photometry": True},
             token=super_admin_token,
         )
         assert status == 200, data
@@ -218,13 +220,208 @@ def test_broker_defaults_are_exclusive(super_admin_token):
         status, data = api("GET", f"brokers/{second_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is True
         assert data["data"]["default_crossmatch"] is False
+        assert data["data"]["default_photometry"] is True
 
         status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
         assert data["data"]["default_alert_search"] is False
         assert data["data"]["default_crossmatch"] is True
+        assert data["data"]["default_photometry"] is False
     finally:
         api("DELETE", f"brokers/{first_id}", token=super_admin_token)
         api("DELETE", f"brokers/{second_id}", token=super_admin_token)
+
+
+def _post_photometry(token, obj_id, instrument_id, group_ids, mjd):
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(obj_id),
+            "mjd": mjd,
+            "instrument_id": instrument_id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": group_ids,
+        },
+        token=token,
+    )
+    assert status == 200, data
+
+
+def test_default_photometry_broker_serves_object_photometry(
+    super_admin_token, upload_data_token, public_source, public_group, ztf_camera
+):
+    """The broker-address-free passthrough the source page calls serves the
+    object's DB photometry when no broker is the photometry default, and still
+    serves it when the default one cannot be reached."""
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58000.0
+    )
+
+    status, data = api(
+        "GET", f"brokers/photometry/{public_source.id}", token=upload_data_token
+    )
+    assert status == 200, data
+    assert any(point["mjd"] == 58000.0 for point in data["data"])
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "GET", f"brokers/photometry/{public_source.id}", token=upload_data_token
+        )
+        assert status == 200, data
+        assert any(point["mjd"] == 58000.0 for point in data["data"])
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_default_photometry_broker_serves_super_obj_photometry(
+    super_admin_token,
+    upload_data_token,
+    public_source,
+    public_source_group2,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    """With includeSuperObjsPhotometry the passthrough serves every obj of the
+    SuperObj, matching GET /sources/{id}/photometry."""
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58000.0
+    )
+    _post_photometry(
+        super_admin_token,
+        public_source_group2.id,
+        ztf_camera.id,
+        [public_group2.id],
+        58001.0,
+    )
+
+    status, data = api(
+        "POST",
+        "super_objs",
+        data={"obj_ids": [str(public_source.id), str(public_source_group2.id)]},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    super_obj_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        status, data = api(
+            "GET", f"brokers/photometry/{public_source.id}", token=super_admin_token
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {str(public_source.id)}
+
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?includeSuperObjsPhotometry=true",
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {
+            str(public_source.id),
+            str(public_source_group2.id),
+        }
+
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?includeSuperObjsPhotometry=true",
+            token=upload_data_token,
+        )
+        assert status == 200, data
+        assert {point["obj_id"] for point in data["data"]} == {str(public_source.id)}
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+        api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
+
+
+def test_photometry_passthrough_refuses_an_unknown_obj(view_only_token):
+    """``Obj.read`` is public, so the guard is an existence check: the passthrough
+    refuses an id with no obj exactly like GET /sources/{id}/photometry does. The
+    access control that matters is on the points themselves, and is covered by
+    test_default_photometry_broker_serves_super_obj_photometry."""
+    status, data = api("GET", "brokers/photometry/NOSUCHOBJ", token=view_only_token)
+    assert status == 403, data
+
+
+def test_photometry_passthrough_keeps_the_source_page_contract(
+    super_admin_token, upload_data_token, public_source, public_group, ztf_camera
+):
+    """The passthrough serves the same fields as GET /sources/{id}/photometry, so
+    routing the source page through it does not silently drop owner, groups,
+    created_at or the extinction-corrected values."""
+    _post_photometry(
+        upload_data_token, public_source.id, ztf_camera.id, [public_group.id], 58002.0
+    )
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_photometry=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+
+    try:
+        params = (
+            "includeOwnerInfo=true&includeStreamInfo=true&"
+            "includeValidationInfo=true&includeExtinction=true"
+        )
+        status, data = api(
+            "GET",
+            f"brokers/photometry/{public_source.id}?{params}",
+            token=upload_data_token,
+        )
+        assert status == 200, data
+        point = next(p for p in data["data"] if p["mjd"] == 58002.0)
+        assert point["owner"]["id"] is not None
+        assert public_group.id in [group["id"] for group in point["groups"]]
+        assert point["created_at"] is not None
+        assert point["streams"] == []
+        assert point["extinction"] is not None
+        assert point["mag_corr"] is not None
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_photometry_passthrough_serves_photometric_series(
+    super_admin_token, public_source, public_photometric_series
+):
+    """The source page reads its lightcurve from the passthrough for every
+    deployment, so it must serve the photometric series and the mjd order
+    GET /sources/{id}/photometry does."""
+    status, data = api(
+        "GET", f"brokers/photometry/{public_source.id}", token=super_admin_token
+    )
+    assert status == 200, data
+    assert [
+        point
+        for point in data["data"]
+        if point["origin"] == public_photometric_series.origin
+    ]
+    assert data["data"] == sorted(data["data"], key=lambda point: point["mjd"])
 
 
 def test_broker_invalid_classname(super_admin_token):

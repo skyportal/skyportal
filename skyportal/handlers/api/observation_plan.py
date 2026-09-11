@@ -110,6 +110,7 @@ np.int = int  # noqa: NPY001
 
 DEFAULT_OBSPLAN_OPTIONS = [
     "notice_types",
+    "excluded_notice_types",
     "gcn_tags",
     "localization_tags",
     "localization_properties",
@@ -651,6 +652,14 @@ async def post_observation_plans(
                 f"Payload failed to validate: {e}"
             )
 
+        stamp_localization_name(
+            data,
+            await session.scalar(
+                sa.select(Localization.localization_name).where(
+                    Localization.id == data["localization_id"]
+                )
+            ),
+        )
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
@@ -674,6 +683,17 @@ async def post_observation_plans(
         plan_ids.append(observation_plan_request.id)
 
     return plan_ids
+
+
+def stamp_localization_name(data, localization_name):
+    """Record the skymap the plan was made from, so the payload shown on the
+    event page names it rather than only carrying an opaque localization id.
+
+    Applied after schema validation, since the instrument form schemas describe
+    what a requester may send, not what the request stores.
+    """
+    if localization_name:
+        data["payload"] = {**data["payload"], "localization_name": localization_name}
 
 
 def post_observation_plan(
@@ -747,6 +767,14 @@ def post_observation_plan(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)
@@ -834,6 +862,14 @@ async def post_observation_plan_async(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        await session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)
@@ -1121,6 +1157,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
         else:
             options = [
@@ -1130,6 +1167,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
 
         async with self.AsyncSession() as session:
@@ -1298,7 +1336,20 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plan_requests = result.unique().all()
 
             info = {}
-            info["requests"] = [req.to_dict() for req in observation_plan_requests]
+            # The status page lists requests across every event, so it needs the
+            # event and instrument named on each row rather than as ids to chase.
+            info["requests"] = [
+                {
+                    **req.to_dict(),
+                    "dateobs": req.gcnevent.dateobs if req.gcnevent else None,
+                    "instrument_name": (
+                        req.allocation.instrument.name
+                        if req.allocation and req.allocation.instrument
+                        else None
+                    ),
+                }
+                for req in observation_plan_requests
+            ]
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 

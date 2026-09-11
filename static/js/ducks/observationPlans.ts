@@ -14,6 +14,12 @@ export interface AllocationObservationPlans {
   [key: string]: unknown;
 }
 
+export interface ObservationPlanRequests {
+  requests: any[];
+  totalMatches?: number | undefined;
+  [key: string]: unknown;
+}
+
 export interface PlanNameExists {
   exists: boolean;
   [key: string]: unknown;
@@ -36,6 +42,18 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["ObservationPlan"],
     }),
+    // Every accessible plan request, for the status page. Date and status
+    // filtering happen server-side; the page passes them straight through.
+    getObservationPlanRequests: build.query<
+      ObservationPlanRequests,
+      Record<string, any> | void
+    >({
+      query: (params) => ({
+        url: "api/observation_plan",
+        params: params || {},
+      }),
+      providesTags: ["ObservationPlan"],
+    }),
     getPlanWithSameNameExists: build.query<PlanNameExists, string>({
       query: (name) =>
         `api/observation_plan/plan_names?name=${encodeURIComponent(name)}`,
@@ -46,5 +64,6 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
 
 export const {
   useGetAllocationObservationPlansQuery,
+  useGetObservationPlanRequestsQuery,
   useLazyGetPlanWithSameNameExistsQuery,
 } = observationPlansApi;

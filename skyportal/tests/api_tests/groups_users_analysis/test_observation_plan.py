@@ -94,9 +94,12 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
         ]
         assert len(requests) == len(requests_data)
         for d in requests:
+            # the server records which skymap the plan was made from, so the
+            # stored payload is the submitted one plus that key
+            stored = {k: v for k, v in d["payload"].items() if k != "localization_name"}
+            assert "localization_name" in d["payload"]
             assert any(
-                d["payload"] == request_data["payload"]
-                for request_data in requests_data
+                stored == request_data["payload"] for request_data in requests_data
             )
             observation_plans = d["observation_plans"]
             assert len(observation_plans) == 1

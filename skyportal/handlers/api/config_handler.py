@@ -113,7 +113,6 @@ class ConfigHandler(BaseHandler):
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "assistantEnabled": assistant_enabled(cfg),
-                "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),
                 "summary_apikey_set": summary_apikey_set,

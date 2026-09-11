@@ -76,6 +76,10 @@ app:
   thread_pool_size:
 
   observation_plan:
+    # Plan groups scheduled at once. One is the historical behaviour: a slow
+    # scheduler then holds up every request behind it. Each worker costs a
+    # scheduler process, so match this to spare cores, not to queue depth.
+    max_concurrent: 1
     default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
     use_parallel: False
@@ -335,6 +339,8 @@ app:
       component: analysis/AnalysisServicePage
     - path: "/analysis_requests"
       component: analysis/AnalysisRequestPage
+    - path: "/observation_plan_requests"
+      component: observation_plan/ObservationPlanRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -404,6 +410,10 @@ app:
         - name: Analysis Requests
           icon: Analytics
           url: /analysis_requests
+
+        - name: Observation Plans
+          icon: Assignment
+          url: /observation_plan_requests
 
         - name: Data Requests
           icon: LockOpen
@@ -743,16 +753,6 @@ database:
     # transaction; guards the pool against leaked transactions (0 = disabled).
     idle_transaction_timeout: 0
 
-# Optional: route the source page's photometry fetch through a custom endpoint
-# (e.g. a broker passthrough that merges saved DB photometry with on-demand
-# broker photometry). "{id}" is substituted with the object id; the endpoint
-# must return the same response shape as /api/sources/{id}/photometry (a bare
-# list of serialized points). Null (default) uses the standard endpoint.
-# To display broker-augmented photometry, point this at the survey-addressed
-# broker passthrough, e.g.:
-#   photometry_display_endpoint: "/api/brokers/photometry/{id}?survey=ZTF"
-photometry_display_endpoint:
-
 server:
   # From https://console.developers.google.com/
   #
@@ -849,6 +849,7 @@ misc:
   max_items_in_localization_instrument_query_cache: 100
   minutes_to_keep_public_source_pages_cache: 1440 # 1 day
   minutes_to_keep_reports_cache: 1440 # 1 day
+  minutes_to_keep_broker_photometry_cache: 30
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"

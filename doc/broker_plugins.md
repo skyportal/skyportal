@@ -27,17 +27,42 @@ of forking SkyPortal or re-deriving the same integration in every deployment.
   `altdata` (endpoints/credentials, mirroring `Allocation.altdata`). Only system
   admins may create/update/delete brokers, and `altdata` is redacted from
   non-admins.
-- **Site defaults**, `default_alert_search` and `default_crossmatch` name the
-  broker the source page's "Search alerts" button opens and the one its
-  cross-matches (cone searches) run against. At most one broker holds each; pick them on the brokers page. The
-  seeded data makes ALeRCE both.
+- **Site defaults**, `default_alert_search`, `default_crossmatch` and
+  `default_photometry` name the broker the source page's "Search alerts" button
+  opens, the one its cross-matches (cone searches) run against, and the one
+  serving the photometry the source page displays (its saved points merged with
+  photometry pulled from the broker on demand, cached on disk for
+  `misc.minutes_to_keep_broker_photometry_cache` and never written to the
+  database). At most one broker holds each; pick them on the brokers page. The
+  seeded data makes ALeRCE the alert search and cross-match one; no broker
+  serves photometry until one is picked. The fetched points are scoped to the
+  requester exactly like the alert search: a `(survey, programid)` group is only
+  displayed to users whose streams cover that programid, so ZTF partnership and
+  Caltech points stay hidden from a public-only user. `PhotStat` is still
+  recomputed over everything fetched, matching how it is already computed over
+  every saved row regardless of who is looking. Making an active broker a
+  default re-runs its `test_connection`, so an unreachable one is refused; a
+  broker that goes down later never breaks a source page, the lightcurve falls
+  back to the saved photometry, the failure is logged, and a broker that times
+  out is skipped for a minute so an outage does not make every source page wait
+  for one. An object the broker simply does not know (a 404) is cached as empty
+  and leaves the passthrough on for every other object.
 
 ## Operations
 
 Interactive (SkyPortal → broker): `query_alerts`, `get_alert`, `get_cutouts`,
-`cone_search`, `save_as_source`, and filter management (`get_filters`,
-`create_filter`, `update_filter`, `delete_filter`, `test_filter`,
-`filter_modules`).
+`cone_search`, `save_as_source`, `get_photometry`, and filter management
+(`get_filters`, `create_filter`, `update_filter`, `delete_filter`,
+`test_filter`, `filter_modules`).
+
+`save_as_source` and `get_photometry` come free with `get_alert`, but the
+photometry passthrough runs on every source page view under a 10s bound, so a
+provider whose object fetch cannot meet that sets `photometry_passthrough =
+False` and stops advertising the capability. ANTARES (walks its whole paginated
+alert history) and Pitt-Google (bills the deployment for a BigQuery job per view)
+opt out. Lasair advertises it, but its API is throttled per token per hour (100
+calls for a user token, 10,000 for a power user), so only pick it as the
+photometry default on a power-user token.
 
 Ingestion (broker → SkyPortal): `run_ingestion`, a long-lived consumer/poller
 (see "Ingestion and filters" below).
