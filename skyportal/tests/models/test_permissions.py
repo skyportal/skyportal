@@ -74,6 +74,7 @@ def _recover_session_after_test():
 # ``public_candidate_object`` is a Candidate). Drives the coverage ratchet.
 FIXTURE_MODEL = {
     "broker": "Broker",
+    "user_broker_credential": "BrokerCredential",
     "invitation": "Invitation",
     "keck1_telescope": "Telescope",
     "problematic_assignment": "ClassicalAssignment",
@@ -248,6 +249,23 @@ CASES = [
     ("super_admin_user", "broker", "read", True),
     ("super_admin_user", "broker", "update", True),
     ("super_admin_user", "broker", "delete", True),
+    # --- BrokerCredential  (user_broker_credential): only its owner, plus admins ---
+    ("user", "user_broker_credential", "create", True),
+    ("user", "user_broker_credential", "read", True),
+    ("user", "user_broker_credential", "update", True),
+    ("user", "user_broker_credential", "delete", True),
+    ("user_group2", "user_broker_credential", "create", False),
+    ("user_group2", "user_broker_credential", "read", False),
+    ("user_group2", "user_broker_credential", "update", False),
+    ("user_group2", "user_broker_credential", "delete", False),
+    ("group_admin_user", "user_broker_credential", "create", False),
+    ("group_admin_user", "user_broker_credential", "read", False),
+    ("group_admin_user", "user_broker_credential", "update", False),
+    ("group_admin_user", "user_broker_credential", "delete", False),
+    ("super_admin_user", "user_broker_credential", "create", True),
+    ("super_admin_user", "user_broker_credential", "read", True),
+    ("super_admin_user", "user_broker_credential", "update", True),
+    ("super_admin_user", "user_broker_credential", "delete", True),
     # --- Allocation  (public_group_sedm_allocation) ---
     ("user", "public_group_sedm_allocation", "create", True),
     ("user", "public_group_sedm_allocation", "read", True),
