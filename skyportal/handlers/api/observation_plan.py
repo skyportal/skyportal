@@ -651,6 +651,14 @@ async def post_observation_plans(
                 f"Payload failed to validate: {e}"
             )
 
+        stamp_localization_name(
+            data,
+            await session.scalar(
+                sa.select(Localization.localization_name).where(
+                    Localization.id == data["localization_id"]
+                )
+            ),
+        )
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
@@ -674,6 +682,17 @@ async def post_observation_plans(
         plan_ids.append(observation_plan_request.id)
 
     return plan_ids
+
+
+def stamp_localization_name(data, localization_name):
+    """Record the skymap the plan was made from, so the payload shown on the
+    event page names it rather than only carrying an opaque localization id.
+
+    Applied after schema validation, since the instrument form schemas describe
+    what a requester may send, not what the request stores.
+    """
+    if localization_name:
+        data["payload"] = {**data["payload"], "localization_name": localization_name}
 
 
 def post_observation_plan(
@@ -747,6 +766,14 @@ def post_observation_plan(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)
@@ -834,6 +861,14 @@ async def post_observation_plan_async(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        await session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)

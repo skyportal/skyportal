@@ -76,6 +76,10 @@ app:
   thread_pool_size:
 
   observation_plan:
+    # Plan groups scheduled at once. One is the historical behaviour: a slow
+    # scheduler then holds up every request behind it. Each worker costs a
+    # scheduler process, so match this to spare cores, not to queue depth.
+    max_concurrent: 1
     default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
     use_parallel: False
