@@ -2470,8 +2470,8 @@ wheels = [
 
 [[package]]
 name = "m4opt"
-version = "0.1.dev876+g5bba6e405"
-source = { git = "https://github.com/skyportal/m4opt?rev=5bba6e4#5bba6e4054904c2b0f7c4163a6af70c4bf9dad12" }
+version = "0.1.dev877+g9ca530e1e"
+source = { git = "https://github.com/skyportal/m4opt?rev=9ca530e#9ca530e1efe92ed4f23ea78722a0b3e1a3d45d5b" }
 dependencies = [
     { name = "aep8" },
     { name = "antiprism-python" },
@@ -4781,7 +4781,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = "==1.2.2" },
     { name = "ligo-skymap", specifier = "==2.5.4" },
     { name = "lxml", specifier = "==6.1.1" },
-    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=5bba6e4" },
+    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=9ca530e" },
     { name = "marshmallow", specifier = "==4.3.0" },
     { name = "marshmallow-sqlalchemy", specifier = "==1.5.0" },
     { name = "matplotlib", specifier = "==3.11.1" },
@@ -4824,7 +4824,7 @@ requires-dist = [
     { name = "skyportal", extras = ["pittgoogle"], marker = "extra == 'brokers-all'" },
     { name = "sncosmo", specifier = "==2.13.0" },
     { name = "suds-py3", specifier = "==1.4.5.0" },
-    { name = "swifttools", specifier = "==4.0.4" },
+    { name = "swifttools", specifier = "==4.0.5" },
     { name = "tables", specifier = ">=3.10.1,<4.0.0" },
     { name = "tdtax", specifier = "==0.1.7" },
     { name = "tiktoken", specifier = "==0.14.0" },
@@ -5177,7 +5177,7 @@ wheels = [
 
 [[package]]
 name = "swifttools"
-version = "4.0.4"
+version = "4.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
@@ -5191,9 +5191,9 @@ dependencies = [
     { name = "tabulate" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/83/69f226d475afd8c240754fe019ceccfdae5e46baa48bec32bb78e06e386d/swifttools-4.0.4.tar.gz", hash = "sha256:ec1b6857ec741d222fd96f59b0a2c5095196f2ad679cf984db2400a65b36d02d", size = 673823, upload-time = "2026-08-18T15:41:23.976Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d2/31/75cfa976aff9b3e73d47cdcf26180e6f00995f64c923ceaadd413b604666/swifttools-4.0.5.tar.gz", hash = "sha256:826ef7b220392e35ea9598cf8fc1b885af6e955cf6a405a980907b2b323dd1b2", size = 674625, upload-time = "2026-09-11T16:53:15.82Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/2c/5d071ed0a87752ac9e6e8f7d018f1740767523b56d768f3236faece47841/swifttools-4.0.4-py3-none-any.whl", hash = "sha256:17eb22a8dca602121218d1f13b779dd93b86bf59b7a1a45dc68fbdb344ddf23c", size = 642361, upload-time = "2026-08-18T15:41:22.266Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/d5/5fc63de399066e06c6b8b528c721087a6ce029d411bc46309ddd9fdad026/swifttools-4.0.5-py3-none-any.whl", hash = "sha256:cbb27d8e4ac23c6c29b65c6f8c72aa64f47802a50642db6a6a103239d1b57d93", size = 642467, upload-time = "2026-09-11T16:53:14.268Z" },
 ]
 
 [[package]]
