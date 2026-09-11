@@ -3689,7 +3689,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     or notice.id != localization.notice_id
                 ):
                     log(
-                        f"Skipping default observation plan {gcn_observation_plan.id} because it does not match the localization notice"
+                        f"Skipping default observation plan {gcn_observation_plan['default']} because it does not match the localization notice"
                     )
                     continue
 
@@ -3708,6 +3708,27 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                             pass
                         if notice_type not in filters["notice_types"]:
                             continue
+
+                if (
+                    isinstance(filters.get("excluded_notice_types"), list)
+                    and len(filters["excluded_notice_types"]) > 0
+                    and notice.notice_type is not None
+                ):
+                    # A deny list, so a mission whose notices are not named here
+                    # still triggers. It exists for the crude early positions a
+                    # burst sends before its skymap: planning on those spends the
+                    # queue on a localization that is about to be superseded.
+                    notice_type = notice.notice_type
+                    try:
+                        notice_type = gcn.NoticeType(int(notice.notice_type)).name
+                    except ValueError:
+                        pass
+                    if notice_type in filters["excluded_notice_types"]:
+                        log(
+                            f"Skipping default observation plan {gcn_observation_plan['default']} "
+                            f"on excluded notice type {notice_type}"
+                        )
+                        continue
 
                 if (
                     isinstance(filters.get("gcn_tags"), list)
@@ -3736,7 +3757,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         prop_split = prop_filt.split(":")
                         if len(prop_split) != 3:
                             log(
-                                f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             properties_pass = False
                             break
@@ -3751,7 +3772,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                             value = float(value)
                         except ValueError as e:
                             log(
-                                f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             properties_pass = False
                             break
@@ -3759,7 +3780,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         op = prop_split[2].strip()
                         if op not in op_options:
                             log(
-                                f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             properties_pass = False
                             break
@@ -3777,7 +3798,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 ):
                     if not isinstance(localization_properties, dict):
                         log(
-                            f"Skipping default observation plan {gcn_observation_plan.id} because localization properties are not available"
+                            f"Skipping default observation plan {gcn_observation_plan['default']} because localization properties are not available"
                         )
                         continue
                     valid_properties = True
@@ -3785,7 +3806,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         prop_split = prop_filt.split(":")
                         if len(prop_split) != 3:
                             log(
-                                f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             valid_properties = False
                             break
@@ -3800,7 +3821,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                             value = float(value)
                         except ValueError as e:
                             log(
-                                f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             valid_properties = False
                             break
@@ -3808,7 +3829,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         op = prop_split[2].strip()
                         if op not in op_options:
                             log(
-                                f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan.id}"
+                                f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan['default']}"
                             )
                             valid_properties = False
                             break
@@ -3826,7 +3847,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             elif gcn_observation_plan.get("auto_send", False):
                 # default plans must have filters defined to use auto_send
                 log(
-                    f"auto_send set to True but no filters, skipping default observation plan {gcn_observation_plan.id}"
+                    f"auto_send set to True but no filters, skipping default observation plan {gcn_observation_plan['default']}"
                 )
 
             post_observation_plan(

@@ -110,6 +110,7 @@ np.int = int  # noqa: NPY001
 
 DEFAULT_OBSPLAN_OPTIONS = [
     "notice_types",
+    "excluded_notice_types",
     "gcn_tags",
     "localization_tags",
     "localization_properties",
