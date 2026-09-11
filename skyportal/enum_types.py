@@ -33,6 +33,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
         log(
             f"Additional Bandpass name={name} is already in the sncosmo registry. Skipping."
         )
+        continue
     try:
         wavelength = np.array(additional_bandpasses.get("wavelength"))
         transmission = np.array(additional_bandpasses.get("transmission"))

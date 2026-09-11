@@ -192,10 +192,9 @@ class SummaryQueryHandler(BaseHandler):
                 if user.preferences is not None and user.preferences.get(
                     "summary", {}
                 ).get("OpenAI", {}).get("active", False):
-                    user_pref_openai = user.preferences["summary"]["OpenAI"].get(
+                    user_openai_key = user.preferences["summary"]["OpenAI"].get(
                         "apikey"
                     )
-                    user_openai_key = user_pref_openai["apikey"]
         else:
             user_openai_key = openai_api_key
         if not user_openai_key:
