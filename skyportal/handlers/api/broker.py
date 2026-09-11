@@ -1418,8 +1418,13 @@ class BrokerFiltersHandler(BaseHandler):
                 )
             survey = f.stream.altdata["collection"].split("_")[0]
             perms = {survey: f.stream.altdata["selector"]}
+            # A filter can already carry unrelated altdata (a gcn_crossmatch or
+            # lasair block) and still have no broker-side filter, so branch on
+            # the broker filter id rather than on altdata being empty.
+            stored = dict(f.altdata) if isinstance(f.altdata, dict) else {}
+            boom_filter_id = (stored.get("boom") or {}).get("filter_id")
             try:
-                if not f.altdata:
+                if boom_filter_id is None:
                     resp = broker.broker_class.create_filter(
                         broker,
                         session,
@@ -1430,16 +1435,19 @@ class BrokerFiltersHandler(BaseHandler):
                     )
                     f.broker_id = broker.id
                     new_fid = resp["active_fid"]
-                    f.altdata = {
-                        "boom": {"filter_id": resp["id"]},
-                        "autoAnnotate": True,
-                        "autoFollowup": False,
-                        "filters": [{"fid": new_fid, "version": body.filters}],
-                    }
+                    # Merged, not replaced: assigning a fresh dict here would drop
+                    # whatever else the filter was configured with.
+                    stored.update(
+                        {
+                            "boom": {"filter_id": resp["id"]},
+                            "autoAnnotate": stored.get("autoAnnotate", True),
+                            "autoFollowup": stored.get("autoFollowup", False),
+                            "filters": [{"fid": new_fid, "version": body.filters}],
+                        }
+                    )
+                    f.altdata = stored
+                    flag_modified(f, "altdata")
                 else:
-                    boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
-                    if boom_filter_id is None:
-                        return self.error("Existing filter has no broker filter id.")
                     resp = broker.broker_class.create_filter(
                         broker,
                         session,

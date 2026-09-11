@@ -161,6 +161,9 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
     # so the whole object's photometry would be lost. Keep the first of each.
     seen: set = set()
     for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
+        # Forced photometry is separated by origin so it can be shown or hidden
+        # on its own; everything else keeps the default origin.
+        origin = "fp" if array_name == "fp_hists" else None
         for phot in data.get(array_name) or []:
             jd, band = phot.get("jd"), phot.get("band")
             if jd is None or band is None:
@@ -173,9 +176,11 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 flux = phot.get("psfFlux")
                 flux_err *= 1e-9
                 if flux is not None and not np.isnan(flux):
+                    # Stored as measured, however faint: Photometry.mag already
+                    # yields null (an upper limit) for a flux that is not
+                    # positive, so a real but low-significance point stays a
+                    # detection here instead of being flattened into a limit.
                     flux *= 1e-9
-                    if not np.isnan(flux_err) and abs(flux) / flux_err <= 3:
-                        flux = np.nan
                 columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
             elif phot.get("magpsf") is not None and phot.get("sigmapsf") is not None:
                 # Magnitude space (e.g. Lasair): convert to flux with the survey
@@ -190,20 +195,25 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 continue
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
-            key = (survey, programid)
+            stream_key = (survey, programid)
+            key = (survey, programid, origin)
 
-            epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
+            # Deduplicated across arrays, not within an origin: an epoch already
+            # taken from prv_candidates must not reappear as forced photometry,
+            # or the light curve carries it twice.
+            epoch = (stream_key, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
             seen.add(epoch)
             if key not in photometry_data:
-                stream_ids = programid2streamid.get(key)
+                stream_ids = programid2streamid.get(stream_key)
                 if not stream_ids:
                     continue
                 photometry_data[key] = {
                     "obj_id": object_id,
                     "stream_ids": stream_ids,
                     "instrument_id": instrument_id,
+                    **({"origin": origin} if origin else {}),
                     "mjd": [],
                     "filter": [],
                     "magsys": [],
