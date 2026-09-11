@@ -4,7 +4,7 @@ A user's upstream account (e.g. a Lasair account owning private filters) is
 personal, so it cannot live in the admin-owned ``brokers.altdata``.
 
 Revision ID: c4d81f2a6b03
-Revises: a3f7d21c8b45
+Revises: c3a8f1d27b94
 Create Date: 2026-09-11
 
 """
@@ -17,7 +17,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "c4d81f2a6b03"
-down_revision = "a3f7d21c8b45"
+down_revision = "c3a8f1d27b94"
 branch_labels = None
 depends_on = None
 
