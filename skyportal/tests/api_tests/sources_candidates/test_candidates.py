@@ -97,6 +97,73 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
 
 
+def test_token_user_post_candidate_numeric_id(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column: without coercion Postgres rejects the varchar = bigint
+    # comparison and the post 500s.
+    obj_id = 170591539488620622
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == str(obj_id)
+
+
+def test_candidate_autosave_group_ids(
+    upload_data_token_two_groups, public_filter, public_group, public_group2
+):
+    """autosaveGroupIds is a comma-separated list; it used to be handed to
+    post_source_async as a raw string, whose per-element int() then ran on
+    single characters."""
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "autosave": "true",
+            "autosaveGroupIds": f"{public_group.id},{public_group2.id}",
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=upload_data_token_two_groups)
+    assert status == 200
+    saved_group_ids = {g["id"] for g in data["data"]["groups"]}
+    assert {public_group.id, public_group2.id}.issubset(saved_group_ids)
+
+
 def test_candidate_name_only_search(
     upload_data_token,
     view_only_token,
@@ -222,7 +289,7 @@ def test_token_user_post_two_candidates_same_obj_filter(
     assert status == 200
 
 
-def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
+def test_token_user_repost_same_obj_filter_passed_at_is_idempotent(
     upload_data_token, view_only_token, public_filter
 ):
     obj_id = str(uuid.uuid4())
@@ -243,12 +310,15 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         token=upload_data_token,
     )
     assert status == 200
+    first_ids = data["data"]["ids"]
 
     status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
+    # Re-posting the same obj/filter/passed_at reuses the existing row instead of
+    # 400-ing on the unique index; it returns the same candidate id.
     status, data = api(
         "POST",
         "candidates",
@@ -264,9 +334,49 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         },
         token=upload_data_token,
     )
-    assert status == 400
-    assert data["status"] == "error"
-    assert "Failed to post candidate" in data["message"]
+    assert status == 200
+    assert data["data"]["ids"] == first_ids
+
+
+def test_repost_candidate_reuses_duplicate_and_adds_new_filter(
+    upload_data_token_two_groups, public_filter, public_filter2
+):
+    obj_id = str(uuid.uuid4())
+    passed_at = str(utcnow_naive())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    first_ids = data["data"]["ids"]
+    assert len(first_ids) == 1
+
+    # public_filter is a duplicate (reused), public_filter2 is genuinely new: a
+    # duplicate on one filter must not drop the new candidate for the other.
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "filter_ids": [public_filter.id, public_filter2.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    ids = data["data"]["ids"]
+    assert len(ids) == 2
+    assert first_ids[0] in ids
 
 
 def test_candidate_list_sorting_basic(

@@ -1,0 +1,9 @@
+[program:broker_ingest]
+numprocs={{ brokers.ingest_processes }}
+command=/usr/bin/env python services/broker_ingest/broker_ingest.py --process=%(process_num)s %(ENV_FLAGS)s
+process_name=%(program_name)s_%(process_num)02d
+environment=PYTHONPATH=".",PYTHONUNBUFFERED="1"
+stdout_logfile=log/broker_ingest_%(process_num)02d.log
+redirect_stderr=true
+autorestart=true
+startretries=10

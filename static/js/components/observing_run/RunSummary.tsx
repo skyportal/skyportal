@@ -347,7 +347,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "RA",
       flex: 1,
       minWidth: 100,
-      sortable: false,
       valueGetter: (_value: any, row: any) => row.obj?.ra,
       renderCell: (params: any) => (
         <div>
@@ -362,7 +361,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Dec",
       flex: 1,
       minWidth: 100,
-      sortable: false,
       valueGetter: (_value: any, row: any) => row.obj?.dec,
       renderCell: (params: any) => (
         <div>
@@ -403,7 +401,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Rises at (>30deg alt, UT)",
       flex: 1,
       minWidth: 150,
-      sortable: false,
+      type: "dateTime",
+      // "" means never up; null groups those rows together (first ascending,
+      // last descending) instead of sorting as an empty string
+      valueGetter: (value: any) => (value ? new Date(value) : null),
       renderCell: (params: any) =>
         params.row.rise_time_utc === ""
           ? "Never up"
@@ -414,7 +415,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Sets at (<30deg alt, UT)",
       flex: 1,
       minWidth: 150,
-      sortable: false,
+      type: "dateTime",
+      // "" means never up; null groups those rows together (first ascending,
+      // last descending) instead of sorting as an empty string
+      valueGetter: (value: any) => (value ? new Date(value) : null),
       renderCell: (params: any) =>
         params.row.set_time_utc === ""
           ? "Never up"
@@ -482,7 +486,11 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   (assignments || []).forEach((assignment: any) => {
     displayRows.push(assignment);
     if (openedRows.includes(assignment.id)) {
+      // Carry the parent's fields so every column sorts/filters a detail row
+      // identically to its parent; the grid's sort is stable, so the panel
+      // stays directly beneath the row it belongs to.
       displayRows.push({
+        ...assignment,
         id: `${assignment.id}__detail`,
         __detail: true,
         __source: assignment,

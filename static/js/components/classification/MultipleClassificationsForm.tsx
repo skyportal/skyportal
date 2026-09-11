@@ -17,8 +17,11 @@ import { makeStyles } from "tss-react/mui";
 import { withStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import { getSortedClasses } from "./ShowClassification";
-import { useAddClassificationMutation } from "../../ducks/source";
+import {
+  useAddClassificationMutation,
+  useUpdateClassificationMutation,
+} from "../../ducks/source";
+import { useGetProfileQuery } from "../../ducks/profile";
 import * as ClassificationsActions from "../../ducks/classifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
@@ -103,6 +106,8 @@ const MultipleClassificationsForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [addClassification] = useAddClassificationMutation();
+  const [updateClassification] = useUpdateClassificationMutation();
+  const { data: currentUser } = useGetProfileQuery();
   const stateTaxonomy = useAppSelector(
     (state) => state["classifications"].taxonomy,
   );
@@ -130,6 +135,14 @@ const MultipleClassificationsForm = ({
     );
   };
 
+  const updateExisting = useAppSelector(
+    (state) => state["classifications"]["updateExisting"],
+  );
+
+  const handleUpdateExistingSwitchChange = (event: any) => {
+    dispatch(ClassificationsActions.setUpdateExisting(event.target.checked));
+  };
+
   const [formState, setFormState] = useState<any>({});
 
   useEffect(() => {
@@ -140,28 +153,40 @@ const MultipleClassificationsForm = ({
       },
     );
 
-    const sortedClassifications = getSortedClasses(currentClassifications);
-
-    // For each existing taxonomy/classification, update initial sliders
-    sortedClassifications?.forEach((classifications: any) => {
-      classifications?.forEach((classification: any) => {
-        // Take just the latest values for each field
-        if (
-          classification.taxonomy_id &&
-          classification.taxonomy_id in initialFormState &&
-          !initialFormState[classification.taxonomy_id][
-            classification.classification
-          ]
-        ) {
-          initialFormState[classification.taxonomy_id][
-            classification.classification
-          ] = { depth: -1, probability: classification.probability };
+    // Start each slider at the most recently modified classification for that
+    // taxonomy/class, keeping its id so that further edits can update it in
+    // place. Zero-probability classifications are kept too: they are explicit
+    // "not this class" labels, not the absence of one.
+    [...(currentClassifications || [])]
+      .sort((a: any, b: any) => (a.modified < b.modified ? -1 : 1))
+      .forEach((classification: any) => {
+        if (!(classification.taxonomy_id in initialFormState)) {
+          return;
         }
+        initialFormState[classification.taxonomy_id][
+          classification.classification
+        ] = {
+          depth: -1,
+          probability: classification.probability || 0,
+          savedProbability: classification.probability || 0,
+          id: classification.id,
+          authorName: classification.author_name,
+        };
       });
-    });
 
     setFormState(initialFormState);
   }, [currentClassifications, taxonomyList]);
+
+  // Whether the current user may edit a classification posted by `authorName`;
+  // the backend enforces the same rule (Classification.update).
+  const canUpdate = (entry: any) =>
+    Boolean(
+      updateExisting &&
+      entry?.id &&
+      (currentUser?.permissions?.includes("System admin") ||
+        currentUser?.permissions?.includes("Manage groups") ||
+        currentUser?.username === entry.authorName),
+    );
 
   const getNode = (classification: any, path: any[]) => {
     // Get node from hierarchy, given classification name
@@ -210,6 +235,7 @@ const MultipleClassificationsForm = ({
       const newProbability = Math.min(newValue, currentProbability) || 0;
 
       newFormState[selectedTaxonomy.id][subclass.class] = {
+        ...newFormState[selectedTaxonomy.id][subclass.class],
         depth,
         probability: newProbability,
       };
@@ -220,6 +246,7 @@ const MultipleClassificationsForm = ({
   const handleChange = (newValue: number, classification: any, path: any[]) => {
     const newFormState = { ...formState };
     newFormState[selectedTaxonomy.id][classification] = {
+      ...newFormState[selectedTaxonomy.id][classification],
       depth: path.length,
       probability: newValue,
     };
@@ -237,6 +264,7 @@ const MultipleClassificationsForm = ({
         const probabilityOfAncestor =
           formState[selectedTaxonomy.id][ancestor]?.probability || 0;
         newFormState[selectedTaxonomy.id][ancestor] = {
+          ...newFormState[selectedTaxonomy.id][ancestor],
           depth: subpath.length,
           probability: Math.max(probabilityOfSubclasses, probabilityOfAncestor),
         };
@@ -347,19 +375,24 @@ const MultipleClassificationsForm = ({
     }
   };
 
-  const getClassificationsToPost = (classifications: any) => {
+  const getClassificationsToSubmit = (classifications: any) => {
     if (!classifications) {
       return null;
     }
 
-    const toPost = (Object.entries(classifications) as [string, any][])
-      // Only submit non-zero classifications that have been
-      // edited (depth > -1)
-      .filter(([, { depth, probability }]) => probability > 0 && depth > -1);
+    const toSubmit = (Object.entries(classifications) as [string, any][])
+      // Only submit classifications that have been edited (depth > -1). A zero
+      // probability is only meaningful as an update to an existing
+      // classification: posting new ones would flood the source with the zeroed
+      // subclasses that scaling writes into the form state.
+      .filter(
+        ([, entry]) =>
+          entry.depth > -1 && (entry.probability > 0 || canUpdate(entry)),
+      );
     // Post lower depths first (more specific classifications will be added
     // later, to be the most recent when fetched)
-    toPost.sort((a, b) => a[1].depth - b[1].depth);
-    return toPost;
+    toSubmit.sort((a, b) => a[1].depth - b[1].depth);
+    return toSubmit;
   };
 
   const handleSubmit = async () => {
@@ -368,22 +401,31 @@ const MultipleClassificationsForm = ({
 
     const classifications = formState[selectedTaxonomy?.id];
 
-    // Submit non-zero classifications for the current taxonomy
-    const toPost = getClassificationsToPost(classifications);
-    asyncForEach(
-      toPost ?? [],
-      async ([classification, { probability }]: [string, any]) => {
+    // Submit the edited classifications for the current taxonomy
+    const toSubmit = getClassificationsToSubmit(classifications);
+    await asyncForEach(
+      toSubmit ?? [],
+      async ([classification, entry]: [string, any]) => {
         const data: any = {
           taxonomy_id: selectedTaxonomy.id,
           obj_id: objId,
           classification,
-          probability,
+          probability: entry.probability,
         };
-        if (groupId) {
-          data.group_ids = [groupId];
-        }
         try {
-          await addClassification(data).unwrap();
+          if (canUpdate(entry)) {
+            // No group_ids: an update must not narrow the groups the existing
+            // classification is already shared with.
+            await updateClassification({
+              classificationID: entry.id,
+              formData: data,
+            }).unwrap();
+          } else {
+            if (groupId) {
+              data.group_ids = [groupId];
+            }
+            await addClassification(data).unwrap();
+          }
           results.push(true);
         } catch {
           results.push(false);
@@ -391,13 +433,14 @@ const MultipleClassificationsForm = ({
       },
     );
 
-    // Reset the depths for the posted classifications so that they
-    // are not reposted upon further edits
+    // Reset the depths for the submitted classifications so that they
+    // are not resubmitted upon further edits
     const newFormState = { ...formState };
-    toPost?.forEach(([classification, { probability }]: [string, any]) => {
+    toSubmit?.forEach(([classification, entry]: [string, any]) => {
       newFormState[selectedTaxonomy.id][classification] = {
+        ...entry,
         depth: -1,
-        probability,
+        savedProbability: entry.probability,
       };
     });
     setFormState(newFormState);
@@ -413,13 +456,18 @@ const MultipleClassificationsForm = ({
       <Typography variant="h6">Post Classifications</Typography>
       <div>
         <Typography variant="subtitle2">
-          Classifications to be posted:
+          Classifications to be submitted:
         </Typography>
-        {getClassificationsToPost(formState[selectedTaxonomy?.id])?.map(
-          ([classification, { probability }]: [string, any]) => (
+        {getClassificationsToSubmit(formState[selectedTaxonomy?.id])?.map(
+          ([classification, entry]: [string, any]) => (
             <Chip
               key={`${selectedTaxonomy.id}-${classification}`}
-              label={`${classification} (${selectedTaxonomy.name}): ${probability}`}
+              variant={canUpdate(entry) ? "outlined" : "filled"}
+              label={
+                canUpdate(entry)
+                  ? `${classification} (${selectedTaxonomy.name}): ${entry.savedProbability} → ${entry.probability}`
+                  : `${classification} (${selectedTaxonomy.name}): ${entry.probability}`
+              }
             />
           ),
         )}
@@ -452,6 +500,17 @@ const MultipleClassificationsForm = ({
             />
           }
           label="Scale parent/child probabilities"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={updateExisting || false}
+              onChange={handleUpdateExistingSwitchChange}
+              slotProps={{ input: { "aria-label": "controlled" } }}
+              name="updateExistingClassifications"
+            />
+          }
+          label="Update existing classifications"
         />
       </div>
       {selectedTaxonomy?.hierarchy?.subclasses?.map((category: any) => (

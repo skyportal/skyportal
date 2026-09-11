@@ -19,12 +19,12 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..handlers.api.galaxy import get_galaxies
-from .cache import Cache, array_to_bytes
+from .cache import Cache, array_to_bytes, cache_folder
 
 log = make_log("api/observation_plan")
 
 env, cfg = load_env()
-cache_dir = "cache/localization_instrument_queries"
+cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_items=cfg.get("misc.max_items_in_localization_instrument_query_cache", 100),
@@ -370,6 +370,15 @@ def generate_plan(
             plans.append(plan)
             requests.append(request)
 
+        # M4OPT schedules one telescope at a time, so it takes the whole run
+        # rather than being folded into gwemopt's multi-instrument path.
+        if any(
+            (request.payload or {}).get("scheduler") == "m4opt" for request in requests
+        ):
+            from .m4opt_plan import generate_m4opt_plan
+
+            return generate_m4opt_plan(session, plans, requests)
+
         user = session.get(User, user_id)
         log(
             f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
@@ -553,6 +562,29 @@ def generate_plan(
                     else []
                     for field in fields
                 }
+
+                # A field the requester named by hand but which has no reference
+                # in every filter asked for is dropped inside the scheduler, so
+                # say which and why: otherwise the plan just comes back smaller
+                # than the selection with nothing to explain it.
+                requested_fields = request.payload.get("field_ids") or []
+                if requested_fields:
+                    wanted = {
+                        f.strip()
+                        for f in (request.payload.get("filters") or "").split(",")
+                        if f.strip()
+                    }
+                    unusable = sorted(
+                        field.field_id
+                        for field in fields
+                        if not wanted.issubset(set(field.reference_filters or []))
+                    )
+                    if unusable:
+                        log(
+                            f"Request {request.id}: fields {unusable} have no "
+                            f"reference in all of {sorted(wanted)} and will be "
+                            f"dropped, since use_references is set"
+                        )
 
         params["config"] = config
 

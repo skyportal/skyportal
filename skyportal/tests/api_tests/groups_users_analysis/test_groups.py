@@ -210,7 +210,7 @@ def test_add_already_added_stream_to_group(
         token=super_admin_token,
     )
     assert status == 400
-    assert data["message"] == "Specified stream is already associated with this group."
+    assert "Specified stream is already associated with this group." in data["message"]
 
 
 def test_add_stream_to_group_delete_stream(

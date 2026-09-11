@@ -1,4 +1,3 @@
-import { useGetProfileQuery } from "../../ducks/profile";
 import { useState, type ReactNode } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
@@ -15,7 +14,8 @@ import Typography from "@mui/material/Typography";
 import { grey } from "@mui/material/colors";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import { createFilterOptions } from "@mui/material/Autocomplete";
+import SearchableSelect from "../SearchableSelect";
 
 import Button from "../Button";
 
@@ -118,12 +118,15 @@ const DialogTitle = withStyles(
 
 interface ConfirmSourceInGCNProps {
   dateobs: string;
-  localization_name: string;
-  localization_cumprob: number;
   source_id: string;
-  start_date: string;
-  end_date: string;
   sources_id_list: string[];
+  // Only needed to create an association from scratch (the POST path). Callers
+  // acting on one the crossmatch already proposed are patching an existing row
+  // and can omit them.
+  localization_name?: string;
+  localization_cumprob?: number;
+  start_date?: string;
+  end_date?: string;
   // Optional custom trigger: a compact button and/or a different icon, so
   // callers (e.g. the crossmatch list) can match surrounding controls.
   compact?: boolean;
@@ -142,15 +145,13 @@ const ConfirmSourceInGCN = ({
   triggerIcon,
 }: ConfirmSourceInGCNProps) => {
   const { classes } = useStyles() as any;
-  const { permissions } = useGetProfileQuery().data ?? {};
   const [open, setOpen] = useState(false);
 
   const { control, getValues, register, reset } = useForm();
 
   const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery({
     dateobs,
-    localizationName: localization_name,
-    sourcesIdList: sources_id_list,
+    sourcesIDList: sources_id_list,
   });
   const [submitSourceInGcn] = useSubmitSourceInGcnMutation();
   const [patchSourceInGcn] = usePatchSourceInGcnMutation();
@@ -170,44 +171,25 @@ const ConfirmSourceInGCN = ({
     return color;
   };
 
-  let currentState = "not_vetted";
-  let currentExplanation = "";
-  let currentNotes = "";
-  if (
-    sourcesingcn?.length > 0 &&
-    sourcesingcn.filter((s: any) => s.obj_id === source_id).length !== 0
-  ) {
-    if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      true
-    ) {
-      currentState = "confirmed";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
-      false
-    ) {
-      currentState = "rejected";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    } else {
-      currentState = "ambiguous";
-      currentExplanation =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-          ?.explanation || "";
-      currentNotes =
-        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
-    }
-  }
+  // What is already recorded for this source, if anything.
+  const saved = sourcesingcn?.find((s: any) => s.obj_id === source_id);
+  const savedStatus: string | null = saved?.status ?? null;
+  const currentExplanation = saved?.explanation || "";
+  const currentNotes = saved?.notes || "";
+  const currentState = savedStatus ?? "not_vetted";
 
-  const handleVet = async (confirmed: boolean | null) => {
+  // The verdict buttons select; SAVE commits. Committing on click meant a
+  // mis-click was written immediately, and left no chance to type the
+  // explanation that records *why* -- which is the whole point of the field.
+  const [selected, setSelected] = useState<string | null>(null);
+  const openDialog = () => {
+    // Start on the verdict already recorded, so the dialog shows where this
+    // association stands and SAVE stays inert until something changes.
+    setSelected(currentState);
+    setOpen(true);
+  };
+
+  const handleVet = async (status: string) => {
     const data = getValues();
     try {
       if (currentState === "not_vetted") {
@@ -219,7 +201,7 @@ const ConfirmSourceInGCN = ({
             end_date,
             localization_name,
             localization_cumprob,
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -229,7 +211,7 @@ const ConfirmSourceInGCN = ({
           dateobs,
           source_id,
           data: {
-            confirmed,
+            status,
             explanation: data["explanation"],
             notes: data["notes"],
           },
@@ -242,11 +224,18 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  const handleHighlight = () => handleVet(true);
-
-  const handleReject = () => handleVet(false);
-
-  const handleAmbiguous = () => handleVet(null);
+  const handleSave = () => {
+    if (!selected || selected === currentState) {
+      return;
+    }
+    // "Not vetted" is the absence of a verdict, so committing it removes the
+    // row rather than storing a status.
+    if (selected === "not_vetted") {
+      handleNotVetted();
+    } else {
+      handleVet(selected);
+    }
+  };
 
   const handleNotVetted = async () => {
     try {
@@ -258,14 +247,14 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  return permissions?.includes("Manage GCNs") ? (
+  return (
     <div>
       <IconButton
-        aria-label="open"
+        aria-label="vet gcn crossmatch"
         className={classes.closeButton}
         size={compact ? "small" : undefined}
         sx={compact ? { p: 0 } : undefined}
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
       >
         {triggerIcon ?? <EditIcon />}
       </IconButton>
@@ -284,8 +273,9 @@ const ConfirmSourceInGCN = ({
                     </Typography>
                     <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
+                        <SearchableSelect
                           id="explanation"
+                          label="Explanation"
                           freeSolo
                           disableClearable
                           filterOptions={(options, params) => {
@@ -297,8 +287,7 @@ const ConfirmSourceInGCN = ({
 
                             return filtered;
                           }}
-                          // eslint-disable-next-line no-shadow
-                          onChange={(_e, value) => onChange(value)}
+                          onChange={(_e, newValue) => onChange(newValue)}
                           options={defaultExplanations}
                           value={value}
                           renderOption={(props, option) => (
@@ -309,15 +298,9 @@ const ConfirmSourceInGCN = ({
                               {option}
                             </Typography>
                           )}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Explanation"
-                              variant="outlined"
-                              fullWidth
-                              onChange={(e) => onChange(e.target.value)}
-                            />
-                          )}
+                          textFieldProps={{
+                            onChange: (e: any) => onChange(e.target.value),
+                          }}
                         />
                       )}
                       name="explanation"
@@ -344,10 +327,27 @@ const ConfirmSourceInGCN = ({
                       />
                     </div>
                     <div>
-                      <Button onClick={handleHighlight}>HIGHLIGHT</Button>
-                      <Button onClick={handleReject}>REJECT</Button>
-                      <Button onClick={handleAmbiguous}>AMBIGUOUS</Button>
-                      <Button onClick={handleNotVetted}>NOT VETTED</Button>
+                      {[
+                        ["confirmed", "HIGHLIGHT"],
+                        ["rejected", "REJECT"],
+                        ["ambiguous", "AMBIGUOUS"],
+                        ["not_vetted", "NOT VETTED"],
+                      ].map(([status, label]) => (
+                        <Button
+                          key={status}
+                          onClick={() => setSelected(status as string)}
+                          primary={selected === status}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                      <Button
+                        onClick={handleSave}
+                        disabled={!selected || selected === currentState}
+                        secondary
+                      >
+                        SAVE
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -357,7 +357,7 @@ const ConfirmSourceInGCN = ({
         </Paper>
       )}
     </div>
-  ) : null;
+  );
 };
 
 export default ConfirmSourceInGCN;

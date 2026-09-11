@@ -7,7 +7,7 @@ import uuid
 
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, retry_until
 
 analysis_port = 6802
 
@@ -606,26 +606,21 @@ def test_run_analysis_with_correct_and_incorrect_token(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
     params = {"includeAnalysisData": True}
 
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_started():
         status, data = api(
             "GET", f"obj/analysis/{analysis_id}", token=analysis_token, params=params
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(5)
-    else:
-        assert False, (
+        assert data["data"]["status"] != "queued", (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+        return data
+
+    data = retry_until(analysis_started, timeout=100)
+    analysis_status = data["data"]["status"]
 
     # Since this is random data, this fit might succeed (usually) or fail (seldom)
     # that's ok because it means we're getting the
@@ -753,20 +748,13 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_done():
         status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
         assert status == 200
-        analysis_status = data["data"]["status"]
+        assert data["data"]["status"] != "queued"
+        return data["data"]["status"]
 
-        max_attempts -= 1
-        time.sleep(5)
-
-    assert analysis_status == "failure"
+    assert retry_until(analysis_done, timeout=100) == "failure"
 
     # now try a bad endpoint
     name_bad_endpoint = str(uuid.uuid4())
@@ -805,20 +793,7 @@ def test_run_analysis_with_down_and_wrong_analysis_service(
     assert status == 200
     assert data["status"] == "success"
 
-    max_attempts = 5
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
-        status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
-        assert status == 200
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(1)
-
-    assert analysis_status == "failure"
+    assert retry_until(analysis_done, timeout=10) == "failure"
 
 
 def test_delete_analysis(
@@ -908,18 +883,13 @@ def test_delete_analysis_service_cascades_to_delete_associated_analysis(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    # wait until the analysis is done
-    max_attempts = 20
-    analysis_status = "queued"
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_done():
         status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
         assert status == 200
-        analysis_status = data["data"]["status"]
+        assert data["data"]["status"] != "queued"
+        return data["data"]["status"]
 
-        max_attempts -= 1
-        time.sleep(5)
+    analysis_status = retry_until(analysis_done, timeout=100)
 
     # get the analysis associated with the
     # analysis service
@@ -1001,12 +971,7 @@ def test_retrieve_data_products(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
-
-    while max_attempts > 0:
-        if analysis_status not in ["queued", "pending"]:
-            break
+    def analysis_started():
         status, data = api(
             "GET",
             f"obj/analysis/{analysis_id}",
@@ -1014,14 +979,12 @@ def test_retrieve_data_products(
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(3)
-    else:
-        assert False, (
+        assert data["data"]["status"] not in ["queued", "pending"], (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+        return data["data"]["status"]
+
+    analysis_status = retry_until(analysis_started, timeout=60)
 
     if analysis_status == "completed":
         # try to get a plot
@@ -1222,26 +1185,19 @@ def test_run_analysis_with_file_input(
     analysis_id = data["data"].get("id")
     assert analysis_id is not None
 
-    max_attempts = 20
-    analysis_status = "queued"
     params = {"includeAnalysisData": True}
 
-    while max_attempts > 0:
-        if analysis_status != "queued":
-            break
+    def analysis_started():
         status, data = api(
             "GET", f"obj/analysis/{analysis_id}", token=analysis_token, params=params
         )
         assert status == 200
         assert data["data"]["analysis_service_id"] == analysis_service_id
-        analysis_status = data["data"]["status"]
-
-        max_attempts -= 1
-        time.sleep(5)
-    else:
-        assert False, (
+        assert data["data"]["status"] != "queued", (
             f"analysis was not started properly ({data['data']['status_message']})"
         )
+
+    retry_until(analysis_started, timeout=100)
 
 
 def test_default_analysis(
@@ -1551,6 +1507,228 @@ def test_default_analysis_on_save(
     assert n_retries < 20, (
         "default analysis was not triggered by saving the source to the group"
     )
+
+
+def test_default_analysis_on_spectrum(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_source,
+    lris,
+):
+    # A spectrum_fitting service backed by the demo analysis server.
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test default analysis on spectrum",
+        "description": "A test default analysis (spectrum-upload trigger)",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "spectrum_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    # A default analysis that fires for any uploaded spectrum (source_filter pins
+    # "spectrum": "any" rather than a group_id or classification).
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": {"spectrum": "any"},
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # Uploading a spectrum to an existing source should auto-trigger it.
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+
+    assert n_retries < 20, "default analysis was not triggered by uploading a spectrum"
+
+
+def _make_spectrum_default_service(
+    analysis_service_token, analysis_token, public_group, source_filter
+):
+    """A spectrum_fitting service + a default analysis with the given source_filter.
+    Returns the analysis_service_id."""
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "analysis_service",
+        data={
+            "name": name,
+            "display_name": name,
+            "description": "spectrum-trigger test service",
+            "version": "1.0",
+            "contact_name": "Vera Rubin",
+            "contact_email": "vr@ls.st",
+            "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+            "authentication_type": "none",
+            "analysis_type": "spectrum_fitting",
+            "input_data_types": [],
+            "timeout": 60,
+            "group_ids": [public_group.id],
+        },
+        token=analysis_service_token,
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": source_filter,
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    return analysis_service_id
+
+
+def test_default_analysis_on_spectrum_group_match(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_source,
+    lris,
+):
+    # Restricted to public_group; a spectrum shared with public_group must trigger.
+    analysis_service_id = _make_spectrum_default_service(
+        analysis_service_token,
+        analysis_token,
+        public_group,
+        {"spectrum": "any", "group_id": public_group.id},
+    )
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+    assert n_retries < 20, (
+        "group-restricted default was not triggered for a spectrum in that group"
+    )
+
+
+def test_default_analysis_on_spectrum_group_mismatch(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+    public_group2,
+    public_source,
+    lris,
+):
+    # Restricted to public_group2; a spectrum shared only with public_group must NOT
+    # trigger it.
+    analysis_service_id = _make_spectrum_default_service(
+        analysis_service_token,
+        analysis_token,
+        public_group,
+        {"spectrum": "any", "group_id": public_group2.id},
+    )
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-01-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.2, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # Give any (incorrect) trigger time to fire, then confirm none did.
+    for _ in range(8):
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={
+                "objID": str(public_source.id),
+                "analysisServiceID": analysis_service_id,
+            },
+            token=analysis_token,
+        )
+        assert not (status == 200 and len(data["data"]) > 0), (
+            "group-restricted default fired for a spectrum outside its group"
+        )
+        time.sleep(1)
 
 
 def test_default_analysis_multiple_per_service(

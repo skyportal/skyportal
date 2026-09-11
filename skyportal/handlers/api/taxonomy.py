@@ -102,12 +102,6 @@ class TaxonomyHandler(BaseHandler):
           description: Retrieve a taxonomy
           tags:
             - taxonomies
-          parameters:
-            - in: path
-              name: taxonomy_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -284,12 +278,6 @@ class TaxonomyHandler(BaseHandler):
         description: Update taxonomy
         tags:
           - taxonomies
-        parameters:
-          - in: path
-            name: taxonomy_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -348,12 +336,6 @@ class TaxonomyHandler(BaseHandler):
         description: Delete a taxonomy
         tags:
           - taxonomies
-        parameters:
-          - in: path
-            name: taxonomy_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

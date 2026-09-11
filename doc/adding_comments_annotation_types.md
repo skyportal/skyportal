@@ -8,6 +8,7 @@ using `CommentOnSpectrum` and `AnnotationOnSpectrum`.
 Here is a list of parts of the code that need to be modified
 to allow comments or annotations on new types of data.
 To make a new `Comment` type:
+
 - Inherit from `CommentMixin` (as well as from `Base`).
 - Add the name of the table to the `backref_name` function on `CommentMixin`.
 - Add any additional columns, like a reference to a model the comment is on.

@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -6,58 +9,51 @@ from baselayer.log import make_log
 from ....models import SharingService, SharingServiceCoauthor, User
 from ...base import BaseHandler
 
+SharingServiceId = Annotated[
+    int, Field(description="ID of the external sharing service")
+]
+
 log = make_log("api/sharing_service_coauthor")
+
+
+class SharingServiceCoauthorPostBody(BaseModel):
+    """Request body for adding a coauthor to an external sharing service."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to add as a coauthor, if not specified in the URL",
+    )
+
+
+class SharingServiceCoauthorPostResponse(BaseModel):
+    """Data payload returned when adding a coauthor."""
+
+    id: int = Field(description="New SharingServiceCoauthor ID")
 
 
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def post(self, sharing_service_id: int, user_id: int | None = None):
+    async def post(
+        self,
+        sharing_service_id: SharingServiceId,
+        user_id: Annotated[
+            int | None, Field(description="ID of the user to add as a coauthor")
+        ] = None,
+        *,
+        body: SharingServiceCoauthorPostBody = None,
+    ) -> SharingServiceCoauthorPostResponse:
         """
         ---
         summary: Add a coauthor to an external sharing service
         description: Add a coauthor to an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the sharing service
-            - in: path
-              name: user_id
-              required: false
-              schema:
-                type: integer
-              description: ID of the user to add as a coauthor
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_id:
-                                type: integer
-                                description: ID of the user to add as a coauthor, if not specified in the URL
-        responses:
-            200:
-                content:
-                    application/json:
-                        schema:
-                            allOf:
-                                - $ref: '#/components/schemas/Success'
-                                - type: object
-                                  properties:
-                                    data:
-                                      $ref: '#/components/schemas/SharingServiceCoauthor'
-            400:
-                content:
-                    application/json:
-                        schema: Error
         """
+        body = self.parse_body(SharingServiceCoauthorPostBody)
         if user_id is None:
-            user_id = self.get_json().get("user_id")
+            user_id = body.user_id
         if user_id is None:
             return self.error(
                 "You must specify a coauthor_id when adding a coauthor to a sharing service"
@@ -113,26 +109,19 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.success(data={"id": coauthor.id})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id: int, user_id: int):
+    async def delete(
+        self,
+        sharing_service_id: SharingServiceId,
+        user_id: Annotated[
+            int, Field(description="ID of the user to remove as a coauthor")
+        ],
+    ):
         """
         ---
         summary: Remove a coauthor from an external sharing service
         description: Remove a coauthor from an external sharing service
         tags:
             - external sharing service
-        parameters:
-            - in: path
-              name: sharing_service_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the external sharing service
-            - in: path
-              name: user_id
-              required: true
-              schema:
-                type: integer
-              description: ID of the user to remove as a coauthor
         responses:
             200:
                 content:

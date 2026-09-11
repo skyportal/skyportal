@@ -16,6 +16,7 @@ class _Base:
         "filter_modules",
         "run_ingestion",
         "validate_config",
+        "test_connection",
     )
 
     # subclasses should not modify this
@@ -36,10 +37,13 @@ class _Base:
         # save_as_source and get_photometry are base defaults (interface.py) for
         # any provider that can fetch an object, so gate both on get_alert.
         caps["save_as_source"] = cls._isimplemented("get_alert")
-        caps["get_photometry"] = cls._isimplemented("get_alert")
+        caps["get_photometry"] = (
+            cls._isimplemented("get_alert") and cls.photometry_passthrough
+        )
         # Data-semantics flag (not a method): does cone_search return reference
         # catalogs for the centroid cross-match overlay?
         caps["cross_match_catalogs"] = cls.cross_match_catalogs
+        caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 
     @classmethod
@@ -53,6 +57,28 @@ class _Base:
         narrow it to the deployment's survey.
         """
         return list(cls.surveys)
+
+    @classmethod
+    def secret_config_fields(cls):
+        """Dotted ``altdata`` paths that must never be sent.
+
+        Defaults to every field the config form renders as a password; a
+        provider whose secret uses another widget overrides this.
+        """
+
+        def walk(node, prefix=""):
+            paths = []
+            for key, value in (node or {}).items():
+                if not isinstance(value, dict):
+                    continue
+                path = f"{prefix}{key}"
+                if value.get("ui:widget") == "password":
+                    paths.append(path)
+                else:
+                    paths.extend(walk(value, f"{path}."))
+            return paths
+
+        return walk(cls.ui_json_schema)
 
     # subclasses should not modify this
     @classmethod

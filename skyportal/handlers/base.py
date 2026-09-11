@@ -1,120 +1,28 @@
-import functools
-import inspect
-import types
-import typing
 from math import ceil
 
+import sqlalchemy as sa
 from pydantic import ValidationError as PydanticValidationError
 from tornado.gen import sleep
 from tornado.iostream import StreamClosedError
 from tornado.web import Finish
 
 from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
+from baselayer.app.models import DBSession, Token
 
 from .. import __version__
-from ..utils.api_validate import format_validation_errors
-
-HANDLER_METHODS = ("get", "post", "put", "patch", "delete")
-
-
-def resolve_cast(annotation):
-    """Resolve a parameter annotation to a cast callable.
-
-    Handles ``Optional[T]`` / ``T | None`` by unwrapping to the inner type and
-    setting ``allow_none=True``. Returns ``(cast_fn, allow_none)``.
-
-    If the annotation is a Union with more than one non-None member, returns
-    ``(None, False)`` — the wrapper will skip such parameters rather than guess.
-    """
-    origin = typing.get_origin(annotation)
-    if origin is typing.Union or origin is types.UnionType:
-        non_none = [a for a in typing.get_args(annotation) if a is not type(None)]
-        if len(non_none) == 1:
-            return non_none[0], True
-        return None, False
-    return annotation, False
-
-
-def install_path_param_validation(cls):
-    """Wrap each ``get``/``post``/``put``/``patch``/``delete`` defined on ``cls``
-    so positional path arguments are coerced to the types declared in the
-    parameter annotations.
-
-    On ``TypeError``/``ValueError`` the wrapper returns
-    ``self.error(f"Invalid {name}: {val}")`` and the handler is not invoked.
-
-    ``Optional[T]`` / ``T | None`` annotations are honored: a ``None`` value
-    passes through unchanged. Parameters without an annotation are left alone.
-
-    Designed to be called from ``__init_subclass__`` of a base handler class;
-    exposed at module level so tests can exercise the same code path against
-    a minimal fake base class.
-    """
-    for method_name in HANDLER_METHODS:
-        method = cls.__dict__.get(method_name)
-        if method is None:
-            continue
-
-        params = list(inspect.signature(method).parameters.values())[1:]  # skip self
-        validators = []
-        for i, p in enumerate(params):
-            if p.annotation is inspect.Parameter.empty:
-                continue
-            # keyword-only params (e.g. pydantic body models documenting the
-            # endpoint for spec_from_handlers) are not path parameters
-            if p.kind is inspect.Parameter.KEYWORD_ONLY:
-                continue
-            cast_fn, allow_none = resolve_cast(p.annotation)
-            if cast_fn is None or cast_fn is str:
-                # str-as-no-op + unsupported unions are skipped.
-                continue
-            validators.append((i, p.name, cast_fn, allow_none))
-        if not validators:
-            continue
-
-        @functools.wraps(method)
-        async def wrapper(
-            self, *args, _method=method, _validators=validators, **kwargs
-        ):
-            new_args = list(args)
-            for i, name, cast_fn, allow_none in _validators:
-                if i >= len(new_args):
-                    break
-                val = new_args[i]
-                # Tornado passes ``None`` for unmatched optional URL captures
-                # (e.g. the trailing ``(/[0-9]+)?`` in
-                # ``/api/obj/analysis(/[0-9]+)/corner(/[0-9]+)?``). Pass that
-                # through unchanged so the method's own default (e.g.
-                # ``plot_number=0``) applies — and so explicit ``T | None``
-                # annotations also work.
-                if val is None:
-                    continue
-                # Several Tornado URL patterns in app_server.py capture with a
-                # leading slash, e.g. ``(/[0-9]+)`` → ``"/5"``. Strip it before
-                # coercion so the cast doesn't spuriously fail.
-                if isinstance(val, str) and val.startswith("/"):
-                    val = val[1:]
-                try:
-                    new_args[i] = cast_fn(val)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid {name}: {val}")
-            result = _method(self, *new_args, **kwargs)
-            if inspect.iscoroutine(result):
-                return await result
-            return result
-
-        setattr(cls, method_name, wrapper)
+from ..utils.api_validate import (
+    format_validation_errors,
+    path_adapters_for,
+    query_dict_from,
+)
+from ..utils.terms_of_service import has_accepted, terms_of_service, tokens_exempt
 
 
 def format_doc(**kwargs):
-    """Inject values into a handler method's docstring placeholders.
+    """Fill the `{name}` placeholders of a handler method's docstring.
 
-    The purpose of this wrapper is to avoid using an f-string for the
-    docstring, because an f-string in the docstring position is not treated
-    as a docstring by Python: `__doc__` stays `None`, and apispec silently
-    drops the endpoint from the OpenAPI schema. Instead, the docstring is
-    written as a plain string with `{name}` placeholders, and this decorator
-    fills them in with the given kwargs after the function is defined.
+    An f-string in the docstring position leaves `__doc__` at None and apispec
+    silently drops the endpoint, hence the placeholders plus this decorator.
     """
 
     def wrap(func):
@@ -137,9 +45,70 @@ def format_doc(**kwargs):
 
 
 class BaseHandler(BaselayerHandler):
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        install_path_param_validation(cls)
+    terms_of_service_exempt = ()
+
+    def prepare(self):
+        # baselayer's prepare() normalizes the captured strings (strips the
+        # leading slash of patterns like `(/[0-9]+)`); type them afterwards.
+        result = super().prepare()
+        self.coerce_path_args()
+        self.enforce_terms_of_service()
+        return result
+
+    def enforce_terms_of_service(self):
+        terms = terms_of_service()
+        if terms is None or self.request.method in self.terms_of_service_exempt:
+            return
+        if self.token_from_header() is not None and tokens_exempt():
+            return
+        user_id = self.acting_user_id()
+        if user_id is None or has_accepted(user_id, terms["version"]):
+            return
+        self.error(
+            f"You must accept the {terms['title']} before using this instance.",
+            status=403,
+        )
+        raise Finish()
+
+    def token_from_header(self):
+        """The API token this request authenticates with, if it uses one."""
+        header = self.request.headers.get("Authorization") or ""
+        if not header.startswith("token "):
+            return None
+        return header.removeprefix("token").strip()
+
+    def acting_user_id(self):
+        # prepare() runs before auth_or_token, so the token is not resolved yet.
+        token = self.token_from_header()
+        if token is not None:
+            with DBSession() as session:
+                return session.scalar(
+                    sa.select(Token.created_by_id).where(Token.id == token)
+                )
+        if self.current_user is None or getattr(self, "is_anonymous_user", False):
+            return None
+        return self.current_user.id
+
+    def coerce_path_args(self):
+        """Coerce captured path arguments to the types the handler annotates,
+        400ing on a value that does not fit.
+
+        Unannotated keeps tornado's string; ``None`` (an unmatched optional
+        capture) passes through so the method default applies, so annotate such
+        a parameter ``T | None``.
+        """
+        adapters = path_adapters_for(type(self), self.request.method.lower())
+        for index, name, adapter in adapters:
+            if index >= len(self.path_args):
+                break
+            value = self.path_args[index]
+            if value is None:
+                continue
+            try:
+                self.path_args[index] = adapter.validate_python(value)
+            except PydanticValidationError:
+                self.error(f"Invalid {name}: {value}")
+                raise Finish() from None
 
     @property
     def associated_user_object(self):
@@ -147,22 +116,34 @@ class BaseHandler(BaselayerHandler):
             return self.current_user
         return self.current_user.created_by
 
-    def parse_body(self, model):
-        """Validate the JSON request body against a pydantic model.
-
-        Returns the parsed model instance; on failure writes the standard 400
-        error response and raises tornado.web.Finish to abort the handler.
-        """
+    def _validate(self, model, payload):
+        """Parse `payload` with `model`, or write a 400 and abort the handler."""
         try:
-            return model.model_validate(self.get_json())
+            return model.model_validate(payload)
         except PydanticValidationError as e:
             self.error(f"Invalid/missing parameters: {format_validation_errors(e)}")
             raise Finish() from None
+
+    def parse_body(self, model):
+        try:
+            data = self.get_json()
+        except Exception as e:
+            self.error(f"Error parsing JSON: {e}")
+            raise Finish() from None
+        return self._validate(model, data)
+
+    def parse_query(self, model):
+        return self._validate(
+            model, query_dict_from(self.request.query_arguments, model)
+        )
 
     def success(self, *args, **kwargs):
         super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
+        # Tag with handler name so users know which endpoint failed.
+        if message and not str(message).startswith("["):
+            message = f"[{self.__class__.__name__}] {message}"
         super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(
@@ -183,12 +164,9 @@ class BaseHandler(BaselayerHandler):
         max_file_size : int
             Filesize limit in bytes (default: 20MB)
         """
-        # Adapted from
-        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
-        mb = 1024 * 1024 * 1
-        if not (data.getbuffer().nbytes < max_file_size):
+        if data.getbuffer().nbytes >= max_file_size:
             return self.error(
-                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
+                f"Refusing to send files larger than {max_file_size / 1024**2:.2f} MB"
             )
 
         # do not send result via `.success`, since that uses content-type JSON
@@ -206,23 +184,17 @@ class BaseHandler(BaselayerHandler):
             "Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"
         )
 
-        for i in range(ceil(max_file_size / chunk_size)):
+        for _ in range(ceil(max_file_size / chunk_size)):
             chunk = data.read(chunk_size)
             if not chunk:
                 break
             try:
-                self.write(chunk)  # write the chunk to response
-                await self.flush()  # send the chunk to client
+                self.write(chunk)
+                await self.flush()
             except StreamClosedError:
-                # this means the client has closed the connection
-                # so break the loop
                 break
             finally:
-                # deleting the chunk is very important because
-                # if many clients are downloading files at the
-                # same time, the chunks in memory will keep
-                # increasing and will eat up the RAM
+                # concurrent downloads would otherwise pile chunks up in RAM
                 del chunk
-
-                # pause the coroutine so other handlers can run
-                await sleep(1e-9)  # 1 ns
+                # let other handlers run between chunks
+                await sleep(1e-9)

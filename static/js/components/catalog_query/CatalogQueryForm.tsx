@@ -215,7 +215,6 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
           { enum: ["LSXPS"], title: "Swift LSXPS catalog" },
           { enum: ["Gaia"], title: "Gaia" },
           { enum: ["TESS"], title: "TESS" },
-          { enum: ["ZTF-Kowalski"], title: "ZTF Kowalski" },
           { enum: ["ZTF-Fink"], title: "ZTF Fink" },
         ],
         default: "LSXPS",

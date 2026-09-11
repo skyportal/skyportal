@@ -10,6 +10,11 @@ These `ObservationPlanRequest`s in particular are triggered on the front-end fro
 
 To evaluate the efficacy of the executed observation plans, we have the `ExecutedObservation`s table, which is accessible through the `observation` api. After execution of the requested observations in the `EventObservationPlan`, the user is responsible for uploading successfully executed observations to the `ExecutedObservation`s table (see below). Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the `Localization`s to determine sky coverage and integrated probability contained with the map.
 
+## Scanning events for optical counterparts
+
+Broker alerts can be crossmatched against an event's localization and raised as
+candidates to scan; see [Scanning GCN events for optical counterparts](gcn_crossmatch).
+
 ## Uploading executed observations
 
 In addition to making available the `observation` api, we also include an Observations page to simplify upload and viewing of `ExecutedObservation`s. On this page, simply specify the instrument and upload a file of the form:
@@ -32,8 +37,7 @@ observation_id,RA,Dec,obstime,seeing,limmag,exposure_time,filter,processed_fract
 
 As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
 
-* ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
-
+- ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
 
 ## GCN Event Ingestion
 
@@ -67,8 +71,8 @@ where notice types are also available from the GCN quickstart guide linked above
 
 For galaxy-targeted follow-up (e.g. of poorly localized gravitational-wave events), SkyPortal ingests large galaxy catalogs into the `Galaxy` table. Two catalogs are supported out of the box, each read from a FITS table:
 
-* **REGALADE** — `regalade_v2.fits` (~8 GB), available from the authors' Google Drive: https://drive.google.com/file/d/1vVdR_KphBTL9E17xl4cadF1HYW_A6Zis/view
-* **NEDLVS** (NED Local Volume Sample) — `NEDLVS_<date>.fits` (~1 GB), available from https://ned.ipac.caltech.edu/NED::LVS/
+- **REGALADE** — `regalade_v2.fits` (~8 GB), available from the authors' Google Drive: https://drive.google.com/file/d/1vVdR_KphBTL9E17xl4cadF1HYW_A6Zis/view
+- **NEDLVS** (NED Local Volume Sample) — `NEDLVS_<date>.fits` (~1 GB), available from https://ned.ipac.caltech.edu/NED::LVS/
 
 Because these files are large, they are **not** uploaded through the API. Download them and place them in the `data/` directory at the root of your SkyPortal checkout, keeping the default filenames:
 
@@ -104,6 +108,7 @@ Ingestion runs in the background and streams the file in chunks, so it neither b
 The most important environmental effect on detectors in the IGWN remains teleseismic earthquakes. For this reason, we enable ingestion of earthquakes using the USGS' [PDL client](https://github.com/usgs/pdl).
 
 In order to deploy the service, one must:
-* Email Michelle Guy (mguy@usgs.gov) with the static IP address of the server and explain the tool's usage
-* Download the [Product Client](https://github.com/usgs/pdl/releases/download/2.7.10/ProductClient.jar) and place it in the services/pdl_service/ directory.
-* Deploy the Product Client from within services/pdl_service/ by running: ./init.sh start
+
+- Email Michelle Guy (mguy@usgs.gov) with the static IP address of the server and explain the tool's usage
+- Download the [Product Client](https://github.com/usgs/pdl/releases/download/2.7.10/ProductClient.jar) and place it in the services/pdl_service/ directory.
+- Deploy the Product Client from within services/pdl_service/ by running: ./init.sh start

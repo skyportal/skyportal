@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
@@ -29,23 +31,37 @@ class SourceLabelsDeleteBody(BaseModel):
     )
 
 
+async def add_source_labels(session, obj_id, group_ids, labeller_id):
+    """Label the obj for each given group the labeller has not labelled it in yet."""
+    for group_id in group_ids:
+        source_label = await session.scalar(
+            SourceLabel.select(session.user_or_token)
+            .where(SourceLabel.obj_id == obj_id)
+            .where(SourceLabel.group_id == group_id)
+            .where(SourceLabel.labeller_id == labeller_id)
+        )
+        if source_label is None:
+            session.add(
+                SourceLabel(obj_id=obj_id, labeller_id=labeller_id, group_id=group_id)
+            )
+
+
 class SourceLabelsHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str, *, body: SourceLabelsPostBody = None):
+    async def post(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of object to indicate source labelling for")
+        ],
+        *,
+        body: SourceLabelsPostBody = None,
+    ):
         """
         ---
         summary: Label a source
         description: Note that a source has been labelled.
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID of object to indicate source labelling for
         responses:
           200:
             content:
@@ -62,20 +78,9 @@ class SourceLabelsHandler(BaseHandler):
             if obj is None:
                 return self.error("Invalid objId")
 
-            for group_id in group_ids:
-                source_label = await session.scalar(
-                    SourceLabel.select(session.user_or_token)
-                    .where(SourceLabel.obj_id == obj_id)
-                    .where(SourceLabel.group_id == group_id)
-                    .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                )
-                if source_label is None:
-                    label = SourceLabel(
-                        obj_id=obj_id,
-                        labeller_id=self.associated_user_object.id,
-                        group_id=group_id,
-                    )
-                    session.add(label)
+            await add_source_labels(
+                session, obj_id, group_ids, self.associated_user_object.id
+            )
             await session.commit()
 
             self.push_all(
@@ -91,12 +96,6 @@ class SourceLabelsHandler(BaseHandler):
         description: Delete source labels
         tags:
           - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

@@ -4,6 +4,7 @@ import functools
 import io
 import json
 import os
+from typing import Annotated, Any, ClassVar
 from urllib.parse import urljoin, urlparse
 
 import numpy as np
@@ -12,6 +13,7 @@ import requests
 import sqlalchemy as sa
 import yaml
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from requests_oauthlib import OAuth1
 from sqlalchemy import func, select
@@ -25,7 +27,6 @@ from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
 
-from ...app_utils import get_app_base_url
 from ...enum_types import (
     ANALYSIS_INPUT_TYPES,
     ANALYSIS_TYPES,
@@ -47,11 +48,28 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.app import get_app_base_url
 from ...utils.extinction import calculate_extinction
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
+
+AnalysisResourceType = Annotated[
+    str,
+    Field(
+        description='What underlying data the analysis is on: must be "obj" (more to be added in the future)'
+    ),
+]
+AnalysisServiceId = Annotated[
+    int, Field(description="the analysis service id to be used")
+]
+ResourceId = Annotated[
+    str,
+    Field(
+        description="The ID of the underlying data. This would be a string for an object ID."
+    ),
+]
 
 log = make_log("app/analysis")
 
@@ -175,6 +193,19 @@ def generic_serialize(row, columns):
     }
 
 
+def _add_predicted_mag_column(df):
+    """Flatten the per-point MPC ephemeris mag (stashed in ``altdata`` by the SSO
+    ingest) into a ``predicted_mag`` column so period-finding can detrend on
+    obs - predicted. Absent for non-SSO sources; the column is then all-None."""
+    if "altdata" in df.columns:
+        df["predicted_mag"] = df["altdata"].apply(
+            lambda a: a.get("predicted_mag") if isinstance(a, dict) else None
+        )
+    else:
+        df["predicted_mag"] = None
+    return df
+
+
 def deredden_photometry_df(df, ra, dec):
     """Deredden a photometry DataFrame for Galactic extinction, using the same
     SFD dust map + G23 law as the photometry plot (utils.extinction). Per filter
@@ -225,6 +256,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "limiting_mag",
                 "zp",
                 "instrument_name",
+                "predicted_mag",
             ],
             "id_attr": "obj_id",
         },
@@ -384,24 +416,39 @@ def post_analysis(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            session.scalars(
+                sa.select(SuperObj)
+                .options(selectinload(SuperObj.objs))
+                .where(SuperObj.objs.any(Obj.id == obj_id))
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             input_data = session.scalars(stmt).all()
             if input_type == "photometry":
                 input_data = [serialize(phot, "ab", "both") for phot in input_data]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None
@@ -653,19 +700,35 @@ async def post_analysis_async(
                   """
             )
 
+        # Union photometry across SuperObj-linked objs (a moving object's ZTF +
+        # LSST streams) so the analysis sees the full curve; other inputs stay per-obj.
+        from ...models import SuperObj
+
+        aggregated_obj_ids = {obj_id}
+        for super_obj in (
+            (
+                await session.scalars(
+                    sa.select(SuperObj)
+                    .options(selectinload(SuperObj.objs))
+                    .where(SuperObj.objs.any(Obj.id == obj_id))
+                )
+            )
+            .unique()
+            .all()
+        ):
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
+
         # Let's assemble the input data for this Obj
         for input_type in input_data_types:
             associated_resource = get_associated_obj_resource(input_type)
+            id_col = getattr(
+                associated_resource["class"], associated_resource["id_attr"]
+            )
+            obj_ids = aggregated_obj_ids if input_type == "photometry" else {obj_id}
             stmt = (
                 associated_resource["class"]
                 .select(current_user)
-                .where(
-                    getattr(
-                        associated_resource["class"],
-                        associated_resource["id_attr"],
-                    )
-                    == obj_id
-                )
+                .where(id_col.in_(obj_ids))
             )
             if input_type == "photometry":
                 stmt = stmt.options(joinedload(Photometry.instrument))
@@ -685,6 +748,7 @@ async def post_analysis_async(
                     for phot in input_data
                 ]
                 df = pd.DataFrame(input_data)
+                df = _add_predicted_mag_column(df)
 
                 if (
                     input_filters is not None
@@ -869,6 +933,221 @@ async def post_analysis_async(
     return analysis_id
 
 
+class AnalysisServicePostBody(BaseModel):
+    """Request body for creating an Analysis Service."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None, description="Unique name/identifier of the analysis service."
+    )
+    display_name: str | None = Field(
+        default=None, description="Display name of the analysis service."
+    )
+    description: str | None = Field(
+        default=None, description="Description of the analysis service."
+    )
+    version: str | None = Field(
+        default=None,
+        description="Semantic version (or githash) of the analysis service.",
+    )
+    contact_name: str | None = Field(
+        default=None,
+        description="Name of person responsible for the service (ie. the "
+        "maintainer). This person does not need to be part of this SkyPortal "
+        "instance.",
+    )
+    contact_email: str | None = Field(
+        default=None,
+        description="Email address of the person responsible for the service.",
+    )
+    url: str | None = Field(
+        default=None,
+        description="URL to running service accessible to this SkyPortal instance. "
+        "For example, http://localhost:5000/analysis/<service_name>.",
+    )
+    optional_analysis_parameters: str | dict[str, Any] | None = Field(
+        default=None,
+        description="Optional URL parameters that can be passed to the service, "
+        "along with a list of possible values (to be used in a dropdown UI).",
+    )
+    authentication_type: str | None = Field(
+        default=None,
+        description="Service authentication method. See "
+        "https://docs.python-requests.org/en/master/user/authentication/",
+    )
+    authinfo: str | None = Field(
+        default=None,
+        alias="_authinfo",
+        description="Authentication secrets for the service. Not needed if "
+        'authentication_type is "none". This should be a string that can be '
+        "parsed by the python json.loads() function and should contain the key "
+        "`authentication_type`.",
+    )
+    enabled: bool | None = Field(
+        default=None, description="Whether the service is enabled or not."
+    )
+    analysis_type: str | None = Field(default=None, description="Type of analysis.")
+    input_data_types: list[str] | None = Field(
+        default=None,
+        description="List of input data types that the service requires.",
+    )
+    timeout: float | None = Field(
+        default=None,
+        description="Max time in seconds to wait for the analysis service to "
+        "complete. Default is 3600.0.",
+    )
+    is_summary: bool | None = Field(
+        default=None,
+        description="Establishes that analysis results on the resource should be "
+        "considered a summary.",
+    )
+    display_on_resource_dropdown: bool | None = Field(
+        default=None,
+        description="Show this analysis service on the analysis dropdown of the "
+        "resource.",
+    )
+    upload_only: bool | None = Field(
+        default=None,
+        description="If true, the analysis service is an upload type, where the "
+        "user provides the input data.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to use the Analysis Service. Defaults to all of requesting user's "
+        "groups.",
+    )
+
+
+class AnalysisServicePatchBody(AnalysisServicePostBody):
+    """Request body for updating an Analysis Service (all fields optional)."""
+
+
+class AnalysisPostBody(BaseModel):
+    """Request body for running an analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    show_parameters: bool = Field(
+        default=False, description="Whether to render the parameters of this analysis."
+    )
+    show_plots: bool = Field(
+        default=False, description="Whether to render the plots of this analysis."
+    )
+    show_corner: bool = Field(
+        default=False,
+        description="Whether to render the corner plots of this analysis.",
+    )
+    input_filters: dict[str, Any] | None = Field(
+        default_factory=dict, description="Filters to apply to the input data."
+    )
+    analysis_parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Dictionary of parameters to be passed thru to the analysis.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view analysis results. Defaults to all of requesting user's "
+        "groups.",
+    )
+
+
+class AnalysisUploadBody(BaseModel):
+    """Request body for uploading an upload_only analysis result."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    analysis: dict[str, Any] = Field(
+        default_factory=dict, description="Results data of this analysis."
+    )
+    message: str = Field(
+        default="", description="Status message to store with the analysis."
+    )
+    show_parameters: bool = Field(
+        default=True, description="Whether to render the parameters of this analysis."
+    )
+    show_plots: bool = Field(
+        default=True, description="Whether to render the plots of this analysis."
+    )
+    show_corner: bool = Field(
+        default=True,
+        description="Whether to render the corner plots of this analysis.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view analysis results. Defaults to all of requesting user's "
+        "groups.",
+    )
+
+
+class DefaultAnalysisPostBody(BaseModel):
+    """Request body for creating a default analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_analysis_parameters: dict[str, Any] | str = Field(
+        default_factory=dict,
+        description="Dictionary of parameters to be passed thru to the analysis.",
+    )
+    source_filter: dict[str, Any] | str = Field(
+        default_factory=dict,
+        description="Dictionary of filters to apply to the input data.",
+    )
+    daily_limit: int | str = Field(
+        default=10, description="Maximum number of analyses to run per day."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view analysis results. Defaults to all of requesting user's "
+        "groups.",
+    )
+    show_parameters: bool = Field(
+        default=True, description="Whether to render the parameters of this analysis."
+    )
+    show_plots: bool = Field(
+        default=True, description="Whether to render the plots of this analysis."
+    )
+    show_corner: bool = Field(
+        default=True,
+        description="Whether to render the corner plots of this analysis.",
+    )
+
+
+class DefaultAnalysisPatchBody(BaseModel):
+    """Request body for updating a default analysis (all fields optional)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_analysis_parameters: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Dictionary of parameters to be passed thru to the analysis.",
+    )
+    source_filter: dict[str, Any] | str | None = Field(
+        default=None, description="Dictionary of filters to apply to the input data."
+    )
+    daily_limit: int | str | None = Field(
+        default=None, description="Maximum number of analyses to run per day."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view analysis results.",
+    )
+    show_parameters: bool | None = Field(
+        default=None, description="Whether to render the parameters of this analysis."
+    )
+    show_plots: bool | None = Field(
+        default=None, description="Whether to render the plots of this analysis."
+    )
+    show_corner: bool | None = Field(
+        default=None, description="Whether to render the corner plots of this analysis."
+    )
+
+
 class AnalysisServiceHandler(BaseHandler):
     """Handler for analysis services."""
 
@@ -878,107 +1157,13 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    async def post(self):
+    async def post(self, *, body: AnalysisServicePostBody = None):
         """
         ---
         summary: Create an Analysis Service.
         description: POST a new Analysis Service.
         tags:
           - analysis services
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: Unique name/identifier of the analysis service.
-                  display_name:
-                    type: string
-                    description: Display name of the analysis service.
-                  description:
-                    type: string
-                    description: Description of the analysis service.
-                  version:
-                    type: string
-                    description: Semantic version (or githash) of the analysis service.
-                  contact_name:
-                    type: string
-                    description: |
-                        Name of person responsible for the service (ie. the maintainer).
-                        This person does not need to be part of this SkyPortal instance.
-                  contact_email:
-                    type: string
-                    description: Email address of the person responsible for the service.
-                  url:
-                    type: string
-                    description: |
-                        URL to running service accessible to this SkyPortal instance.
-                        For example, http://localhost:5000/analysis/<service_name>.
-                  optional_analysis_parameters:
-                    type: object
-                    additionalProperties:
-                      type: array
-                      items:
-                        type: string
-                    description: |
-                        Optional URL parameters that can be passed to the service, along
-                        with a list of possible values (to be used in a dropdown UI)
-                  authentication_type:
-                    type: string
-                    description: |
-                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
-                        See https://docs.python-requests.org/en/master/user/authentication/
-                  _authinfo:
-                    type: object
-                    description: |
-                        Authentication secrets for the service. Not needed if authentication_type is "none".
-                        This should be a string that can be parsed by the python json.loads() function and
-                        should contain the key `authentication_type`. Values of this key will be used
-                        to POST into the remote analysis service.
-                  enabled:
-                    type: boolean
-                    description: Whether the service is enabled or not.
-                  analysis_type:
-                    type: string
-                    description: |
-                        Type of analysis. One of: {ANALYSIS_TYPES}
-                  input_data_types:
-                    type: array
-                    items:
-                        type: string
-                    description: |
-                        List of input data types that the service requires. Zero to many of:
-                        {ANALYSIS_INPUT_TYPES}
-                  timeout:
-                    type: number
-                    description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
-                    default: 3600.0
-                  is_summary:
-                    type: boolean
-                    description: |
-                        Establishes that analysis results on the resource should be considered a summary
-                    default: false
-                  display_on_resource_dropdown:
-                    type: boolean
-                    description: |
-                        Show this analysis service on the analysis dropdown of the resource
-                    default: true
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to use the Analysis Service. Defaults to all of requesting
-                      user's groups.
-                required:
-                  - name
-                  - url
-                  - authentication_type
-                  - analysis_type
-                  - input_data_types
         responses:
           200:
             content:
@@ -995,23 +1180,28 @@ class AnalysisServiceHandler(BaseHandler):
                               type: integer
                               description: New AnalysisService ID
         """
-        data = self.get_json()
+        body = self.parse_body(AnalysisServicePostBody)
 
-        if not data.get("url", None):
+        if not body.url:
             return self.error("`url` is required to add an Analysis Service.")
         else:
-            if not valid_url(data.get("url", None)):
+            if not valid_url(body.url):
                 return self.error(
                     "a valid `url` is required to add an Analysis Service."
                 )
+        oap = (
+            body.optional_analysis_parameters
+            if "optional_analysis_parameters" in body.model_fields_set
+            else "{}"
+        )
         try:
-            _ = json.loads(data.get("optional_analysis_parameters", "{}"))
+            _ = json.loads(oap)
         except json.decoder.JSONDecodeError:
             return self.error(
                 "Could not parse `optional_analysis_parameters` as JSON.", status=400
             )
 
-        authentication_type = data.get("authentication_type", None)
+        authentication_type = body.authentication_type
         if not authentication_type:
             return self.error(
                 "`authentication_type` is required to add an Analysis Service."
@@ -1023,7 +1213,7 @@ class AnalysisServiceHandler(BaseHandler):
             )
         else:
             if authentication_type != "none":
-                _authinfo = data.get("_authinfo", None)
+                _authinfo = body.authinfo
                 if not _authinfo:
                     return self.error(
                         "`_authinfo` is required to add an Analysis Service "
@@ -1040,6 +1230,7 @@ class AnalysisServiceHandler(BaseHandler):
                         f'`_authinfo` must contain a key for "{authentication_type}".'
                     )
 
+        data = body.model_dump(exclude_unset=True, by_alias=True)
         group_ids = data.pop("group_ids", None)
         async with self.AsyncSession() as session:
             from ...utils.data_access import accessible_group_ids_async
@@ -1089,12 +1280,6 @@ class AnalysisServiceHandler(BaseHandler):
           description: Retrieve an Analysis Service by id
           tags:
             - analysis services
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -1175,102 +1360,15 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    async def patch(self, analysis_service_id: int):
+    async def patch(
+        self, analysis_service_id: int, *, body: AnalysisServicePatchBody = None
+    ):
         """
         ---
         summary: Update an Analysis Service.
         description: Update an Analysis Service.
         tags:
           - analysis services
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: True
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: Unique name/identifier of the analysis service.
-                  display_name:
-                    type: string
-                    description: Display name of the analysis service.
-                  description:
-                    type: string
-                    description: Description of the analysis service.
-                  version:
-                    type: string
-                    description: Semantic version (or githash) of the analysis service.
-                  contact_name:
-                    type: string
-                    description: |
-                        Name of person responsible for the service (ie. the maintainer).
-                        This person does not need to be part of this SkyPortal instance.
-                  contact_email:
-                    type: string
-                    description: Email address of the person responsible for the service.
-                  url:
-                    type: string
-                    description: |
-                        URL to running service accessible to this SkyPortal instance.
-                        For example, http://localhost:5000/analysis/<service_name>.
-                  optional_analysis_parameters:
-                    type: object
-                    additionalProperties:
-                      type: array
-                      items:
-                        type: string
-                    description: |
-                        Optional URL parameters that can be passed to the service, along
-                        with a list of possible values (to be used in a dropdown UI)
-                  authentication_type:
-                    type: string
-                    description: |
-                        Service authentication method. One of: {AUTHENTICATION_TYPES}.
-                        See https://docs.python-requests.org/en/master/user/authentication/
-                  authinfo:
-                    type: object
-                    description: Authentication secrets for the service. Not needed if authentication_type is "none".
-                  enabled:
-                    type: boolean
-                    description: Whether the service is enabled or not.
-                  analysis_type:
-                    type: string
-                    description: |
-                        Type of analysis. One of: {ANALYSIS_TYPES}
-                  input_data_types:
-                    type: array
-                    items:
-                        type: string
-                    description: |
-                        List of input data types that the service requires. Zero to many of:
-                        {ANALYSIS_INPUT_TYPES}
-                  timeout:
-                    type: number
-                    description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
-                    default: 3600.0
-                  is_summary:
-                    type: boolean
-                    description: |
-                        Establishes that analysis results on the resource should be considered a summary
-                    default: false
-                  display_on_resource_dropdown:
-                    type: boolean
-                    description: |
-                        Show this analysis service on the analysis dropdown of the resource
-                    default: true
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to use the Analysis Service.
         responses:
           200:
             content:
@@ -1281,6 +1379,7 @@ class AnalysisServiceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AnalysisServicePatchBody)
 
         try:
             analysis_service_id = int(analysis_service_id)
@@ -1298,7 +1397,7 @@ class AnalysisServiceHandler(BaseHandler):
             if s is None:
                 return self.error("Cannot access this Analysis Service.", status=403)
 
-            data = self.get_json()
+            data = body.model_dump(exclude_unset=True, by_alias=True)
             group_ids = data.pop("group_ids", None)
 
             schema = AnalysisService.__schema__()
@@ -1348,12 +1447,6 @@ class AnalysisServiceHandler(BaseHandler):
         description: Delete an Analysis Service.
         tags:
           - analysis services
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1381,10 +1474,59 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
 
+class AnalysisGetQuery(BaseModel):
+    """Query parameters for retrieving analyses."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"objID", "includeFilename", "includeAnalysisData"}
+    )
+
+    objID: str | None = Field(
+        default=None,
+        description="Return any analysis on an object with ID objID",
+    )
+    analysisServiceID: int | None = Field(
+        default=None,
+        description=(
+            "ID of the analysis service used to create the analysis, used only "
+            "if no analysis_id is given"
+        ),
+    )
+    includeAnalysisData: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include the data associated with the "
+            "analysis in the response. Could be a large amount of data. Only "
+            "works for single analysis requests. Defaults to false."
+        ),
+    )
+    summaryOnly: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to return only analyses that use analysis "
+            "services with `is_summary` set to true. Defaults to false."
+        ),
+    )
+    includeFilename: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include the filename of the data "
+            "associated with the analysis in the response. Defaults to false."
+        ),
+    )
+
+
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
     async def post(
-        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+        self,
+        analysis_resource_type: AnalysisResourceType,
+        resource_id: ResourceId,
+        analysis_service_id: AnalysisServiceId,
+        *,
+        body: AnalysisPostBody = None,
     ):
         """
         ---
@@ -1392,60 +1534,6 @@ class AnalysisHandler(BaseHandler):
         description: Begin an analysis run
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis is on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID.
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: string
-            description: the analysis service id to be used
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  show_parameters:
-                    type: boolean
-                    description: Whether to render the parameters of this analysis
-                  show_plots:
-                    type: boolean
-                    description: Whether to render the plots of this analysis
-                  show_corner:
-                    type: boolean
-                    description: Whether to render the corner plots of this analysis
-                  input_filters:
-                    type: array
-                    description: Filters to apply to the input data
-                  analysis_parameters:
-                    type: object
-                    description: Dictionary of parameters to be passed thru to the analysis
-                    additionalProperties:
-                        type: string
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view analysis results. Defaults to all of requesting user's
-                      groups.
         responses:
           200:
             content:
@@ -1462,10 +1550,7 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        try:
-            data = self.get_json()
-        except Exception as e:
-            return self.error(f"Error parsing JSON: {e}")
+        body = self.parse_body(AnalysisPostBody)
 
         try:
             analysis_service_id = int(analysis_service_id)
@@ -1494,7 +1579,7 @@ class AnalysisHandler(BaseHandler):
                     status=403,
                 )
 
-            analysis_parameters = data.get("analysis_parameters", {})
+            analysis_parameters = body.analysis_parameters
 
             if isinstance(analysis_service.optional_analysis_parameters, str):
                 optional_analysis_parameters = json.loads(
@@ -1531,12 +1616,16 @@ class AnalysisHandler(BaseHandler):
                     analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
                     user_pref_openai.pop("apikey", None)
                     user_pref_openai.pop("active", None)
+                    # A personal key goes only to its owner's base_url, or OpenAI.
+                    user_pref_openai["base_url"] = (
+                        user_pref_openai.get("base_url") or None
+                    )
                     analysis_parameters["summary_parameters"] = user_pref_openai
                 elif openai_api_key is not None:
                     analysis_parameters["openai_api_key"] = openai_api_key
                     analysis_parameters["summary_parameters"] = summary_config
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
             if not group_ids:
                 group_ids = await accessible_group_ids_async(self.current_user, session)
 
@@ -1550,7 +1639,7 @@ class AnalysisHandler(BaseHandler):
                 )
 
             author = self.associated_user_object
-            input_filters = data.get("input_filters", {})
+            input_filters = body.input_filters
             if input_filters is not None:
                 if (
                     "photometry" in analysis_service.input_data_types
@@ -1579,10 +1668,10 @@ class AnalysisHandler(BaseHandler):
                     author,
                     groups,
                     analysis_service,
-                    analysis_parameters=data.get("analysis_parameters", {}),
-                    show_parameters=data.get("show_parameters", False),
-                    show_plots=data.get("show_plots", False),
-                    show_corner=data.get("show_corner", False),
+                    analysis_parameters=body.analysis_parameters,
+                    show_parameters=body.show_parameters,
+                    show_plots=body.show_plots,
+                    show_corner=body.show_corner,
                     input_filters=input_filters,
                     session=session,
                 )
@@ -1596,9 +1685,13 @@ class AnalysisHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        analysis_resource_type: str,
+        analysis_resource_type: AnalysisResourceType,
         obj_id_path: str | None = None,
-        analysis_id: int | None = None,
+        analysis_id: Annotated[
+            int | None, Field(description="ID of the analysis to return.")
+        ] = None,
+        *,
+        query: AnalysisGetQuery = None,
     ):
         """
         ---
@@ -1607,63 +1700,6 @@ class AnalysisHandler(BaseHandler):
           description: Retrieve an Analysis by id
           tags:
             - analysis
-          parameters:
-            - in: path
-              name: analysis_resource_type
-              required: true
-              schema:
-                type: string
-              description: |
-                What underlying data the analysis is on:
-                must be "obj" (more to be added in the future)
-            - in: path
-              name: analysis_id
-              required: false
-              schema:
-                type: integer
-              description: |
-                ID of the analysis to return.
-            - in: query
-              name: objID
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any analysis on an object with ID objID
-            - in: query
-              name: analysisServiceID
-              required: false
-              schema:
-                type: integer
-              description: |
-                ID of the analysis service used to create the analysis, used only if no analysis_id is given
-            - in: query
-              name: includeAnalysisData
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include the data associated
-                with the analysis in the response. Could be a large
-                amount of data. Only works for single analysis requests.
-                Defaults to false.
-            - in: query
-              name: summaryOnly
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to return only analyses that
-                use analysis services with `is_summary` set to true.
-                Defaults to false.
-            - in: query
-              name: includeFilename
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include the filename of the
-                data associated with the analysis in the response. Defaults to false.
           responses:
             200:
               content:
@@ -1688,11 +1724,7 @@ class AnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        include_analysis_data = self.get_query_argument(
-            "includeAnalysisData", False
-        ) in ["True", "t", "true", "1", True, 1]
-        include_filename = self.get_query_argument("includeFilename", False)
-        summary_only = self.get_query_argument("summaryOnly", False)
+        query = self.parse_query(AnalysisGetQuery)
 
         # This GET serves two routes that pass path captures positionally:
         #   /api/(obj)/<obj_id>/analysis(/<analysis_id>)  -> (obj_id_path, analysis_id)
@@ -1707,10 +1739,7 @@ class AnalysisHandler(BaseHandler):
         ):
             analysis_id = int(obj_id_path)
             obj_id_path = None
-        obj_id = obj_id_path or self.get_query_argument("objID", None)
-        analysis_service_id = self.get_query_argument(
-            "analysisServiceID", None, type=int
-        )
+        obj_id = obj_id_path or query.objID
         async with self.AsyncSession() as session:
             if obj_id is not None:
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -1750,10 +1779,10 @@ class AnalysisHandler(BaseHandler):
                     )
                     analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
-                    if include_filename:
+                    if query.includeFilename:
                         analysis_dict["filename"] = analysis._full_name
                     analysis_dict["groups"] = analysis.groups
-                    if include_analysis_data:
+                    if query.includeAnalysisData:
                         analysis_dict["data"] = analysis.data
 
                     return self.success(data=analysis_dict)
@@ -1765,9 +1794,9 @@ class AnalysisHandler(BaseHandler):
                     # eager load (a big secondary query) for the global list.
                     stmt = stmt.options(selectinload(ObjAnalysis.groups))
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
-                if analysis_service_id:
+                if query.analysisServiceID:
                     stmt = stmt.where(
-                        ObjAnalysis.analysis_service_id == analysis_service_id
+                        ObjAnalysis.analysis_service_id == query.analysisServiceID
                     )
                 result = await session.scalars(stmt)
                 analyses = result.unique().all()
@@ -1789,10 +1818,12 @@ class AnalysisHandler(BaseHandler):
                         analysis_dict["groups"] = [
                             {"id": g.id, "name": g.name} for g in a.groups
                         ]
-                        if include_filename:
+                        if query.includeFilename:
                             analysis_dict["filename"] = a._full_name
                         analysis_dict["model_lightcurve"] = None
                         analysis_dict["model_lightcurves"] = None
+                        analysis_dict["model_spectrum"] = None
+                        analysis_dict["model_spectrum_summary"] = None
                         analysis_dict["model_name"] = None
                         analysis_dict["n_detections"] = None
                         try:
@@ -1802,6 +1833,14 @@ class AnalysisHandler(BaseHandler):
                             )
                             analysis_dict["model_lightcurves"] = adata.get(
                                 "model_lightcurves"
+                            )
+                            # Best-fit template spectrum + its classification headline
+                            # for the spectrum-plot overlay and its hover.
+                            analysis_dict["model_spectrum"] = adata.get(
+                                "model_spectrum"
+                            )
+                            analysis_dict["model_spectrum_summary"] = adata.get(
+                                "model_spectrum_summary"
                             )
                             analysis_dict["model_name"] = adata.get("model_name")
                             analysis_dict["n_detections"] = adata.get("n_detections")
@@ -1844,7 +1883,7 @@ class AnalysisHandler(BaseHandler):
                         ]
 
                     if (
-                        summary_only
+                        query.summaryOnly
                         and not service_info["analysis_serivce_display_as_summary"]
                     ):
                         # the analysis service is not a summary service, so skip returning this analysis
@@ -1865,12 +1904,6 @@ class AnalysisHandler(BaseHandler):
         description: Delete an Analysis.
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -1936,14 +1969,37 @@ class AnalysisHandler(BaseHandler):
                 )
 
 
+class AnalysisProductsGetQuery(BaseModel):
+    """Query parameters for retrieving an analysis product."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    download: bool = Field(
+        default=False,
+        description="Download the results as a file",
+    )
+
+
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
         self,
-        analysis_resource_type: str,
+        analysis_resource_type: AnalysisResourceType,
         analysis_id: int,
-        product_type: str,
-        plot_number: int = 0,
+        product_type: Annotated[
+            str,
+            Field(
+                description='What type of data to retrieve: must be one of "results" or "plot"'
+            ),
+        ],
+        plot_number: Annotated[
+            int,
+            Field(
+                description='if product_type == "plot", which plot number should be returned? Default to zero (first plot).'
+            ),
+        ] = 0,
+        *,
+        query: AnalysisProductsGetQuery = None,
     ):
         """
         ---
@@ -1951,54 +2007,6 @@ class AnalysisProductsHandler(BaseHandler):
         description: Retrieve primary data associated with an Analysis.
         tags:
         - analysis
-        parameters:
-        - in: path
-          name: analysis_resource_type
-          required: true
-          schema:
-            type: string
-          description: |
-            What underlying data the analysis is on:
-            must be "obj" (more to be added in the future)
-        - in: path
-          name: analysis_id
-          required: true
-          schema:
-            type: integer
-        - in: path
-          name: product_type
-          required: true
-          schema:
-            type: string
-          description: |
-            What type of data to retrieve:
-            must be one of "results" or "plot"
-        - in: path
-          name: plot_number
-          required: false
-          schema:
-            type: integer
-          description: |
-            if product_type == "plot", which
-            plot number should be returned?
-            Default to zero (first plot).
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  download:
-                    type: bool
-                    description: |
-                        Download the results as a file
-                  plot_kwargs:
-                    type: object
-                    additionalProperties:
-                      type: object
-                    description: |
-                        Extra parameters to pass to the plotting functions
-                        if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
             description: Requested analysis file
@@ -2011,6 +2019,7 @@ class AnalysisProductsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(AnalysisProductsGetQuery)
 
         async with self.AsyncSession() as session:
             if analysis_resource_type.lower() == "obj":
@@ -2036,8 +2045,7 @@ class AnalysisProductsHandler(BaseHandler):
                         result = analysis.serialize_results_data()
 
                         if result:
-                            download = self.get_query_argument("download", False)
-                            if download:
+                            if query.download:
                                 filename = f"analysis_{analysis.obj_id}.json"
                                 buf = io.BytesIO()
                                 buf.write(json.dumps(result).encode("utf-8"))
@@ -2097,7 +2105,12 @@ class AnalysisProductsHandler(BaseHandler):
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
     async def post(
-        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+        self,
+        analysis_resource_type: AnalysisResourceType,
+        resource_id: ResourceId,
+        analysis_service_id: AnalysisServiceId,
+        *,
+        body: AnalysisUploadBody = None,
     ):
         """
         ---
@@ -2105,55 +2118,6 @@ class AnalysisUploadOnlyHandler(BaseHandler):
         description: Upload an upload_only analysis result
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis is on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for an object ID.
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: string
-            description: the analysis service id to be used
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: object
-                    description: Results data of this analysis
-                  show_parameters:
-                    type: boolean
-                    description: Whether to render the parameters of this analysis
-                  show_plots:
-                    type: boolean
-                    description: Whether to render the plots of this analysis
-                  show_corner:
-                    type: boolean
-                    description: Whether to render the corner plots of this analysis
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view analysis results. Defaults to all of requesting user's
-                      groups.
         responses:
           200:
             content:
@@ -2170,14 +2134,11 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
+        body = self.parse_body(AnalysisUploadBody)
+
         # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ["obj"]:
             return self.error("Invalid analysis resource type", status=403)
-
-        try:
-            data = self.get_json()
-        except Exception as e:
-            return self.error(f"Error parsing JSON: {e}")
 
         try:
             analysis_service_id = int(analysis_service_id)
@@ -2202,7 +2163,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     status=403,
                 )
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
             if not group_ids:
                 group_ids = await accessible_group_ids_async(self.current_user, session)
 
@@ -2217,7 +2178,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
 
             author_id_val = self.associated_user_object.id
             author = await session.get(User, author_id_val)
-            status_message = data.get("message", "")
+            status_message = body.message
 
             if analysis_resource_type.lower() == "obj":
                 obj_id = resource_id
@@ -2256,9 +2217,9 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     author=author,
                     groups=groups,
                     analysis_service=analysis_service,
-                    show_parameters=data.get("show_parameters", True),
-                    show_plots=data.get("show_plots", True),
-                    show_corner=data.get("show_corner", True),
+                    show_parameters=body.show_parameters,
+                    show_plots=body.show_plots,
+                    show_corner=body.show_corner,
                     analysis_parameters={},
                     status="completed",
                     status_message=status_message,
@@ -2279,7 +2240,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Unexpected error creating analysis: {str(e)}")
 
-            results = data.get("analysis", {})
+            results = body.analysis
             if len(results.keys()) > 0:
                 analysis._data = results
                 analysis.save_data()
@@ -2305,15 +2266,6 @@ class DefaultAnalysisHandler(BaseHandler):
           description: Retrieve a default analysis
           tags:
             - default analyses
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              description: Analysis service ID
-            - in: path
-              name: default_analysis_id
-              required: true
-              description: Default analysis ID
           responses:
             200:
               content:
@@ -2328,11 +2280,6 @@ class DefaultAnalysisHandler(BaseHandler):
           description: Retrieve all default analyses
           tags:
             - default analyses
-          parameters:
-            - in: path
-              name: analysis_service_id
-              required: false
-              description: Analysis service ID, if not provided, return all default analyses for all analysis services
           responses:
             200:
               content:
@@ -2406,49 +2353,18 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    async def post(self, analysis_service_id: int, *ignored_args):
+    async def post(
+        self,
+        analysis_service_id: int,
+        *ignored_args,
+        body: DefaultAnalysisPostBody = None,
+    ):
         """
         ---
         summary: Create a new default analysis
         description: Create a new default analysis
         tags:
           - default analyses
-        parameters:
-            - in: path
-              name: analysis_service_id
-              required: true
-              description: Analysis service ID
-            - in: path
-              name: default_analysis_id
-              required: false
-              description: Default analysis ID
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            default_analysis_parameters:
-                                type: object
-                                description: Dictionary of parameters to be passed thru to the analysis
-                                additionalProperties:
-                                    type: string
-                            source_filter:
-                                type: object
-                                description: Dictionary of filters to apply to the input data
-                                additionalProperties:
-                                    type: string
-                            daily_limit:
-                                type: integer
-                                description: Maximum number of analyses to run per day
-                            group_ids:
-                                type: array
-                                items:
-                                    type: integer
-                                description: |
-                                    List of group IDs corresponding to which groups should be
-                                    able to view analysis results. Defaults to all of requesting user's
-                                    groups.
         responses:
             200:
                 content:
@@ -2466,7 +2382,7 @@ class DefaultAnalysisHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultAnalysisPostBody)
         try:
             analysis_service_id = int(analysis_service_id)
         except (TypeError, ValueError):
@@ -2490,11 +2406,9 @@ class DefaultAnalysisHandler(BaseHandler):
                 # per classification, or the same trigger with different
                 # parameters. Each matching default runs independently.
 
-                default_analysis_parameters = data.get(
-                    "default_analysis_parameters", {}
-                )
-                source_filter = data.get("source_filter", {})
-                daily_limit = data.get("daily_limit", 10)
+                default_analysis_parameters = body.default_analysis_parameters
+                source_filter = body.source_filter
+                daily_limit = body.daily_limit
                 if not isinstance(daily_limit, int):
                     try:
                         daily_limit = int(daily_limit)
@@ -2552,7 +2466,7 @@ class DefaultAnalysisHandler(BaseHandler):
                         status=400,
                     )
 
-                group_ids = data.pop("group_ids", None)
+                group_ids = body.group_ids
                 if not group_ids:
                     group_ids = await accessible_group_ids_async(
                         self.current_user, session
@@ -2607,9 +2521,9 @@ class DefaultAnalysisHandler(BaseHandler):
                     default_analysis_parameters=default_analysis_parameters,
                     source_filter=source_filter,
                     stats=stats,
-                    show_parameters=data.get("show_parameters", True),
-                    show_plots=data.get("show_plots", True),
-                    show_corner=data.get("show_corner", True),
+                    show_parameters=body.show_parameters,
+                    show_plots=body.show_plots,
+                    show_corner=body.show_corner,
                     author=author,
                     groups=groups,
                 )
@@ -2623,7 +2537,13 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    async def patch(self, analysis_service_id: int, default_analysis_id: int):
+    async def patch(
+        self,
+        analysis_service_id: int,
+        default_analysis_id: int,
+        *,
+        body: DefaultAnalysisPatchBody = None,
+    ):
         """
         ---
         summary: Update a default analysis
@@ -2633,33 +2553,6 @@ class DefaultAnalysisHandler(BaseHandler):
             show_corner may be supplied; omitted fields are left unchanged.
         tags:
           - default analyses
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: default_analysis_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            default_analysis_parameters:
-                                type: object
-                            source_filter:
-                                type: object
-                            daily_limit:
-                                type: integer
-                            group_ids:
-                                type: array
-                                items:
-                                    type: integer
         responses:
           200:
             content:
@@ -2670,6 +2563,7 @@ class DefaultAnalysisHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(DefaultAnalysisPatchBody)
         if default_analysis_id is None:
             return self.error("Missing required parameter: default_analysis_id")
         try:
@@ -2681,7 +2575,6 @@ class DefaultAnalysisHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error(f"Invalid default_analysis_id: {default_analysis_id}")
 
-        data = self.get_json()
         async with self.AsyncSession() as session:
             try:
                 # Eager-load groups: we may reassign them below, and a lazy diff-load
@@ -2700,8 +2593,8 @@ class DefaultAnalysisHandler(BaseHandler):
                         status=400,
                     )
 
-                if "default_analysis_parameters" in data:
-                    params = data["default_analysis_parameters"]
+                if "default_analysis_parameters" in body.model_fields_set:
+                    params = body.default_analysis_parameters
                     if not isinstance(params, dict):
                         try:
                             params = json.loads(params)
@@ -2724,8 +2617,8 @@ class DefaultAnalysisHandler(BaseHandler):
                         )
                     default_analysis.default_analysis_parameters = params
 
-                if "source_filter" in data:
-                    source_filter = data["source_filter"]
+                if "source_filter" in body.model_fields_set:
+                    source_filter = body.source_filter
                     if not isinstance(source_filter, dict):
                         try:
                             source_filter = json.loads(source_filter)
@@ -2761,8 +2654,8 @@ class DefaultAnalysisHandler(BaseHandler):
                             )
                     default_analysis.source_filter = source_filter
 
-                if "daily_limit" in data:
-                    daily_limit = data["daily_limit"]
+                if "daily_limit" in body.model_fields_set:
+                    daily_limit = body.daily_limit
                     if not isinstance(daily_limit, int):
                         try:
                             daily_limit = int(daily_limit)
@@ -2781,10 +2674,10 @@ class DefaultAnalysisHandler(BaseHandler):
                     }
 
                 for flag in ("show_parameters", "show_plots", "show_corner"):
-                    if flag in data:
-                        setattr(default_analysis, flag, bool(data[flag]))
+                    if flag in body.model_fields_set:
+                        setattr(default_analysis, flag, bool(getattr(body, flag)))
 
-                group_ids = data.get("group_ids", None)
+                group_ids = body.group_ids
                 if group_ids is not None:
                     groups_result = await session.scalars(
                         Group.select(self.current_user).where(Group.id.in_(group_ids))
@@ -2811,19 +2704,6 @@ class DefaultAnalysisHandler(BaseHandler):
         description: Delete a default analysis
         tags:
             - default analyses
-        parameters:
-          - in: path
-            name: analysis_service_id
-            required: true
-            schema:
-              type: integer
-            description: Analysis service ID
-          - in: path
-            name: default_analysis_id
-            required: true
-            schema:
-              type: integer
-            description: Default analysis ID
         responses:
           200:
             content:

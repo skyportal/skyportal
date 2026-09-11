@@ -16,8 +16,8 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ..email_utils import send_email
 from ..utils import http
+from ..utils.email import send_email
 from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
@@ -319,38 +319,48 @@ class MMAAPI(FollowUpAPI):
 
         if plan is None:
             # check payload
+            # The request form offers each scheduler only the settings it
+            # reads, so requiring the other's would reject a well-formed
+            # request. Absent, the scheduler is gwemopt, as the form defaults.
+            scheduler = request.payload.get("scheduler") or "gwemopt"
             required_parameters = {
                 "start_date",
                 "end_date",
-                "schedule_type",
-                "schedule_strategy",
-                "filter_strategy",
                 "exposure_time",
                 "filters",
                 "maximum_airmass",
                 "integrated_probability",
             }
+            if scheduler == "m4opt":
+                required_parameters.add("visits")
+            else:
+                required_parameters |= {
+                    "schedule_type",
+                    "schedule_strategy",
+                    "filter_strategy",
+                }
 
             if not required_parameters.issubset(set(request.payload.keys())):
                 raise ValueError("Missing required planning parameter")
 
-            if (
-                request.payload["filter_strategy"] == "integrated"
-                and "minimum_time_difference" not in request.payload
-            ):
-                raise ValueError(
-                    "minimum_time_difference must be defined for integrated scheduling"
-                )
+            if scheduler != "m4opt":
+                if (
+                    request.payload["filter_strategy"] == "integrated"
+                    and "minimum_time_difference" not in request.payload
+                ):
+                    raise ValueError(
+                        "minimum_time_difference must be defined for integrated scheduling"
+                    )
 
-            if request.payload["schedule_type"] not in [
-                "greedy",
-                "greedy_slew",
-                "sear",
-                "airmass_weighted",
-            ]:
-                raise ValueError(
-                    "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
-                )
+                if request.payload["schedule_type"] not in [
+                    "greedy",
+                    "greedy_slew",
+                    "sear",
+                    "airmass_weighted",
+                ]:
+                    raise ValueError(
+                        "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
+                    )
 
             if (
                 request.payload["integrated_probability"] < 0
@@ -358,7 +368,10 @@ class MMAAPI(FollowUpAPI):
             ):
                 raise ValueError("integrated_probability must be between 0 and 100")
 
-            if request.payload["filter_strategy"] not in ["block", "integrated"]:
+            if scheduler != "m4opt" and request.payload["filter_strategy"] not in [
+                "block",
+                "integrated",
+            ]:
                 raise ValueError("filter_strategy must be either block or integrated")
 
             start_time = Time(request.payload["start_date"], format="iso", scale="utc")
@@ -502,16 +515,19 @@ class MMAAPI(FollowUpAPI):
                     "default": end_date,
                 },
                 "filter_strategy": {
+                    "title": "Filter strategy",
                     "type": "string",
                     "enum": ["block", "integrated"],
                     "default": "block",
                 },
                 "schedule_type": {
+                    "title": "Schedule type",
                     "type": "string",
                     "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
                     "default": "greedy",
                 },
                 "schedule_strategy": {
+                    "title": "Schedule strategy",
                     "type": "string",
                     "enum": ["tiling", "galaxy"],
                     "default": "tiling",
@@ -730,6 +746,69 @@ class MMAAPI(FollowUpAPI):
                 "title": "Use fields with references only?",
                 "type": "boolean",
                 "default": True,
+            }
+
+        # Only offered where M4OPT is configured and knows this telescope;
+        # elsewhere the choice would be one that cannot succeed.
+        from ..utils.m4opt_plan import m4opt_enabled, mission_for
+
+        if m4opt_enabled() and mission_for(instrument.name):
+            form_json_schema["properties"]["scheduler"] = {
+                "title": "Scheduler",
+                "type": "string",
+                "enum": ["gwemopt", "m4opt"],
+                "default": "gwemopt",
+                "description": (
+                    "gwemopt tiles greedily; m4opt solves for the schedule and "
+                    "takes longer. The settings below change with the choice."
+                ),
+            }
+            # The two schedulers take different settings, so show only the ones
+            # that apply rather than leaving the others to be silently ignored.
+            gwemopt_only = {
+                key: form_json_schema["properties"].pop(key)
+                for key in ("filter_strategy", "schedule_type", "schedule_strategy")
+            }
+            form_json_schema["required"] = [
+                key for key in form_json_schema["required"] if key not in gwemopt_only
+            ]
+            form_json_schema["dependencies"]["scheduler"] = {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "scheduler": {"enum": ["gwemopt"]},
+                            **gwemopt_only,
+                        },
+                        "required": list(gwemopt_only),
+                    },
+                    {
+                        "properties": {
+                            "scheduler": {"enum": ["m4opt"]},
+                            "visits": {
+                                "title": "Visits per field",
+                                "type": "integer",
+                                "default": 2,
+                                "minimum": 1,
+                                "description": (
+                                    "Visits cycle through the filters above, so "
+                                    "two visits with g,r observes each field in "
+                                    "g then r."
+                                ),
+                            },
+                            "max_fields": {
+                                "title": "Maximum number of fields to consider",
+                                "type": "integer",
+                                "default": 50,
+                                "minimum": 1,
+                                "description": (
+                                    "Raising this grows the problem roughly "
+                                    "quadratically; raise the time limit with it."
+                                ),
+                            },
+                        },
+                        "required": ["visits"],
+                    },
+                ]
             }
         return form_json_schema
 

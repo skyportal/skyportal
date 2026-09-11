@@ -4,7 +4,7 @@
 // file" errors, and without pulling in @types packages.
 //
 // Note: several of these DO have community types available (@types/papaparse,
-// @types/d3, @types/numeral, @types/react-grid-layout, @types/react-big-calendar,
+// @types/d3, @types/numeral, @types/react-big-calendar,
 // @types/dygraphs) and could be tightened to real types later.
 declare module "react-plotly.js/factory";
 declare module "plotly.js-basic-dist";
@@ -15,7 +15,6 @@ declare module "d3";
 declare module "aladin-lite";
 declare module "redux-state-sync";
 declare module "react-json-dashboard";
-declare module "react-grid-layout";
 declare module "react-big-calendar";
 declare module "numeral";
 declare module "dygraphs";

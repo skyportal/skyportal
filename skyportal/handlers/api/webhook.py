@@ -1,3 +1,6 @@
+from typing import Annotated, Any
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -5,7 +8,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import ObjAnalysis
+from ...models import Annotation, ObjAnalysis
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -17,39 +20,46 @@ log = make_log("app/webhook")
 _, cfg = load_env()
 
 
+class AnalysisWebhookPostBody(BaseModel):
+    """Result payload posted back by an external analysis service.
+
+    External services may include additional keys, so extras are allowed
+    rather than forbidden.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    status: str | None = Field(
+        default=None, description="Status of the analysis run, e.g. 'success'."
+    )
+    message: str | None = Field(
+        default=None,
+        description="Status/return message from the analysis service.",
+    )
+    analysis: dict[str, Any] | None = Field(
+        default=None, description="Results data of this analysis."
+    )
+
+
 class AnalysisWebhookHandler(BaseHandler):
-    async def post(self, analysis_resource_type: str, token: str):
+    async def post(
+        self,
+        analysis_resource_type: Annotated[
+            str,
+            Field(
+                description='What underlying data the analysis was performed on: must be "obj" (more to be added in the future)'
+            ),
+        ],
+        token: Annotated[str, Field(description="The unique token for this analysis.")],
+        *,
+        body: AnalysisWebhookPostBody = None,
+    ):
         """
         ---
         summary: Return the results of an analysis
         description: Return the results of an analysis
         tags:
           - analysis
-        parameters:
-          - in: path
-            name: analysis_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the analysis was performed on:
-               must be "obj" (more to be added in the future)
-          - in: path
-            name: token
-            required: true
-            schema:
-              type: string
-            description: |
-               The unique token for this analysis.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: object
-                    description: Results data of this analysis
         responses:
           200:
             content:
@@ -60,6 +70,7 @@ class AnalysisWebhookHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AnalysisWebhookPostBody)
         log(
             f"Received webhook request for Analysis type={analysis_resource_type} token={token}"
         )
@@ -101,13 +112,11 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(f"Trouble accessing Analysis with token {token} {e}.")
                 return self.error("Invalid token", status=403)
 
-            data = self.get_json()
-
-            if data.get("status", "error") != "success":
+            if (body.status or "error") != "success":
                 analysis.status = "failure"
-            analysis.status_message = data.get("message", "")
+            analysis.status_message = body.message or ""
 
-            results = data.get("analysis", {})
+            results = body.analysis or {}
             if len(results.keys()) > 0:
                 analysis._data = results
                 analysis.save_data()
@@ -118,6 +127,11 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(
                     f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
                 )
+
+            # A service may return annotations (e.g. a period for phase-folding on
+            # the source page). Upsert one per origin so a re-run refreshes rather
+            # than piling up; default the origin to the service name.
+            await _upsert_analysis_annotations(session, analysis, results)
 
             await session.commit()
 
@@ -168,6 +182,40 @@ class AnalysisWebhookHandler(BaseHandler):
         return self.success(data={"status": "success"})
 
 
+async def _upsert_analysis_annotations(session, analysis, results):
+    """Create or refresh the annotations an analysis service returned.
+
+    Each entry is ``{"data": {...}, "origin": <optional>}``; the origin defaults
+    to the service name and one annotation is kept per origin, so a re-run
+    refreshes in place and the source page reads the latest.
+    """
+    import sqlalchemy as sa
+
+    annotations = results.get("annotations") if isinstance(results, dict) else None
+    for ann in annotations or []:
+        if not isinstance(ann, dict) or not isinstance(ann.get("data"), dict):
+            continue
+        origin = ann.get("origin") or analysis.analysis_service.name
+        existing = await session.scalar(
+            sa.select(Annotation).where(
+                Annotation.obj_id == analysis.obj_id,
+                Annotation.origin == origin,
+            )
+        )
+        if existing is not None:
+            existing.data = ann["data"]
+        else:
+            session.add(
+                Annotation(
+                    obj_id=analysis.obj_id,
+                    origin=origin,
+                    data=ann["data"],
+                    author_id=analysis.author_id,
+                    groups=list(analysis.groups),
+                )
+            )
+
+
 def sa_select_analysis_by_token(token):
     """Build the eager-loaded SELECT for the analysis row keyed by token."""
     import sqlalchemy as sa
@@ -179,5 +227,6 @@ def sa_select_analysis_by_token(token):
             selectinload(ObjAnalysis.analysis_service),
             selectinload(ObjAnalysis.obj),
             selectinload(ObjAnalysis.author),
+            selectinload(ObjAnalysis.groups),
         )
     )

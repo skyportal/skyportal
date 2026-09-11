@@ -60,6 +60,8 @@ const NewDefaultObservationPlan = ({
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState<any[]>(
     [],
   );
+  const [selectedExcludedGcnNoticeTypes, setSelectedExcludedGcnNoticeTypes] =
+    useState<any[]>([]);
   const [selectedGcnTags, setSelectedGcnTags] = useState<any[]>([]);
   const [selectedGcnProperties, setSelectedGcnProperties] = useState<any[]>([]);
   const [selectedLocalizationTags, setSelectedLocalizationTags] = useState<
@@ -131,6 +133,7 @@ const NewDefaultObservationPlan = ({
     delete formData.auto_send;
     const filters = {
       notice_types: selectedGcnNoticeTypes,
+      excluded_notice_types: selectedExcludedGcnNoticeTypes,
       gcn_tags: selectedGcnTags,
       localization_tags: selectedLocalizationTags,
       gcn_properties: selectedGcnProperties,
@@ -220,6 +223,12 @@ const NewDefaultObservationPlan = ({
         <GcnNoticeTypesSelect
           selectedGcnNoticeTypes={selectedGcnNoticeTypes}
           setSelectedGcnNoticeTypes={setSelectedGcnNoticeTypes}
+        />
+        <GcnNoticeTypesSelect
+          selectedGcnNoticeTypes={selectedExcludedGcnNoticeTypes}
+          setSelectedGcnNoticeTypes={setSelectedExcludedGcnNoticeTypes}
+          label="Excluded Gcn Notice Types"
+          id="selectExcludedGcnNoticeTypes"
         />
         <GcnTagsSelect
           selectedGcnTags={selectedGcnTags}

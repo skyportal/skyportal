@@ -1,16 +1,21 @@
-import React from "react";
+import { useCallback, useState } from "react";
 
 import Badge from "@mui/material/Badge";
-import MUINotificationsIcon from "@mui/icons-material/NotificationsOutlined";
+import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
-import Popover from "@mui/material/Popover";
-import { makeStyles } from "tss-react/mui";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import Divider from "@mui/material/Divider";
-import ReactMarkdown from "react-markdown";
-import Button from "./Button";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import Tooltip from "@mui/material/Tooltip";
+import { alpha, Theme } from "@mui/material/styles";
 
+import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
+import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweepOutlined";
+
+import HeaderPanel from "./HeaderPanel";
+import NotificationList from "./NotificationList";
+import AlertList, { Severity, useAlerts } from "./AlertList";
 import {
   useGetNotificationsQuery,
   useUpdateNotificationMutation,
@@ -19,198 +24,168 @@ import {
   useDeleteAllNotificationsMutation,
 } from "../ducks/userNotifications";
 
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: theme.palette.background.paper,
+const TABS_SX = {
+  minHeight: 0,
+  "& .MuiTab-root": {
+    minHeight: 0,
+    minWidth: 0,
+    gap: 0.75,
+    px: 2,
+    py: 1.5,
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    textTransform: "none",
   },
-  readMessage: {
-    fontWeight: "normal",
-  },
-  unreadMessage: {
-    fontWeight: "bold",
-  },
-  centered: {
-    display: "flex",
-    justifyContent: "center",
-  },
-}));
+};
+
+const countChip = (count: number, color: "primary" | Severity) =>
+  count > 0 ? (
+    <Chip
+      label={count}
+      size="small"
+      sx={{
+        height: "1.125rem",
+        fontSize: "0.68rem",
+        fontWeight: 700,
+        bgcolor: (theme: Theme) => alpha(theme.palette[color].main, 0.18),
+        color: `${color}.main`,
+        "& .MuiChip-label": { px: 0.75 },
+      }}
+    />
+  ) : undefined;
+
+const DeleteAllButton = ({
+  onClick,
+  testId,
+}: {
+  onClick: () => void;
+  testId: string;
+}) => (
+  <Tooltip title="Delete all">
+    <IconButton size="small" onClick={onClick} data-testid={testId}>
+      <DeleteSweepIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
+);
 
 const Notifications = () => {
-  const { classes } = useStyles();
-  const { data: notifications } = useGetNotificationsQuery();
+  const { data: notifications = [] } = useGetNotificationsQuery();
   const [updateNotification] = useUpdateNotificationMutation();
   const [updateAllNotifications] = useUpdateAllNotificationsMutation();
-  const [deleteNotificationMutation] = useDeleteNotificationMutation();
-  const [deleteAllNotificationsMutation] = useDeleteAllNotificationsMutation();
+  const [deleteNotification] = useDeleteNotificationMutation();
+  const [deleteAllNotifications] = useDeleteAllNotificationsMutation();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [tab, setTab] = useState<"notifications" | "alerts">("notifications");
 
-  const unreadCount = notifications
-    ? notifications.filter((n) => !n.viewed).length
-    : 0;
-
-  // Popover logic
-  const [anchorEl, setAnchorEl] = React.useState<any>(null);
-  const handleClickOpen = (event: any) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
   const open = Boolean(anchorEl);
+  const showingAlerts = tab === "alerts";
+  const alerts = useAlerts(open && showingAlerts);
 
-  const deleteAllNotifications = () => {
-    deleteAllNotificationsMutation();
-    handleClose();
-  };
+  const unreadCount = notifications.filter((n) => !n.viewed).length;
+  const hasUnread = unreadCount > 0;
 
-  const markAllRead = () => {
-    updateAllNotifications({ viewed: true });
-  };
-
-  const markAllUnread = () => {
-    updateAllNotifications({ viewed: false });
-  };
-
-  const markRead = (notificationID: number) => {
-    updateNotification({
-      notificationID,
-      data: { viewed: true },
-    });
-  };
-
-  const markUnread = (notificationID: number) => {
-    updateNotification({
-      notificationID,
-      data: { viewed: false },
-    });
-  };
-
-  const deleteNotification = (notificationID: number) => {
-    deleteNotificationMutation(notificationID);
+  const close = useCallback(() => setAnchorEl(null), []);
+  const setViewed = (notificationID: number, viewed: boolean) =>
+    updateNotification({ notificationID, data: { viewed } });
+  const openNotification = (notificationID: number, url?: string | null) => {
+    setViewed(notificationID, true);
+    if (url) close();
   };
 
   return (
     <>
-      <IconButton
-        onClick={handleClickOpen}
-        data-testid="notificationsButton"
-        size="large"
-        style={{ padding: 0, margin: 0 }}
-      >
-        <Badge
-          badgeContent={unreadCount}
-          overlap="circular"
-          color={unreadCount > 0 ? "secondary" : "primary"}
-          data-testid="notificationsBadge"
+      <Tooltip title={open ? "" : "Notifications"}>
+        <IconButton
+          onClick={(event) => {
+            setTab("notifications");
+            setAnchorEl(open ? null : event.currentTarget);
+          }}
+          data-testid="notificationsButton"
+          size="large"
+          sx={{ p: 0, m: 0 }}
         >
-          <MUINotificationsIcon fontSize="large" color="primary" />
-        </Badge>
-      </IconButton>
-      <Popover
-        open={open}
+          <Badge
+            badgeContent={unreadCount + alerts.unseenCount}
+            overlap="circular"
+            color="error"
+            data-testid="notificationsBadge"
+          >
+            <NotificationsIcon fontSize="large" color="primary" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      <HeaderPanel
         anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "center",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "center",
-        }}
-        disableScrollLock
-      >
-        <div className={classes.root}>
-          <List className={classes.root}>
-            {notifications &&
-              notifications.map((notification) => (
-                <div key={notification.id}>
-                  <ListItem
-                    {...({ button: !!notification.url } as any)}
-                    component={notification.url ? "a" : "li"}
-                    href={notification.url ? notification.url : "#"}
-                    className={
-                      notification.viewed
-                        ? classes.readMessage
-                        : classes.unreadMessage
-                    }
-                    onClick={() => {
-                      markRead(notification.id);
-                    }}
-                    data-testid={`notification${notification.id}`}
+        onClose={close}
+        header={
+          <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={TABS_SX}>
+            <Tab
+              value="notifications"
+              label="Notifications"
+              data-testid="notificationsTab"
+              iconPosition="end"
+              icon={countChip(unreadCount, "primary")}
+            />
+            <Tab
+              value="alerts"
+              label="Alerts"
+              data-testid="alertsTab"
+              iconPosition="end"
+              icon={countChip(alerts.unseenCount, alerts.worstSeverity)}
+            />
+          </Tabs>
+        }
+        actions={
+          showingAlerts
+            ? alerts.count > 0 && (
+                <DeleteAllButton
+                  onClick={alerts.deleteAll}
+                  testId="deleteAllAlertsButton"
+                />
+              )
+            : notifications.length > 0 && (
+                <>
+                  <Tooltip
+                    title={hasUnread ? "Mark all read" : "Mark all unread"}
                   >
-                    <ReactMarkdown>{notification.text}</ReactMarkdown>
-                  </ListItem>
-                  <ListItem className={classes.centered}>
-                    {!notification.viewed && (
-                      <Button
-                        data-testid={`markReadButton${notification.id}`}
-                        size="small"
-                        onClick={() => {
-                          markRead(notification.id);
-                        }}
-                      >
-                        Mark read
-                      </Button>
-                    )}
-                    {notification.viewed && (
-                      <Button
-                        data-testid={`markUnreadButton${notification.id}`}
-                        size="small"
-                        onClick={() => {
-                          markUnread(notification.id);
-                        }}
-                      >
-                        Mark unread
-                      </Button>
-                    )}
-                    |
-                    <Button
-                      data-testid={`deleteNotificationButton${notification.id}`}
+                    <IconButton
                       size="small"
-                      onClick={() => {
-                        deleteNotification(notification.id);
-                      }}
+                      onClick={() =>
+                        updateAllNotifications({ viewed: hasUnread })
+                      }
+                      data-testid={
+                        hasUnread ? "markAllReadButton" : "markAllUnreadButton"
+                      }
                     >
-                      Delete
-                    </Button>
-                  </ListItem>
-                  <Divider />
-                </div>
-              ))}
-            {notifications && notifications.length > 0 && (
-              <ListItem className={classes.centered}>
-                {unreadCount > 0 && (
-                  <Button onClick={markAllRead} data-testid="markAllReadButton">
-                    Mark all read
-                  </Button>
-                )}
-                {unreadCount === 0 && (
-                  <Button
-                    onClick={markAllUnread}
-                    data-testid="markAllUnreadButton"
-                  >
-                    Mark all unread
-                  </Button>
-                )}
-                |
-                <Button
-                  onClick={deleteAllNotifications}
-                  data-testid="deleteAllNotificationsButton"
-                >
-                  Delete all
-                </Button>
-              </ListItem>
-            )}
-            {(!notifications || notifications.length === 0) && (
-              <ListItem className={classes.centered}>
-                <em>No notifications</em>
-              </ListItem>
-            )}
-          </List>
-        </div>
-      </Popover>
+                      {hasUnread ? (
+                        <DoneAllIcon fontSize="small" />
+                      ) : (
+                        <RemoveDoneIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  <DeleteAllButton
+                    onClick={() => {
+                      deleteAllNotifications();
+                      close();
+                    }}
+                    testId="deleteAllNotificationsButton"
+                  />
+                </>
+              )
+        }
+      >
+        {showingAlerts ? (
+          <AlertList groups={alerts.groups} onDelete={alerts.deleteGroup} />
+        ) : (
+          <NotificationList
+            notifications={notifications}
+            onOpen={openNotification}
+            onSetViewed={setViewed}
+            onDelete={deleteNotification}
+          />
+        )}
+      </HeaderPanel>
     </>
   );
 };

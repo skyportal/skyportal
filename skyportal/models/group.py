@@ -327,6 +327,15 @@ class Group(Base):
         doc="Boolean indicating whether requests to join the group are "
         "automatically accepted.",
     )
+    discoverable_data = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="true",
+        default=True,
+        doc="Whether non-members may be told that the group's photometry and "
+        "spectra exist, and so ask for them. Data held only by groups with "
+        "this off is never advertised.",
+    )
     streams = relationship(
         "Stream",
         secondary="group_streams",
@@ -486,6 +495,12 @@ GroupUser.can_save = sa.Column(
     nullable=False,
     server_default="true",
     doc="Boolean flag indicating whether the user should be able to save sources to the group",
+)
+GroupUser.can_share_photometry = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    server_default="false",
+    doc="Boolean flag indicating whether the user should be able to share photometry points to other groups even if the user is not the owner of the photometry data",
 )
 GroupUser.update = CustomUserAccessControl(groupuser_update_access_logic)
 GroupUser.delete = (

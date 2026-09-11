@@ -39,6 +39,10 @@ const SourceList = () => {
       ...filterData,
       pageNumber,
       numPerPage,
+      // Reuse the backend's cached obj_id list for this query instead of
+      // re-running the full ordering aggregate on every page. Only valid past
+      // page 1 — the duck drops it otherwise, matching the handler's contract.
+      queryID: pageNumber > 1 ? (sourcesState?.queryID ?? null) : null,
     };
     if (sortData && Object.keys(sortData).length > 0) {
       data.sortBy = sortData.name;
@@ -70,6 +74,10 @@ const SourceList = () => {
       dispatch(showNotification("No sources to download", "warning"));
     } else {
       setDownloadProgressTotal(sourcesState.totalMatches);
+      // Carried from page 1 onwards so each subsequent page reads the backend's
+      // cached obj_id list. Without it every page of the download re-runs the
+      // full ordering aggregate, which dominates the download for large results.
+      let downloadQueryID: string | null = null;
       for (
         let i = 1;
         i <= Math.ceil(sourcesState.totalMatches / sourcesState.numPerPage);
@@ -79,10 +87,12 @@ const SourceList = () => {
           ...queryParams,
           pageNumber: i,
           numPerPage: sourcesState.numPerPage,
+          queryID: i > 1 ? downloadQueryID : null,
         };
         /* eslint-disable no-await-in-loop */
         try {
           const result: any = await fetchSourcesTrigger(data).unwrap();
+          downloadQueryID = result?.queryID ?? downloadQueryID;
           sourceAll.push(...result.sources);
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(sourcesState.totalMatches);

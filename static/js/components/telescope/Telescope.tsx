@@ -9,6 +9,7 @@ import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetProfileQuery } from "../../ducks/profile";
 import AllocationTable from "../allocation/AllocationTable";
 import InstrumentTable from "../instrument/InstrumentTable";
 import SkyCam from "../SkyCam";
@@ -27,6 +28,11 @@ const Telescope = ({ route }: TelescopeProps) => {
   const dispatch = useAppDispatch();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
+  const { data: currentUser } = useGetProfileQuery();
+  const canManageAllocations =
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations") ||
+    false;
   const { data: telescope, isError: telescopeError } = useGetTelescopeQuery(
     route.id,
   );
@@ -83,6 +89,7 @@ const Telescope = ({ route }: TelescopeProps) => {
             instruments={instrumentList}
             allocations={telescopeAny["allocations"]}
             groups={groups}
+            managePermission={canManageAllocations}
             telescopeInfo={false}
           />
         ) : (

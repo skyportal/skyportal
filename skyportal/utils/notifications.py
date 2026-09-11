@@ -10,12 +10,12 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.app_utils import get_app_base_url
-from skyportal.email_utils import send_email
 from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
-from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
+from .app import get_app_base_url
+from .calculations import deg2dms, deg2hms, radec2lb
+from .email import send_email
 from .naive_datetime import utcnow_naive
 
 env, cfg = load_env()
@@ -264,6 +264,31 @@ def gcn_email_notification(target, data=None, new_tag=False):
             tags_text if tags_text is not None else "",
         ]
     )
+
+
+def mention_email_notification(target, data=None):
+    if data is None:
+        raise ValueError("No data provided for mention notification")
+
+    author_username = data["author_username"]
+    comment_text = data["comment_text"]
+    source_name = data["source_name"]
+
+    subject = (
+        f"{cfg['app.title']} - {author_username} mentioned you"
+        f" in a comment on this source {source_name}"
+    )
+    body = (
+        "<!DOCTYPE html><html><head>"
+        "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
+        "</head><body>"
+        f"<p>{author_username} mentioned you in this comment: "
+        f"<blockquote style='border-left:4px solid #ccc;margin:0;padding:0 1em;color:#666'>"
+        f"{comment_text}</blockquote></p>"
+        f"<p>Link to the source: <a href='{app_url}{target['url']}'>{source_name}</a></p>"
+        "</body></html>"
+    )
+    return subject, body
 
 
 def source_notification_content(target, target_type="classification"):

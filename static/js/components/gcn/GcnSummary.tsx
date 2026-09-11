@@ -185,8 +185,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
 
   const gcnSummaryAcknowledgements =
     (useGetConfigQuery().data?.["gcnSummaryAcknowledgements"] as
-      | string[]
-      | undefined) ?? [];
+      string[] | undefined) ?? [];
 
   const acknowledgmentOptions = selectedAcknowledgement
     ? ["Clear selection", ...gcnSummaryAcknowledgements]

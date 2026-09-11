@@ -18,6 +18,7 @@ const initialForm = (group: any) => ({
   description: group.description ?? "",
   private: group.private ?? false,
   auto_accept_requests: group.auto_accept_requests ?? false,
+  discoverable_data: group.discoverable_data ?? true,
 });
 
 const GroupSettingsForm = ({ group }: { group: any }) => {
@@ -42,6 +43,7 @@ const GroupSettingsForm = ({ group }: { group: any }) => {
           description: form.description || null,
           private: form.private,
           auto_accept_requests: form.auto_accept_requests,
+          discoverable_data: form.discoverable_data,
         },
       }).unwrap();
       setOpen(false);
@@ -98,6 +100,18 @@ const GroupSettingsForm = ({ group }: { group: any }) => {
                 />
               }
               label="Automatically accept requests to join this group"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={form.discoverable_data}
+                  onChange={(e) =>
+                    setForm({ ...form, discoverable_data: e.target.checked })
+                  }
+                  data-testid="editDiscoverableDataCheckbox"
+                />
+              }
+              label="Let non-members see that this group's data exists, and ask for it"
             />
           </Box>
         </DialogContent>

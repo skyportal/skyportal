@@ -8,6 +8,8 @@ import VegaPlotAlert from "./VegaPlotAlert";
 interface BrokerAlertLightCurveProps {
   brokerId: number;
   objectId: string;
+  // Epoch to mark with the vertical rule; defaults to the object's latest alert.
+  jd?: number | undefined;
 }
 
 /**
@@ -17,13 +19,14 @@ interface BrokerAlertLightCurveProps {
 const BrokerAlertLightCurve = ({
   brokerId,
   objectId,
+  jd,
 }: BrokerAlertLightCurveProps) => {
   const { data, isFetching } = useGetBrokerAlertQuery({
     brokerId,
     alertId: objectId,
   });
 
-  const { values, jd } = useMemo(() => {
+  const { values, jd: latestJd } = useMemo(() => {
     if (!data) return { values: [] as any[], jd: null as number | null };
     // Mirror fritz's AlertPhotometryPlot: detections (prv_candidates) +
     // upper-limit non-detections + forced photometry (SNR-gated to limits).
@@ -55,12 +58,14 @@ const BrokerAlertLightCurve = ({
     return { values: points, jd: refJd };
   }, [data]);
 
+  const markedJd = jd ?? latestJd;
+
   if (isFetching) return <CircularProgress size={24} />;
-  if (!values.length || jd == null) return null;
+  if (!values.length || markedJd == null) return null;
 
   return (
     <div style={{ width: "100%", height: "16rem" }}>
-      <VegaPlotAlert values={values} jd={jd} />
+      <VegaPlotAlert values={values} jd={markedJd} />
     </div>
   );
 };

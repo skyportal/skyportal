@@ -28,7 +28,7 @@ def test_create_page(view_only_token, manage_sources_token, public_source):
     status, data = api(
         "POST",
         f"public_pages/source/{public_source.id}",
-        data={"": {}},
+        data={"options": None},
         token=manage_sources_token,
     )
     assert_api_fail(status, data, 400, "Options are required")

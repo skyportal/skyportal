@@ -30,7 +30,7 @@ def test_create_release(
         data={"false_data": "false"},
         token=manage_sources_token,
     )
-    assert_api_fail(status, data, 400, "Name is required")
+    assert_api_fail(status, data, 400, "false_data: Extra inputs are not permitted")
 
     status, data = api(
         "POST",
@@ -84,7 +84,7 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400)
     assert data["message"] != error_validation_link_name
-    assert data["message"] == "Invalid groups"
+    assert "Invalid groups" in data["message"]
 
     status, data = api(
         "POST",
@@ -158,7 +158,7 @@ def test_update_release(
         data={"false_data": "false"},
         token=manage_sources_token,
     )
-    assert_api_fail(status, data, 400, "Name is required")
+    assert_api_fail(status, data, 400, "false_data: Extra inputs are not permitted")
 
     status, data = api(
         "PATCH",
@@ -210,6 +210,7 @@ def test_update_release(
     assert release["auto_publish_enabled"] is True
     assert release["link_name"] == link_name
 
+    # link_name is immutable: the PATCH body rejects it outright
     status, data = api(
         "PATCH",
         f"public_pages/release/{release_id}",
@@ -220,7 +221,7 @@ def test_update_release(
         },
         token=manage_sources_token,
     )
-    assert_api(status, data)
+    assert_api_fail(status, data, 400, "link_name: Extra inputs are not permitted")
 
     status, data = api("GET", "public_pages/release", token=manage_sources_token)
     assert_api(status, data)

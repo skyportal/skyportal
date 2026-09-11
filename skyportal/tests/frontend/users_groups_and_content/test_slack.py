@@ -1,6 +1,8 @@
 import pytest
 from playwright.sync_api import expect
 
+from skyportal.tests import open_preferences_panel
+
 
 def _set_url(url_input, value):
     # The URL field is an uncontrolled rjsf/MUI TextField whose onChange drives
@@ -16,6 +18,7 @@ def _set_url(url_input, value):
 def test_slack_integration(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "integrations")
     slack_toggle = page.locator('[data-testid="slack_toggle"]').first
     expect(slack_toggle).to_be_visible()
 
@@ -32,11 +35,11 @@ def test_slack_url(page, user):
     bad_path = "http://garbage.url"
 
     page.goto(f"/become_user/{user.id}")
-    # The URL validation compares against the slack preamble from /api/config
-    # (redux). Wait for that fetch so the validation doesn't read an undefined
-    # preamble (which makes every URL fail) while config is still hydrating.
-    with page.expect_response(lambda r: r.url.endswith("/api/config")):
-        page.goto("/profile")
+    page.goto("/profile")
+    # SlackPreferences reads the slack preamble from /api/config via RTK Query,
+    # which only fetches once that panel mounts; without it every URL fails.
+    with page.expect_response(lambda r: "/api/config" in r.url):
+        open_preferences_panel(page, "integrations")
     slack_toggle = page.locator('//*[@data-testid="slack_toggle"]').first
     expect(slack_toggle).to_be_visible()
 

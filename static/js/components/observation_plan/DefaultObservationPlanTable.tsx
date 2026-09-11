@@ -15,23 +15,21 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
-import { useIsReadOnly } from "../../ducks/profile";
 
 interface DefaultObservationPlanTableProps {
   instruments: any[];
   telescopes: any[];
   default_observation_plans: any[];
-  deletePermission?: boolean;
+  managePermission?: boolean;
 }
 
 const DefaultObservationPlanTable = ({
   instruments,
   telescopes,
   default_observation_plans,
-  deletePermission = false,
+  managePermission = false,
 }: DefaultObservationPlanTableProps) => {
   const dispatch = useAppDispatch();
-  const isReadOnly = useIsReadOnly();
   const [deleteDefaultObservationPlanMutation] =
     useDeleteDefaultObservationPlanMutation();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -104,7 +102,7 @@ const DefaultObservationPlanTable = ({
   };
 
   const renderDelete = (params: any) => {
-    if (!deletePermission) return null;
+    if (!managePermission) return null;
     return (
       <Button
         id="delete_button"
@@ -164,7 +162,7 @@ const DefaultObservationPlanTable = ({
 
   const CustomToolbar = () => (
     <DataGridToolbar title="Default Observation Plans">
-      {!isReadOnly && (
+      {managePermission && (
         <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
           <AddIcon />
         </IconButton>

@@ -94,8 +94,8 @@ DBSession().add(obj)  # add a new object into the DB
 DBSession().commit()  # commit modifications to objects
 DBSession().rollback()  # recover after a DB error
 ```
-For more information on how to use the session, see `baselayer/doc/dev.md`.
 
+For more information on how to use the session, see `baselayer/doc/dev.md`.
 
 - Generic logic applicable to any model is included in the base model class `baselayer.app.models.Base` (`to_dict`, `__str__`, etc.), but can be overridden within a specific model
 - Models can be queried directly (`User.query.all()`), or more specific queries can be constructed via the session object (`DBSession().query(User.id).all()`)
@@ -133,29 +133,30 @@ It will print a command that you can use to SSH into the runner.
 
 1. Update the version number in `skyportal/__init__.py`.
 2. Commit the changes:
-    ```
-    git add skyportal/__init__.py
-    git commit -am "Update version to v${NEW_VERSION}"
-    ```
+   ```
+   git add skyportal/__init__.py
+   git commit -am "Update version to v${NEW_VERSION}"
+   ```
 3. Tag & sign the release:
-    ```
-    git tag -s v${NEW_VERSION} -m "SkyPortal v${NEW_VERSION} release"
-    ```
-    (If you do not have a GPG key, follow the tutorial to set it up:
-    https://help.github.com/articles/signing-commits-with-gpg/)
+   ```
+   git tag -s v${NEW_VERSION} -m "SkyPortal v${NEW_VERSION} release"
+   ```
+   (If you do not have a GPG key, follow the tutorial to set it up:
+   https://help.github.com/articles/signing-commits-with-gpg/)
 4. Push the changes:
-    ```
-    git push --tags origin main
-    ```
-    where `origin` points to the ``github.com:skyportal/skyportal`` repository.
+   ```
+   git push --tags origin main
+   ```
+   where `origin` points to the `github.com:skyportal/skyportal` repository.
 5. Create a new release on GitHub, using the tag you just created. The release should be formatted as follows:
-    - A title, in the form `SkyPortal v${NEW_VERSION} release (YYYY-MM-DD)`
-    - A brief summary of the changes, including any breaking changes
-    - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the associated PR numbers, as well as the GitHub usernames of the contributors.
-    - If applicable, a migration guide to help users and/or admins upgrade to the new version.
+   - A title, in the form `SkyPortal v${NEW_VERSION} release (YYYY-MM-DD)`
+   - A brief summary of the changes, including any breaking changes
+   - A list of the changes split in the relevant categories (e.g., new features, bug fixes, frontend, backend, etc.). For each change, include a list of the associated PR numbers, as well as the GitHub usernames of the contributors.
+   - If applicable, a migration guide to help users and/or admins upgrade to the new version.
 
 ## Developer instructions
 
 There are a few methods in `skyportal/utils/parse.py` that are used to help parse common types of input.
+
 - `get_list_typed`: This method is used to parse a comma-separated string into a list of a specified type. It can also handle a list and will convert it to a list of the specified type.
 - `get_page_and_n_per_page`: This method is used to parse the page number and number of items per page used for pagination in multiple handlers. It takes the page number and number of items per page as input and returns them as integers. It also ensures that the number of items per page does not exceed a maximum value (default is 500).

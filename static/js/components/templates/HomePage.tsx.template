@@ -1,4 +1,4 @@
-import { Responsive, WidthProvider } from "react-grid-layout";
+import { ResponsiveGridLayout, useContainerWidth } from "react-grid-layout";
 import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";
 
@@ -29,8 +29,6 @@ import {{ widgetName }} from "../group/{{ widgetName }}";
 import {{ widgetName }} from "../widget/{{ widgetName }}";
 {%- endif %}
 {%- endfor %}
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const useStyles = makeStyles()(() => ({
   widgetIcon: {
@@ -89,21 +87,30 @@ const HomePage = () => {
     updateUserPreferences(prefs);
   };
 
+  // The hook measures once, in an effect, and gives up if its container is not
+  // in the DOM yet -- so the container below is rendered unconditionally. Gate
+  // it on the profile instead and the first measurement finds nothing, leaving
+  // the grid stuck at the hook's 1280px placeholder width.
+  const { width, containerRef, mounted } = useContainerWidth();
+
   const resetLayouts = () => {
     const prefs = { layouts: defaultLayouts };
     updateUserPreferences(prefs);
   };
 
-  return profile?.username && (
+  return (
     <div>
+      <div ref={containerRef}>
+      {profile?.username && mounted && (
       <ResponsiveGridLayout
+        width={width}
         className="layout"
         layouts={currentLayouts}
         breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
         cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
         margin={[10, 10]}
         onLayoutChange={layoutChangeHandler}
-        draggableHandle=".dragHandle"
+        {% raw %}dragConfig={{ handle: ".dragHandle" }}{% endraw %}
         rowHeight={gridRowHeight}
       >
         {%- for widgetName, widgetProps in visible_widgets.items() %}
@@ -143,6 +150,9 @@ const HomePage = () => {
           {%- endif -%}
         {%- endfor %}
       </ResponsiveGridLayout>
+      )}
+      </div>
+      {profile?.username && (
       <div className={classes.resetButton}>
         <Tooltip title="Reset page layout" placement="left">
           <IconButton onClick={resetLayouts}>
@@ -150,6 +160,7 @@ const HomePage = () => {
           </IconButton>
         </Tooltip>
       </div>
+      )}
     </div>
   );
 };

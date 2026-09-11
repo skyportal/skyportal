@@ -46,7 +46,7 @@ class Listing(Base):
     params = sa.Column(
         JSONB,
         nullable=True,
-        doc="""Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.""",
+        doc="Optional free-form parameters attached to the listing.",
     )
 
 

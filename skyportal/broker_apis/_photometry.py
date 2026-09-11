@@ -1,38 +1,35 @@
-"""Shared read-only photometry passthrough for broker providers.
-
-A provider's ``get_photometry`` fetches an object's photometry from the broker
-and returns the per-(survey, programid) groups built by
-``_save.build_photometry_groups``. This module holds everything downstream of
-that — the broker-agnostic half — so a provider only implements the fetch.
-
-The pattern is broker-canonical / marshal-as-cache: Postgres stays the system of
-record for *saved* photometry, but display-only views (a source page, a candidate
-lightcurve) are served straight from the broker through a Valkey read-through
-cache, and **nothing here writes photometry to Postgres**.
-
-Design points:
-
-* The cache key includes a hash of the requester's access scope (groups +
-  streams), and broker points are scope-filtered *before* caching, so a cached
-  payload is already scope-correct and can never leak across scopes.
-* The unit conversions and programid->stream mapping come from
-  ``build_photometry_groups``, shared verbatim with the persisting path, so the
-  passthrough can never drift from what the saved rows would have been.
-* The pure functions (scope/variant hashing, the scope filter, the merge) carry
-  the security-critical logic and are directly unit-testable with no broker or
-  Valkey.
+"""Shared read-only photometry passthrough for broker providers: everything
+downstream of the ``_save.build_photometry_groups`` transform, so a provider only
+implements the broker fetch. Nothing here writes photometry to Postgres.
 """
 
-import hashlib
-import json
+import time
 import traceback
 
+import numpy as np
+
+from baselayer.app.env import load_env
 from baselayer.log import make_log
+
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
+from ..utils.survey import survey_from_object_id
+from .interface import survey_permissions
+
+_, cfg = load_env()
 
 log = make_log("broker/photometry")
 
-# Group keys that form a PhotFluxFlexible payload for standardize_photometry_data
-# (everything except stream_ids, which gates visibility, not serialization).
+_CACHE_MAX_AGE = cfg.get("misc.minutes_to_keep_broker_photometry_cache", 30) * 60
+cache = Cache(
+    cache_dir=f"{cache_folder}/broker_photometry",
+    max_age=_CACHE_MAX_AGE,
+)
+
+_FETCH_TIMEOUT_SECONDS = 10
+_FAILURE_SKIP_SECONDS = 60
+_skip_until: dict = {}
+
+# stream_ids is left out: it gates visibility, not serialization.
 _PAYLOAD_KEYS = (
     "obj_id",
     "instrument_id",
@@ -47,116 +44,98 @@ _PAYLOAD_KEYS = (
 )
 
 
-def _canonical(value) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-
-
-def _short_sha(value) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()[:16]
-
-
-def scope_hash(user_id, group_ids, stream_ids, is_admin=False) -> str:
-    """Hash the access-determining identity that gates *which* photometry a user
-    may see.
-
-    Mirrors the row-level-security inputs: the user's id plus their accessible
-    group and stream ids (sorted, so membership order is irrelevant). Admins,
-    who bypass row filtering, collapse to a single ``"admin"`` bucket.
-
-    Putting this in the cache key is the no-leakage guarantee: a payload cached
-    for one access scope can never be served to a different scope (the key
-    differs), and a membership change moves the requester to a different key
-    automatically — the stale entry simply ages out.
-    """
-    if is_admin:
-        return "admin"
-    payload = {
-        "u": int(user_id),
-        "g": sorted(int(g) for g in (group_ids or [])),
-        "s": sorted(int(s) for s in (stream_ids or [])),
+def filter_groups_by_scope(groups, permissions):
+    """Keep the groups whose ``(survey, programid)`` the requester's streams cover.
+    ``permissions`` is ``survey_permissions()``, ``None`` the admin's full scope."""
+    if permissions is None:
+        return groups
+    return {
+        key: group
+        for key, group in groups.items()
+        if key[1] in (permissions.get(key[0]) or [])
     }
-    return _short_sha(payload)
 
 
-def variant_hash(params: dict) -> str:
-    """Hash the serialization-shape args (e.g. ``format``/``magsys``) that change
-    *how* a response renders but not *which* rows are visible. Kept separate from
-    :func:`scope_hash` so visibility and rendering are never conflated."""
-    return _short_sha({k: params[k] for k in sorted(params or {})})
-
-
-def photometry_key(broker_id, obj_id, scope, variant, version="v1") -> str:
-    """Full cache key for an ephemeral photometry payload. Keyed by broker too:
-    two brokers may serve the same object with different data."""
-    return f"photcache:{version}:{broker_id}:{obj_id}:{scope}:{variant}"
-
-
-def filter_groups_by_streams(groups, accessible_stream_ids, is_admin=False):
-    """Drop photometry groups the requester is not permitted to see.
-
-    ``groups`` is the mapping from ``build_photometry_groups`` — keyed by
-    ``(survey, programid)``, each value carrying the ``stream_ids`` that gate it.
-    A group is kept iff the requester is an admin, or at least one of the group's
-    ``stream_ids`` is in ``accessible_stream_ids``. This reproduces, before
-    caching, the same stream gating the persisted-row query would apply (e.g.
-    ZTF partnership vs public programs).
-    """
-    if is_admin:
-        return dict(groups)
-    accessible = {int(s) for s in (accessible_stream_ids or [])}
-    kept = {}
-    for key, group in groups.items():
-        group_streams = {int(s) for s in (group.get("stream_ids") or [])}
-        if group_streams & accessible:
-            kept[key] = group
-    return kept
+def _round_mjd(mjd):
+    return round(mjd, 6) if mjd is not None else None
 
 
 def _dedup_key(point):
-    """Identity of a photometry point for merge deduplication: the same
-    observation across the DB and the broker shares (instrument, filter, mjd).
-    mjd is rounded to absorb float noise (1e-6 day ~= 0.09 s)."""
-    mjd = point.get("mjd")
     return (
+        point.get("obj_id"),
         point.get("instrument_id"),
         point.get("filter"),
-        round(mjd, 6) if mjd is not None else None,
+        _round_mjd(point.get("mjd")),
     )
 
 
-def merge_photometry_points(db_points, broker_points):
-    """Union persisted (DB) photometry with on-demand broker photometry for
-    display.
+def _phot_dedup_key(phot):
+    return (phot.obj_id, phot.instrument_id, phot.filter, _round_mjd(phot.mjd))
 
-    The DB is authoritative: a broker point that matches a DB point on
-    (instrument_id, filter, mjd) is dropped, so the broker only *augments* the
-    DB with points not yet saved. DB points keep their identity (e.g. ``id``,
-    groups); broker-only points are appended.
-    """
+
+def merge_photometry_points(db_points, broker_points):
+    """Union DB and broker photometry, the DB point winning on (obj, instrument, filter, mjd)."""
     seen = {_dedup_key(p) for p in db_points}
-    merged = list(db_points)
-    for point in broker_points:
-        if _dedup_key(point) not in seen:
-            merged.append(point)
-    return merged
+    return sorted(
+        [*db_points, *(p for p in broker_points if _dedup_key(p) not in seen)],
+        key=lambda point: point["mjd"],
+    )
+
+
+def _serialize_points(
+    phots,
+    outsys,
+    fmt,
+    *,
+    groups=False,
+    created_at=False,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction_by_obj=None,
+):
+    from ..handlers.api.photometry import serialize
+
+    return [
+        serialize(
+            phot,
+            outsys,
+            fmt,
+            created_at=created_at,
+            groups=groups,
+            annotations=annotations,
+            owner=owner,
+            stream=stream,
+            validation=validation,
+            extinction_dict=(extinction_by_obj or {}).get(phot.obj_id),
+        )
+        for phot in phots
+    ]
 
 
 async def fetch_broker_groups(cls, broker, object_id, survey, session):
-    """Fetch ``object_id``'s photometry from the broker and transform it into
-    skyportal-unit groups, WITHOUT persisting anything.
-
-    The DB lookups (instrument, programid->stream) run on the loop; the broker
-    call (``get_alert``, blocking network I/O that never touches ``session``) is
-    handed to a thread executor so a slow broker can't stall the IO loop — this
-    backs the source-page lightcurve, a hot read path. Returns the per-(survey,
-    programid) groups, or ``None`` if the broker has no data for the object.
-    """
+    """The object's broker photometry as skyportal-unit groups, read through a cache
+    and empty when the broker has no data for it or just failed. Persists nothing."""
     import asyncio
 
     import sqlalchemy as sa
 
     from ..models import Instrument
     from ._save import build_photometry_groups, programid_to_stream_ids
+
+    key = f"{broker.id}_{survey}_{object_id}"
+    cached = cache[key]
+    if cached is not None:
+        # a read touches the file, so Cache's max_age never expires a hot source
+        try:
+            payload = np.load(cached, allow_pickle=True).item()
+        except Exception:
+            payload = {}
+        if time.time() - (payload.get("fetched_at") or 0) < _CACHE_MAX_AGE:
+            return payload["groups"]
+    if time.monotonic() < _skip_until.get((broker.id, survey), 0):
+        return {}
 
     instrument_id = await session.scalar(
         sa.select(Instrument.id).where(Instrument.name == survey)
@@ -165,15 +144,67 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
         raise ValueError(f"Instrument '{survey}' not found in the database.")
     programid2streamid = await programid_to_stream_ids(session)
 
-    loop = asyncio.get_event_loop()
-    data = await loop.run_in_executor(
-        None, lambda: cls.get_alert(broker, object_id, None, survey=survey)
+    try:
+        # a provider's timeout bounds one request, not its pagination walk
+        data = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: cls.get_alert(
+                    broker, object_id, None, survey=survey, permissions=None
+                ),
+            ),
+            timeout=_FETCH_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        # only a stall is broker-wide; a per-object failure must not skip the rest
+        _skip_until[(broker.id, survey)] = time.monotonic() + _FAILURE_SKIP_SECONDS
+        raise
+    except Exception as e:
+        if getattr(getattr(e, "response", None), "status_code", None) != 404:
+            raise
+        data = None
+    groups = (
+        build_photometry_groups(
+            object_id, survey, data, instrument_id, programid2streamid
+        )
+        if data
+        else {}
     )
-    if not data:
-        return None
-    return build_photometry_groups(
-        object_id, survey, data, instrument_id, programid2streamid
+    cache[key] = dict_to_bytes({"fetched_at": time.time(), "groups": groups})
+    if groups:
+        from tornado.ioloop import IOLoop
+
+        # spawn_callback, not ensure_future: a bare task can be GC'd before it runs
+        IOLoop.current().spawn_callback(update_phot_stat_from_broker, object_id, groups)
+    return groups
+
+
+async def super_obj_obj_ids(object_id, user, session):
+    """``object_id`` plus the objs the requester can read that share a SuperObj with
+    it, what ``includeSuperObjsPhotometry`` expands to on GET /sources/{id}/photometry."""
+    import sqlalchemy as sa
+
+    from ..models import Obj, ObjToSuperObj
+
+    members = (
+        await session.scalars(
+            sa.select(ObjToSuperObj.obj_id).where(
+                ObjToSuperObj.super_obj_id.in_(
+                    sa.select(ObjToSuperObj.super_obj_id).where(
+                        ObjToSuperObj.obj_id == object_id
+                    )
+                )
+            )
+        )
+    ).all()
+    readable = set(
+        (
+            await session.scalars(
+                Obj.select(user, columns=[Obj.id]).where(Obj.id.in_(members))
+            )
+        ).all()
     )
+    return list(dict.fromkeys([object_id, *(m for m in members if m in readable)]))
 
 
 async def display_photometry(
@@ -183,91 +214,111 @@ async def display_photometry(
     session,
     user,
     *,
-    cache=None,
     survey=None,
     outsys="ab",
     fmt="mag",
-    refresh=False,
+    include_super_objs=False,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction=False,
 ):
-    """Object photometry for display: the persisted, access-controlled DB rows
-    merged with photometry fetched on demand from the broker.
+    """Object photometry for display: the access-controlled DB rows merged with
+    photometry fetched on demand from the broker, degrading to DB-only on failure.
+    ``include_super_objs`` serves the objs sharing a SuperObj too, each fetched
+    under its own survey. The ``owner``/``stream``/``validation``/``annotations``/
+    ``extinction`` flags mirror GET /sources/{id}/photometry and only ever apply to
+    the DB half: a broker point is not persisted, so it has none of those."""
+    from ..models import Stream
 
-    The broker half is scope-filtered *before* being cached (per object + access
-    scope) and is never written to Postgres; a broker failure degrades to DB-only
-    rather than erroring, since this backs the source-page lightcurve. On a fresh
-    broker fetch, the object's PhotStat summary is recomputed fire-and-forget.
-    Shared by every provider via the interface's default ``get_photometry``.
-    """
-    survey = survey or (broker.altdata or {}).get("survey")
-
-    user_id, group_ids, stream_ids, is_admin = await resolve_scope(user, session)
-    key = photometry_key(
-        broker.id,
-        object_id,
-        scope_hash(user_id, group_ids, stream_ids, is_admin),
-        variant_hash({"format": fmt, "magsys": outsys}),
+    permissions = (
+        None
+        if user.is_system_admin
+        else survey_permissions((await session.scalars(Stream.select(user))).all())
     )
+    obj_ids = (
+        await super_obj_obj_ids(object_id, user, session)
+        if include_super_objs
+        else [object_id]
+    )
+    served = cls.configured_surveys(broker.altdata)
 
-    broker_points = None if (refresh or cache is None) else await cache.get_json(key)
-    if broker_points is None:
-        broker_points = []
+    broker_phots = []
+    for obj_id in obj_ids:
+        obj_survey = (
+            (survey if obj_id == object_id else None)
+            or survey_from_object_id(obj_id)
+            or (broker.altdata or {}).get("survey")
+        )
+        if served and obj_survey not in served:
+            continue
         try:
-            groups = await fetch_broker_groups(cls, broker, object_id, survey, session)
-            kept = filter_groups_by_streams(groups or {}, stream_ids, is_admin)
-            broker_points = await serialized_broker_points(
-                kept, session, outsys=outsys, fmt=fmt
+            groups = await fetch_broker_groups(cls, broker, obj_id, obj_survey, session)
+            broker_phots += await transient_photometry(
+                filter_groups_by_scope(groups, permissions), session
             )
-            if cache is not None:
-                await cache.set_json(key, broker_points)
-            # Fresh broker data: refresh the object's PhotStat (from the full DB ∪
-            # broker set) so listings/scanning reflect it. Fire-and-forget via
-            # spawn_callback — the IOLoop keeps the task alive (a bare
-            # ensure_future can be GC'd before it runs) and logs any exception.
-            if groups:
-                from tornado.ioloop import IOLoop
-
-                IOLoop.current().spawn_callback(
-                    update_phot_stat_from_broker, object_id, groups
-                )
         except Exception:
             log(
-                f"passthrough broker fetch failed for {survey}/{object_id}; "
-                f"serving DB photometry only: {traceback.format_exc()}"
+                f"passthrough broker fetch failed for {obj_survey}/{obj_id}; serving "
+                f"DB photometry only: {traceback.format_exc()}"
             )
-            broker_points = []
 
-    db_points = await db_photometry_points(
-        object_id, user, session, outsys=outsys, fmt=fmt
+    return merge_photometry_points(
+        await db_photometry_points(
+            obj_ids,
+            user,
+            session,
+            outsys=outsys,
+            fmt=fmt,
+            owner=owner,
+            stream=stream,
+            validation=validation,
+            annotations=annotations,
+            extinction=extinction,
+        ),
+        _serialize_points(
+            broker_phots,
+            outsys,
+            fmt,
+            extinction_by_obj=(
+                await extinction_by_filter(broker_phots, session)
+                if extinction and fmt != "plot"
+                else None
+            ),
+        ),
     )
-    return merge_photometry_points(db_points, broker_points)
 
 
-async def resolve_scope(user, session):
-    """Resolve the (user, accessible groups, accessible streams) tuple that gates
-    which photometry is visible — part of the cache key, and used to scope-filter
-    broker points before caching. Admins bypass row-level filtering and share one
-    bucket. Explicit selects avoid lazy relationship loads under the async
-    session."""
-    from ..models import Group, Stream
+async def extinction_by_filter(phots, session):
+    """``{obj_id: {filter: extinction}}`` for the filters the points actually use,
+    what ``serialize(extinction_dict=...)`` reads."""
+    import sqlalchemy as sa
 
-    if user.is_admin:
-        return user.id, [], [], True
-    group_ids = list(
-        (await session.scalars(Group.select(user).with_only_columns(Group.id))).all()
-    )
-    stream_ids = list(
-        (await session.scalars(Stream.select(user).with_only_columns(Stream.id))).all()
-    )
-    return user.id, group_ids, stream_ids, False
+    from ..handlers.api.photometry import nan_to_none
+    from ..models import Obj
+    from ..utils.extinction import calculate_extinction
+
+    filters = {}
+    for phot in phots:
+        filters.setdefault(phot.obj_id, set()).add(phot.filter)
+    if not filters:
+        return None
+    rows = (
+        await session.execute(
+            sa.select(Obj.id, Obj.ra, Obj.dec).where(Obj.id.in_(filters))
+        )
+    ).all()
+    return {
+        obj_id: {filt: calculate_extinction(ra, dec, filt) for filt in filters[obj_id]}
+        for obj_id, ra, dec in rows
+        if nan_to_none(ra) is not None and nan_to_none(dec) is not None
+    }
 
 
 async def transient_photometry(groups, session):
-    """Build *transient* (non-persisted) ``Photometry`` objects from broker
-    groups, running each group through the same ``standardize_photometry_data``
-    the DB-write path uses so the flux / zeropoint / magsys conversions are
-    byte-for-byte identical. Shared by the serialized display points and the
-    PhotStat recompute.
-    """
+    from sqlalchemy.orm.attributes import set_committed_value
+
     from ..handlers.api.photometry import standardize_photometry_data
     from ..models import Photometry
 
@@ -289,87 +340,99 @@ async def transient_photometry(groups, session):
                 fluxerr=row.get("standardized_fluxerr"),
                 origin=row.get("origin"),
             )
-            # serialize()/PhotStat read phot.instrument; attach the already-loaded
-            # instrument from the standardize cache so it needs no DB round-trip.
+            # serialize()/PhotStat read phot.instrument, which no query would load here
             instrument = instrument_cache.get(row["instrument_id"])
             if instrument is not None:
-                phot.instrument = instrument
+                # a plain assignment would append to Instrument.photometry
+                set_committed_value(phot, "instrument", instrument)
             phots.append(phot)
     return phots
 
 
-async def serialized_broker_points(groups, session, outsys="ab", fmt="mag"):
-    """Serialize transient broker Photometry into skyportal's photometry display
-    shape (the same ``serialize()`` used by ``GET /sources/{id}/photometry``), so
-    broker points are shape-identical to DB points and the two can be merged.
-    """
-    from ..handlers.api.photometry import serialize
+async def db_photometry_points(
+    obj_ids,
+    user,
+    session,
+    outsys="ab",
+    fmt="mag",
+    *,
+    owner=False,
+    stream=False,
+    validation=False,
+    annotations=False,
+    extinction=False,
+):
+    """Serialize the objects' persisted photometry and photometric series, sorted by
+    mjd, eager-loading what ``serialize()`` reads (a lazy load would raise under the
+    async session)."""
+    from sqlalchemy.orm import joinedload, selectinload
 
-    return [
-        serialize(
-            phot,
-            outsys,
-            fmt,
-            created_at=False,
-            groups=False,
-            annotations=False,
-            owner=False,
-            stream=False,
-            validation=False,
-        )
-        for phot in await transient_photometry(groups, session)
+    from ..handlers.api.photometry_validation import USE_PHOTOMETRY_VALIDATION
+    from ..models import Group, Instrument, PhotometricSeries, Photometry, Stream, User
+
+    options = [
+        joinedload(Photometry.instrument).load_only(Instrument.name),
+        joinedload(Photometry.groups).load_only(
+            Group.id, Group.name, Group.nickname, Group.single_user_group
+        ),
     ]
-
-
-async def db_photometry_points(object_id, user, session, outsys="ab", fmt="mag"):
-    """Serialize the object's persisted, access-controlled photometry, using the
-    same ``serialize()`` the standard photometry endpoint uses so DB and broker
-    points share one shape. Eager-loads the relationships ``serialize()`` reads
-    (instrument, groups) to avoid lazy loads under the async session.
-    """
-    from sqlalchemy.orm import joinedload
-
-    from ..handlers.api.photometry import serialize
-    from ..models import Group, Instrument, Photometry
-
-    stmt = (
-        Photometry.select(user)
-        .where(Photometry.obj_id == object_id)
-        .options(
-            joinedload(Photometry.instrument).load_only(Instrument.name),
-            joinedload(Photometry.groups).load_only(
-                Group.id, Group.name, Group.nickname, Group.single_user_group
-            ),
+    if annotations:
+        options.append(joinedload(Photometry.annotations))
+    if owner:
+        options.append(
+            joinedload(Photometry.owner).load_only(
+                User.id, User.username, User.first_name, User.last_name
+            )
         )
+    if stream:
+        options.append(joinedload(Photometry.streams).load_only(Stream.id, Stream.name))
+    if validation and USE_PHOTOMETRY_VALIDATION:
+        options.append(selectinload(Photometry.validations))
+
+    stmt = Photometry.select(user, options=options).where(
+        Photometry.obj_id.in_(obj_ids)
     )
-    phot = (await session.scalars(stmt)).unique().all()
-    return [
-        serialize(
-            p,
-            outsys,
-            fmt,
-            created_at=False,
-            groups=True,
-            annotations=False,
-            owner=False,
-            stream=False,
-            validation=False,
+    phots = (await session.scalars(stmt)).unique().all()
+    points = _serialize_points(
+        phots,
+        outsys,
+        fmt,
+        groups=True,
+        created_at=True,
+        owner=owner,
+        stream=stream,
+        validation=validation,
+        annotations=annotations,
+        extinction_by_obj=(
+            await extinction_by_filter(phots, session)
+            if extinction and fmt != "plot"
+            else None
+        ),
+    )
+    series = (
+        (
+            await session.scalars(
+                PhotometricSeries.select(
+                    user,
+                    options=[
+                        joinedload(PhotometricSeries.instrument).joinedload(
+                            Instrument.telescope
+                        )
+                    ],
+                ).where(PhotometricSeries.obj_id.in_(obj_ids))
+            )
         )
-        for p in phot
-    ]
+        .unique()
+        .all()
+    )
+    for one_series in series:
+        points += one_series.get_data_with_extra_columns().to_dict(orient="records")
+    return sorted(points, key=lambda point: point["mjd"])
 
 
 async def update_phot_stat_from_broker(object_id, groups):
-    """Recompute the object's PhotStat from DB ∪ all broker photometry and
-    persist the summary (never the bulk photometry).
-
-    Fire-and-forget from the read path: it opens its own session, logs and
-    swallows any error, and must never affect the photometry response. Built
-    from the *full, unfiltered* broker set so the per-object aggregate is
-    viewer-independent (it does not depend on the requester's stream access).
-    Broker points already saved are deduped out (by instrument/filter/mjd) so
-    they are not double-counted against the DB rows.
-    """
+    """Recompute the object's PhotStat from DB ∪ the *unfiltered* broker groups, so
+    the aggregate does not depend on who is looking."""
     import sqlalchemy as sa
 
     from baselayer.app import models as baselayer_models
@@ -379,23 +442,15 @@ async def update_phot_stat_from_broker(object_id, groups):
     try:
         async with baselayer_models.async_plain_session_factory() as session:
             broker_phot = await transient_photometry(groups, session)
-            db_phot = list(
-                (
-                    await session.scalars(
-                        sa.select(Photometry).where(Photometry.obj_id == object_id)
-                    )
-                ).all()
-            )
-            seen = {
-                (p.instrument_id, p.filter, round(p.mjd, 6))
-                for p in db_phot
-                if p.mjd is not None
-            }
-            merged = db_phot + [
-                p
-                for p in broker_phot
-                if p.mjd is None
-                or (p.instrument_id, p.filter, round(p.mjd, 6)) not in seen
+            db_phot = (
+                await session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == object_id)
+                )
+            ).all()
+            seen = {_phot_dedup_key(p) for p in db_phot}
+            merged = [
+                *db_phot,
+                *(p for p in broker_phot if _phot_dedup_key(p) not in seen),
             ]
             if not merged:
                 return

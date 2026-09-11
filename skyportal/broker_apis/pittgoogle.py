@@ -131,6 +131,8 @@ class PITTGOOGLEBROKER(BrokerAPI):
 
     surveys = ["ZTF"]
 
+    photometry_passthrough = False
+
     form_json_schema_config = {
         "type": "object",
         "required": ["service_account_key", "project_id"],
@@ -167,6 +169,11 @@ class PITTGOOGLEBROKER(BrokerAPI):
     }
 
     ui_json_schema = {"service_account_key": {"ui:widget": "textarea"}}
+
+    # A textarea rather than a password field, but still a credential.
+    @classmethod
+    def secret_config_fields(cls):
+        return [*super().secret_config_fields(), "service_account_key"]
 
     @staticmethod
     def validate_config(altdata):

@@ -29,7 +29,7 @@ const CustomizeOpenAIParameters = () => {
   const { classes } = useStyles();
 
   const site_openai_summary_parameters = (useGetConfigQuery().data as any)
-    ?.openai_summary_parameters;
+    ?.summary_parameters;
   const { data: profile } = useGetProfileQuery();
   const user_openai_summary_parameters = (profile?.preferences as any)?.summary
     ?.OpenAI;
@@ -174,7 +174,8 @@ const CustomizeOpenAIParameters = () => {
       );
     }
     if (
-      !(formData.model.includes("gpt") || formData.model.includes("davinci"))
+      !formData.model.includes("gpt") &&
+      !formData.model.includes("davinci")
     ) {
       errors.model.addError(
         "must be an Open AI gpt model. See https://platform.openai.com/docs/models/overview for more information.",

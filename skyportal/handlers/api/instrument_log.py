@@ -1,9 +1,7 @@
 import json
-from typing import Any
+from typing import Annotated, Any
 
 import arrow
-import astropy.units as u
-from astropy.time import Time, TimeDelta
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload, undefer
 
@@ -13,6 +11,10 @@ from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
+
+InstrumentId = Annotated[
+    int, Field(description="The instrument ID to update the status for")
+]
 
 
 class InstrumentLogPostBody(BaseModel):
@@ -49,10 +51,25 @@ class InstrumentStatusPutBody(BaseModel):
     )
 
 
+class InstrumentLogGetQuery(BaseModel):
+    """Query parameters for retrieving instrument logs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). Only return logs ending after this date.",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). Only return logs starting before this date.",
+    )
+
+
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
     async def post(
-        self, instrument_id: int, *, body: InstrumentLogPostBody = None
+        self, instrument_id: InstrumentId, *, body: InstrumentLogPostBody = None
     ) -> InstrumentLogPostResponse:
         """
         ---
@@ -60,13 +77,6 @@ class InstrumentLogHandler(BaseHandler):
         description: Add log messages from an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to post logs for
         """
         body = self.parse_body(InstrumentLogPostBody)
         try:
@@ -110,14 +120,23 @@ class InstrumentLogHandler(BaseHandler):
             return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
-    async def get(self, instrument_id: int):
+    async def get(self, instrument_id: int, *, query: InstrumentLogGetQuery = None):
+        """
+        ---
+        summary: Get instrument logs
+        description: Retrieve an instrument's log messages over a date range
+        tags:
+          - instruments
+        """
+        query = self.parse_query(InstrumentLogGetQuery)
+
         try:
             instrument_id_int = int(instrument_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid instrument_id: {instrument_id}")
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
+        start_date = query.startDate
+        end_date = query.endDate
 
         if start_date is not None:
             try:
@@ -154,39 +173,35 @@ class InstrumentLogHandler(BaseHandler):
                 )
 
 
+class InstrumentLogExternalAPIGetQuery(BaseModel):
+    """Query parameters for retrieving instrument logs from an external API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startDate: str = Field(
+        description="Arrow-parseable date string (e.g. 2020-01-01).",
+    )
+    endDate: str = Field(
+        description="Arrow-parseable date string (e.g. 2020-01-01).",
+    )
+
+
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def get(self, allocation_id: int):
+    async def get(
+        self,
+        allocation_id: Annotated[
+            int, Field(description="ID for the allocation to retrieve")
+        ],
+        *,
+        query: InstrumentLogExternalAPIGetQuery = None,
+    ):
         """
         ---
         summary: Get instrument logs from external API
         description: Retrieve logs for a specific allocation from the instrument's external API
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: allocation_id
-            required: true
-            schema:
-              type: string
-            description: |
-              ID for the allocation to retrieve
-          - in: query
-            name: startDate
-            required: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01).
-              Defaults to now.
-          - in: query
-            name: endDate
-            required: true
-            schema:
-              type: string
-            description: |
-              Arrow-parseable date string (e.g. 2020-01-01).
-              Defaults to 72 hours ago.
         responses:
           200:
             content:
@@ -197,6 +212,8 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(InstrumentLogExternalAPIGetQuery)
+
         try:
             allocation_id_int = int(allocation_id)
         except (TypeError, ValueError):
@@ -207,17 +224,8 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data["allocation_id"] = allocation_id_int
 
-        start_date = self.get_query_argument("startDate")
-        end_date = self.get_query_argument("endDate")
-
-        if start_date is not None:
-            start_date = arrow.get(start_date.strip()).naive
-        else:
-            start_date = (Time.now() - TimeDelta(3 * u.day)).datetime
-        if end_date is not None:
-            end_date = arrow.get(end_date.strip()).naive
-        else:
-            end_date = Time.now().datetime
+        start_date = arrow.get(query.startDate.strip()).naive
+        end_date = arrow.get(query.endDate.strip()).naive
 
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
@@ -255,20 +263,15 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, instrument_id: int, *, body: InstrumentStatusPutBody = None):
+    async def put(
+        self, instrument_id: InstrumentId, *, body: InstrumentStatusPutBody = None
+    ):
         """
         ---
         summary: Update instrument status
         description: Update the status of an instrument
         tags:
           - instruments
-        parameters:
-          - in: path
-            name: instrument_id
-            required: true
-            schema:
-              type: integer
-            description: The instrument ID to update the status for
         responses:
           200:
             content:

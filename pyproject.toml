@@ -15,7 +15,7 @@ dependencies = [
     "joblib>=1.5.0, <2.0.0",
     "seaborn>=0.13.2, <1.0.0",
     "factory-boy==3.3.3",
-    "astropy==8.0.0",
+    "astropy==8.0.1",
     "distributed>=2024.5.2",
     "dust_extinction==1.7",
     "dustmaps==1.0.13",
@@ -23,7 +23,7 @@ dependencies = [
     "avro-python3==1.10.2",
     "fastavro>=1.9.4,<2.0.0",
     "tqdm>=4.27,<4.71",
-    "matplotlib==3.11.0",
+    "matplotlib==3.11.1",
     "astroquery==0.4.11",
     "apispec>=6.3.0, <7.0.0",
     "marshmallow==4.3.0",
@@ -34,24 +34,24 @@ dependencies = [
     "tdtax==0.1.7",
     "healpix-alchemy==1.1.0",
     "mocpy==0.18.0",
-    "obspy==1.5.0",
+    "obspy==1.5.1",
     "conesearch-alchemy==1.1.0",
     "regions==0.10",
     "jsonschema==4.26.0",
     "jsonpath_ng==1.7.0",
     "tables>=3.10.1,<4.0.0",
-    "timezonefinder==8.2.0",
+    "timezonefinder==8.3.0",
     "astroplan==0.10.1",
     "email-validator==2.3.0",
     "alembic==1.18.4",
     "paramiko==5.0.0",
-    "scp==0.15.0",
+    "scp==0.16.1",
     "requests_toolbelt==1.0.0",
     "sendgrid==6.12.5",
-    "responses==0.26.2",
-    "twilio==9.10.9",
+    "responses==0.26.3",
+    "twilio==9.11.0",
     "numba>=0.59.0",
-    "pyvo==1.8",
+    "pyvo==1.9.1",
     "lxml==6.1.1",
     "suds-py3==1.4.5.0",
     "aiohttp==3.14.3",
@@ -59,33 +59,29 @@ dependencies = [
     # removed streams.AsyncStreamReaderMixin, crashing the test_server cassettes).
     "vcrpy==8.3.0",
     "aiosmtpd==1.4.6",
-    "ligo.skymap==2.5.3",
+    # 2.5.4 is the floor m4opt needs; the extra is unresolvable below it.
+    "ligo.skymap==2.5.4",
     "lalsuite<7.27",
-    "healpy==1.18.1",
+    "healpy==1.20.0",
     "pygcn==1.1.3",
     "pysedm==0.41.0",
-    "xmlschema==4.3.1",
+    "xmlschema==4.3.2",
     "requests>=2.30.0, <3.0.0",
     # tornado comes in via baselayer (which declares >=6.0.3); pin the security
     # floor here so the lock can't resolve to a vulnerable version and the bump
     # sticks (a lock-only floor reverts to baselayer's on the next uv resolve).
     "tornado>=6.5.6",
-    # redis-py client (talks to the Valkey server); MIT-licensed, so track the
-    # latest. Valkey speaks RESP2/3, which redis-py 8.x supports.
-    "redis>=5.0.0, <9.0.0",
-    "geojson==3.2.0",
-    "typing-extensions==4.15.0",
-    "swifttools==3.0.23",
-    "gwemopt==0.4.1",
+    "geojson==3.3.0",
+    "typing-extensions==4.16.0",
+    "swifttools==4.0.5",
+    "gwemopt==0.4.2",
     "humanize==4.16.0",
     "xarray>=21.1",
     "simsurvey==0.7.5",  # requires matplotlib monkey-patch, see models/__init__.py
     "noaodatalab==2.20.0",
     "black==26.5.1",
     "click==8.4.2",
-    "penquins==2.4.2",
-    # BOOM's filter-module store; already pulled in by penquins, declared here
-    # because skyportal/broker_apis/boom.py imports it directly.
+    # BOOM's filter-module store; skyportal/broker_apis/boom.py imports it directly.
     "pymongo>=4.6, <5.0",
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
@@ -95,7 +91,7 @@ dependencies = [
     "PyAstronomy==0.24.0",
     "shapely==2.1.2",
     "openai==2.40.0",
-    "tiktoken==0.13.0",
+    "tiktoken==0.14.0",
     "simplejson==4.1.1",
     "langchain==1.3.14",
     "langchain-openai==1.2.2",
@@ -106,11 +102,11 @@ dependencies = [
     "opentelemetry-exporter-prometheus>=0.51b0",
     "opentelemetry-instrumentation-tornado>=0.51b0",
     "prometheus-client>=0.20.0",
-    "sentry-sdk==2.64.0",
+    "sentry-sdk==2.68.1",
     "typing-inspect==0.9.0",
     "brotli==1.2.0",
     "numexpr==2.14.1",
-    "setuptools<83.1.0",
+    "setuptools<84.1.0",
 ]
 
 # Per-broker transport clients. Most brokers (Generic, ALeRCE, ANTARES, Lasair,
@@ -125,14 +121,23 @@ pittgoogle = [
 ]
 brokers-all = ["skyportal[pittgoogle]"]
 
+# M4OPT as an alternative observation-plan scheduler to gwemopt. Optional
+# because it needs a MILP solver; the `scip` extra pulls the one that needs no
+# license. A git dependency until the SCIP backend lands upstream.
+m4opt = [
+    # Pinned to a commit: the fork's main is a deployment snapshot that gets
+    # re-cut as the upstream PRs land, so the branch name moves under you.
+    "m4opt[scip] @ git+https://github.com/skyportal/m4opt@9ca530e",
+]
+
 [dependency-groups]
 dev = [
     "pre-commit",
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.1.0",
     "pytest-rerunfailures>=14.0",
-    "playwright==1.58.0",
-    "pytest-playwright==0.8.0",
+    "playwright==1.62.0",
+    "pytest-playwright==0.9.0",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",
@@ -141,6 +146,7 @@ docs = [
     "numpydoc",
     "jsx-lexer",
     "eralchemy2",
+    "pygraphviz",
     "jinja2<3.2.0",
 ]
 
@@ -206,6 +212,11 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "skyportal/facility_apis/__init__.py" = ['I']
+
+[tool.ruff.lint.isort]
+# Without this, isort's first-party detection depends on whether the
+# baselayer submodule is checked out, making import order CI-dependent.
+known-first-party = ["baselayer"]
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"

@@ -253,6 +253,7 @@ const CustomAddElement = ({
   return (
     <Box>
       <Button
+        data-testid="tour-filter-add"
         ref={setAddButtonRef}
         variant="contained"
         size="medium"

@@ -15,6 +15,8 @@ import AddListConditionDialog from "./dialog/AddListConditionDialog";
 import AddSwitchDialog from "./dialog/AddSwitchDialog";
 import SaveBlockDialogMenu from "./block/SaveBlockDialogMenu";
 import MongoQueryDialog from "./dialog/MongoQueryDialog";
+import PipelineViewer from "./dialog/PipelineViewer";
+import { isRawMongoPipeline } from "./pipelineFormat";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -99,6 +101,19 @@ const FilterBuilderContent = ({
 
   const [, setSchema] = useState<any>(null);
   const [fieldOptions, setFieldOptions] = useState<any[]>([]);
+
+  // Read-only viewer state for raw Mongo pipelines that can't be rendered as blocks.
+  const [showPipeline, setShowPipeline] = useState(true);
+  const [pipelineView, setPipelineView] = useState("complete");
+  const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
+  const handleStageToggle = useCallback((index: number) => {
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
 
   // Helper function to create an empty filter with a default empty condition
   const createEmptyFilterWithDefaultCondition = useCallback(
@@ -263,6 +278,22 @@ const FilterBuilderContent = ({
   const { filters: contextFilters } = useFilterBuilder();
   const filtersToRender = localFilterData || contextFilters;
 
+  // Imported filters arrive as a raw Mongo pipeline the block builder can't render.
+  const rawPipeline = isRawMongoPipeline(filtersToRender)
+    ? filtersToRender
+    : null;
+  const handleCopy = useCallback(() => {
+    navigator.clipboard?.writeText(JSON.stringify(rawPipeline, null, 2));
+  }, [rawPipeline]);
+  const handleCopyStage = useCallback(
+    (stageName: string, stageContent: any) => {
+      navigator.clipboard?.writeText(
+        JSON.stringify({ [stageName]: stageContent }, null, 2),
+      );
+    },
+    [],
+  );
+
   // Find the most nested non-collapsed block to make its header sticky
   // Use useMemo to ensure this recalculates when filters or collapsedBlocks change
   const getMostNestedNonCollapsedBlock = useMemo(() => {
@@ -396,10 +427,11 @@ const FilterBuilderContent = ({
         </Typography>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button
+            data-testid="tour-filter-save"
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSaveFilter}
-            disabled={!hasValidQuery()}
+            disabled={!hasValidQuery() || !!rawPipeline}
             sx={{
               backgroundColor: hasValidQuery() ? "primary.main" : undefined,
               "&:hover": {
@@ -413,6 +445,7 @@ const FilterBuilderContent = ({
             variant="outlined"
             startIcon={<NoteIcon />}
             onClick={handleAddAnnotations}
+            disabled={!!rawPipeline}
             sx={{
               "&:hover": {
                 backgroundColor: "secondary.50",
@@ -442,32 +475,53 @@ const FilterBuilderContent = ({
       </Box>
 
       {/* Filter Blocks */}
-      {schemaUnavailable ? (
-        <Alert severity="warning">
-          No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
-          from this broker, so there are no fields to build conditions with.
-          Filtering isn&apos;t supported for this survey yet.
-        </Alert>
-      ) : filtersToRender && filtersToRender.length > 0 ? (
-        filtersToRender.map((block: any, index: number) => {
-          return (
-            <BlockComponent
-              key={block.id || index}
-              block={block}
-              parentBlockId={null}
-              isRoot={index === 0}
-              fieldOptionsList={fieldOptions}
-              stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
-              localFilters={filtersToRender}
-              setLocalFilters={handleFilterUpdate}
+      <Box data-testid="tour-filter-blocks">
+        {schemaUnavailable ? (
+          <Alert severity="warning">
+            No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
+            from this broker, so there are no fields to build conditions with.
+            Filtering isn&apos;t supported for this survey yet.
+          </Alert>
+        ) : rawPipeline ? (
+          <>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This filter was imported as a raw MongoDB pipeline, so it
+              can&apos;t be edited in the block builder. It&apos;s shown
+              read-only below; edit it through the broker API.
+            </Alert>
+            <PipelineViewer
+              pipeline={rawPipeline}
+              showPipeline={showPipeline}
+              setShowPipeline={setShowPipeline}
+              pipelineView={pipelineView}
+              setPipelineView={setPipelineView}
+              expandedStages={expandedStages}
+              handleStageToggle={handleStageToggle}
+              handleCopy={handleCopy}
+              handleCopyStage={handleCopyStage}
             />
-          );
-        })
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          No filter blocks to display. Add conditions to get started.
-        </Typography>
-      )}
+          </>
+        ) : filtersToRender && filtersToRender.length > 0 ? (
+          filtersToRender.map((block: any, index: number) => {
+            return (
+              <BlockComponent
+                key={block.id || index}
+                block={block}
+                parentBlockId={null}
+                isRoot={index === 0}
+                fieldOptionsList={fieldOptions}
+                stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
+                localFilters={filtersToRender}
+                setLocalFilters={handleFilterUpdate}
+              />
+            );
+          })
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No filter blocks to display. Add conditions to get started.
+          </Typography>
+        )}
+      </Box>
 
       {/* Dialogs */}
       <AddVariableDialog />

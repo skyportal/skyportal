@@ -11,8 +11,16 @@ from baselayer.log import make_log
 
 log = make_log("broker/save")
 
-# AB zeropoint per survey (psfFlux is in Jy after the 1e-9 scaling below).
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9}
+# AB zeropoint per survey, matching the units points arrive in: flux in nJy is
+# scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9}
+
+# Surveys whose filters are not named <survey><band>. Keys are normalized bands,
+# so any survey prefix is already stripped. An unmapped band raises rather than
+# storing a point under a filter that would misreport it. WINTER has no k filter.
+BAND_TO_FILTER_PER_SURVEY = {
+    "WINTER": {"y": "desy", "j": "2massj", "h": "2massh"},
+}
 
 # A "detection" must clear this S/N unless a Filter's criteria override it. Broker
 # science topics/filters are often broad, so a Filter can carry an extra criteria
@@ -20,6 +28,11 @@ ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9}
 _DEFAULT_MIN_SNR = 5.0
 # sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
 _MAG_SNR_CONST = 1.0857362
+
+# Default cone radius (arcsec) for the positional junk-group auto-save skip when a
+# filter sets ignore-groups but no explicit `autoSaveIgnoreRadius`. Set 0 to skip
+# only on an exact obj match.
+_DEFAULT_IGNORE_RADIUS_ARCSEC = 2.0
 
 
 def _point_snr(p):
@@ -39,10 +52,22 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas"):
+    for prefix in ("ztf", "lsst", "atlas", "winter"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b
+
+
+def _filter_name(survey, band):
+    # The SkyPortal filter a band belongs to, <survey><band> unless mapped.
+    normalized = _normalize_band(band)
+    mapping = BAND_TO_FILTER_PER_SURVEY.get(survey)
+    if mapping is None:
+        return f"{survey.lower()}{normalized}"
+    name = mapping.get(normalized)
+    if name is None:
+        raise ValueError(f"No filter configured for survey '{survey}' band '{band}'.")
+    return name
 
 
 def _passes_criteria(data, criteria):
@@ -129,6 +154,12 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
         raise ValueError(f"No zeropoint configured for survey '{survey}'.")
 
     photometry_data: dict = {}
+    # Photometry is unique on (obj, instrument, origin, mjd, filter), and one
+    # epoch can appear in more than one of these arrays (Lasair repeats
+    # detections across prv_candidates and fp_hists). Postgres cannot resolve
+    # duplicates that arrive in the same INSERT -- ON CONFLICT raises instead --
+    # so the whole object's photometry would be lost. Keep the first of each.
+    seen: set = set()
     for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
         for phot in data.get(array_name) or []:
             jd, band = phot.get("jd"), phot.get("band")
@@ -160,6 +191,11 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
+
+            epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
+            if epoch in seen:
+                continue
+            seen.add(epoch)
             if key not in photometry_data:
                 stream_ids = programid2streamid.get(key)
                 if not stream_ids:
@@ -173,19 +209,34 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                     "magsys": [],
                     "ra": [],
                     "dec": [],
+                    # SSO geometry per point (rh/delta/phase) for the outburst
+                    # statistic; populated from phot["sso"] when BOOM stamped it,
+                    # else left null. Pruned below if nothing was stamped.
+                    "altdata": {"rh": [], "delta": [], "phase": []},
                     **{col: [] for col in columns},
                 }
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
-            # Normalize the band first: BOOM emits survey-prefixed bands ("ztfg"),
-            # so a bare prefix would double it ("ztfztfg"). _normalize_band also
-            # handles bare bands ("g" -> "g"), giving "ztfg" either way.
-            pd["filter"].append(f"{survey.lower()}{_normalize_band(band)}")
+            pd["filter"].append(_filter_name(survey, band))
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))
+            # Per-point so re-sends (update-mode upsert) stay idempotent: each
+            # point always carries its own geometry, never a null that would wipe
+            # a neighbour's. Contract names: helio_dist->rh, topo_dist->delta.
+            psso = phot.get("sso") or {}
+            pd["altdata"]["rh"].append(psso.get("helio_dist"))
+            pd["altdata"]["delta"].append(psso.get("topo_dist"))
+            pd["altdata"]["phase"].append(psso.get("phase_angle"))
             for col, value in columns.items():
                 pd.setdefault(col, []).append(value)
+
+    # Drop the geometry block for groups where nothing was stamped (all non-SSO
+    # points), so the update-mode upsert never writes null altdata over other rows.
+    for pd in photometry_data.values():
+        ad = pd.get("altdata")
+        if ad and not any(v is not None for arr in ad.values() for v in arr):
+            del pd["altdata"]
 
     return photometry_data
 
@@ -200,6 +251,7 @@ async def _ingest_object(
     filter_ids=None,
     passing_alert_id=None,
     cutouts=None,
+    annotations_by_filter_id=None,
 ):
     """Create/refresh an Obj for ``data`` (a standard alert object), attach it to
     groups (as a Source) and/or filters (as a Candidate), and ingest its
@@ -218,15 +270,41 @@ async def _ingest_object(
     cutouts : dict, optional
         ``{cutoutScience, cutoutTemplate, cutoutDifference}`` FITS payloads, if
         the provider supplies them, rendered into science/template/diff thumbnails.
+    annotations_by_filter_id : dict, optional
+        Maps a skyportal Filter id to the annotation data its pipeline produced,
+        written as a filter annotation (origin ``"{group}:{filter}"``) on the obj.
     """
+    import conesearch_alchemy as ca
     import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from sqlalchemy.orm import joinedload
+
+    from baselayer.app.models import utcnow
 
     from ..handlers.api.photometry import add_external_photometry
-    from ..models import Candidate, Group, Instrument, Obj, Source
+    from ..models import (
+        Annotation,
+        Candidate,
+        Comment,
+        Filter,
+        Group,
+        GroupAnnotation,
+        Instrument,
+        Obj,
+        Source,
+        User,
+    )
+    from ..utils.data_access import (
+        any_group_auto_publishes,
+        auto_source_publishing_async,
+    )
     from ..utils.naive_datetime import utcnow_naive
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
+    saved_group_ids = []  # groups this call newly saves to (for auto-publish)
+    autosave_comments = []  # (group_id, text, saver_id) to post after auto-save
+    group_saver_id = {}  # group_id -> user id the auto-actions run under
 
     # Ingestion criteria gate: drop the alert against filters whose extra criteria
     # it fails. If nothing survives and this isn't an interactive save (group_ids),
@@ -268,6 +346,7 @@ async def _ingest_object(
         if created:
             for g in groups:
                 session.add(Source(obj=obj, group=g, saved_by_id=user.id))
+                saved_group_ids.append(g.id)
 
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
@@ -291,10 +370,110 @@ async def _ingest_object(
                     )
                 )
 
+        # Auto-save the passing object to the filter's group. Skip if it's already
+        # an active Source there or in a filter `autoSaveIgnoreGroupIds` (junk) --
+        # by exact obj, and, when `autoSaveIgnoreRadius` (arcsec) is set, also by
+        # position, so a junk duplicate (AGN / high-PM star with a new id) blocks it.
+        autosave_filters = (
+            await session.scalars(
+                sa.select(Filter).where(Filter.id.in_(filter_ids), Filter.autosave)
+            )
+        ).all()
+        for f in autosave_filters:
+            altdata = f.altdata or {}
+            ignore_group_ids = altdata.get("autoSaveIgnoreGroupIds") or []
+            ignore_radius = altdata.get("autoSaveIgnoreRadius")
+            if ignore_radius is None:
+                ignore_radius = _DEFAULT_IGNORE_RADIUS_ARCSEC
+            skip_conditions = [
+                sa.and_(
+                    Source.obj_id == object_id,
+                    Source.group_id.in_([f.group_id, *ignore_group_ids]),
+                )
+            ]
+            if (
+                ignore_group_ids
+                and ignore_radius
+                and obj.ra is not None
+                and obj.dec is not None
+            ):
+                skip_conditions.append(
+                    sa.and_(
+                        Source.group_id.in_(ignore_group_ids),
+                        Obj.within(
+                            ca.Point(ra=obj.ra, dec=obj.dec),
+                            float(ignore_radius) / 3600.0,
+                        ),
+                    )
+                )
+            already = await session.scalar(
+                sa.select(Source.id)
+                .join(Obj, Obj.id == Source.obj_id)
+                .where(Source.active.is_(True), sa.or_(*skip_conditions))
+            )
+            if already is None:
+                # Attribute the save (and the comment/TNS actions below) to a
+                # configured user if set, else the bot.
+                saver_id = altdata.get("autoSaveSaverId") or user.id
+                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                saved_group_ids.append(f.group_id)
+                group_saver_id[f.group_id] = saver_id
+                comment_text = (altdata.get("autoSaveComment") or "").strip()
+                if comment_text:
+                    autosave_comments.append((f.group_id, comment_text, saver_id))
+
     # autoflush is off on skyportal's async session; flush so the new Obj (and any
     # Candidate rows) are visible to add_external_photometry's existence check.
     if created or filter_ids:
         await session.flush()
+
+    # Attach each passing filter's annotation (origin "{group}:{filter}"), scoped to
+    # the filter's group so its scanners can see it. Upsert on the (obj_id, origin)
+    # unique key so a concurrent re-pass refreshes the data instead of raising and
+    # rolling back the whole alert.
+    annotated = {
+        fid: annotations_by_filter_id[fid]
+        for fid in filter_ids or []
+        if (annotations_by_filter_id or {}).get(fid)
+    }
+    if annotated:
+        filters = (
+            await session.scalars(
+                sa.select(Filter)
+                .options(joinedload(Filter.group))
+                .where(Filter.id.in_(annotated))
+            )
+        ).all()
+        for filt in filters:
+            # autoAnnotate defaults on; a filter can opt out of writing annotations.
+            if (filt.altdata or {}).get("autoAnnotate", True) is False:
+                continue
+            group = filt.group
+            # origin matches the legacy broker-plugin format so new annotations
+            # group with the historical ones.
+            group_name = (group.nickname or group.name) if group else None
+            origin = f"{group_name}:{filt.name}"
+            annotation_id = await session.scalar(
+                pg_insert(Annotation)
+                .values(
+                    obj_id=object_id,
+                    origin=origin,
+                    data=annotated[filt.id],
+                    author_id=user.id,
+                )
+                .on_conflict_do_update(
+                    index_elements=["obj_id", "origin"],
+                    set_={"data": annotated[filt.id], "modified": utcnow},
+                    where=Annotation.author_id == user.id,
+                )
+                .returning(Annotation.id)
+            )
+            if annotation_id is not None and group is not None:
+                await session.execute(
+                    pg_insert(GroupAnnotation)
+                    .values(group_id=group.id, annotation_id=annotation_id)
+                    .on_conflict_do_nothing()
+                )
 
     photometry_data = build_photometry_groups(
         object_id, survey, data, instrument_id, programid2streamid
@@ -302,7 +481,18 @@ async def _ingest_object(
 
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
-            await add_external_photometry(pd, user, session)
+            # Bulk ingestion must not inherit the sitewide default-share; keep
+            # ingested photometry scoped to the object's stream/user groups.
+            try:
+                await add_external_photometry(
+                    pd, user, session, apply_default_share=False
+                )
+            except Exception as e:
+                # Leaving a failed statement uncommitted poisons the session:
+                # everything after it raises MissingGreenlet instead of its own
+                # error, so the thumbnails and the candidate go too.
+                await session.rollback()
+                log(f"Failed to add photometry for {object_id}: {e}")
 
     # Best-effort science/template/difference thumbnails if the provider gave us
     # the cutouts.
@@ -313,6 +503,60 @@ async def _ingest_object(
             await add_thumbnails(object_id, cutouts, survey, session, user_id=user.id)
         except Exception as e:
             log(f"Failed to add thumbnails for {object_id}: {e}")
+
+    # Resolve the users the auto-actions run under (a configured saver, else the
+    # bot) so the comment author and the TNS submitter match the saver -- e.g. so
+    # TNS author lists come out right.
+    actor_ids = {sid for sid in group_saver_id.values() if sid != user.id}
+    user_by_id = {user.id: user}
+    if actor_ids:
+        for u in (
+            await session.scalars(sa.select(User).where(User.id.in_(actor_ids)))
+        ).all():
+            user_by_id[u.id] = u
+
+    # Post each filter's optional auto-save comment (mirrors Kowalski
+    # autosave.comment), scoped to the filter's group, authored by the saver.
+    if autosave_comments:
+        groups_by_id = {
+            g.id: g
+            for g in (
+                await session.scalars(
+                    sa.select(Group).where(
+                        Group.id.in_({gid for gid, _, _ in autosave_comments})
+                    )
+                )
+            ).all()
+        }
+        for gid, text, saver_id in autosave_comments:
+            g = groups_by_id.get(gid)
+            session.add(
+                Comment(
+                    text=text,
+                    obj_id=object_id,
+                    author=user_by_id.get(saver_id, user),
+                    groups=[g] if g else [],
+                    bot=True,
+                )
+            )
+
+    # BOOM saves Sources via the ORM, bypassing post_source's auto-publish hook;
+    # fire it here so TNS/Hermes/Public-page auto-publishers react to new saves.
+    if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
+        publish_to = ["TNS", "Hermes", "Public page"]
+        for gid in saved_group_ids:
+            saver = user_by_id.get(group_saver_id.get(gid), user)
+            # The submission lookup underneath reads the session's actor instead
+            # of taking one, and ingestion runs on a plain session that carries
+            # none unless it is set here.
+            session.user_or_token = saver
+            await auto_source_publishing_async(
+                session=session,
+                saver=saver,
+                obj=obj,
+                group_id=gid,
+                publish_to=publish_to,
+            )
 
     await session.commit()
     return {"id": object_id}
@@ -327,10 +571,20 @@ async def save_object_as_source(data, survey, session, user, group_ids, cutouts=
 
 
 async def save_object_as_candidate(
-    data, survey, session, user, filter_ids, passing_alert_id=None, cutouts=None
+    data,
+    survey,
+    session,
+    user,
+    filter_ids,
+    passing_alert_id=None,
+    cutouts=None,
+    annotations_by_filter_id=None,
 ):
     """Ingestion save: create/refresh an Obj, register it as a Candidate under each
-    of ``filter_ids`` (deduped on ``passing_alert_id``), and ingest photometry."""
+    of ``filter_ids`` (deduped on ``passing_alert_id``), and ingest photometry.
+
+    ``annotations_by_filter_id`` maps a skyportal Filter id to the annotation data
+    that filter's pipeline produced, written as a filter annotation on the obj."""
     return await _ingest_object(
         data,
         survey,
@@ -339,4 +593,46 @@ async def save_object_as_candidate(
         filter_ids=filter_ids,
         passing_alert_id=passing_alert_id,
         cutouts=cutouts,
+        annotations_by_filter_id=annotations_by_filter_id,
     )
+
+
+async def save_object_photometry(data, survey, session, user, cutouts=None):
+    """Ingest an Obj and its photometry only — no Candidate/Source. Used for a
+    cross-survey match's counterpart obj, which is linked via a SuperObj rather
+    than scanned as a candidate (no filter_ids/group_ids skips both gates)."""
+    return await _ingest_object(data, survey, session, user, cutouts=cutouts)
+
+
+async def associate_super_obj(session, obj_id, associated_obj_ids):
+    """Group ``obj_id`` and ``associated_obj_ids`` under one SuperObj (the
+    cross-survey "same physical object" link), creating it on first association
+    and adding any not-yet-linked matches otherwise."""
+    import sqlalchemy as sa
+
+    from ..models import ObjToSuperObj, SuperObj
+
+    associated_obj_ids = {m for m in associated_obj_ids if m and m != obj_id}
+    if not associated_obj_ids:
+        return
+    super_obj = await session.scalar(
+        sa.select(SuperObj).join(ObjToSuperObj).where(ObjToSuperObj.obj_id == obj_id)
+    )
+    if super_obj is None:
+        super_obj = SuperObj()
+        session.add(super_obj)
+        await session.flush()  # assign super_obj.id before linking
+        session.add(ObjToSuperObj(obj_id=obj_id, super_obj_id=super_obj.id))
+        linked = set()
+    else:
+        linked = set(
+            (
+                await session.scalars(
+                    sa.select(ObjToSuperObj.obj_id).where(
+                        ObjToSuperObj.super_obj_id == super_obj.id
+                    )
+                )
+            ).all()
+        )
+    for match_id in associated_obj_ids - linked:
+        session.add(ObjToSuperObj(obj_id=match_id, super_obj_id=super_obj.id))

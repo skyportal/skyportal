@@ -1,0 +1,167 @@
+name: CI scope
+
+# Works out which suites a pull request actually needs, so that e.g. a
+# frontend-only change does not pay for the API, external and model suites.
+# Anything that is not clearly frontend-only, docs-only or backend-only runs
+# everything, as does a push to main.
+#
+# Escape hatch: add the `run-all-tests` label to a PR and re-run the workflow
+# (labels are read live, so a re-run picks them up without a new commit).
+
+on:
+  workflow_call:
+    outputs:
+      frontend:
+        description: "Frontend code changed (typecheck, frontend tests)"
+        value: ${{ jobs.scope.outputs.frontend }}
+      backend:
+        description: "Backend code changed (API/external tests, model tests)"
+        value: ${{ jobs.scope.outputs.backend }}
+      docs:
+        description: "API handlers or doc/ changed (docs build)"
+        value: ${{ jobs.scope.outputs.docs }}
+      test_subsets:
+        description: "JSON list of API & frontend test subsets to run"
+        value: ${{ jobs.scope.outputs.test_subsets }}
+
+jobs:
+  scope:
+    name: Determine CI scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.scope.outputs.frontend }}
+      backend: ${{ steps.scope.outputs.backend }}
+      docs: ${{ steps.scope.outputs.docs }}
+      test_subsets: ${{ steps.scope.outputs.test_subsets }}
+    steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          python3 - <<'PY' | tee -a "$GITHUB_OUTPUT"
+          import fnmatch
+          import json
+          import os
+          import subprocess
+
+          API_SUBSETS = [
+              "api_and_utils_pt1",
+              "api_and_utils_pt2",
+              "api_and_utils_pt3",
+              "api_and_utils_pt4",
+              "api_and_utils_pt5",
+              "external",
+          ]
+          FRONTEND_SUBSETS = [f"frontend_pt{i}" for i in range(1, 8)]
+
+          FRONTEND = [
+              "static/**",
+              "skyportal/tests/frontend/**",
+              "package.json",
+              "bun.lock",
+              "tsconfig.json",
+              "eslint.config.js",
+              "rspack.config.js",
+              "baselayer",  # ships frontend code too (also listed in BACKEND)
+          ]
+          # Backend patterns that are really frontend (they sit under a
+          # backend directory).
+          NOT_BACKEND = ["skyportal/tests/frontend/**"]
+          BACKEND = [
+              "skyportal/**",
+              "alembic/**",
+              "alembic.ini",
+              "services/**",
+              "jobs/**",
+              "tools/**",
+              "data/**",
+              "baselayer",
+              "skyportal-data",
+              "pyproject.toml",
+              "uv.lock",
+              "config.yaml.defaults",
+              "test_config.yaml",
+              "instrument_observation_params.json",
+              "Makefile",
+          ]
+          # Changed on their own, these need no test suite at all.
+          NEUTRAL = [
+              "doc/**",
+              "*.md",
+              "LICENSE.txt",
+              "RELEASE.txt",
+              ".git-blame-ignore-revs",
+              ".cursorrules",
+          ]
+
+          def matches(path, patterns):
+              # fnmatch has no globstar, so match "dir/**" as a prefix.
+              return any(
+                  path.startswith(p[:-2]) if p.endswith("/**")
+                  else fnmatch.fnmatch(path, p)
+                  for p in patterns
+              )
+
+          def gh(*args):
+              return subprocess.run(
+                  ["gh", *args], capture_output=True, text=True, check=True
+              ).stdout.splitlines()
+
+          pr = os.environ.get("PR")
+          files, labels = [], []
+          if pr:
+              try:
+                  files = gh(
+                      "api", f"repos/{os.environ['REPO']}/pulls/{pr}/files",
+                      "--paginate", "--jq", ".[].filename",
+                  )
+                  labels = gh(
+                      "api", f"repos/{os.environ['REPO']}/pulls/{pr}",
+                      "--jq", ".labels[].name",
+                  )
+              except subprocess.CalledProcessError:
+                  files = []  # fall back to a full run
+
+          # Push to main, an unreadable diff, an explicit label, or any file we
+          # do not recognize (e.g. a CI change): run everything.
+          everything = (
+              not pr
+              or not files
+              or "run-all-tests" in labels
+              or any(
+                  not matches(f, FRONTEND + BACKEND + NEUTRAL) for f in files
+              )
+          )
+
+          frontend = everything or any(matches(f, FRONTEND) for f in files)
+          backend = everything or any(
+              matches(f, BACKEND) and not matches(f, NOT_BACKEND) for f in files
+          )
+          # A backend change can break the frontend, so it pulls in both; a
+          # frontend change only ever needs the frontend suite.
+          subsets = (API_SUBSETS if backend else []) + (
+              FRONTEND_SUBSETS if frontend or backend else []
+          )
+          docs = (
+              everything
+              or "api" in labels
+              or any(
+                  f.startswith("skyportal/handlers/") or f.startswith("doc/")
+                  for f in files
+              )
+          )
+
+          for key, value in [
+              ("frontend", frontend),
+              ("backend", backend),
+              ("docs", docs),
+          ]:
+              print(f"{key}={str(value).lower()}")
+          print(f"test_subsets={json.dumps(subsets)}")
+          PY

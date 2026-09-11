@@ -1,0 +1,69 @@
+"""Per-group cuts for event-to-event associations
+
+Which pairs of messengers count as coincident is a science choice, and groups
+differ: an EM-GW group draws the GW-GRB line where a neutrino group would not.
+Scoped to a group like the events themselves.
+
+Revision ID: a7c94e1d6b30
+Revises: f3b02c8e5a91
+Create Date: 2026-08-23 16:45:00.000000
+"""
+
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+from alembic import op
+
+revision = "a7c94e1d6b30"
+down_revision = "f3b02c8e5a91"
+branch_labels = None
+depends_on = None
+
+# the type already exists (see the x-ray migration); create_type is a
+# postgresql-dialect flag that sa.Enum silently ignores
+MESSENGER = postgresql.ENUM(
+    "gravitational-wave",
+    "neutrino",
+    "gamma-ray-burst",
+    "x-ray",
+    name="mma_detector_types",
+    create_type=False,
+)
+
+
+def upgrade():
+    op.create_table(
+        "gcnassociationrules",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "modified", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column("group_id", sa.Integer(), nullable=False),
+        sa.Column("detector_type_1", MESSENGER, nullable=False),
+        sa.Column("detector_type_2", MESSENGER, nullable=False),
+        sa.Column("tags_1", sa.ARRAY(sa.String()), server_default="{}", nullable=False),
+        sa.Column("tags_2", sa.ARRAY(sa.String()), server_default="{}", nullable=False),
+        sa.Column("days", sa.Float(), nullable=False),
+        sa.Column("min_consistency", sa.Float(), server_default="0.5", nullable=False),
+        sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "group_id",
+            "detector_type_1",
+            "detector_type_2",
+            name="gcnassociationrules_group_pair_key",
+        ),
+    )
+    op.create_index(
+        op.f("ix_gcnassociationrules_created_at"), "gcnassociationrules", ["created_at"]
+    )
+    op.create_index(
+        op.f("ix_gcnassociationrules_group_id"), "gcnassociationrules", ["group_id"]
+    )
+
+
+def downgrade():
+    op.drop_table("gcnassociationrules")

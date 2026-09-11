@@ -1,4 +1,3 @@
-
 # Spatial Catalogs
 
 For catalogs where source location uncertainties are large enough that the Source class is insufficient, SkyPortal has the concept of `SpatialCatalog`s. These catalogs enable cross-matching between sources and objects with spatial extent, such as gamma-ray source catalogs.

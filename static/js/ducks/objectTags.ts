@@ -72,10 +72,10 @@ export const objectTagsApi = skyportalApi.injectEndpoints({
       unknown,
       { id: number | string } & Record<string, unknown>
     >({
-      query: (data) => ({
-        url: `api/objtag/${data.id}`,
+      query: ({ id, ...body }) => ({
+        url: `api/objtag/${id}`,
         method: "DELETE",
-        body: data,
+        body,
       }),
       invalidatesTags: ["ObjTag", "SourceTag"],
     }),

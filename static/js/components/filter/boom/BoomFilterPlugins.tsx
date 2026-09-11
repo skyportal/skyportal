@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
@@ -6,18 +7,24 @@ import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 import { UnifiedBuilderProvider } from "../../../contexts/UnifiedBuilderContext";
 import FilterBuilderContent from "./FilterBuilderContent";
 import AnnotationBuilderContent from "./AnnotationBuilderContent";
+import BoomFilterFollowupConfig from "./BoomFilterFollowupConfig";
+import FilterVersionDiff from "./FilterVersionDiff";
 
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
@@ -27,9 +34,12 @@ import {
   useBoomFilterVersion,
   useEditBoomFilterVersionMutation,
   useUpdateBoomGroupFilterMutation,
+  useUpdateBoomFilterFlagsMutation,
   useValidateBoomFilterMutation,
 } from "../../../ducks/boom_filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
+import { useGetGroupQuery } from "../../../ducks/group";
+import { useDeleteDefaultFollowupRequestMutation } from "../../../ducks/default_followup_requests";
 import { useGetProfileQuery } from "../../../ducks/profile";
 
 interface BoomFilterPluginsProps {
@@ -120,16 +130,23 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
     useBoomFilterVersion();
   const [editFilterVersion] = useEditBoomFilterVersionMutation();
   const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
+  const [updateFilterFlags] = useUpdateBoomFilterFlagsMutation();
   const [validateFilter] = useValidateBoomFilterMutation();
   const { data: profile } = useGetProfileQuery();
   const isAdmin = (profile?.permissions ?? []).includes("System admin");
   const [validating, setValidating] = useState(false);
 
   // A filter version may be activated only once it has passed validation for
-  // that fid (or by an admin). Keyed on fid, so it survives active on/off.
-  const validation = filter_v?.altdata?.boom?.validation;
-  const isValidated =
-    !!validation?.passed && validation?.fid === filter_v?.active_fid;
+  // that fid (or by an admin). Verdicts are stored per fid so each version keeps
+  // its own result; fall back to the legacy single-slot record for old data.
+  const boomValidations = filter_v?.altdata?.boom?.validations;
+  const legacyValidation = filter_v?.altdata?.boom?.validation;
+  const validation =
+    boomValidations?.[filter_v?.active_fid] ??
+    (legacyValidation?.fid === filter_v?.active_fid
+      ? legacyValidation
+      : undefined);
+  const isValidated = !!validation?.passed;
 
   const { data: groupsData } = useGetGroupsQuery();
   const allGroups = groupsData?.all;
@@ -139,6 +156,93 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   allGroups?.forEach((g: any) => {
     groupLookUp[g.id] = g;
   });
+
+  // Auto-actions run when an object passes: save to the filter's group (skipping
+  // objects already in an ignore/junk group), annotate, and/or trigger followup.
+  // Auto-save lives in the `autosave` column that ingestion reads; the rest in altdata.
+  const autoSaveOn = !!filter_v?.autosave;
+  const autoAnnotateOn = !!filter_v?.altdata?.autoAnnotate;
+  const autoFollowupOn = !!filter_v?.altdata?.autoFollowup;
+  const ignoreGroupIds: number[] =
+    filter_v?.altdata?.autoSaveIgnoreGroupIds ?? [];
+  const handleFlagToggle =
+    (flag: "autoSave" | "autoAnnotate" | "autoFollowup") =>
+    async (checked: boolean) => {
+      await updateFilterFlags({ filter_id: filter_v.id, [flag]: checked });
+      refetchFilterVersion();
+    };
+  const handleIgnoreGroupsChange = async (ids: number[]) => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveIgnoreGroupIds: ids,
+    });
+    refetchFilterVersion();
+  };
+
+  // Auto-save attribution + comment. Members come from the filter's own group.
+  const saverId: number | "" = filter_v?.altdata?.autoSaveSaverId ?? "";
+  const { data: filterGroup } = useGetGroupQuery(filter_v?.group_id, {
+    skip: !autoSaveOn || !filter_v?.group_id,
+  });
+  const groupMembers: any[] = (filterGroup as any)?.users ?? [];
+  const handleSaverChange = async (id: number | "") => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveSaverId: id === "" ? null : id,
+    });
+    refetchFilterVersion();
+  };
+  const handleCommentBlur = async (text: string) => {
+    if ((filter_v?.altdata?.autoSaveComment ?? "") === text) return;
+    await updateFilterFlags({ filter_id: filter_v.id, autoSaveComment: text });
+    refetchFilterVersion();
+  };
+  const handleIgnoreRadiusBlur = async (val: string) => {
+    const parsed = val.trim() === "" ? null : Number(val);
+    if ((filter_v?.altdata?.autoSaveIgnoreRadius ?? null) === parsed) return;
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoSaveIgnoreRadius: parsed,
+    });
+    refetchFilterVersion();
+  };
+
+  // Auto-followup is backed by a skyportal DefaultFollowupRequest scoped to this
+  // filter's group; the flag reflects whether one is linked.
+  const autoFollowupDefaultId: number | null =
+    filter_v?.altdata?.autoFollowupDefaultId ?? null;
+  const [followupConfigOpen, setFollowupConfigOpen] = useState(false);
+  const [deleteDefaultFollowup] = useDeleteDefaultFollowupRequestMutation();
+  const handleAutoFollowupToggle = async (checked: boolean) => {
+    if (checked) {
+      // Reveal the config; the flag is set once a default request is created.
+      setFollowupConfigOpen(true);
+      return;
+    }
+    if (autoFollowupDefaultId) {
+      try {
+        await deleteDefaultFollowup(autoFollowupDefaultId).unwrap();
+      } catch {
+        // notification handled by baseQuery
+      }
+    }
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoFollowup: false,
+      autoFollowupDefaultId: null,
+    });
+    setFollowupConfigOpen(false);
+    refetchFilterVersion();
+  };
+  const handleFollowupLinked = async (id: number | null) => {
+    await updateFilterFlags({
+      filter_id: filter_v.id,
+      autoFollowup: id != null,
+      autoFollowupDefaultId: id,
+    });
+    if (id != null) setFollowupConfigOpen(false);
+    refetchFilterVersion();
+  };
 
   const [panelboomExpanded, setPanelboomExpanded] = useState<any>(true);
 
@@ -242,20 +346,160 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
           Running the filter over a night of alerts — this can take a while.
         </Typography>
       ) : validation ? (
-        <Typography
-          variant="caption"
-          color={isValidated ? "textSecondary" : "error"}
+        <Tooltip
+          title={!isValidated && validation.message ? validation.message : ""}
         >
-          {isValidated
-            ? "Validated ✓"
-            : validation.message || "Not validated for this version"}
-        </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              minWidth: 0,
+            }}
+          >
+            {isValidated ? (
+              <CheckCircleIcon fontSize="small" color="success" />
+            ) : (
+              <CancelIcon fontSize="small" color="error" />
+            )}
+            <Typography
+              variant="caption"
+              color={isValidated ? "success.main" : "error"}
+            >
+              {isValidated
+                ? "Validated"
+                : validation.message
+                  ? "Validation failed (hover for details)"
+                  : "Validation failed"}
+            </Typography>
+          </Box>
+        </Tooltip>
+      ) : !filter_v.active ? (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <HelpOutlineIcon fontSize="small" color="disabled" />
+          <Typography variant="caption" color="textSecondary">
+            Not validated for this version
+          </Typography>
+        </Box>
       ) : null}
     </Box>
   );
 
+  const autoSaveControls = (
+    <Box
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}
+    >
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoSaveOn}
+            onChange={(e) => handleFlagToggle("autoSave")(e.target.checked)}
+          />
+        }
+        label="Auto-save to group"
+      />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoAnnotateOn}
+            onChange={(e) => handleFlagToggle("autoAnnotate")(e.target.checked)}
+          />
+        }
+        label="Auto-annotate"
+      />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoFollowupOn || followupConfigOpen}
+            onChange={(e) => handleAutoFollowupToggle(e.target.checked)}
+          />
+        }
+        label="Auto-trigger follow-up"
+      />
+      {autoSaveOn && (
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel id={`ignore-groups-${filter_v.id}`}>
+            Skip if already in
+          </InputLabel>
+          <Select
+            multiple
+            labelId={`ignore-groups-${filter_v.id}`}
+            label="Skip if already in"
+            value={ignoreGroupIds}
+            onChange={(e) =>
+              handleIgnoreGroupsChange(e.target.value as number[])
+            }
+            renderValue={(sel) =>
+              (sel as number[])
+                .map((id) => groupLookUp[id]?.name ?? id)
+                .join(", ")
+            }
+          >
+            {allGroups?.map((g: any) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+      {autoSaveOn && (
+        <TextField
+          size="small"
+          type="number"
+          sx={{ minWidth: 160 }}
+          label="Junk skip radius (arcsec)"
+          placeholder="2"
+          helperText="Default 2″; 0 = exact match only"
+          key={`ignore-radius-${filter_v.id}-${filter_v?.altdata?.autoSaveIgnoreRadius ?? ""}`}
+          defaultValue={filter_v?.altdata?.autoSaveIgnoreRadius ?? ""}
+          onBlur={(e) => handleIgnoreRadiusBlur(e.target.value)}
+        />
+      )}
+      {autoSaveOn && (
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id={`saver-${filter_v.id}`}>Save as</InputLabel>
+          <Select
+            labelId={`saver-${filter_v.id}`}
+            label="Save as"
+            value={saverId}
+            onChange={(e) => handleSaverChange(e.target.value as number | "")}
+          >
+            <MenuItem value="">
+              <em>Bot (default)</em>
+            </MenuItem>
+            {groupMembers.map((u: any) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.username}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+      {autoSaveOn && (
+        <TextField
+          size="small"
+          sx={{ minWidth: 240 }}
+          label="Save comment"
+          key={`comment-${filter_v.id}-${filter_v?.altdata?.autoSaveComment ?? ""}`}
+          defaultValue={filter_v?.altdata?.autoSaveComment ?? ""}
+          onBlur={(e) => handleCommentBlur(e.target.value)}
+        />
+      )}
+    </Box>
+  );
+
   // forms
-  const [inlineNewVersion, setInlineNewVersion] = React.useState(false);
+  const location = useLocation();
+  // Read once at mount, during render (before PageTourProvider's effect can
+  // clear location.state) so the "filter" page tour's targets are already
+  // mounted when it starts polling for them.
+  const [inlineNewVersion, setInlineNewVersion] = React.useState(
+    () => (location.state as any)?.tour === "filter",
+  );
   const [showAnnotationBuilder, setShowAnnotationBuilder] = useState(false);
 
   useEffect(() => {
@@ -482,6 +726,19 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
               {filter_v?.fv && (
                 <div className={classes.infoLine}>{activationControls}</div>
               )}
+              {filter_v?.fv && (
+                <div className={classes.infoLine}>{autoSaveControls}</div>
+              )}
+              {filter_v?.fv && (autoFollowupOn || followupConfigOpen) && (
+                <div className={classes.infoLine}>
+                  <BoomFilterFollowupConfig
+                    filterId={filter_v.id}
+                    groupId={filter_v.group_id}
+                    existingDefaultId={autoFollowupDefaultId}
+                    onLinked={handleFollowupLinked}
+                  />
+                </div>
+              )}
               <div
                 style={{
                   display: "flex",
@@ -510,6 +767,13 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
                       ))}
                     </Select>
                   </FormControl>
+                )}
+                {filter_v?.fv && (
+                  <FilterVersionDiff
+                    versions={filter_v.fv}
+                    activeFid={filter_v.active_fid}
+                    validations={filter_v?.altdata?.boom?.validations}
+                  />
                 )}
                 <>
                   <Button

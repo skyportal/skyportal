@@ -13,6 +13,7 @@ from suds import Client
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.utils.cache import cache_folder
 
 
 def record_mode_for(cache):
@@ -24,10 +25,17 @@ def record_mode_for(cache):
 def redirect_host(uri):
     """Real host for a test route, longest match first (`/too` also matches
     `/too/winter`, and the last match in config order would otherwise win)."""
-    matches = [r for r in cfg["test_server.redirects"] if re.match(r, uri)]
-    if not matches:
+
+    def matches(route):
+        # segment boundary, else `/too` claims `/toop/submit_api.php`
+        if uri == route or route.endswith("/"):
+            return uri.startswith(route)
+        return uri.startswith(route) and uri[len(route)] in "/?"
+
+    routes = [r for r in cfg["test_server.redirects"] if matches(r)]
+    if not routes:
         return None
-    return cfg["test_server.redirects"][max(matches, key=len)]
+    return cfg["test_server.redirects"][max(routes, key=len)]
 
 
 def get_cache_file_static():
@@ -51,12 +59,12 @@ def get_cache_file():
     Helper function to get the path to the VCR cache file.
     The function will also delete the existing cache if it is too old.
     """
-    files = glob.glob("cache/test_server_recordings_*.yaml")
+    files = glob.glob(f"{cache_folder}/test_server_recordings_*.yaml")
     today = datetime.date.today()
 
     # If no cache files, just return a fresh one stamped for today
     if len(files) == 0:
-        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
+        return f"{cache_folder}/test_server_recordings_{today.isoformat()}.yaml"
 
     current_file = files[0]
     current_file_date = datetime.date.fromisoformat(
@@ -66,7 +74,7 @@ def get_cache_file():
     if (today - current_file_date).days > refresh_cache_days:
         # Delete old cache and return new file path
         os.remove(current_file)
-        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
+        return f"{cache_folder}/test_server_recordings_{today.isoformat()}.yaml"
 
     # Cache is still valid
     return current_file
@@ -209,28 +217,6 @@ def ztf_request_matcher(r1, r2):
     r2_is_ztf = is_ztf_request(r2_uri)
 
     assert r1_is_ztf and r2_is_ztf and r1.method == r2.method
-
-
-def swift_request_matcher(r1, r2):
-    """
-    Helper function to help determine if two requests to the Swift API are equivalent
-    """
-
-    # A request matches a Swift request if the URI and method matches
-    r1_uri = r1.uri.replace(":443", "")
-    r2_uri = r2.uri.replace(":443", "")
-
-    def is_swift_request(uri):
-        pattern = r"/toop/submit_json.php"
-        if re.search(pattern, uri) is not None:
-            return True
-
-        return False
-
-    r1_is_swift = is_swift_request(r1_uri)
-    r2_is_swift = is_swift_request(r2_uri)
-
-    assert r1_is_swift and r2_is_swift and r1.method == r2.method
 
 
 def kait_request_matcher(r1, r2):
@@ -557,7 +543,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
     def post(self):
         cached_urls = [
             ".*/api/requestgroups/.*",
-            ".*/toop/submit_json.php$",
             ".*/cgi-bin/internal/process_kait_ztf_request.py$",
             ".*/api/triggers/ztf/.*",
             ".*/node_agent2/node_agent/.*",
@@ -584,8 +569,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["kait"]
         elif self.request.uri == "/api/v1/pointings":
             match_on = ["treasuremap"]
-        elif "/toop/submit_json.php" in self.request.uri:
-            match_on = ["swift"]
         elif self.request.uri.startswith("/too/winter") or self.request.uri.startswith(
             "/too/spring"
         ):
@@ -686,7 +669,6 @@ if __name__ == "__main__":
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)
     my_vcr.register_matcher("treasuremap", treasuremap_request_matcher)
-    my_vcr.register_matcher("swift", swift_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)

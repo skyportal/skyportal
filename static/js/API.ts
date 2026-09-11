@@ -1,10 +1,5 @@
-// Note: These are thunks (https://github.com/gaearon/redux-thunk),
-// so calling `API(...)` will not do anything.
-//
-// Each invocation should happen inside of a `dispatch` call, e.g.,
-//
-//  dispatch(API.GET('/api/profile', FETCH_USER_PROFILE));
-//
+// These are thunks (https://github.com/gaearon/redux-thunk): calling `API(...)`
+// does nothing until it is dispatched, e.g. dispatch(GET('/api/profile', TYPE)).
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -13,22 +8,6 @@ import type { AppDispatch } from "./types/store";
 const API_CALL = "skyportal/API_CALL";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
-
-/**
- * Shape of a successful API response (always wrapped in a {status,data,message}
- * envelope by `BaseHandler.success`).
- */
-export interface ApiSuccess<T = unknown> {
-  status: "success";
-  message?: string;
-  data: T;
-}
-
-/** Shape of a failed API response. */
-export interface ApiError {
-  status: "error";
-  message: string;
-}
 
 /** Action dispatched after a successful API call: type=<actionType>_OK. */
 export type ApiOkAction<T = unknown> = {
@@ -49,9 +28,8 @@ interface ApiCallParameters {
 
 /**
  * A redux-thunk returned by the API helpers; dispatch it to run the request.
- * The T parameter is the *data* shape returned by the endpoint (i.e. the
- * `data` field of {@link ApiSuccess}); pass it explicitly at the call site to
- * propagate the type into the dispatched _OK action and the reducer.
+ * T is the *data* field of the response envelope; pass it explicitly at the
+ * call site to propagate the type into the _OK action and the reducer.
  */
 export type ApiThunk<T = unknown> = (
   dispatch: AppDispatch,
@@ -105,12 +83,6 @@ function API<T = unknown>(
 
       return dispatch({ type: `${actionType}_OK`, ...json, parameters });
     } catch (error: any) {
-      /* In case of an unintentional error, dispatch an action that contains
-           every piece of information we have about the request.
-
-           This information can be used in a reducer to set an error message.
-        */
-
       dispatch(showNotification(`${error.message}`, "error"));
       return dispatch({
         type: `${actionType}_FAIL`,
@@ -126,27 +98,24 @@ export const filterOutEmptyValues = (
   params: Record<string, unknown>,
   removeEmptyArrays = true,
   removeFalse = true,
-): Record<string, unknown> => {
-  const filteredParams: Record<string, unknown> = {};
-  // Filter out empty fields from an object (form data)
-  Object.keys(params).forEach((key) => {
-    // Empty array ([]) counts as true, so specifically test for it
-    // Also, the number 0 may be a valid input but evaluate to false,
-    // so just let numbers through
-    if (
-      (!(
-        Array.isArray(params[key]) &&
-        (params[key] as unknown[]).length === 0 &&
-        removeEmptyArrays
-      ) &&
-        (params[key] || (params[key] === false && removeFalse === false))) ||
-      typeof key === "number"
-    ) {
-      filteredParams[key] = params[key];
-    }
-  });
-  return filteredParams;
-};
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(params).filter(([, value]) => {
+      // 0 is falsy but a valid input (this tested the key, never a number, until #6416)
+      if (Number.isFinite(value)) return true;
+      if (removeEmptyArrays && Array.isArray(value) && value.length === 0)
+        return false;
+      return Boolean(value) || (value === false && !removeFalse);
+    }),
+  );
+
+export const pickParams = (
+  params: Record<string, any>,
+  keys: readonly string[],
+): Record<string, any> =>
+  Object.fromEntries(
+    Object.entries(params).filter(([key]) => keys.includes(key)),
+  );
 
 /**
  * Encode an object as a URL query string (no leading "?"), skipping null,
@@ -175,13 +144,11 @@ function GET<T = unknown>(
   queryParams?: Record<string, unknown>,
   removeFalse = true,
 ): ApiThunk<T> {
-  let url = endpoint;
-  if (queryParams) {
-    const queryString = buildQueryString(
-      filterOutEmptyValues(queryParams, true, removeFalse),
-    );
-    url += `?${queryString}`;
-  }
+  const url = queryParams
+    ? `${endpoint}?${buildQueryString(
+        filterOutEmptyValues(queryParams, true, removeFalse),
+      )}`
+    : endpoint;
   return API<T>(url, actionType, "GET");
 }
 
@@ -193,39 +160,15 @@ function POST<T = unknown>(
   return API<T>(endpoint, actionType, "POST", payload);
 }
 
-function PATCH<T = unknown>(
-  endpoint: string,
-  actionType?: string,
-  payload?: Record<string, unknown>,
-): ApiThunk<T> {
-  return API<T>(endpoint, actionType, "PATCH", payload);
-}
-
-function PUT<T = unknown>(
-  endpoint: string,
-  actionType?: string,
-  payload?: Record<string, unknown>,
-): ApiThunk<T> {
-  return API<T>(endpoint, actionType, "PUT", payload);
-}
-
-function DELETE<T = unknown>(
-  endpoint: string,
-  actionType?: string,
-  payload?: Record<string, unknown>,
-): ApiThunk<T> {
-  return API<T>(endpoint, actionType, "DELETE", payload);
-}
-
 function DOWNLOAD(
   endpoint: string,
   actionType?: string,
   payload: Record<string, any> = {},
 ): ApiThunk {
-  // This is a special case where if the status is 200
-  // there is no JSON to parse and return, instead the
-  // browser will download the file directly.
-  // if there is a failure, then we need to handle it like a normal API call
+  // On success the browser downloads the file directly, so there is no JSON to
+  // parse; only a failure is handled like a normal API call.
+  const { filename, ...parameters } = payload;
+
   return async (dispatch) => {
     if (!actionType) {
       dispatch(
@@ -235,12 +178,10 @@ function DOWNLOAD(
         ),
       );
     }
-    const filename = payload?.["filename"] || "download";
-    delete payload["filename"];
 
     dispatch({
       type: actionType ?? API_CALL,
-      parameters: { endpoint, payload },
+      parameters: { endpoint, payload: parameters },
     });
     try {
       const response = await fetch(endpoint, {
@@ -249,15 +190,15 @@ function DOWNLOAD(
       });
 
       if (response.status === 200) {
-        return response.blob().then((blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || "download";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
       }
 
       const json = await response.json();
@@ -267,7 +208,7 @@ function DOWNLOAD(
       dispatch(showNotification(`${error.message}`, "error"));
       return dispatch({
         type: `${actionType}_FAIL`,
-        parameters: { endpoint, payload },
+        parameters: { endpoint, payload: parameters },
         status: "error",
         message: error.message,
       });
@@ -275,4 +216,4 @@ function DOWNLOAD(
   };
 }
 
-export { GET, POST, PUT, PATCH, DELETE, API, DOWNLOAD, API_CALL };
+export { GET, POST, API, DOWNLOAD, API_CALL };

@@ -51,6 +51,7 @@ import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SimilarSources from "./SimilarSources";
+import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
@@ -62,6 +63,16 @@ import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
+import CommentPanel from "../comment/CommentPanel";
+import { INTERESTED_CHANNEL } from "../comment/channels";
+import {
+  useCommentPanel,
+  useCommentTarget,
+} from "../../contexts/CommentPanelContext";
+import SourceInterests from "./SourceInterests";
+import RequestDataAccess from "./RequestDataAccess";
+import UnsharedSpectra from "./UnsharedSpectra";
+import { useGetDataAvailabilityQuery } from "../../ducks/dataAccessRequests";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import AnnotationsTable from "./AnnotationsTable";
 import GcnNotesTable from "../gcn/GcnNotesTable";
@@ -73,10 +84,9 @@ import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
 import QuickSaveButton from "./QuickSaveSource";
-import Spinner from "../Spinner";
+import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
-import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import {
@@ -99,12 +109,11 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../ducks/instruments";
+import { useGetBrokersQuery } from "../../ducks/brokers";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
 const Font: any = "font";
-
-const CommentList = React.lazy(() => import("../comment/CommentList"));
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -133,7 +142,9 @@ export const useSourceStyles = makeStyles()((theme) => ({
     margin: 0,
   },
   noSpace: { padding: 0, margin: 0 },
-  dropdownText: { textDecoration: "none", color: "black" },
+  // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
+  // dark mode.
+  dropdownText: { textDecoration: "none", color: "inherit" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -236,14 +247,25 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (g: any) => !g.single_user_group,
   );
   const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
+  // Spectra exist that the viewer cannot open: "no spectrum exists" would be
+  // the wrong thing to say, and there is something to ask for.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(source.id, {
+    skip: !source.id,
+  });
+  const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
 
+  const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
-  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  // Only runs a target can still be assigned to; the full history is a couple
+  // of megabytes and nothing on this page shows it.
+  const { data: observingRunList = [] } = useGetObservingRunsQuery({
+    upcomingOnly: true,
+  });
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
@@ -264,6 +286,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const commentPanel = useCommentPanel();
+  useCommentTarget(isReadOnly ? null : { type: "source", id: source.id });
   const [magsys, setMagsys] = useState("ab");
   const [showExtinctionCorrection, setShowExtinctionCorrection] =
     useState(false);
@@ -273,6 +297,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const downLg = useMediaQuery((theme: any) => theme.breakpoints.down("lg"));
 
   const [hovering, setHovering] = useState<any>(null);
+
+  const alertBroker = brokers.find(
+    (b) =>
+      b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
+  );
 
   const sourceDuplicatesWithoutAssociatedObjs = useMemo(
     () =>
@@ -388,6 +417,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
           <AccordionDetails
             style={{
               padding: 0,
+              display: "flex",
+              flexDirection: "column",
               minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
             }}
           >
@@ -427,6 +458,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <AccordionDetails
               style={{
                 padding: 0,
+                display: "flex",
+                flexDirection: "column",
                 minHeight: downLarge || isRightPanelVisible ? "30vh" : "40vh",
               }}
             >
@@ -435,40 +468,20 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </Accordion>
         </Grid>
       )}
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
-          order: { xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 },
-        }}
-      >
-        <Accordion
-          defaultExpanded
-          className={classes.flexColumn}
-          data-testid="comments-accordion"
+      {!isReadOnly && commentPanel.inline && (
+        <Grid
+          size={{ xs: 12, lg: 6 }}
+          sx={{
+            order: {
+              xs: 3,
+              md: 3,
+              lg: downLarge || isRightPanelVisible ? 5 : 4,
+            },
+          }}
         >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="comments-content"
-            id="comments-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Comments
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails
-            style={{
-              minHeight: downLarge || isRightPanelVisible ? "55.5vh" : "63.5vh",
-            }}
-          >
-            <Suspense fallback={<CircularProgress />}>
-              <CommentList
-                objID={source.id}
-                maxHeightList={downLarge ? "28.5vh" : "350px"}
-              />
-            </Suspense>
-          </AccordionDetails>
-        </Accordion>
-      </Grid>
+          <CommentPanel inline />
+        </Grid>
+      )}
       <Grid
         size={12}
         sx={{
@@ -691,20 +704,24 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "baseline",
               }}
             >
-              <div>
-                <b>Redshift: &nbsp;</b>
-                {source.redshift &&
-                  source.redshift.toFixed(getZRound(source.redshift_error))}
-                {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
-                {source.redshift_error &&
-                  source.redshift_error.toFixed(
-                    getZRound(source.redshift_error),
-                  )}
-                {!isReadOnly && <UpdateSourceRedshift source={source} />}
-                <SourceRedshiftHistory
-                  redshiftHistory={source.redshift_history}
-                />
-              </div>
+              {/* Meaningless for a solar-system object. DM and luminosity
+                  distance derive from it, so they drop out on their own. */}
+              {!source.is_roid && (
+                <div>
+                  <b>Redshift: &nbsp;</b>
+                  {source.redshift &&
+                    source.redshift.toFixed(getZRound(source.redshift_error))}
+                  {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
+                  {source.redshift_error &&
+                    source.redshift_error.toFixed(
+                      getZRound(source.redshift_error),
+                    )}
+                  {!isReadOnly && <UpdateSourceRedshift source={source} />}
+                  <SourceRedshiftHistory
+                    redshiftHistory={source.redshift_history}
+                  />
+                </div>
+              )}
               <div className={classes.dmdlInfo}>
                 {source.dm && (
                   <div>
@@ -799,6 +816,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
+              </div>
+              <div className={classes.rowInfo}>
+                <SourceAcknowledgment obj_id={source.id} />
               </div>
             </div>
             {source.host && (
@@ -967,7 +987,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
-              <SourcePlugins {...({ source } as any)} />
+              {alertBroker ? (
+                <Link
+                  to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                    objectId: source.id,
+                    ...(source.ra != null && source.dec != null
+                      ? {
+                          ra: String(source.ra),
+                          dec: String(source.dec),
+                          radius: "3",
+                        }
+                      : {}),
+                  })}`}
+                  target="_blank"
+                >
+                  <Button primary size="small">
+                    Search alerts
+                  </Button>
+                </Link>
+              ) : (
+                <Tooltip title="No broker is set as the default for alert search">
+                  <span>
+                    <Button primary size="small" disabled>
+                      Search alerts
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
               <div>
                 <Button
                   aria-controls={openFindingChart ? "basic-menu" : undefined}
@@ -1102,6 +1148,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   }}
                 />
               )}
+              {!isReadOnly && (
+                <SourceInterests
+                  sourceID={source.id}
+                  onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
+                />
+              )}
+              {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
             </div>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
@@ -1290,6 +1343,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             className={classes.flexColumn}
           >
             <AccordionSummary
+              component="div"
               expandIcon={<ExpandMoreIcon />}
               aria-controls="photometry-content"
               id="photometry-header"
@@ -1385,6 +1439,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       mode={downMd ? "mobile" : "desktop"}
                       t0={source.t0}
                       showExtinctionCorrection={showExtinctionCorrection}
+                      is_roid={source.is_roid}
                     />
                   )}
                 </div>
@@ -1447,7 +1502,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <Grid container id="spectroscopy-container">
                 <div className={classes.plotContainer}>
                   {!source.spectrum_exists &&
-                    (!spectra || spectra?.length === 0) && (
+                    (!spectra || spectra?.length === 0) &&
+                    unsharedSpectraCount === 0 && (
                       <div style={{ marginLeft: "1rem" }}>
                         {" "}
                         No spectrum exists{" "}
@@ -1475,6 +1531,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       />
                     </Suspense>
                   )}
+                  {!isReadOnly && <UnsharedSpectra sourceID={source.id} />}
                 </div>
                 <div className={classes.buttonContainer}>
                   {!isReadOnly && (
@@ -1656,27 +1713,15 @@ const Source = ({ route }: SourceProps) => {
     }
   }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (isError) {
-    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
-  }
-  if (isLoading || !source) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  }
-  if (source.id === undefined) {
-    return <div>Source not found</div>;
-  }
+  if (isError) return (error as any)?.error ?? "Error while loading source";
+  // The name is known from the route, so the page keeps its shape while the
+  // rest arrives instead of going blank behind a whole-page spinner.
+  if (isLoading || !source) return <SourceSkeleton objId={route.id} />;
+  if (source.id === undefined) return "Source not found";
   // eslint-disable-next-line react-hooks/immutability
   document.title = source.id;
 
-  return (
-    <div>
-      <SourceContent source={source} />
-    </div>
-  );
+  return <SourceContent source={source} />;
 };
 
 export default withRouter(Source);

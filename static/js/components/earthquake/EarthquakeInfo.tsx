@@ -47,7 +47,6 @@ const Earthquake = () => {
   const { classes } = useStyles();
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [sortModel, setSortModel] = useState<any[]>([]);
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
@@ -60,22 +59,13 @@ const Earthquake = () => {
 
   const { events, totalMatches } = earthquakes;
 
-  const handlePageChange = (
-    pageNumber: number,
-    numPerPage: number,
-    sortData: any,
-  ) => {
-    const params: any = {
+  const handlePageChange = (pageNumber: number, numPerPage: number) => {
+    // Save state for future
+    setFetchParams({
       ...fetchParams,
       pageNumber,
       numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      params.sortBy = sortData.name;
-      params.sortOrder = sortData.direction;
-    }
-    // Save state for future
-    setFetchParams(params);
+    });
   };
 
   const handleTableFilter = (
@@ -91,20 +81,10 @@ const Earthquake = () => {
     if (filterData && Object.keys(filterData).length > 0) {
       params.startDate = filterData.startDate;
       params.endDate = filterData.endDate;
-      params.tagKeep = filterData.tagKeep;
-      params.tagRemove = filterData.tagRemove;
+      params.statusKeep = filterData.statusKeep;
+      params.statusRemove = filterData.statusRemove;
     }
     // Save state for future
-    setFetchParams(params);
-  };
-
-  const handleTableSorting = (sortData: any) => {
-    const params = {
-      ...fetchParams,
-      pageNumber: 1,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
     setFetchParams(params);
   };
 
@@ -116,19 +96,7 @@ const Earthquake = () => {
   };
 
   const handlePaginationModelChange = (model: any) => {
-    const currentSort = sortModel.length
-      ? { name: sortModel[0].field, direction: sortModel[0].sort }
-      : {};
-    handlePageChange(model.page + 1, model.pageSize, currentSort);
-  };
-
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      handlePageChange(1, fetchParams.numPerPage, {});
-      return;
-    }
-    handleTableSorting({ name: model[0].field, direction: model[0].sort });
+    handlePageChange(model.page + 1, model.pageSize);
   };
 
   const renderNotices = (params: any) => (
@@ -198,15 +166,12 @@ const Earthquake = () => {
             columns={columns}
             getRowId={(row: any) => row.event_id}
             paginationMode="server"
-            sortingMode="server"
             rowCount={totalMatches || 0}
             paginationModel={{
               page: fetchParams.pageNumber - 1,
               pageSize: fetchParams.numPerPage,
             }}
             onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             slots={{ toolbar: CustomToolbar }}
             showToolbar

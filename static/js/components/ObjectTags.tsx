@@ -14,7 +14,7 @@ import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import Autocomplete from "@mui/material/Autocomplete";
+import SearchableSelect from "./SearchableSelect";
 import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
@@ -272,8 +272,9 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
               control={control}
               render={({ field: { onChange, value } }) => {
                 return (
-                  <Autocomplete
+                  <SearchableSelect
                     id="tagSelect"
+                    label="Select Tag"
                     options={availableTags}
                     getOptionLabel={(option: any) => option.name}
                     value={value}
@@ -294,18 +295,12 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                         />
                       </li>
                     )}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        variant="outlined"
-                        label="Select Tag"
-                        size="small"
-                        className={styles.autocomplete}
-                        data-testid="tag-autocomplete-input"
-                      />
-                    )}
                     filterSelectedOptions
                     data-testid="tag-select"
+                    textFieldProps={{
+                      className: styles.autocomplete,
+                      "data-testid": "tag-autocomplete-input",
+                    }}
                   />
                 );
               }}

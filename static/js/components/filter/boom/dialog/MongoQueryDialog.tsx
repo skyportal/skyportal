@@ -252,8 +252,8 @@ const MongoQueryDialog = () => {
   }, [filter_stream, selectedCollection, dispatch]);
 
   const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
   const defaultEndDate = new Date();
-  defaultEndDate.setDate(defaultEndDate.getDate() + 1);
 
   const { getValues, control, watch } = useForm({
     startDate: defaultStartDate,
@@ -447,8 +447,8 @@ const MongoQueryDialog = () => {
         nextCursor: null,
       };
     }
-    if (result.data?.data) {
-      const originalData = result?.data?.data?.results;
+    if (result.data) {
+      const originalData = result?.data?.results;
       if (!originalData || originalData.length === 0) {
         setDisplayResults({ data: [] });
         return {
@@ -506,16 +506,18 @@ const MongoQueryDialog = () => {
   const handleRunQuery = async () => {
     // Validate date range before running the query
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
-    if (startDate && endDate) {
-      const diffInMs = endDate - startDate;
-      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-
-      if (diffInDays > 7) {
-        setQueryError(
-          "Date range cannot exceed 7 days. Please select a shorter time period.",
-        );
-        return;
-      }
+    // BOOM rejects a windowless query, so catch it here rather than surfacing
+    // its 400 to the user.
+    if (!startDate || !endDate) {
+      setQueryError("Select a start and end date before running the query.");
+      return;
+    }
+    // Both are Julian dates, so their difference is already in days.
+    if (endDate - startDate > 7) {
+      setQueryError(
+        "Date range cannot exceed 7 days. Please select a shorter time period.",
+      );
+      return;
     }
 
     setIsRunning(true);
@@ -564,7 +566,7 @@ const MongoQueryDialog = () => {
       // Good code when using queries/count endpoint
       // const actualCount = countQueryResult.result?.data?.data || 0;
       // temporary code to get count from results length
-      const actualCount = countQueryResult.result?.data?.data?.count;
+      const actualCount = countQueryResult.result?.data?.count;
       setTotalDocuments(actualCount);
 
       // Set query completed only after both queries are done

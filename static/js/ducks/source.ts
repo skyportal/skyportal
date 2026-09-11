@@ -112,6 +112,24 @@ export const sourceApi = skyportalApi.injectEndpoints({
         { type: "SourcePosition", id },
       ],
     }),
+    // Built from the source's own filters, facilities and programs, so it
+    // follows the broad "Source" tag like the rest of the per-source reads.
+    getSourceAcknowledgment: build.query<any, Record<string, any>>({
+      query: ({ id, ...selection }) => {
+        // Omitted selection means "everything detected", which is the server's
+        // default; an explicit empty list must still be sent as empty.
+        const params = buildQueryString(
+          Object.fromEntries(
+            Object.entries(selection).filter(([, v]) => v !== undefined),
+          ),
+        );
+        return `api/sources/${id}/acknowledgment${params ? `?${params}` : ""}`;
+      },
+      providesTags: (_result, _error, { id }) => [
+        "Source",
+        { type: "Source", id },
+      ],
+    }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
       query: (id) => `api/associated_gcns/${id}`,
       // Broad "Source" (so any broad source mutation still refetches it) plus a
@@ -176,9 +194,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
       { id: number | string; params: Record<string, any> }
     >({
       query: ({ id, params }) => {
-        const queryParams = params["nameOnly"]
-          ? ""
-          : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
+        const queryParams =
+          params["nameOnly"] || params["ra"] == null || params["dec"] == null
+            ? ""
+            : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
         return {
           url: `api/source_exists/${id}${queryParams}`,
           method: "GET",
@@ -288,6 +307,18 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: (_result, _error, formData) =>
         sourceTag(formData?.["obj_id"]),
     }),
+    updateClassification: build.mutation<
+      any,
+      { classificationID: number | string; formData: Record<string, any> }
+    >({
+      query: ({ classificationID, formData }) => ({
+        url: `api/classification/${classificationID}`,
+        method: "PUT",
+        body: formData,
+      }),
+      invalidatesTags: (_result, _error, { formData }) =>
+        sourceTag(formData?.["obj_id"]),
+    }),
     deleteClassification: build.mutation<any, number | string>({
       query: (classificationID) => ({
         url: `api/classification/${classificationID}`,
@@ -323,13 +354,19 @@ export const sourceApi = skyportalApi.injectEndpoints({
       Record<string, any>
     >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body["attachment"]) {
-          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        const url = formData["spectrum_id"]
+          ? `api/spectra/${formData["spectrum_id"]}/comments`
+          : `api/sources/${formData["obj_id"]}/comments`;
+        // Only the comment body keys; obj_id/spectrum_id are path params.
+        const body: Record<string, any> = {};
+        if (formData["text"] !== undefined) body["text"] = formData["text"];
+        if (formData["group_ids"] !== undefined)
+          body["group_ids"] = formData["group_ids"];
+        if (formData["channel"] !== undefined)
+          body["channel"] = formData["channel"];
+        if (formData["attachment"]) {
+          body["attachment"] = await fileReaderPromise(formData["attachment"]);
         }
-        const url = body["spectrum_id"]
-          ? `api/spectra/${body["spectrum_id"]}/comments`
-          : `api/sources/${body["obj_id"]}/comments`;
         const result = await baseQuery({ url, method: "POST", body });
         if (result.error) {
           return { error: result.error };
@@ -346,13 +383,17 @@ export const sourceApi = skyportalApi.injectEndpoints({
       { commentID: number | string; formData: Record<string, any> }
     >({
       queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body["attachment"]) {
-          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        const url = formData["spectrum_id"]
+          ? `api/spectra/${formData["spectrum_id"]}/comments/${commentID}`
+          : `api/sources/${formData["obj_id"]}/comments/${commentID}`;
+        // Only the comment body keys; obj_id/spectrum_id are path params.
+        const body: Record<string, any> = {};
+        if (formData["text"] !== undefined) body["text"] = formData["text"];
+        if (formData["group_ids"] !== undefined)
+          body["group_ids"] = formData["group_ids"];
+        if (formData["attachment"]) {
+          body["attachment"] = await fileReaderPromise(formData["attachment"]);
         }
-        const url = body["spectrum_id"]
-          ? `api/spectra/${body["spectrum_id"]}/comments/${commentID}`
-          : `api/sources/${body["obj_id"]}/comments/${commentID}`;
         const result = await baseQuery({ url, method: "PUT", body });
         if (result.error) {
           return { error: result.error };
@@ -363,6 +404,27 @@ export const sourceApi = skyportalApi.injectEndpoints({
       },
       invalidatesTags: (_result, _error, { formData }) =>
         sourceTag(formData?.["obj_id"]),
+    }),
+    getConversations: build.query<string[], string>({
+      query: (obj_id) => `api/sources/${obj_id}/comments/channels`,
+      providesTags: (_result, _error, obj_id) => sourceTag(obj_id),
+    }),
+    getConversation: build.query<any[], { obj_id: string; channel: string }>({
+      query: ({ obj_id, channel }) =>
+        `api/sources/${obj_id}/comments?channel=${encodeURIComponent(channel)}`,
+      transformResponse: (data: any[]) =>
+        (data ?? []).map(({ resourceType, ...comment }) => comment),
+      providesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
+    }),
+    deleteConversation: build.mutation<
+      any,
+      { obj_id: string; channel: string }
+    >({
+      query: ({ obj_id, channel }) => ({
+        url: `api/sources/${obj_id}/comments/channels?channel=${encodeURIComponent(channel)}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, { obj_id }) => sourceTag(obj_id),
     }),
     deleteComment: build.mutation<
       any,
@@ -518,6 +580,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      invalidatesTags: ["Photometry", "Spectra"],
     }),
     uploadPhotometry: build.mutation<any, Record<string, any>>({
       query: (data) => ({
@@ -722,23 +785,17 @@ invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 export const {
   useGetSourceQuery,
   useGetObjGroupsQuery,
-  useLazyGetSourceQuery,
+  useGetSourceAcknowledgmentQuery,
   useGetSourcePositionQuery,
   useGetAssociatedGcnsQuery,
   useGetAnalysesQuery,
   useGetAnalysisQuery,
-  useLazyGetAnalysisQuery,
   useGetAnalysisResultsQuery,
-  useLazyGetAnalysisResultsQuery,
   useCheckSourceMutation,
-  useGetPhotometryRequestQuery,
   useLazyGetPhotometryRequestQuery,
-  useGetSourceFinderChartQuery,
   useLazyGetSourceFinderChartQuery,
   useGetFinderChartFacilitiesQuery,
-  useGetCommentTextAttachmentQuery,
   useLazyGetCommentTextAttachmentQuery,
-  useGetCommentOnSpectrumTextAttachmentQuery,
   useLazyGetCommentOnSpectrumTextAttachmentQuery,
   useSaveSourceMutation,
   useUpdateSourceMutation,
@@ -747,12 +804,16 @@ export const {
   useDeclineSaveRequestMutation,
   useAddSourceViewMutation,
   useAddClassificationMutation,
+  useUpdateClassificationMutation,
   useDeleteClassificationMutation,
   useDeleteClassificationsMutation,
   useAddClassificationVoteMutation,
   useAddCommentMutation,
   useEditCommentMutation,
   useDeleteCommentMutation,
+  useGetConversationsQuery,
+  useGetConversationQuery,
+  useDeleteConversationMutation,
   useDeleteCommentOnSpectrumMutation,
   useAddAnnotationMutation,
   useDeleteAnnotationMutation,

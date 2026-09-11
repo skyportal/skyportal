@@ -32,6 +32,7 @@ const Group = () => {
   const navigate = useNavigate();
 
   const [groupLoadError, setGroupLoadError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [tab, setTab] = useState(0);
@@ -43,7 +44,7 @@ const Group = () => {
   const { id } = useParams();
 
   const { data: group, error: groupError } = useGetGroupQuery(id as string, {
-    skip: !id,
+    skip: !id || isDeleting,
   });
   const { data: currentUser } = useGetProfileQuery();
   const { error: streamsError } = useGetStreamsQuery();
@@ -64,17 +65,19 @@ const Group = () => {
 
   const handleDeleteGroup = async () => {
     try {
+      setIsDeleting(true);
       await deleteGroup(group?.["id"] as number).unwrap();
       setConfirmDeleteOpen(false);
       navigate("/groups");
     } catch {
+      setIsDeleting(false);
       // error notification handled by the API layer
     }
   };
 
   if (groupLoadError) return groupLoadError;
 
-  if (group == null) return <CircularProgress />;
+  if (group == null || currentUser == null) return <CircularProgress />;
 
   const isAdmin = (aUser: any) => {
     const currentGroupUser = group?.["users"]?.filter(

@@ -18,6 +18,7 @@ from .plot import (
 )
 from .profile import ProfileHandler
 from .recent_gcn_events import RecentGcnEventsHandler
+from .recent_gcn_extractions import RecentGcnExtractionsHandler
 from .recent_sources import RecentSourcesHandler
 from .robotic_instruments import RoboticInstrumentsHandler
 from .source_counts import SourceCountHandler

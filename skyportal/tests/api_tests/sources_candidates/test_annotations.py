@@ -93,6 +93,37 @@ def test_add_and_retrieve_annotation_group_id(
     assert data["data"]["origin"] == "kowalski"
 
 
+def test_post_annotation_ignores_handler_derived_body_fields(
+    annotation_token, public_source
+):
+    # Clients send obj_id (derived by the handler from the URL) in the body; it
+    # must be ignored, not rejected.
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/annotations",
+        data={
+            "obj_id": public_source.id,
+            "origin": str(uuid.uuid4()),
+            "data": {"numeric_field": 1},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    annotation_id = data["data"]["annotation_id"]
+
+    status, data = api(
+        "PUT",
+        f"sources/{public_source.id}/annotations/{annotation_id}",
+        data={
+            "obj_id": public_source.id,
+            "author_id": 1,
+            "data": {"numeric_field": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+
 def test_add_and_retrieve_annotation_no_group_id(annotation_token, public_source):
     status, data = api(
         "POST",

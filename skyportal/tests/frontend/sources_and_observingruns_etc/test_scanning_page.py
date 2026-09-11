@@ -6,7 +6,7 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -391,7 +391,7 @@ def test_submit_annotations_sorting(
         f"sources/{public_candidate.id}/annotations",
         data={
             "origin": origin,
-            "data": {"numeric_field": 1},
+            "data": {"numeric_field": 1.5},
         },
         token=annotation_token,
     )
@@ -401,7 +401,7 @@ def test_submit_annotations_sorting(
         f"sources/{public_candidate2.id}/annotations",
         data={
             "origin": origin,
-            "data": {"numeric_field": 2},
+            "data": {"numeric_field": 2.5},
         },
         token=annotation_token,
     )
@@ -430,12 +430,12 @@ def test_submit_annotations_sorting(
 
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.0000")]]'
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.5000")]]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.0000")]]'
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.5000")]]'
         ).first
     ).to_be_visible()
 
@@ -443,12 +443,12 @@ def test_submit_annotations_sorting(
 
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.0000")]]'
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.5000")]]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.0000")]]'
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.5000")]]'
         ).first
     ).to_be_visible()
 
@@ -878,7 +878,7 @@ def test_candidate_lightcurve_renders(
 
     # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
     # throws on the frozen photometry data.
-    expect(page.locator(".vega-embed svg.marks").first).to_be_visible()
+    expect_vega_plot(page.locator(".vega-embed").first)
     assert not any("not extensible" in err for err in page_errors), page_errors
 
 

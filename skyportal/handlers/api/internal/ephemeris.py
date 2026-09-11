@@ -20,12 +20,6 @@ class EphemerisHandler(BaseHandler):
           description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to {MAX_TELESCOPES_TO_DISPLAY} telescopes.
           tags:
             - ephemeris
-          parameters:
-            - in: path
-              name: telescope_id
-              required: false
-              schema:
-                type: string
           responses:
             200:
               content:

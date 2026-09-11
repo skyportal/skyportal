@@ -12,8 +12,6 @@ import ListItem from "@mui/material/ListItem";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Autocomplete from "@mui/material/Autocomplete";
-import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -29,6 +27,7 @@ import {
   useDeleteTelescopeMutation,
 } from "../../ducks/telescopes";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import SearchableSelect from "../SearchableSelect";
 import TelescopeTable from "./TelescopeTable";
 import Button from "../Button";
 import Paper from "../Paper";
@@ -282,38 +281,29 @@ const TelescopeList = () => {
             <Paper
               style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
             >
-              <Autocomplete
-                color="primary"
+              <SearchableSelect
                 id="telescopes-search-bar"
                 classes={{
                   root: (classes as any).root,
                   paper: (classes as any).paper,
                 }}
-                onChange={(_event, option) => {
-                  handleChange(option);
-                }}
+                onChange={(_event, option) => handleChange(option)}
                 value={selectedTelescope}
                 options={telescopeList}
                 getOptionLabel={(option: any) => option.name || ""}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    variant="outlined"
-                    placeholder="Telescope"
-                    slotProps={{
-                      ...params.slotProps,
-
-                      input: {
-                        ...params.slotProps.input,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
-                )}
+                textFieldProps={{
+                  variant: "outlined",
+                  placeholder: "Telescope",
+                  slotProps: {
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    },
+                  },
+                }}
               />
               <List>
                 {displayedTelescopes &&

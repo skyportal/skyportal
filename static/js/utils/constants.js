@@ -2,7 +2,6 @@ const C = 299792.458; // km/s
 const PHOT_ZP = 23.9; // AB mag zero point
 
 const BASE_LAYOUT = {
-  // base layout for all plotly plots
   automargin: true,
   ticks: "outside",
   nticks: 8,
@@ -10,12 +9,91 @@ const BASE_LAYOUT = {
   minor: {
     ticks: "outside",
     ticklen: 6,
-    tickcolor: "black",
   },
   showline: true,
   titlefont: { size: 18 },
   tickfont: { size: 14 },
 };
+
+const plotAxisTheme = (theme) => ({
+  gridcolor: theme.palette.divider,
+  linecolor: theme.palette.text.secondary,
+  tickcolor: theme.palette.text.secondary,
+  zerolinecolor: theme.palette.divider,
+  minor: { ...BASE_LAYOUT.minor, tickcolor: theme.palette.text.secondary },
+});
+
+const plotCanvasTheme = (theme) => ({
+  paper_bgcolor: theme.palette.background.paper,
+  plot_bgcolor: theme.palette.background.paper,
+  font: { color: theme.palette.text.primary },
+});
+
+const hexToRgb = (hex) => {
+  const v = hex.replace("#", "");
+  return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+};
+
+const hexLuminance = (hex) => {
+  const [r, g, b] = hexToRgb(hex).map((x) =>
+    x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+const lightenForDark = (hex, target = 0.35) => {
+  const [r, g, b] = hexToRgb(hex);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const toHex = (light) => {
+    const c = (1 - Math.abs(2 * light - 1)) * sat;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = light - c / 2;
+    const seg = Math.floor(h / 60) % 6;
+    const rgb = [
+      [c, x, 0],
+      [x, c, 0],
+      [0, c, x],
+      [0, x, c],
+      [x, 0, c],
+      [c, 0, x],
+    ][seg];
+    return `#${rgb
+      .map((ch) =>
+        Math.round((ch + m) * 255)
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")}`;
+  };
+  let light = l;
+  let out = toHex(light);
+  while (light < 1 && hexLuminance(out) < target) {
+    light = Math.min(1, light + 0.02);
+    out = toHex(light);
+  }
+  return out;
+};
+
+const legibleLineColors = (lines, dark) =>
+  dark
+    ? lines.map((line) =>
+        line?.color && hexLuminance(line.color) < 0.18
+          ? { ...line, color: lightenForDark(line.color) }
+          : line,
+      )
+    : lines;
 
 const LINES = [
   {
@@ -187,4 +265,13 @@ const LOGTYPE_TO_COLOR = {
   Other: "darkgreen",
 };
 
-export { C, PHOT_ZP, BASE_LAYOUT, LINES, LOGTYPE_TO_COLOR };
+export {
+  C,
+  PHOT_ZP,
+  BASE_LAYOUT,
+  LINES,
+  LOGTYPE_TO_COLOR,
+  plotAxisTheme,
+  plotCanvasTheme,
+  legibleLineColors,
+};

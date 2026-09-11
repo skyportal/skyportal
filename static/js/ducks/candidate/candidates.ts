@@ -69,7 +69,9 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       query: (filterParams = {}) => {
         const cleaned = { ...filterParams };
         delete cleaned["_searchCount"];
-        const filtered = filterOutEmptyValues(cleaned);
+        // keep false so requireDetections=false reaches the server (it defaults
+        // to true there, so dropping it made the checkbox a no-op)
+        const filtered = filterOutEmptyValues(cleaned, true, false);
         const queryString = buildQueryString(filtered);
         return `api/candidates?${queryString}`;
       },

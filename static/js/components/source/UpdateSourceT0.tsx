@@ -43,6 +43,8 @@ const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const firstDetectedMjd = source.photstats?.[0]?.first_detected_mjd ?? null;
+
   useEffect(() => {
     setT0(source.t0 ? String(source.t0) : "");
   }, [source]);
@@ -89,6 +91,26 @@ const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
               onChange={(event) => setT0(event.target.value)}
               variant="outlined"
             />
+          </div>
+          <div className={classes.saveButton}>
+            <Tooltip
+              title={
+                firstDetectedMjd == null
+                  ? "No detection statistics available for this source"
+                  : "Fill in the first detection MJD"
+              }
+            >
+              <span>
+                <Button
+                  secondary
+                  onClick={() => setT0(String(firstDetectedMjd))}
+                  data-testid="t0FirstDetectionButton"
+                  disabled={firstDetectedMjd == null}
+                >
+                  Use first detection
+                </Button>
+              </span>
+            </Tooltip>
           </div>
           <div className={classes.saveButton}>
             <Button

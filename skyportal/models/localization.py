@@ -28,7 +28,11 @@ from sqlalchemy.orm import deferred, relationship
 from sqlalchemy.sql.ddl import DDL
 
 from baselayer.app.env import load_env
-from baselayer.app.models import AccessibleIfUserMatches, Base
+from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
+    AccessibleIfUserMatches,
+    Base,
+)
 from baselayer.log import make_log
 
 from ..utils.files import delete_file_data, save_file_data
@@ -50,7 +54,15 @@ class Localization(Base):
     area tiles each with a unique index, convenient for decomposing
     the sphere into subdivisions."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+
     update = delete = AccessibleIfUserMatches("sent_by")
+
+    gcnevent = relationship(
+        "GcnEvent",
+        back_populates="localizations",
+        doc="The GcnEvent this localization belongs to.",
+    )
 
     sent_by_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -138,6 +150,7 @@ class Localization(Base):
 
     properties = relationship(
         "LocalizationProperty",
+        back_populates="localization",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="LocalizationProperty.created_at",
@@ -146,6 +159,7 @@ class Localization(Base):
 
     tags = relationship(
         "LocalizationTag",
+        back_populates="localization",
         cascade="save-update, merge, refresh-expire, expunge, delete",
         passive_deletes=True,
         order_by="LocalizationTag.created_at",
@@ -504,7 +518,15 @@ for year in range(2023, 2028):
 class LocalizationProperty(Base):
     """Store properties for localizations."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(localization="read")
+
     update = delete = AccessibleIfUserMatches("sent_by")
+
+    localization = relationship(
+        "Localization",
+        back_populates="properties",
+        doc="The Localization this property belongs to.",
+    )
 
     sent_by_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -533,7 +555,15 @@ class LocalizationProperty(Base):
 class LocalizationTag(Base):
     """Store qualitative tags for localizations."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(localization="read")
+
     update = delete = AccessibleIfUserMatches("sent_by")
+
+    localization = relationship(
+        "Localization",
+        back_populates="tags",
+        doc="The Localization this tag belongs to.",
+    )
 
     sent_by_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),

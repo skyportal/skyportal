@@ -27,7 +27,14 @@ from .stream import Stream
 def basic_user_display_info(user):
     return {
         field: getattr(user, field)
-        for field in ("username", "first_name", "last_name", "gravatar_url", "is_bot")
+        for field in (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "gravatar_url",
+            "is_bot",
+        )
     }
 
 
@@ -117,6 +124,13 @@ User.comments = relationship(
     "Comment",
     back_populates="author",
     foreign_keys="Comment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+User.assistant_messages = relationship(
+    "AssistantMessage",
+    back_populates="user",
+    foreign_keys="AssistantMessage.user_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -352,6 +366,12 @@ User.gcnproperties = relationship(
     passive_deletes=True,
     doc="The gcnproperties saved by this user",
 )
+User.gcneventextractions = relationship(
+    "GcnEventExtraction",
+    back_populates="sent_by",
+    passive_deletes=True,
+    doc="The gcneventextractions saved by this user",
+)
 User.earthquakeevents = relationship(
     "EarthquakeEvent",
     back_populates="sent_by",
@@ -401,12 +421,12 @@ User.observing_runs = relationship(
     doc="Observing Runs this User has created.",
     foreign_keys="ObservingRun.owner_id",
 )
-User.sources_in_gcn = relationship(
-    "SourcesConfirmedInGCN",
+User.gcn_event_objs = relationship(
+    "GcnEventObj",
     cascade="save-update, merge, refresh-expire, expunge",
     passive_deletes=True,
-    doc="SourcesConfirmedInGCN this User has created.",
-    foreign_keys="SourcesConfirmedInGCN.confirmer_id",
+    doc="GcnEventObj rows this User has created.",
+    foreign_keys="GcnEventObj.confirmer_id",
 )
 User.photometryvalidations = relationship(
     "PhotometryValidation",
@@ -503,10 +523,12 @@ def accessible_group_ids(self):
 
 def assert_group_accessible(self, group_id):
     """Raise an error if the user or token does not have access to the given group.
+
     Parameters
     ----------
     group_id : int or str
         The ID of the group to check.
+
     Raises
     ------
     AccessError

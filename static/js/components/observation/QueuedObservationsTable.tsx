@@ -16,7 +16,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-import { useIsReadOnly } from "../../ducks/profile";
+import { useHasPermission } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -64,7 +64,7 @@ const QueuedObservationsTable = ({
   serverSide = true,
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
-  const isReadOnly = useIsReadOnly();
+  const canUploadData = useHasPermission("Upload data");
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
@@ -309,7 +309,7 @@ const QueuedObservationsTable = ({
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-      {!isReadOnly && (
+      {canUploadData && (
         <IconButton
           name="new_queued_observation"
           size="small"

@@ -56,12 +56,14 @@ const CopyPhotometryDialog = ({
   };
 
   const onSubmit = async (data: any) => {
-    data.origin_id = duplicate.obj_id;
-    data.group_ids = savedGroups
-      ?.filter((_: any, idx: number) => data.groupIds[idx])
-      .map((g: any) => g.id);
+    const formData = {
+      origin_id: duplicate.obj_id,
+      group_ids: savedGroups
+        ?.filter((_: any, idx: number) => data.groupIds[idx])
+        .map((g: any) => g.id),
+    };
     try {
-      await copySourcePhotometry({ id: source.id, formData: data }).unwrap();
+      await copySourcePhotometry({ id: source.id, formData }).unwrap();
       dispatch(
         showNotification("Source photometry updated successfully", "info"),
       );

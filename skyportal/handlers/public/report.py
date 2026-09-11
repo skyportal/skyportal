@@ -6,13 +6,13 @@ from baselayer.app.models import DBSession
 from baselayer.log import make_log
 
 from ...models import GcnReport
-from ...utils.cache import Cache
+from ...utils.cache import Cache, cache_folder
 from ..base import BaseHandler
 
 log = make_log("api/galaxy")
 env, cfg = load_env()
 
-cache_dir = "cache/public_pages/reports"
+cache_dir = f"{cache_folder}/public_pages/reports"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_reports_cache"] * 60,

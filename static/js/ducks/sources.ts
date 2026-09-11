@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { buildQueryString, filterOutEmptyValues } from "../API";
+import { buildQueryString, filterOutEmptyValues, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -33,8 +33,105 @@ export interface SourcesResult {
   totalMatches: number;
   pageNumber: number;
   numPerPage: number;
+  /**
+   * Handle for the backend's cached obj_id list, assigned on the first page.
+   * Echo it back on later pages to skip re-running the full ordering query.
+   */
+  queryID?: string | null;
   [key: string]: any;
 }
+
+const QUERY_KEYS = [
+  "TNSname",
+  "alias",
+  "annotationsFilter",
+  "annotationsFilterAfter",
+  "annotationsFilterBefore",
+  "annotationsFilterOrigin",
+  "classifications",
+  "classifications_simul",
+  "classified",
+  "commentsFilter",
+  "commentsFilterAfter",
+  "commentsFilterAuthor",
+  "commentsFilterBefore",
+  "createdOrModifiedAfter",
+  "currentUserLabeller",
+  "dec",
+  "deduplicatePhotometry",
+  "detectedWindowEnd",
+  "detectedWindowStart",
+  "endDate",
+  "excludeForcedPhotometry",
+  "followupRequestStatus",
+  "group_ids",
+  "hasBeenLabelled",
+  "hasFollowupRequest",
+  "hasNoSpectrum",
+  "hasNoTNSname",
+  "hasNotBeenLabelled",
+  "hasSpectrum",
+  "hasSpectrumAfter",
+  "hasSpectrumBefore",
+  "hasTNSname",
+  "includeAnalyses",
+  "includeAssociatedObjs",
+  "includeCandidates",
+  "includeColorMagnitude",
+  "includeCommentExists",
+  "includeComments",
+  "includeDetectionStats",
+  "includeGCNCrossmatches",
+  "includeGCNNotes",
+  "includeGeoJSON",
+  "includeHosts",
+  "includeLabellers",
+  "includePeriodExists",
+  "includePhotometry",
+  "includePhotometryExists",
+  "includeRequested",
+  "includeSourcesInGcn",
+  "includeSpectrumExists",
+  "includeSuperObjs",
+  "includeTags",
+  "includeThumbnails",
+  "listName",
+  "localizationCumprob",
+  "localizationDateobs",
+  "localizationName",
+  "localizationRejectSources",
+  "maxLatestMagnitude",
+  "maxPeakMagnitude",
+  "maxRedshift",
+  "minLatestMagnitude",
+  "minPeakMagnitude",
+  "minRedshift",
+  "nonclassifications",
+  "numPerPage",
+  "numberDetections",
+  "origin",
+  "pageNumber",
+  "pendingOnly",
+  "queryID",
+  "ra",
+  "radius",
+  "rejectedSourceIDs",
+  "removeNested",
+  "requireDetections",
+  "saveSummary",
+  "savedAfter",
+  "savedBefore",
+  "savedByCurrentUser",
+  "simbadClass",
+  "sortBy",
+  "sortOrder",
+  "sourceID",
+  "spatialCatalogEntryName",
+  "spatialCatalogName",
+  "startDate",
+  "unclassified",
+  "useCache",
+] as const;
 
 const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   const params = { ...filterParams };
@@ -49,9 +146,50 @@ const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   return params;
 };
 
+/**
+ * Opt into the backend's server-side query cache (`useCache` + `queryID`).
+ *
+ * `/api/sources` has no LIMIT on its ordering query: it aggregates
+ * MAX(saved_at) over *every* matching source to build the full ordered obj_id
+ * list, because `totalMatches` is the length of that list. On a Fritz-sized
+ * database that is a ~2-3s full scan, and without a queryID it is repeated on
+ * every single page request.
+ *
+ * Passing `useCache=true` makes the backend persist that list and hand back a
+ * `queryID`; echoing the id on later pages serves them from the cached list
+ * instead (measured ~3.3s -> ~1.0s per page). This is the same mechanism the
+ * scanning page already uses via `getCandidates`.
+ *
+ * The handler validates the pairing strictly, so mirror its contract exactly:
+ *   - page 1 must NOT carry a queryID (the backend assigns one)
+ *   - page > 1 must carry one, or the request is rejected
+ * Anything that would violate it falls back to an uncached query rather than
+ * erroring.
+ */
+const withQueryCache = (params: FilterParams): FilterParams => {
+  const p = { ...params };
+  const pageNumber = Number(p["pageNumber"] ?? 1);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 1) {
+    delete p["queryID"];
+    p["useCache"] = true;
+  } else if (p["queryID"]) {
+    p["useCache"] = true;
+  } else {
+    // Page > 1 with no queryID (e.g. a deep-linked page, or a cache entry the
+    // backend has since expired): ask for the full query instead of tripping
+    // the handler's validation.
+    delete p["useCache"];
+  }
+  return p;
+};
+
 /** Build a `/api/sources?...` URL from a filterParams object. */
 const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
-  const filtered = filterOutEmptyValues(params, true, removeFalse);
+  const filtered = filterOutEmptyValues(
+    pickParams(withQueryCache(params), QUERY_KEYS),
+    true,
+    removeFalse,
+  );
   const queryString = buildQueryString(filtered);
   return `/api/sources?${queryString}`;
 };
@@ -91,12 +229,25 @@ export const sourcesApi = skyportalApi.injectEndpoints({
       query: ({ dateobs, filterParams = {} }) => {
         const params = addFilterParamDefaults(filterParams);
         params["localizationDateobs"] = dateobs;
+        // A counterpart is a source detected *during* the window. startDate and
+        // endDate mean something stricter, that the whole detection history
+        // falls inside it, which drops anything still being detected -- so the
+        // time range is sent as a detection window instead.
+        if (params["startDate"] != null) {
+          params["detectedWindowStart"] ??= params["startDate"];
+          delete params["startDate"];
+        }
+        if (params["endDate"] != null) {
+          params["detectedWindowEnd"] ??= params["endDate"];
+          delete params["endDate"];
+        }
         if (dateobs) {
-          params["startDate"] ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-          params["endDate"] ??= dayjs(dateobs)
+          params["detectedWindowStart"] ??= dayjs(dateobs).format(
+            "YYYY-MM-DD HH:mm:ss",
+          );
+          params["detectedWindowEnd"] ??= dayjs(dateobs)
             .add(7, "day")
             .format("YYYY-MM-DD HH:mm:ss");
-          params["includeLocalizationStatus"] ??= true;
         }
         params["includeSourcesInGcn"] = true;
         params["includeGeoJSON"] = true;

@@ -14,7 +14,7 @@ import { useAddClassificationMutation } from "../../ducks/source";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
-import { useIsReadOnly } from "../../ducks/profile";
+import { useHasPermission } from "../../ducks/profile";
 
 interface AddClassificationsScanningPageProps {
   obj_id: string;
@@ -23,7 +23,7 @@ interface AddClassificationsScanningPageProps {
 const AddClassificationsScanningPage = ({
   obj_id,
 }: AddClassificationsScanningPageProps) => {
-  const isReadOnly = useIsReadOnly();
+  const canClassify = useHasPermission("Classify");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedClassifications, setSelectedClassifications] = useState<
     string[]
@@ -43,7 +43,7 @@ const AddClassificationsScanningPage = ({
 
   const { handleSubmit } = useForm();
 
-  if (isReadOnly) {
+  if (!canClassify) {
     return null;
   }
 

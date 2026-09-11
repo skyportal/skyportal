@@ -104,8 +104,8 @@ def commit_photometry(
     session = new_session() if parent_session is None else parent_session
 
     try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
+        request = session.get(FollowupRequest, request_id)
+        instrument = session.get(Instrument, instrument_id)
         allocation = request.allocation
         if not allocation:
             raise ValueError("Missing request's allocation information.")
@@ -167,6 +167,19 @@ def commit_photometry(
         )
         cyan = df["filter"] == "c"
         orange = df["filter"] == "o"
+
+        # ATLAS forced photometry should only report "c" or "o"; drop any
+        # other rows instead of failing the whole batch on ingestion
+        known = cyan | orange
+        if not known.all():
+            log(
+                f"Discarding {(~known).sum()} ATLAS forced-photometry row(s) "
+                f"for request {request_id} with unrecognized filter(s) "
+                f"{sorted(df.loc[~known, 'filter'].unique().tolist())}"
+            )
+            df = df[known]
+            cyan = cyan[known]
+            orange = orange[known]
 
         # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
         reject = df["uJy"] / df["duJy"] < 3
@@ -392,7 +405,8 @@ class ATLASAPI(FollowUpAPI):
             )
         )
         if transaction is not None:
-            if transaction.status == "complete":
+            # ATLAS returning data is not a commit; the status records that.
+            if request.status.startswith("Photometry committed"):
                 raise ValueError("Request already complete. Cannot delete.")
             await session.delete(transaction)
         await session.delete(request)

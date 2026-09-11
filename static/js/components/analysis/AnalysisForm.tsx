@@ -1,5 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import SearchableSelect from "../SearchableSelect";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -7,6 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -20,11 +22,18 @@ import {
 } from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { utc_to_mjd } from "../../units";
+import { useAppDispatch } from "../../types/hooks";
+import { showNotification } from "baselayer/components/Notifications";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const useStyles = makeStyles()(() => ({
+  loading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
   chips: {
     display: "flex",
     flexWrap: "wrap",
@@ -40,6 +49,11 @@ const useStyles = makeStyles()(() => ({
   },
   SelectItem: {
     whiteSpace: "break-spaces",
+  },
+  serviceDescription: {
+    margin: "0.25rem 0 0 0",
+    fontSize: "0.85rem",
+    color: "gray",
   },
   container: {
     width: "99%",
@@ -57,9 +71,11 @@ interface AnalysisFormProps {
 
 const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const { classes } = useStyles();
+  const dispatch = useAppDispatch();
   const [startAnalysis] = useStartAnalysisMutation();
 
-  const { data: photometry } = useFetchSourcePhotometryQuery({ id: obj_id });
+  const { data: photometry, isSuccess: photometryLoaded } =
+    useFetchSourcePhotometryQuery({ id: obj_id });
   // dateobs (== T0) of GW/GCN events associated with this source, used to
   // prefill the afterglow trigger time (see the trigger_time widget below).
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(obj_id);
@@ -67,7 +83,8 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     () => (associatedGcnsData as any)?.gcns ?? [],
     [associatedGcnsData],
   );
-  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const { data: analysisServiceListData, isLoading: servicesLoading } =
+    useGetAnalysisServicesQuery();
   const analysisServiceList = useMemo(
     () => analysisServiceListData ?? [],
     [analysisServiceListData],
@@ -75,13 +92,23 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const uniqueNames = [
     ...new Set(analysisServiceList.map((item: any) => item.name)),
   ];
-  const uniqueAnalysisServiceList = uniqueNames.map((name) =>
-    analysisServiceList.find((item: any) => item.name === name),
-  );
+  const uniqueAnalysisServiceList = uniqueNames
+    .map((name) => analysisServiceList.find((item: any) => item.name === name))
+    .filter(Boolean)
+    // Sort by analysis_type (so Autocomplete groups don't fragment) then label.
+    .sort((a: any, b: any) => {
+      const byType = (a.analysis_type || "").localeCompare(
+        b.analysis_type || "",
+      );
+      return byType !== 0
+        ? byType
+        : (a.display_name || a.name).localeCompare(b.display_name || b.name);
+    });
   // Only groups the user can access (all groups for sysadmins, member groups
   // otherwise); the shareable list is the intersection of these with the
   // selected service's groups, so users can't share with a group they're not in.
-  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? null;
+  const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
+  const userAccessibleGroups = groupsData?.userAccessible ?? null;
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -107,6 +134,27 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     return lookUp;
   }, [analysisServiceList]);
 
+  // Whether the source can feed a service's required inputs. We can verify
+  // photometry (it's fetched); other input types are assumed available. Only
+  // reported false when photometry is loaded and known to be empty, so a
+  // photometry-only fitter isn't offered on a source with no photometry.
+  const serviceHasRequiredInputs = useCallback(
+    (service: any): boolean => {
+      const inputs = service?.input_data_types || [];
+      // Only judge once the query has resolved (so we don't disable during
+      // load); the endpoint yields null or [] for a source with no photometry.
+      if (
+        inputs.includes("photometry") &&
+        photometryLoaded &&
+        (photometry?.length ?? 0) === 0
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [photometry, photometryLoaded],
+  );
+
   // Build the rjsf schema in a memo so its reference is stable across renders.
   // The schema is dynamic (derived from the selected service's parameters); if
   // it were rebuilt every render, rjsf v6 would re-derive the uncontrolled form
@@ -115,11 +163,13 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   // The static-schema galaxy/observation upload forms don't hit this.
   const {
     schema: AnalysisSelectionFormSchema,
+    uiSchema: AnalysisSelectionFormUiSchema,
     fileKeys,
     acceptsTriggerTime,
   } = useMemo(() => {
     const service = analysisServiceLookUp[selectedAnalysisServiceId];
     const OptionalParameters: Record<string, any> = {};
+    const OptionalUiSchema: Record<string, any> = {};
     const RequiredParameters: any[] = [];
     const collectedFileKeys: string[] = [];
     let acceptsTriggerTimeParam = false;
@@ -136,11 +186,28 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           if (["True", "False"].every((val) => params.includes(val))) {
             OptionalParameters[key] = { type: "boolean" };
           } else {
-            OptionalParameters[key] = { type: "string", enum: params };
+            // Default to the first allowed value so the dropdown starts filled
+            // (a required enum with no default forces the user to touch every
+            // one before submit — painful for services with many parameters).
+            OptionalParameters[key] = {
+              type: "string",
+              enum: params,
+              default: params[0],
+            };
             RequiredParameters.push(key);
           }
         } else if (typeof params === "object") {
-          if (params?.type === "number") {
+          if (Array.isArray(params?.enum)) {
+            // Object form of an enum: carries a description/title/units
+            // alongside the choices (the bare-array form can't), defaulting to
+            // the first value so the dropdown starts filled.
+            OptionalParameters[key] = {
+              type: "string",
+              enum: params.enum,
+              title: key,
+              default: params.default ?? params.enum[0],
+            };
+          } else if (params?.type === "number") {
             OptionalParameters[key] = { type: "number", title: key };
           } else if (params?.type === "file") {
             // File params are handled outside rjsf (see the file inputs in the
@@ -152,17 +219,29 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           } else if (params?.type === "string") {
             OptionalParameters[key] = { type: "string", title: key };
           }
-          if (params?.default) OptionalParameters[key].default = params.default;
-          if (params?.description)
-            OptionalParameters[key].description = params.description;
-          if (params?.title) OptionalParameters[key].title = params.title;
-          if (params?.required) {
-            if (["True", "true", "t"].includes(params.required)) {
+          if (OptionalParameters[key]) {
+            if (params?.default !== undefined)
+              OptionalParameters[key].default = params.default;
+            if (params?.description)
+              OptionalParameters[key].description = params.description;
+            // Show units in the field title (e.g. "mejecta (Msun)").
+            const title = params?.title || OptionalParameters[key].title || key;
+            OptionalParameters[key].title = params?.units
+              ? `${title} (${params.units})`
+              : title;
+            if (
+              params?.required &&
+              ["True", "true", "t"].includes(params.required)
+            ) {
               RequiredParameters.push(key);
             }
           }
         } else {
-          OptionalParameters[key] = { type: "string", enum: params };
+          OptionalParameters[key] = {
+            type: "string",
+            enum: params,
+            default: params?.[0],
+          };
           RequiredParameters.push(key);
         }
       });
@@ -183,29 +262,23 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
             instrumentLookUp[instrument_id] = instrument_name;
           }
         });
-        const instruments = Object.keys(instrumentLookUp).map(
-          (instrument_id) => ({
-            const: parseInt(instrument_id, 10),
-            title: instrumentLookUp[instrument_id],
-          }),
+        const instrumentIds = Object.keys(instrumentLookUp).map(
+          (instrument_id) => parseInt(instrument_id, 10),
         );
         OptionalParameters["input_filters_photometry_filters"] = {
           type: "array",
           title: "Filters to include (optional)",
-          items: {
-            type: "string",
-            anyOf: filters.map((filter: any) => ({
-              const: filter,
-              title: filter,
-            })),
-          },
+          items: { type: "string", enum: filters },
           uniqueItems: true,
         };
         OptionalParameters["input_filters_photometry_instruments"] = {
           type: "array",
           title: "Instruments to include (optional)",
-          items: { type: "integer", anyOf: instruments },
+          items: { type: "integer", enum: instrumentIds },
           uniqueItems: true,
+        };
+        OptionalUiSchema["input_filters_photometry_instruments"] = {
+          "ui:enumNames": instrumentIds.map((id) => instrumentLookUp[id]),
         };
       }
     }
@@ -237,6 +310,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           RequiredParameters,
         ),
       },
+      uiSchema: OptionalUiSchema,
       fileKeys: collectedFileKeys,
       acceptsTriggerTime: acceptsTriggerTimeParam,
     };
@@ -257,17 +331,47 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
 
   useEffect(() => {
     if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
-      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+      const firstEnabled =
+        analysisServiceList.find(
+          (s: any) =>
+            s?.display_on_resource_dropdown !== false &&
+            serviceHasRequiredInputs(s),
+        ) || analysisServiceList[0];
+      setSelectedAnalysisServiceId(firstEnabled?.id);
     }
-  }, [analysisServiceList, selectedAnalysisServiceId]);
+  }, [
+    analysisServiceList,
+    selectedAnalysisServiceId,
+    serviceHasRequiredInputs,
+  ]);
+
+  // Returning null while these are still in flight is indistinguishable from
+  // having none, so the form looks permanently missing until they land.
+  if (servicesLoading || groupsLoading) {
+    return (
+      <div className={classes.loading}>
+        <CircularProgress size="1rem" />
+        <Typography variant="body2" color="text.secondary">
+          Loading analysis services...
+        </Typography>
+      </div>
+    );
+  }
 
   if (
     !userAccessibleGroups ||
     userAccessibleGroups.length === 0 ||
     !analysisServiceList ||
-    analysisServiceList.length === 0 ||
-    !selectedAnalysisServiceId
+    analysisServiceList.length === 0
   ) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No analysis services are available to you.
+      </Typography>
+    );
+  }
+
+  if (!selectedAnalysisServiceId) {
     return null;
   }
 
@@ -339,56 +443,63 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
       input_filters,
     };
 
-    if (formData.filters) {
-      params["photometry_filters"] = formData.filters;
-    }
-    if (formData.instruments) {
-      params["photometry_instruments"] = formData.instruments;
-    }
-
     if (selectedGroupIds.length >= 0) {
       params["group_ids"] = selectedGroupIds;
     }
-    await startAnalysis({
-      id: obj_id,
-      analysis_service_id: selectedAnalysisServiceId,
-      formData: params,
-    });
+    try {
+      await startAnalysis({
+        id: obj_id,
+        analysis_service_id: selectedAnalysisServiceId,
+        formData: params,
+      }).unwrap();
+      const service = analysisServiceLookUp[selectedAnalysisServiceId];
+      dispatch(
+        showNotification(
+          `Analysis started with ${service?.display_name || service?.name || "service"}.`,
+        ),
+      );
+    } catch (error: any) {
+      dispatch(
+        showNotification(
+          `Failed to start analysis: ${error?.message || error?.data?.message || "unknown error"}`,
+          "error",
+        ),
+      );
+    }
     setIsSubmitting(false);
-  };
-
-  const handleSelectedAnalysisServiceChange = (e: any) => {
-    setSelectedAnalysisServiceId(e.target.value);
   };
 
   return (
     <div className={classes.container}>
       <div>
-        <InputLabel id="analysisServiceSelectLabel">
-          Start New Analysis
-        </InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="analysisServiceSelectLabel"
-          value={selectedAnalysisServiceId || ""}
-          onChange={handleSelectedAnalysisServiceChange}
-          name="analysisServiceSelect"
-          data-testid="analysisServiceSelect"
-          className={classes.Select}
-        >
-          {uniqueAnalysisServiceList?.map(
-            (analysisService: any) =>
-              analysisService.display_on_resource_dropdown !== false && (
-                <MenuItem
-                  value={analysisService.id}
-                  key={analysisService.id}
-                  className={classes.SelectItem}
-                >
-                  {analysisService.name}
-                </MenuItem>
-              ),
+        <SearchableSelect
+          options={uniqueAnalysisServiceList.filter(
+            (s: any) => s?.display_on_resource_dropdown !== false,
           )}
-        </Select>
+          value={analysisServiceLookUp[selectedAnalysisServiceId] || null}
+          onChange={(_e: any, value: any) =>
+            setSelectedAnalysisServiceId(value?.id ?? null)
+          }
+          getOptionLabel={(option: any) =>
+            option?.display_name || option?.name || ""
+          }
+          groupBy={(option: any) => option?.analysis_type || "other"}
+          getOptionDisabled={(option: any) => !serviceHasRequiredInputs(option)}
+          isOptionEqualToValue={(option: any, value: any) =>
+            option?.id === value?.id
+          }
+          label="Start New Analysis"
+          textFieldProps={{
+            name: "analysisServiceSelect",
+            "data-testid": "analysisServiceSelect",
+          }}
+          className={classes.Select}
+        />
+        {analysisServiceLookUp[selectedAnalysisServiceId]?.description && (
+          <p className={classes.serviceDescription}>
+            {analysisServiceLookUp[selectedAnalysisServiceId].description}
+          </p>
+        )}
       </div>
       <GroupShareSelect
         groupList={shareableGroups}
@@ -466,7 +577,9 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         )}
         <div>
           <Form
+            key={selectedAnalysisServiceId}
             schema={AnalysisSelectionFormSchema as any}
+            uiSchema={AnalysisSelectionFormUiSchema as any}
             validator={validator}
             onSubmit={handleSubmit as any}
           />

@@ -117,11 +117,23 @@ class SourceSaverHandler(BaseHandler):
                     user_options,
                     team_group_ids=team_group_ids,
                 )
+                # One query for every saver, rather than one each: this list is
+                # up to maxNumSavers long, and each user pulls its roles, ACLs
+                # and groups behind it.
+                users_result = await session.scalars(
+                    User.select(session.user_or_token).where(
+                        User.id.in_([user_id for _, user_id in query_results])
+                    )
+                )
+                users_by_id = {user.id: user for user in users_result.all()}
+
                 savers = []
                 for rank, (saved, user_id) in enumerate(query_results):
-                    s = await session.scalar(
-                        User.select(session.user_or_token).where(User.id == user_id)
-                    )
+                    s = users_by_id.get(user_id)
+                    # A saver the requester cannot read is left out rather than
+                    # failing the whole list.
+                    if s is None:
+                        continue
                     savers.append(
                         {
                             "rank": rank + 1,

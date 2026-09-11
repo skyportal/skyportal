@@ -473,8 +473,8 @@ def test_admin_save_source_as_other_user(
     )
     assert status == 400
     assert (
-        data["message"]
-        == "Failed to post source: You must be an admin to specify a saver_per_group_id field."
+        "Failed to post source: You must be an admin to specify a saver_per_group_id field."
+        in data["message"]
     )
 
     # now save it to the public group as the view only user, using the super admin token
@@ -2003,6 +2003,48 @@ def test_sources_filter_by_latest_mag(
     assert data["data"]["sources"][0]["id"] == obj_id2
 
 
+def test_sources_filter_by_is_roid(upload_data_token, view_only_token, public_group):
+    roid_id, static_id = str(uuid.uuid4()), str(uuid.uuid4())
+    for obj_id, is_roid in ((roid_id, True), (static_id, False)):
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": obj_id,
+                "ra": 234.22,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+                "is_roid": is_roid,
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Query one object at a time: the group accumulates sources across tests, so
+    # an unscoped listing would page the new ones out.
+    def matches(obj_id, **params):
+        status, data = api(
+            "GET",
+            "sources",
+            params={
+                "sourceID": obj_id,
+                "group_ids": f"{public_group.id}",
+                **params,
+            },
+            token=view_only_token,
+        )
+        assert status == 200
+        return [s["id"] for s in data["data"]["sources"]]
+
+    assert matches(roid_id, isRoid="true") == [roid_id]
+    assert matches(static_id, isRoid="true") == []
+    assert matches(static_id, isNotRoid="true") == [static_id]
+    assert matches(roid_id, isNotRoid="true") == []
+
+    # An explicit "false" must not enable the filter.
+    assert matches(roid_id, isRoid="false") == [roid_id]
+
+
 def test_sources_filter_by_has_tns_name(
     upload_data_token, view_only_token, public_group
 ):
@@ -2049,6 +2091,17 @@ def test_sources_filter_by_has_tns_name(
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # An explicit "false" must not enable the filter (it used to be truthy)
+    status, data = api(
+        "GET",
+        "sources",
+        params={"hasTNSname": "false", "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    returned_ids = {s["id"] for s in data["data"]["sources"]}
+    assert {obj_id1, obj_id2}.issubset(returned_ids)
 
 
 def test_sources_filter_by_has_spectrum(
@@ -2870,30 +2923,38 @@ def test_source_gcn_crossmatch_event_filters(upload_data_token, public_source):
     assert "Cannot find GcnEvents" in data["message"]
 
 
-def test_source_gcn_crossmatch_string_dateobs(
+def test_source_gcn_crossmatch_returns_associated_events(
     super_admin_token, super_admin_user, public_source
 ):
-    # Regression test for a psycopg3 type mismatch. Obj.gcn_crossmatch is an
-    # ARRAY(String) column, so its GCN-event dateobs round-trip out of the DB as
-    # strings. get_source() then filters GcnEvent.dateobs (a timestamp) with that
-    # list; under psycopg3 a "timestamp = varchar" comparison raises
-    # UndefinedFunction unless the values are coerced to datetimes first. Before
-    # the fix this request 500'd; it should return the crossmatched event.
+    # includeGCNCrossmatches reports every event an obj is associated with,
+    # rejections included: the source page hangs its keep/reject control off
+    # this list, so hiding a rejection would leave no way to revisit it.
     import sqlalchemy as sa
 
-    from skyportal.models import DBSession, GcnEvent, Obj
+    from skyportal.models import DBSession, GcnEvent, GcnEventObj
 
     dateobs = datetime(2019, 4, 25, 8, 18, 5)
-    # Exactly how the value round-trips out of the ARRAY(String) column: psycopg
-    # renders the timestamp with a space (not a "T") separator.
-    dateobs_str = "2019-04-25 08:18:05"
+    rejected_dateobs = datetime(2019, 4, 26, 8, 18, 5)
 
     session = DBSession()
-    event = GcnEvent(dateobs=dateobs, sent_by_id=super_admin_user.id)
-    session.add(event)
-    obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-    # Populate the crossmatch column the way LocalizationCrossmatchHandler does.
-    obj.gcn_crossmatch = [dateobs_str]
+    for d in (dateobs, rejected_dateobs):
+        session.add(GcnEvent(dateobs=d, sent_by_id=super_admin_user.id))
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=dateobs,
+            status="confirmed",
+            confirmer_id=super_admin_user.id,
+        )
+    )
+    session.add(
+        GcnEventObj(
+            obj_id=public_source.id,
+            dateobs=rejected_dateobs,
+            status="rejected",
+            confirmer_id=super_admin_user.id,
+        )
+    )
     session.commit()
 
     try:
@@ -2904,17 +2965,20 @@ def test_source_gcn_crossmatch_string_dateobs(
             token=super_admin_token,
         )
         assert status == 200, data
-        assert data["status"] == "success"
         crossmatches = data["data"]["gcn_crossmatch"]
-        assert any(arrow.get(c["dateobs"]).naive == dateobs for c in crossmatches), (
-            crossmatches
+        found = {arrow.get(c["dateobs"]).naive for c in crossmatches}
+        assert dateobs in found, crossmatches
+        assert rejected_dateobs in found, (
+            "a rejected association vanished, leaving no way to undo it"
         )
     finally:
         session = DBSession()
-        obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
-        if obj is not None:
-            obj.gcn_crossmatch = None
-        event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs))
-        if event is not None:
-            session.delete(event)
+        for row in session.scalars(
+            sa.select(GcnEventObj).where(GcnEventObj.obj_id == public_source.id)
+        ).all():
+            session.delete(row)
+        for d in (dateobs, rejected_dateobs):
+            event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == d))
+            if event is not None:
+                session.delete(event)
         session.commit()

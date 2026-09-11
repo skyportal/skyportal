@@ -21,8 +21,8 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     const normFactor = Math.abs(median(spectroscopy.fluxes)) || 1e-20;
 
     const isNullOrNaN = (val) => val === null || isNaN(val);
-    spectroscopy.fluxes.forEach((flux, index) => {
-      let wavelength = spectroscopy.wavelengths[index];
+    spectroscopy.fluxes.forEach((flux, i) => {
+      let wavelength = spectroscopy.wavelengths[i];
       let normedFlux = flux / normFactor;
       if (!isNullOrNaN(normedFlux) && !isNullOrNaN(wavelength)) {
         updateFluxes.push(normedFlux);
@@ -80,9 +80,9 @@ function spectroscopyPlot(spectroscopy_data, div_id, isMobile) {
     };
   }
 
-  function getMaxFlux(spectroscopy_tab) {
+  function getMaxFlux(spectra) {
     let max = 0;
-    spectroscopy_tab.forEach((spectroscopy) => {
+    spectra.forEach((spectroscopy) => {
       let fluxes = spectroscopy.fluxes;
       const maxFlux = Math.max(...fluxes);
       if (maxFlux > 10 * median(fluxes) || maxFlux > 10 * mean(fluxes)) {

@@ -52,7 +52,7 @@ def test_add_bad_taxonomy(taxonomy_token, public_group):
     )
 
     assert status == 400
-    assert data["message"] == "Hierarchy does not validate against the schema."
+    assert "Hierarchy does not validate against the schema." in data["message"]
 
 
 def test_latest_taxonomy(taxonomy_token, public_group):

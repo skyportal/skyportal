@@ -2,9 +2,9 @@
  * Sources confirmed/rejected within a GCN event ("sources in GCN").
  *
  * RTK Query conversion of the old `FETCH_SOURCES_IN_GCN` duck. The list is keyed
- * by GCN `dateobs` plus the localization/source filter; mutations
- * submit/patch/delete the confirmation status of a single source and invalidate
- * the `SourceInGcn` tag so the list refetches.
+ * by GCN `dateobs` plus the source filter; mutations submit/patch/delete the
+ * confirmation status of a single source and invalidate the `SourceInGcn` tag so
+ * the list refetches.
  */
 import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
@@ -12,8 +12,7 @@ import type { RouteData } from "../types/routeSchemaMap";
 
 interface FetchSourcesInGcnArg {
   dateobs: string;
-  localizationName?: string | undefined;
-  sourcesIdList?: (string | number)[] | undefined;
+  sourcesIDList?: (string | number)[] | undefined;
 }
 
 interface SubmitSourceInGcnArg {

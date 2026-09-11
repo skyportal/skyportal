@@ -99,6 +99,7 @@ export const EquationPopover = ({
         sx={{
           p: 2,
           background: "#fef3c7",
+          color: "#1f2937",
           border: "1px solid #fde68a",
           borderRadius: 2,
         }}

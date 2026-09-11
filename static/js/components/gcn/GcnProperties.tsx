@@ -1,40 +1,24 @@
-import { makeStyles } from "tss-react/mui";
+import Typography from "@mui/material/Typography";
 
-import StyledDataGrid from "../StyledDataGrid";
-
-const useStyles = makeStyles()(() => ({
-  accordion: {
-    width: "100%",
-  },
-  container: {
-    margin: "0rem 0",
-    width: "100%",
-  },
-}));
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 interface GcnPropertiesProps {
   properties: any[];
 }
 
 const GcnProperties = ({ properties }: GcnPropertiesProps) => {
-  const { classes } = useStyles();
-
   if (!properties || properties.length === 0) {
-    return <p>No properties for this event...</p>;
+    return (
+      <Typography variant="body2">No properties for this event...</Typography>
+    );
   }
 
-  // properties list of dicts each with a "created_at" key and a "data" key
-  // we want to refactor that to a list of dicts with a "created_at" key and
-  // a key for each property name
-
-  // that means that first we need the list of all property names of all elements in the list
+  // Flatten each property's "data" dict into one column per property name.
   const propertyNames = properties
     .map((property) => Object.keys(property.data))
     .flat();
-  // then we need to remove duplicates
   const uniquePropertyNames = [...new Set(propertyNames)];
 
-  // now we can create a list of dicts with a "created_at" key and a key for each property name
   const propertiesWithUniqueKeys = properties.map((property, index) => {
     const newProperty: Record<string, any> = {
       __rowid: index,
@@ -86,17 +70,17 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
   ];
 
   return (
-    <div className={classes.container}>
-      <StyledDataGrid
-        autoHeight
-        rows={propertiesWithUniqueKeys}
-        columns={columns}
-        getRowId={(row: any) => row.__rowid}
-        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-        pageSizeOptions={[1, 10, 15]}
-        showToolbar
-      />
-    </div>
+    <StyledDataGrid
+      autoHeight
+      rows={propertiesWithUniqueKeys}
+      columns={columns}
+      getRowId={(row: any) => row.__rowid}
+      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+      pageSizeOptions={[1, 10, 15]}
+      slots={{ toolbar: DataGridToolbar }}
+      slotProps={{ toolbar: { title: "Event Properties" } }}
+      showToolbar
+    />
   );
 };
 

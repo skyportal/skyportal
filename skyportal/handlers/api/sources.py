@@ -33,11 +33,11 @@ from skyportal.models import (
     cosmo,
 )
 
-from ...utils.cache import Cache, array_to_bytes
+from ...utils.cache import Cache, array_to_bytes, cache_folder
 from ...utils.calculations import radec2lb
 
 _, cfg = load_env()
-cache_dir = "cache/sources_queries"
+cache_dir = f"{cache_folder}/sources_queries"
 cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc.minutes_to_keep_source_query_cache"] * 60,
@@ -156,6 +156,43 @@ def cone_healpix_prefilter(ra, dec, radius):
     terms = ["objs.healpix IS NULL"]
     terms += [
         f"objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)}" for lo, hi in ranges
+    ]
+    return "(" + " OR ".join(terms) + ")"
+
+
+async def localization_healpix_prefilter(session, partition, localization_id, cumprob):
+    """Index-friendly prefilter clause for a localization, as for a cone above.
+
+    The tiles inside the credible level are merged into contiguous healpix
+    ranges and emitted as literal bounds. Postgres cannot estimate a range
+    containment whose operands are not constants -- it assumes the join is
+    unselective and scans every obj -- so the constants are what let it use the
+    ``objs.healpix`` index. Returns ``None`` if the level covers no tiles.
+    """
+    rows = (
+        await session.execute(
+            sa.text(
+                f"""
+                SELECT lower(rng), upper(rng) FROM (
+                  SELECT unnest(range_agg(ranked.healpix)) AS rng FROM (
+                    SELECT {partition}.healpix,
+                           SUM({partition}.probdensity *
+                               (upper({partition}.healpix) - lower({partition}.healpix))
+                               * 3.6331963520923245e-18
+                           ) OVER (ORDER BY {partition}.probdensity DESC) AS cum_prob
+                    FROM {partition}
+                    WHERE {partition}.localization_id = :localization_id
+                  ) AS ranked
+                  WHERE ranked.cum_prob <= :cumprob
+                ) AS merged"""
+            ),
+            {"localization_id": localization_id, "cumprob": cumprob},
+        )
+    ).all()
+    if not rows:
+        return None
+    terms = [
+        f"(objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)})" for lo, hi in rows
     ]
     return "(" + " OR ".join(terms) + ")"
 
@@ -284,6 +321,161 @@ def get_period_exists(annotations):
     )
 
 
+# A jsonb text value only casts to float if it looks like a number; Postgres has
+# no try-cast, so the shape is checked before the cast to keep a string-valued
+# annotation from erroring the whole query.
+_NUMERIC_RE = r"^-?[0-9]+\.?[0-9]*([eE][-+]?[0-9]+)?$"
+
+
+def _nested_annotation_clause(param_index, condition, localization_dateobs, params):
+    """A test applied to each sub-object of an annotation's data.
+
+    Annotations that hold one entry per related thing (a GCN crossmatch keyed by
+    event) put their fields one level down. `condition` is written against
+    `value`, the sub-object. When an event is named, only the entry carrying that
+    `dateobs` is considered; the two are compared as timestamps so a difference
+    in formatting does not silently match nothing.
+    """
+    scope = ""
+    if localization_dateobs is not None:
+        params.append(
+            bindparam(
+                f"annotations_filter_dateobs_{param_index}",
+                value=str(localization_dateobs),
+                type_=sa.String,
+            )
+        )
+        scope = (
+            " AND (value ->> 'dateobs') IS NOT NULL"
+            " AND (value ->> 'dateobs')::timestamp"
+            f" = (:annotations_filter_dateobs_{param_index})::timestamp"
+        )
+    return f"""EXISTS (
+        SELECT 1 FROM jsonb_each(annotations.data) AS entry(key, value)
+        WHERE jsonb_typeof(value) = 'object'
+          AND ({condition}){scope}
+    )"""
+
+
+PROMPT_EXEMPT_ANNOTATIONS = ("ndethist",)
+
+
+def _delta_t_clause(
+    delta_t,
+    origins,
+    localization_dateobs,
+    is_admin,
+    accessible_group_ids,
+    params,
+    prefix="prompt",
+):
+    """Objects whose crossmatch puts them within `delta_t` days of the event.
+
+    Used two ways. As the prompt exemption, a counterpart seen this close to the
+    event is worth a look on that basis alone and is spared the cuts that thin a
+    backlog of late, poorly constrained candidates. As the maximum age, it is a
+    cut in its own right. `prefix` keeps the two sets of bind parameters apart.
+    """
+    param = f"{prefix}_delta_t"
+    params.append(bindparam(param, value=float(delta_t), type_=sa.Float))
+    condition = (
+        f"(value ->> 'delta_t') ~ '{_NUMERIC_RE}'"
+        f" AND abs((value ->> 'delta_t')::float) <= :{param}"
+    )
+    nested = _nested_annotation_clause(prefix, condition, localization_dateobs, params)
+    origin_clause = ""
+    if origins:
+        origin_str, origin_bindparams = array2sql(
+            [str(origin).lower() for origin in origins],
+            type=sa.String,
+            prefix=f"{prefix}_annotations_origin",
+        )
+        params.extend(origin_bindparams)
+        origin_clause = f" AND lower(annotations.origin) IN {origin_str}"
+    group_clause = ""
+    if not is_admin:
+        if not accessible_group_ids:
+            group_clause = " AND false"
+        else:
+            group_str, group_bindparams = array2sql(
+                accessible_group_ids,
+                type=sa.Integer,
+                prefix=f"{prefix}_annotations_group_ids",
+            )
+            params.extend(group_bindparams)
+            group_clause = (
+                " AND annotations.id IN (SELECT annotation_id FROM"
+                f" group_annotations WHERE group_id IN {group_str})"
+            )
+    return f"""EXISTS (
+        SELECT 1 FROM annotations WHERE annotations.obj_id = objs.id
+          AND {nested}{origin_clause}{group_clause}
+    )"""
+
+
+async def _annotation_filter_hint(session, annotations_filter, origins):
+    """Why an annotation filter matched nothing, in terms of what is stored.
+
+    An empty result reads the same whether the sky is empty or the field name is
+    wrong, and the second is far more common: these fields are often nested one
+    level down, keyed by the thing they describe. Naming the keys that do exist
+    turns a silent zero into something the caller can act on.
+    """
+    if not annotations_filter:
+        return None
+
+    def _as_list(value):
+        """The handler passes these as raw comma-separated strings; iterating a
+        string yields characters, which silently searches for nothing."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return list(value)
+
+    origins = _as_list(origins)
+    names = []
+    entries = _as_list(annotations_filter)
+    for entry in entries:
+        head = str(entry).split(":")[0].strip()
+        if head:
+            names.append(head)
+    if not names:
+        return None
+
+    where, params = "true", {}
+    if origins:
+        where = "lower(a.origin) = ANY(:origins)"
+        params["origins"] = [str(o).lower() for o in origins]
+    rows = (
+        await session.execute(
+            sa.text(f"SELECT a.data FROM annotations a WHERE {where} LIMIT 200"),
+            params,
+        )
+    ).all()
+    if not rows:
+        return f"No annotation exists for origin(s) {sorted(origins or [])}."
+
+    top, nested = set(), set()
+    for (data,) in rows:
+        if not isinstance(data, dict):
+            continue
+        top.update(data.keys())
+        for value in data.values():
+            if isinstance(value, dict):
+                nested.update(value.keys())
+    missing = [n for n in names if n not in top and n not in nested]
+    if not missing:
+        return None
+    where_found = (
+        "nested one level down, keyed per event" if nested else "at the top level"
+    )
+    return (
+        f"No annotation carries {missing}. Fields present are {where_found}: "
+        f"{sorted(nested or top)[:12]}."
+    )
+
+
 def create_annotation_query(
     annotations_filter,
     annotations_filter_origin,
@@ -291,12 +483,17 @@ def create_annotation_query(
     annotations_filter_after,
     param_index,
     is_admin,
+    accessible_group_ids=None,
+    localization_dateobs=None,
 ):
     stmts = []
     params = []
     if annotations_filter_origin is not None:
         query_str, bindparams = array2sql(
-            annotations_filter_origin,
+            # Compared against `lower(annotations.origin)`, so an origin given
+            # with its real capitalisation ("GCN-crossmatch") has to be lowered
+            # here or it silently matches nothing.
+            [str(origin).lower() for origin in annotations_filter_origin],
             type=sa.String,
             prefix=f"annotations_filter_origin_{param_index}",
         )
@@ -373,9 +570,27 @@ def create_annotation_query(
                     type_=sa.Float,
                 )
             )
+            # Some annotations nest their fields one level down, keyed by the
+            # thing they describe -- a GCN crossmatch holds an entry per event,
+            # since one object can fall inside several localizations. Match at
+            # either level so those fields are reachable, and where the caller
+            # named an event, only that event's entry counts: a value from a
+            # different event would hide a source from the list it belongs to.
+            nested = _nested_annotation_clause(
+                param_index,
+                f"(value ->> :annotations_filter_name_{param_index}) ~ '{_NUMERIC_RE}' "
+                f"AND (value ->> :annotations_filter_name_{param_index})::float "
+                f"{comp_function} (:annotations_filter_value_{param_index})::float",
+                localization_dateobs,
+                params,
+            )
             stmts.append(
                 f"""
-                ((annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
+                (
+                  ((annotations.data ->> :annotations_filter_name_{param_index}) ~ '{_NUMERIC_RE}'
+                   AND (annotations.data ->> :annotations_filter_name_{param_index})::float {comp_function} (:annotations_filter_value_{param_index})::float)
+                  OR {nested}
+                )
                 """
             )
         else:
@@ -387,15 +602,41 @@ def create_annotation_query(
                     type_=sa.String,
                 )
             )
+            nested = _nested_annotation_clause(
+                param_index,
+                f"value ->> :annotations_filter_name_{param_index} IS NOT NULL",
+                localization_dateobs,
+                params,
+            )
             stmts.append(
                 f"""
-                (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
+                (
+                  (annotations.data ->> :annotations_filter_name_{param_index} IS NOT NULL)
+                  OR {nested}
+                )
                 """
             )
     if len(stmts) > 0:
+        group_clause = ""
+        if not is_admin:
+            if not accessible_group_ids:
+                # No readable groups means no readable annotations, and an empty
+                # IN list is not valid SQL.
+                group_clause = "and false"
+            else:
+                group_str, group_bindparams = array2sql(
+                    accessible_group_ids,
+                    type=sa.Integer,
+                    prefix=f"annotations_group_ids_{param_index}",
+                )
+                params.extend(group_bindparams)
+                group_clause = (
+                    "and annotations.id in (select annotation_id from "
+                    f"group_annotations where group_id in {group_str})"
+                )
         return (
             f"""
-        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {" AND ".join(stmts)} {"and annotations.id in (select annotation_id from group_annotations where group_id in :accessible_group_ids)" if not is_admin else ""})
+        EXISTS (SELECT obj_id from annotations where annotations.obj_id=objs.id and {" AND ".join(stmts)} {group_clause})
         """,
             params,
         )
@@ -403,20 +644,25 @@ def create_annotation_query(
     return None, None
 
 
-async def get_localization(localization_dateobs, localization_name, session):
+async def get_localization(localization_dateobs, localization_name, session, user):
     startTime = time.time()
     if isinstance(localization_dateobs, str):
         localization_dateobs = arrow.get(localization_dateobs).naive
     localization_dateobs_str = localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")
+    # NOTE: this must go through Localization.select so that the GcnEvent group
+    # restriction is honored. Selecting the tiles by raw localization_id below
+    # bypasses every access policy, so a localization the user cannot read would
+    # otherwise let them enumerate sources inside a restricted event's error
+    # region -- disclosing the position of the event itself.
     if localization_name is None:
         result = await session.scalars(
-            sa.select(Localization.id)
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .order_by(Localization.created_at.desc())
         )
     else:
         result = await session.scalars(
-            sa.select(Localization.id)
+            Localization.select(user, columns=[Localization.id])
             .where(Localization.dateobs == localization_dateobs)
             .where(Localization.localization_name == localization_name)
             .order_by(Localization.modified.desc())
@@ -502,6 +748,24 @@ def get_luminosity_distance(obj):
     return None
 
 
+# The objs join can never change the row set (obj_id is NOT NULL with an FK), so
+# drop it unless a filter or sort needs an objs column -- decided once the whole
+# statement, ORDER BY included, is assembled.
+OBJ_ID_TOKEN = "__OBJ_ID__"
+SOURCES_FROM_TOKEN = "__SOURCES_FROM__"
+
+
+def resolve_obj_join(statement):
+    """Substitute the FROM clause and id column, dropping the objs join if unused."""
+    if "objs." in statement:
+        return statement.replace(
+            SOURCES_FROM_TOKEN, "objs INNER JOIN sources ON objs.id = sources.obj_id"
+        ).replace(OBJ_ID_TOKEN, "objs.id")
+    return statement.replace(SOURCES_FROM_TOKEN, "sources").replace(
+        OBJ_ID_TOKEN, "sources.obj_id"
+    )
+
+
 async def get_sources(
     user_id,
     session,
@@ -523,8 +787,12 @@ async def get_sources(
     remove_nested=False,
     first_detected_date=None,
     last_detected_date=None,
+    detected_window_start=None,
+    detected_window_end=None,
     has_tns_name=False,
     has_no_tns_name=False,
+    is_roid=False,
+    is_not_roid=False,
     has_spectrum=False,
     has_no_spectrum=False,
     has_followup_request=False,
@@ -545,6 +813,9 @@ async def get_sources(
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
+    min_abs_galactic_latitude=None,
+    prompt_delta_t=None,
+    max_delta_t=None,
     alias=None,
     origin=None,
     min_redshift=None,
@@ -688,6 +959,9 @@ async def get_sources(
         )
 
         statements = []
+        # Cuts that a prompt candidate is spared; combined with the prompt
+        # clause once the annotation filters have been read.
+        late_statements = []
         joins = []
         query_params = []
 
@@ -789,6 +1063,43 @@ async def get_sources(
                 lower(((objs.altdata['simbad']) ->> 'class')) LIKE '%' || :simbad_class || '%'
                 """
             )
+        if min_abs_galactic_latitude is not None:
+            # Galactic latitude is derived from ra/dec rather than stored, so it
+            # is computed here: sin(b) from the north galactic pole at
+            # (192.85948, 27.12825) in J2000. Filtering in the query keeps it on
+            # the database side rather than pulling every source back to reject
+            # most of them.
+            query_params.append(
+                bindparam(
+                    "min_abs_galactic_latitude",
+                    value=float(min_abs_galactic_latitude),
+                    type_=sa.Float,
+                )
+            )
+            galactic_statement = """
+                abs(degrees(asin(
+                    sind(objs.dec) * sind(27.12825)
+                    + cosd(objs.dec) * cosd(27.12825) * cosd(objs.ra - 192.85948)
+                ))) >= :min_abs_galactic_latitude
+                """
+            if prompt_delta_t is not None:
+                late_statements.append(galactic_statement)
+            else:
+                statements.append(galactic_statement)
+        # `IS NOT TRUE` rather than `IS FALSE`: the column is nullable and a
+        # null has never been marked a moving object.
+        if is_roid:
+            statements.append(
+                """
+                objs.is_roid IS TRUE
+                """
+            )
+        elif is_not_roid:
+            statements.append(
+                """
+                objs.is_roid IS NOT TRUE
+                """
+            )
         if has_tns_name:
             statements.append(
                 """
@@ -849,6 +1160,62 @@ async def get_sources(
         if require_detections:
             # PHOTSTATS
             photstat_query = []
+            # A detection window asks whether the source was detected *during*
+            # a period, which is what a GCN counterpart search wants: an object
+            # still being detected afterwards is the interesting case, and
+            # first/last date bounds (below) exclude it, since those require
+            # the whole detection history to sit inside the range.
+            #
+            # photstats only keeps the first and last detection, so this is the
+            # closest question it can answer: the detected span overlaps the
+            # window. A source detected before and after the window but not
+            # during it would still pass.
+            if detected_window_start is not None or detected_window_end is not None:
+                first_col = (
+                    "first_detected_mjd"
+                    if not exclude_forced_photometry
+                    else "first_detected_no_forced_phot_mjd"
+                )
+                last_col = (
+                    "last_detected_mjd"
+                    if not exclude_forced_photometry
+                    else "last_detected_no_forced_phot_mjd"
+                )
+                if detected_window_end is not None:
+                    try:
+                        query_params.append(
+                            bindparam(
+                                "detected_window_end",
+                                value=Time(arrow.get(detected_window_end).datetime).mjd,
+                                type_=sa.Float,
+                            )
+                        )
+                        photstat_query.append(
+                            f"""photstats.{first_col} <= :detected_window_end"""
+                        )
+                    except Exception as e:
+                        raise ValueError(
+                            f"Invalid detected_window_end: {detected_window_end} ({e})"
+                        )
+                if detected_window_start is not None:
+                    try:
+                        query_params.append(
+                            bindparam(
+                                "detected_window_start",
+                                value=Time(
+                                    arrow.get(detected_window_start).datetime
+                                ).mjd,
+                                type_=sa.Float,
+                            )
+                        )
+                        photstat_query.append(
+                            f"""photstats.{last_col} >= :detected_window_start"""
+                        )
+                    except Exception as e:
+                        raise ValueError(
+                            f"Invalid detected_window_start: "
+                            f"{detected_window_start} ({e})"
+                        )
             if first_detected_date is not None:
                 try:
                     col = (
@@ -1436,9 +1803,17 @@ async def get_sources(
                         annotations_filter_after,
                         i,
                         is_admin,
+                        accessible_group_ids=group_ids,
+                        localization_dateobs=localization_dateobs,
                     )
                     if annotations_query is not None:
-                        statements.append(annotations_query)
+                        if (
+                            prompt_delta_t is not None
+                            and ann_split[0].strip() in PROMPT_EXEMPT_ANNOTATIONS
+                        ):
+                            late_statements.append(annotations_query)
+                        else:
+                            statements.append(annotations_query)
                         query_params.extend(annotations_query_params)
             else:
                 annotations_query, annotations_query_params = create_annotation_query(
@@ -1447,11 +1822,50 @@ async def get_sources(
                     annotations_filter_before,
                     annotations_filter_after,
                     0,
-                    group_ids,
+                    is_admin,
+                    accessible_group_ids=group_ids,
+                    localization_dateobs=localization_dateobs,
                 )
                 if annotations_query is not None:
                     statements.append(annotations_query)
                     query_params.extend(annotations_query_params)
+
+        # A counterpart is not one however well it scores if it arrived long
+        # after the event, so the age cut applies to everything.
+        if max_delta_t is not None:
+            statements.append(
+                _delta_t_clause(
+                    max_delta_t,
+                    annotations_filter_origin,
+                    localization_dateobs,
+                    is_admin,
+                    group_ids,
+                    query_params,
+                    prefix="maxdt",
+                )
+            )
+
+        prompt_clause = (
+            _delta_t_clause(
+                prompt_delta_t,
+                annotations_filter_origin,
+                localization_dateobs,
+                is_admin,
+                group_ids,
+                query_params,
+            )
+            if prompt_delta_t is not None
+            else None
+        )
+        if late_statements:
+            if prompt_clause is not None:
+                late = " AND ".join(f"({stmt})" for stmt in late_statements)
+                statements.append(f"(({prompt_clause}) OR ({late}))")
+            else:
+                statements.extend(late_statements)
+        elif prompt_clause is not None:
+            # Nothing to be spared, so the exemption is an age cut in its own right.
+            statements.append(prompt_clause)
 
         # COMMENTS
         comments_query = []
@@ -1537,10 +1951,20 @@ async def get_sources(
                     localization_dateobs,
                     localization_name,
                     session,
+                    user,
                 )
                 # this is twice as fast as if we ran each query (the localization tiles query,
                 # and its overall with the sources) separately.
                 # we used caching for that in prod, but now that we have partitions, we can do it this way
+                # Narrow objs by the localization's merged healpix ranges
+                # first: the containment below is a range operator with
+                # non-constant operands, which the planner cannot estimate, so
+                # on its own it scans every obj.
+                prefilter = await localization_healpix_prefilter(
+                    session, partition, localization_id, localization_cumprob
+                )
+                if prefilter is not None:
+                    localization_queries.append(prefilter)
                 localization_queries.append(
                     f"""EXISTS (
                     SELECT lt.id
@@ -1561,19 +1985,19 @@ async def get_sources(
                 if localization_reject_sources or sort_by == "gcn_status":
                     joins.append(
                         f"""
-                        LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                        LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                         """
                     )
                     if localization_reject_sources:
                         statements.append(
                             """
-                            sourcesconfirmedingcns.confirmed is not false
+                            gcneventobjs.status <> 'rejected'
                             """
                         )
                 if include_sources_in_gcn:
                     localization_queries.append(
                         f"""
-                        EXISTS (SELECT sourcesconfirmedingcns.obj_id FROM sourcesconfirmedingcns WHERE sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND sourcesconfirmedingcns.confirmed is not false)
+                        EXISTS (SELECT gcneventobjs.obj_id FROM gcneventobjs WHERE gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}' AND gcneventobjs.status <> 'rejected')
                     """
                     )
             except Exception as e:
@@ -1808,11 +2232,11 @@ async def get_sources(
                 if len(localization_queries) > 0:
                     for localization_query in localization_queries:
                         # ADD QUERY STATEMENTS
-                        statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                            FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                        statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                            FROM {SOURCES_FROM_TOKEN}
                             {" ".join(joins)}
                             WHERE {" AND ".join(statements + [localization_query])}
-                            GROUP BY objs.id
+                            GROUP BY {OBJ_ID_TOKEN}
                         """
 
                         if ":accessible_group_ids" in statement:
@@ -1827,7 +2251,7 @@ async def get_sources(
                             query_params.extend(allocation_bindparams)
 
                         statement = (
-                            text(statement)
+                            text(resolve_obj_join(statement))
                             .bindparams(*query_params)
                             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                         )
@@ -1857,7 +2281,7 @@ async def get_sources(
                     if sort_by == "gcn_status":
                         joins.append(
                             f"""
-                            LEFT JOIN sourcesconfirmedingcns ON sourcesconfirmedingcns.obj_id = objs.id AND sourcesconfirmedingcns.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
+                            LEFT JOIN gcneventobjs ON gcneventobjs.obj_id = objs.id AND gcneventobjs.dateobs = '{localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")}'
                             """
                         )
                     elif sort_by == "favorites":
@@ -1873,11 +2297,11 @@ async def get_sources(
                         prefix="obj_id",
                     )
                     query_params.extend(bindparams)
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         where objs.id in {query_str}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -1924,10 +2348,10 @@ async def get_sources(
                     elif sort_by == "gcn_status":
                         statement += f"""ORDER BY
                             CASE
-                                WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = true THEN 3
-                                WHEN bool_and(sourcesconfirmedingcns.confirmed IS NULL) = true THEN 2
-                                WHEN bool_or(sourcesconfirmedingcns.confirmed) = false THEN 1
+                                WHEN bool_and(gcneventobjs.obj_id IS NULL) = true THEN 4
+                                WHEN bool_or(gcneventobjs.status = 'confirmed') = true THEN 3
+                                WHEN bool_and(gcneventobjs.status IN ('pending', 'ambiguous')) = true THEN 2
+                                WHEN bool_or(gcneventobjs.status = 'rejected') = true THEN 1
                                 ELSE 0
                             END {sort_order.upper()}"""
                     elif sort_by == "favorites":
@@ -1936,7 +2360,8 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         for i, field in enumerate(fields[1:]):
                             # For nested json data, we cast the values we access to JSONB so we can access their keys
@@ -1951,7 +2376,7 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
@@ -1972,11 +2397,11 @@ async def get_sources(
                         )
 
                     # ADD QUERY STATEMENTS
-                    statement = f"""SELECT objs.id AS id, MAX(sources.saved_at) AS most_recent_saved_at
-                        FROM objs INNER JOIN sources ON objs.id = sources.obj_id
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                        FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         WHERE {" AND ".join(statements)}
-                        GROUP BY objs.id
+                        GROUP BY {OBJ_ID_TOKEN}
                     """
 
                     if ":accessible_group_ids" in statement:
@@ -2026,7 +2451,8 @@ async def get_sources(
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
                     elif sort_by.startswith("altdata."):
                         fields = sort_by.split(".")[1:]
-                        altdata_substatement = "altdata->>:altdata_field_0"
+                        # qualified so resolve_obj_join keeps the objs join
+                        altdata_substatement = "objs.altdata->>:altdata_field_0"
                         query_params.append(sa.bindparam("altdata_field_0", fields[0]))
                         # For nested json data, we cast the values we access to JSONB so we can access their keys
                         for i, field in enumerate(fields[1:]):
@@ -2041,7 +2467,7 @@ async def get_sources(
                         )
 
                     statement = (
-                        text(statement)
+                        text(resolve_obj_join(statement))
                         .bindparams(*query_params)
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
@@ -2096,6 +2522,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                         "host": None,
                         "host_offset": None,
@@ -2106,6 +2534,8 @@ async def get_sources(
                 objs = [
                     {
                         **obj.to_dict(),
+                        # frontend ws-refresh keys on internal_key (dropped by to_dict)
+                        "internal_key": obj.internal_key,
                         "groups": [],
                     }
                     for obj in objs
@@ -2485,7 +2915,9 @@ async def get_sources(
                 startTime = time.time()
 
                 comments_result = await session.scalars(
-                    Comment.select(user).where(Comment.obj_id.in_(obj_ids))
+                    Comment.select(user)
+                    .where(Comment.obj_id.in_(obj_ids))
+                    .where(Comment.channel.is_(None))
                 )
                 comments = comments_result.unique().all()
                 comments = [c.to_dict() for c in comments]

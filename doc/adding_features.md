@@ -18,13 +18,13 @@ The SkyPortal front-end uses React, a component-based UI library, in conjunction
 
 In React, [_elements_](https://reactjs.org/docs/rendering-elements.html) are the smallest building blocks of an app and correspond to DOM elements, but are simple JavaScript objects that are cheap to create. Elements describe what should be displayed in the browser. Here's a simple example of an element (written with a [JSX](https://reactjs.org/docs/introducing-jsx.html) tag):
 
-``` jsx
+```jsx
 const element = <h1>Hello, world</h1>;
 ```
 
 [_Components_](https://reactjs.org/docs/components-and-props.html) are essentially pure JavaScript functions that take inputs (called "props") and return elements. Let's look at a simple example:
 
-``` jsx
+```jsx
 const Component = () => {
   return <h1>Hello, world</h1>;
 };
@@ -32,7 +32,7 @@ const Component = () => {
 
 As you can see, our component is simply a function (written above as an ES6 [arrow function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions)) that returns an element. If arrow functions look unfamiliar, the above component definition is equivalent to:
 
-``` jsx
+```jsx
 function Component() {
   return <h1>Hello, world</h1>;
 }
@@ -40,23 +40,21 @@ function Component() {
 
 Components can be defined as classes or functions, but in this tutorial we'll always use the functional form. As noted above, components can take inputs, called props. Let's take a look at a simple component that takes a single "props" argument `name`:
 
-``` jsx
+```jsx
 const Component = (props) => {
-  return (
-    <h1>
-      Hello, {props.name}
-    </h1>
-  );
+  return <h1>Hello, {props.name}</h1>;
 };
 ```
 
 This component returns an element, that, when rendered into the DOM (more on this below), displays a header containing the text "Hello, Maria" (assuming we passed in `name='Maria'`). Inside [JSX](https://reactjs.org/docs/introducing-jsx.html) tags, JavaScript expressions must be wrapped in curly braces, as `props.name` is above. If we instantiate this component and pass in the value 'world' to the `name` prop, the resulting value is identical to the first element we defined above:
 
-``` jsx
+```jsx
 const helloWorldElement = <Component name="world" />;
 ```
+
 is identical to:
-``` jsx
+
+```jsx
 const helloWorldElement = <h1>Hello, world</h1>;
 ```
 
@@ -64,17 +62,12 @@ Note that React component names should always be capitalized, as React looks for
 
 Now we know a bit about React elements and components, but we still haven't actually rendered anything into the DOM. To render a React element into a DOM node, we pass both into `ReactDOM.render()` Let's look at a full example:
 
-``` jsx
-import React from 'react';
-import ReactDOM from 'react-dom';
-
+```jsx
+import React from "react";
+import ReactDOM from "react-dom";
 
 // Define our component:
-const Component = (props) => (
-  <h1>
-    Hello, {props.name}
-  </h1>
-);
+const Component = (props) => <h1>Hello, {props.name}</h1>;
 
 // Render the element it returns into the DOM (into the DOM element with ID "root"):
 ReactDOM.render(<Component name="world" />, document.getElementById("root"));
@@ -84,10 +77,8 @@ We define our component, then pass an instance of that component (which evaluate
 
 Components can also render other components, as in the following example:
 
-``` jsx
-const Welcome = (props) => (
-  <h1>Welcome, {props.name}</h1>
-);
+```jsx
+const Welcome = (props) => <h1>Welcome, {props.name}</h1>;
 
 const HomePage = () => (
   <div>
@@ -108,25 +99,20 @@ Components can have their own internal state, independent of the props that are 
 
 For functional components, we use React's [`useState` hook](https://reactjs.org/docs/hooks-overview.html) to create a state object and a function that updates it. Let's first just define a component with some state that displays the value of that state:
 
-``` jsx
-import React, { useState } from 'react';
-
+```jsx
+import React, { useState } from "react";
 
 const Counter = () => {
   const [count, updateCount] = useState(0);
 
-   return (
-     <div>
-       Current count: {count}
-     </div>
-  );
+  return <div>Current count: {count}</div>;
 };
 ```
+
 We pass in `0` as the default value to `useState`, which returns a tuple containing our state object (which we've called `count`) and a function that can update that state (which we've called `updateCount`). So now we have a component that has its own state and displays that value in a `div`, but that isn't very useful because we have no way of interacting with it to update that value. Let's define a handler to update the count, add a button, and pass our handler to the `onClick` event in the button:
 
-``` jsx
-import React, { useState } from 'react';
-
+```jsx
+import React, { useState } from "react";
 
 const Counter = () => {
   const [count, updateCount] = useState(0);
@@ -136,17 +122,15 @@ const Counter = () => {
     updateCount(newCount);
   };
 
-   return (
-     <div>
-       <div>
-         Current count: {count}
-       </div>
-       <div>
-         <button type="button" onClick={handleClick}>
-           Increment!
-         </button>
-       </div>
-     </div>
+  return (
+    <div>
+      <div>Current count: {count}</div>
+      <div>
+        <button type="button" onClick={handleClick}>
+          Increment!
+        </button>
+      </div>
+    </div>
   );
 };
 ```
@@ -157,7 +141,7 @@ Let's look at what's happening here: we've defined a new function in our compone
 
 We use [Redux](https://redux.js.org/basics/basic-tutorial/) to store and manage global front-end state. The basic idea is simple: Redux provides a global `store` object that contains the application state and allows that state to be updated via the dispatching of _actions_. Actions are simply objects with a `type` attribute and may contain a payload, e.g. `{ type: 'UPDATE_SOURCES', data: { sourceList: [{ id: '14gqr', ... }, ...] }}`. We dispatch actions via the Redux function `store.dispatch`, and these actions are handled by _reducers_ which specify how the application state should be updated in response to actions dispatched to the store. Let's take a look at an example of creating actions and reducers:
 
-``` jsx
+```jsx
 // Define our action type:
 const UPDATE_SOURCES = "UPDATE_SOURCES";
 
@@ -165,10 +149,10 @@ const UPDATE_SOURCES = "UPDATE_SOURCES";
 const reducer = (state = { sourceList: [] }, action) => {
   switch (action.type) {
     case UPDATE_SOURCES: {
-      const { sourceList } = action.data;  // Object destructuring assignment
+      const { sourceList } = action.data; // Object destructuring assignment
       return {
-        ...state,  // Object spread operator
-        sourceList  // Object literal property shorthand
+        ...state, // Object spread operator
+        sourceList, // Object literal property shorthand
       };
     }
     default:
@@ -181,9 +165,8 @@ const reducer = (state = { sourceList: [] }, action) => {
 
 In SkyPortal, we've added a utility method to the global `store` object to inject reducers to the store. Each reducer corresponds to its own branch of the state tree, which is specified when we inject the reducer into the store. Let's look at an example, assuming we're creating new a file in the `static/js/ducks` directory (our `store` is defined in `static/js/store.js`):
 
-``` jsx
-import store from '../store';
-
+```jsx
+import store from "../store";
 
 // Define our action type:
 const UPDATE_SOURCES = "UPDATE_SOURCES";
@@ -195,7 +178,7 @@ const reducer = (state = { sourceList: [] }, action) => {
       const { sourceList } = action.data;
       return {
         ...state,
-        sourceList
+        sourceList,
       };
     }
     default:
@@ -204,7 +187,7 @@ const reducer = (state = { sourceList: [] }, action) => {
 };
 
 // Inject our reducer into the store, mapping it to the 'sources' state branch:
-store.injectReducer('sources', reducer);
+store.injectReducer("sources", reducer);
 ```
 
 This warrants a brief note on code organization: we bundle all of our Redux-related code (action types, action creators, reducer) associated with a particular branch of the application state together in a file in the `static/js/ducks` directory ([read more about "ducks" modules here](https://github.com/erikras/ducks-modular-redux)). Each component definition typically goes in its own file in `static/js/components`.
@@ -213,23 +196,22 @@ Now that we've added our reducer to the store, whenever an action of type `UPDAT
 
 We have injected our reducer into the store that can handle actions of the type `UPDATE_SOURCES`, so now let's dispatch one. We use the `react-redux` library which provides a `useDispatch` function, giving us access to the store's dispatch. Dispatching an action is as simple as:
 
-``` jsx
-import { useDispatch } from 'react-redux';
-
+```jsx
+import { useDispatch } from "react-redux";
 
 const dispatch = useDispatch();
 
 const newSourceList = resultFromSomeAPICall();
 
-dispatch({ type: 'UPDATE_SOURCES', data: { sourceList: newSourceList } });
+dispatch({ type: "UPDATE_SOURCES", data: { sourceList: newSourceList } });
 ```
 
 The store dispatches the action, and applies each of our reducers to it, creating a new state object from the return values of our reducers (each reducer returning the branch of state it's associated with, e.g. the return value of the reducer above corresponds to the 'sources' branch, or `state.sources`, as specified in our `store.injectRecuer` call). Typically we define _action creators_, functions that return action objects, and call those inside `dispatch` rather than explicitly pass in these clunky action objects everytime we need to dispatch an action. Here's an example of an action creator being defined, and then using it to dispatch an action:
 
-``` jsx
+```jsx
 // Define action creator
 const updateSources = (newSourceList) => {
-  return { type: 'UPDATE_SOURCES', data: { sourceList: newSourceList } };
+  return { type: "UPDATE_SOURCES", data: { sourceList: newSourceList } };
 };
 
 // Get some data
@@ -244,20 +226,20 @@ We'll often dispatch actions when users submit data, click a button, or if a web
 A typical pattern you will see in SkyPortal is: make an API call (an HTTP request) to fetch data from the back-end, then dispatch an action containing the response data to update the front-end state accordingly. We've written a utility function in `static/js/API.js` that simplifies the process, utilizing [_thunks_](https://github.com/reduxjs/redux-thunk).
 
 From [https://alligator.io/redux/redux-thunk/](https://alligator.io/redux/redux-thunk/):
+
 > Redux Thunk is a middleware that lets you call action creators that return a function instead of an action object. That function receives the store’s dispatch method, which is then used to dispatch regular synchronous actions inside the body of the function once the asynchronous operations have completed.
 
 The function that the action creator returns is a thunk, to which the `redux-thunk` middleware library suppies the store's dispatch. We can then execute some statements inside the thunk, including making API calls to the back-end, and then dispatch an action containing the result. Let's illustrate with an example. Here's a typical SkyPortal action creator (this is a simplified version of part of the actual source code):
 
-``` jsx
-import * as API from '../API';
-
+```jsx
+import * as API from "../API";
 
 // Action type
-export const FETCH_SOURCES = 'skyportal/FETCH_SOURCES';
+export const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
 
 // Action creator that returns a thunk
 export function fetchSources() {
-  return API.GET('/api/sources', FETCH_SOURCES);
+  return API.GET("/api/sources", FETCH_SOURCES);
 }
 ```
 
@@ -265,8 +247,8 @@ When we call `dispatch(fetchSources())`, the thunk returned by `API.GET` is call
 
 In order for our components to access the application state, the `react-redux` library provides the `useSelector` hook:
 
-``` jsx
-import { useSelector } from 'react-redux';
+```jsx
+import { useSelector } from "react-redux";
 
 // Accessing the application state
 const { sourceList } = useSelector((state) => state.sources);
@@ -282,13 +264,12 @@ Now we'll put all these pieces together and walk through adding a new "feature" 
 
 We'll start with defining our new `TestComments` component in a new file in the components directory (`static/js/components/TestComments.jsx`):
 
-``` jsx
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+```jsx
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 // Import our action creators from static/js/ducks/testComments.js - see below
-import * as commentsActions from '../ducks/testComments';
-
+import * as commentsActions from "../ducks/testComments";
 
 const TestComments = () => {
   const comments = useSelector((state) => state.testComments);
@@ -307,7 +288,9 @@ const TestComments = () => {
 
   // Define submission callback
   const handleSubmitNewComment = async () => {
-    const requestResult = await dispatch(commentsActions.submitComment(newCommentText));
+    const requestResult = await dispatch(
+      commentsActions.submitComment(newCommentText),
+    );
     if (requestResult.status === "success") {
       setNewCommentText("");
     }
@@ -319,10 +302,8 @@ const TestComments = () => {
         Comments:
         <ul>
           {comments.map((comment, idx) => (
-            <li key={idx}>
-              {comment.text}
-            </li>
-           ))}
+            <li key={idx}>{comment.text}</li>
+          ))}
         </ul>
       </div>
       <div>
@@ -365,24 +346,24 @@ The comments in the list `state.testComments` (which is intialized to an empty l
 All of the redux-related logic associated with our new component will live in a separate file in the `static/js/ducks` directory. This is where we'll define our action types, action creators and reducer.
 
 `static/js/ducks/testComments.js`:
-``` jsx
+
+```jsx
 import messageHandler from "baselayer/MessageHandler";
 
-import * as API from '../API';
-import store from '../store';
+import * as API from "../API";
+import store from "../store";
 
+const FETCH_TEST_COMMENTS = "skyportal/FETCH_TEST_COMMENTS";
+const FETCH_TEST_COMMENTS_OK = "skyportal/FETCH_TEST_COMMENTS_OK";
 
-const FETCH_TEST_COMMENTS = 'skyportal/FETCH_TEST_COMMENTS';
-const FETCH_TEST_COMMENTS_OK = 'skyportal/FETCH_TEST_COMMENTS_OK';
-
-const SUBMIT_TEST_COMMENT = 'skyportal/SUBMIT_TEST_COMMENT';
+const SUBMIT_TEST_COMMENT = "skyportal/SUBMIT_TEST_COMMENT";
 
 export function fetchComments() {
-  return API.GET('/api/test_comment', FETCH_TEST_COMMENTS);
+  return API.GET("/api/test_comment", FETCH_TEST_COMMENTS);
 }
 
 export function submitComment(commentText) {
-  return API.POST('/api/test_comment', SUBMIT_TEST_COMMENT, { commentText });
+  return API.POST("/api/test_comment", SUBMIT_TEST_COMMENT, { commentText });
 }
 
 // Websocket message handler
@@ -392,7 +373,7 @@ messageHandler.add((actionType, payload, dispatch) => {
   }
 });
 
-const reducer = (state=[], action) => {
+const reducer = (state = [], action) => {
   switch (action.type) {
     case FETCH_TEST_COMMENTS_OK: {
       return action.data;
@@ -402,7 +383,7 @@ const reducer = (state=[], action) => {
   }
 };
 
-store.injectReducer('testComments', reducer);
+store.injectReducer("testComments", reducer);
 ```
 
 This defines a few new action types, two new action creators (in this case, functions that return a thunk (another function), which is what `API.GET` and `API.POST` are), and a reducer, which, upon injecting into the store, describes how the `comments` branch of the app state should be updated if an action of type `FETCH_COMMENTS_OK` is received. Note that in addition to dispatching actions of type `"ORIGINAL_ACTION_TYPE" + "_OK"` upon successful completion of API calls, the `API` module functions will also dispatch actions of type `"ORIGINAL_ACTION_TYPE" + "_FAIL"` if the API call fails, which can be handled accordingly in the reducer.
@@ -411,9 +392,9 @@ We've also imported `messageHandler` from `baselayer` and called `messageHandler
 
 To render our new `TestComments` component, we can simply import it and render it in the body of any other component being rendered in our app (depending on where we want it to appear): `<TestComments />`. If our component took props (arguments), this is where we'd pass them in. Alternatively, if it is desired that a component be on its own page and associated with its own URL endpoint, this can be accomplished by adding a mapping entry to the `app.routes` section of config.yaml (after you've copied config.yaml.defaults to config.yaml and modified accordingly). See [config.yaml.defaults](https://github.com/skyportal/skyportal/blob/main/config.yaml.defaults) for examples. These are later passed to [`react-router`](https://github.com/ReactTraining/react-router), which maps URL endpoints to React components. For the purposes of this exercise, let's add the following lines to config.yaml under `app.routes`:
 
-``` yaml
-    - path: "/test_comments"
-      component: TestComments
+```yaml
+- path: "/test_comments"
+  component: TestComments
 ```
 
 Then, after running the app (instructions to follow), we can navigate to `<base_url>/test_comments` in the browser and see our new component rendered there.
@@ -425,13 +406,13 @@ Now let's take a look at what we'll need to add to the back-end to make our new 
 The SkyPortal back-end is built using [Tornado](https://www.tornadoweb.org/en/stable/), a Python web application framework that provides its own I/O event loop for non-blocking sockets, making it ideal for use with websockets (see below).
 
 To handle HTTP requests, we define _request handlers_ that are mapped to API endpoints in the application's configuration (in `skyportal/app_server.py` -- see below). Each SkyPortal request handler is a subclass of
-Handler` (defined in `skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
+Handler`(defined in`skyportal/handlers/base.py`), a handler that extends Tornado's base [RequestHandler](https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler), handling authentication and providing utility methods for pushing websocket messages to the front-end and returning HTTP responses.
 
 Let's take a look at adding our own handler. We'll start by defining a new request handler in a new file `skyportal/handlers/api/test_comment.py`. Note that we've imported `BaseHandler` which serves as the base class of our new handler. We define class methods describing how to handle requests of various types, e.g. a `put` method for PUT requests, a `post` method for POST requests, etc.
 
-
 `skyportal/handlers/api/test_comment.py`:
-``` python
+
+```python
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import TestComment
@@ -463,9 +444,10 @@ class TestCommentHandler(BaseHandler):
             self.push_all(action='skyportal/FETCH_TEST_COMMENTS')
             return self.success(data=comment)
 ```
-`BaseHandler` is the base class of our new handler. We also imported `TestComment`, which is the model class we defined above.  The `BaseHandler` class has a Session attribute, which is an instance of `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance. Whereas `TestComment` is an SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table).
 
-*We'll see how to define mapper classes (which correspond to database tables) shortly.*
+`BaseHandler` is the base class of our new handler. We also imported `TestComment`, which is the model class we defined above. The `BaseHandler` class has a Session attribute, which is an instance of `DBSession`, a [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.html) [Session](https://docs.sqlalchemy.org/en/13/orm/session.html) instance. Whereas `TestComment` is an SQLAlchemy [mapper class](https://docs.sqlalchemy.org/en/13/orm/mapping_styles.html#declarative-mapping) (which maps a Python class to a database table).
+
+_We'll see how to define mapper classes (which correspond to database tables) shortly._
 
 We then defined a new class `TestCommentHandler` that extends `BaseHandler`. We defined two class methods, `get` and `post`, which describe how to handle GET and POST requests, respectively.
 
@@ -473,7 +455,7 @@ The `get` method queries the database for all `TestComment` records, and returns
 
 In the `post` method, we start by accessing the request's JSON body with `self.get_json()`, and ensure that `"commentText"` is provided there as a non-empty string, returning an error response otherwise. If it is provided, we proceed with creating a new `TestComment` record, which we then add to the session with `session.add()`, and commit the session to disk with `session.commit()`. Before returning the handlers response, a websocket message is sent to the front-end with action type `"skyportal/FETCH_TEST_COMMENTS"`, which will trigger the front-end (using the ducks from React Redux mentioned earlier) to re-fetch the comments list from the back-end. Note that we're using the `push_all` method of `BaseHandler` to push the websocket message to all connected clients. If we wanted to push the message to only a subset of clients, we could use `push` instead, passing in a list of user IDs to send the message to.
 
-*More details on websockets can be found in the [websockets section](#websockets) below.*
+_More details on websockets can be found in the [websockets section](#websockets) below._
 
 In both methods, to interact with the database, we use the `Session` attribute of `BaseHandler` to create an instance of `DBSession`. We use a context manager (`with self.Session() as session`) to ensure that the session is closed after the block is executed. This is a common pattern in Python for managing resources that need to be closed after use.
 
@@ -481,7 +463,7 @@ The decorator `@auth_or_token` tells the application that the request must eithe
 
 In both methods, we return a call to `BaseHandler.success`, which generates a response object whose JSON body content is of the form:
 
-``` python
+```python
 {
     'status': 'success',
     'version': "SkyPortal version string",
@@ -493,7 +475,7 @@ where `data` is whatever was passed in as the `data` argument to `success` (the 
 
 In addition to `success`, `BaseHandler` also provides an `error` method for returning error responses:
 
-``` python
+```python
 class SomeHandler(BaseHandler):
     def some_request_type(self):
         ...
@@ -505,7 +487,7 @@ class SomeHandler(BaseHandler):
 
 Note: In Python, if an error occurs and isn't caught, the method will raise an exception. Here, we want to catch errors so we can still use return a response to the client containing the error message. To do so, one can use the `try`/`except` syntax:
 
-``` python
+```python
 
 class SomeHandler(BaseHandler):
     def some_request_type(self):
@@ -523,7 +505,7 @@ Let's turn for a moment to [SQLAlchemy](https://docs.sqlalchemy.org/en/13/index.
 
 With that, let's define our `TestComment` mapper class in `skyportal/models` directory, in a file called `test_comment.py`:
 
-``` python
+```python
 __all__ = ['TestComment']
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -560,22 +542,21 @@ The SQLAlchemy ORM maps this class to a database table with the columns `text` (
 
 Also, we defined a relationship between the `TestComment` class and the `User` class, which is a one-to-many relationship (one user can have many comments, but a comment can only be submitted by one user). This is done by defining a [`relationship`](https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many) named `user` in the TestComment class, and then defining a [`relationship`](https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-many) named `test_comments` on the `User` class. This is necessary because the `TestComment` class is defined after the `User` class, and so the `User` class doesn't know about the `TestComment` class yet. The 2 relationships are then linked together by setting the `back_populates` argument of the `relationship` on the `User` class to the `relationship` on the `TestComment` class, and vice versa.
 
-
 After adding a new handler and/or model, we ensure that they can be imported in other modules by adding them to the `__init__.py` files in their respective directories. For example, for `skyportal/handlers/api/test_comment.py`, we add the following line to the `skyportal/handlers/api/__init__.py` file:
 
-``` python
+```python
 from .test_comment import TestCommentHandler
 ```
 
 and for `skyportal/models/test_comment.py`, we add the following line to the `skyportal/models/__init__.py` file:
 
-``` python
+```python
 from .test_comment import TestComment
 ```
 
 Now, we need to define the API endpoint that will be used to access the `TestCommentHandler` we just defined. This is done in the `skyportal/app_server.py` file.
 
-``` python
+```python
 from skyportal.handlers.api import TestCommentHandler # add this line to the top of the file after the existing handlers imports
 
 ...
@@ -600,10 +581,9 @@ Here's a screen capture of what we've implemented in action:
 
 Now our new feature should be fully implemented, and we'll add a test to make sure it's working as expected. We use Selenium in our front-end tests; we'll use that to programmatically navigate, click, enter text, etc., in a browser session, and ensure that elements are rendering and behaving as expected. Let's take a look at an example test for our new component:
 
-
 `skyportal/tests/frontend/test_test_comments.py`:
 
-``` python
+```python
 def test_test_comments(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get('/test_comments)
@@ -626,7 +606,7 @@ Otherwise, you can simply run `make test` to run the entire test suite.
 
 SkyPortal utilizes [websockets](http://cesium-ml.org/blog/2016/07/13/a-pattern-for-websockets-in-python/) for pushing messages from the back-end to the front-end. Websockets can be used for telling the front-end that a long-running job has finished, that the DB state has changed and should be re-fetched, for displaying notifications, etc. In SkyPortal, websocket messages are pushed from within the body of request handlers, and always contain an _action type_. When a message is received by the front-end, its action type is used to determine how to handle the message, which typically involves dispatching actions that update the state. For example, when a new comment is added to a source, we want the comment to automatically appear in the comments section if a user is currently viewing that source. To do this, `CommentHandler.post` pushes a websocket message to all active sessions with an action type of "skyportal/REFRESH_SOURCE" and a payload containing the source's internal key:
 
-``` python
+```python
 ...
 
 class CommentHandler(BaseHandler):
@@ -644,7 +624,8 @@ class CommentHandler(BaseHandler):
 Let's turn for a moment to how these websocket messages are handled by the front-end. The `baselayer` submodule provides a `messageHandler` object that handles all incoming websocket messages, with handlers for a few action types (e.g. displaying browser notifications) already defined. To handle messages with other action types, we need to call `messageHandler.add` and pass in a function that describes how to handle those messages. Let's look at the front-end websocket message handler associated with the above "skyportal/REFRESH_SOURCE" example:
 
 `static/js/ducks/source.js`
-``` jsx
+
+```jsx
 import messageHandler from 'baselayer/MessageHandler';
 
 ...
@@ -678,7 +659,7 @@ By using websocket messages whenever the back-end state has changed, in conjucti
 
 In addition to `BaseHandler.push` and `BaseHandler.push_all`, an optional `action` keyword argument (and corresponding `payload` keywoard argument, if relevant) can be supplied to `BaseHandler.success`, and a websocket message with that action type (and payload, if provided) will be pushed to the current user. For example,
 
-``` python
+```python
 class SomeHandler(BaseHandler):
     def some_request_type(self):
         ...
@@ -687,7 +668,7 @@ class SomeHandler(BaseHandler):
 
 is just a more compact form of the following, which is equivalent:
 
-``` python
+```python
 class SomeHandler(BaseHandler):
     def some_request_type(self):
         ...
@@ -697,7 +678,7 @@ class SomeHandler(BaseHandler):
 
 Note that whenever a message should be pushed to _all_ active users, `BaseHandler.push_all` must be used:
 
-``` python
+```python
 class SomeHandler(BaseHandler):
     def some_request_type(self):
         ...
@@ -717,8 +698,6 @@ Let's recap the files we've created or edited to implement this new feature:
 - adding imports models and handlers in the `__init__.py` files found in `skyportal/models` and `skyportal/handlers/api` _(edit)_
 - importing our handler and adding the route mapping to our handlers list in `skyportal/app_server.py` _(edit, 2 lines of code)_
 - adding a new test in `skyportal/tests/frontend/test_test_comments.py` _(new)_
-
-
 
 ## Summary of front-end data flow
 

@@ -1,0 +1,10 @@
+{
+  "overrides": [
+    {
+      "files": "*.yaml.defaults",
+      "options": {
+        "parser": "yaml"
+      }
+    }
+  ]
+}

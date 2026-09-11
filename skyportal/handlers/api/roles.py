@@ -65,12 +65,6 @@ class UserRoleHandler(BaseHandler):
         description: Grant new Role(s) to a user
         tags:
           - roles
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -117,17 +111,6 @@ class UserRoleHandler(BaseHandler):
         description: Delete user role
         tags:
           - roles
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: role_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

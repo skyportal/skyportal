@@ -1,4 +1,5 @@
-import embed from "vega-embed";
+import { useEffect, useRef } from "react";
+import embedVega from "../plot/vegaEmbed";
 
 // Consistent color palette for photometric bands across surveys
 const BAND_COLOR_SCALE = {
@@ -8,7 +9,7 @@ const BAND_COLOR_SCALE = {
 
 const spec = (url: any, values: any, jd: any): any => {
   const specJSON: any = {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v6.2.0.json",
     width: "container",
     height: "container",
     autosize: {
@@ -165,7 +166,7 @@ const spec = (url: any, values: any, jd: any): any => {
       // Vertical rule marking the selected alert's JD
       {
         data: { values: [{}] },
-        mark: { type: "rule", strokeDash: [4, 4], size: 1, opacity: 0.3 },
+        mark: { type: "rule", strokeDash: [4, 4], size: 1.5, opacity: 0.6 },
         encoding: {
           x: {
             datum: jd,
@@ -197,19 +198,50 @@ interface VegaPlotProps {
 }
 
 const VegaPlot = ({ dataUrl = null, values = null, jd }: VegaPlotProps) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+
+    const renderPlot = async () => {
+      if (!container || (!dataUrl && !values)) {
+        return;
+      }
+      // Finalize the previous view to release its DOM nodes and event handlers.
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+      const result = await embedVega(container, spec(dataUrl, values, jd), {
+        actions: false,
+      });
+      if (cancelled) {
+        result?.view?.finalize();
+        return;
+      }
+      viewRef.current = result?.view || null;
+    };
+
+    renderPlot();
+
+    return () => {
+      cancelled = true;
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+      if (container) {
+        container.innerHTML = "";
+      }
+    };
+  }, [dataUrl, values, jd]);
+
   if (!dataUrl && !values) {
     return null;
   }
-  return (
-    <div
-      ref={(node) => {
-        embed(node as any, spec(dataUrl, values, jd), {
-          actions: false,
-        });
-      }}
-      style={{ width: "100%", height: "100%" }}
-    />
-  );
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 };
 
 export default VegaPlot;

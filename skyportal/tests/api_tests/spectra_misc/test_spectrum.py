@@ -1320,10 +1320,10 @@ def test_token_user_get_range_spectrum(
     assert data["data"][0]["fluxes"][0] == 434.2
     assert data["data"][0]["obj_id"] == public_source.id
 
-    # 2020-01-15T00:00:00+00:00
+    # 2020-01-15T00:00:00
     status, data = api(
         "GET",
-        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00",
+        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00",
         token=upload_data_token,
     )
     assert status == 200
@@ -1987,6 +1987,55 @@ def test_spectrum_external_reducer_and_observer(
     assert data["data"]["external_reducer"] == "Test external reducer"
     assert data["data"]["external_observer"] == "Test external observer"
     assert data["data"]["external_pi"] == "Test external PI"
+
+
+def test_obj_spectra_external_fields(
+    upload_data_token, public_source, public_group, lris, user
+):
+    """The obj-spectra listing reports the external fields per spectrum, and
+    distinguishes a spectrum with no association row from one whose row is null."""
+    common = {
+        "obj_id": str(public_source.id),
+        "observed_at": str(datetime.datetime.now()),
+        "instrument_id": lris.id,
+        "wavelengths": [664, 665, 666],
+        "fluxes": [234.2, 232.1, 235.3],
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **common,
+            "reduced_by": [user.id],
+            "external_reducer": "Test external reducer",
+            "observed_by": [user.id],
+            "external_observer": "Test external observer",
+            "pi": [user.id],
+            "external_pi": "Test external PI",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    with_external = data["data"]["id"]
+
+    status, data = api("POST", "spectrum", data=common, token=upload_data_token)
+    assert status == 200
+    without_external = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/spectra", token=upload_data_token
+    )
+    assert status == 200
+    by_id = {spec["id"]: spec for spec in data["data"]["spectra"]}
+
+    assert by_id[with_external]["external_reducer"] == "Test external reducer"
+    assert by_id[with_external]["external_observer"] == "Test external observer"
+    assert by_id[with_external]["external_pi"] == "Test external PI"
+
+    # No association row at all, so the keys are absent rather than null.
+    for key in ("external_pi", "external_reducer", "external_observer"):
+        assert key not in by_id[without_external]
 
 
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):

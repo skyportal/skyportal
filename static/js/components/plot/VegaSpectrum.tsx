@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
-import embed from "vega-embed";
+import embedVega from "./vegaEmbed";
 import { useTheme } from "@mui/material/styles";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 
@@ -120,7 +120,7 @@ const VegaSpectrumMemo = React.memo(
       <div
         ref={(node) => {
           if (node) {
-            embed(
+            embedVega(
               node,
               spec(
                 dataUrl,

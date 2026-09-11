@@ -4,16 +4,23 @@
  * banner with the team's color and logo. It is a view control only: it never
  * changes what data the user can access.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import GroupsIcon from "@mui/icons-material/Groups";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import type { SelectChangeEvent } from "@mui/material/Select";
+import Tooltip from "@mui/material/Tooltip";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 import { useUpdateUserPreferencesMutation } from "../../ducks/profile";
+import type { Team } from "../../ducks/teams";
 import { useActiveTeam, useGetTeamsQuery } from "../../ducks/teams";
 
 const ColorDot = ({ color }: { color?: string | null }) => (
@@ -34,6 +41,8 @@ const TeamSwitcher = () => {
   const { data: teams } = useGetTeamsQuery();
   const { activeTeamId, activeTeam } = useActiveTeam();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const downLg = useMediaQuery((theme: any) => theme.breakpoints.down("lg"));
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // Re-skin the app for the active team via an injected stylesheet. Using CSS
   // selectors (rather than setting styles on specific nodes) means elements
@@ -101,10 +110,86 @@ const TeamSwitcher = () => {
     return null;
   }
 
+  const selectTeam = (id: number | null) => {
+    updateUserPreferences({ activeTeam: id });
+    setAnchorEl(null);
+  };
+
   const handleChange = (event: SelectChangeEvent) => {
     const value = event.target.value;
-    updateUserPreferences({ activeTeam: value === "" ? null : Number(value) });
+    selectTeam(value === "" ? null : Number(value));
   };
+
+  const teamLabel = (team: Team | null) => {
+    if (team === null) {
+      return (
+        <>
+          <GroupsIcon sx={{ width: 20, height: 20, mr: 1, color: "inherit" }} />
+          All Teams
+        </>
+      );
+    }
+    return (
+      <>
+        {team.logo_url ? (
+          <Avatar
+            src={team.logo_url}
+            alt={team.name}
+            sx={{ width: 20, height: 20, mr: 1 }}
+          />
+        ) : (
+          <ColorDot color={team.primary_color ?? null} />
+        )}
+        {team.name}
+      </>
+    );
+  };
+
+  if (downLg) {
+    return (
+      <>
+        <Tooltip title={`Team: ${activeTeam?.name ?? "All Teams"}`}>
+          <IconButton
+            size="small"
+            onClick={(event) => setAnchorEl(event.currentTarget)}
+            data-testid="teamSwitcher"
+          >
+            {activeTeam?.logo_url ? (
+              <Avatar
+                src={activeTeam.logo_url}
+                alt={activeTeam.name}
+                sx={{ width: 24, height: 24 }}
+              />
+            ) : (
+              <GroupsIcon color="primary" />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+        >
+          <MenuItem
+            selected={activeTeamId === null}
+            onClick={() => selectTeam(null)}
+          >
+            {teamLabel(null)}
+          </MenuItem>
+          <Divider />
+          {teams.map((team) => (
+            <MenuItem
+              key={team.id}
+              selected={team.id === activeTeamId}
+              onClick={() => selectTeam(team.id)}
+            >
+              {teamLabel(team)}
+            </MenuItem>
+          ))}
+        </Menu>
+      </>
+    );
+  }
 
   return (
     <FormControl size="small" data-testid="teamSwitcher">
@@ -116,59 +201,31 @@ const TeamSwitcher = () => {
         sx={{
           color: "white",
           minWidth: 150,
-          ".MuiOutlinedInput-notchedOutline": {
-            borderColor: "rgba(255,255,255,0.5)",
-          },
-          "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: "white",
-          },
+          borderRadius: "0.5rem",
+          backgroundColor: "rgba(255,255,255,0.12)",
+          transition: "background-color 0.2s",
+          "&:hover": { backgroundColor: "rgba(255,255,255,0.22)" },
+          ".MuiOutlinedInput-notchedOutline": { border: "none" },
           ".MuiSvgIcon-root": { color: "white" },
           ".MuiSelect-select": {
             display: "flex",
             alignItems: "center",
             py: 0.5,
+            fontSize: "0.9rem",
+            fontWeight: "bold",
           },
         }}
         renderValue={() => (
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            {activeTeam ? (
-              <>
-                {activeTeam.logo_url ? (
-                  <Avatar
-                    src={activeTeam.logo_url}
-                    alt={activeTeam.name}
-                    sx={{ width: 20, height: 20, mr: 1 }}
-                  />
-                ) : (
-                  <ColorDot color={activeTeam.primary_color ?? null} />
-                )}
-                {activeTeam.name}
-              </>
-            ) : (
-              <>
-                <ColorDot color={null} />
-                All Teams
-              </>
-            )}
+            {teamLabel(activeTeam)}
           </Box>
         )}
       >
-        <MenuItem value="">
-          <ColorDot color={null} />
-          All Teams
-        </MenuItem>
+        <MenuItem value="">{teamLabel(null)}</MenuItem>
+        <Divider />
         {teams.map((team) => (
           <MenuItem key={team.id} value={String(team.id)}>
-            {team.logo_url ? (
-              <Avatar
-                src={team.logo_url}
-                alt={team.name}
-                sx={{ width: 20, height: 20, mr: 1 }}
-              />
-            ) : (
-              <ColorDot color={team.primary_color ?? null} />
-            )}
-            {team.name}
+            {teamLabel(team)}
           </MenuItem>
         ))}
       </Select>

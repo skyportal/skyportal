@@ -72,6 +72,7 @@ to each source, but that `Annotation` can contain arbitrary data.
 In the case of the color-magnitude plot,
 the system only recognizes annotations
 with a specific schema:
+
 - One of the keys in the annotation `data` must be named `Gaia`.
 - The value of that key must be another dictionary.
 - That dictionary must contain the following entries:
@@ -95,7 +96,7 @@ the status would be 400.
 ## Managing Taxonomies
 
 Taxonomies are used for classification. There is typically a sitewide taxonomy that all users of SkyPortal can see. By default, we seed a new SP database with the latest taxonomy from the [Time-domain Astronomy Taxonomy
- (Github)](https://github.com/profjsb/timedomain-taxonomy) (`tdtax`). From time to time, the latest taxonomy may be upgraded as new subclasses of sources are discovered and SP admins may need to push a new version of the taxonomy to the live application.
+(Github)](https://github.com/profjsb/timedomain-taxonomy) (`tdtax`). From time to time, the latest taxonomy may be upgraded as new subclasses of sources are discovered and SP admins may need to push a new version of the taxonomy to the live application.
 
 ### Upgrading the Sitewide Taxonomy
 
@@ -129,6 +130,7 @@ response = api('POST',
 
 print(response.json())
 ```
+
 You should then see something like:
 
 ```

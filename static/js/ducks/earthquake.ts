@@ -98,13 +98,47 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
     }),
     addCommentOnEarthquake: build.mutation<unknown, any>({
       queryFn: async (formData, _api, _extra, baseQuery) => {
+        // Only the comment body keys; earthquake_id is a path param.
+        const body: Record<string, any> = {};
+        if (formData.text !== undefined) body["text"] = formData.text;
+        if (formData.group_ids !== undefined)
+          body["group_ids"] = formData.group_ids;
+        if (formData.attachment) {
+          body["attachment"] = await fileReaderPromise(formData.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/earthquake/${formData.earthquake_id}/comments`,
+          method: "POST",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["Earthquake"],
+    }),
+    editCommentOnEarthquake: build.mutation<
+      unknown,
+      {
+        commentID: number | string;
+        earthquakeID: number | string;
+        formData: any;
+      }
+    >({
+      queryFn: async (
+        { commentID, earthquakeID, formData },
+        _api,
+        _extra,
+        baseQuery,
+      ) => {
         const body = { ...formData };
         if (body.attachment) {
           body.attachment = await fileReaderPromise(body.attachment);
         }
         const result = await baseQuery({
-          url: `api/earthquake/${body.earthquake_id}/comments`,
-          method: "POST",
+          url: `api/earthquake/${earthquakeID}/comments/${commentID}`,
+          method: "PUT",
           body,
         });
         if (result.error) {
@@ -145,5 +179,6 @@ export const {
   useSubmitEarthquakeMutation,
   useSubmitPredictionMutation,
   useAddCommentOnEarthquakeMutation,
+  useEditCommentOnEarthquakeMutation,
   useDeleteCommentOnEarthquakeMutation,
 } = earthquakeApi;

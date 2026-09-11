@@ -243,11 +243,6 @@ class AcrossJointVisibilityHandler(BaseHandler):
         tags:
             - sources
         parameters:
-            - in: path
-              name: obj_id
-              required: true
-              schema:
-                type: string
             - in: query
               name: telescopeIds
               required: true

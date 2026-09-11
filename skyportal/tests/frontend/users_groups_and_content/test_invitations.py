@@ -4,6 +4,14 @@ import pytest
 from playwright.sync_api import expect
 
 
+def click_add_button(page, testid):
+    cell = page.locator(
+        f"//*[contains(@class, 'MuiDataGrid-cell')][.//*[@data-testid='{testid}']]"
+    ).first
+    cell.hover()
+    cell.locator(f"css=[data-testid='{testid}']").first.click()
+
+
 def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
@@ -95,9 +103,7 @@ def test_add_invitation_stream(
         ).first
     ).to_be_visible()
 
-    page.locator(
-        f"//*[@data-testid='addInvitationStreamsButton{user_email}']"
-    ).first.click()
+    click_add_button(page, f"addInvitationStreamsButton{user_email}")
     page.locator("//*[@data-testid='addInvitationStreamsSelect']").first.click()
     page.locator(f"//*[text()='{public_stream2.name}']").first.click()
     page.locator("//*[@data-testid='submitAddInvitationStreamsButton']").first.click()

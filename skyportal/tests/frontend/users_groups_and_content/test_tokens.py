@@ -29,7 +29,7 @@ def test_cannot_create_more_than_one_token(page, user, view_only_token):
     page.locator('//button[contains(.,"Generate Token")]').first.click()
     expect(
         page.locator(
-            '//*[text()="You have reached the maximum number of tokens allowed for your account type."]'
+            '//*[contains(text(),"You have reached the maximum number of tokens allowed for your account type.")]'
         ).first
     ).to_be_visible()
 

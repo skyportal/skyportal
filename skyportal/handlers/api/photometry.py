@@ -4,6 +4,7 @@ import traceback
 import uuid
 from collections import defaultdict
 from io import StringIO
+from typing import Annotated, Literal
 
 import arrow
 import astropy.utils.data
@@ -16,6 +17,7 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
+from pydantic import BaseModel, ConfigDict, Field
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, load_only, selectinload
@@ -48,6 +50,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils.data_access import default_extra_share_group_ids
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
@@ -119,6 +122,8 @@ cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
+# Log-scaled ramp so distinct radio GHz bands stay visually distinct.
+cmap_radio = colormaps["winter"]
 
 
 def hex2rgb(hex):
@@ -220,6 +225,8 @@ def get_color(bandpass, format="hex"):
         bandcolor = rgb2hex(cmap_ir((5 - np.log10(wavelength)) / 0.77)[:3])
     elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
         bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
+    elif 3e5 < wavelength <= 1e12:  # sub-mm to radio (e.g. VLA GHz bands)
+        bandcolor = rgb2hex(cmap_radio((12 - np.log10(wavelength)) / (12 - 5.48))[:3])
     else:
         log(
             f"{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black"
@@ -493,14 +500,17 @@ def serialize(
 
     filter = phot.filter
 
-    if filter == "swiftxrt":
-        outsys = "ab"
-
     magsys_db = sncosmo.get_magsystem("ab")
     outsys = sncosmo.get_magsystem(outsys)
 
     try:
-        relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+        try:
+            relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+        except ValueError:
+            # Vega cannot measure a bandpass outside its spectrum (X-ray,
+            # radio); AB is analytic, so report the point there instead.
+            outsys = magsys_db
+            relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
 
         # note: these are not the actual zeropoints for magnitudes in the db or
         # packet, just ones that can be used to derive corrections when
@@ -800,6 +810,16 @@ async def standardize_photometry_data(data, session):
                 raise ValidationError(
                     f'Error parsing packet "{packet}": missing required field {field}.'
                 )
+
+        # non-detections require limiting_mag
+        limmag_missing = magnull & df["limiting_mag"].isna()
+        if any(limmag_missing):
+            bad_rows = np.argwhere(limmag_missing.values).flatten()
+            bad_mjds = [float(df.iloc[i]["mjd"]) for i in bad_rows]
+            raise ValidationError(
+                f"Non-detections (mag=null) require a limiting_mag. "
+                f"Affected row(s) at MJD: {bad_mjds}."
+            )
 
         # convert the mags to fluxes
         # detections
@@ -1239,7 +1259,12 @@ async def insert_new_photometry_data(
 
         # reduce the DB size by ~2x
         keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
-        original_user_data = {key: packet[key] for key in keys if key in packet}
+        original_user_data = {
+            key: packet[key]
+            for key in keys
+            if key in packet
+            and not (isinstance(packet[key], float) and np.isnan(packet[key]))
+        }
         if original_user_data == {}:
             original_user_data = None
 
@@ -1455,12 +1480,16 @@ async def insert_new_photometry_data(
     return ids, upload_id
 
 
-async def get_group_ids(data, user, session):
+async def get_group_ids(data, user, session, apply_default_share=True):
     """Resolve and validate the group_ids in a photometry-post payload.
 
     `session` is an AsyncSession. `user.single_user_group` would be a lazy
     relationship load under async, which raises MissingGreenlet — we look the
     single-user-group id up via an explicit query instead.
+
+    `apply_default_share` gates the configured default-share groups (e.g. the
+    sitewide public group). Off for bulk broker ingestion so ingested alerts are
+    not auto-shared publicly.
     """
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, list | tuple):
@@ -1496,6 +1525,9 @@ async def get_group_ids(data, user, session):
         )
 
     group_ids = list(group_ids)
+    if not group_ids and apply_default_share:
+        # no groups specified: share with the configured default groups
+        group_ids = await default_extra_share_group_ids(session)
     single_user_group_id = await session.scalar(
         sa.select(Group.id).where(
             Group.single_user_group.is_(True), Group.users.any(id=user.id)
@@ -1538,7 +1570,7 @@ async def get_stream_ids(data, user, session):
 
 
 async def add_external_photometry(
-    json, user, session, duplicates="update", refresh=False
+    json, user, session, duplicates="update", refresh=False, apply_default_share=True
 ):
     """Post external photometry to the database (e.g. from a facility API
     or the TNS retrieval worker).
@@ -1555,13 +1587,18 @@ async def add_external_photometry(
         How to treat rows that conflict on the deduplication index.
     refresh : bool
         Whether to push REFRESH actions over the websocket after the insert.
+    apply_default_share : bool
+        Whether to add the configured default-share groups when none are given.
+        False for broker ingestion so ingested photometry is not shared publicly.
     """
     if duplicates not in ["error", "ignore", "update"]:
         raise ValueError(
             "duplicates argument can only be one of: error, ignore, update"
         )
 
-    group_ids = await get_group_ids(json, user, session)
+    group_ids = await get_group_ids(
+        json, user, session, apply_default_share=apply_default_share
+    )
     stream_ids = await get_stream_ids(json, user, session)
     df, instrument_cache = await standardize_photometry_data(json, session)
 
@@ -1739,67 +1776,432 @@ async def commit_external_photometry(data, user_id, duplicates="update", refresh
         return ids
 
 
+class PhotometryGetQuery(BaseModel):
+    """Query parameters for getting a single photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: Literal["mag", "flux", "both"] = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "If a value for this query parameter is not provided, the result "
+            "will be returned in magnitude space."
+        ),
+    )
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
+
+
+REFRESH_DESCRIPTION = (
+    "If true, triggers a refresh of the object's photometry on the web page, "
+    "only for the users that have the object's source page open."
+)
+
+
+class PhotometryPostQuery(BaseModel):
+    """Query parameters for uploading photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+
+
+class PhotometryPutQuery(BaseModel):
+    """Query parameters for updating and/or uploading photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+    duplicate_ignore_flux: bool = Field(
+        default=False,
+        description=(
+            "If true, will not use the flux/fluxerr of existing rows when looking "
+            "for duplicates but only mjd, instrument_id, filter, and origin. "
+            "Reserved to super admin users only, to avoid misuse and permanent "
+            "data loss."
+        ),
+    )
+    overwrite_flux: bool = Field(
+        default=False,
+        description=(
+            "If true and duplicate_ignore_flux is also true, will update the "
+            "flux/fluxerr of existing rows (duplicates) with the new values. "
+            "Applies only to rows with an origin already specified. If existing "
+            "duplicates have no origin, the update will be skipped."
+        ),
+    )
+    overwrite_altdata: bool = Field(
+        default=False,
+        description=(
+            "If true, merge the posted altdata into existing rows that duplicate "
+            "the new points. Only applies when duplicate_ignore_flux is false, so "
+            "the duplicate is matched on the full deduplication index and is "
+            "therefore a single identified row; unlike overwrite_flux this needs "
+            "no origin and never changes a measurement."
+        ),
+    )
+
+
+class PhotometryPatchQuery(BaseModel):
+    """Query parameters for updating a photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh: bool = Field(default=False, description=REFRESH_DESCRIPTION)
+
+
+# Per-field types are permissive unions (scalar-or-1D-list) because the bulk
+# photometry payload broadcasts scalars across list-valued fields. This model
+# only enforces the top-level shape + extra="forbid"; the deep validation
+# (required fields, flux vs. mag space, finite/non-null checks, filter/magsys
+# enums) is still done by the marshmallow PhotFluxFlexible/PhotMagFlexible
+# schemas in standardize_photometry_data. Every field is optional here so those
+# schemas keep emitting their exact error messages for missing/invalid fields.
+class PhotometryFlexibleBody(BaseModel):
+    """Request body for bulk photometry upload (POST/PUT).
+
+    Union of the flux-space and magnitude-space payloads; a valid request must
+    match one of them (enforced downstream by the marshmallow schemas).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | int | list[str | int | None] | None = Field(
+        default=None,
+        description="ID of the `Obj`(s) to which the photometry will be "
+        "attached. Can be given as a scalar or a 1D list. If a scalar, will be "
+        "broadcast to all values given as lists. Null values are not allowed.",
+    )
+    mjd: float | list[float | None] | None = Field(
+        default=None,
+        description="MJD of the observation(s). Can be given as a scalar or a "
+        "1D list. If a scalar, will be broadcast to all values given as lists. "
+        "Null values not allowed.",
+    )
+    instrument_id: int | str | list[int | str | None] | None = Field(
+        default=None,
+        description="ID of the `Instrument`(s) with which the photometry was "
+        "acquired. Can be given as a scalar or a 1D list. If a scalar, will be "
+        "broadcast to all values given as lists. Null values are not allowed.",
+    )
+    filter: str | list[str | None] | None = Field(
+        default=None,
+        description="The bandpass of the observation(s). Can be given as a "
+        "scalar or a 1D list. If a scalar, will be broadcast to all values "
+        "given as lists. Null values not allowed.",
+    )
+    magsys: str | list[str | None] | None = Field(
+        default=None,
+        description="The magnitude system to which the flux/mag, error, and "
+        "zeropoint are tied. Can be given as a scalar or a 1D list. If a "
+        "scalar, will be broadcast to all values given as lists. Null values "
+        "not allowed.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment which generated the photometry.",
+    )
+    ra: float | list[float | None] | None = Field(
+        default=None,
+        description="ICRS Right Ascension of the centroid of the photometric "
+        "aperture [deg]. Can be given as a scalar or a 1D list. Null values "
+        "allowed.",
+    )
+    dec: float | list[float | None] | None = Field(
+        default=None,
+        description="ICRS Declination of the centroid of the photometric "
+        "aperture [deg]. Can be given as a scalar or a 1D list. Null values "
+        "allowed.",
+    )
+    ra_unc: float | list[float | None] | None = Field(
+        default=None,
+        description="Uncertainty on RA [arcsec]. Can be given as a scalar or a "
+        "1D list. Null values allowed.",
+    )
+    dec_unc: float | list[float | None] | None = Field(
+        default=None,
+        description="Uncertainty on dec [arcsec]. Can be given as a scalar or a "
+        "1D list. Null values allowed.",
+    )
+    origin: str | list[str | None] | None = Field(
+        default=None,
+        description="Provenance of the Photometry. If a record is already "
+        "present with identical origin, only the groups or streams list will be "
+        "updated (other data assumed identical). Defaults to None.",
+    )
+    group_ids: list | str | None = Field(
+        default=None,
+        description="List of group IDs to which photometry points will be "
+        "visible. If 'all', will be shared with sitewide public group (visible "
+        "to all users who can view associated source).",
+    )
+    stream_ids: list | None = Field(
+        default=None,
+        description="List of stream IDs to which photometry points will be visible.",
+    )
+    altdata: dict | list | None = Field(
+        default=None,
+        description="Misc. alternative metadata stored in JSON format. Can be a "
+        "list of dicts or a single dict which will be broadcast to all values.",
+    )
+    extinction_corrected: bool | str | None = Field(
+        default=None,
+        description="If true, input magnitudes are already MW-extinction "
+        "corrected; SkyPortal re-reddens them so stored photometry stays "
+        "observed. Defaults to false.",
+    )
+    flux: float | list[float | None] | None = Field(
+        default=None,
+        description="Flux of the observation(s) in counts. Can be given as a "
+        "scalar or a 1D list. Null values allowed (e.g. upper limits, where "
+        "fluxerr is used to derive a limiting magnitude).",
+    )
+    fluxerr: float | list[float | None] | None = Field(
+        default=None,
+        description="Gaussian error on the flux in counts. Can be given as a "
+        "scalar or a 1D list. Null values not allowed.",
+    )
+    zp: float | list[float | None] | None = Field(
+        default=None,
+        description="Magnitude zeropoint, given by `zp` in the equation "
+        "`m = -2.5 log10(flux) + zp`. Can be given as a scalar or a 1D list. "
+        "Null values not allowed.",
+    )
+    ref_flux: float | list[float | None] | None = Field(
+        default=None,
+        description="Flux of the reference image in counts. Can be given as a "
+        "scalar or a 1D list. Null values allowed if no reference is given.",
+    )
+    ref_fluxerr: float | list[float | None] | None = Field(
+        default=None,
+        description="Gaussian error on the reference flux in counts. Can be "
+        "given as a scalar or a 1D list. Null values allowed.",
+    )
+    ref_zp: float | list[float | None] | None = Field(
+        default=None,
+        description="Magnitude zeropoint for the reference flux. Can be given as "
+        "a scalar or a 1D list. If Null or not given, will be set to the default "
+        "zeropoint of 23.9.",
+    )
+    mag: float | list[float | None] | None = Field(
+        default=None,
+        description="Magnitude of the observation in the magnitude system "
+        "`magsys`. Can be given as a scalar or a 1D list. Null values allowed "
+        "for non-detections. If `mag` is null, the corresponding `magerr` must "
+        "also be null.",
+    )
+    magerr: float | list[float | None] | None = Field(
+        default=None,
+        description="Error on the magnitude in the magnitude system `magsys`. "
+        "Can be given as a scalar or a 1D list. Null values allowed for "
+        "non-detections. If `magerr` is null, the corresponding `mag` must also "
+        "be null.",
+    )
+    limiting_mag: float | list[float | None] | None = Field(
+        default=None,
+        description="Limiting magnitude of the image in the magnitude system "
+        "`magsys`. Can be given as a scalar or a 1D list. Null values not "
+        "allowed.",
+    )
+    limiting_mag_nsigma: float | list[float | None] | None = Field(
+        default=None,
+        description="Number of standard deviations above the background that "
+        "the limiting magnitudes correspond to. Null values not allowed.",
+    )
+    magref: float | list[float | None] | None = Field(
+        default=None,
+        description="Magnitude of the reference image in the magnitude system "
+        "`magsys`. Can be given as a scalar or a 1D list. Null values allowed if "
+        "no reference is given.",
+    )
+    e_magref: float | list[float | None] | None = Field(
+        default=None,
+        description="Gaussian error on the reference magnitude. Can be given as "
+        "a scalar or a 1D list. Null values allowed.",
+    )
+
+
+class PhotometryPostBody(PhotometryFlexibleBody):
+    """Request body for uploading photometry (POST)."""
+
+
+class PhotometryPutBody(PhotometryFlexibleBody):
+    """Request body for updating and/or uploading photometry (PUT)."""
+
+
+class PhotometryPatchBody(BaseModel):
+    """Request body for updating a single photometry point (PATCH).
+
+    Single-point (scalar) counterpart of the bulk body; the deep validation is
+    still done by the marshmallow PhotometryFlux/PhotometryMag schemas. Every
+    field is optional so those schemas keep emitting their exact error messages.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(
+        default=None,
+        description="ID of the Object to which the photometry will be attached.",
+    )
+    mjd: float | None = Field(default=None, description="MJD of the observation.")
+    instrument_id: int | None = Field(
+        default=None,
+        description="ID of the instrument with which the observation was carried out.",
+    )
+    filter: str | None = Field(
+        default=None, description="The bandpass of the observation."
+    )
+    magsys: str | None = Field(
+        default=None,
+        description="The magnitude system to which the flux and the zeropoint "
+        "are tied.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment which generated the photometry.",
+    )
+    alert_id: int | None = Field(
+        default=None,
+        description="Corresponding alert ID. If a record is already present with "
+        "identical alert ID, only the groups list will be updated. Defaults to None.",
+    )
+    origin: str | None = Field(
+        default=None,
+        description="Provenance of the Photometry. If a record is already "
+        "present with identical origin, only the groups or streams list will be "
+        "updated (other data assumed identical). Defaults to None.",
+    )
+    ra: float | None = Field(
+        default=None,
+        description="ICRS Right Ascension of the centroid of the photometric "
+        "aperture [deg].",
+    )
+    dec: float | None = Field(
+        default=None,
+        description="ICRS Declination of the centroid of the photometric "
+        "aperture [deg].",
+    )
+    ra_unc: float | None = Field(
+        default=None, description="Uncertainty on RA [arcsec]."
+    )
+    dec_unc: float | None = Field(
+        default=None, description="Uncertainty on dec [arcsec]."
+    )
+    altdata: dict | None = Field(
+        default=None,
+        description="Misc. alternative metadata stored in JSON format.",
+    )
+    group_ids: list | None = Field(
+        default=None,
+        description="List of group IDs to which the photometry point is visible.",
+    )
+    stream_ids: list | None = Field(
+        default=None,
+        description="List of stream IDs to which the photometry point is visible.",
+    )
+    flux: float | None = Field(
+        default=None,
+        description="Flux of the observation in counts. Can be null to "
+        "accommodate upper limits, where the flux error is used to derive a "
+        "limiting magnitude.",
+    )
+    fluxerr: float | None = Field(
+        default=None, description="Gaussian error on the flux in counts."
+    )
+    zp: float | None = Field(
+        default=None,
+        description="Magnitude zeropoint, given by `ZP` in the equation "
+        "m = -2.5 log10(flux) + `ZP`.",
+    )
+    ref_flux: float | None = Field(
+        default=None, description="Flux of the reference image in counts."
+    )
+    ref_fluxerr: float | None = Field(
+        default=None,
+        description="Gaussian error on the reference flux in counts.",
+    )
+    ref_zp: float | None = Field(
+        default=None, description="Magnitude zeropoint of the reference image."
+    )
+    mag: float | None = Field(
+        default=None,
+        description="Magnitude of the observation in the magnitude system "
+        "`magsys`. Can be null in the case of a non-detection.",
+    )
+    magerr: float | None = Field(
+        default=None,
+        description="Magnitude error of the observation in the magnitude system "
+        "`magsys`. Can be null in the case of a non-detection.",
+    )
+    limiting_mag: float | None = Field(
+        default=None,
+        description="Limiting magnitude of the image in the magnitude system `magsys`.",
+    )
+    magref: float | None = Field(
+        default=None, description="Magnitude of the reference image."
+    )
+    e_magref: float | None = Field(
+        default=None, description="Gaussian error on the reference magnitude."
+    )
+
+
+class PhotometryPostResponse(BaseModel):
+    """Data payload returned when uploading photometry (POST)."""
+
+    ids: list[int] = Field(description="List of new photometry IDs")
+    upload_id: str = Field(
+        description="Upload ID associated with all photometry points added in "
+        "the request. Can be used to later delete all points in a single request."
+    )
+
+
+class PhotometryPutResponse(BaseModel):
+    """Data payload returned when updating and/or uploading photometry (PUT)."""
+
+    ids: list[int] = Field(description="List of photometry IDs")
+
+
 class PhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
     @format_doc(MAX_NUMBER_ROWS=MAX_NUMBER_ROWS)
-    async def post(self):
+    async def post(
+        self, *, query: PhotometryPostQuery = None, body: PhotometryPostBody = None
+    ) -> PhotometryPostResponse:
         """
         ---
         summary: Upload photometry
         description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
-        requestBody:
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/PhotMagFlexible"
-                  - $ref: "#/components/schemas/PhotFluxFlexible"
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            ids:
-                              type: array
-                              items:
-                                type: integer
-                              description: List of new photometry IDs
-                            upload_id:
-                              type: string
-                              description: |
-                                Upload ID associated with all photometry points
-                                added in request. Can be used to later delete all
-                                points in a single request.
         """
-        refresh = self.get_query_argument("refresh", default=False)
-        refresh = str_to_bool(refresh, default=False)
+        query = self.parse_query(PhotometryPostQuery)
+        body = self.parse_body(PhotometryPostBody)
+        refresh = query.refresh
 
         async with self.AsyncSession() as session:
             try:
                 group_ids = await get_group_ids(
-                    self.get_json(), self.associated_user_object, session
+                    body.model_dump(exclude_unset=True),
+                    self.associated_user_object,
+                    session,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
                 stream_ids = await get_stream_ids(
-                    self.get_json(), self.associated_user_object, session
+                    body.model_dump(exclude_unset=True),
+                    self.associated_user_object,
+                    session,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
 
             try:
                 df, instrument_cache = await standardize_photometry_data(
-                    self.get_json(), session
+                    body.model_dump(exclude_unset=True), session
                 )
             except (ValidationError, RuntimeError) as e:
                 return self.error(e.args[0])
@@ -1839,80 +2241,22 @@ class PhotometryHandler(BaseHandler):
             return self.success(data={"ids": ids, "upload_id": upload_id})
 
     @permissions(["Upload data"])
-    async def put(self):
+    async def put(
+        self, *, query: PhotometryPutQuery = None, body: PhotometryPutBody = None
+    ) -> PhotometryPutResponse:
         """
         ---
         summary: Update and/or upload photometry
         description: Update and/or upload photometry, resolving potential duplicates
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: refresh
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true, triggers a refresh of the object's photometry on the web page,
-              only for the users that have the object's source page open.
-          - in: path
-            name: duplicate_ignore_flux
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true, will not use the flux/fluxerr of existing rows when looking for duplicates
-              but only mjd, instrument_id, filter, and origin. Reserved to super admin users only,
-              to avoid misuse and permanent data loss.
-          - in: path
-            name: overwrite_flux
-            schema:
-              type: boolean
-            required: false
-            description: |
-              If true and duplicate_ignore_flux is also true, will update the flux/fluxerr of
-              existing rows (duplicates) with the new values. Applies only to rows with
-              an origin already specified. If existing duplicates have no origin, the update
-              will be skipped.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/PhotMagFlexible"
-                  - $ref: "#/components/schemas/PhotFluxFlexible"
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            ids:
-                              type: array
-                              items:
-                                type: integer
-                              description: List of new photometry IDs
-                            upload_id:
-                              type: string
-                              description: |
-                                Upload ID associated with all photometry points
-                                added in request. Can be used to later delete all
-                                points in a single request.
         """
-        refresh = self.get_query_argument("refresh", default=False)
-        refresh = str_to_bool(refresh, default=False)
-
-        overwrite_flux = self.get_query_argument("overwrite_flux", False)
-        overwrite_flux = str_to_bool(overwrite_flux, default=False)
-
-        ignore_flux = self.get_query_argument("duplicate_ignore_flux", False)
-        ignore_flux = str_to_bool(ignore_flux, default=False)
+        query = self.parse_query(PhotometryPutQuery)
+        body = self.parse_body(PhotometryPutBody)
+        refresh = query.refresh
+        overwrite_flux = query.overwrite_flux
+        ignore_flux = query.duplicate_ignore_flux
+        overwrite_altdata = query.overwrite_altdata
 
         # if ignore_flux is True, verify that the current_user is a super admin
         if ignore_flux and not self.associated_user_object.is_admin:
@@ -1923,19 +2267,23 @@ class PhotometryHandler(BaseHandler):
         async with self.AsyncSession() as session:
             try:
                 group_ids = await get_group_ids(
-                    self.get_json(), self.associated_user_object, session
+                    body.model_dump(exclude_unset=True),
+                    self.associated_user_object,
+                    session,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
                 stream_ids = await get_stream_ids(
-                    self.get_json(), self.associated_user_object, session
+                    body.model_dump(exclude_unset=True),
+                    self.associated_user_object,
+                    session,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
                 df, instrument_cache = await standardize_photometry_data(
-                    self.get_json(), session
+                    body.model_dump(exclude_unset=True), session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
@@ -2008,6 +2356,28 @@ class PhotometryHandler(BaseHandler):
                             log(
                                 f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                             )
+
+                    # Matched on the full dedup index, so this is one identified
+                    # row and refreshing its altdata cannot land on a different
+                    # measurement -- no origin needed, unlike the flux overwrite.
+                    if overwrite_altdata and not ignore_flux:
+                        posted = df.loc[df_index].get("altdata")
+                        if isinstance(posted, dict) and posted:
+                            # Rows written by the flux overwrite below hold a JSON
+                            # string rather than an object, so accept either.
+                            stored = duplicate.altdata
+                            if isinstance(stored, str):
+                                try:
+                                    stored = json.loads(stored)
+                                except json.JSONDecodeError:
+                                    stored = None
+                            stored = stored if isinstance(stored, dict) else {}
+                            merged = {**stored, **posted}
+                            if merged != stored:
+                                duplicate.altdata = merged
+                                duplicate.modified = utcnow_naive()
+                                if duplicate.id not in updated_ids:
+                                    updated_ids.append(duplicate.id)
 
                     # update duplicate's flux and fluxerr if we are ignoring flux deduplication
                     # and both the duplicate and the new datapoint have origins that are not None, '', 'nan', or 'null'
@@ -2136,7 +2506,11 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id=None):
+    async def get(
+        self, photometry_id: int | None = None, *, query: PhotometryGetQuery = None
+    ):
+        query = self.parse_query(PhotometryGetQuery)
+
         # The route's id is optional (shared with POST), so a bare
         # GET /api/photometry lands here without one. Tornado also passes the
         # captured id as a string, so convert it explicitly.
@@ -2146,10 +2520,19 @@ class PhotometryHandler(BaseHandler):
             photometry_id = int(photometry_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid photometry_id: {photometry_id}")
-        with self.Session() as session:
-            phot = session.scalars(
-                Photometry.select(session.user_or_token).where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            phot = (
+                await session.scalars(
+                    Photometry.select(session.user_or_token)
+                    # serialize() reads instrument.name and, by default, groups
+                    # and annotations; an async session cannot lazy-load any of
+                    # them.
+                    .options(
+                        joinedload(Photometry.instrument),
+                        selectinload(Photometry.groups),
+                        selectinload(Photometry.annotations),
+                    )
+                    .where(Photometry.id == photometry_id)
                 )
             ).first()
 
@@ -2158,65 +2541,56 @@ class PhotometryHandler(BaseHandler):
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
 
-            # get the desired output format
-            format = self.get_query_argument("format", "mag")
-            outsys = self.get_query_argument("magsys", "ab")
-            output = serialize(phot, outsys, format)
+            output = serialize(phot, query.magsys, query.format)
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    def patch(self, photometry_id: int):
+    async def patch(
+        self,
+        photometry_id: int,
+        *,
+        query: PhotometryPatchQuery = None,
+        body: PhotometryPatchBody = None,
+    ):
         """
         ---
         summary: Update photometry
         description: Update photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/PhotometryMag"
-                  - $ref: "#/components/schemas/PhotometryFlux"
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Success'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        query = self.parse_query(PhotometryPatchQuery)
+        body = self.parse_body(PhotometryPatchBody)
+        refresh = query.refresh
+
         try:
             photometry_id = int(photometry_id)
         except ValueError:
             return self.error("Photometry id must be an int.")
 
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
         group_ids = data.pop("group_ids", None)
         stream_ids = data.pop("stream_ids", None)
         magsys = data.get("magsys", "ab")
 
-        refresh = self.get_query_argument("refresh", default=False)
-
-        with self.Session() as session:
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token, mode="update").where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            photometry = (
+                await session.scalars(
+                    Photometry.select(session.user_or_token, mode="update")
+                    # `photometry.groups` is reassigned below, which loads the
+                    # existing collection first; an async session cannot do that
+                    # lazily.
+                    .options(selectinload(Photometry.groups))
+                    .where(Photometry.id == photometry_id)
                 )
             ).first()
 
@@ -2224,9 +2598,11 @@ class PhotometryHandler(BaseHandler):
                 # Update access (owner / "Manage photometry" / admin) is stricter
                 # than read access, so a point can be visible yet not editable.
                 # Distinguish that from a genuinely missing point.
-                readable = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.id == photometry_id
+                readable = (
+                    await session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.id == photometry_id
+                        )
                     )
                 ).first()
                 if readable is not None:
@@ -2269,12 +2645,16 @@ class PhotometryHandler(BaseHandler):
             phot.original_user_data = original_user_data
             phot.id = photometry_id
 
-            session.merge(phot)
+            await session.merge(phot)
 
             # Update groups, if relevant
             if group_ids is not None:
-                groups = session.scalars(
-                    Group.select(session.user_or_token).where(Group.id.in_(group_ids))
+                groups = (
+                    await session.scalars(
+                        Group.select(session.user_or_token).where(
+                            Group.id.in_(group_ids)
+                        )
+                    )
                 ).all()
                 if not groups:
                     return self.error(
@@ -2291,9 +2671,11 @@ class PhotometryHandler(BaseHandler):
 
             # Update streams, if relevant
             if stream_ids is not None:
-                streams = session.scalars(
-                    Stream.select(session.user_or_token).where(
-                        Stream.id.in_(stream_ids)
+                streams = (
+                    await session.scalars(
+                        Stream.select(session.user_or_token).where(
+                            Stream.id.in_(stream_ids)
+                        )
                     )
                 ).all()
 
@@ -2304,10 +2686,12 @@ class PhotometryHandler(BaseHandler):
 
                 # Add new stream_photometry rows if not already present
                 for stream in streams:
-                    stream_photometry = session.scalars(
-                        StreamPhotometry.select(session.user_or_token).where(
-                            StreamPhotometry.stream_id == stream.id,
-                            StreamPhotometry.photometr_id == photometry_id,
+                    stream_photometry = (
+                        await session.scalars(
+                            StreamPhotometry.select(session.user_or_token).where(
+                                StreamPhotometry.stream_id == stream.id,
+                                StreamPhotometry.photometr_id == photometry_id,
+                            )
                         )
                     ).first()
                     if stream_photometry is None:
@@ -2317,26 +2701,35 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
-            phot_stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == photometry.obj_id
+            phot_stat = (
+                await session.scalars(
+                    PhotStat.select(session.user_or_token, mode="update").where(
+                        PhotStat.obj_id == photometry.obj_id
+                    )
                 )
             ).first()
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
+                session.add(phot_stat)
 
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+            # The edit above is still pending, so flush it or the stats are
+            # recomputed from the pre-edit rows -- and the expunge below would
+            # discard it entirely.
+            await session.flush()
+            all_phot = (
+                await session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
             ).all()
             phot_stat.full_update(all_phot)
             for phot in all_phot:
                 session.expunge(phot)
 
-            session.commit()
+            await session.commit()
 
             if refresh:
                 flow = Flow()
-                internal_key = session.scalar(
+                internal_key = await session.scalar(
                     sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
                 )
                 flow.push(
@@ -2354,19 +2747,13 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, photometry_id: int):
+    async def delete(self, photometry_id: int):
         """
         ---
         summary: Delete photometry
         description: Delete photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:
@@ -2383,19 +2770,23 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            photometry = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.id == photometry_id
+        async with self.AsyncSession() as session:
+            photometry = (
+                await session.scalars(
+                    Photometry.select(session.user_or_token, mode="delete").where(
+                        Photometry.id == photometry_id
+                    )
                 )
             ).first()
 
             if photometry is None:
                 # Delete access (owner / "Manage photometry" / admin) is stricter
                 # than read access, so a point can be visible yet not deletable.
-                readable = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.id == photometry_id
+                readable = (
+                    await session.scalars(
+                        Photometry.select(session.user_or_token).where(
+                            Photometry.id == photometry_id
+                        )
                     )
                 ).first()
                 if readable is not None:
@@ -2410,20 +2801,26 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = photometry.obj_id
 
-            session.delete(photometry)
+            await session.delete(photometry)
 
-            phot_stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == photometry.obj_id
+            await session.flush()
+
+            phot_stat = (
+                await session.scalars(
+                    PhotStat.select(session.user_or_token, mode="update").where(
+                        PhotStat.obj_id == obj_id
+                    )
                 )
             ).first()
             if phot_stat is not None:
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                    )
                 ).all()
                 phot_stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
@@ -2433,41 +2830,105 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
 
+class ObjPhotometryGetQuery(BaseModel):
+    """Query parameters for getting an object's photometry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: Literal["mag", "flux", "both", "plot"] = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "If a value for this query parameter is not provided, the result "
+            "will be returned in magnitude space. "
+            '"plot" returns a slim per-point payload '
+            "(id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) "
+            "intended for lightcurve plotting; all per-point auxiliary "
+            "joins (groups, annotations, instrument, owner, streams, "
+            "validations) and the ref/tot/extinction blocks are skipped, "
+            "regardless of the corresponding ``include*`` flags."
+        ),
+    )
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
+    individualOrSeries: Literal["individual", "series", "both"] = Field(
+        default="both",
+        description=(
+            "Whether to return individual photometry points, "
+            "photometric series, or both (Default)."
+        ),
+    )
+    phaseFoldData: bool = Field(
+        default=False,
+        description="Boolean indicating whether to phase fold the light curve. Defaults to false.",
+    )
+    deduplicatePhotometry: bool = Field(
+        default=False,
+        description="Boolean indicating whether to deduplicate photometry. Defaults to false.",
+    )
+    includeOwnerInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry owner. Defaults to false.",
+    )
+    includeStreamInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry stream information. Defaults to false.",
+    )
+    includeValidationInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry validation information. Defaults to false.",
+    )
+    includeAnnotationInfo: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include photometry annotations. Defaults to false.",
+    )
+    includeExtinction: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to include Galactic extinction values "
+            "and extinction-corrected magnitudes/fluxes. Defaults to false."
+        ),
+    )
+    includeSuperObjsPhotometry: bool = Field(
+        default=False,
+        description=(
+            "Boolean indicating whether to also include photometry of any "
+            "super-objects containing this object. Defaults to false."
+        ),
+    )
+
+
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id: str):
+    async def get(
+        self,
+        obj_id: Annotated[
+            str, Field(description="ID of the object to retrieve photometry for")
+        ],
+        *,
+        query: ObjPhotometryGetQuery = None,
+    ):
         # docstring/OpenAPI spec is set via ObjPhotometryHandler.get.__doc__ below
-        individual_or_series = self.get_query_argument("individualOrSeries", "both")
-        phase_fold_data = self.get_query_argument("phaseFoldData", False)
-        format = self.get_query_argument("format", "mag")
-        outsys = self.get_query_argument("magsys", "ab")
-        include_owner_info = self.get_query_argument("includeOwnerInfo", False)
-        include_stream_info = self.get_query_argument("includeStreamInfo", False)
-        include_validation_info = self.get_query_argument(
-            "includeValidationInfo", False
-        )
-        include_annotation_info = self.get_query_argument(
-            "includeAnnotationInfo", False
-        )
-        include_extinction = self.get_query_argument("includeExtinction", False)
-        include_superobjs_photometry = self.get_query_argument(
-            "includeSuperObjsPhotometry", False
-        )
-        deduplicate_photometry = self.get_query_argument("deduplicatePhotometry", False)
+        query = self.parse_query(ObjPhotometryGetQuery)
+        individual_or_series = query.individualOrSeries
+        phase_fold_data = query.phaseFoldData
+        format = query.format
+        outsys = query.magsys
+        include_owner_info = query.includeOwnerInfo
+        include_stream_info = query.includeStreamInfo
+        include_validation_info = query.includeValidationInfo
+        include_annotation_info = query.includeAnnotationInfo
+        include_extinction = query.includeExtinction
+        include_superobjs_photometry = query.includeSuperObjsPhotometry
+        deduplicate_photometry = query.deduplicatePhotometry
 
-        include_owner_info = str_to_bool(include_owner_info, default=False)
-
-        include_stream_info = str_to_bool(include_stream_info, default=False)
-
-        include_validation_info = str_to_bool(include_validation_info, default=False)
-
-        include_annotation_info = str_to_bool(include_annotation_info, default=False)
-
-        include_extinction = str_to_bool(include_extinction, default=False)
-
-        with self.Session() as session:
-            obj: Obj = session.scalars(
-                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+        async with self.AsyncSession() as session:
+            obj: Obj = (
+                await session.scalars(
+                    Obj.select(session.user_or_token).where(Obj.id == obj_id)
+                )
             ).first()
             if obj is None:
                 return self.error(
@@ -2519,9 +2980,13 @@ class ObjPhotometryHandler(BaseHandler):
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
                     super_objs = (
-                        session.scalars(
-                            sa.select(SuperObj).where(
-                                SuperObj.objs.any(Obj.id == obj_id)
+                        (
+                            await session.scalars(
+                                sa.select(SuperObj)
+                                # The member objs are read below, which an async
+                                # session cannot lazy-load.
+                                .options(selectinload(SuperObj.objs))
+                                .where(SuperObj.objs.any(Obj.id == obj_id))
                             )
                         )
                         .unique()
@@ -2542,7 +3007,7 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     .distinct()
                 )
-                photometry = session.scalars(stmt).unique().all()
+                photometry = (await session.scalars(stmt)).unique().all()
 
                 # Compute extinction for all filters
                 extinction_dict = None
@@ -2585,9 +3050,16 @@ class ObjPhotometryHandler(BaseHandler):
 
             if individual_or_series in ["series", "both"]:
                 series = (
-                    session.scalars(
-                        PhotometricSeries.select(session.user_or_token).where(
-                            PhotometricSeries.obj_id == obj_id
+                    (
+                        await session.scalars(
+                            PhotometricSeries.select(
+                                session.user_or_token,
+                                options=[
+                                    joinedload(PhotometricSeries.instrument).joinedload(
+                                        Instrument.telescope
+                                    )
+                                ],
+                            ).where(PhotometricSeries.obj_id == obj_id)
                         )
                     )
                     .unique()
@@ -2606,9 +3078,11 @@ class ObjPhotometryHandler(BaseHandler):
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
 
-                annotations = session.scalars(
-                    Annotation.select(session.user_or_token).where(
-                        Annotation.obj_id == obj_id
+                annotations = (
+                    await session.scalars(
+                        Annotation.select(session.user_or_token).where(
+                            Annotation.obj_id == obj_id
+                        )
                     )
                 ).all()
                 period_str_options = ["period", "Period", "PERIOD"]
@@ -2627,19 +3101,13 @@ class ObjPhotometryHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Delete bulk photometry"])
-    def delete(self, obj_id: str):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete all photometry for an object
         description: Delete object photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2657,10 +3125,12 @@ class ObjPhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.obj_id == obj_id
+        async with self.AsyncSession() as session:
+            photometry_to_delete = (
+                await session.scalars(
+                    Photometry.select(session.user_or_token, mode="delete").where(
+                        Photometry.obj_id == obj_id
+                    )
                 )
             ).all()
 
@@ -2669,37 +3139,38 @@ class ObjPhotometryHandler(BaseHandler):
                 return self.error("Invalid object id.")
 
             for phot in photometry_to_delete:
-                session.delete(phot)
+                await session.delete(phot)
 
-            stat = session.scalars(
-                PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == obj_id
+            await session.flush()
+
+            stat = (
+                await session.scalars(
+                    PhotStat.select(session.user_or_token, mode="update").where(
+                        PhotStat.obj_id == obj_id
+                    )
                 )
             ).first()
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            ).all()
-            stat.full_update(all_phot)
+            if stat is not None:
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == obj_id)
+                    )
+                ).all()
+                stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    def delete(self, upload_id: str):
+    async def delete(self, upload_id: str):
         """
         ---
         summary: Delete bulk-uploaded photometry
         description: Delete bulk-uploaded photometry set
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: upload_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2717,10 +3188,12 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            photometry_to_delete = session.scalars(
-                Photometry.select(session.user_or_token, mode="delete").where(
-                    Photometry.upload_id == upload_id
+        async with self.AsyncSession() as session:
+            photometry_to_delete = (
+                await session.scalars(
+                    Photometry.select(session.user_or_token, mode="delete").where(
+                        Photometry.upload_id == upload_id
+                    )
                 )
             ).all()
 
@@ -2729,40 +3202,61 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 return self.error("Invalid bulk upload id.")
 
             for phot in photometry_to_delete:
-                session.delete(phot)
+                await session.delete(phot)
 
             obj_ids = {phot.obj_id for phot in photometry_to_delete}
+
+            await session.flush()
+
             for oid in obj_ids:
-                stat = session.scalars(
-                    PhotStat.select(session.user_or_token, mode="update").where(
-                        PhotStat.obj_id == oid
+                stat = (
+                    await session.scalars(
+                        PhotStat.select(session.user_or_token, mode="update").where(
+                            PhotStat.obj_id == oid
+                        )
                     )
                 ).first()
-                all_phot = session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == oid)
+                if stat is None:
+                    continue
+                all_phot = (
+                    await session.scalars(
+                        sa.select(Photometry).where(Photometry.obj_id == oid)
+                    )
                 ).all()
                 stat.full_update(all_phot)
 
-            session.commit()
+            await session.commit()
             return self.success(f"Deleted {n} photometry point(s).")
+
+
+class PhotometryRangeGetQuery(BaseModel):
+    """Query parameters for getting photometry over a date range."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    format: Literal["mag", "flux"] = Field(
+        default="mag",
+        description=(
+            "Return the photometry in flux or magnitude space? "
+            "If a value for this query parameter is not provided, the "
+            "result will be returned in magnitude space."
+        ),
+    )
+    magsys: Literal[*ALLOWED_MAGSYSTEMS] = Field(
+        default="ab",
+        description="The magnitude or zeropoint system of the output. (Default AB)",
+    )
 
 
 class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self, *, query: PhotometryRangeGetQuery = None):
         """Docstring appears below as an f-string."""
+        query = self.parse_query(PhotometryRangeGetQuery)
 
         json = self.get_json()
-        magsys = self.get_query_argument("magsys", default="ab")
 
-        if magsys not in ALLOWED_MAGSYSTEMS:
-            return self.error("Invalid mag system.")
-
-        format = self.get_query_argument("format", default="mag")
-        if format not in ["mag", "flux"]:
-            return self.error("Invalid output format.")
-
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 standardized = PhotometryRangeQuery.load(json)
             except ValidationError as e:
@@ -2779,25 +3273,29 @@ class PhotometryRangeHandler(BaseHandler):
                 .where(GroupPhotometry.group_id.in_(gids))
                 .subquery()
             )
-            query = Photometry.select(session.user_or_token)
+            # serialize() reads instrument.name and, by default, groups and
+            # annotations; an async session cannot lazy-load any of them.
+            stmt = Photometry.select(session.user_or_token).options(
+                joinedload(Photometry.instrument),
+                selectinload(Photometry.groups),
+                selectinload(Photometry.annotations),
+            )
 
             if instrument_ids is not None:
-                query = query.where(Photometry.instrument_id.in_(instrument_ids))
+                stmt = stmt.where(Photometry.instrument_id.in_(instrument_ids))
             if min_date is not None:
                 mjd = Time(min_date, format="datetime").mjd
-                query = query.where(Photometry.mjd >= mjd)
+                stmt = stmt.where(Photometry.mjd >= mjd)
             if max_date is not None:
                 mjd = Time(max_date, format="datetime").mjd
-                query = query.where(Photometry.mjd <= mjd)
+                stmt = stmt.where(Photometry.mjd <= mjd)
 
-            query = query.join(
+            stmt = stmt.join(
                 group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
             )
 
-            output = [
-                serialize(p, magsys, format)
-                for p in session.scalars(query.distinct()).unique().all()
-            ]
+            rows = (await session.scalars(stmt.distinct())).unique().all()
+            output = [serialize(p, query.magsys, query.format) for p in rows]
             return self.success(data=output)
 
 
@@ -2813,33 +3311,6 @@ PhotometryHandler.get.__doc__ = f"""
         description: Retrieve photometry
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: photometry_id
-            required: true
-            schema:
-              type: integer
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
-
         responses:
           200:
             content:
@@ -2860,84 +3331,6 @@ ObjPhotometryHandler.get.__doc__ = f"""
         description: Retrieve all photometry associated with an Object
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: ID of the object to retrieve photometry for
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-              "plot" returns a slim per-point payload
-              (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag)
-              intended for lightcurve plotting; all per-point auxiliary
-              joins (groups, annotations, instrument, owner, streams,
-              validations) and the ref/tot/extinction blocks are skipped,
-              regardless of the corresponding ``include*`` flags.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-                - plot
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
-          - in: query
-            name: individualOrSeries
-            nullable: true
-            schema:
-              type: string
-              enum: [individual, series, both]
-            description: >-
-                Whether to return individual photometry points,
-                photometric series, or both (Default).
-          - in: query
-            name: phaseFoldData
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to phase fold the light curve. Defaults to false.
-          - in: query
-            name: deduplicatePhotometry
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to deduplicate photometry. Defaults to false.
-          - in: query
-            name: includeOwnerInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry owner. Defaults to false.
-          - in: query
-            name: includeStreamInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry stream information. Defaults to false.
-          - in: query
-            name: includeValidationInfo
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include photometry validation information. Defaults to false.
         responses:
           200:
             content:
@@ -2958,27 +3351,6 @@ PhotometryRangeHandler.get.__doc__ = f"""
         description: Get photometry taken by specific instruments over a date range
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: format
-            required: false
-            description: >-
-              Return the photometry in flux or magnitude space?
-              If a value for this query parameter is not provided, the
-              result will be returned in magnitude space.
-            schema:
-              type: string
-              enum:
-                - mag
-                - flux
-          - in: query
-            name: magsys
-            required: false
-            description: >-
-              The magnitude or zeropoint system of the output. (Default AB)
-            schema:
-              type: string
-              enum: {list(ALLOWED_MAGSYSTEMS)}
         requestBody:
           content:
             application/json:

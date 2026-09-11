@@ -1585,7 +1585,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status in [500, 401]
+    assert status in [400, 401]
     assert data["status"] == "error"
 
 
@@ -3159,6 +3159,28 @@ def test_photometry_stream_patch_access(
     assert status == 200
     assert data["status"] == "success"
 
+    # repeating it loads the StreamPhotometry row created above, exercising the
+    # access check on a join table whose primary key is composite
+    status, data = api(
+        "PATCH",
+        f"photometry/{phot_id}",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
+        },
+        token=upload_data_token_no_groups_two_streams,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
 
 def test_token_user_delete_object_photometry(
     super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
@@ -3457,8 +3479,8 @@ def test_token_user_big_post(
     assert status == 400
     assert data["status"] == "error"
     assert (
-        data["message"]
-        == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        in data["message"]
     )
 
 

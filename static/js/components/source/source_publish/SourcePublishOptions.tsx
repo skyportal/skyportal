@@ -31,11 +31,7 @@ export const sourcePublishOptionsSchema = (
     type: "array",
     items: {
       type: "integer",
-      anyOf: items.map((item) => ({
-        enum: [item.id],
-        type: "integer",
-        title: item.name,
-      })),
+      enum: items.map((item) => item.id),
     },
     uniqueItems: true,
     default: [],
@@ -79,6 +75,14 @@ export const sourcePublishOptionsSchema = (
   }
   return schema;
 };
+
+export const sourcePublishOptionsUiSchema = (
+  streams: { id: number; name: string }[],
+  groups: { id: number; name: string }[],
+) => ({
+  streams: { "ui:enumNames": (streams || []).map((stream) => stream.name) },
+  groups: { "ui:enumNames": (groups || []).map((group) => group.name) },
+});
 
 const useStyles = makeStyles()(() => ({
   sourcePublishOptions: {
@@ -134,6 +138,7 @@ const SourcePublishOptions = ({
         validator={validator}
         uiSchema={{
           "ui:submitButtonOptions": { norender: true },
+          ...sourcePublishOptionsUiSchema(streams as any, groups as any),
         }}
       />
     </div>

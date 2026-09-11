@@ -1,16 +1,17 @@
 # Access controls
 
 ## Introduction
+
 Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple experiments and groups, each potentially with different access policies, SkyPortal must be able to enforce arbitrary logic governing who can see, interact with, and modify data. SkyPortal enforces such policies using a custom row-level security (RLS) framework in the API layer.
 
 RLS allows SkyPortal developers to define policies that restrict, with row- and user-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
 
-* Be sure that access policies will be consistently enforced when protected records are accessed in an API transaction
-* Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
-* Take advantage of vectorization to efficiently apply policy checks and filters to bulk record queries
-* Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
-* Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more
-* Implement different policies for different types of access on a single type of record
+- Be sure that access policies will be consistently enforced when protected records are accessed in an API transaction
+- Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
+- Take advantage of vectorization to efficiently apply policy checks and filters to bulk record queries
+- Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
+- Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more
+- Implement different policies for different types of access on a single type of record
 
 **Note:** Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgreSQL's RLS implementation for row-level security.
 
@@ -24,7 +25,7 @@ This design ensures that every object pulled into the handler's session during a
 
 ## Create a New Policy
 
-Policies are instances of  `UserAccessControl`  defined in baselayer/app/models.py. The only method of `UserAccessControl` that subclasses must provide is `query_accessible_rows`:
+Policies are instances of `UserAccessControl` defined in baselayer/app/models.py. The only method of `UserAccessControl` that subclasses must provide is `query_accessible_rows`:
 
 ```python
 class UserAccessControl:
@@ -85,7 +86,7 @@ from baselayer.app.models import AccessibleIfUserMatches
 accessible_to_owner = AccessibleIfUserMatches('owner')
 ```
 
-Bitwise operations can be used to compose access policies. The  `accessible_to_owner_or_last_modified_by` policy below grants access to any user that matches the `User` pointed to by the `owner` relationship of `cls` or the `last_modified_by` relationship of `cls`:
+Bitwise operations can be used to compose access policies. The `accessible_to_owner_or_last_modified_by` policy below grants access to any user that matches the `User` pointed to by the `owner` relationship of `cls` or the `last_modified_by` relationship of `cls`:
 
 ```python
 from baselayer.app.models import AccessibleIfUserMatches
@@ -161,7 +162,7 @@ Photometry.get_records_accessible_by(user, mode="read")
 ```
 
 (d) Construct a query object for all photometry that `User` `user` can delete
- with a signal-to-noise ratio of at least 10:
+with a signal-to-noise ratio of at least 10:
 
 ```python
 deletable_phot_query = Photometry.query_records_accessible_by(user, mode="delete")
@@ -176,6 +177,7 @@ with additional support for group-based and stream-based access:
 ### Read Access
 
 A user can **read** a PhotometricSeries if:
+
 - The user is a member of one of the series' groups, OR
 - The user is a member of one of the series' associated streams, OR
 - The user is the owner of the series
@@ -183,6 +185,7 @@ A user can **read** a PhotometricSeries if:
 ### Update and Delete Access
 
 A user can **update** or **delete** a PhotometricSeries if:
+
 - The user is the owner of the series, OR
 - The user is a system administrator, OR
 - The user has the "Manage photometry" permission AND is a member of one of the series' groups
@@ -207,36 +210,38 @@ if deletable_series is None:
 ### Group and Stream Management
 
 When uploading a PhotometricSeries:
+
 - Specify `group_ids` to grant access to specific groups
 - Specify `stream_ids` to associate the series with data streams
 - Omitting `group_ids` means only the owner (via their single-user group) has access
 - Use `group_ids: "all"` to share with all public groups
 
 When updating a PhotometricSeries:
+
 - Use a PATCH request to modify the `group_ids` and `stream_ids`
 - This updates which groups and streams have access to the series
 
 ## Enforcing Permissions in Handlers
 
-Calling `self.verify_and_commit()` within a SkyPortal API handler will trigger the RLS permission checker to introspect the current database session and verify that all of the records it currently is tracking are being accessed in an allowable way.  If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the current database transaction will be committed.
+Calling `self.verify_and_commit()` within a SkyPortal API handler will trigger the RLS permission checker to introspect the current database session and verify that all of the records it currently is tracking are being accessed in an allowable way. If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the current database transaction will be committed.
 
 If `self.verify_and_commit()` is not called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call `self.verify_and_commit()` at the end of a handler's transaction, immediately before `self.success` or `self.error`.
 
-###  Further examples of policies:
+### Further examples of policies:
 
- * [Policy requiring that a user be in a comment's groups and able to read the comment's obj to read the comment](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L1998)
- * [Policy that allows a user to read a classification if the user can read the
+- [Policy requiring that a user be in a comment's groups and able to read the comment's obj to read the comment](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L1998)
+- [Policy that allows a user to read a classification if the user can read the
   corresponding taxonomy and Obj](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L2181)
- * [Policy that allows tokens with the "Post from {facility} ACL" to update
+- [Policy that allows tokens with the "Post from {facility} ACL" to update
   (but not read) requests made with that facility's API](https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R2828)
-  * [Policy that allows group admins of a particular group to add a new user
-   to the group if and only if the new user has access to all of the group's
-    streams](https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R3621)
+- [Policy that allows group admins of a particular group to add a new user
+  to the group if and only if the new user has access to all of the group's
+  streams](https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R3621)
 
-###  Examples of permissions being checked in an API handler:
+### Examples of permissions being checked in an API handler:
 
- * [Pattern for retrieving a specified record(s) if a user has access, otherwise
+- [Pattern for retrieving a specified record(s) if a user has access, otherwise
   erroring](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/comment.py#L51)
- * [Pattern for checking permissions on all the records in a session and
+- [Pattern for checking permissions on all the records in a session and
   erroring if any violations are detected](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/allocation.py#L71)
- * [Pattern for constructing a query for all records accessible to a user, then filtering that query](https://github.com/skyportal/skyportal/pull/1801/files#diff-0200612f282483e1172207de90a4db4788b3ca5ce55ab5105938d876e11eb2e0R1562)
+- [Pattern for constructing a query for all records accessible to a user, then filtering that query](https://github.com/skyportal/skyportal/pull/1801/files#diff-0200612f282483e1172207de90a4db4788b3ca5ce55ab5105938d876e11eb2e0R1562)

@@ -130,6 +130,12 @@ class GeminiRequest:
             )
         )
 
+        if not finder.get("success", True):
+            log(
+                f"Could not generate finding chart for {request.obj.id}: "
+                f"{finder.get('reason', 'unknown error')}"
+            )
+            return None, None, None, None, None, None
         offset_stars = finder.get("starlist", [])
         finding_chart_public_url = finder.get("public_url", None)
 

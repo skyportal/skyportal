@@ -141,7 +141,7 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       query: ({ userID, shiftID, admin }) => ({
         url: `api/shifts/${shiftID}/users`,
         method: "POST",
-        body: { userID, shiftID, admin },
+        body: { userID, admin },
       }),
       invalidatesTags: ["Shift"],
     }),
@@ -166,12 +166,16 @@ export const shiftsApi = skyportalApi.injectEndpoints({
     }),
     addCommentOnShift: build.mutation<unknown, any>({
       queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
+        // Only the comment body keys; shiftID is a path param.
+        const body: Record<string, any> = {};
+        if (formData.text !== undefined) body["text"] = formData.text;
+        if (formData.group_ids !== undefined)
+          body["group_ids"] = formData.group_ids;
+        if (formData.attachment) {
+          body["attachment"] = await fileReaderPromise(formData.attachment);
         }
         const result = await baseQuery({
-          url: `api/shift/${body.shiftID}/comments`,
+          url: `api/shift/${formData.shiftID}/comments`,
           method: "POST",
           body,
         });
@@ -187,12 +191,17 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       { commentID: number | string; formData: any }
     >({
       queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body.attachment) {
-          body.attachment = await fileReaderPromise(body.attachment);
+        // Only the comment body keys; shift_id is a path param.
+        const url = `api/shift/${formData.shift_id}/comments/${commentID}`;
+        const body: Record<string, any> = {};
+        if (formData.text !== undefined) body["text"] = formData.text;
+        if (formData.group_ids !== undefined)
+          body["group_ids"] = formData.group_ids;
+        if (formData.attachment) {
+          body["attachment"] = await fileReaderPromise(formData.attachment);
         }
         const result = await baseQuery({
-          url: `api/shift/${body.shift_id}/comments/${commentID}`,
+          url,
           method: "PUT",
           body,
         });

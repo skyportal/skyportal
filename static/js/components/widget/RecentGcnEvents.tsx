@@ -16,6 +16,10 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetRecentGcnEventsQuery } from "../../ducks/recentGcnEvents";
+import {
+  useGetRecentGcnExtractionsQuery,
+  RecentGcnExtraction,
+} from "../../ducks/recentGcnExtractions";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
@@ -57,6 +61,24 @@ const useStyles = makeStyles()((theme) => ({
       lineHeight: "1rem",
     },
   },
+  extractionList: {
+    listStyleType: "none",
+    margin: "0 0 0 1.5rem",
+    padding: 0,
+  },
+  extractionRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: "0.4rem",
+    flexWrap: "wrap",
+    fontSize: "0.75rem",
+    color: theme.palette.grey[700],
+  },
+  extractionCircular: {
+    color: theme.palette.primary.main,
+    whiteSpace: "nowrap",
+  },
   eventDateobs: {
     margin: 0,
     padding: 0,
@@ -84,6 +106,56 @@ const defaultPrefs = {
   maxNumEvents: "5",
 };
 
+/** What an extraction found, in one line a scanner can read at a glance. */
+const summarizeExtraction = (extraction: RecentGcnExtraction): string => {
+  const {
+    n_photometry,
+    n_detections,
+    redshift,
+    classification,
+    bandpasses,
+    ra,
+    dec,
+    n_references,
+    subject,
+  } = extraction.summary;
+  const parts: string[] = [];
+
+  if (n_photometry > 0) {
+    const limits = n_photometry - n_detections;
+    const counts = [
+      n_detections > 0 ? `${n_detections} det` : null,
+      limits > 0 ? `${limits} lim` : null,
+    ].filter(Boolean);
+    parts.push(counts.join(", "));
+    if (bandpasses.length > 0) {
+      parts.push(
+        bandpasses.length > 3
+          ? `${bandpasses.slice(0, 3).join(", ")} +${bandpasses.length - 3}`
+          : bandpasses.join(", "),
+      );
+    }
+  }
+  if (classification) parts.push(classification);
+  if (redshift !== null && redshift !== undefined)
+    parts.push(`z = ${redshift}`);
+
+  // A circular with no measurements is best described by its own title; older
+  // rows predate the stored subject, so the position it carried stands in.
+  if (parts.length === 0 && subject) {
+    return subject;
+  }
+  if (parts.length === 0 && ra !== null && dec !== null) {
+    parts.push(`position ${ra.toFixed(3)}, ${dec.toFixed(3)}`);
+  }
+  if (parts.length === 0 && n_references > 0) {
+    parts.push(
+      `follows up ${n_references} circular${n_references > 1 ? "s" : ""}`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" \u00b7 ") : "no measurements";
+};
+
 interface RecentGcnEventsProps {
   classes: {
     widgetPaperDiv: string;
@@ -96,6 +168,18 @@ const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
   const { classes: styles } = useStyles();
 
   const { data: gcnEvents } = useGetRecentGcnEventsQuery();
+  const { data: extractions } = useGetRecentGcnExtractionsQuery();
+
+  // Extractions describe an event, so they are shown under the event they
+  // belong to rather than as a second, separately ordered list.
+  const extractionsByEvent = new Map<string, RecentGcnExtraction[]>();
+  (extractions ?? []).forEach((extraction) => {
+    const key = extraction.dateobs;
+    extractionsByEvent.set(key, [
+      ...(extractionsByEvent.get(key) ?? []),
+      extraction,
+    ]);
+  });
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const recentEventsPrefs: any =
@@ -160,6 +244,31 @@ const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
                     <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
                   </div>
                 </div>
+                {(extractionsByEvent.get(gcnEvent.dateobs) ?? []).length >
+                  0 && (
+                  <ul className={styles.extractionList}>
+                    {(extractionsByEvent.get(gcnEvent.dateobs) ?? []).map(
+                      (extraction) => (
+                        <li
+                          key={extraction.id}
+                          className={styles.extractionRow}
+                        >
+                          {extraction.circular_id && (
+                            <a
+                              href={`https://gcn.nasa.gov/circulars/${extraction.circular_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={styles.extractionCircular}
+                            >
+                              GCN {extraction.circular_id}
+                            </a>
+                          )}
+                          <span>{summarizeExtraction(extraction)}</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                )}
                 <div className={styles.eventListDivider} />
               </li>
             ))}

@@ -42,7 +42,7 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
     session = new_session()
 
     try:
-        request = session.query(FollowupRequest).get(request_id)
+        request = session.get(FollowupRequest, request_id)
         allocation = request.allocation
         if not allocation:
             raise ValueError("Missing request's allocation information.")

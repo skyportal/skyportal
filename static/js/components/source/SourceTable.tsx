@@ -30,7 +30,6 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
@@ -50,6 +49,7 @@ import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import SearchableSelect from "../SearchableSelect";
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -682,8 +682,7 @@ const SourceTable = ({
   const { data: sourcesingcn = EMPTY_ARRAY } = useGetSourcesInGcnQuery(
     {
       dateobs: gcnEvent?.dateobs as string,
-      localizationName: sourceInGcnFilter?.localizationName,
-      sourcesIdList: sources?.map((s: any) => s.id),
+      sourcesIDList: sources?.map((s: any) => s.id),
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
@@ -1197,19 +1196,16 @@ const SourceTable = ({
     const renderGcnStatus = (params: any) => {
       const source = params.row;
       let statusIcon = null;
+      const gcnStatus = sourcesingcn.filter(
+        (s: any) => s.obj_id === source.id,
+      )[0]?.status;
       if (
         sourcesingcn.filter((s: any) => s.obj_id === source.id).length === 0
       ) {
         statusIcon = <PriorityHigh color="primary" />;
-      } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          ?.confirmed === true
-      ) {
+      } else if (gcnStatus === "confirmed") {
         statusIcon = <CheckIcon color={"green" as any} />;
-      } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          ?.confirmed === false
-      ) {
+      } else if (gcnStatus === "rejected") {
         statusIcon = <ClearIcon color="secondary" />;
       } else {
         statusIcon = <QuestionMarkIcon color="primary" />;
@@ -1945,7 +1941,7 @@ const SourceTable = ({
               </div>
             )}
             {columnPickerOptions.length > 0 && (
-              <Autocomplete
+              <SearchableSelect
                 options={columnPickerOptions}
                 getOptionLabel={(o) => o.label}
                 // Nothing until the user types, then capped matches, so a large
@@ -1957,16 +1953,12 @@ const SourceTable = ({
                 value={null}
                 blurOnSelect
                 clearOnBlur
-                size="small"
                 sx={{ width: 340, marginBottom: "0.5rem" }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    variant="standard"
-                    placeholder="Add annotation / altdata column…"
-                    data-testid="add-column-picker"
-                  />
-                )}
+                placeholder="Add annotation / altdata column…"
+                textFieldProps={{
+                  variant: "standard",
+                  "data-testid": "add-column-picker",
+                }}
               />
             )}
             <Box

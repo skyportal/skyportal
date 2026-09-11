@@ -80,6 +80,10 @@ class BABAMULBROKER(BrokerAPI):
             raise ValueError("Broker altdata must include 'token'.")
 
     @staticmethod
+    def test_connection(broker):
+        _request(broker, "profile")
+
+    @staticmethod
     def query_alerts(broker, session, **kwargs):
         survey = _survey(broker, kwargs)
         params = {}
