@@ -36,3 +36,20 @@ def read_avro(value):
     for record in fastavro.reader(io.BytesIO(value)):
         return record
     return None
+
+
+def list_topics(kafka, default_group, timeout=10.0):
+    """Topic names the cluster reports for these credentials.
+
+    Asking the broker beats trusting what a user typed: a topic that does not
+    exist yields a consumer that subscribes successfully and then sits silent
+    forever, which looks identical to a filter that matched nothing.
+    """
+    from confluent_kafka import Consumer
+
+    consumer = Consumer(kafka_consumer_config(kafka, default_group))
+    try:
+        metadata = consumer.list_topics(timeout=timeout)
+        return sorted(metadata.topics)
+    finally:
+        consumer.close()

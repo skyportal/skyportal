@@ -44,6 +44,12 @@ class _Base:
         caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 
+    # Per-user credentials, for a broker whose upstream account is personal (a
+    # private filter is visible only to the account that owns it). None means the
+    # provider has no such notion and the credentials tab stays hidden.
+    user_credential_schema = None
+    user_credential_ui_schema = None
+
     @classmethod
     def configured_surveys(cls, altdata):
         """Surveys a *configured* broker record serves, for per-record routing.
@@ -78,6 +84,19 @@ class _Base:
 
         return walk(cls.ui_json_schema)
 
+    @classmethod
+    def user_credential_secret_fields(cls):
+        """Keys of the per-user credential form that hold secrets.
+
+        Derived the same way as ``secret_config_fields``: whatever the form
+        renders as a password is what must never be read back.
+        """
+        return [
+            key
+            for key, value in (cls.user_credential_ui_schema or {}).items()
+            if isinstance(value, dict) and value.get("ui:widget") == "password"
+        ]
+
     # subclasses should not modify this
     @classmethod
     def frontend_render_api_info(cls):
@@ -85,6 +104,8 @@ class _Base:
             "methodsImplemented": cls.implements(),
             "formSchemaConfig": cls.form_json_schema_config,
             "uiSchema": cls.ui_json_schema,
+            "userCredentialSchema": cls.user_credential_schema,
+            "userCredentialUiSchema": cls.user_credential_ui_schema,
             "aliasLookup": cls.alias_lookup,
             "surveys": list(cls.surveys),
             "filterKind": cls.filter_kind,

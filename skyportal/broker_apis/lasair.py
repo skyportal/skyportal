@@ -233,8 +233,13 @@ def _lasair_schema(survey):
     return {"type": "record", "name": "objects", "fields": fields}
 
 
-def _token(broker):
-    token = (broker.altdata or {}).get("token")
+def _token(broker, token=None):
+    """The Lasair REST token to act with.
+
+    A caller's own token wins over the broker's, so a private filter is read by
+    the account that can see it; the broker's shared token is the fallback.
+    """
+    token = token or (broker.altdata or {}).get("token")
     if not token:
         raise ValueError("Broker altdata is missing 'token'.")
     return token
@@ -252,7 +257,7 @@ RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_PAUSE = 10.0
 
 
-def _request(broker, method, data):
+def _request(broker, method, data, token=None):
     """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
     a ``Authorization: Token`` header (what the ``lasair`` client does, so no
     dependency). Returns the parsed JSON.
@@ -260,7 +265,7 @@ def _request(broker, method, data):
     Retries on 429, honouring ``Retry-After`` when Lasair sends one.
     """
     url = _endpoint(broker).rstrip("/") + "/" + method + "/"
-    headers = {"Authorization": f"Token {_token(broker)}"}
+    headers = {"Authorization": f"Token {_token(broker, token)}"}
     for attempt in range(RATE_LIMIT_RETRIES + 1):
         response = requests.post(
             url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT
@@ -277,11 +282,12 @@ def _request(broker, method, data):
     raise RuntimeError("unreachable")
 
 
-def _object(broker, object_id):
+def _object(broker, object_id, token=None):
     return _request(
         broker,
         "object",
         {"objectId": object_id, "lite": True, "lasair_added": True},
+        token=token,
     )
 
 
@@ -346,7 +352,7 @@ def _cutouts_from_object(obj, alert_id):
     return cutouts
 
 
-async def _ingest_object(broker, oid, survey, filter_ids):
+async def _ingest_object(broker, oid, survey, filter_ids, token=None):
     """Build the standard alert for one Lasair object and register it as a
     Candidate, then save any annotator annotations it carried.
 
@@ -362,7 +368,7 @@ async def _ingest_object(broker, oid, survey, filter_ids):
     from ..models import User
     from ._save import save_object_as_candidate
 
-    obj = await asyncio.to_thread(_object, broker, oid)
+    obj = await asyncio.to_thread(_object, broker, oid, token)
     data = _normalize_object(obj, oid)
     try:
         cutouts = await asyncio.to_thread(_cutouts_from_object, obj, oid)
@@ -473,49 +479,84 @@ def _stream_configured(altdata):
     return bool(kafka.get("topics") or kafka.get("topic_filter_ids"))
 
 
-async def _run_kafka_ingestion(broker, survey, stop=None, max_messages=None):
-    """Consume Lasair's per-filter Kafka streams and register each object as a
-    Candidate.
+def _credential_sets(broker, extra=None):
+    """The Lasair accounts to consume as, one entry per set of credentials.
 
-    A Lasair topic is one of its filters, so routing is per topic:
-    ``altdata['kafka']['topic_filter_ids']`` maps a topic to the skyportal Filters
-    its objects become candidates for, falling back to the broker-wide
-    ``filter_ids``. The message only has to carry an objectId -- the full object,
-    photometry, cutouts and annotator data are fetched through the REST API, the
-    same path the SQL poller uses.
+    A Lasair topic is named ``lasair_<account id><filter name>``, so a private
+    filter is only visible to the account that owns it and one consumer cannot
+    stand in for several accounts. Each set therefore carries its own Kafka
+    credentials, its own REST token for fetching the objects it sees, and the
+    topics that account can read.
+
+    The broker's own ``altdata['kafka']`` is the shared account. ``extra`` holds
+    further sets supplied by the caller, which is where user-owned credentials
+    enter: they cannot live in ``altdata``, since the API redacts secrets by
+    dotted dict path and cannot reach inside a list.
     """
+    altdata = broker.altdata or {}
+    kafka = altdata.get("kafka") or {}
+    shared = {
+        "label": "shared",
+        "kafka": kafka,
+        "token": altdata.get("token"),
+        "topics": kafka.get("topics") or [],
+        "topic_filter_ids": kafka.get("topic_filter_ids") or {},
+        "filter_ids": altdata.get("filter_ids") or [],
+    }
+    sets = [shared] if (shared["topics"] or shared["topic_filter_ids"]) else []
+    for entry in extra or []:
+        # Connection details come from the broker; only identity and routing
+        # differ per account.
+        merged = {**kafka, **(entry.get("kafka") or {})}
+        sets.append(
+            {
+                "label": entry.get("label") or merged.get("username") or "account",
+                "kafka": merged,
+                "token": entry.get("token"),
+                "topics": entry.get("topics") or [],
+                "topic_filter_ids": entry.get("topic_filter_ids") or {},
+                "filter_ids": entry.get("filter_ids")
+                or (altdata.get("filter_ids") or []),
+            }
+        )
+    return sets
+
+
+async def _consume_set(broker, survey, credentials, budget, stop):
+    """Consume one account's topics until `stop` is set or `budget` is spent."""
     import asyncio
 
     from confluent_kafka import Consumer
 
     from ._kafka import kafka_consumer_config
 
-    altdata = broker.altdata or {}
-    kafka = altdata.get("kafka") or {}
-    default_filter_ids = altdata.get("filter_ids") or []
+    kafka = credentials["kafka"]
     topic_filter_ids = {
-        str(k): v for k, v in (kafka.get("topic_filter_ids") or {}).items()
+        str(k): v for k, v in (credentials["topic_filter_ids"] or {}).items()
     }
-    topics = list(dict.fromkeys((kafka.get("topics") or []) + list(topic_filter_ids)))
-    if not topics:
-        raise ValueError(
-            "Lasair Kafka ingestion requires altdata['kafka']['topics'] or "
-            "['topic_filter_ids'] (a Lasair topic is one of its filters)."
-        )
+    topics = list(dict.fromkeys(list(credentials["topics"]) + list(topic_filter_ids)))
     maxtimeout = float(kafka.get("maxtimeout", 5))
 
-    config = kafka_consumer_config(kafka, f"skyportal-broker-{broker.id}")
+    # A distinct group per account, so the consumers do not split each other's
+    # partitions, and a stable one, so offsets survive a restart.
+    default_group = f"skyportal-broker-{broker.id}-{credentials['label']}"
+    config = kafka_consumer_config(kafka, kafka.get("group_id") or default_group)
     consumer = Consumer(config)
     consumer.subscribe(topics)
-    log(f"Lasair Kafka ingestion (broker {broker.id}): subscribed to {topics}")
+    log(
+        f"Lasair Kafka ingestion (broker {broker.id}, account "
+        f"{credentials['label']}): subscribed to {topics}"
+    )
 
-    count = 0
     try:
-        while not (stop is not None and stop.is_set()):
+        while not stop.is_set():
+            if budget["remaining"] is not None and budget["remaining"] <= 0:
+                stop.set()
+                break
             msg = await asyncio.to_thread(consumer.poll, maxtimeout)
             if msg is None or msg.error():
                 continue
-            filter_ids = topic_filter_ids.get(msg.topic(), default_filter_ids)
+            filter_ids = topic_filter_ids.get(msg.topic(), credentials["filter_ids"])
             try:
                 payload = _decode_stream_message(msg.value())
             except Exception as e:
@@ -526,16 +567,85 @@ async def _run_kafka_ingestion(broker, survey, stop=None, max_messages=None):
                 log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
                 continue
             try:
-                await _ingest_object(broker, oid, survey, filter_ids)
+                await _ingest_object(
+                    broker, oid, survey, filter_ids, token=credentials["token"]
+                )
             except Exception as e:
                 log(f"Error ingesting Lasair object {oid}: {e}")
-            count += 1
-            if max_messages is not None and count >= max_messages:
-                break
+            if budget["remaining"] is not None:
+                budget["remaining"] -= 1
     finally:
         consumer.close()
-    log(f"Lasair Kafka ingestion (broker {broker.id}): consumed {count} messages")
-    return count
+
+
+def available_topics(broker, credentials=None):
+    """Lasair topics these credentials can actually read.
+
+    A topic is named ``lasair_<account id><filter name>``, so the set differs per
+    account and cannot be derived from the filter name alone. Asking the cluster
+    is also the only way to tell a real topic from a typo: subscribing to a name
+    that does not exist succeeds and then delivers nothing.
+    """
+    from ._kafka import list_topics
+
+    altdata = broker.altdata or {}
+    kafka = {**(altdata.get("kafka") or {}), **((credentials or {}).get("kafka") or {})}
+    # Metadata only; a distinct group so it never disturbs an ingestion offset.
+    topics = list_topics(kafka, f"skyportal-broker-{broker.id}-topics")
+    return [t for t in topics if t.startswith("lasair_")]
+
+
+async def _user_credential_sets(broker):
+    """Credential sets from the per-user rows, so a private filter is consumed
+    by the account that owns it rather than the broker's shared account."""
+    import sqlalchemy as sa
+
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import BrokerCredential
+
+    async with async_plain_session_factory() as session:
+        rows = (
+            await session.scalars(
+                sa.select(BrokerCredential).where(
+                    BrokerCredential.broker_id == broker.id
+                )
+            )
+        ).all()
+        # Only an account with topics has anything to consume; skip the rest so
+        # a stored credential does not cost an idle connection.
+        return [r.as_credential_set() for r in rows if r.topics]
+
+
+async def _run_kafka_ingestion(
+    broker, survey, stop=None, max_messages=None, credentials=None
+):
+    """Consume Lasair's per-filter Kafka streams and register each object as a
+    Candidate.
+
+    One consumer per account, since a topic belongs to the account that owns its
+    filter. Routing stays per topic:
+    ``altdata['kafka']['topic_filter_ids']`` maps a topic to the skyportal Filters
+    its objects become candidates for, falling back to the account's
+    ``filter_ids``. The message only has to carry an objectId -- the full object,
+    photometry, cutouts and annotator data are fetched through the REST API with
+    that account's token, the same path the SQL poller uses.
+    """
+    import asyncio
+
+    if credentials is None:
+        credentials = await _user_credential_sets(broker)
+    sets = _credential_sets(broker, credentials)
+    if not sets:
+        raise ValueError(
+            "Lasair Kafka ingestion requires altdata['kafka']['topics'] or "
+            "['topic_filter_ids'] (a Lasair topic is one of its filters)."
+        )
+
+    stop = stop or asyncio.Event()
+    # Shared so max_messages bounds the run, not each consumer separately.
+    budget = {"remaining": max_messages}
+    await asyncio.gather(*(_consume_set(broker, survey, c, budget, stop) for c in sets))
 
 
 class LASAIRBROKER(BrokerAPI):
@@ -674,6 +784,37 @@ class LASAIRBROKER(BrokerAPI):
                 },
             },
         },
+    }
+
+    # A Lasair account owns its filters, and a private one is visible to nobody
+    # else, so these are per user rather than per broker.
+    user_credential_schema = {
+        "type": "object",
+        "properties": {
+            "token": {
+                "type": "string",
+                "title": "Lasair API token",
+                "description": (
+                    "Your own token, from your Lasair profile. Used to read the "
+                    "objects your filters match."
+                ),
+            },
+            "username": {
+                "type": "string",
+                "title": "SASL username",
+                "description": "Only for a stream that requires authentication.",
+            },
+            "password": {
+                "type": "string",
+                "title": "SASL password",
+                "description": "Only for a stream that requires authentication.",
+            },
+        },
+    }
+
+    user_credential_ui_schema = {
+        "token": {"ui:widget": "password"},
+        "password": {"ui:widget": "password"},
     }
 
     ui_json_schema = {

@@ -5,13 +5,14 @@ import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES, ALLOWED_MAGSYSTEMS
-from ...models import Broker, Filter, GroupUser, Stream
+from ...models import Broker, BrokerCredential, Filter, GroupUser, Stream
 from ..base import BaseHandler
 
 log = make_log("api/broker")
@@ -151,6 +152,36 @@ class BrokerSaveBody(BaseModel):
 
     group_ids: list[int] | None = Field(
         default=None, description="Group IDs the saved source should belong to."
+    )
+
+
+class BrokerCredentialBody(BaseModel):
+    """A user's own credentials for a broker.
+
+    ``credentials`` holds whatever the provider's ``user_credential_schema``
+    declares, so a provider can add fields without changing this.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    credentials: dict[str, Any] | None = Field(
+        default=None, description="Values for the provider's credential fields."
+    )
+    replace_credentials: bool = Field(
+        default=False,
+        description=(
+            "Overwrite all stored credentials. When false, only the fields sent "
+            "are updated, so a client that never receives secrets can still edit "
+            "the rest."
+        ),
+    )
+    topics: list[str] | None = Field(
+        default=None,
+        description="Stream topics this account can read (e.g. private filters).",
+    )
+    topic_filter_ids: dict[str, list[int]] | None = Field(
+        default=None,
+        description="Maps a topic to the skyportal Filter ids to route it to.",
     )
 
 
@@ -1749,3 +1780,186 @@ class BrokerFilterAttachHandler(BaseHandler):
             f.broker_id = broker.id
             await session.commit()
             return self.success(data={"id": f.id, "broker_id": f.broker_id})
+
+
+class BrokerCredentialHandler(BaseHandler):
+    """A user's own credentials for a broker.
+
+    A broker is admin-owned, but an upstream account is personal: a private
+    filter is visible only to the account that owns it. These are set by the
+    user and never handed back, so nobody else, admins included, reads them
+    through the API.
+    """
+
+    @auth_or_token
+    async def get(self, broker_id: int, action: str | None = None):
+        """
+        ---
+        summary: Get your credentials for a broker
+        description: Reports which fields are set and how the account is routed.
+          The credentials themselves are never returned.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        user = self.associated_user_object
+        async with self.AsyncSession() as session:
+            row = await session.scalar(
+                sa.select(BrokerCredential).where(
+                    BrokerCredential.broker_id == broker_id,
+                    BrokerCredential.user_id == user.id,
+                )
+            )
+            if action == "topics":
+                broker = await session.scalar(
+                    sa.select(Broker).where(Broker.id == broker_id)
+                )
+                if broker is None:
+                    return self.error(f"No broker with id {broker_id}")
+                lister = getattr(broker.broker_class, "available_topics", None)
+                if lister is None:
+                    return self.error(
+                        f"{broker.broker_classname} does not list topics."
+                    )
+                try:
+                    topics = await IOLoop.current().run_in_executor(
+                        None,
+                        lister,
+                        broker,
+                        row.as_credential_set() if row is not None else None,
+                    )
+                except Exception as e:
+                    return self.error(f"Could not list topics: {e}")
+                return self.success(data={"topics": topics})
+            if row is None:
+                return self.success(data=None)
+            broker = await session.scalar(
+                sa.select(Broker).where(Broker.id == broker_id)
+            )
+            secret_fields = set(
+                broker.broker_class.user_credential_secret_fields()
+                if broker is not None
+                else []
+            )
+            altdata = row.altdata
+            return self.success(
+                data={
+                    "id": row.id,
+                    "broker_id": row.broker_id,
+                    "topics": row.topics or [],
+                    "topic_filter_ids": row.topic_filter_ids or {},
+                    # Secrets report presence only; the rest come back as stored
+                    # so the form can prefill them.
+                    "credentials": {
+                        k: v for k, v in altdata.items() if k not in secret_fields
+                    },
+                    "secrets_set": sorted(k for k in secret_fields if altdata.get(k)),
+                }
+            )
+
+    @auth_or_token
+    async def put(self, broker_id: int, *, body: BrokerCredentialBody = None):
+        """
+        ---
+        summary: Set your credentials for a broker
+        description: Creates or updates the calling user's own credentials.
+          Omitted secrets keep their stored value, so routing can be edited by a
+          client that never receives them.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        params = self.parse_body(BrokerCredentialBody)
+        user = self.associated_user_object
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                sa.select(Broker).where(Broker.id == broker_id)
+            )
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+
+            row = await session.scalar(
+                sa.select(BrokerCredential).where(
+                    BrokerCredential.broker_id == broker_id,
+                    BrokerCredential.user_id == user.id,
+                )
+            )
+            if row is None:
+                row = BrokerCredential(broker_id=broker_id, user_id=user.id)
+                session.add(row)
+
+            incoming = params.credentials or {}
+            if params.replace_credentials:
+                altdata = dict(incoming)
+            else:
+                # A blank value keeps what is stored, so a form that never
+                # receives secrets can still edit the fields around them.
+                altdata = dict(row.altdata)
+                altdata.update(
+                    {k: v for k, v in incoming.items() if v not in (None, "")}
+                )
+            row.altdata = altdata
+
+            if params.topics is not None:
+                # A topic that does not exist subscribes fine and then stays
+                # silent, so check before storing rather than after ingesting.
+                lister = getattr(broker.broker_class, "available_topics", None)
+                if params.topics and lister is not None:
+                    try:
+                        available = set(
+                            await IOLoop.current().run_in_executor(
+                                None, lister, broker, row.as_credential_set()
+                            )
+                        )
+                    except Exception as e:
+                        return self.error(f"Could not verify topics: {e}")
+                    unknown = [t for t in params.topics if t not in available]
+                    if unknown:
+                        return self.error(
+                            f"Unknown topic(s) for your account: "
+                            f"{', '.join(sorted(unknown))}. "
+                            f"Available: {', '.join(sorted(available)) or 'none'}"
+                        )
+                row.topics = params.topics
+            if params.topic_filter_ids is not None:
+                row.topic_filter_ids = {
+                    str(k): v for k, v in params.topic_filter_ids.items()
+                }
+
+            await session.commit()
+            return self.success(data={"id": row.id})
+
+    @auth_or_token
+    async def delete(self, broker_id: int):
+        """
+        ---
+        summary: Delete your credentials for a broker
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        user = self.associated_user_object
+        async with self.AsyncSession() as session:
+            row = await session.scalar(
+                sa.select(BrokerCredential).where(
+                    BrokerCredential.broker_id == broker_id,
+                    BrokerCredential.user_id == user.id,
+                )
+            )
+            if row is None:
+                return self.error("No credentials to delete")
+            await session.delete(row)
+            await session.commit()
+            return self.success()

@@ -321,6 +321,67 @@ def test_secret_config_fields_cover_every_provider():
         assert sorted(provider.secret_config_fields()) == sorted(paths), name
 
 
+def test_lasair_credential_sets():
+    """One consumer per Lasair account: shared config, separate identity."""
+    from types import SimpleNamespace
+
+    from skyportal.broker_apis.lasair import _credential_sets
+
+    broker = SimpleNamespace(
+        id=7,
+        altdata={
+            "token": "shared-token",
+            "filter_ids": [1],
+            "kafka": {
+                "host": "lasair-lsst-kafka_pub.lsst.ac.uk",
+                "port": 9092,
+                "username": "shared",
+                "password": "shared-pw",
+                "topics": ["lasair_2SNe"],
+            },
+        },
+    )
+
+    only_shared = _credential_sets(broker)
+    assert [c["label"] for c in only_shared] == ["shared"]
+    assert only_shared[0]["token"] == "shared-token"
+
+    sets = _credential_sets(
+        broker,
+        [
+            {
+                "label": "camille",
+                "token": "her-token",
+                "topics": ["lasair_9private"],
+                "filter_ids": [2],
+                "kafka": {"username": "camille", "password": "her-pw"},
+            }
+        ],
+    )
+    assert [c["label"] for c in sets] == ["shared", "camille"]
+    hers = sets[1]
+    # Connection details come from the broker, identity and routing from her.
+    assert hers["kafka"]["host"] == "lasair-lsst-kafka_pub.lsst.ac.uk"
+    assert hers["kafka"]["username"] == "camille"
+    assert hers["kafka"]["password"] == "her-pw"
+    assert hers["token"] == "her-token"
+    assert hers["topics"] == ["lasair_9private"]
+    assert hers["filter_ids"] == [2]
+    # The shared account must not gain her topics, nor she his token.
+    assert sets[0]["topics"] == ["lasair_2SNe"]
+    assert sets[0]["token"] == "shared-token"
+
+
+def test_lasair_credential_sets_without_topics():
+    """No topics anywhere means nothing to consume, not a consumer on nothing."""
+    from types import SimpleNamespace
+
+    from skyportal.broker_apis.lasair import _credential_sets
+
+    broker = SimpleNamespace(id=7, altdata={"token": "t", "kafka": {"host": "h"}})
+    assert _credential_sets(broker) == []
+
+
 def test_broker_apis_discovery(view_only_token):
     status, data = api("GET", "internal/broker_apis", token=view_only_token)
     assert status == 200

@@ -21,6 +21,7 @@ import {
   useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
 import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
+import BrokerCredentialsForm from "./BrokerCredentialsForm";
 import BrokerAlertFilters from "./BrokerAlertFilters";
 import FilterCatalog from "./FilterCatalog";
 import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
@@ -165,6 +166,12 @@ const Broker = () => {
       label: "New filter",
       enabled: hasFilters,
       reason: `${broker?.name} does not support filters creation.`,
+    },
+    {
+      // A broker is configured by admins, but the upstream account is personal.
+      label: "Credentials",
+      enabled: true,
+      reason: "",
     },
   ];
   const activeTab = TABS[tab]?.enabled ? tab : TABS.findIndex((t) => t.enabled);
@@ -396,6 +403,12 @@ const Broker = () => {
             ))}
 
           {activeTab === 2 && <NewBrokerFilterForm brokerId={brokerId} />}
+          {activeTab === 3 && (
+            <BrokerCredentialsForm
+              brokerId={brokerId}
+              brokerClassname={broker.broker_classname}
+            />
+          )}
 
           {activeTab === (mode === "preview" ? 1 : 0) && (
             <>

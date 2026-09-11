@@ -8,6 +8,7 @@ from .annotation import *
 from .assignment import *
 from .assistant import *
 from .broker import *
+from .broker_credential import *
 from .candidate import *
 from .classification import *
 from .comment import *

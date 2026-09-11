@@ -23,6 +23,7 @@ from .assistant import AssistantConversationHandler, AssistantMessageHandler
 from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,
+    BrokerCredentialHandler,
     BrokerCutoutsHandler,
     BrokerFilterAttachHandler,
     BrokerFilterCatalogHandler,
