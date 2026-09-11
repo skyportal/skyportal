@@ -65,6 +65,10 @@ def run_sn_model(data_dict):
        - photometry: the photometry to fit to the model (in csv format)
        - redshift: the known redshift of the object
 
+    An analysis on an object is also sent `obj`, carrying its id, ra and dec, so
+    a service that works from a sky position does not need them passed in as
+    analysis parameters.
+
     Other analysis services may require additional keys in the `inputs` dictionary.
     """
     analysis_parameters = data_dict["inputs"].get("analysis_parameters", {})

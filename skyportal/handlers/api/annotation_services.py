@@ -29,6 +29,9 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from skyportal.utils.alma import ANNOTATION_ORIGIN as ALMA_ANNOTATION_ORIGIN
+from skyportal.utils.alma import query_coverage as query_alma_coverage
+from skyportal.utils.alma import summarize as summarize_alma_coverage
 from skyportal.utils.calculations import great_circle_distance
 from skyportal.utils.tap_services import GaiaQuery
 
@@ -99,6 +102,27 @@ class IRSAQueryWISEBody(BaseModel):
         default=2.0,
         description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
         "Default is 2.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class ALMAQueryBody(BaseModel):
+    """Request body for posting ALMA archive coverage annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    crossmatchRadius: float | None = Field(
+        default=30.0,
+        description="Search radius (in arcseconds) around the source. Default is 30.",
+    )
+    publicOnly: bool | None = Field(
+        default=True,
+        description="Only observations whose proprietary period has lapsed. "
+        "Default is true.",
     )
     group_ids: list[int] | None = Field(
         default=None,
@@ -467,6 +491,124 @@ class IRSAQueryWISEHandler(BaseHandler):
                 return self.error("No WISE Photometry available.")
 
             session.add_all(annotations)
+            try:
+                await session.commit()
+            except IntegrityError:
+                return self.error("Annotation already posted.")
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
+            return self.success()
+
+
+class ALMAQueryHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, obj_id: ObjId, *, body: ALMAQueryBody = None):
+        """
+        ---
+        summary: Add ALMA archive annotations
+        description: |
+            Ask the ALMA Science Archive what it holds at this source's position
+            and post a summary of the coverage as an annotation. Records the
+            dataset identifiers too, which is what an ALMA reduction needs.
+        tags:
+            - annotations
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(ALMAQueryBody)
+
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+            if obj.ra is None or obj.dec is None:
+                return self.error(f"Source {obj_id} has no position to search on.")
+
+            group_ids = body.group_ids
+            if not group_ids:
+                public_group = await session.scalar(
+                    sa.select(Group.id).where(
+                        Group.name == cfg["misc.public_group_name"]
+                    )
+                )
+                if public_group is None:
+                    return self.error(
+                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+                    )
+                group_ids = [public_group]
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
+            )
+            groups = list(groups_result.unique().all())
+            if {g.id for g in groups} != set(group_ids):
+                return self.error(
+                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
+                )
+
+            radius_arcsec = body.crossmatchRadius
+            public_only = body.publicOnly
+
+            # Offload the blocking archive call so it doesn't stall the event loop.
+            try:
+                rows = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: query_alma_coverage(
+                        obj.ra,
+                        obj.dec,
+                        radius_arcsec=radius_arcsec,
+                        public_only=public_only,
+                    ),
+                )
+            except Exception as e:
+                return self.error(
+                    f"Error querying the ALMA archive for {obj_id}: {e}. "
+                    "Please try again later."
+                )
+
+            if not rows:
+                return self.error(
+                    f"No ALMA observations within {radius_arcsec} arcsec."
+                )
+
+            data = summarize_alma_coverage(
+                rows, ra=obj.ra, dec=obj.dec, radius_arcsec=radius_arcsec
+            )
+            # Coverage grows as proprietary periods lapse, so a repeat request
+            # revises the annotation rather than colliding with it.
+            annotation = await session.scalar(
+                sa.select(Annotation).where(
+                    Annotation.obj_id == obj_id,
+                    Annotation.origin == ALMA_ANNOTATION_ORIGIN,
+                )
+            )
+            if annotation is None:
+                session.add(
+                    Annotation(
+                        data=data,
+                        obj_id=obj_id,
+                        origin=ALMA_ANNOTATION_ORIGIN,
+                        author_id=self.associated_user_object.id,
+                        groups=groups,
+                    )
+                )
+            else:
+                annotation.data = data
+                annotation.groups = groups
+
             try:
                 await session.commit()
             except IntegrityError:
