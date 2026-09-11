@@ -617,6 +617,10 @@ async def post_gcn_source(
                 source["id"] = f"GW-{source_name}"
             elif "EINSTEIN PROBE" in tags_formatted:
                 source["id"] = f"EP-{source_name}"
+            elif "SVOM" in tags_formatted:
+                # SVOM tags its bursts by instrument (ECLAIRs) rather than "GRB",
+                # so without this they fall through to the generic prefix.
+                source["id"] = f"SVOM-{source_name}"
             else:
                 source["id"] = f"GCN-{source_name}"
 
