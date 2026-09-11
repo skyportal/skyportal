@@ -36,7 +36,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import DBSession, FollowupRequest, Instrument, new_session
+    from ..models import FollowupRequest, Instrument, new_session
 
     session = new_session()
 

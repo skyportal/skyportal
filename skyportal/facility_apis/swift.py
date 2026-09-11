@@ -338,7 +338,7 @@ def download_observations(request_id, oq):
         Swift observation query
     """
 
-    from ..models import Comment, DBSession, FollowupRequest, Group, new_session
+    from ..models import Comment, FollowupRequest, Group, new_session
 
     session = new_session()
 
