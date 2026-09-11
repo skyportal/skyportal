@@ -1054,6 +1054,17 @@ class AnalysisPostBody(BaseModel):
     )
 
 
+class AnalysisPatchBody(BaseModel):
+    """Request body for re-sharing an existing analysis with a set of groups."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] = Field(
+        description="Group IDs the analysis and its annotation should be visible "
+        "to. Set to only the requester's single-user group to keep it private.",
+    )
+
+
 class AnalysisUploadBody(BaseModel):
     """Request body for uploading an upload_only analysis result."""
 
@@ -1895,6 +1906,102 @@ class AnalysisHandler(BaseHandler):
                     status=404,
                 )
             return self.success(data=ret_array)
+
+    @permissions(["Run Analyses"])
+    async def patch(
+        self,
+        analysis_resource_type: str,
+        analysis_id: int,
+        *,
+        body: AnalysisPatchBody = None,
+    ):
+        """
+        ---
+        summary: Re-share an analysis with a set of groups
+        description: |
+          Change which groups can see an existing analysis and its annotation,
+          e.g. share a privately-run fit with a group later, or make it private
+          again by scoping it to only the requester's single-user group. Author
+          only.
+        tags:
+          - analysis
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(AnalysisPatchBody)
+        try:
+            analysis_id = int(analysis_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_id: {analysis_id}")
+        if analysis_resource_type.lower() != "obj":
+            return self.error("Invalid analysis resource type", status=403)
+
+        async with self.AsyncSession() as session:
+            analysis = await session.scalar(
+                ObjAnalysis.select(self.current_user, mode="update")
+                .join(ObjAnalysis.analysis_service)
+                .options(contains_eager(ObjAnalysis.analysis_service))
+                .options(
+                    selectinload(ObjAnalysis.author),
+                    selectinload(ObjAnalysis.groups),
+                    selectinload(ObjAnalysis.obj),
+                )
+                .where(ObjAnalysis.id == analysis_id)
+            )
+            if analysis is None:
+                return self.error("Cannot access this Analysis.", status=403)
+
+            if not body.group_ids:
+                return self.error("Must supply at least one group_id.")
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(body.group_ids))
+            )
+            groups = groups_result.unique().all()
+            if {g.id for g in groups} != set(body.group_ids):
+                return self.error(
+                    f"Cannot find one or more groups with IDs: {body.group_ids}."
+                )
+
+            analysis.groups = groups
+
+            # Move this user's per-run annotation to the new groups. A run scoped
+            # to the author's single-user group is written by the webhook with a
+            # username-namespaced origin, which stays fixed once created; match on
+            # it directly (independent of the analysis's current groups) so we
+            # never touch the canonical shared annotation.
+            per_user_origin = (
+                f"{analysis.analysis_service.name} [{analysis.author.username}]"
+            )
+            existing = await session.scalars(
+                sa.select(Annotation)
+                .options(selectinload(Annotation.groups))
+                .where(
+                    Annotation.obj_id == analysis.obj_id,
+                    Annotation.author_id == analysis.author_id,
+                    Annotation.origin == per_user_origin,
+                )
+            )
+            for ann in existing.unique().all():
+                ann.groups = groups
+
+            await session.commit()
+
+            try:
+                Flow().push(
+                    "*",
+                    "skyportal/REFRESH_OBJ_ANALYSES",
+                    payload={"obj_key": analysis.obj.internal_key},
+                )
+            except Exception:
+                pass
+            return self.success()
 
     @permissions(["Run Analyses"])
     async def delete(self, analysis_resource_type: str, analysis_id: int):

@@ -738,6 +738,20 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Source"],
     }),
+    updateAnalysis: build.mutation<
+      any,
+      {
+        analysis_id: number | string;
+        group_ids: number[];
+      }
+    >({
+      query: ({ analysis_id, group_ids }) => ({
+        url: `api/obj/analysis/${analysis_id}`,
+        method: "PATCH",
+        body: { group_ids },
+      }),
+      invalidatesTags: ["Source"],
+    }),
   }),
 });
 
@@ -841,4 +855,5 @@ export const {
   useAddGCNCrossmatchMutation,
   useStartAnalysisMutation,
   useDeleteAnalysisMutation,
+  useUpdateAnalysisMutation,
 } = sourceApi;
