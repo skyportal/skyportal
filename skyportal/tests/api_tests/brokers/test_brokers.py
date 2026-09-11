@@ -1173,3 +1173,70 @@ def test_boom_filter_activation_requires_validation(
         assert "validat" not in (data.get("message") or "").lower()
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_credentials_crud(
+    super_admin_token,
+    view_only_token,
+    view_only_token_group2,
+    public_filter,
+    public_filter2,
+):
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"] is None
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"credentials": {"token": "mine"}, "topics": ["lasair_1x"]},
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1x"]
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topic_filter_ids": {"lasair_1x": [public_filter2.id]}},
+            token=view_only_token,
+        )
+        assert status == 400
+        assert "not accessible" in data["message"]
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topic_filter_ids": {"lasair_1x": [public_filter.id]}},
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token_group2
+        )
+        assert status == 200
+        assert data["data"] is None
+
+        status, data = api(
+            "DELETE", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert data["data"] is None
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)

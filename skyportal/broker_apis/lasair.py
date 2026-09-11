@@ -401,7 +401,7 @@ def _object_id_from_message(payload):
         return None
     for key in ("diaObjectId", "objectId", "object", "objectID"):
         value = payload.get(key)
-        if value is not None:
+        if isinstance(value, str | int):
             return str(value)
     return None
 
@@ -473,8 +473,8 @@ async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotat
 
 
 def _stream_configured(altdata):
-    """Whether this broker should consume Lasair's Kafka streams rather than poll
-    its SQL API. Listing topics (or routing them) is what selects streaming."""
+    """Whether the broker's own config selects Lasair's Kafka streams over its SQL
+    API. A user's own credentials select streaming too, independently of this."""
     kafka = (altdata or {}).get("kafka") or {}
     return bool(kafka.get("topics") or kafka.get("topic_filter_ids"))
 
@@ -939,9 +939,14 @@ class LASAIRBROKER(BrokerAPI):
         survey = _survey(broker)
         # Kafka when a stream is configured, otherwise the SQL poller. A topic is
         # a Lasair filter, so the stream is live where the poller is per-interval.
-        if _stream_configured(altdata):
+        user_credentials = await _user_credential_sets(broker)
+        if _stream_configured(altdata) or user_credentials:
             return await _run_kafka_ingestion(
-                broker, survey, stop=stop, max_messages=max_messages
+                broker,
+                survey,
+                stop=stop,
+                max_messages=max_messages,
+                credentials=user_credentials,
             )
         default_filter_ids = altdata.get("filter_ids") or []
         legacy_queries = altdata.get("queries") or []

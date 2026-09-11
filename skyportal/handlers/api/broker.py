@@ -1924,7 +1924,13 @@ class BrokerCredentialHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def put(self, broker_id: int, *, body: BrokerCredentialBody = None):
+    async def put(
+        self,
+        broker_id: int,
+        action: str | None = None,
+        *,
+        body: BrokerCredentialBody = None,
+    ):
         """
         ---
         summary: Set your credentials for a broker
@@ -1992,15 +1998,29 @@ class BrokerCredentialHandler(BaseHandler):
                         )
                 row.topics = params.topics
             if params.topic_filter_ids is not None:
-                row.topic_filter_ids = {
-                    str(k): v for k, v in params.topic_filter_ids.items()
-                }
+                routing = {str(k): v for k, v in params.topic_filter_ids.items()}
+                wanted = {fid for ids in routing.values() for fid in ids}
+                if wanted:
+                    allowed = (
+                        await session.scalars(
+                            Filter.select(self.current_user).where(
+                                Filter.id.in_(wanted)
+                            )
+                        )
+                    ).all()
+                    forbidden = sorted(wanted - {f.id for f in allowed})
+                    if forbidden:
+                        return self.error(
+                            f"Cannot route to filter(s) {forbidden}: "
+                            "no such filter, or not accessible to you."
+                        )
+                row.topic_filter_ids = routing
 
             await session.commit()
             return self.success(data={"id": row.id})
 
     @auth_or_token
-    async def delete(self, broker_id: int):
+    async def delete(self, broker_id: int, action: str | None = None):
         """
         ---
         summary: Delete your credentials for a broker

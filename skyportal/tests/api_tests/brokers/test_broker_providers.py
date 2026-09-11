@@ -1463,12 +1463,19 @@ def test_lasair_ingestion_uses_kafka_when_configured(monkeypatch):
 
     seen = {}
 
-    async def fake_kafka(broker, survey, stop=None, max_messages=None):
+    async def fake_kafka(
+        broker, survey, stop=None, max_messages=None, credentials=None
+    ):
         seen["survey"] = survey
         seen["topics"] = (broker.altdata["kafka"] or {}).get("topics")
+        seen["credentials"] = credentials
         return 7
 
+    async def no_user_credentials(broker):
+        return []
+
     monkeypatch.setattr(lasair_mod, "_run_kafka_ingestion", fake_kafka)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", no_user_credentials)
     broker = types.SimpleNamespace(
         id=9,
         altdata={
@@ -1482,6 +1489,40 @@ def test_lasair_ingestion_uses_kafka_when_configured(monkeypatch):
     assert count == 7, "the Kafka path was not taken"
     assert seen["survey"] == "LSST"
     assert seen["topics"] == ["lasair_2SN-likecandidates"]
+
+
+def test_lasair_ingestion_uses_kafka_for_user_topics_alone(monkeypatch):
+    """A user's own account owning the topics is enough: the broker needs no
+    shared stream config for that user's filters to be consumed."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    seen = {}
+
+    async def fake_kafka(
+        broker, survey, stop=None, max_messages=None, credentials=None
+    ):
+        seen["credentials"] = credentials
+        return 7
+
+    async def one_user_credential(broker):
+        return [{"label": "user3", "topics": ["lasair_9private"]}]
+
+    monkeypatch.setattr(lasair_mod, "_run_kafka_ingestion", fake_kafka)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", one_user_credential)
+    broker = types.SimpleNamespace(
+        id=9,
+        altdata={
+            "survey": "LSST",
+            "token": "x",
+            "endpoint": "https://api.lasair.lsst.ac.uk/api",
+        },
+    )
+    count = asyncio.run(LASAIRBROKER.run_ingestion(broker, max_messages=1))
+    assert count == 7, "the Kafka path was not taken"
+    assert seen["credentials"] == [{"label": "user3", "topics": ["lasair_9private"]}]
 
 
 def test_lasair_stream_selected_only_when_topics_configured():
