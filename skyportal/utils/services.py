@@ -13,19 +13,26 @@ REQUEST_TIMEOUT_SECONDS = cfg["health_monitor.request_timeout_seconds"]
 
 HOST = get_app_base_url()
 
+# Probed directly, because through nginx a failed probe marks a worker down for
+# server.fail_timeout seconds.
+READINESS_PORTS = [
+    cfg["ports.app_internal"] + i for i in range(cfg["server.processes"])
+]
+
 
 def is_loaded():
-    try:
-        r = requests.get(f"{HOST}/api/sysinfo", timeout=REQUEST_TIMEOUT_SECONDS)
-    except Exception:
-        status_code = 0
-    else:
-        status_code = r.status_code
+    for port in READINESS_PORTS:
+        try:
+            r = requests.get(
+                f"http://localhost:{port}/api/sysinfo",
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+        except Exception:
+            continue
+        if r.status_code == 200:
+            return True
 
-    if status_code == 200:
-        return True
-    else:
-        return False
+    return False
 
 
 # Decorator that defers a function until the app is loaded: when the wrapped

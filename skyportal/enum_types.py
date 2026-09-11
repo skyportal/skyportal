@@ -56,7 +56,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     additional_bandpasses_names.append(name)
 
 if len(additional_bandpasses_names) > 0:
-    log(f"registered custom bandpasses: {additional_bandpasses_names}")
+    log(f"registered {len(additional_bandpasses_names)} custom bandpasses")
 
 
 def force_render_enum_markdown(values):
