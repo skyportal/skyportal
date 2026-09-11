@@ -60,7 +60,6 @@ class BrokerCredential(Base):
         "username/password. Never serialized back to a client.",
     )
 
-    broker = relationship("Broker", doc="The broker these credentials are for.")
     user = relationship("User", doc="The owner of these credentials.")
 
     __table_args__ = (sa.UniqueConstraint("broker_id", "user_id"),)
@@ -77,16 +76,15 @@ class BrokerCredential(Base):
     def altdata(self, value):
         self._altdata = json.dumps(value) if value is not None else None
 
-    def as_credential_set(self, label=None):
+    def as_credential_set(self):
         """This row in the shape the ingestion loop consumes: identity and routing
         only, the connection details stay with the broker."""
         altdata = self.altdata
-        # Stored flat, as the credential form declares them; grouped for the consumer.
         kafka = {
             key: altdata[key] for key in ("username", "password") if altdata.get(key)
         }
         return {
-            "label": label or f"user{self.user_id}",
+            "label": f"user{self.user_id}",
             "token": altdata.get("token"),
             "kafka": kafka,
             "topics": self.topics or [],

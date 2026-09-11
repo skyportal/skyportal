@@ -1845,6 +1845,25 @@ class BrokerCredentialHandler(BaseHandler):
     """A user's own credentials for a broker: set by the user and never handed
     back, so nobody else, admins included, reads them through the API."""
 
+    async def own_credentials(self, session, broker_id):
+        return await session.scalar(
+            sa.select(BrokerCredential).where(
+                BrokerCredential.broker_id == broker_id,
+                BrokerCredential.user_id == self.associated_user_object.id,
+            )
+        )
+
+    @staticmethod
+    async def available_topics(broker, row):
+        """Topics the provider reports for these credentials, ``None`` when it has
+        no notion of topics at all."""
+        lister = getattr(broker.broker_class, "available_topics", None)
+        if lister is None:
+            return None
+        return await IOLoop.current().run_in_executor(
+            None, lister, broker, row.as_credential_set() if row is not None else None
+        )
+
     @auth_or_token
     async def get(self, broker_id: int, action: str | None = None):
         """
@@ -1860,44 +1879,27 @@ class BrokerCredentialHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object
         async with self.AsyncSession() as session:
-            row = await session.scalar(
-                sa.select(BrokerCredential).where(
-                    BrokerCredential.broker_id == broker_id,
-                    BrokerCredential.user_id == user.id,
-                )
-            )
-            if action == "topics":
-                broker = await session.scalar(
-                    sa.select(Broker).where(Broker.id == broker_id)
-                )
-                if broker is None:
-                    return self.error(f"No broker with id {broker_id}")
-                lister = getattr(broker.broker_class, "available_topics", None)
-                if lister is None:
-                    return self.error(
-                        f"{broker.broker_classname} does not list topics."
-                    )
-                try:
-                    topics = await IOLoop.current().run_in_executor(
-                        None,
-                        lister,
-                        broker,
-                        row.as_credential_set() if row is not None else None,
-                    )
-                except Exception as e:
-                    return self.error(f"Could not list topics: {e}")
-                return self.success(data={"topics": topics})
-            if row is None:
-                return self.success(data=None)
             broker = await session.scalar(
                 sa.select(Broker).where(Broker.id == broker_id)
             )
+            row = await self.own_credentials(session, broker_id)
+            if action == "topics":
+                if broker is None:
+                    return self.error(f"No broker with id {broker_id}")
+                try:
+                    topics = await self.available_topics(broker, row)
+                except Exception as e:
+                    return self.error(f"Could not list topics: {e}")
+                if topics is None:
+                    return self.error(
+                        f"{broker.broker_classname} does not list topics."
+                    )
+                return self.success(data={"topics": topics})
+            if row is None:
+                return self.success(data=None)
             secret_fields = set(
-                broker.broker_class.user_credential_secret_fields()
-                if broker is not None
-                else []
+                broker.broker_class.user_credential_secret_fields() if broker else []
             )
             altdata = row.altdata
             return self.success(
@@ -1937,7 +1939,6 @@ class BrokerCredentialHandler(BaseHandler):
                 schema: Success
         """
         params = self.parse_body(BrokerCredentialBody)
-        user = self.associated_user_object
         async with self.AsyncSession() as session:
             broker = await session.scalar(
                 sa.select(Broker).where(Broker.id == broker_id)
@@ -1945,44 +1946,34 @@ class BrokerCredentialHandler(BaseHandler):
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
 
-            row = await session.scalar(
-                sa.select(BrokerCredential).where(
-                    BrokerCredential.broker_id == broker_id,
-                    BrokerCredential.user_id == user.id,
-                )
-            )
+            row = await self.own_credentials(session, broker_id)
             if row is None:
-                row = BrokerCredential(broker_id=broker_id, user_id=user.id)
+                row = BrokerCredential(
+                    broker_id=broker_id, user_id=self.associated_user_object.id
+                )
                 session.add(row)
 
             incoming = params.credentials or {}
             if params.replace_credentials:
-                altdata = dict(incoming)
+                row.altdata = dict(incoming)
             else:
                 # A blank value keeps what is stored, as merge_altdata does.
-                altdata = dict(row.altdata)
-                altdata.update(
-                    {k: v for k, v in incoming.items() if v not in (None, "")}
-                )
-            row.altdata = altdata
+                row.altdata = row.altdata | {
+                    k: v for k, v in incoming.items() if v not in (None, "")
+                }
 
             if params.topics is not None:
                 # A topic that does not exist subscribes fine and stays silent.
-                lister = getattr(broker.broker_class, "available_topics", None)
-                if params.topics and lister is not None:
+                if params.topics:
                     try:
-                        available = set(
-                            await IOLoop.current().run_in_executor(
-                                None, lister, broker, row.as_credential_set()
-                            )
-                        )
+                        available = await self.available_topics(broker, row)
                     except Exception as e:
                         return self.error(f"Could not verify topics: {e}")
-                    unknown = [t for t in params.topics if t not in available]
-                    if unknown:
+                    unknown = sorted(set(params.topics) - set(available or ()))
+                    if available is not None and unknown:
                         return self.error(
                             f"Unknown topic(s) for your account: "
-                            f"{', '.join(sorted(unknown))}. "
+                            f"{', '.join(unknown)}. "
                             f"Available: {', '.join(sorted(available)) or 'none'}"
                         )
                 row.topics = params.topics
@@ -2021,14 +2012,8 @@ class BrokerCredentialHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object
         async with self.AsyncSession() as session:
-            row = await session.scalar(
-                sa.select(BrokerCredential).where(
-                    BrokerCredential.broker_id == broker_id,
-                    BrokerCredential.user_id == user.id,
-                )
-            )
+            row = await self.own_credentials(session, broker_id)
             if row is None:
                 return self.error("No credentials to delete")
             await session.delete(row)

@@ -1,3 +1,17 @@
+def _password_paths(ui_schema, prefix=""):
+    """Dotted paths of every field a ui schema renders as a password."""
+    paths = []
+    for key, value in (ui_schema or {}).items():
+        if not isinstance(value, dict):
+            continue
+        path = f"{prefix}{key}"
+        if value.get("ui:widget") == "password":
+            paths.append(path)
+        else:
+            paths.extend(_password_paths(value, f"{path}."))
+    return paths
+
+
 class _Base:
     # The operations a broker provider may implement. A concrete provider
     # overrides only the ones it supports; the rest stay as the base stub and
@@ -18,6 +32,10 @@ class _Base:
         "validate_config",
         "test_connection",
     )
+
+    # None hides the credentials tab: the provider has no per-user account.
+    user_credential_schema = None
+    user_credential_ui_schema = None
 
     # subclasses should not modify this
     @classmethod
@@ -46,10 +64,6 @@ class _Base:
         caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 
-    # None hides the credentials tab: the provider has no per-user account.
-    user_credential_schema = None
-    user_credential_ui_schema = None
-
     @classmethod
     def configured_surveys(cls, altdata):
         """Surveys a *configured* broker record serves, for per-record routing.
@@ -69,30 +83,12 @@ class _Base:
         Defaults to every field the config form renders as a password; a
         provider whose secret uses another widget overrides this.
         """
-
-        def walk(node, prefix=""):
-            paths = []
-            for key, value in (node or {}).items():
-                if not isinstance(value, dict):
-                    continue
-                path = f"{prefix}{key}"
-                if value.get("ui:widget") == "password":
-                    paths.append(path)
-                else:
-                    paths.extend(walk(value, f"{path}."))
-            return paths
-
-        return walk(cls.ui_json_schema)
+        return _password_paths(cls.ui_json_schema)
 
     @classmethod
     def user_credential_secret_fields(cls):
-        """Keys of the per-user credential form that hold secrets, derived like
-        ``secret_config_fields``: whatever the form renders as a password."""
-        return [
-            key
-            for key, value in (cls.user_credential_ui_schema or {}).items()
-            if isinstance(value, dict) and value.get("ui:widget") == "password"
-        ]
+        """Keys of the per-user credential form that hold secrets."""
+        return _password_paths(cls.user_credential_ui_schema)
 
     # subclasses should not modify this
     @classmethod

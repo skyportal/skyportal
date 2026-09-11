@@ -1,9 +1,8 @@
-"""Shared Kafka helpers for broker ingestion (confluent_kafka + Avro).
+"""Shared Kafka helpers for broker ingestion (confluent_kafka + Avro)."""
 
-Every Kafka-based provider (babamul, BOOM, ...) builds the same consumer config
-from a broker's ``altdata['kafka']`` block and decodes Avro the same way; keep it
-here rather than re-deriving it per provider.
-"""
+import io
+
+import fastavro
 
 
 def kafka_consumer_config(kafka, default_group):
@@ -28,20 +27,14 @@ def kafka_consumer_config(kafka, default_group):
 
 
 def read_avro(value):
-    """Decode a single Avro record from a Kafka message value (bytes)."""
-    import io
-
-    import fastavro
-
+    """Decode the first Avro record of a Kafka message value (bytes)."""
     for record in fastavro.reader(io.BytesIO(value)):
         return record
     return None
 
 
 def list_topics(kafka, default_group, timeout=10.0):
-    """Topic names the cluster reports for these credentials. Subscribing to a
-    topic that does not exist succeeds and then delivers nothing, so a typo is
-    only catchable by asking."""
+    """Topic names the cluster reports for these credentials."""
     from confluent_kafka import Consumer
 
     consumer = Consumer(kafka_consumer_config(kafka, default_group))

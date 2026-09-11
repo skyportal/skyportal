@@ -249,7 +249,7 @@ CASES = [
     ("super_admin_user", "broker", "read", True),
     ("super_admin_user", "broker", "update", True),
     ("super_admin_user", "broker", "delete", True),
-    # --- BrokerCredential  (user_broker_credential): only its owner, plus admins ---
+    # --- BrokerCredential (user_broker_credential) ---
     ("user", "user_broker_credential", "create", True),
     ("user", "user_broker_credential", "read", True),
     ("user", "user_broker_credential", "update", True),

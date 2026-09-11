@@ -1,7 +1,10 @@
+import asyncio
 import base64
+import json
 import time
 
 import requests
+import sqlalchemy as sa
 
 from baselayer.log import make_log
 
@@ -10,10 +13,9 @@ from .interface import BrokerAPI, altdata_filter_modules
 log = make_log("broker/lasair")
 
 DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
-DEFAULT_TIMEOUT = 30  # seconds
-CREDENTIAL_RESCAN_INTERVAL = 60  # seconds
-CONSUMER_RETRY_PAUSE = 5  # seconds
-# Lasair cutout image kind -> skyportal cutout field.
+DEFAULT_TIMEOUT = 30
+CREDENTIAL_RESCAN_INTERVAL = 60
+CONSUMER_RETRY_PAUSE = 5
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
@@ -59,8 +61,6 @@ def _normalize_object(obj, object_id):
         }
         for c in detections
     ]
-    # Extract annotations from external annotators (e.g. NEEDLE_LSST).
-    # Lasair places them in lasairData.annotations when lasair_added=True.
     lasair_data = obj.get("lasairData") or {}
     raw_annotations = lasair_data.get("annotations") or obj.get("annotations") or []
     annotations = []
@@ -76,9 +76,7 @@ def _normalize_object(obj, object_id):
         if classdict:
             if isinstance(classdict, str):
                 try:
-                    import json as _json
-
-                    classdict = _json.loads(classdict)
+                    classdict = json.loads(classdict)
                 except Exception:
                     pass
             entry["classdict"] = classdict
@@ -103,7 +101,6 @@ def _normalize_object(obj, object_id):
     }
 
 
-# Mongo-style operators (what the shared builder emits) -> SQL comparison ops.
 _SQL_OPS = {"$eq": "=", "$ne": "!=", "$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
 
 
@@ -161,7 +158,6 @@ def _lasair_schema(survey):
             {"name": "objects.glat", "type": "double"},
             {"name": "objects.ebv", "type": "double"},
             {"name": "objects.tns_name", "type": "string"},
-            # Watchlist matches: the join that drives a watchlist-based filter.
             {"name": "watchlist_hits.diaObjectId", "type": "string"},
             {"name": "watchlist_hits.name", "type": "string"},
             {"name": "watchlist_hits.arcsec", "type": "double"},
@@ -205,7 +201,6 @@ def _lasair_schema(survey):
             {"name": "objects.sgscore1", "type": "double"},
             {"name": "objects.sgmag1", "type": "double"},
             {"name": "objects.glatmean", "type": "double"},
-            # Watchlist matches: the join that drives a watchlist-based filter.
             {"name": "watchlist_hits.objectId", "type": "string"},
             {"name": "watchlist_hits.name", "type": "string"},
             {"name": "watchlist_hits.arcsec", "type": "double"},
@@ -226,8 +221,6 @@ def _lasair_schema(survey):
 
 
 def _token(broker, token=None):
-    """The Lasair REST token to act with: a caller's own wins over the broker's
-    shared one, so a private filter is read by the account that can see it."""
     token = token or (broker.altdata or {}).get("token")
     if not token:
         raise ValueError("Broker altdata is missing 'token'.")
@@ -238,10 +231,6 @@ def _endpoint(broker):
     return (broker.altdata or {}).get("endpoint", DEFAULT_ENDPOINT)
 
 
-# Lasair rate-limits per account, and ingestion fetches one object at a time, so
-# a busy filter walks straight into 429s. Wait and retry rather than dropping the
-# object: the alternative is a cycle that silently ingests a fraction of what it
-# matched.
 RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_PAUSE = 10.0
 
@@ -302,11 +291,9 @@ def _query(broker, selected, tables, conditions, limit=1000):
 
 
 def _cutouts_from_object(obj, alert_id):
-    """Base64 cutouts from an already-fetched Lasair object. Takes the object
-    rather than fetching it: a standard Lasair account gets 100 calls an hour."""
-    # The image-URL location differs by Lasair instance:
-    #  - ZTF: the latest candidate carries ``image_urls``
-    #  - LSST: ``lasairData.imageUrls`` (a list of per-epoch url dicts)
+    """Base64 cutouts from an already-fetched Lasair object, so an ingest that
+    holds one does not spend a second call: a Lasair account gets 100 an hour."""
+    # ZTF carries image_urls on the latest candidate, LSST lasairData.imageUrls.
     image_urls = {}
     candidates = obj.get("candidates") or []
     if (
@@ -341,10 +328,6 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None):
     """Build the standard alert for one Lasair object, register it as a Candidate
     and save any annotator annotations it carried. Shared by both ingestion modes,
     which differ only in how they learn an objectId."""
-    import asyncio
-
-    import sqlalchemy as sa
-
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import User
@@ -391,19 +374,16 @@ def _object_id_from_message(payload):
 def _decode_stream_message(value):
     """Decode one Lasair Kafka message. Lasair streams JSON; Avro is accepted so
     a future schema change does not need a new code path."""
-    import json as _json
-
     if value is None:
         return None
     try:
-        payload = _json.loads(
+        payload = json.loads(
             value.decode("utf-8") if isinstance(value, bytes) else value
         )
     except (UnicodeDecodeError, ValueError):
         from ._kafka import read_avro
 
         payload = read_avro(value)
-    # A filter's stream may wrap the row, e.g. {"objectData": {...}}.
     if isinstance(payload, dict) and _object_id_from_message(payload) is None:
         for key in ("objectData", "object", "data"):
             nested = payload.get(key)
@@ -415,7 +395,6 @@ def _decode_stream_message(value):
 async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotations):
     """Upsert Lasair annotator annotations onto ``obj_id``, scoped to the groups
     of the ingesting filters. Origin is ``"lasair:{topic}"``."""
-    import sqlalchemy as sa
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from baselayer.app.models import utcnow
@@ -481,8 +460,6 @@ def _credential_sets(broker, extra=None):
     }
     sets = [shared] if (shared["topics"] or shared["topic_filter_ids"]) else []
     for entry in extra or []:
-        # Connection details come from the broker; only identity and routing
-        # differ per account.
         merged = {**kafka, **(entry.get("kafka") or {})}
         sets.append(
             {
@@ -500,8 +477,6 @@ def _credential_sets(broker, extra=None):
 
 async def _consume_set(broker, survey, credentials, budget, stop):
     """Consume one account's topics until `stop` is set or `budget` is spent."""
-    import asyncio
-
     from confluent_kafka import Consumer
 
     from ._kafka import kafka_consumer_config
@@ -513,8 +488,6 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     topics = list(dict.fromkeys(list(credentials["topics"]) + list(topic_filter_ids)))
     maxtimeout = float(kafka.get("maxtimeout", 5))
 
-    # A distinct group per account, so the consumers do not split each other's
-    # partitions, and a stable one, so offsets survive a restart.
     default_group = f"skyportal-broker-{broker.id}-{credentials['label']}"
     config = kafka_consumer_config(kafka, kafka.get("group_id") or default_group)
     consumer = Consumer(config)
@@ -570,8 +543,6 @@ def available_topics(broker, credentials=None):
 async def _user_credential_sets(broker):
     """Credential sets from the per-user rows, so a private filter is consumed
     by the account that owns it rather than the broker's shared account."""
-    import sqlalchemy as sa
-
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import BrokerCredential
@@ -584,8 +555,6 @@ async def _user_credential_sets(broker):
                 )
             )
         ).all()
-        # Only an account with topics has anything to consume; skip the rest so
-        # a stored credential does not cost an idle connection.
         return [r.as_credential_set() for r in rows if r.topics]
 
 
@@ -602,12 +571,11 @@ async def _run_kafka_ingestion(
     ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
     without restarting the service.
     """
-    import asyncio
-
     stop = stop or asyncio.Event()
     # Shared so max_messages bounds the run, not each consumer separately.
     budget = {"remaining": max_messages}
     running = {}
+    stops = {}
     retiring = []
     started = False
 
@@ -636,47 +604,36 @@ async def _run_kafka_ingestion(
                     "altdata['kafka'] or on a user's own credentials."
                 )
             for label in [lb for lb in running if lb not in sets]:
-                task, account_stop = running.pop(label)
-                account_stop.set()
-                retiring.append((label, task))
+                stops.pop(label).set()
+                retiring.append((label, running.pop(label)))
             retiring = [
                 (lb, t) for lb, t in retiring if not failed(lb, t) and not t.done()
             ]
             for label, account in sets.items():
-                task = running.get(label, (None, None))[0]
-                if task is None or task.done():
-                    account_stop = asyncio.Event()
-                    running[label] = (
-                        asyncio.create_task(
-                            _consume_set(broker, survey, account, budget, account_stop)
-                        ),
-                        account_stop,
+                if label not in running or running[label].done():
+                    stops[label] = asyncio.Event()
+                    running[label] = asyncio.create_task(
+                        _consume_set(broker, survey, account, budget, stops[label])
                     )
             started = True
             waiter = asyncio.ensure_future(stop.wait())
             try:
                 await asyncio.wait(
-                    [
-                        waiter,
-                        *(t for t, _ in running.values()),
-                        *(t for _, t in retiring),
-                    ],
+                    [waiter, *running.values(), *(t for _, t in retiring)],
                     timeout=CREDENTIAL_RESCAN_INTERVAL,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
             finally:
                 waiter.cancel()
-            crashed = [lb for lb, (task, _) in running.items() if failed(lb, task)]
+            crashed = [lb for lb, task in running.items() if failed(lb, task)]
             # Restarting a consumer that fails on connect must not busy-loop.
             if crashed and not stop.is_set():
                 await asyncio.sleep(CONSUMER_RETRY_PAUSE)
     finally:
-        for _, account_stop in running.values():
+        for account_stop in stops.values():
             account_stop.set()
         await asyncio.gather(
-            *(t for t, _ in running.values()),
-            *(t for _, t in retiring),
-            return_exceptions=True,
+            *running.values(), *(t for _, t in retiring), return_exceptions=True
         )
 
 
@@ -693,8 +650,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @classmethod
     def configured_surveys(cls, altdata):
-        # Lasair's ZTF and LSST are separate deployments (distinct endpoint +
-        # token), so a record serves exactly one, derived from its config.
         return [_survey_from_altdata(altdata)]
 
     form_json_schema_config = {
@@ -818,8 +773,6 @@ class LASAIRBROKER(BrokerAPI):
         },
     }
 
-    # A Lasair account owns its filters, and a private one is visible to nobody
-    # else, so these are per user rather than per broker.
     user_credential_schema = {
         "type": "object",
         "properties": {
@@ -865,8 +818,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        # object id -> single object; ra/dec -> cone search; otherwise a raw
-        # SQL-style query (selected/tables/conditions).
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
             return _object(broker, object_id)
@@ -892,7 +843,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        # Normalize into the standard {objectId, candidate, prv_candidates} shape.
         return _normalize_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
@@ -918,10 +868,8 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def test_filter(broker, session, **kwargs):
-        # Run a Lasair SQL query and return the matching rows (renderable as
-        # alerts). Accepts either raw ``conditions`` (SQL) or a neutral condition
-        # ``tree`` from the shared builder, compiled here to SQL. Object-id/coord
-        # columns differ by instance (ZTF vs LSST).
+        """Run a Lasair SQL query and return the matching rows. Accepts raw
+        ``conditions`` (SQL) or the builder's neutral ``tree``, compiled here."""
         survey = _survey(broker, kwargs)
         default_selected = (
             "objects.diaObjectId, objects.ra, objects.decl"
@@ -932,7 +880,6 @@ class LASAIRBROKER(BrokerAPI):
         tables = kwargs.get("tables") or "objects"
         tree = kwargs.get("tree") or kwargs.get("filters")
         if tree is not None:
-            # The builder holds a list of top-level blocks; AND them together.
             if isinstance(tree, list):
                 tree = {"operator": "and", "children": tree}
             conditions = _compile_tree_to_sql(tree)
@@ -943,9 +890,7 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        # Lasair keys cutouts by object (not candid): the object record carries
-        # FITS image URLs under lasairData.imageUrls; download and base64-encode
-        # them into the standard cutout fields.
+        # Lasair keys cutouts by object, not candid, so alert_id is an objectId.
         return _cutouts_from_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
@@ -959,18 +904,12 @@ class LASAIRBROKER(BrokerAPI):
         ``broker.altdata``: ``queries`` (list of {name, fields, tables, conditions,
         [filter_ids]}), ``filter_ids``, ``survey``, ``poll_interval``, ``limit``.
         """
-        import asyncio
-
-        import sqlalchemy as sa
-
         from baselayer.app.models import async_plain_session_factory
 
         from ..models import Filter
 
         altdata = broker.altdata or {}
         survey = _survey(broker)
-        # Kafka when a stream is configured, otherwise the SQL poller. A topic is
-        # a Lasair filter, so the stream is live where the poller is per-interval.
         if _stream_configured(altdata) or await _user_credential_sets(broker):
             return await _run_kafka_ingestion(
                 broker, survey, stop=stop, max_messages=max_messages
@@ -984,9 +923,8 @@ class LASAIRBROKER(BrokerAPI):
             return stop is not None and stop.is_set()
 
         async def _collect_queries():
-            # One query per skyportal Filter attached to this broker (its saved
-            # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
-            # the broker record. Re-read each cycle so filter edits are picked up.
+            """One query per Filter attached to this broker (its SQL lives in
+            ``Filter.altdata["lasair"]``) plus the broker's legacy queries."""
             async with async_plain_session_factory() as session:
                 rows = (
                     await session.scalars(
@@ -1013,8 +951,6 @@ class LASAIRBROKER(BrokerAPI):
             return queries + legacy_queries
 
         count = 0
-        # A broker with nothing to poll otherwise looks identical to a broken
-        # one: the loop just sleeps. Say so once, and again if it recurs.
         warned_no_queries = False
         while not _stopped():
             queries = await _collect_queries()
@@ -1067,8 +1003,7 @@ class LASAIRBROKER(BrokerAPI):
                         )
                         return count
             if max_messages is not None:
-                break  # bounded mode: a single pass
-            # Sleep until the next poll, waking periodically to honor ``stop``.
+                break
             slept = 0.0
             while slept < poll_interval and not _stopped():
                 await asyncio.sleep(min(5.0, poll_interval - slept))

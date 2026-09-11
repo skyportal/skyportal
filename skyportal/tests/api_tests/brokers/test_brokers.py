@@ -556,15 +556,13 @@ def test_lasair_credential_sets():
         ],
     )
     assert [c["label"] for c in sets] == ["shared", "camille"]
-    hers = sets[1]
-    # Connection details come from the broker, identity and routing from her.
-    assert hers["kafka"]["host"] == "lasair-lsst-kafka_pub.lsst.ac.uk"
-    assert hers["kafka"]["username"] == "camille"
-    assert hers["kafka"]["password"] == "her-pw"
-    assert hers["token"] == "her-token"
-    assert hers["topics"] == ["lasair_9private"]
-    assert hers["filter_ids"] == [2]
-    # The shared account must not gain her topics, nor she his token.
+    personal = sets[1]
+    assert personal["kafka"]["host"] == "lasair-lsst-kafka_pub.lsst.ac.uk"
+    assert personal["kafka"]["username"] == "camille"
+    assert personal["kafka"]["password"] == "her-pw"
+    assert personal["token"] == "her-token"
+    assert personal["topics"] == ["lasair_9private"]
+    assert personal["filter_ids"] == [2]
     assert sets[0]["topics"] == ["lasair_2SNe"]
     assert sets[0]["token"] == "shared-token"
 

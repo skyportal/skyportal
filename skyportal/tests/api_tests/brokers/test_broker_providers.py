@@ -1423,8 +1423,8 @@ def test_lasair_stream_message_object_ids():
     assert oid(b'{"objectId": "ZTF26absuusx"}') == "ZTF26absuusx"  # ZTF
     assert oid(b'{"object": "ZTF18abcdefg"}') == "ZTF18abcdefg"
     assert oid('{"objectId": "ZTF21bbb"}') == "ZTF21bbb"  # str, not bytes
-    assert oid(b'{"objectData": {"objectId": "ZTF20aaa"}}') == "ZTF20aaa"  # wrapped
-    assert oid(b'{"ramean": 1.0}') is None  # nothing to ingest
+    assert oid(b'{"objectData": {"objectId": "ZTF20aaa"}}') == "ZTF20aaa"
+    assert oid(b'{"ramean": 1.0}') is None
 
 
 def test_lasair_stream_message_accepts_avro():
@@ -1611,7 +1611,6 @@ def test_lasair_stream_selected_only_when_topics_configured():
     assert (
         _stream_configured({"kafka": {"topic_filter_ids": {"lasair_2SN": [1]}}}) is True
     )
-    # host alone is not enough -- there is nothing to subscribe to
     assert _stream_configured({"kafka": {"host": "kafka.test"}}) is False
     assert _stream_configured({"kafka": {"topics": []}}) is False
     assert _stream_configured({"queries": []}) is False

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import Alert from "@mui/material/Alert";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -12,6 +11,8 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
+import { showNotification } from "baselayer/components/Notifications";
+
 import {
   useDeleteBrokerCredentialsMutation,
   useGetBrokerAPIsQuery,
@@ -19,12 +20,11 @@ import {
   useLazyGetBrokerCredentialTopicsQuery,
   useSetBrokerCredentialsMutation,
 } from "../../ducks/brokers";
+import { useAppDispatch } from "../../types/hooks";
 
 const errorText = (e: unknown, fallback: string) =>
   (e as { data?: { message?: string } })?.data?.message ?? fallback;
 
-// The fields come from the provider's `user_credential_schema`. Secrets are
-// write-only: the API reports which are set, never what they are.
 const BrokerCredentialsForm = ({
   brokerId,
   brokerClassname,
@@ -32,6 +32,7 @@ const BrokerCredentialsForm = ({
   brokerId: number;
   brokerClassname: string;
 }) => {
+  const dispatch = useAppDispatch();
   const { data: apis } = useGetBrokerAPIsQuery();
   const { data: stored, isLoading } = useGetBrokerCredentialsQuery(brokerId);
   const [setCredentials, { isLoading: isSaving }] =
@@ -40,30 +41,19 @@ const BrokerCredentialsForm = ({
   const [fetchTopics, { isFetching: topicsLoading }] =
     useLazyGetBrokerCredentialTopicsQuery();
 
-  const provider = apis?.[brokerClassname] as
-    | {
-        userCredentialSchema?: Record<string, unknown>;
-        userCredentialUiSchema?: Record<string, unknown>;
-      }
-    | undefined;
+  const provider = apis?.[brokerClassname];
   const schema = provider?.userCredentialSchema;
-  const uiSchema = provider?.userCredentialUiSchema ?? {};
 
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [topics, setTopics] = useState<string[]>([]);
   const [available, setAvailable] = useState<string[]>([]);
   const [topicsError, setTopicsError] = useState<string | null>(null);
-  const [message, setMessage] = useState<{
-    severity: "success" | "error";
-    text: string;
-  } | null>(null);
 
   useEffect(() => {
     setFormData(stored?.credentials ?? {});
     setTopics(stored?.topics ?? []);
   }, [stored]);
 
-  // On open rather than on mount: it costs a round trip to the broker.
   const loadTopics = async () => {
     if (available.length) return;
     try {
@@ -84,9 +74,9 @@ const BrokerCredentialsForm = ({
         patch: { credentials: formData, topics },
       }).unwrap();
       setFormData(stored?.credentials ?? {});
-      setMessage({ severity: "success", text: "Credentials saved." });
+      dispatch(showNotification("Credentials saved."));
     } catch (e) {
-      setMessage({ severity: "error", text: errorText(e, "Failed to save.") });
+      dispatch(showNotification(errorText(e, "Failed to save."), "error"));
     }
   };
 
@@ -95,12 +85,9 @@ const BrokerCredentialsForm = ({
       await deleteCredentials(brokerId).unwrap();
       setFormData({});
       setTopics([]);
-      setMessage({ severity: "success", text: "Credentials deleted." });
+      dispatch(showNotification("Credentials deleted."));
     } catch (e) {
-      setMessage({
-        severity: "error",
-        text: errorText(e, "Failed to delete."),
-      });
+      dispatch(showNotification(errorText(e, "Failed to delete."), "error"));
     }
   };
 
@@ -139,7 +126,7 @@ const BrokerCredentialsForm = ({
 
       <Form
         schema={schema}
-        uiSchema={uiSchema}
+        uiSchema={provider?.userCredentialUiSchema ?? {}}
         validator={validator}
         formData={formData}
         onChange={(e: { formData?: Record<string, unknown> }) =>
@@ -174,12 +161,6 @@ const BrokerCredentialsForm = ({
           )}
         />
       </Box>
-
-      {message && (
-        <Alert severity={message.severity} sx={{ mt: 2 }}>
-          {message.text}
-        </Alert>
-      )}
 
       <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
         <Button variant="contained" onClick={onSave} disabled={isSaving}>

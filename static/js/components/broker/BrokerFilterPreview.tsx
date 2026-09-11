@@ -1,10 +1,8 @@
-import Paper from "@mui/material/Paper";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
+import { useMemo } from "react";
+
 import Typography from "@mui/material/Typography";
+
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 interface BrokerFilterPreviewProps {
   previewing: boolean;
@@ -12,64 +10,61 @@ interface BrokerFilterPreviewProps {
   previewData: unknown;
 }
 
+const message = (text: string, color?: string) => (
+  <Typography variant="body2" color={color} sx={{ mt: 1 }}>
+    {text}
+  </Typography>
+);
+
 const BrokerFilterPreview = ({
   previewing,
   previewError,
   previewData,
 }: BrokerFilterPreviewProps) => {
-  if (previewing) {
-    return (
-      <Typography variant="body2" sx={{ mt: 1 }}>
-        Running preview…
-      </Typography>
-    );
-  }
-  if (previewError) {
-    return (
-      <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-        {previewError}
-      </Typography>
-    );
-  }
-  const rows = Array.isArray(previewData)
+  const results = Array.isArray(previewData)
     ? (previewData as Record<string, unknown>[])
     : [];
+
+  // Declared before the early returns below so the hook runs on every render.
+  const Toolbar = useMemo(
+    () =>
+      function PreviewToolbar() {
+        return (
+          <DataGridToolbar
+            title={`${results.length} result${results.length !== 1 ? "s" : ""}`}
+          />
+        );
+      },
+    [results.length],
+  );
+
+  if (previewing) return message("Running preview…");
+  if (previewError) return message(previewError, "error");
   if (previewData === undefined) return null;
-  if (rows.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        No results.
-      </Typography>
-    );
-  }
-  // rows is non-empty here, but indexing is still possibly-undefined to tsc.
-  const cols = Object.keys(rows[0] ?? {});
+
+  const [first] = results;
+  if (!first) return message("No results.", "text.secondary");
+
+  const columns = Object.keys(first).map((field) => ({ field, flex: 1 }));
+  const rows = results.map((row, index) => ({
+    ...Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key, String(value ?? "")]),
+    ),
+    _rowId: index,
+  }));
+
   return (
-    <>
-      <Typography variant="body2" sx={{ mt: 2 }}>
-        {rows.length} result{rows.length !== 1 ? "s" : ""}
-      </Typography>
-      <Paper variant="outlined" sx={{ overflowX: "auto", mt: 1 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              {cols.map((c) => (
-                <TableCell key={c}>{c}</TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={i}>
-                {cols.map((c) => (
-                  <TableCell key={c}>{String(row[c] ?? "")}</TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Paper>
-    </>
+    <StyledDataGrid
+      autoHeight
+      rows={rows}
+      columns={columns}
+      getRowId={(row: any) => row._rowId}
+      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+      pageSizeOptions={[10, 25, 50]}
+      slots={{ toolbar: Toolbar }}
+      showToolbar
+      sx={{ mt: 2 }}
+    />
   );
 };
 

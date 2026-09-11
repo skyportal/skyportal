@@ -19,6 +19,16 @@ export interface Broker {
   altdata?: Record<string, unknown>;
 }
 
+export interface BrokerAPIInfo {
+  methodsImplemented: Record<string, boolean>;
+  formSchemaConfig?: Record<string, unknown> | null;
+  uiSchema?: Record<string, unknown> | null;
+  userCredentialSchema?: Record<string, unknown> | null;
+  userCredentialUiSchema?: Record<string, unknown> | null;
+  surveys?: string[];
+  filterKind?: string;
+}
+
 export interface BrokerCredential {
   id: number;
   broker_id: number;
@@ -185,19 +195,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Broker"],
     }),
     // Registered provider classes + their config form schemas / capabilities.
-    getBrokerAPIs: build.query<
-      Record<
-        string,
-        {
-          methodsImplemented: Record<string, boolean>;
-          formSchemaConfig?: Record<string, unknown> | null;
-          uiSchema?: Record<string, unknown> | null;
-          surveys?: string[];
-          filterKind?: string;
-        }
-      >,
-      void
-    >({
+    getBrokerAPIs: build.query<Record<string, BrokerAPIInfo>, void>({
       query: () => "api/internal/broker_apis",
     }),
     createBroker: build.mutation<
