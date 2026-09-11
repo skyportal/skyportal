@@ -18,15 +18,11 @@ log = make_log("enum_types")
 
 _, cfg = load_env()
 
-# Point sncosmo at the vendored data dir (the skyportal-data submodule) before
-# any bandpass lookup, so app import reads local files instead of blocking on
-# the flaky SVO Filter Profile Service. A missing bandpass still falls back to a
-# network fetch into this directory.
+# Set before any bandpass lookup, else sncosmo blocks on the flaky remote SVO service.
 sncosmo_data_folder = cfg.get("misc.sncosmo_data_folder")
 if sncosmo_data_folder:
     sncosmo.conf.data_dir = sncosmo_data_folder
 
-# load additional bandpasses into the SN comso registry
 existing_bandpasses_names = [val["name"] for val in _BANDPASSES.get_loaders_metadata()]
 additional_bandpasses_names = []
 for additional_bandpasses in cfg.get("additional_bandpasses", []):
@@ -37,6 +33,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
         log(
             f"Additional Bandpass name={name} is already in the sncosmo registry. Skipping."
         )
+        continue
     try:
         wavelength = np.array(additional_bandpasses.get("wavelength"))
         transmission = np.array(additional_bandpasses.get("transmission"))
@@ -45,8 +42,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
         log(f"Could not make bandpass for {name}: {e}")
         continue
 
-    # Seed the lazyproperty: it samples the band on a fixed 5 A grid, unusable
-    # for a radio band ~1e8 A wide. Same quantity, from the config points.
+    # Seed the lazyproperty: its fixed 5 A sampling grid is unusable for a band ~1e8 A wide.
     band.wave_eff = float(
         np.trapezoid(wavelength * transmission, wavelength)
         / np.trapezoid(transmission, wavelength)
@@ -55,8 +51,8 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
 
-if len(additional_bandpasses_names) > 0:
-    log(f"registered custom bandpasses: {additional_bandpasses_names}")
+if additional_bandpasses_names:
+    log(f"registered {len(additional_bandpasses_names)} custom bandpasses")
 
 
 def force_render_enum_markdown(values):
@@ -85,9 +81,7 @@ THUMBNAIL_TYPES = (
     "ref_gz",
     "sub_gz",
 )
-# Where an obj stands against a GCN event. "pending" means proposed (e.g. by the
-# crossmatch service) and still awaiting a scanner; "ambiguous" means a scanner
-# looked and could not decide -- reviewed, unlike pending.
+# "pending": proposed, not scanned yet. "ambiguous": scanned, but undecided.
 GCN_EVENT_OBJ_STATUSES = ("pending", "confirmed", "ambiguous", "rejected")
 
 INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
@@ -109,8 +103,7 @@ ANALYSIS_INPUT_TYPES = (
     "classifications",
 )
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
-# Scalar (non list-of-dicts) source-filter keys. group_id triggers a default
-# analysis when a source is saved to that group (see create_default_analysis_on_save).
+# Scalar (not list-of-dicts) filter keys; see create_default_analysis_on_save.
 DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int, "spectrum": str}
 AUTHENTICATION_TYPES = (
     "none",

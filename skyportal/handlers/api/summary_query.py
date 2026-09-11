@@ -11,16 +11,13 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ...models import (
-    User,
-)
+from ...models import User
 from ..base import BaseHandler
 
 _, cfg = load_env()
 log = make_log("query")
 
 
-# add in this new search method to the Pinecone class
 def search_sources(
     client: Pinecone,
     query: str,
@@ -70,22 +67,16 @@ def search_sources(
     sources = []
     for res in results["matches"]:
         try:
-            source = {
-                "id": res["id"],
-                "score": res["score"],
-                "metadata": res["metadata"],
-            }
-            sources.append(source)
+            sources.append(
+                {"id": res["id"], "score": res["score"], "metadata": res["metadata"]}
+            )
         except Exception as e:
             log(f"Error: {e}")
-            continue
     return sources
 
 
 pinecone_client = None
 
-# Preamble: get the embeddings and summary parameters ready
-# for now, we only support pinecone embeddings
 summarize_embedding_config = cfg[
     "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
@@ -109,19 +100,14 @@ if (
         index.name for index in pinecone_client.list_indexes().indexes
     ]:
         USE_PINECONE = True
-else:
-    if cfg["database.database"] == "skyportal_test":
-        USE_PINECONE = True
-        log("Setting USE_PINECONE=True as it seems like we are in a test environment")
-    else:
-        log("No valid pinecone configuration found. Please check the config file.")
+elif cfg["database.database"] == "skyportal_test":
+    USE_PINECONE = True
+    log("Setting USE_PINECONE=True as it seems like we are in a test environment")
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
-    # there may be a global API key set in the config file
     openai_api_key = summary_config.pop("api_key")
 elif os.path.exists(".secret"):
-    # try to get this key from the dev environment, useful for debugging
     openai_api_key = yaml.safe_load(open(".secret")).get("OPENAI_API_KEY")
 elif cfg["database.database"] == "skyportal_test":
     openai_api_key = "TEST_KEY"
@@ -206,10 +192,9 @@ class SummaryQueryHandler(BaseHandler):
                 if user.preferences is not None and user.preferences.get(
                     "summary", {}
                 ).get("OpenAI", {}).get("active", False):
-                    user_pref_openai = user.preferences["summary"]["OpenAI"].get(
+                    user_openai_key = user.preferences["summary"]["OpenAI"].get(
                         "apikey"
                     )
-                    user_openai_key = user_pref_openai["apikey"]
         else:
             user_openai_key = openai_api_key
         if not user_openai_key:
@@ -217,48 +202,33 @@ class SummaryQueryHandler(BaseHandler):
 
         query = body.q
         objID = body.objID
-        if query in [None, ""] and objID in [None, ""]:
+        if not query and not objID:
             return self.error('Missing one of the required: "q" or "objID"')
         if query is not None and objID is not None:
             return self.error('Cannot specify both "q" and "objID"')
 
-        search_by_string = query not in [None, ""]
         k = body.k
         if k < 1 or k > 100:
             return self.error("k must be 1<=k<=100")
-        z_min = body.z_min
-        z_max = body.z_max
+        z_min, z_max = body.z_min, body.z_max
         if z_min is not None and z_max is not None and z_min > z_max:
             return self.error("z_min must be <= z_max")
-        classification_types = body.classificationTypes
 
-        # construct the filter
-        if z_min is not None and z_max is None:
-            z_filt = {"redshift": {"$gte": z_min}}
-        elif z_min is None and z_max is not None:
-            z_filt = {"redshift": {"$lte": z_max}}
-        elif z_min is not None and z_max is not None:
-            z_filt = {
-                "$and": [{"redshift": {"$gte": z_min}}, {"redshift": {"$lte": z_max}}]
-            }
-        else:
-            z_filt = None
-        if classification_types not in [None, []]:
-            class_filt = {"class": {"$in": classification_types}}
-        else:
-            class_filt = None
-
-        if class_filt is not None and z_filt is not None:
-            filt = {"$and": [class_filt, z_filt]}
-        elif class_filt is not None:
-            filt = class_filt
-        elif z_filt is not None:
-            filt = z_filt
-        else:
+        filters = []
+        if z_min is not None:
+            filters.append({"redshift": {"$gte": z_min}})
+        if z_max is not None:
+            filters.append({"redshift": {"$lte": z_max}})
+        if body.classificationTypes:
+            filters.append({"class": {"$in": body.classificationTypes}})
+        if not filters:
             filt = {}
+        elif len(filters) == 1:
+            filt = filters[0]
+        else:
+            filt = {"$and": filters}
 
-        if search_by_string:
-            # get the top k sources
+        if query:
             try:
                 results = search_sources(
                     pinecone_client,
@@ -272,8 +242,6 @@ class SummaryQueryHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Could not search sources: {e}")
         else:
-            # search by objID. Will return an empty list if objID not in
-            # vector database.
             try:
                 index = pinecone_client.Index(summarize_embedding_index_name)
                 query_response = index.query(
