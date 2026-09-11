@@ -339,6 +339,8 @@ app:
       component: analysis/AnalysisServicePage
     - path: "/analysis_requests"
       component: analysis/AnalysisRequestPage
+    - path: "/observation_plan_requests"
+      component: observation_plan/ObservationPlanRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -408,6 +410,10 @@ app:
         - name: Analysis Requests
           icon: Analytics
           url: /analysis_requests
+
+        - name: Observation Plans
+          icon: Assignment
+          url: /observation_plan_requests
 
         - name: Data Requests
           icon: LockOpen

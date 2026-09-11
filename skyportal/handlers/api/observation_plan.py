@@ -1156,6 +1156,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
         else:
             options = [
@@ -1165,6 +1166,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
 
         async with self.AsyncSession() as session:
@@ -1333,7 +1335,20 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plan_requests = result.unique().all()
 
             info = {}
-            info["requests"] = [req.to_dict() for req in observation_plan_requests]
+            # The status page lists requests across every event, so it needs the
+            # event and instrument named on each row rather than as ids to chase.
+            info["requests"] = [
+                {
+                    **req.to_dict(),
+                    "dateobs": req.gcnevent.dateobs if req.gcnevent else None,
+                    "instrument_name": (
+                        req.allocation.instrument.name
+                        if req.allocation and req.allocation.instrument
+                        else None
+                    ),
+                }
+                for req in observation_plan_requests
+            ]
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 
