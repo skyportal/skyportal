@@ -75,4 +75,4 @@ def test_non_admin_cannot_grant_roles(view_only_token, user):
         data={"roleIds": ["Group admin"]},
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403

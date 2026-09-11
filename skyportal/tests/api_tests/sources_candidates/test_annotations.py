@@ -297,7 +297,7 @@ def test_cannot_add_annotation_without_permission(view_only_token, public_source
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 

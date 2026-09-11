@@ -76,4 +76,4 @@ def test_non_admin_cannot_grant_acls(view_only_token, user):
         data={"aclIds": ["Annotate"]},
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403

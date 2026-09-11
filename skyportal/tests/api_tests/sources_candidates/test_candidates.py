@@ -1905,7 +1905,7 @@ def test_bulk_delete_old_unsaved_candidates(
 
     # non-admins cannot call the purge
     status, data = api("POST", "candidates/bulk_delete", data={}, token=view_only_token)
-    assert status == 401
+    assert status == 403
 
     # dry run deletes nothing but reports the old, unsaved candidate
     status, data = api(

@@ -50,7 +50,7 @@ def test_requeue_requires_manage_gcns(
     status, data = api(
         "POST", f"gcn_event/{dateobs}/crossmatch", token=view_only_token_group2
     )
-    assert status in (400, 401, 403), data
+    assert status in (400, 403), data
 
     status, data = api(
         "POST", f"gcn_event/{dateobs}/crossmatch", token=super_admin_token

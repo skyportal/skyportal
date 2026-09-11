@@ -207,4 +207,4 @@ def test_vetting_needs_only_access_to_the_event(
     status, _ = api(
         "DELETE", f"sources_in_gcn/{dateobs}/{source_id}", token=view_only_token
     )
-    assert status == 401
+    assert status == 403

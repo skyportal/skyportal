@@ -899,7 +899,7 @@ def test_gcn_tach(
     aliases_len = len(data["aliases"])
 
     status, data = api("POST", f"gcn_event/{dateobs}/tach", token=view_only_token)
-    assert status == 401
+    assert status == 403
 
     status, data = api("POST", f"gcn_event/{dateobs}/tach", token=super_admin_token)
     assert status == 200
@@ -1034,7 +1034,7 @@ def test_gcn_allocation_triggers(
         data={"triggered": True},
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
 
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
     assert status == 200
@@ -1915,14 +1915,14 @@ def test_gcn_event_summary(super_admin_token, view_only_token):
     assert data["data"]["summary"] is None
     assert len(data["data"]["summary_history"]) == 3
 
-    # A read-only token has no "Manage GCNs" ACL, so the decorator answers 401.
+    # A read-only token has no "Manage GCNs" ACL, so the decorator answers 403.
     status, _ = api(
         "PATCH",
         f"gcn_event/{dateobs}",
         data={"summary": "Not allowed."},
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
 
 
 def test_gcn_event_patch_without_a_summary(super_admin_token):
