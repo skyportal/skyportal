@@ -76,6 +76,10 @@ app:
   thread_pool_size:
 
   observation_plan:
+    # Plan groups scheduled at once. One is the historical behaviour: a slow
+    # scheduler then holds up every request behind it. Each worker costs a
+    # scheduler process, so match this to spare cores, not to queue depth.
+    max_concurrent: 1
     default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
     use_parallel: False
@@ -335,6 +339,8 @@ app:
       component: analysis/AnalysisServicePage
     - path: "/analysis_requests"
       component: analysis/AnalysisRequestPage
+    - path: "/observation_plan_requests"
+      component: observation_plan/ObservationPlanRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -404,6 +410,10 @@ app:
         - name: Analysis Requests
           icon: Analytics
           url: /analysis_requests
+
+        - name: Observation Plans
+          icon: Assignment
+          url: /observation_plan_requests
 
         - name: Data Requests
           icon: LockOpen

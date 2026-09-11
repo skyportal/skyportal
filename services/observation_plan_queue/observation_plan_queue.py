@@ -1,7 +1,9 @@
 import asyncio
 import itertools
+import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 import arrow
 import sqlalchemy as sa
@@ -9,7 +11,7 @@ import sqlalchemy as sa
 from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import init_db
+from baselayer.app.models import init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import (
     post_survey_efficiency_analysis,
@@ -31,6 +33,15 @@ init_db(**cfg["database"])
 # Defensive guardrail so a stuck query can't wedge a backend. SET LOCAL keeps it
 # scoped to the transaction, so it can't leak onto a pgbouncer-pooled connection.
 STATEMENT_TIMEOUT = "120s"
+
+# How many plan groups may be scheduled at once. One keeps the historical
+# behaviour; raising it stops a slow scheduler (a MILP solver runs to its own
+# time limit) from holding up every other request behind it. Each worker costs
+# a scheduler process and its database sessions, so this tracks the cores the
+# deployment can spare, not the queue depth.
+MAX_CONCURRENT = max(
+    1, int((cfg["app.observation_plan"] or {}).get("max_concurrent", 1))
+)
 
 
 def set_statement_timeout(session):
@@ -175,10 +186,179 @@ def prioritize_requests(requests):
         return 0
 
 
+def process_group(api, rids, is_combined, dateobs_list):
+    """Run one claimed group to completion: submit it, settle the request
+    status, then the default plan's auto-send and survey efficiencies.
+
+    Runs on a worker thread and opens its own sessions, so nothing here is
+    shared with the claiming loop.
+    """
+    plan_ids = []
+    # 2. Slow work (no txn open): submit runs on its own async session.
+    try:
+        if is_combined:
+
+            async def _submit_multiple(api=api, rids=rids):
+                async with models.async_plain_session_factory() as s:
+                    return await api.submit_multiple(rids, s, asynchronous=False)
+
+            plan_ids = asyncio.run(_submit_multiple())
+        else:
+
+            async def _submit(api=api, rid=rids[0]):
+                async with models.async_plain_session_factory() as s:
+                    return await api.submit(rid, s, asynchronous=False)
+
+            plan_ids = [asyncio.run(_submit())]
+    except Exception as e:
+        traceback.print_exc()
+        if is_combined:
+            log(f"Error processing combined plans: {rids}: {str(e)}")
+        else:
+            log(f"Error processing observation plan: {e.args[0] if e.args else e}")
+        mark_failed(rids)
+        time.sleep(2)
+        return
+
+    # 3. Short write txn: submit committed the status on its own session,
+    # so re-fetch (populate_existing) and advance running -> complete, then
+    # push the frontend refresh.
+    with DBSession() as session:
+        set_statement_timeout(session)
+        for rid in rids:
+            plan_request = session.scalar(
+                sa.select(ObservationPlanRequest)
+                .where(ObservationPlanRequest.id == rid)
+                .execution_options(populate_existing=True)
+            )
+            if plan_request is None:
+                continue
+            log(f"Plan {rid} status: {plan_request.status}")
+            if plan_request.status == "running":
+                plan_request.status = "complete"
+        session.commit()
+
+    try:
+        flow = Flow()
+        for dateobs in dateobs_list:
+            flow.push(
+                "*",
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+    except Exception as e:
+        log(f"Error refreshing observation plan requests on the frontend: {e}")
+
+    log(f"Generated plans: {plan_ids}")
+
+    # 4. Per-plan post-processing (auto-send + survey efficiency). Same
+    # split: snapshot in a short txn, then run the async calls with no txn.
+    for id in plan_ids:
+        try:
+            with DBSession() as session:
+                set_statement_timeout(session)
+                plan = session.scalars(
+                    sa.select(EventObservationPlan).where(
+                        EventObservationPlan.id == int(id)
+                    )
+                ).first()
+                if plan is None:
+                    continue
+                default = plan.observation_plan_request.payload.get("default", None)
+                if default is None:
+                    continue
+                defaultobsplanrequest = session.scalars(
+                    sa.select(DefaultObservationPlanRequest).where(
+                        DefaultObservationPlanRequest.id == int(default)
+                    )
+                ).first()
+                if defaultobsplanrequest is None:
+                    continue
+                obsplan_request_id = plan.observation_plan_request.id
+                auto_send = defaultobsplanrequest.auto_send
+                survey_eff_data_list = [
+                    se.to_dict()
+                    for se in defaultobsplanrequest.default_survey_efficiencies
+                ]
+
+            if auto_send:
+                # bridge to the async impl on a fresh async session
+                async def _send(rid=obsplan_request_id, default=default):
+                    async with models.async_plain_session_factory() as s:
+                        await send_observation_plan(
+                            rid,
+                            s,
+                            auto_send=True,
+                            default_obsplan_id=default,
+                        )
+
+                asyncio.run(_send())
+
+            for survey_eff_data in survey_eff_data_list:
+                try:
+
+                    async def _post_eff(
+                        data=survey_eff_data,
+                        rid=obsplan_request_id,
+                    ):
+                        async with models.async_plain_session_factory() as s:
+                            await post_survey_efficiency_analysis(
+                                data,
+                                rid,
+                                1,
+                                s,
+                                asynchronous=False,
+                            )
+
+                    asyncio.run(_post_eff())
+                except Exception as e:
+                    if "Need at least one observation to evaluate efficiency" in str(e):
+                        log(
+                            f"Error processing default survey efficiency for plan {id}: {e}"
+                        )
+                    else:
+                        raise e
+        except Exception as e:
+            traceback.print_exc()
+            log(
+                f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
+            )
+            time.sleep(2)
+
+
+def run_claimed(slots, lock, inflight, api, rids, is_combined, dateobs_list):
+    """Worker entry: always release the slot and the claim, however it ends.
+
+    DBSession is scoped on a ContextVar that a new thread does not inherit, so
+    every worker would otherwise share the one session belonging to the default
+    (None) scope. Naming the scope per group gives each worker its own.
+    """
+    token = session_context_id.set(f"obsplan-{rids[0]}")
+    try:
+        process_group(api, rids, is_combined, dateobs_list)
+    except Exception as e:
+        traceback.print_exc()
+        log(f"Error processing observation plan group {rids}: {e}")
+    finally:
+        DBSession.remove()
+        session_context_id.reset(token)
+        with lock:
+            inflight.difference_update(rids)
+        slots.release()
+
+
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    log("Starting observation plan queue.")
+    log(f"Starting observation plan queue ({MAX_CONCURRENT} concurrent).")
+    inflight: set[int] = set()
+    inflight_lock = threading.Lock()
+    slots = threading.Semaphore(MAX_CONCURRENT)
+    pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT, thread_name_prefix="obsplan")
     while True:
+        # Claiming only once a worker is free keeps a request in "pending
+        # submission" until something can actually start it.
+        slots.acquire()
+        claimed = False
         try:
             # 1. Read/claim (short txn): pick the plan(s) to process and snapshot
             # everything the slow submit + later refresh need, then release the
@@ -205,6 +385,10 @@ def service(*args, **kwargs):
                         ),
                     )
                 )
+                with inflight_lock:
+                    busy = set(inflight)
+                if busy:
+                    stmt = stmt.where(ObservationPlanRequest.id.notin_(busy))
                 single_requests = session.scalars(stmt).unique().all()
 
                 # reprocessing plans that were marked as running before (and probably stuck in that state)
@@ -240,7 +424,6 @@ def service(*args, **kwargs):
                 ]
 
                 if len(requests) == 0:
-                    time.sleep(5)
                     continue
 
                 log(f"Prioritizing {len(requests)} observation plan requests...")
@@ -255,149 +438,29 @@ def service(*args, **kwargs):
                 rids = [pr.id for pr in plan_requests]
                 dateobs_list = list({pr.gcnevent.dateobs for pr in plan_requests})
 
-            # 2. Slow work (no txn open): submit runs on its own async session.
-            try:
-                if is_combined:
-
-                    async def _submit_multiple(api=api, rids=rids):
-                        async with models.async_plain_session_factory() as s:
-                            return await api.submit_multiple(
-                                rids, s, asynchronous=False
-                            )
-
-                    plan_ids = asyncio.run(_submit_multiple())
-                else:
-
-                    async def _submit(api=api, rid=rids[0]):
-                        async with models.async_plain_session_factory() as s:
-                            return await api.submit(rid, s, asynchronous=False)
-
-                    plan_ids = [asyncio.run(_submit())]
-            except Exception as e:
-                traceback.print_exc()
-                if is_combined:
-                    log(f"Error processing combined plans: {rids}: {str(e)}")
-                else:
-                    log(
-                        f"Error processing observation plan: {e.args[0] if e.args else e}"
-                    )
-                mark_failed(rids)
-                time.sleep(2)
-                continue
-
-            # 3. Short write txn: submit committed the status on its own session,
-            # so re-fetch (populate_existing) and advance running -> complete, then
-            # push the frontend refresh.
-            with DBSession() as session:
-                set_statement_timeout(session)
-                for rid in rids:
-                    plan_request = session.scalar(
-                        sa.select(ObservationPlanRequest)
-                        .where(ObservationPlanRequest.id == rid)
-                        .execution_options(populate_existing=True)
-                    )
-                    if plan_request is None:
-                        continue
-                    log(f"Plan {rid} status: {plan_request.status}")
-                    if plan_request.status == "running":
-                        plan_request.status = "complete"
-                session.commit()
-
-            try:
-                flow = Flow()
-                for dateobs in dateobs_list:
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                        payload={"gcnEvent_dateobs": dateobs},
-                    )
-            except Exception as e:
-                log(f"Error refreshing observation plan requests on the frontend: {e}")
-
-            log(f"Generated plans: {plan_ids}")
-
-            # 4. Per-plan post-processing (auto-send + survey efficiency). Same
-            # split: snapshot in a short txn, then run the async calls with no txn.
-            for id in plan_ids:
-                try:
-                    with DBSession() as session:
-                        set_statement_timeout(session)
-                        plan = session.scalars(
-                            sa.select(EventObservationPlan).where(
-                                EventObservationPlan.id == int(id)
-                            )
-                        ).first()
-                        if plan is None:
-                            continue
-                        default = plan.observation_plan_request.payload.get(
-                            "default", None
-                        )
-                        if default is None:
-                            continue
-                        defaultobsplanrequest = session.scalars(
-                            sa.select(DefaultObservationPlanRequest).where(
-                                DefaultObservationPlanRequest.id == int(default)
-                            )
-                        ).first()
-                        if defaultobsplanrequest is None:
-                            continue
-                        obsplan_request_id = plan.observation_plan_request.id
-                        auto_send = defaultobsplanrequest.auto_send
-                        survey_eff_data_list = [
-                            se.to_dict()
-                            for se in defaultobsplanrequest.default_survey_efficiencies
-                        ]
-
-                    if auto_send:
-                        # bridge to the async impl on a fresh async session
-                        async def _send(rid=obsplan_request_id, default=default):
-                            async with models.async_plain_session_factory() as s:
-                                await send_observation_plan(
-                                    rid,
-                                    s,
-                                    auto_send=True,
-                                    default_obsplan_id=default,
-                                )
-
-                        asyncio.run(_send())
-
-                    for survey_eff_data in survey_eff_data_list:
-                        try:
-
-                            async def _post_eff(
-                                data=survey_eff_data,
-                                rid=obsplan_request_id,
-                            ):
-                                async with models.async_plain_session_factory() as s:
-                                    await post_survey_efficiency_analysis(
-                                        data,
-                                        rid,
-                                        1,
-                                        s,
-                                        asynchronous=False,
-                                    )
-
-                            asyncio.run(_post_eff())
-                        except Exception as e:
-                            if (
-                                "Need at least one observation to evaluate efficiency"
-                                in str(e)
-                            ):
-                                log(
-                                    f"Error processing default survey efficiency for plan {id}: {e}"
-                                )
-                            else:
-                                raise e
-                except Exception as e:
-                    traceback.print_exc()
-                    log(
-                        f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
-                    )
-                    time.sleep(2)
-
+            # 2. Hand the claimed group to a worker; the semaphore was acquired
+            # before the claim, so this never queues more than MAX_CONCURRENT.
+            with inflight_lock:
+                inflight.update(rids)
+            pool.submit(
+                run_claimed,
+                slots,
+                inflight_lock,
+                inflight,
+                api,
+                rids,
+                is_combined,
+                dateobs_list,
+            )
+            claimed = True
         except Exception as e:
             log(f"Error occured processing the observation plan queue: {e}")
             time.sleep(2)
+        finally:
+            # a worker releases its own slot; anything else is still ours
+            if not claimed:
+                slots.release()
+                time.sleep(5)
 
 
 if __name__ == "__main__":

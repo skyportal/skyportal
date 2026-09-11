@@ -127,7 +127,7 @@ brokers-all = ["skyportal[pittgoogle]"]
 m4opt = [
     # Pinned to a commit: the fork's main is a deployment snapshot that gets
     # re-cut as the upstream PRs land, so the branch name moves under you.
-    "m4opt[scip] @ git+https://github.com/skyportal/m4opt@5bba6e4",
+    "m4opt[scip] @ git+https://github.com/skyportal/m4opt@9ca530e",
 ]
 
 [dependency-groups]

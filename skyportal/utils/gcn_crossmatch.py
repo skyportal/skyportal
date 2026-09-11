@@ -796,7 +796,13 @@ async def newest_localization(session, user, dateobs):
     return await session.scalar(
         Localization.select(
             user,
-            options=[undefer(Localization.uniq), undefer(Localization.probdensity)],
+            options=[
+                undefer(Localization.uniq),
+                undefer(Localization.probdensity),
+                # a skymap-named localization bounds its cone from the contour,
+                # which is deferred and cannot lazy-load in an async session
+                undefer(Localization.contour),
+            ],
         )
         .where(Localization.dateobs == dateobs)
         .order_by(Localization.created_at.desc())
@@ -895,6 +901,7 @@ async def run_cycle(config=None, user_id=1):
                             # lazy load in an async session raises MissingGreenlet
                             undefer(Localization.uniq),
                             undefer(Localization.probdensity),
+                            undefer(Localization.contour),
                             undefer(Localization.distmu),
                             undefer(Localization.distsigma),
                             undefer(Localization.distnorm),
