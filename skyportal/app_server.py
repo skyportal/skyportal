@@ -278,7 +278,7 @@ from skyportal.handlers.public import (
 )
 
 from . import model_util, openapi
-from .models import DBSession, init_db
+from .models import db_engine, init_db
 from .utils.observability import setup_observability
 
 log = make_log("app_server")
@@ -875,7 +875,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     # create_tables() is a no-op outside debug mode, so an unmigrated database
     # reaches this point empty and every later step fails on a missing table or
     # type -- once per worker, on every supervisor restart. Say so instead.
-    if not sa.inspect(DBSession.session_factory.kw["bind"]).has_table("users"):
+    if not sa.inspect(db_engine()).has_table("users"):
         raise RuntimeError(
             "No tables found in the database. Create the schema first: "
             "`make db_create_tables` (or `alembic upgrade head` where "
