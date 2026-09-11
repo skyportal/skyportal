@@ -287,7 +287,10 @@ def test_gcn_summary_observations(
 
         assert data["data"]["gcnevent_id"] == gcnevent_id
         assert data["data"]["allocation_id"] == allocation_id
-        assert data["data"]["payload"] == request_data["payload"]
+        stored = dict(data["data"]["payload"])
+        # the server records which skymap the plan was made from
+        assert stored.pop("localization_name", None) is not None
+        assert stored == request_data["payload"]
 
         assert len(data["data"]["observation_plans"]) == 1
 

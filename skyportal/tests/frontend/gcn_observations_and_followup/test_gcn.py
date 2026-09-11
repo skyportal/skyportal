@@ -443,7 +443,10 @@ def test_gcn_summary_observations(
                 and d["allocation_id"] == allocation_id
             ]
             assert len(data) == 1
-            assert data[0]["payload"] == request_data["payload"]
+            stored = dict(data[0]["payload"])
+            # the server records which skymap the plan was made from
+            assert stored.pop("localization_name", None) is not None
+            assert stored == request_data["payload"]
             assert len(data[0]["observation_plans"]) == 1
             break
         except AssertionError:
