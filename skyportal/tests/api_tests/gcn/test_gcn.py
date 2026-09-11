@@ -1915,8 +1915,7 @@ def test_gcn_event_summary(super_admin_token, view_only_token):
     assert data["data"]["summary"] is None
     assert len(data["data"]["summary_history"]) == 3
 
-    # A read-only token cannot write one: the update-mode select raises
-    # AccessError, which baselayer answers with a 401.
+    # A read-only token has no "Manage GCNs" ACL, so the decorator answers 401.
     status, _ = api(
         "PATCH",
         f"gcn_event/{dateobs}",
