@@ -18,18 +18,10 @@ _, cfg = load_env()
 
 
 class BrokerCredential(Base):
-    """One user's own credentials for a broker.
+    """One user's own credentials for a broker: a broker is admin-owned, but an
+    upstream account is personal (a Lasair filter can be private to the account
+    that owns it)."""
 
-    A broker is shared infrastructure and only system admins configure it, but
-    an upstream account is personal: a Lasair filter can be private to the
-    account that owns it, visible neither to the broker's shared account nor to
-    any other user. Storing those credentials here rather than in
-    ``Broker.altdata`` keeps them out of a blob that admins read and edit, and
-    the API redacts secrets by dotted dict path, so a list of accounts inside
-    ``altdata`` could not be redacted at all.
-    """
-
-    # A credential belongs to the user who created it, and to nobody else.
     create = read = update = delete = AccessibleIfUserMatches("user")
 
     broker_id = sa.Column(
@@ -51,7 +43,7 @@ class BrokerCredential(Base):
         nullable=False,
         server_default="[]",
         doc="Stream topics this account can read, e.g. the user's private Lasair "
-        "filters. Not secret, so stored alongside rather than in altdata.",
+        "filters. Not secret, so stored outside altdata.",
     )
 
     topic_filter_ids = sa.Column(
@@ -86,14 +78,10 @@ class BrokerCredential(Base):
         self._altdata = json.dumps(value) if value is not None else None
 
     def as_credential_set(self, label=None):
-        """This row in the shape the ingestion loop consumes.
-
-        The connection details stay with the broker; only identity and routing
-        are personal.
-        """
+        """This row in the shape the ingestion loop consumes: identity and routing
+        only, the connection details stay with the broker."""
         altdata = self.altdata
-        # Stored flat, as the provider's credential form declares them; the
-        # stream fields are grouped here for the consumer config.
+        # Stored flat, as the credential form declares them; grouped for the consumer.
         kafka = {
             key: altdata[key] for key in ("username", "password") if altdata.get(key)
         }

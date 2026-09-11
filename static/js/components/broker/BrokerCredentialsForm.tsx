@@ -23,15 +23,8 @@ import {
 const errorText = (e: unknown, fallback: string) =>
   (e as { data?: { message?: string } })?.data?.message ?? fallback;
 
-/**
- * A user's own credentials for a broker.
- *
- * A broker is configured by admins, but an upstream account is personal: a
- * private filter is visible only to the account that owns it. The fields come
- * from the provider's `user_credential_schema`, so a provider can add its own
- * without changing this. Secrets are write-only: the API reports which are set
- * but never what they are, so those fields start blank even when stored.
- */
+// The fields come from the provider's `user_credential_schema`. Secrets are
+// write-only: the API reports which are set, never what they are.
 const BrokerCredentialsForm = ({
   brokerId,
   brokerClassname,
@@ -65,14 +58,12 @@ const BrokerCredentialsForm = ({
     text: string;
   } | null>(null);
 
-  // Only the non-secret values come back, so only they prefill.
   useEffect(() => {
     setFormData(stored?.credentials ?? {});
     setTopics(stored?.topics ?? []);
   }, [stored]);
 
-  // Asked for on open rather than on mount: it costs a round trip to the
-  // broker, and most visits to this tab are not editing topics.
+  // On open rather than on mount: it costs a round trip to the broker.
   const loadTopics = async () => {
     if (available.length) return;
     try {
@@ -92,7 +83,6 @@ const BrokerCredentialsForm = ({
         brokerId,
         patch: { credentials: formData, topics },
       }).unwrap();
-      // Drop whatever secrets were typed; they are not readable back.
       setFormData(stored?.credentials ?? {});
       setMessage({ severity: "success", text: "Credentials saved." });
     } catch (e) {

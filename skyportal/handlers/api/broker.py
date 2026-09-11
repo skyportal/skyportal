@@ -176,11 +176,8 @@ class BrokerSaveBody(BaseModel):
 
 
 class BrokerCredentialBody(BaseModel):
-    """A user's own credentials for a broker.
-
-    ``credentials`` holds whatever the provider's ``user_credential_schema``
-    declares, so a provider can add fields without changing this.
-    """
+    """A user's own credentials for a broker. ``credentials`` holds whatever the
+    provider's ``user_credential_schema`` declares."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -1845,13 +1842,8 @@ class BrokerFilterAttachHandler(BaseHandler):
 
 
 class BrokerCredentialHandler(BaseHandler):
-    """A user's own credentials for a broker.
-
-    A broker is admin-owned, but an upstream account is personal: a private
-    filter is visible only to the account that owns it. These are set by the
-    user and never handed back, so nobody else, admins included, reads them
-    through the API.
-    """
+    """A user's own credentials for a broker: set by the user and never handed
+    back, so nobody else, admins included, reads them through the API."""
 
     @auth_or_token
     async def get(self, broker_id: int, action: str | None = None):
@@ -1914,8 +1906,7 @@ class BrokerCredentialHandler(BaseHandler):
                     "broker_id": row.broker_id,
                     "topics": row.topics or [],
                     "topic_filter_ids": row.topic_filter_ids or {},
-                    # Secrets report presence only; the rest come back as stored
-                    # so the form can prefill them.
+                    # Secrets report presence only; the rest prefill the form.
                     "credentials": {
                         k: v for k, v in altdata.items() if k not in secret_fields
                     },
@@ -1968,8 +1959,7 @@ class BrokerCredentialHandler(BaseHandler):
             if params.replace_credentials:
                 altdata = dict(incoming)
             else:
-                # A blank value keeps what is stored, so a form that never
-                # receives secrets can still edit the fields around them.
+                # A blank value keeps what is stored, as merge_altdata does.
                 altdata = dict(row.altdata)
                 altdata.update(
                     {k: v for k, v in incoming.items() if v not in (None, "")}
@@ -1977,8 +1967,7 @@ class BrokerCredentialHandler(BaseHandler):
             row.altdata = altdata
 
             if params.topics is not None:
-                # A topic that does not exist subscribes fine and then stays
-                # silent, so check before storing rather than after ingesting.
+                # A topic that does not exist subscribes fine and stays silent.
                 lister = getattr(broker.broker_class, "available_topics", None)
                 if params.topics and lister is not None:
                     try:

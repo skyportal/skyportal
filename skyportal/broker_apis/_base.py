@@ -46,9 +46,7 @@ class _Base:
         caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 
-    # Per-user credentials, for a broker whose upstream account is personal (a
-    # private filter is visible only to the account that owns it). None means the
-    # provider has no such notion and the credentials tab stays hidden.
+    # None hides the credentials tab: the provider has no per-user account.
     user_credential_schema = None
     user_credential_ui_schema = None
 
@@ -88,11 +86,8 @@ class _Base:
 
     @classmethod
     def user_credential_secret_fields(cls):
-        """Keys of the per-user credential form that hold secrets.
-
-        Derived the same way as ``secret_config_fields``: whatever the form
-        renders as a password is what must never be read back.
-        """
+        """Keys of the per-user credential form that hold secrets, derived like
+        ``secret_config_fields``: whatever the form renders as a password."""
         return [
             key
             for key, value in (cls.user_credential_ui_schema or {}).items()

@@ -1463,12 +1463,9 @@ def test_lasair_ingestion_uses_kafka_when_configured(monkeypatch):
 
     seen = {}
 
-    async def fake_kafka(
-        broker, survey, stop=None, max_messages=None, credentials=None
-    ):
+    async def fake_kafka(broker, survey, stop=None, max_messages=None):
         seen["survey"] = survey
         seen["topics"] = (broker.altdata["kafka"] or {}).get("topics")
-        seen["credentials"] = credentials
         return 7
 
     async def no_user_credentials(broker):
@@ -1501,10 +1498,8 @@ def test_lasair_ingestion_uses_kafka_for_user_topics_alone(monkeypatch):
 
     seen = {}
 
-    async def fake_kafka(
-        broker, survey, stop=None, max_messages=None, credentials=None
-    ):
-        seen["credentials"] = credentials
+    async def fake_kafka(broker, survey, stop=None, max_messages=None):
+        seen["survey"] = survey
         return 7
 
     async def one_user_credential(broker):
@@ -1522,7 +1517,89 @@ def test_lasair_ingestion_uses_kafka_for_user_topics_alone(monkeypatch):
     )
     count = asyncio.run(LASAIRBROKER.run_ingestion(broker, max_messages=1))
     assert count == 7, "the Kafka path was not taken"
-    assert seen["credentials"] == [{"label": "user3", "topics": ["lasair_9private"]}]
+    assert seen["survey"] == "LSST"
+
+
+def test_lasair_kafka_picks_up_a_new_account(monkeypatch):
+    """A user registering an account mid-run gets a consumer without the service
+    being restarted, and one that goes away is stopped."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    consumed = []
+    accounts = [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
+
+    async def fake_user_sets(broker):
+        return list(accounts)
+
+    async def fake_consume(broker, survey, credentials, budget, stop):
+        consumed.append(credentials["label"])
+        await stop.wait()
+
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_consume_set", fake_consume)
+    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.01)
+    broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
+
+    async def scenario():
+        stop = asyncio.Event()
+        run = asyncio.create_task(
+            lasair_mod._run_kafka_ingestion(broker, "LSST", stop=stop)
+        )
+        while "camille" not in consumed:
+            await asyncio.sleep(0.01)
+        accounts.append({"label": "alex", "topics": ["lasair_4b"], "kafka": {}})
+        while "alex" not in consumed:
+            await asyncio.sleep(0.01)
+        accounts.pop(0)
+        await asyncio.sleep(0.1)
+        stop.set()
+        await asyncio.wait_for(run, timeout=5)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+    assert consumed == ["camille", "alex"], consumed
+
+
+def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
+    """A consumer that fails on connect is retried rather than lost, but paced,
+    so a misconfigured account does not burn a core."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    starts = []
+
+    def crashing(broker, survey, credentials, budget, stop):
+        starts.append(credentials["label"])
+
+        async def run():
+            raise RuntimeError("connect failed")
+
+        return run()
+
+    async def fake_user_sets(broker):
+        return [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
+
+    monkeypatch.setattr(lasair_mod, "_consume_set", crashing)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.05)
+    monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.05)
+    broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
+
+    async def scenario():
+        stop = asyncio.Event()
+        run = asyncio.create_task(
+            lasair_mod._run_kafka_ingestion(broker, "LSST", stop=stop)
+        )
+        await asyncio.sleep(0.3)
+        stop.set()
+        await asyncio.wait_for(run, timeout=5)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+    assert 1 < len(starts) < 20, len(starts)
 
 
 def test_lasair_stream_selected_only_when_topics_configured():

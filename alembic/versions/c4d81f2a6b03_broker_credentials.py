@@ -1,8 +1,5 @@
 """Per-user broker credentials
 
-A user's upstream account (e.g. a Lasair account owning private filters) is
-personal, so it cannot live in the admin-owned ``brokers.altdata``.
-
 Revision ID: c4d81f2a6b03
 Revises: c3a8f1d27b94
 Create Date: 2026-09-11

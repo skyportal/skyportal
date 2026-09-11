@@ -39,12 +39,9 @@ def read_avro(value):
 
 
 def list_topics(kafka, default_group, timeout=10.0):
-    """Topic names the cluster reports for these credentials.
-
-    Asking the broker beats trusting what a user typed: a topic that does not
-    exist yields a consumer that subscribes successfully and then sits silent
-    forever, which looks identical to a filter that matched nothing.
-    """
+    """Topic names the cluster reports for these credentials. Subscribing to a
+    topic that does not exist succeeds and then delivers nothing, so a typo is
+    only catchable by asking."""
     from confluent_kafka import Consumer
 
     consumer = Consumer(kafka_consumer_config(kafka, default_group))
