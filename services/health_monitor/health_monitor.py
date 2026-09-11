@@ -16,6 +16,8 @@ ALLOWED_TIMES_DOWN = cfg["health_monitor.allowed_times_down"]
 REQUEST_TIMEOUT_SECONDS = cfg["health_monitor.request_timeout_seconds"]
 STARTUP_GRACE_SECONDS = cfg["health_monitor.startup_grace_seconds"]
 
+ALL_BACKENDS = set(range(cfg["server.processes"]))
+
 
 class DownStatus:
     def __init__(self, nr_times=0, timestamp=None):
@@ -33,31 +35,25 @@ def migrated():
             f"http://{cfg['hosts.migration_manager']}:{cfg['ports.migration_manager']}",
             timeout=30,
         )
-        data = r.json()
-        return data["migrated"]
+        return r.json()["migrated"]
     except Exception:
         log("Migration manager not answering; assuming the database is not ready")
         return False
 
 
+def backend_is_up(app_nr):
+    try:
+        r = requests.get(
+            f"http://localhost:{cfg['ports.app_internal'] + app_nr}/api/sysinfo",
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return False
+    return r.status_code == 200
+
+
 def backends_down():
-    down = set()
-    for i in range(cfg["server.processes"]):
-        port = cfg["ports.app_internal"] + i
-        try:
-            r = requests.get(
-                f"http://localhost:{port}/api/sysinfo",
-                timeout=REQUEST_TIMEOUT_SECONDS,
-            )
-        except:  # noqa: E722
-            status_code = 0
-        else:
-            status_code = r.status_code
-
-        if status_code != 200:
-            down.add(i)
-
-    return down
+    return {app_nr for app_nr in ALL_BACKENDS if not backend_is_up(app_nr)}
 
 
 def restart_app(app_nr):
@@ -72,8 +68,7 @@ def restart_app(app_nr):
     try:
         subprocess.run(supervisorctl + cmd, check=True)
     except subprocess.CalledProcessError as e:
-        log(f"Failure calling supervisorctl; could not restart app {app_nr}")
-        log(f"Exception: {e}")
+        log(f"Could not restart app {app_nr}, supervisorctl failed: {e}")
 
 
 if __name__ == "__main__":
@@ -81,7 +76,6 @@ if __name__ == "__main__":
         f"Monitoring system health [{SECONDS_BETWEEN_CHECKS}s interval, max downtime {ALLOWED_DOWNTIME_SECONDS}s, max times down {ALLOWED_TIMES_DOWN}]"
     )
 
-    all_backends = set(range(cfg["server.processes"]))
     backends_seen = set()
     downtimes = {}
 
@@ -94,9 +88,8 @@ if __name__ == "__main__":
 
         down = backends_down()
 
-        # Update list of backends that have been seen healthy at least once.
-        # We don't start a counter against a backend until it's been seen.
-        up = all_backends - down
+        # Downtime is only counted against a backend once it has been seen healthy.
+        up = ALL_BACKENDS - down
         newly_seen = up - backends_seen
         if newly_seen:
             log(f"New healthy app(s) {newly_seen}")

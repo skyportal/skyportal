@@ -13,8 +13,7 @@ REQUEST_TIMEOUT_SECONDS = cfg["health_monitor.request_timeout_seconds"]
 
 HOST = get_app_base_url()
 
-# Probed directly, because through nginx a failed probe marks a worker down for
-# server.fail_timeout seconds.
+# Probed directly: behind nginx, a failed probe takes a worker down for server.fail_timeout.
 READINESS_PORTS = [
     cfg["ports.app_internal"] + i for i in range(cfg["server.processes"])
 ]
@@ -31,29 +30,18 @@ def is_loaded():
             continue
         if r.status_code == 200:
             return True
-
     return False
 
 
-# Decorator that defers a function until the app is loaded: when the wrapped
-# function is called, poll until the app responds, then run it (passing through
-# the args given to check_loaded, e.g. logger=log).
-#
-# The wait/run happens at *call* time rather than at decoration time so that
-# importing the module has no side effects and the decorated name stays callable.
-# (Previously this ran the function during decoration and returned None, so a
-# service whose function returned early -- e.g. on missing config -- left
-# `service` bound to None and the `service()` call in __main__ blew up with
-# "'NoneType' object is not callable" instead of exiting cleanly.)
+# Polls at call time, not at decoration time, so the decorated name stays callable.
 def check_loaded(*args, **kwargs):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*_wrapper_args, **_wrapper_kwargs):
-            while True:
-                if is_loaded():
-                    break
-                elif kwargs.get("logger") is not None and callable(kwargs["logger"]):
-                    kwargs["logger"]("Waiting for the app to start...")
+            logger = kwargs.get("logger")
+            while not is_loaded():
+                if callable(logger):
+                    logger("Waiting for the app to start...")
                 time.sleep(10)
 
             return func(*args, **kwargs)
