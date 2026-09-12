@@ -1563,8 +1563,8 @@ def test_lasair_kafka_picks_up_a_new_account(monkeypatch):
 
 
 def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
-    """A consumer that fails on connect is retried rather than lost, but paced,
-    so a misconfigured account does not burn a core."""
+    """A consumer that fails on connect is retried rather than lost, and the pause
+    grows, so an account that stays broken does not burn a core nor spam the log."""
     import asyncio
     import types
 
@@ -1585,8 +1585,8 @@ def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
 
     monkeypatch.setattr(lasair_mod, "_consume_set", crashing)
     monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
-    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.05)
-    monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.05)
+    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.02)
+    monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.02)
     broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
 
     async def scenario():
@@ -1594,12 +1594,13 @@ def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
         run = asyncio.create_task(
             lasair_mod._run_kafka_ingestion(broker, "LSST", stop=stop)
         )
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.4)
         stop.set()
         await asyncio.wait_for(run, timeout=5)
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
-    assert 1 < len(starts) < 20, len(starts)
+    # A fixed 0.02s pause would give ~20 restarts over 0.4s; doubling gives ~5.
+    assert 1 < len(starts) <= 8, len(starts)
 
 
 def test_lasair_stream_selected_only_when_topics_configured():

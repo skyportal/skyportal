@@ -38,7 +38,7 @@ const BrokerCredentialsForm = ({
   const [setCredentials, { isLoading: isSaving }] =
     useSetBrokerCredentialsMutation();
   const [deleteCredentials] = useDeleteBrokerCredentialsMutation();
-  const [fetchTopics, { isFetching: topicsLoading }] =
+  const [fetchTopics, { data: fetched, isFetching: topicsLoading }] =
     useLazyGetBrokerCredentialTopicsQuery();
 
   const provider = apis?.[brokerClassname];
@@ -46,7 +46,6 @@ const BrokerCredentialsForm = ({
 
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [topics, setTopics] = useState<string[]>([]);
-  const [available, setAvailable] = useState<string[]>([]);
   const [topicsError, setTopicsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,11 +53,10 @@ const BrokerCredentialsForm = ({
     setTopics(stored?.topics ?? []);
   }, [stored]);
 
+  // true = preferCacheValue; saving invalidates the query, so a reopen refetches.
   const loadTopics = async () => {
-    if (available.length) return;
     try {
-      const result = await fetchTopics(brokerId).unwrap();
-      setAvailable(result.topics ?? []);
+      await fetchTopics(brokerId, true).unwrap();
       setTopicsError(null);
     } catch (e) {
       setTopicsError(
@@ -141,7 +139,7 @@ const BrokerCredentialsForm = ({
         <Autocomplete
           multiple
           freeSolo
-          options={available}
+          options={fetched?.topics ?? []}
           value={topics}
           onChange={(_event, value) => setTopics(value as string[])}
           onOpen={loadTopics}

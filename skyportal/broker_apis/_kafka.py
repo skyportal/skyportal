@@ -10,7 +10,7 @@ def kafka_consumer_config(kafka, default_group):
     (host/port/group_id/username/password/sasl_mechanism/auto_offset_reset)."""
     config = {
         "bootstrap.servers": f"{kafka.get('host', 'localhost')}:{kafka.get('port', 9092)}",
-        "group.id": kafka.get("group_id", default_group),
+        "group.id": kafka.get("group_id") or default_group,
         "auto.offset.reset": kafka.get("auto_offset_reset", "earliest"),
         "security.protocol": "PLAINTEXT",
     }

@@ -567,6 +567,63 @@ def test_lasair_credential_sets():
     assert sets[0]["token"] == "shared-token"
 
 
+def test_lasair_consumer_group_is_per_account(monkeypatch):
+    """Each account gets its own consumer group even when the broker pins a
+    group_id, so one account's offsets and rebalances stay its own."""
+    import asyncio
+    import sys
+    from types import SimpleNamespace
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    configs = []
+
+    class FakeConsumer:
+        def __init__(self, config):
+            configs.append(config)
+
+        def subscribe(self, topics):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setitem(
+        sys.modules, "confluent_kafka", SimpleNamespace(Consumer=FakeConsumer)
+    )
+    broker = SimpleNamespace(id=7, altdata={"kafka": {"group_id": "pinned"}})
+    stop = asyncio.Event()
+    stop.set()
+    for label in ("shared", "user3"):
+        asyncio.run(
+            lasair_mod._consume_set(
+                broker,
+                "LSST",
+                {
+                    "label": label,
+                    "kafka": {"group_id": "pinned"},
+                    "token": "t",
+                    "topics": ["lasair_1a"],
+                    "topic_filter_ids": {},
+                    "filter_ids": [],
+                },
+                {"remaining": None},
+                stop,
+            )
+        )
+    assert [c["group.id"] for c in configs] == ["pinned-shared", "pinned-user3"]
+
+
+def test_lasair_consumer_group_defaults_per_broker_and_account(monkeypatch):
+    """With no group_id configured the group is still unique per account, and a
+    blank one does not produce an empty group.id."""
+    from skyportal.broker_apis._kafka import kafka_consumer_config
+
+    assert kafka_consumer_config({}, "fallback")["group.id"] == "fallback"
+    assert kafka_consumer_config({"group_id": ""}, "fallback")["group.id"] == "fallback"
+    assert kafka_consumer_config({"group_id": "set"}, "fallback")["group.id"] == "set"
+
+
 def test_lasair_credential_sets_without_topics():
     """No topics anywhere means nothing to consume, not a consumer on nothing."""
     from types import SimpleNamespace

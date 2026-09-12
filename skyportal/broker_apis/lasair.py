@@ -16,6 +16,7 @@ DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
 DEFAULT_TIMEOUT = 30
 CREDENTIAL_RESCAN_INTERVAL = 60
 CONSUMER_RETRY_PAUSE = 5
+CONSUMER_MAX_RETRY_PAUSE = 300
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
@@ -488,9 +489,10 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     topics = list(dict.fromkeys(list(credentials["topics"]) + list(topic_filter_ids)))
     maxtimeout = float(kafka.get("maxtimeout", 5))
 
-    default_group = f"skyportal-broker-{broker.id}-{credentials['label']}"
-    config = kafka_consumer_config(kafka, kafka.get("group_id") or default_group)
-    consumer = Consumer(config)
+    # Suffixed per account: a shared group drives another account's offsets.
+    base = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
+    group = f"{base}-{credentials['label']}"
+    consumer = Consumer(kafka_consumer_config({**kafka, "group_id": group}, group))
     consumer.subscribe(topics)
     log(
         f"Lasair Kafka ingestion (broker {broker.id}, account "
@@ -577,6 +579,7 @@ async def _run_kafka_ingestion(
     running = {}
     stops = {}
     retiring = []
+    failures = {}
     started = False
 
     def spent():
@@ -626,9 +629,15 @@ async def _run_kafka_ingestion(
             finally:
                 waiter.cancel()
             crashed = [lb for lb, task in running.items() if failed(lb, task)]
+            failures = {lb: failures.get(lb, 0) + 1 for lb in crashed}
             # Restarting a consumer that fails on connect must not busy-loop.
             if crashed and not stop.is_set():
-                await asyncio.sleep(CONSUMER_RETRY_PAUSE)
+                await asyncio.sleep(
+                    min(
+                        CONSUMER_RETRY_PAUSE * 2 ** (max(failures.values()) - 1),
+                        CONSUMER_MAX_RETRY_PAUSE,
+                    )
+                )
     finally:
         for account_stop in stops.values():
             account_stop.set()
@@ -725,9 +734,10 @@ class LASAIRBROKER(BrokerAPI):
                         "type": "string",
                         "title": "Consumer group id",
                         "description": (
-                            "Defaults to skyportal-broker-<id>. Lasair resumes a "
-                            "known group from its last delivered alert; a new group "
-                            "replays the 7-day cache, so keep this stable."
+                            "Prefix, suffixed with the account (defaults to "
+                            "skyportal-broker-<id>). Lasair resumes a known group "
+                            "from its last delivered alert; a new group replays the "
+                            "7-day cache, so keep this stable."
                         ),
                     },
                     "username": {"type": "string", "title": "SASL username"},
