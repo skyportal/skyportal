@@ -638,7 +638,7 @@ def test_run_analysis_with_correct_and_incorrect_token(
         f"obj/{public_source.id}/analysis/{analysis_service_id}",
         token=analysis_service_token,
     )
-    assert status == 401
+    assert status == 403
 
 
 def test_run_analysis_with_bad_inputs(
@@ -1122,7 +1122,7 @@ def test_upload_analysis(
         token=view_only_token,
         data=params,
     )
-    assert status == 401
+    assert status == 403
 
 
 def test_run_analysis_with_file_input(

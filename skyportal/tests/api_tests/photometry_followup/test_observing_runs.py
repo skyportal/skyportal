@@ -140,7 +140,7 @@ def test_unauthorized_user_modify_unowned_observing_run(
         "PUT", f"observing_run/{run_id}", data=new_date, token=manage_sources_token
     )
 
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 

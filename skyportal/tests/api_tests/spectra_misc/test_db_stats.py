@@ -17,7 +17,7 @@ def test_db_stats_access_denied(
     view_only_token, public_source, public_group, public_candidate, user
 ):
     status, data = api("GET", "db_stats", token=view_only_token)
-    assert status == 401
+    assert status == 403
 
 
 def test_db_stats_history(super_admin_token, public_candidate):
@@ -59,4 +59,4 @@ def test_db_stats_history_bad_arguments(super_admin_token, params, message):
 
 def test_db_stats_history_access_denied(view_only_token):
     status, data = api("GET", "db_stats/history", token=view_only_token)
-    assert status == 401
+    assert status == 403

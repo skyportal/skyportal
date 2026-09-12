@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from baselayer.app.config import load_config
-from baselayer.app.models import _resolve_pooler
+from baselayer.app.models import resolve_pooler
 
 pytestmark = pytest.mark.skipif(
     shutil.which("pgbouncer") is None, reason="pgbouncer not installed"
@@ -93,7 +93,7 @@ pidfile = {tmp_path / "pgbouncer.pid"}
 
 
 def _pooled_engine(port):
-    host, port, engine_args = _resolve_pooler(
+    host, port, engine_args = resolve_pooler(
         DB["host"],
         DB["port"],
         {},
@@ -113,7 +113,7 @@ def test_sync_query_routes_through_pooler(pgbouncer):
 
 
 def test_async_query_routes_through_pooler(pgbouncer):
-    host, port, engine_args = _resolve_pooler(
+    host, port, engine_args = resolve_pooler(
         DB["host"],
         DB["port"],
         {},

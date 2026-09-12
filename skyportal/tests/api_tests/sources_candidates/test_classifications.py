@@ -186,7 +186,7 @@ def test_cannot_add_classification_without_permission(
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 

@@ -93,7 +93,7 @@ def test_group_admin_cannot_grant_delete_user_stream_access(
     status, data = api(
         "DELETE", f"streams/{public_stream.id}/users/{user.id}", token=group_admin_token
     )
-    assert status == 401
+    assert status == 403
 
 
 def test_user_cannot_grant_self_stream_access(view_only_token, user, public_stream2):
