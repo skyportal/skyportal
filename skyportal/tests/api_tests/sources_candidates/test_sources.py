@@ -511,7 +511,7 @@ def test_source_notifications_unauthorized(
         token=source_notification_user_token,
     )
     assert status == 403
-    assert "Unauthorized" in data["message"]
+    assert "Forbidden" in data["message"]
 
 
 def test_token_user_source_summary(

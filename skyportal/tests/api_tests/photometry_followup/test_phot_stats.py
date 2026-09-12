@@ -26,7 +26,7 @@ def test_phot_stats_permissions(upload_data_token, super_admin_token, public_sou
         "DELETE", f"sources/{public_source.id}/phot_stat", token=upload_data_token
     )
     assert status == 403
-    assert "Unauthorized" in data["message"]
+    assert "Forbidden" in data["message"]
 
     status, data = api(
         "PUT",
@@ -35,7 +35,7 @@ def test_phot_stats_permissions(upload_data_token, super_admin_token, public_sou
         data={},
     )
     assert status == 403
-    assert "Unauthorized" in data["message"]
+    assert "Forbidden" in data["message"]
 
     status, data = api(
         "GET",
@@ -58,7 +58,7 @@ def test_phot_stats_permissions(upload_data_token, super_admin_token, public_sou
         data={},
     )
     assert status == 403
-    assert "Unauthorized" in data["message"]
+    assert "Forbidden" in data["message"]
 
     # super user can post a phot stat
     status, data = api(

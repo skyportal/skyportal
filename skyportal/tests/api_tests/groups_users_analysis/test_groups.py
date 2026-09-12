@@ -510,7 +510,7 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
         token=view_only_token,
     )
     assert status == 403
-    assert "Unauthorized" in data["message"]
+    assert "Forbidden" in data["message"]
 
 
 def test_group_admin_add_user_to_group(public_group, group_admin_token, user_group2):
