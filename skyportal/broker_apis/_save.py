@@ -161,6 +161,9 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
     # so the whole object's photometry would be lost. Keep the first of each.
     seen: set = set()
     for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
+        # Forced photometry is separated by origin so it can be shown or hidden
+        # on its own; everything else keeps the default origin.
+        origin = "fp" if array_name == "fp_hists" else None
         for phot in data.get(array_name) or []:
             jd, band = phot.get("jd"), phot.get("band")
             if jd is None or band is None:
@@ -173,9 +176,11 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 flux = phot.get("psfFlux")
                 flux_err *= 1e-9
                 if flux is not None and not np.isnan(flux):
+                    # Stored as measured, however faint: Photometry.mag already
+                    # yields null (an upper limit) for a flux that is not
+                    # positive, so a real but low-significance point stays a
+                    # detection here instead of being flattened into a limit.
                     flux *= 1e-9
-                    if not np.isnan(flux_err) and abs(flux) / flux_err <= 3:
-                        flux = np.nan
                 columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
             elif phot.get("magpsf") is not None and phot.get("sigmapsf") is not None:
                 # Magnitude space (e.g. Lasair): convert to flux with the survey
@@ -192,6 +197,8 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
 
+            # An epoch already taken from prv_candidates must not reappear as
+            # forced photometry, or the light curve carries it twice.
             epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
@@ -206,6 +213,9 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                     "instrument_id": instrument_id,
                     "mjd": [],
                     "filter": [],
+                    # Per point, so forced photometry keeps its own origin
+                    # without splitting the stream group it belongs to.
+                    "origin": [],
                     "magsys": [],
                     "ra": [],
                     "dec": [],
@@ -218,6 +228,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
             pd["filter"].append(_filter_name(survey, band))
+            pd["origin"].append(origin)
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))

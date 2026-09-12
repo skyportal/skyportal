@@ -130,6 +130,10 @@ const getPhotometryInstrumentLabel = (point: any) =>
 
 // Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
 // factors rescale the flux axis to the selected display unit.
+// Below this signal-to-noise a measurement is drawn as an upper limit by
+// default; it is still real data, so a toggle reveals the raw point.
+const LOW_SIGNIFICANCE_SNR = 3;
+
 const FLUX_UNIT_FACTORS: Record<string, number> = {
   µJy: 1,
   mJy: 1e-3,
@@ -711,6 +715,8 @@ const PhotometryPlot = ({
   const [fluxUnit, setFluxUnit] = useState<string>("µJy");
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
+  // A measurement below this is shown as an upper limit unless asked for.
+  const [showLowSignificance, setShowLowSignificance] = useState(false);
   const [showOnlyValidated, setShowOnlyValidated] = useState(false);
 
   const [initialized, setInitialized] = useState(false);
@@ -725,6 +731,7 @@ const PhotometryPlot = ({
     photometryData: any[],
     distance_modulus: any,
     showExtinctionCorrectionValue: any,
+    showLowSignificanceValue: boolean,
   ): [any[], any] => {
     const stats: any = {
       mag: {
@@ -767,6 +774,19 @@ const PhotometryPlot = ({
           (newPoint.magerr / (2.5 / Math.log(10))) * newPoint.flux;
         newPoint.snr = newPoint.flux / newPoint.fluxerr;
         if (newPoint.snr < 0) {
+          newPoint.snr = null;
+        }
+        // A faint measurement is real data but not a detection, so by default it
+        // is drawn at its limiting magnitude; the toggle re-runs this with the
+        // measured value instead.
+        if (
+          !showLowSignificanceValue &&
+          newPoint.snr !== null &&
+          newPoint.snr < LOW_SIGNIFICANCE_SNR
+        ) {
+          newPoint.mag = null;
+          newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
+          newPoint.fluxerr = 0;
           newPoint.snr = null;
         }
       } else {
@@ -1600,6 +1620,7 @@ const PhotometryPlot = ({
         photometryFiltered,
         dm,
         showExtinctionCorrection,
+        showLowSignificance,
       );
       const groupedPhotometry = groupPhotometry(
         newPhotometry,
@@ -1689,6 +1710,7 @@ const PhotometryPlot = ({
     fluxUnit,
     showOnlyValidated,
     shownModelFits,
+    showLowSignificance,
   ]);
 
   // Only an axis whose meaning changed invalidates the user's zoom. New or
@@ -2347,6 +2369,27 @@ const PhotometryPlot = ({
                   size="small"
                 />
               </div>
+            </div>
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography id="photometry-show-hide" noWrap>
+                {`Show <${LOW_SIGNIFICANCE_SNR}\u03c3 points`}
+              </Typography>
+              <Tooltip
+                title={`Measurements below ${LOW_SIGNIFICANCE_SNR}\u03c3 are drawn at their limiting magnitude. Turn this on to plot the measured value instead.`}
+              >
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={showLowSignificance}
+                    onChange={() =>
+                      setShowLowSignificance(!showLowSignificance)
+                    }
+                    slotProps={{ input: { "aria-label": "controlled" } }}
+                    size="small"
+                  />
+                </div>
+              </Tooltip>
             </div>
           </div>
           <div className={classes.gridItem}>

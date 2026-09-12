@@ -777,3 +777,23 @@ def test_observation_plan_tool_schemas():
     assert TOOLS["get_observation_plan_form"]["inputSchema"]["properties"] == {}
     for name in ("get_observation_plan_allocations", "get_observation_plans"):
         assert TOOLS[name]["inputSchema"]["required"] == []
+
+
+def test_every_state_changing_tool_is_marked_as_writing():
+    """The assistant offers only readOnlyHint tools, so a write mis-marked as
+    read-only is one it may call unprompted."""
+    from skyportal.handlers.mcp import TOOLS
+
+    offered = {
+        name for name, tool in TOOLS.items() if tool["annotations"]["readOnlyHint"]
+    }
+    # run_broker_filter previews a pipeline without saving, so it is genuinely read-only
+    write_shaped = {
+        name
+        for name in offered
+        if name.startswith(("post_", "delete_", "update_", "activate_"))
+        or (name.startswith("run_") and name != "run_broker_filter")
+    }
+    assert not write_shaped, (
+        f"offered to the assistant but changes state: {write_shaped}"
+    )
