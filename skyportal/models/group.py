@@ -13,11 +13,9 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
-    DBSession,
     User,
     UserAccessControl,
     join_model,
-    public,
     safe_aliased,
 )
 
@@ -44,7 +42,7 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
         ----------
         relationship_chain: str
             The chain of relationships to check the User or Token against in
-            `query_accessible_rows`. Should be specified as
+            `select_accessible_rows`. Should be specified as
 
             >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
 
@@ -84,57 +82,6 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
             )
         self._relationship_key = value
 
-    def query_accessible_rows(self, cls, user_or_token, columns=None):
-        """Construct a Query object that, when executed, returns the rows of a
-        specified table that are accessible to a specified user or token.
-
-        Parameters
-        ----------
-        cls: `baselayer.app.models.DeclarativeMeta`
-            The mapped class of the target table.
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-        columns: list of sqlalchemy.Column, optional, default None
-            The columns to retrieve from the target table. If None, queries
-            the mapped class directly and returns mapped instances.
-
-        Returns
-        -------
-        query: sqlalchemy.Query
-            Query for the accessible rows.
-        """
-
-        # system admins automatically get full access
-        if user_or_token.is_admin:
-            return public.query_accessible_rows(cls, user_or_token, columns=columns)
-
-        # return only selected columns if requested
-        if columns is not None:
-            query = DBSession().query(*columns).select_from(cls)
-        else:
-            query = DBSession().query(cls).select_from(cls)
-
-        # traverse the relationship chain via sequential JOINs
-        for relationship_name in self.relationship_names:
-            self.check_cls_for_attributes(cls, [relationship_name])
-            relationship = sa.inspect(cls).mapper.relationships[relationship_name]
-            # not a private attribute, just has an underscore to avoid name
-            # collision with python keyword
-            cls = relationship.entity.class_
-
-            if str(relationship) == "Group.users":
-                # For the last relationship between Group and User, just join
-                # in the join table and not the join table and the full User table
-                # since we only need the GroupUser.user_id field to match on
-                query = query.join(GroupUser)
-            else:
-                query = query.join(relationship.class_attribute)
-
-        # filter for records with at least one matching user
-        user_id = self.user_id_from_user_or_token(user_or_token)
-        query = query.filter(GroupUser.user_id == user_id)
-        return query
-
 
 class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
     def __init__(self, relationship_chain):
@@ -147,7 +94,7 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         ----------
         relationship_chain: str
             The chain of relationships to check the User or Token against in
-            `query_accessible_rows`. Should be specified as
+            `select_accessible_rows`. Should be specified as
 
             >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
 
@@ -188,55 +135,10 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
             raise ValueError("Need at least 1 relationship to join on.")
         self._relationship_key = value
 
-    def query_accessible_rows(self, cls, user_or_token, columns=None):
-        """Construct a Query object that, when executed, returns the rows of a
-        specified table that are accessible to a specified user or token.
-
-        Parameters
-        ----------
-        cls: `baselayer.app.models.DeclarativeMeta`
-            The mapped class of the target table.
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-        columns: list of sqlalchemy.Column, optional, default None
-            The columns to retrieve from the target table. If None, queries
-            the mapped class directly and returns mapped instances.
-
-        Returns
-        -------
-        query: sqlalchemy.Query
-            Query for the accessible rows.
-        """
-
-        query = super().query_accessible_rows(cls, user_or_token, columns=columns)
-        if not user_or_token.is_admin:
-            # this avoids name collisions
-            group_user_subq = (
-                DBSession()
-                .query(GroupUser)
-                .filter(GroupUser.admin.is_(True))
-                .subquery()
-            )
-            query = query.join(
-                group_user_subq,
-                sa.and_(
-                    Group.id == group_user_subq.c.group_id,
-                    User.id == group_user_subq.c.user_id,
-                ),
-            )
-        return query
-
     def select_accessible_rows(self, cls, user_or_token, columns=None):
-        """SA 2.0 `Select` equivalent of `query_accessible_rows`. Without this
-        override, the `.select()` API would only enforce the relationship
-        chain (parent class's behavior) and silently let non-admin group
-        members through — see `query_accessible_rows` above for the
-        original admin filter.
-
-        The parallelism between the two paths matters now that
-        `async_bulk_verify` runs on the 2.0 Select API; the sync
-        `bulk_verify` runs on the legacy Query API but uses the same
-        chain, so keeping them in lockstep avoids divergence.
+        """Without this override, `.select()` would only enforce the
+        relationship chain (parent class's behavior) and silently let
+        non-admin group members through.
         """
         # AccessibleIfUserMatches builds the columns select as
         # select(*columns).select_from(cls) (Group/User stay in the FROM scope
