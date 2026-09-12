@@ -1812,22 +1812,6 @@ export interface paths {
                 };
             };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/brokers/{broker_id}/credentials/)?": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         /**
          * Set your credentials for a broker
          * @description Creates or updates the calling user's own credentials. Omitted secrets keep their stored value, so routing can be edited by a client that never receives them.
@@ -1838,6 +1822,7 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
+                    action: string;
                 };
                 cookie?: never;
             };
@@ -1865,6 +1850,7 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
+                    action: string;
                 };
                 cookie?: never;
             };
@@ -23621,15 +23607,13 @@ export interface components {
             data?: components["schemas"]["Broker"][];
         };
         BrokerCredential: {
-            /** @description The broker these credentials are for. */
-            readonly broker?: components["schemas"]["Broker"];
             /** @description The owner of these credentials. */
             readonly user?: components["schemas"]["User"];
             /** @description The broker these credentials authenticate against. */
             broker_id: number;
             /** @description The user the credentials belong to. */
             user_id: number;
-            /** @description Stream topics this account can read, e.g. the user's private Lasair filters. Not secret, so stored alongside rather than in altdata. */
+            /** @description Stream topics this account can read, e.g. the user's private Lasair filters. Not secret, so stored outside altdata. */
             topics?: {
                 [key: string]: unknown;
             };
@@ -23655,15 +23639,13 @@ export interface components {
             data?: components["schemas"]["BrokerCredential"][];
         };
         BrokerCredentialNoID: {
-            /** @description The broker these credentials are for. */
-            readonly broker?: components["schemas"]["Broker"];
             /** @description The owner of these credentials. */
             readonly user?: components["schemas"]["User"];
             /** @description The broker these credentials authenticate against. */
             broker_id: number;
             /** @description The user the credentials belong to. */
             user_id: number;
-            /** @description Stream topics this account can read, e.g. the user's private Lasair filters. Not secret, so stored alongside rather than in altdata. */
+            /** @description Stream topics this account can read, e.g. the user's private Lasair filters. Not secret, so stored outside altdata. */
             topics?: {
                 [key: string]: unknown;
             };
@@ -39248,10 +39230,8 @@ export interface components {
         };
         /**
          * BrokerCredentialBody
-         * @description A user's own credentials for a broker.
-         *
-         *     ``credentials`` holds whatever the provider's ``user_credential_schema``
-         *     declares, so a provider can add fields without changing this.
+         * @description A user's own credentials for a broker. ``credentials`` holds whatever the
+         *     provider's ``user_credential_schema`` declares.
          */
         BrokerCredentialBody: {
             /**
