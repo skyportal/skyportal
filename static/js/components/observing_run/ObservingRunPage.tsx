@@ -107,7 +107,9 @@ const ObservingRunList = ({
       }
     });
   } else {
-    observingRunsToShow = [...observingRuns];
+    observingRunsToShow = [...observingRuns].sort((a, b) =>
+      dayjs(b.calendar_date).diff(dayjs(a.calendar_date)),
+    );
   }
 
   const deleteObservingRun = async () => {

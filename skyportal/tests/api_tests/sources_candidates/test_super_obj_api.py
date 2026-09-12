@@ -174,7 +174,7 @@ def test_super_obj_delete_requires_admin(
     super_obj_id = data["data"]["id"]
 
     status, _ = api("DELETE", f"super_objs/{super_obj_id}", token=upload_data_token)
-    assert status == 401
+    assert status == 403
 
     status, _ = api("DELETE", f"super_objs/{super_obj_id}", token=super_admin_token)
     assert status == 200

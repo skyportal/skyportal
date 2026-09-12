@@ -14,7 +14,7 @@ def test_create_release(
         data={},
         token=view_only_token,
     )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    assert_api_fail(status, data, 403, "HTTP 403: Forbidden")
 
     status, data = api(
         "POST",
@@ -142,7 +142,7 @@ def test_update_release(
         data={},
         token=view_only_token,
     )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    assert_api_fail(status, data, 403, "HTTP 403: Forbidden")
 
     status, data = api(
         "PATCH",
@@ -485,7 +485,7 @@ def test_delete_release(
     status, data = api(
         "DELETE", f"public_pages/release/{release_id}", token=view_only_token
     )
-    assert_api_fail(status, data, 401, "HTTP 401: Unauthorized")
+    assert_api_fail(status, data, 403, "HTTP 403: Forbidden")
 
     status, data = api(
         "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token

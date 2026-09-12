@@ -47,7 +47,7 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status in [400, 401]
+    assert status in [400, 403]
     assert "origin: String should match pattern" in data["message"]
 
     # first time adding an annotation to this object from Kowalski
@@ -263,7 +263,7 @@ def test_cannot_add_annotation_without_permission(
         data={"origin": "kowalski", "data": {"gaia_G": 14.5}},
         token=view_only_token,
     )
-    assert status in [401, 405]
+    assert status in [403, 405]
     assert data["status"] == "error"
 
 

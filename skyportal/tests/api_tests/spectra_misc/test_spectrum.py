@@ -1450,7 +1450,7 @@ def test_token_user_post_spectrum_no_access(
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -1538,7 +1538,7 @@ def test_token_user_cannot_update_unowned_spectrum(
         token=manage_sources_token,
     )
 
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -1657,7 +1657,7 @@ def test_user_cannot_delete_unowned_spectrum_data(
     assert data["data"]["obj_id"] == public_source.id
 
     status, data = api("DELETE", f"spectrum/{spectrum_id}", token=manage_sources_token)
-    assert status == 401
+    assert status == 403
 
 
 def test_user_can_delete_owned_spectrum_data(

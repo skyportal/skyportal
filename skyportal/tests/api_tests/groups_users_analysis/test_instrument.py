@@ -215,7 +215,7 @@ def test_token_user_update_instrument(
         },
         token=manage_sources_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
     status, data = api(
