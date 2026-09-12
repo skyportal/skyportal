@@ -674,13 +674,111 @@ const DESI_DR1 = {
   default: null,
 };
 
-const LS_DR10_PHOTOZ = {
-  name: "LS_DR10_PHOTOZ",
+const PS1_DR2 = {
+  name: "PS1_DR2",
   type: [
     "null",
     {
       type: "record",
-      name: "LS_DR10_PHOTOZMatch",
+      name: "PS1_DR2Match",
+      fields: [
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "gMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "gMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "rMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "rMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "iMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "iMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "zMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "zMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "yMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "yMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "strm_class",
+          type: "string",
+        },
+        {
+          name: "strm_prob_galaxy",
+          type: "float",
+        },
+        {
+          name: "strm_prob_qso",
+          type: "float",
+        },
+        {
+          name: "strm_prob_star",
+          type: "float",
+        },
+        {
+          name: "strm_uid",
+          type: "double",
+        },
+        {
+          name: "strm_z_phot",
+          type: "float",
+        },
+        {
+          name: "strm_z_phot_err",
+          type: "float",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
+      ],
+    },
+  ],
+  default: null,
+};
+
+const LSDR10 = {
+  name: "LSDR10",
+  type: [
+    "null",
+    {
+      type: "record",
+      name: "LSDR10Match",
       fields: [
         {
           name: "_id",
@@ -695,24 +793,96 @@ const LS_DR10_PHOTOZ = {
           type: "double",
         },
         {
-          name: "ra_err",
-          type: "double",
-        },
-        {
-          name: "dec_err",
-          type: "double",
-        },
-        {
-          name: "z_phot",
-          type: "double",
-        },
-        {
-          name: "z_phot_err",
-          type: "double",
-        },
-        {
-          name: "photo_z_type",
+          name: "objtype",
           type: "string",
+        },
+        {
+          name: "ebv",
+          type: "float",
+        },
+        {
+          name: "z_spec",
+          type: "double",
+        },
+        {
+          name: "survey",
+          type: "string",
+        },
+        {
+          name: "z_phot_mean",
+          type: "double",
+        },
+        {
+          name: "z_phot_median",
+          type: "double",
+        },
+        {
+          name: "z_phot_std",
+          type: "double",
+        },
+        {
+          name: "z_phot_l95",
+          type: "double",
+        },
+        {
+          name: "z_phot_u95",
+          type: "double",
+        },
+        {
+          name: "flux_g",
+          type: "float",
+        },
+        {
+          name: "flux_r",
+          type: "float",
+        },
+        {
+          name: "flux_i",
+          type: "float",
+        },
+        {
+          name: "flux_z",
+          type: "float",
+        },
+        {
+          name: "flux_w1",
+          type: "float",
+        },
+        {
+          name: "flux_w2",
+          type: "float",
+        },
+        {
+          name: "flux_w3",
+          type: "float",
+        },
+        {
+          name: "flux_w4",
+          type: "float",
+        },
+        {
+          name: "shape_r",
+          type: "float",
+        },
+        {
+          name: "shape_e1",
+          type: "float",
+        },
+        {
+          name: "shape_e2",
+          type: "float",
+        },
+        {
+          name: "sersic",
+          type: "float",
+        },
+        {
+          name: "flux_ivar_r",
+          type: "float",
+        },
+        {
+          name: "fracflux_r",
+          type: "float",
         },
         {
           name: "distance_arcsec",
@@ -742,7 +912,8 @@ export const crossmatch_fields = {
         CatWISE2020,
         TNS,
         DESI_DR1,
-        LS_DR10_PHOTOZ,
+        PS1_DR2,
+        LSDR10,
       ],
     },
   },
