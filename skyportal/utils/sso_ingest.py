@@ -384,6 +384,58 @@ async def ingest_sso_alert(
                 )
             )
 
+    # Attach each passing filter's annotation, as the sidereal path does. Upsert on
+    # (obj_id, origin) so a mover carries one row per filter, refreshed by each new
+    # detection, rather than one per alert.
+    annotated = {
+        fid: annotations_by_filter_id[fid]
+        for fid in filter_ids or []
+        if (annotations_by_filter_id or {}).get(fid)
+    }
+    if annotated:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        from sqlalchemy.orm import joinedload
+
+        from baselayer.app.models import utcnow
+
+        from ..models import Annotation, Filter, GroupAnnotation
+
+        filters = (
+            await session.scalars(
+                sa.select(Filter)
+                .options(joinedload(Filter.group))
+                .where(Filter.id.in_(annotated))
+            )
+        ).all()
+        for filt in filters:
+            # autoAnnotate defaults on; a filter can opt out of writing annotations.
+            if (filt.altdata or {}).get("autoAnnotate", True) is False:
+                continue
+            group = filt.group
+            group_name = (group.nickname or group.name) if group else None
+            origin = f"{group_name}:{filt.name}"
+            annotation_id = await session.scalar(
+                pg_insert(Annotation)
+                .values(
+                    obj_id=obj_id,
+                    origin=origin,
+                    data=annotated[filt.id],
+                    author_id=user.id,
+                )
+                .on_conflict_do_update(
+                    index_elements=["obj_id", "origin"],
+                    set_={"data": annotated[filt.id], "modified": utcnow},
+                    where=Annotation.author_id == user.id,
+                )
+                .returning(Annotation.id)
+            )
+            if annotation_id is not None and group is not None:
+                await session.execute(
+                    pg_insert(GroupAnnotation)
+                    .values(group_id=group.id, annotation_id=annotation_id)
+                    .on_conflict_do_nothing()
+                )
+
     for group_id in group_ids or []:
         source = await session.scalar(
             sa.select(Source).where(
