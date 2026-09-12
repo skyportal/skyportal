@@ -195,27 +195,27 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 continue
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
-            stream_key = (survey, programid)
-            key = (survey, programid, origin)
+            key = (survey, programid)
 
-            # Deduplicated across arrays, not within an origin: an epoch already
-            # taken from prv_candidates must not reappear as forced photometry,
-            # or the light curve carries it twice.
-            epoch = (stream_key, round(jd - 2400000.5, 8), _normalize_band(band))
+            # An epoch already taken from prv_candidates must not reappear as
+            # forced photometry, or the light curve carries it twice.
+            epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
             seen.add(epoch)
             if key not in photometry_data:
-                stream_ids = programid2streamid.get(stream_key)
+                stream_ids = programid2streamid.get(key)
                 if not stream_ids:
                     continue
                 photometry_data[key] = {
                     "obj_id": object_id,
                     "stream_ids": stream_ids,
                     "instrument_id": instrument_id,
-                    **({"origin": origin} if origin else {}),
                     "mjd": [],
                     "filter": [],
+                    # Per point, so forced photometry keeps its own origin
+                    # without splitting the stream group it belongs to.
+                    "origin": [],
                     "magsys": [],
                     "ra": [],
                     "dec": [],
@@ -228,6 +228,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
             pd["filter"].append(_filter_name(survey, band))
+            pd["origin"].append(origin)
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))
