@@ -400,6 +400,11 @@ def post_analysis(
         if obj is None:
             raise ValueError(f"Obj {obj_id} not found")
 
+        # The object's own identity and position, so a service that works from a
+        # sky position (an archive crossmatch, say) does not need the caller to
+        # pass coordinates it already knows.
+        inputs["obj"] = {"id": obj.id, "ra": obj.ra, "dec": obj.dec}
+
         # make sure the user has not exceeded the maximum number of analyses
         # for this object. This will help save space on the disk
         # an enforce a reasonable limit on the number of analyses.
@@ -683,6 +688,11 @@ async def post_analysis_async(
         obj = await session.scalar(stmt)
         if obj is None:
             raise ValueError(f"Obj {obj_id} not found")
+
+        # The object's own identity and position, so a service that works from a
+        # sky position (an archive crossmatch, say) does not need the caller to
+        # pass coordinates it already knows.
+        inputs["obj"] = {"id": obj.id, "ra": obj.ra, "dec": obj.dec}
 
         # make sure the user has not exceeded the maximum number of analyses
         # for this object. This will help save space on the disk

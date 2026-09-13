@@ -6,6 +6,7 @@ import Button from "../Button";
 import SourceAnnotationButtonPlugins from "./SourceAnnotationButtonPlugins";
 
 import {
+  useFetchAlmaMutation,
   useFetchGaiaMutation,
   useFetchWiseMutation,
   useFetchVizierMutation,
@@ -24,6 +25,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
   const [fetchVizier] = useFetchVizierMutation();
   const [fetchDatalab] = useFetchDatalabMutation();
   const [fetchPS1] = useFetchPS1Mutation();
+  const [fetchAlma] = useFetchAlmaMutation();
 
   const [isSubmittingAnnotationGaia, setIsSubmittingAnnotationGaia] =
     useState<any>(null);
@@ -81,6 +83,14 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     setIsSubmittingAnnotationPS1(id);
     await fetchPS1(id);
     setIsSubmittingAnnotationPS1(null);
+  };
+
+  const [isSubmittingAnnotationAlma, setIsSubmittingAnnotationAlma] =
+    useState<any>(null);
+  const handleAnnotationAlma = async (id: string) => {
+    setIsSubmittingAnnotationAlma(id);
+    await fetchAlma(id);
+    setIsSubmittingAnnotationAlma(null);
   };
 
   return (
@@ -209,6 +219,23 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
           data-testid={`ps1Request_${source.id}`}
         >
           PS1
+        </Button>
+      )}
+      {isSubmittingAnnotationAlma === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationAlma(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`almaRequest_${source.id}`}
+        >
+          ALMA
         </Button>
       )}
       <SourceAnnotationButtonPlugins {...({ source } as any)} />
