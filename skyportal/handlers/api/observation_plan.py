@@ -53,9 +53,7 @@ from sncosmo import get_bandpass
 from sqlalchemy import func
 from sqlalchemy.orm import (
     joinedload,
-    scoped_session,
     selectinload,
-    sessionmaker,
     undefer,
 )
 from tornado.ioloop import IOLoop
@@ -75,7 +73,6 @@ from skyportal.utils.observation_plan import (
 
 from ...models import (
     Allocation,
-    DBSession,
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
@@ -90,6 +87,7 @@ from ...models import (
     SurveyEfficiencyForObservations,
     Telescope,
     User,
+    new_session,
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
@@ -192,8 +190,6 @@ op_options = [
     "ge",
     "gt",
 ]
-
-Session = scoped_session(sessionmaker())
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
@@ -3090,10 +3086,7 @@ def observation_simsurvey(
         Optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         localization = session.scalars(
@@ -3349,7 +3342,6 @@ def observation_simsurvey(
         )
     finally:
         session.close()
-        Session.remove()
 
 
 def observation_simsurvey_plot(

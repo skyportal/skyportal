@@ -7,7 +7,7 @@ import pandas as pd
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -15,10 +15,10 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
-    DBSession,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
+    new_session,
 )
 from ...utils.gcn import (
     from_cone,
@@ -28,8 +28,6 @@ from ..base import BaseHandler
 
 log = make_log("api/spatial_catalog")
 
-Session = scoped_session(sessionmaker())
-
 MAX_SPATIAL_CATALOG_ENTRIES = 1000
 
 
@@ -37,10 +35,7 @@ def add_catalog(catalog_id, catalog_data):
     log(f"Generating catalog with ID {catalog_id}")
     start = time.time()
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         entries = []
@@ -118,16 +113,12 @@ def add_catalog(catalog_id, catalog_data):
         log(f"Unable to generate catalog: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 def delete_catalog(catalog_id):
     log(f"Deleting catalog with ID {catalog_id}")
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         catalog = session.scalar(
@@ -147,7 +138,6 @@ def delete_catalog(catalog_id):
         log(f"Unable to delete catalog: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class SpatialCatalogGetQuery(BaseModel):

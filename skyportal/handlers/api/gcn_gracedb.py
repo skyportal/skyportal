@@ -5,7 +5,6 @@ import arrow
 import sqlalchemy as sa
 from ligo.gracedb.rest import GraceDb
 from pydantic import Field
-from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import permissions
@@ -13,10 +12,8 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import CommentOnGCN, DBSession, GcnEvent, Group, User
+from ...models import CommentOnGCN, GcnEvent, Group, User, new_session
 from ..base import BaseHandler
-
-Session = scoped_session(sessionmaker())
 
 log = make_log("api/gcn_gracedb")
 
@@ -31,10 +28,7 @@ else:
 
 
 def post_gracedb_data(dateobs, gracedb_id, user_id):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         flow = Flow()
@@ -112,7 +106,6 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
         log(f"Failed to post GraceDB data for {dateobs}: {str(e)}")
     finally:
         session.close()
-        Session.remove()
 
 
 class GcnGraceDBHandler(BaseHandler):

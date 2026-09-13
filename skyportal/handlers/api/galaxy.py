@@ -17,7 +17,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from scipy.integrate import quad
 from scipy.stats import norm
 from sqlalchemy import func, nulls_last
-from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -31,6 +30,7 @@ from ...models import (
     Localization,
     LocalizationTile,
     Obj,
+    new_session,
 )
 from ...utils.asynchronous import run_async
 from ...utils.naive_datetime import utcnow_naive
@@ -38,8 +38,6 @@ from ..base import BaseHandler, format_doc
 
 log = make_log("api/galaxy")
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
 
@@ -892,10 +890,7 @@ def delete_galaxies(catalog_id):
 
 
 def add_galaxies(catalog_metadata, catalog_data):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         # check if the catalog already exists. If not, create it
@@ -974,7 +969,6 @@ def add_galaxies(catalog_metadata, catalog_data):
         return log(f"Unable to generate galaxy table: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class GalaxyASCIIFileHandler(BaseHandler):

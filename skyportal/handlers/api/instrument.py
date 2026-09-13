@@ -16,9 +16,7 @@ from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
 from sqlalchemy.orm import (
-    scoped_session,
     selectinload,
-    sessionmaker,
     undefer,
 )
 from tornado.ioloop import IOLoop
@@ -40,6 +38,7 @@ from ...models import (
     LocalizationTile,
     Photometry,
     Telescope,
+    new_session,
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, array_to_bytes, cache_folder
@@ -55,8 +54,6 @@ cache = Cache(
     max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
     * 60,  # defaults to 1 day
 )
-
-Session = scoped_session(sessionmaker())
 
 
 class InstrumentGetQuery(BaseModel):
@@ -1113,11 +1110,9 @@ def add_tiles(
     session=None,
 ):
     field_ids = []
-    if session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
+    own_session = session is None
+    if own_session:
+        session = new_session()
 
     try:
         if references is not None:
@@ -1152,7 +1147,7 @@ def add_tiles(
                         )
                     session.add(field)
             session.commit()
-            return
+            return field_ids
 
         # Loop over the telescope tiles and create fields for each.
         # A survey whose footprint rolls between pointings (TESS's cameras roll
@@ -1426,8 +1421,10 @@ def add_tiles(
     except Exception as e:
         log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
-        Session.remove()
-        return field_ids
+        if own_session:
+            session.close()
+
+    return field_ids
 
 
 class InstrumentFieldHandler(BaseHandler):

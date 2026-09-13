@@ -6,7 +6,6 @@ import requests
 import sqlalchemy as sa
 from astropy.time import Time
 from pydantic import Field
-from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
 
@@ -14,10 +13,8 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import DBSession, GcnEvent, User
+from ...models import GcnEvent, User, new_session
 from ..base import BaseHandler
-
-Session = scoped_session(sessionmaker())
 
 log = make_log("api/gcn_tach")
 
@@ -217,10 +214,7 @@ def get_tach_event_aliases(id, gcn_event):
 
 
 def post_aliases(dateobs, tach_id, user_id):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         flow = Flow()
@@ -267,7 +261,6 @@ def post_aliases(dateobs, tach_id, user_id):
         log(f"Failed to post aliases for {dateobs}")
     finally:
         session.close()
-        Session.remove()
 
 
 class GcnTachHandler(BaseHandler):

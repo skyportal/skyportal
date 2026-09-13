@@ -13,7 +13,6 @@ import sqlalchemy as sa
 import tornado.escape
 import tornado.ioloop
 import tornado.web
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app import models
 from baselayer.app.env import load_env
@@ -41,8 +40,6 @@ env, cfg = load_env()
 log = make_log("tns_queue")
 
 init_db(**cfg["database"])
-
-Session = scoped_session(sessionmaker())
 
 USER_ID = 1  # super admin user ID
 DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees

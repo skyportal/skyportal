@@ -38,9 +38,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     joinedload,
-    scoped_session,
     selectinload,
-    sessionmaker,
     undefer,
 )
 from sqlalchemy.orm.attributes import flag_modified
@@ -62,7 +60,6 @@ from ...models import (
     Allocation,
     CatalogQuery,
     CommentOnGCN,
-    DBSession,
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     EventObservationPlan,
@@ -96,6 +93,7 @@ from ...models import (
     SurveyEfficiencyForObservations,
     User,
     UserNotification,
+    new_session,
 )
 from ...utils.crossmatch import skymap_overlap_integral
 from ...utils.gcn import (
@@ -141,8 +139,6 @@ from .source import (
 log = make_log("api/gcn_event")
 
 env, cfg = load_env()
-
-Session = scoped_session(sessionmaker())
 
 MAX_GCNEVENTS = 1000
 
@@ -3294,13 +3290,7 @@ def add_tiles_and_properties_and_contour(
     properties=None,
     tags=None,
 ):
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    session = new_session() if parent_session is None else parent_session
 
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -3419,7 +3409,6 @@ def add_tiles_and_properties_and_contour(
     finally:
         if parent_session is None:
             session.close()
-            Session.remove()
 
 
 def add_default_gcn_tags(user, session, dateobs=None, localization=None):
@@ -3571,13 +3560,7 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
 
 
 def add_observation_plans(localization_id, user_id, parent_session=None):
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    session = new_session() if parent_session is None else parent_session
 
     try:
         user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -3870,7 +3853,6 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
     finally:
         if parent_session is None:
             session.close()
-            Session.remove()
 
 
 def add_tiles_properties_contour_and_obsplan(
@@ -3882,13 +3864,7 @@ def add_tiles_properties_contour_and_obsplan(
     properties=None,
     tags=None,
 ):
-    if parent_session is None:
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    session = new_session() if parent_session is None else parent_session
 
     try:
         add_tiles_and_properties_and_contour(
@@ -3909,7 +3885,6 @@ def add_tiles_properties_contour_and_obsplan(
     finally:
         if parent_session is None:
             session.close()
-            Session.remove()
 
 
 class LocalizationGetQuery(BaseModel):
@@ -4243,10 +4218,7 @@ def add_gcn_summary(
     instrument_ids=None,
     acknowledgements=None,
 ):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         user = session.get(User, user_id)
@@ -4851,7 +4823,6 @@ def add_gcn_summary(
         raise e
     finally:
         session.close()
-        Session.remove()
 
 
 class GcnSummaryHandler(BaseHandler):
@@ -5246,10 +5217,7 @@ def add_gcn_report(
     stats_method="python",
     instrument_ids=None,
 ):
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         user = session.get(User, user_id)
@@ -5498,7 +5466,6 @@ def add_gcn_report(
         raise e
     finally:
         session.close()
-        Session.remove()
 
 
 class GcnReportPostResponse(BaseModel):
@@ -6685,10 +6652,7 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
         Confidence level up to which to perform crossmatch
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -6807,7 +6771,6 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
         log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class DefaultGcnTagHandler(BaseHandler):
