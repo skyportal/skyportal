@@ -3357,6 +3357,9 @@ def add_tiles_and_properties_and_contour(
             session.add(localization)
 
         # COPY rather than ORM inserts: ~2x faster, and no row object per tile.
+        # uniq/probdensity are deferred, so read them before opening the COPY:
+        # a lazy load inside it would query a connection stuck in COPY and hang.
+        uniqs, probdensities = localization.uniq, localization.probdensity
         now = utcnow_naive().isoformat()
         dateobs = localization.dateobs.isoformat()
         to_tile = LocalizationTile.healpix.type.process_bind_param
@@ -3369,7 +3372,7 @@ def add_tiles_and_properties_and_contour(
                 "FROM STDIN"
             ) as copy,
         ):
-            for uniq, probdensity in zip(localization.uniq, localization.probdensity):
+            for uniq, probdensity in zip(uniqs, probdensities):
                 copy.write(
                     f"{localization_id}\t{probdensity}\t{dateobs}\t"
                     f"{to_tile(uniq, None)}\t{now}\t{now}\n"
