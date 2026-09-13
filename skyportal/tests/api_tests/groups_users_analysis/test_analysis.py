@@ -1781,3 +1781,81 @@ def test_default_analysis_multiple_per_service(
     status, data = api("GET", url, token=analysis_token)
     assert status == 200
     assert len(data["data"]) == 2
+
+
+def test_patch_analysis_group_sharing(
+    analysis_service_token,
+    analysis_token,
+    view_only_token2,
+    user,
+    public_group,
+    public_source,
+):
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "sharing test service",
+        "description": "A test analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    analysis_service_id = data["data"]["id"]
+
+    # Run it privately: scope to the requester's single-user group only.
+    status, data = api(
+        "POST",
+        f"obj/{public_source.id}/analysis/{analysis_service_id}",
+        data={"group_ids": [user.single_user_group.id]},
+        token=analysis_token,
+    )
+    assert status == 200
+    analysis_id = data["data"].get("id")
+    assert analysis_id is not None
+
+    def analysis_group_ids():
+        status, data = api("GET", f"obj/analysis/{analysis_id}", token=analysis_token)
+        assert status == 200
+        return {g["id"] for g in data["data"]["groups"]}
+
+    assert analysis_group_ids() == {user.single_user_group.id}
+
+    # Share it with a group.
+    status, data = api(
+        "PATCH",
+        f"obj/analysis/{analysis_id}",
+        data={"group_ids": [public_group.id]},
+        token=analysis_token,
+    )
+    assert status == 200
+    assert analysis_group_ids() == {public_group.id}
+
+    # Make it private again.
+    status, data = api(
+        "PATCH",
+        f"obj/analysis/{analysis_id}",
+        data={"group_ids": [user.single_user_group.id]},
+        token=analysis_token,
+    )
+    assert status == 200
+    assert analysis_group_ids() == {user.single_user_group.id}
+
+    # A different user cannot change its sharing (author only / no access).
+    status, data = api(
+        "PATCH",
+        f"obj/analysis/{analysis_id}",
+        data={"group_ids": [public_group.id]},
+        token=view_only_token2,
+    )
+    assert status in (400, 401, 403)
+    assert analysis_group_ids() == {user.single_user_group.id}
