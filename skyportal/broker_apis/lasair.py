@@ -1,7 +1,10 @@
+import asyncio
 import base64
+import json
 import time
 
 import requests
+import sqlalchemy as sa
 
 from baselayer.log import make_log
 
@@ -10,8 +13,10 @@ from .interface import BrokerAPI, altdata_filter_modules
 log = make_log("broker/lasair")
 
 DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
-DEFAULT_TIMEOUT = 30  # seconds
-# Lasair cutout image kind -> skyportal cutout field.
+DEFAULT_TIMEOUT = 30
+CREDENTIAL_RESCAN_INTERVAL = 60
+CONSUMER_RETRY_PAUSE = 5
+CONSUMER_MAX_RETRY_PAUSE = 300
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
@@ -57,8 +62,6 @@ def _normalize_object(obj, object_id):
         }
         for c in detections
     ]
-    # Extract annotations from external annotators (e.g. NEEDLE_LSST).
-    # Lasair places them in lasairData.annotations when lasair_added=True.
     lasair_data = obj.get("lasairData") or {}
     raw_annotations = lasair_data.get("annotations") or obj.get("annotations") or []
     annotations = []
@@ -74,9 +77,7 @@ def _normalize_object(obj, object_id):
         if classdict:
             if isinstance(classdict, str):
                 try:
-                    import json as _json
-
-                    classdict = _json.loads(classdict)
+                    classdict = json.loads(classdict)
                 except Exception:
                     pass
             entry["classdict"] = classdict
@@ -85,8 +86,13 @@ def _normalize_object(obj, object_id):
         "objectId": obj.get("objectId") or object_id,
         "candidate": {
             "candid": latest.get("candid"),
-            "ra": latest.get("ra") or object_data.get("ramean"),
-            "dec": latest.get("dec") or object_data.get("decmean"),
+            "ra": latest.get("ra")
+            or object_data.get("ramean")
+            or object_data.get("ra"),
+            "dec": latest.get("dec")
+            or object_data.get("decmean")
+            or object_data.get("decl")
+            or object_data.get("dec"),
             "magpsf": latest.get("magpsf"),
             "jd": latest.get("jd"),
             "band": _band(latest),
@@ -96,7 +102,6 @@ def _normalize_object(obj, object_id):
     }
 
 
-# Mongo-style operators (what the shared builder emits) -> SQL comparison ops.
 _SQL_OPS = {"$eq": "=", "$ne": "!=", "$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
 
 
@@ -133,17 +138,56 @@ def _compile_tree_to_sql(node):
 
 
 def _lasair_schema(survey):
-    """A minimal Avro-style schema of queryable Lasair ``objects`` columns for the
-    builder's field dropdowns (so users pick valid columns instead of typing SQL).
-    Column names differ by instance (ZTF vs LSST)."""
+    """Queryable Lasair columns for the builder's field dropdowns, so users pick
+    valid columns instead of typing SQL. Column names differ by instance (ZTF vs
+    LSST). Watchmaps and annotators are absent on purpose: neither offers columns
+    to choose from, so both are reached by raw SQL in the conditions clause."""
     if survey == "LSST":
         fields = [
             {"name": "objects.diaObjectId", "type": "string"},
             {"name": "objects.ra", "type": "double"},
             {"name": "objects.decl", "type": "double"},
             {"name": "objects.nDiaSources", "type": "int"},
+            {"name": "objects.nPosDiaSources", "type": "int"},
+            {"name": "objects.firstDiaSourceMjdTai", "type": "double"},
+            {"name": "objects.lastDiaSourceMjdTai", "type": "double"},
             {"name": "objects.gPSFluxMean", "type": "double"},
             {"name": "objects.rPSFluxMean", "type": "double"},
+            {"name": "objects.g_psfFlux", "type": "double"},
+            {"name": "objects.r_psfFlux", "type": "double"},
+            {"name": "objects.absMag", "type": "double"},
+            {"name": "objects.glat", "type": "double"},
+            {"name": "objects.ebv", "type": "double"},
+            {"name": "objects.tns_name", "type": "string"},
+            {"name": "watchlist_hits.diaObjectId", "type": "string"},
+            {"name": "watchlist_hits.name", "type": "string"},
+            {"name": "watchlist_hits.arcsec", "type": "double"},
+            {"name": "watchlist_hits.wl_id", "type": "int"},
+            {"name": "watchlist_hits.cone_id", "type": "int"},
+            {"name": "sherlock_classifications.diaObjectId", "type": "string"},
+            {"name": "sherlock_classifications.classification", "type": "string"},
+            {"name": "sherlock_classifications.association_type", "type": "string"},
+            {
+                "name": "sherlock_classifications.catalogue_object_type",
+                "type": "string",
+            },
+            {"name": "sherlock_classifications.separationArcsec", "type": "double"},
+            {
+                "name": "sherlock_classifications.physical_separation_kpc",
+                "type": "double",
+            },
+            {"name": "sherlock_classifications.z", "type": "double"},
+            {"name": "sherlock_classifications.photoZ", "type": "double"},
+            {
+                "name": "sherlock_classifications.classificationReliability",
+                "type": "int",
+            },
+            {"name": "crossmatch_tns.tns_name", "type": "string"},
+            {"name": "crossmatch_tns.tns_prefix", "type": "string"},
+            {"name": "crossmatch_tns.type", "type": "string"},
+            {"name": "crossmatch_tns.z", "type": "double"},
+            {"name": "crossmatch_tns.disc_mag", "type": "double"},
+            {"name": "crossmatch_tns.host_name", "type": "string"},
         ]
     else:
         fields = [
@@ -151,14 +195,34 @@ def _lasair_schema(survey):
             {"name": "objects.ramean", "type": "double"},
             {"name": "objects.decmean", "type": "double"},
             {"name": "objects.ndethist", "type": "int"},
+            {"name": "objects.ncand", "type": "int"},
+            {"name": "objects.jdmax", "type": "double"},
             {"name": "objects.gmag", "type": "double"},
             {"name": "objects.rmag", "type": "double"},
+            {"name": "objects.sgscore1", "type": "double"},
+            {"name": "objects.sgmag1", "type": "double"},
+            {"name": "objects.glatmean", "type": "double"},
+            {"name": "watchlist_hits.objectId", "type": "string"},
+            {"name": "watchlist_hits.name", "type": "string"},
+            {"name": "watchlist_hits.arcsec", "type": "double"},
+            {"name": "watchlist_hits.wl_id", "type": "int"},
+            {"name": "watchlist_hits.cone_id", "type": "int"},
+            {"name": "sherlock_classifications.objectId", "type": "string"},
+            {"name": "sherlock_classifications.classification", "type": "string"},
+            {"name": "sherlock_classifications.raDeg", "type": "double"},
+            {"name": "sherlock_classifications.decDeg", "type": "double"},
+            {"name": "sherlock_classifications.distance", "type": "double"},
+            {"name": "sherlock_classifications.z", "type": "double"},
+            {"name": "crossmatch_tns.tns_name", "type": "string"},
+            {"name": "crossmatch_tns.type", "type": "string"},
+            {"name": "crossmatch_tns.z", "type": "double"},
+            {"name": "crossmatch_tns.host_name", "type": "string"},
         ]
     return {"type": "record", "name": "objects", "fields": fields}
 
 
-def _token(broker):
-    token = (broker.altdata or {}).get("token")
+def _token(broker, token=None):
+    token = token or (broker.altdata or {}).get("token")
     if not token:
         raise ValueError("Broker altdata is missing 'token'.")
     return token
@@ -168,15 +232,11 @@ def _endpoint(broker):
     return (broker.altdata or {}).get("endpoint", DEFAULT_ENDPOINT)
 
 
-# Lasair rate-limits per account, and ingestion fetches one object at a time, so
-# a busy filter walks straight into 429s. Wait and retry rather than dropping the
-# object: the alternative is a cycle that silently ingests a fraction of what it
-# matched.
 RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_PAUSE = 10.0
 
 
-def _request(broker, method, data):
+def _request(broker, method, data, token=None):
     """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
     a ``Authorization: Token`` header (what the ``lasair`` client does, so no
     dependency). Returns the parsed JSON.
@@ -184,7 +244,7 @@ def _request(broker, method, data):
     Retries on 429, honouring ``Retry-After`` when Lasair sends one.
     """
     url = _endpoint(broker).rstrip("/") + "/" + method + "/"
-    headers = {"Authorization": f"Token {_token(broker)}"}
+    headers = {"Authorization": f"Token {_token(broker, token)}"}
     for attempt in range(RATE_LIMIT_RETRIES + 1):
         response = requests.post(
             url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT
@@ -201,11 +261,12 @@ def _request(broker, method, data):
     raise RuntimeError("unreachable")
 
 
-def _object(broker, object_id):
+def _object(broker, object_id, token=None):
     return _request(
         broker,
         "object",
         {"objectId": object_id, "lite": True, "lasair_added": True},
+        token=token,
     )
 
 
@@ -230,10 +291,111 @@ def _query(broker, selected, tables, conditions, limit=1000):
     )
 
 
+def _cutouts_from_object(obj, alert_id):
+    """Base64 cutouts from an already-fetched Lasair object, so an ingest that
+    holds one does not spend a second call: a Lasair account gets 100 an hour."""
+    # ZTF carries image_urls on the latest candidate, LSST lasairData.imageUrls.
+    image_urls = {}
+    candidates = obj.get("candidates") or []
+    if (
+        candidates
+        and isinstance(candidates[0], dict)
+        and candidates[0].get("image_urls")
+    ):
+        image_urls = candidates[0]["image_urls"]
+    elif obj.get("image_urls"):
+        image_urls = obj["image_urls"]
+    else:
+        urls = (obj.get("lasairData", {}) or {}).get("imageUrls")
+        if isinstance(urls, list) and urls:
+            image_urls = urls[0]
+        elif isinstance(urls, dict):
+            image_urls = urls
+    cutouts = {}
+    for kind, field in _CUTOUT_KINDS.items():
+        url = image_urls.get(kind)
+        if not url:
+            continue
+        try:
+            response = requests.get(url, timeout=DEFAULT_TIMEOUT)
+            response.raise_for_status()
+            cutouts[field] = base64.b64encode(response.content).decode("utf-8")
+        except Exception as e:
+            log(f"Failed to fetch {kind} cutout for {alert_id}: {e}")
+    return cutouts
+
+
+async def _ingest_object(broker, oid, survey, filter_ids, token=None):
+    """Build the standard alert for one Lasair object, register it as a Candidate
+    and save any annotator annotations it carried. Shared by both ingestion modes,
+    which differ only in how they learn an objectId."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import User
+    from ._save import save_object_as_candidate
+
+    obj = await asyncio.to_thread(_object, broker, oid, token)
+    data = _normalize_object(obj, oid)
+    try:
+        cutouts = await asyncio.to_thread(_cutouts_from_object, obj, oid)
+    except Exception:
+        cutouts = None
+    async with async_plain_session_factory() as session:
+        user = await session.scalar(sa.select(User).where(User.id == 1))
+        await save_object_as_candidate(
+            data,
+            survey,
+            session,
+            user,
+            filter_ids,
+            passing_alert_id=data.get("candidate", {}).get("candid"),
+            cutouts=cutouts or None,
+        )
+        # save_object_as_candidate committed; save annotator data next.
+        lasair_annotations = data.get("annotations") or []
+        if lasair_annotations:
+            await _save_annotator_annotations(
+                session, user, oid, filter_ids, lasair_annotations
+            )
+            await session.commit()
+
+
+def _object_id_from_message(payload):
+    """The objectId carried by a Lasair stream message, under any of the keys
+    Lasair uses across its LSST and ZTF deployments."""
+    if not isinstance(payload, dict):
+        return None
+    for key in ("diaObjectId", "objectId", "object", "objectID"):
+        value = payload.get(key)
+        if isinstance(value, str | int):
+            return str(value)
+    return None
+
+
+def _decode_stream_message(value):
+    """Decode one Lasair Kafka message. Lasair streams JSON; Avro is accepted so
+    a future schema change does not need a new code path."""
+    if value is None:
+        return None
+    try:
+        payload = json.loads(
+            value.decode("utf-8") if isinstance(value, bytes) else value
+        )
+    except (UnicodeDecodeError, ValueError):
+        from ._kafka import read_avro
+
+        payload = read_avro(value)
+    if isinstance(payload, dict) and _object_id_from_message(payload) is None:
+        for key in ("objectData", "object", "data"):
+            nested = payload.get(key)
+            if isinstance(nested, dict) and _object_id_from_message(nested):
+                return nested
+    return payload
+
+
 async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotations):
     """Upsert Lasair annotator annotations onto ``obj_id``, scoped to the groups
     of the ingesting filters. Origin is ``"lasair:{topic}"``."""
-    import sqlalchemy as sa
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from baselayer.app.models import utcnow
@@ -272,6 +434,218 @@ async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotat
                 )
 
 
+def _stream_configured(altdata):
+    """Whether the broker's own config selects Lasair's Kafka streams over its SQL
+    API. A user's own credentials select streaming too, independently of this."""
+    kafka = (altdata or {}).get("kafka") or {}
+    return bool(kafka.get("topics") or kafka.get("topic_filter_ids"))
+
+
+def _credential_sets(broker, extra=None):
+    """The Lasair accounts to consume as, one entry per set of credentials.
+
+    A topic is named ``lasair_<account id><filter name>``, so one consumer cannot
+    stand in for several accounts: each set carries its own Kafka credentials,
+    REST token and topics. ``altdata['kafka']`` is the shared account, ``extra``
+    the user-owned ones.
+    """
+    altdata = broker.altdata or {}
+    kafka = altdata.get("kafka") or {}
+    shared = {
+        "label": "shared",
+        "kafka": kafka,
+        "token": altdata.get("token"),
+        "topics": kafka.get("topics") or [],
+        "topic_filter_ids": kafka.get("topic_filter_ids") or {},
+        "filter_ids": altdata.get("filter_ids") or [],
+    }
+    sets = [shared] if (shared["topics"] or shared["topic_filter_ids"]) else []
+    for entry in extra or []:
+        merged = {**kafka, **(entry.get("kafka") or {})}
+        sets.append(
+            {
+                "label": entry.get("label") or merged.get("username") or "account",
+                "kafka": merged,
+                "token": entry.get("token"),
+                "topics": entry.get("topics") or [],
+                "topic_filter_ids": entry.get("topic_filter_ids") or {},
+                "filter_ids": entry.get("filter_ids")
+                or (altdata.get("filter_ids") or []),
+            }
+        )
+    return sets
+
+
+async def _consume_set(broker, survey, credentials, budget, stop):
+    """Consume one account's topics until `stop` is set or `budget` is spent."""
+    from confluent_kafka import Consumer
+
+    from ._kafka import kafka_consumer_config
+
+    kafka = credentials["kafka"]
+    topic_filter_ids = {
+        str(k): v for k, v in (credentials["topic_filter_ids"] or {}).items()
+    }
+    topics = list(dict.fromkeys(list(credentials["topics"]) + list(topic_filter_ids)))
+    maxtimeout = float(kafka.get("maxtimeout", 5))
+
+    # Suffixed per account: a shared group drives another account's offsets.
+    base = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
+    group = f"{base}-{credentials['label']}"
+    consumer = Consumer(kafka_consumer_config({**kafka, "group_id": group}, group))
+    consumer.subscribe(topics)
+    log(
+        f"Lasair Kafka ingestion (broker {broker.id}, account "
+        f"{credentials['label']}): subscribed to {topics}"
+    )
+
+    try:
+        while not stop.is_set():
+            if budget["remaining"] is not None and budget["remaining"] <= 0:
+                stop.set()
+                break
+            msg = await asyncio.to_thread(consumer.poll, maxtimeout)
+            if msg is None or msg.error():
+                continue
+            filter_ids = topic_filter_ids.get(msg.topic(), credentials["filter_ids"])
+            try:
+                payload = _decode_stream_message(msg.value())
+            except Exception as e:
+                log(f"Error decoding Lasair message on {msg.topic()}: {e}")
+                continue
+            oid = _object_id_from_message(payload)
+            if oid is None:
+                log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
+                continue
+            try:
+                await _ingest_object(
+                    broker, oid, survey, filter_ids, token=credentials["token"]
+                )
+            except Exception as e:
+                log(f"Error ingesting Lasair object {oid}: {e}")
+            if budget["remaining"] is not None:
+                budget["remaining"] -= 1
+    finally:
+        consumer.close()
+
+
+def available_topics(broker, credentials=None):
+    """Lasair topics these credentials can actually read. A topic is named
+    ``lasair_<account id><filter name>``, so the set differs per account and
+    cannot be derived from the filter name alone."""
+    from ._kafka import list_topics
+
+    altdata = broker.altdata or {}
+    kafka = {**(altdata.get("kafka") or {}), **((credentials or {}).get("kafka") or {})}
+    # Metadata only; a distinct group so it never disturbs an ingestion offset.
+    topics = list_topics(kafka, f"skyportal-broker-{broker.id}-topics")
+    return [t for t in topics if t.startswith("lasair_")]
+
+
+async def _user_credential_sets(broker):
+    """Credential sets from the per-user rows, so a private filter is consumed
+    by the account that owns it rather than the broker's shared account."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import BrokerCredential
+
+    async with async_plain_session_factory() as session:
+        rows = (
+            await session.scalars(
+                sa.select(BrokerCredential).where(
+                    BrokerCredential.broker_id == broker.id
+                )
+            )
+        ).all()
+        return [r.as_credential_set() for r in rows if r.topics]
+
+
+async def _run_kafka_ingestion(
+    broker, survey, stop=None, max_messages=None, credentials=None
+):
+    """Consume Lasair's per-filter Kafka streams and register each object as a
+    Candidate, one consumer per account.
+
+    A message only has to carry an objectId: the object, photometry, cutouts and
+    annotator data are fetched through the REST API with that account's token,
+    the same path the SQL poller uses. ``credentials`` pins the accounts to
+    consume; by default the stored ones, re-read every
+    ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
+    without restarting the service.
+    """
+    stop = stop or asyncio.Event()
+    # Shared so max_messages bounds the run, not each consumer separately.
+    budget = {"remaining": max_messages}
+    running = {}
+    stops = {}
+    retiring = []
+    failures = {}
+    started = False
+
+    def spent():
+        return budget["remaining"] is not None and budget["remaining"] <= 0
+
+    def failed(label, task):
+        if not task.done() or task.cancelled() or task.exception() is None:
+            return False
+        log(f"Lasair consumer for account {label} crashed: {task.exception()}")
+        return True
+
+    try:
+        while not stop.is_set() and not spent():
+            extra = (
+                credentials
+                if credentials is not None
+                else await _user_credential_sets(broker)
+            )
+            sets = {c["label"]: c for c in _credential_sets(broker, extra)}
+            if not sets:
+                if started:
+                    return
+                raise ValueError(
+                    "Lasair Kafka ingestion requires topics, on the broker's "
+                    "altdata['kafka'] or on a user's own credentials."
+                )
+            for label in [lb for lb in running if lb not in sets]:
+                stops.pop(label).set()
+                retiring.append((label, running.pop(label)))
+            retiring = [
+                (lb, t) for lb, t in retiring if not failed(lb, t) and not t.done()
+            ]
+            for label, account in sets.items():
+                if label not in running or running[label].done():
+                    stops[label] = asyncio.Event()
+                    running[label] = asyncio.create_task(
+                        _consume_set(broker, survey, account, budget, stops[label])
+                    )
+            started = True
+            waiter = asyncio.ensure_future(stop.wait())
+            try:
+                await asyncio.wait(
+                    [waiter, *running.values(), *(t for _, t in retiring)],
+                    timeout=CREDENTIAL_RESCAN_INTERVAL,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            finally:
+                waiter.cancel()
+            crashed = [lb for lb, task in running.items() if failed(lb, task)]
+            failures = {lb: failures.get(lb, 0) + 1 for lb in crashed}
+            # Restarting a consumer that fails on connect must not busy-loop.
+            if crashed and not stop.is_set():
+                await asyncio.sleep(
+                    min(
+                        CONSUMER_RETRY_PAUSE * 2 ** (max(failures.values()) - 1),
+                        CONSUMER_MAX_RETRY_PAUSE,
+                    )
+                )
+    finally:
+        for account_stop in stops.values():
+            account_stop.set()
+        await asyncio.gather(
+            *running.values(), *(t for _, t in retiring), return_exceptions=True
+        )
+
+
 class LASAIRBROKER(BrokerAPI):
     """The Lasair broker (https://lasair.lsst.ac.uk).
 
@@ -285,8 +659,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @classmethod
     def configured_surveys(cls, altdata):
-        # Lasair's ZTF and LSST are separate deployments (distinct endpoint +
-        # token), so a record serves exactly one, derived from its config.
         return [_survey_from_altdata(altdata)]
 
     form_json_schema_config = {
@@ -333,10 +705,117 @@ class LASAIRBROKER(BrokerAPI):
                 "default": 1000,
                 "description": "Maximum objects returned per Lasair query.",
             },
+            "kafka": {
+                "type": "object",
+                "title": "Kafka stream (optional)",
+                "description": (
+                    "Consume Lasair's per-filter streams instead of polling its "
+                    "SQL API. Setting topics or topic_filter_ids switches this "
+                    "broker to streaming; leave empty to keep polling."
+                ),
+                "properties": {
+                    "host": {
+                        "type": "string",
+                        "title": "Kafka host",
+                        "default": "lasair-lsst-kafka_pub.lsst.ac.uk",
+                        "description": (
+                            "Lasair Kafka broker host. The LSST instance's public "
+                            "stream is lasair-lsst-kafka_pub.lsst.ac.uk:9092, which "
+                            "needs no credentials -- the API token is still needed "
+                            "to fetch each object."
+                        ),
+                    },
+                    "port": {
+                        "type": "integer",
+                        "title": "Kafka port",
+                        "default": 9092,
+                    },
+                    "group_id": {
+                        "type": "string",
+                        "title": "Consumer group id",
+                        "description": (
+                            "Prefix, suffixed with the account (defaults to "
+                            "skyportal-broker-<id>). Lasair resumes a known group "
+                            "from its last delivered alert; a new group replays the "
+                            "7-day cache, so keep this stable."
+                        ),
+                    },
+                    "username": {"type": "string", "title": "SASL username"},
+                    "password": {"type": "string", "title": "SASL password"},
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "title": "Topics",
+                        "description": (
+                            "Lasair topics to consume. A topic is one of your "
+                            "Lasair filters, named lasair_<account id><filter "
+                            "name>, e.g. lasair_2Hasabsmag. Objects from a topic "
+                            "not listed in the routing map below become candidates "
+                            "under the broker-wide filter_ids."
+                        ),
+                    },
+                    "topic_filter_ids": {
+                        "type": "object",
+                        "title": "Topic -> filter ids",
+                        "description": (
+                            "Route each topic to the skyportal Filters its objects "
+                            "become candidates for, e.g. "
+                            '{"lasair_2SN-likecandidates": [1234]}.'
+                        ),
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                        },
+                    },
+                    "maxtimeout": {
+                        "type": "number",
+                        "title": "Poll timeout (seconds)",
+                        "default": 5,
+                    },
+                    "auto_offset_reset": {
+                        "type": "string",
+                        "enum": ["earliest", "latest"],
+                        "default": "earliest",
+                        "title": "Start position for a new consumer group",
+                    },
+                },
+            },
         },
     }
 
-    ui_json_schema = {"token": {"ui:widget": "password"}}
+    user_credential_schema = {
+        "type": "object",
+        "properties": {
+            "token": {
+                "type": "string",
+                "title": "Lasair API token",
+                "description": (
+                    "Your own token, from your Lasair profile. Used to read the "
+                    "objects your filters match."
+                ),
+            },
+            "username": {
+                "type": "string",
+                "title": "SASL username",
+                "description": "Only for a stream that requires authentication.",
+            },
+            "password": {
+                "type": "string",
+                "title": "SASL password",
+                "description": "Only for a stream that requires authentication.",
+            },
+        },
+    }
+
+    user_credential_ui_schema = {
+        "token": {"ui:widget": "password"},
+        "password": {"ui:widget": "password"},
+    }
+
+    ui_json_schema = {
+        "token": {"ui:widget": "password"},
+        "kafka": {"password": {"ui:widget": "password"}},
+    }
 
     @staticmethod
     def validate_config(altdata):
@@ -349,8 +828,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        # object id -> single object; ra/dec -> cone search; otherwise a raw
-        # SQL-style query (selected/tables/conditions).
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
             return _object(broker, object_id)
@@ -376,7 +853,6 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        # Normalize into the standard {objectId, candidate, prv_candidates} shape.
         return _normalize_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
@@ -402,10 +878,8 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def test_filter(broker, session, **kwargs):
-        # Run a Lasair SQL query and return the matching rows (renderable as
-        # alerts). Accepts either raw ``conditions`` (SQL) or a neutral condition
-        # ``tree`` from the shared builder, compiled here to SQL. Object-id/coord
-        # columns differ by instance (ZTF vs LSST).
+        """Run a Lasair SQL query and return the matching rows. Accepts raw
+        ``conditions`` (SQL) or the builder's neutral ``tree``, compiled here."""
         survey = _survey(broker, kwargs)
         default_selected = (
             "objects.diaObjectId, objects.ra, objects.decl"
@@ -416,7 +890,6 @@ class LASAIRBROKER(BrokerAPI):
         tables = kwargs.get("tables") or "objects"
         tree = kwargs.get("tree") or kwargs.get("filters")
         if tree is not None:
-            # The builder holds a list of top-level blocks; AND them together.
             if isinstance(tree, list):
                 tree = {"operator": "and", "children": tree}
             conditions = _compile_tree_to_sql(tree)
@@ -427,61 +900,30 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        # Lasair keys cutouts by object (not candid): the object record carries
-        # FITS image URLs under lasairData.imageUrls; download and base64-encode
-        # them into the standard cutout fields.
-        obj = _object(broker, alert_id)
-        # The image-URL location differs by Lasair instance:
-        #  - ZTF: the latest candidate carries ``image_urls``
-        #  - LSST: ``lasairData.imageUrls`` (a list of per-epoch url dicts)
-        image_urls = {}
-        candidates = obj.get("candidates") or []
-        if (
-            candidates
-            and isinstance(candidates[0], dict)
-            and candidates[0].get("image_urls")
-        ):
-            image_urls = candidates[0]["image_urls"]
-        elif obj.get("image_urls"):
-            image_urls = obj["image_urls"]
-        else:
-            urls = (obj.get("lasairData", {}) or {}).get("imageUrls")
-            if isinstance(urls, list) and urls:
-                image_urls = urls[0]
-            elif isinstance(urls, dict):
-                image_urls = urls
-        cutouts = {}
-        for kind, field in _CUTOUT_KINDS.items():
-            url = image_urls.get(kind)
-            if not url:
-                continue
-            try:
-                response = requests.get(url, timeout=DEFAULT_TIMEOUT)
-                response.raise_for_status()
-                cutouts[field] = base64.b64encode(response.content).decode("utf-8")
-            except Exception as e:
-                log(f"Failed to fetch {kind} cutout for {alert_id}: {e}")
-        return cutouts
+        # Lasair keys cutouts by object, not candid, so alert_id is an objectId.
+        return _cutouts_from_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
-        """Poll Lasair: run each configured SQL query, and for every returned
+        """Ingest from Lasair, by Kafka stream when one is configured and by
+        polling its SQL API otherwise.
+
+        Polling mode: run each configured SQL query, and for every returned
         object reuse this provider's own ``get_alert``/``get_cutouts`` to build the
         standard alert, then register a Candidate under ``filter_ids``. Config in
         ``broker.altdata``: ``queries`` (list of {name, fields, tables, conditions,
         [filter_ids]}), ``filter_ids``, ``survey``, ``poll_interval``, ``limit``.
         """
-        import asyncio
-
-        import sqlalchemy as sa
-
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import Filter, User
-        from ._save import save_object_as_candidate
+        from ..models import Filter
 
         altdata = broker.altdata or {}
         survey = _survey(broker)
+        if _stream_configured(altdata) or await _user_credential_sets(broker):
+            return await _run_kafka_ingestion(
+                broker, survey, stop=stop, max_messages=max_messages
+            )
         default_filter_ids = altdata.get("filter_ids") or []
         legacy_queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))
@@ -491,9 +933,8 @@ class LASAIRBROKER(BrokerAPI):
             return stop is not None and stop.is_set()
 
         async def _collect_queries():
-            # One query per skyportal Filter attached to this broker (its saved
-            # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
-            # the broker record. Re-read each cycle so filter edits are picked up.
+            """One query per Filter attached to this broker (its SQL lives in
+            ``Filter.altdata["lasair"]``) plus the broker's legacy queries."""
             async with async_plain_session_factory() as session:
                 rows = (
                     await session.scalars(
@@ -520,8 +961,6 @@ class LASAIRBROKER(BrokerAPI):
             return queries + legacy_queries
 
         count = 0
-        # A broker with nothing to poll otherwise looks identical to a broken
-        # one: the loop just sleeps. Say so once, and again if it recurs.
         warned_no_queries = False
         while not _stopped():
             queries = await _collect_queries()
@@ -563,36 +1002,7 @@ class LASAIRBROKER(BrokerAPI):
                         continue
                     oid = str(oid)
                     try:
-                        obj = await asyncio.to_thread(_object, broker, oid)
-                        data = _normalize_object(obj, oid)
-                        try:
-                            cutouts = await asyncio.to_thread(
-                                LASAIRBROKER.get_cutouts, broker, oid, None
-                            )
-                        except Exception:
-                            cutouts = None
-                        async with async_plain_session_factory() as session:
-                            user = await session.scalar(
-                                sa.select(User).where(User.id == 1)
-                            )
-                            await save_object_as_candidate(
-                                data,
-                                survey,
-                                session,
-                                user,
-                                filter_ids,
-                                passing_alert_id=data.get("candidate", {}).get(
-                                    "candid"
-                                ),
-                                cutouts=cutouts or None,
-                            )
-                            # _ingest_object committed; save annotator data next.
-                            lasair_annotations = data.get("annotations") or []
-                            if lasair_annotations:
-                                await _save_annotator_annotations(
-                                    session, user, oid, filter_ids, lasair_annotations
-                                )
-                                await session.commit()
+                        await _ingest_object(broker, oid, survey, filter_ids)
                     except Exception as e:
                         log(f"Error ingesting Lasair object {oid}: {e}")
                     count += 1
@@ -603,8 +1013,7 @@ class LASAIRBROKER(BrokerAPI):
                         )
                         return count
             if max_messages is not None:
-                break  # bounded mode: a single pass
-            # Sleep until the next poll, waking periodically to honor ``stop``.
+                break
             slept = 0.0
             while slept < poll_interval and not _stopped():
                 await asyncio.sleep(min(5.0, poll_interval - slept))

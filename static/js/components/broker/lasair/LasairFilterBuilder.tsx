@@ -20,6 +20,7 @@ interface LasairFilterBuilderProps {
   brokerId: number;
   survey: string;
   onPreview: (params: Record<string, unknown>) => void;
+  initialFilterId?: number | undefined;
 }
 
 // Lasair's query API is Select / From tables / Where (raw SQL parts), which is
@@ -47,12 +48,13 @@ const LasairFilterBuilder = ({
   brokerId,
   survey,
   onPreview,
+  initialFilterId,
 }: LasairFilterBuilderProps) => {
   const defaults = survey === "LSST" ? DEFAULTS.LSST : DEFAULTS.ZTF;
   const { data: filters } = useGetBrokerFiltersQuery(brokerId);
   const [saveFilter, saveState] = useSaveBrokerFilterMutation();
 
-  const [filterId, setFilterId] = useState<number | "">("");
+  const [filterId, setFilterId] = useState<number | "">(initialFilterId ?? "");
   const [selected, setSelected] = useState<string>(defaults.selected);
   const [tables, setTables] = useState<string>(defaults.tables);
   const [conditions, setConditions] = useState<string>("");

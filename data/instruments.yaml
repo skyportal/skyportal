@@ -645,6 +645,18 @@
   telescope_id: =Gaia
   filters: ["gaia::g", "gaia::gbp", "gaia::grp", "gaia::grvs"]
   =id: Gaia
+- name: VIS
+  type: imager
+  band: Optical
+  telescope_id: =Euclid
+  filters: ["euclidvis"]
+  =id: EuclidVIS
+- name: NISP
+  type: imaging spectrograph
+  band: Infrared
+  telescope_id: =Euclid
+  filters: ["euclidy", "euclidj", "euclidh"]
+  =id: EuclidNISP
 - name: Goodman
   type: imaging spectrograph
   band: optical

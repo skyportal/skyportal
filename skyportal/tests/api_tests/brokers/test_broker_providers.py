@@ -1406,3 +1406,214 @@ def test_decode_cutout_rejects_a_url_placeholder():
 
     with pytest.raises(ValueError, match="not valid base64"):
         decode_cutout("https://example.test/cutout.fits", "ZTF")
+
+
+def test_lasair_stream_message_object_ids():
+    """Lasair streams carry the objectId under different keys per deployment, and
+    a filter's stream may wrap the row, so all of those must resolve."""
+    from skyportal.broker_apis.lasair import (
+        _decode_stream_message,
+        _object_id_from_message,
+    )
+
+    def oid(raw):
+        return _object_id_from_message(_decode_stream_message(raw))
+
+    assert oid(b'{"diaObjectId": 123456789}') == "123456789"  # LSST
+    assert oid(b'{"objectId": "ZTF26absuusx"}') == "ZTF26absuusx"  # ZTF
+    assert oid(b'{"object": "ZTF18abcdefg"}') == "ZTF18abcdefg"
+    assert oid('{"objectId": "ZTF21bbb"}') == "ZTF21bbb"  # str, not bytes
+    assert oid(b'{"objectData": {"objectId": "ZTF20aaa"}}') == "ZTF20aaa"
+    assert oid(b'{"ramean": 1.0}') is None
+
+
+def test_lasair_stream_message_accepts_avro():
+    """JSON today, but an Avro payload decodes rather than raising."""
+    import io
+
+    import fastavro
+
+    from skyportal.broker_apis.lasair import (
+        _decode_stream_message,
+        _object_id_from_message,
+    )
+
+    buf = io.BytesIO()
+    fastavro.writer(
+        buf,
+        {
+            "type": "record",
+            "name": "L",
+            "fields": [{"name": "objectId", "type": "string"}],
+        },
+        [{"objectId": "ZTF22avro"}],
+    )
+    assert (
+        _object_id_from_message(_decode_stream_message(buf.getvalue())) == "ZTF22avro"
+    )
+
+
+def test_lasair_ingestion_uses_kafka_when_configured(monkeypatch):
+    """A configured stream takes precedence over the SQL poller, and topics route
+    to their own filters."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    seen = {}
+
+    async def fake_kafka(broker, survey, stop=None, max_messages=None):
+        seen["survey"] = survey
+        seen["topics"] = (broker.altdata["kafka"] or {}).get("topics")
+        return 7
+
+    async def no_user_credentials(broker):
+        return []
+
+    monkeypatch.setattr(lasair_mod, "_run_kafka_ingestion", fake_kafka)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", no_user_credentials)
+    broker = types.SimpleNamespace(
+        id=9,
+        altdata={
+            "survey": "LSST",
+            "token": "x",
+            "endpoint": "https://api.lasair.lsst.ac.uk/api",
+            "kafka": {"host": "kafka.test", "topics": ["lasair_2SN-likecandidates"]},
+        },
+    )
+    count = asyncio.run(LASAIRBROKER.run_ingestion(broker, max_messages=1))
+    assert count == 7, "the Kafka path was not taken"
+    assert seen["survey"] == "LSST"
+    assert seen["topics"] == ["lasair_2SN-likecandidates"]
+
+
+def test_lasair_ingestion_uses_kafka_for_user_topics_alone(monkeypatch):
+    """A user's own account owning the topics is enough: the broker needs no
+    shared stream config for that user's filters to be consumed."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    seen = {}
+
+    async def fake_kafka(broker, survey, stop=None, max_messages=None):
+        seen["survey"] = survey
+        return 7
+
+    async def one_user_credential(broker):
+        return [{"label": "user3", "topics": ["lasair_9private"]}]
+
+    monkeypatch.setattr(lasair_mod, "_run_kafka_ingestion", fake_kafka)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", one_user_credential)
+    broker = types.SimpleNamespace(
+        id=9,
+        altdata={
+            "survey": "LSST",
+            "token": "x",
+            "endpoint": "https://api.lasair.lsst.ac.uk/api",
+        },
+    )
+    count = asyncio.run(LASAIRBROKER.run_ingestion(broker, max_messages=1))
+    assert count == 7, "the Kafka path was not taken"
+    assert seen["survey"] == "LSST"
+
+
+def test_lasair_kafka_picks_up_a_new_account(monkeypatch):
+    """A user registering an account mid-run gets a consumer without the service
+    being restarted, and one that goes away is stopped."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    consumed = []
+    accounts = [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
+
+    async def fake_user_sets(broker):
+        return list(accounts)
+
+    async def fake_consume(broker, survey, credentials, budget, stop):
+        consumed.append(credentials["label"])
+        await stop.wait()
+
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_consume_set", fake_consume)
+    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.01)
+    broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
+
+    async def scenario():
+        stop = asyncio.Event()
+        run = asyncio.create_task(
+            lasair_mod._run_kafka_ingestion(broker, "LSST", stop=stop)
+        )
+        while "camille" not in consumed:
+            await asyncio.sleep(0.01)
+        accounts.append({"label": "alex", "topics": ["lasair_4b"], "kafka": {}})
+        while "alex" not in consumed:
+            await asyncio.sleep(0.01)
+        accounts.pop(0)
+        await asyncio.sleep(0.1)
+        stop.set()
+        await asyncio.wait_for(run, timeout=5)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+    assert consumed == ["camille", "alex"], consumed
+
+
+def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
+    """A consumer that fails on connect is retried rather than lost, and the pause
+    grows, so an account that stays broken does not burn a core nor spam the log."""
+    import asyncio
+    import types
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    starts = []
+
+    def crashing(broker, survey, credentials, budget, stop):
+        starts.append(credentials["label"])
+
+        async def run():
+            raise RuntimeError("connect failed")
+
+        return run()
+
+    async def fake_user_sets(broker):
+        return [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
+
+    monkeypatch.setattr(lasair_mod, "_consume_set", crashing)
+    monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.02)
+    monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.02)
+    broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
+
+    async def scenario():
+        stop = asyncio.Event()
+        run = asyncio.create_task(
+            lasair_mod._run_kafka_ingestion(broker, "LSST", stop=stop)
+        )
+        await asyncio.sleep(0.4)
+        stop.set()
+        await asyncio.wait_for(run, timeout=5)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+    # A fixed 0.02s pause would give ~20 restarts over 0.4s; doubling gives ~5.
+    assert 1 < len(starts) <= 8, len(starts)
+
+
+def test_lasair_stream_selected_only_when_topics_configured():
+    """Streaming is opt-in: a broker with no topics keeps polling, so existing
+    Lasair brokers are unaffected by the Kafka path."""
+    from skyportal.broker_apis.lasair import _stream_configured
+
+    assert _stream_configured({"kafka": {"topics": ["lasair_2SN"]}}) is True
+    assert (
+        _stream_configured({"kafka": {"topic_filter_ids": {"lasair_2SN": [1]}}}) is True
+    )
+    assert _stream_configured({"kafka": {"host": "kafka.test"}}) is False
+    assert _stream_configured({"kafka": {"topics": []}}) is False
+    assert _stream_configured({"queries": []}) is False
+    assert _stream_configured({}) is False
+    assert _stream_configured(None) is False

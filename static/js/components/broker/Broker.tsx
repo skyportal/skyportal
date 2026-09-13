@@ -13,7 +13,6 @@ import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
 
 import {
   useGetBrokersQuery,
@@ -22,6 +21,7 @@ import {
 } from "../../ducks/brokers";
 import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
 import BrokerAlertFilters from "./BrokerAlertFilters";
+import BrokerCredentialsForm from "./BrokerCredentialsForm";
 import FilterCatalog from "./FilterCatalog";
 import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewBrokerFilterForm from "./NewBrokerFilterForm";
@@ -30,31 +30,6 @@ import Spinner from "../Spinner";
 import { dec_to_deg, ra_to_deg } from "../../units";
 
 const PAGE_SIZE = 12;
-
-const useStyles = makeStyles()((theme) => ({
-  root: { padding: theme.spacing(2) },
-  form: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: theme.spacing(2),
-    marginBottom: theme.spacing(2),
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(520px, 1fr))",
-    gap: theme.spacing(2),
-  },
-  gridSingle: { gridTemplateColumns: "1fr" },
-  json: { padding: theme.spacing(2), maxHeight: "50vh", overflow: "auto" },
-  pre: {
-    margin: 0,
-    fontFamily: "monospace",
-    fontSize: "0.75rem",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-  },
-}));
 
 const asArray = (result: unknown): unknown[] | null => {
   if (Array.isArray(result)) return result;
@@ -113,7 +88,6 @@ const TooltipTab = ({ tooltip, ...tabProps }: any) => (
 );
 
 const Broker = () => {
-  const { classes, cx } = useStyles();
   const { brokerId: brokerIdParam } = useParams();
   const brokerId = Number(brokerIdParam);
   const { data: brokers, isLoading: brokersLoading } = useGetBrokersQuery();
@@ -163,9 +137,10 @@ const Broker = () => {
     },
     {
       label: "New filter",
-      enabled: broker?.filter_kind === "pipeline",
+      enabled: hasFilters,
       reason: `${broker?.name} does not support filters creation.`,
     },
+    { label: "Credentials", enabled: true, reason: "" },
   ];
   const activeTab = TABS[tab]?.enabled ? tab : TABS.findIndex((t) => t.enabled);
 
@@ -266,7 +241,7 @@ const Broker = () => {
   if (brokersLoading) return <Spinner />;
 
   return (
-    <Box className={classes.root}>
+    <Box sx={{ p: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <IconButton component={Link} to="/brokers" aria-label="back to brokers">
           <ArrowBackIcon />
@@ -305,7 +280,15 @@ const Broker = () => {
           </Tabs>
 
           {activeTab === 0 && (
-            <div className={classes.form}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 2,
+                mb: 2,
+              }}
+            >
               <TextField
                 size="small"
                 label="Object ID"
@@ -375,27 +358,31 @@ const Broker = () => {
               >
                 {isFetching ? "Searching…" : "Search"}
               </Button>
-            </div>
+            </Box>
           )}
 
           {activeTab === 1 &&
-            (broker.filter_kind === "pipeline" ? (
-              <FilterCatalog brokerId={brokerId} />
-            ) : broker.filter_kind === "query" && canPreview ? (
+            (broker.broker_classname === "LASAIRBROKER" && canPreview ? (
               <LasairFilterBuilder
                 brokerId={brokerId}
                 survey={searchSurvey}
                 onPreview={onPreview}
               />
+            ) : broker.broker_classname === "BOOMBROKER" ? (
+              <FilterCatalog brokerId={brokerId} />
             ) : (
-              <div className={classes.form}>
-                <Typography variant="body2" color="text.secondary">
-                  {`Filter kind: ${broker.filter_kind} — editor coming soon.`}
-                </Typography>
-              </div>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {`${broker.name} — filter editor coming soon.`}
+              </Typography>
             ))}
 
           {activeTab === 2 && <NewBrokerFilterForm brokerId={brokerId} />}
+          {activeTab === 3 && (
+            <BrokerCredentialsForm
+              brokerId={brokerId}
+              brokerClassname={broker.broker_classname}
+            />
+          )}
 
           {activeTab === (mode === "preview" ? 1 : 0) && (
             <>
@@ -433,10 +420,15 @@ const Broker = () => {
                               objectGroups.length === 1 ? "" : "s"
                             } — showing ${start + 1}–${start + pageGroups.length}`}
                           </Typography>
-                          <div
-                            className={cx(classes.grid, {
-                              [classes.gridSingle]: pageGroups.length === 1,
-                            })}
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                pageGroups.length === 1
+                                  ? "1fr"
+                                  : "repeat(auto-fill, minmax(520px, 1fr))",
+                              gap: 2,
+                            }}
                           >
                             {pageGroups.map((g) => (
                               <BrokerAlertCard
@@ -449,7 +441,7 @@ const Broker = () => {
                                 expanded={pageGroups.length === 1}
                               />
                             ))}
-                          </div>
+                          </Box>
                           {pageCount > 1 && (
                             <Pagination
                               count={pageCount}
@@ -467,15 +459,27 @@ const Broker = () => {
                     })()}
                   </>
                 ) : (
-                  <Paper className={classes.json} variant="outlined">
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 2, maxHeight: "50vh", overflow: "auto" }}
+                  >
                     {kept ? (
                       <Typography variant="subtitle2" gutterBottom>
                         {`${kept.length} result${kept.length === 1 ? "" : "s"}`}
                       </Typography>
                     ) : null}
-                    <pre className={classes.pre}>
+                    <Box
+                      component="pre"
+                      sx={{
+                        m: 0,
+                        fontFamily: "monospace",
+                        fontSize: "0.75rem",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
                       {JSON.stringify(kept ?? data, null, 2)}
-                    </pre>
+                    </Box>
                   </Paper>
                 ))}
             </>

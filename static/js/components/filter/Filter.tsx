@@ -74,9 +74,7 @@ const Filter = () => {
             </Card>
           </Grid>
         )}
-        <Grid size={{ sm: 12, md: 12 }}>
-          {group && <FilterPlugins group={group} />}
-        </Grid>
+        <Grid size={{ sm: 12, md: 12 }}>{group && <FilterPlugins />}</Grid>
       </Grid>
     </div>
   );

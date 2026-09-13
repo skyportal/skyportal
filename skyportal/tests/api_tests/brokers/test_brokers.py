@@ -510,12 +510,128 @@ def test_secret_config_fields_cover_every_provider():
         "BOOMBROKER": ["password"],
         "FINKBROKER": ["fink.password"],
         "GENERICBROKER": ["token"],
-        "LASAIRBROKER": ["token"],
+        "LASAIRBROKER": ["token", "kafka.password"],
         "PITTGOOGLEBROKER": ["service_account_key"],
     }
     for name, paths in expected.items():
         provider = getattr(broker_apis, name)
         assert sorted(provider.secret_config_fields()) == sorted(paths), name
+
+
+def test_lasair_credential_sets():
+    """One consumer per Lasair account: shared config, separate identity."""
+    from types import SimpleNamespace
+
+    from skyportal.broker_apis.lasair import _credential_sets
+
+    broker = SimpleNamespace(
+        id=7,
+        altdata={
+            "token": "shared-token",
+            "filter_ids": [1],
+            "kafka": {
+                "host": "lasair-lsst-kafka_pub.lsst.ac.uk",
+                "port": 9092,
+                "username": "shared",
+                "password": "shared-pw",
+                "topics": ["lasair_2SNe"],
+            },
+        },
+    )
+
+    only_shared = _credential_sets(broker)
+    assert [c["label"] for c in only_shared] == ["shared"]
+    assert only_shared[0]["token"] == "shared-token"
+
+    sets = _credential_sets(
+        broker,
+        [
+            {
+                "label": "camille",
+                "token": "her-token",
+                "topics": ["lasair_9private"],
+                "filter_ids": [2],
+                "kafka": {"username": "camille", "password": "her-pw"},
+            }
+        ],
+    )
+    assert [c["label"] for c in sets] == ["shared", "camille"]
+    personal = sets[1]
+    assert personal["kafka"]["host"] == "lasair-lsst-kafka_pub.lsst.ac.uk"
+    assert personal["kafka"]["username"] == "camille"
+    assert personal["kafka"]["password"] == "her-pw"
+    assert personal["token"] == "her-token"
+    assert personal["topics"] == ["lasair_9private"]
+    assert personal["filter_ids"] == [2]
+    assert sets[0]["topics"] == ["lasair_2SNe"]
+    assert sets[0]["token"] == "shared-token"
+
+
+def test_lasair_consumer_group_is_per_account(monkeypatch):
+    """Each account gets its own consumer group even when the broker pins a
+    group_id, so one account's offsets and rebalances stay its own."""
+    import asyncio
+    import sys
+    from types import SimpleNamespace
+
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    configs = []
+
+    class FakeConsumer:
+        def __init__(self, config):
+            configs.append(config)
+
+        def subscribe(self, topics):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setitem(
+        sys.modules, "confluent_kafka", SimpleNamespace(Consumer=FakeConsumer)
+    )
+    broker = SimpleNamespace(id=7, altdata={"kafka": {"group_id": "pinned"}})
+    stop = asyncio.Event()
+    stop.set()
+    for label in ("shared", "user3"):
+        asyncio.run(
+            lasair_mod._consume_set(
+                broker,
+                "LSST",
+                {
+                    "label": label,
+                    "kafka": {"group_id": "pinned"},
+                    "token": "t",
+                    "topics": ["lasair_1a"],
+                    "topic_filter_ids": {},
+                    "filter_ids": [],
+                },
+                {"remaining": None},
+                stop,
+            )
+        )
+    assert [c["group.id"] for c in configs] == ["pinned-shared", "pinned-user3"]
+
+
+def test_lasair_consumer_group_defaults_per_broker_and_account(monkeypatch):
+    """With no group_id configured the group is still unique per account, and a
+    blank one does not produce an empty group.id."""
+    from skyportal.broker_apis._kafka import kafka_consumer_config
+
+    assert kafka_consumer_config({}, "fallback")["group.id"] == "fallback"
+    assert kafka_consumer_config({"group_id": ""}, "fallback")["group.id"] == "fallback"
+    assert kafka_consumer_config({"group_id": "set"}, "fallback")["group.id"] == "set"
+
+
+def test_lasair_credential_sets_without_topics():
+    """No topics anywhere means nothing to consume, not a consumer on nothing."""
+    from types import SimpleNamespace
+
+    from skyportal.broker_apis.lasair import _credential_sets
+
+    broker = SimpleNamespace(id=7, altdata={"token": "t", "kafka": {"host": "h"}})
+    assert _credential_sets(broker) == []
 
 
 def test_broker_apis_discovery(view_only_token):
@@ -1110,5 +1226,72 @@ def test_boom_filter_activation_requires_validation(
             token=super_admin_token,
         )
         assert "validat" not in (data.get("message") or "").lower()
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_credentials_crud(
+    super_admin_token,
+    view_only_token,
+    view_only_token_group2,
+    public_filter,
+    public_filter2,
+):
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"] is None
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"credentials": {"token": "mine"}, "topics": ["lasair_1x"]},
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1x"]
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topic_filter_ids": {"lasair_1x": [public_filter2.id]}},
+            token=view_only_token,
+        )
+        assert status == 400
+        assert "not accessible" in data["message"]
+
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topic_filter_ids": {"lasair_1x": [public_filter.id]}},
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token_group2
+        )
+        assert status == 200
+        assert data["data"] is None
+
+        status, data = api(
+            "DELETE", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert data["data"] is None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)

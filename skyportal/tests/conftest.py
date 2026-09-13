@@ -23,6 +23,7 @@ from skyportal.models import (
     AnnotationOnSpectrum,
     AssistantMessage,
     Broker,
+    BrokerCredential,
     Candidate,
     CatalogQuery,
     ClassificationEdit,
@@ -549,6 +550,31 @@ def broker():
     obj = (
         DBSession()
         .execute(sa.select(Broker).filter(Broker.id == broker_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def user_broker_credential(broker, user):
+    c = BrokerCredential(
+        broker_id=broker.id,
+        user_id=user.id,
+        topics=["lasair_1test"],
+    )
+    c.altdata = {"token": "not-a-real-token"}
+    DBSession.add(c)
+    DBSession.commit()
+    credential_id = c.id
+    yield c
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(BrokerCredential).filter(BrokerCredential.id == credential_id)
+        )
         .scalars()
         .first()
     )

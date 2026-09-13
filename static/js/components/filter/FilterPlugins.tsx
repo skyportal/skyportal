@@ -1,32 +1,42 @@
 import { useParams } from "react-router-dom";
 
-import { useGetFilterQuery } from "../../ducks/filter";
-import { useGetBrokersQuery } from "../../ducks/brokers";
+import Typography from "@mui/material/Typography";
+
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
+import { useGetBrokersQuery } from "../../ducks/brokers";
+import { useGetFilterQuery } from "../../ducks/filter";
+import LasairFilterEditor from "../broker/lasair/LasairFilterEditor";
 import BoomFilterPlugins from "./boom/BoomFilterPlugins";
 import GcnCrossmatchPlugin from "./GcnCrossmatchPlugin";
 
-interface FilterPluginsProps {
-  group?: any;
-}
-
-// A filter attached to a broker gets that broker's builder; anything else
-// defaults to BOOM (the backend attaches the filter to it on first version
-// creation - see BrokerFiltersHandler.post in skyportal/handlers/api/broker.py).
-const FilterPlugins = (_props: FilterPluginsProps) => {
+const FilterPlugins = () => {
   const { fid } = useParams();
   const { data: filter } = useGetFilterQuery(fid ?? "", { skip: !fid }) as any;
   const { data: brokers } = useGetBrokersQuery();
 
-  const boomBrokerId = brokers?.find(
-    (broker) => broker.broker_classname === "BOOMBROKER",
-  )?.id;
-  const brokerId = filter?.broker_id ?? boomBrokerId;
+  const brokerId = filter?.broker_id;
+  const broker = brokers?.find((b) => b.id === brokerId);
 
-  // The crossmatch panel is broker-agnostic, so it shows even when there is no
-  // builder to render.
   if (!brokerId) {
-    return <GcnCrossmatchPlugin />;
+    return (
+      <>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          This filter is not attached to a broker. To attach it, go to a broker
+          page and use the &ldquo;Filters&rdquo; tab to attach this existing
+          filter.
+        </Typography>
+        <GcnCrossmatchPlugin />
+      </>
+    );
+  }
+
+  if (broker?.broker_classname === "LASAIRBROKER") {
+    return (
+      <>
+        <LasairFilterEditor broker={broker} filterId={filter?.id} />
+        <GcnCrossmatchPlugin />
+      </>
+    );
   }
 
   // Set synchronously, before BoomFilterPlugins' mount effects read it.
@@ -34,8 +44,6 @@ const FilterPlugins = (_props: FilterPluginsProps) => {
   return (
     <>
       <BoomFilterPlugins />
-      {/* broker-agnostic: the crossmatch works with any provider that can
-          query alerts, so it is not part of the BOOM builder */}
       <GcnCrossmatchPlugin />
     </>
   );

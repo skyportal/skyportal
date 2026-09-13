@@ -19,6 +19,34 @@ export interface Broker {
   altdata?: Record<string, unknown>;
 }
 
+export interface BrokerAPIInfo {
+  methodsImplemented: Record<string, boolean>;
+  formSchemaConfig?: Record<string, unknown> | null;
+  uiSchema?: Record<string, unknown> | null;
+  userCredentialSchema?: Record<string, unknown> | null;
+  userCredentialUiSchema?: Record<string, unknown> | null;
+  surveys?: string[];
+  filterKind?: string;
+}
+
+export interface BrokerCredential {
+  id: number;
+  broker_id: number;
+  topics: string[];
+  topic_filter_ids: Record<string, number[]>;
+  /** Non-secret values only; secrets are reported by name in secrets_set. */
+  credentials: Record<string, unknown>;
+  secrets_set: string[];
+}
+
+export interface BrokerCredentialPatch {
+  credentials?: Record<string, unknown>;
+  /** Overwrite all stored credentials rather than merging the fields sent. */
+  replace_credentials?: boolean;
+  topics?: string[];
+  topic_filter_ids?: Record<string, number[]>;
+}
+
 export interface BrokerAlertQuery {
   brokerId: number;
   params: Record<string, string | number | undefined>;
@@ -167,19 +195,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Broker"],
     }),
     // Registered provider classes + their config form schemas / capabilities.
-    getBrokerAPIs: build.query<
-      Record<
-        string,
-        {
-          methodsImplemented: Record<string, boolean>;
-          formSchemaConfig?: Record<string, unknown> | null;
-          uiSchema?: Record<string, unknown> | null;
-          surveys?: string[];
-          filterKind?: string;
-        }
-      >,
-      void
-    >({
+    getBrokerAPIs: build.query<Record<string, BrokerAPIInfo>, void>({
       query: () => "api/internal/broker_apis",
     }),
     createBroker: build.mutation<
@@ -225,6 +241,32 @@ export const brokersApi = skyportalApi.injectEndpoints({
       },
       invalidatesTags: ["Broker"],
     }),
+    getBrokerCredentials: build.query<BrokerCredential | null, number>({
+      query: (id) => `api/brokers/${id}/credentials`,
+      providesTags: ["BrokerCredential"],
+    }),
+    getBrokerCredentialTopics: build.query<{ topics: string[] }, number>({
+      query: (id) => `api/brokers/${id}/credentials/topics`,
+      providesTags: ["BrokerCredential"],
+    }),
+    setBrokerCredentials: build.mutation<
+      { id: number },
+      { brokerId: number; patch: BrokerCredentialPatch }
+    >({
+      query: ({ brokerId, patch }) => ({
+        url: `api/brokers/${brokerId}/credentials`,
+        method: "PUT",
+        body: patch,
+      }),
+      invalidatesTags: ["BrokerCredential"],
+    }),
+    deleteBrokerCredentials: build.mutation<void, number>({
+      query: (id) => ({
+        url: `api/brokers/${id}/credentials`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["BrokerCredential"],
+    }),
     deleteBroker: build.mutation<void, number>({
       query: (id) => ({ url: `api/brokers/${id}`, method: "DELETE" }),
       invalidatesTags: ["Broker"],
@@ -249,4 +291,8 @@ export const {
   useCreateBrokerMutation,
   useUpdateBrokerMutation,
   useDeleteBrokerMutation,
+  useGetBrokerCredentialsQuery,
+  useLazyGetBrokerCredentialTopicsQuery,
+  useSetBrokerCredentialsMutation,
+  useDeleteBrokerCredentialsMutation,
 } = brokersApi;

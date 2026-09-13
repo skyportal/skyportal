@@ -30,6 +30,8 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     if not name:
         continue
     if name in existing_bandpasses_names:
+        # sncosmo's own curve wins: a config tophat standing in for a band
+        # sncosmo did not yet ship must not shadow it once it does.
         log(
             f"Additional Bandpass name={name} is already in the sncosmo registry. Skipping."
         )
