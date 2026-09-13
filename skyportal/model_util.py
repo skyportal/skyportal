@@ -1,9 +1,13 @@
 import sqlalchemy as sa
 
+from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
+from baselayer.log import make_log
 from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
 from skyportal.models import ACL, DBSession, Group, Role, Token, User
+
+log = make_log("model_util")
 
 all_acl_ids = [
     "Become user",
@@ -74,7 +78,7 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
             user = User(username=username, first_name=first_name, last_name=last_name)
             if auth:
                 TornadoStorage.user.create_social_auth(
-                    user, user.username, "google-oauth2"
+                    user, user.username, default_auth_backend()
                 )
 
         for rolename in roles:
@@ -104,9 +108,33 @@ def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
     return DBSession().scalars(sa.select(User).where(User.username == username)).first()
 
 
+def visible_enum_types(session):
+    """Names of the enum types this connection can reach unqualified.
+
+    `pg_type_is_visible` applies the same search_path resolution `ALTER TYPE`
+    does, so a name missing here is one that would raise UndefinedObject.
+    """
+    return set(
+        session.scalars(
+            sa.text(
+                "SELECT typname FROM pg_type "
+                "WHERE typtype = 'e' AND pg_type_is_visible(oid)"
+            )
+        )
+    )
+
+
 def refresh_enums():
     with DBSession() as session:
+        # A type only exists once the schema has been created; skip the rest
+        # rather than failing the app's startup on a half-built database.
+        existing = visible_enum_types(session)
+        missing = [t.name for t in sqla_enum_types if t.name not in existing]
+        if missing:
+            log(f"skipping enum refresh for missing types: {', '.join(missing)}")
         for type in sqla_enum_types:
+            if type.name not in existing:
+                continue
             for key in type.enums:
                 session.execute(
                     sa.text(f"ALTER TYPE {type.name} ADD VALUE IF NOT EXISTS '{key}'")

@@ -11,24 +11,16 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { brokerFilterBase } from "./brokerFilterTarget";
 import { useBoomFilterVersion } from "./boom_filter";
-import {
-  ztf_crossmatch_fields,
-  lsst_crossmatch_fields,
-} from "../constants/crossmatch";
+import { crossmatch_fields } from "../constants/crossmatch";
 
-// Append survey-specific cross-match fields to a fetched schema.
+// Append the cross-match fields (same catalogs for every survey) to a fetched schema.
 const patchSchema = (schema: any) => {
   if (!schema) return schema;
 
   const patchedSchema = JSON.parse(JSON.stringify(schema));
 
   if (patchedSchema.fields) {
-    if (patchedSchema.name.includes("Ztf")) {
-      patchedSchema.fields.push(ztf_crossmatch_fields);
-    }
-    if (patchedSchema.name.includes("Lsst")) {
-      patchedSchema.fields.push(lsst_crossmatch_fields);
-    }
+    patchedSchema.fields.push(crossmatch_fields);
   }
 
   return patchedSchema;
@@ -53,6 +45,15 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
         `${brokerFilterBase()}/filter_modules?elements=${elements}${
           survey ? `&survey=${survey}` : ""
         }`,
+    }),
+    // Single module by name, for name-availability checks. Returns null when
+    // there is no such module.
+    getFilterElementByName: build.query<
+      any,
+      { name: string; elements: string }
+    >({
+      query: ({ name, elements }) =>
+        `${brokerFilterBase()}/filter_modules/${name}?elements=${elements}`,
     }),
     postFilterElement: build.mutation<
       any,
@@ -80,6 +81,7 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
 export const {
   useGetFilterSchemaQuery,
   useLazyGetFilterElementsQuery,
+  useLazyGetFilterElementByNameQuery,
   usePostFilterElementMutation,
   usePutFilterElementMutation,
 } = boomFilterModulesApi;
@@ -92,5 +94,10 @@ export const {
 export const useFilterSchema = (surveyOverride?: string) => {
   const { data: filterVersion } = useBoomFilterVersion();
   const survey = surveyOverride ?? filterVersion?.stream?.name?.split(" ")[0];
-  return useGetFilterSchemaQuery(survey ?? "", { skip: !survey });
+  // Expose the resolved survey alongside the query state so callers can show a
+  // clear "no schema for this survey" message when the broker has none.
+  return {
+    ...useGetFilterSchemaQuery(survey ?? "", { skip: !survey }),
+    survey,
+  };
 };

@@ -19,6 +19,7 @@ from baselayer.log import make_log
 from ..models import Instrument
 from .calculations import great_circle_distance
 from .parse import is_null
+from .survey import OBJECT_ID_PATTERNS
 
 env, cfg = load_env()
 
@@ -95,18 +96,9 @@ SNCOSMO_TO_TNSFILTER = {
 TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
 
 SURVEYS = {
-    "ZTF": {
-        "discovery_data_source_id": 48,
-        "regex": r"ZTF\d{2}[a-z]{7}$",  # ZTF + 2 digits + 7 lowercase characters
-    },
-    "DECAM": {
-        "discovery_data_source_id": 88,
-        "regex": r"[ACT]20\d{6}\d{7}[pm]\d{6}$",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
-    },
-    "LSST": {
-        "discovery_data_source_id": 165,
-        "regex": r"LSST-P-DO-\d+$",  # LSST-P-DO- + diaObjectId (int64)
-    },
+    "ZTF": {"discovery_data_source_id": 48, "regex": OBJECT_ID_PATTERNS["ZTF"]},
+    "DECAM": {"discovery_data_source_id": 88, "regex": OBJECT_ID_PATTERNS["DECAM"]},
+    "LSST": {"discovery_data_source_id": 165, "regex": OBJECT_ID_PATTERNS["LSST"]},
 }
 
 
@@ -383,8 +375,11 @@ def get_IAUname(
     elif ra is not None and dec is not None:
         c = SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame="icrs")
         req_data = {
-            "ra": c.ra.to_string(unit=u.hour, sep=":", pad=True),
-            "dec": c.dec.to_string(unit=u.degree, sep=":", alwayssign=True, pad=True),
+            # TNS 500s on astropy's default ~8-decimal coords; cap precision.
+            "ra": c.ra.to_string(unit=u.hour, sep=":", pad=True, precision=3),
+            "dec": c.dec.to_string(
+                unit=u.degree, sep=":", alwayssign=True, pad=True, precision=3
+            ),
             "radius": f"{radius}",
             "units": "arcsec",
             "objname": "",

@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
-import UserPreferencesHeader from "./UserPreferencesHeader";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -60,48 +59,42 @@ const ClassificationsShortcutForm = () => {
   };
 
   return (
-    <div>
-      <UserPreferencesHeader
-        title="Classifications Shortcut"
-        popupText="Select a group of preexisting classifications, give them a common name, and a shortcut button will appear on the scanning page for selecting those classifications."
-      />
-      <div className={classes.form}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className={classes.form}>
-            <ClassificationSelect
-              selectedClassifications={selectedClassifications}
-              setSelectedClassifications={setSelectedClassifications}
-            />
-            <TextField
-              {...register("shortcutName", {
-                required: true,
-                validate: (value: string) =>
-                  !profile?.classificationShortcuts ||
-                  !(value in profile.classificationShortcuts) ||
-                  "Shortcut with that name already exists",
-              })}
-              label="Shortcut Name"
-              id="shortcutNameInput"
-              error={!!errors["shortcutName"]}
-              helperText={
-                errors["shortcutName"]
-                  ? (errors["shortcutName"].message as string) || "Required"
-                  : ""
-              }
-            />
-          </div>
-          <Button primary type="submit" data-testid="addShortcutButton">
-            Add Shortcut
-          </Button>
-        </form>
-        {profile?.classificationShortcuts && (
-          <DeletableChips
-            items={Object.keys(profile?.classificationShortcuts)}
-            onDelete={onDelete}
-            title="Shortcuts"
+    <div className={classes.form}>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className={classes.form}>
+          <ClassificationSelect
+            selectedClassifications={selectedClassifications}
+            setSelectedClassifications={setSelectedClassifications}
           />
-        )}
-      </div>
+          <TextField
+            {...register("shortcutName", {
+              required: true,
+              validate: (value: string) =>
+                !profile?.classificationShortcuts ||
+                !(value in profile.classificationShortcuts) ||
+                "Shortcut with that name already exists",
+            })}
+            label="Shortcut Name"
+            id="shortcutNameInput"
+            error={!!errors["shortcutName"]}
+            helperText={
+              errors["shortcutName"]
+                ? (errors["shortcutName"].message as string) || "Required"
+                : ""
+            }
+          />
+        </div>
+        <Button primary type="submit" data-testid="addShortcutButton">
+          Add Shortcut
+        </Button>
+      </form>
+      {profile?.classificationShortcuts && (
+        <DeletableChips
+          items={Object.keys(profile?.classificationShortcuts)}
+          onDelete={onDelete}
+          title="Shortcuts"
+        />
+      )}
     </div>
   );
 };

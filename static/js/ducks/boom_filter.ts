@@ -38,6 +38,37 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         body: { altdata, filters, name },
       }),
     }),
+    // Toggle a filter's auto-save/annotate/followup flags and its auto-save
+    // ignore-groups (stored in the filter's altdata; PATCH).
+    updateBoomFilterFlags: build.mutation<
+      any,
+      {
+        filter_id: any;
+        autoSave?: boolean;
+        autoAnnotate?: boolean;
+        autoFollowup?: boolean;
+        autoSaveIgnoreGroupIds?: number[];
+        autoSaveIgnoreRadius?: number | null;
+        autoSaveSaverId?: number | null;
+        autoSaveComment?: string | null;
+        autoFollowupDefaultId?: number | null;
+      }
+    >({
+      query: ({ filter_id, ...flags }) => ({
+        url: `${brokerFilterBase()}/filters/${filter_id}`,
+        method: "PATCH",
+        body: flags,
+      }),
+    }),
+    // Slow: runs the filter over a night of alerts on the broker. Records the
+    // verdict server-side (keyed on fid) so the version can then be activated.
+    validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({
+      query: ({ filter_id, fid }) => ({
+        url: `${brokerFilterBase()}/filters/${filter_id}/validate`,
+        method: "POST",
+        body: fid ? { fid } : {},
+      }),
+    }),
   }),
 });
 
@@ -45,6 +76,8 @@ export const {
   useGetBoomFilterVersionQuery,
   useEditBoomFilterVersionMutation,
   useUpdateBoomGroupFilterMutation,
+  useUpdateBoomFilterFlagsMutation,
+  useValidateBoomFilterMutation,
 } = boomFilterApi;
 
 // Shared read of the current broker filter version, keyed by the :fid route

@@ -11,7 +11,8 @@
  * invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { spectraTag } from "./spectraTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
@@ -22,8 +23,47 @@ export interface Spectrum {
   [key: string]: any;
 }
 
+export interface BulkSpectraSource {
+  id: string;
+  redshift: number | null;
+  first_detected_mjd: number | null;
+  peak_mjd: number | null;
+  tns_discovery_date: string | null;
+}
+
+export interface BulkSpectrum {
+  obj_id: string;
+  observed_at: string | null;
+  wavelengths: number[];
+  fluxes: number[];
+}
+
+export interface BulkSpectraArgs {
+  group_id?: number;
+  obj_ids?: string[];
+  classifications?: string[];
+  classificationProbThreshold?: number;
+  maxSources?: number;
+}
+
 export const spectraApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // Slim spectra + per-source phase anchors for a whole source set in one
+    // request (group / object list / classification), for phase-stacked plots.
+    getBulkSpectra: build.query<
+      {
+        sources: BulkSpectraSource[];
+        spectra: BulkSpectrum[];
+        truncated: boolean;
+      },
+      BulkSpectraArgs
+    >({
+      query: (body) => ({ url: "/api/spectra/bulk", method: "POST", body }),
+      providesTags: (result) =>
+        result?.sources?.length
+          ? result.sources.flatMap((source) => spectraTag(source.id))
+          : spectraTag(),
+    }),
     // The spectrum shape is highly dynamic across SkyPortal apps; consumers read
     // many optional fields, so the element type is `any` (the `Spectrum`
     // interface above documents the stable fields).
@@ -34,12 +74,12 @@ export const spectraApi = skyportalApi.injectEndpoints({
       query: ({ id, normalization = null }) =>
         `/api/sources/${id}/spectra${
           normalization
-            ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
+            ? `?normalization=${normalization}&sortBy=observed_at&sortOrder=asc`
             : ""
         }`,
       transformResponse: (data: { spectra?: Spectrum[] }) =>
         data?.spectra ?? [],
-      providesTags: ["Spectra"],
+      providesTags: (_result, _error, { id }) => spectraTag(id),
     }),
     // Single spectrum WITH the raw uploaded file (original_file_string), which is
     // deferred from the source-spectra payload. Fetched on demand for download.
@@ -85,7 +125,7 @@ export const spectraApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Spectra"],
     }),
-    deleteAnnotation: build.mutation<
+    deleteSpectrumAnnotation: build.mutation<
       unknown,
       { id: number | string; annotationID: number | string }
     >({
@@ -99,17 +139,30 @@ export const spectraApi = skyportalApi.injectEndpoints({
 });
 
 // Websocket-driven invalidation: refresh spectra on REFRESH_SOURCE_SPECTRA.
-invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
-  payload?.obj_internal_key != null ? ["Spectra"] : null,
-);
+// Broadcast to every client for every source, carrying the source's
+// internal_key: translate it to the obj id so only that source's spectra
+// refetch. Without an obj id there is nothing to refresh, since an unscoped tag
+// here matches every open source page.
+invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload, getState) => {
+  const objKey = payload?.obj_internal_key as string | undefined;
+  if (!objKey) {
+    return null;
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? spectraTag(objId) : null;
+});
 
 export const {
+  useGetBulkSpectraQuery,
   useFetchSourceSpectraQuery,
-  useLazyFetchSourceSpectraQuery,
   useLazyFetchSpectrumOriginalFileQuery,
   useParseASCIISpectrumMutation,
   useAddSyntheticPhotometryMutation,
   useDeleteSpectrumMutation,
   useUploadASCIISpectrumMutation,
-  useDeleteAnnotationMutation,
+  useDeleteSpectrumAnnotationMutation,
 } = spectraApi;

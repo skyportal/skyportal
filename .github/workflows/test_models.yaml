@@ -13,8 +13,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  scope:
+    uses: ./.github/workflows/ci_scope.yaml
+
   test-models:
-    if: github.event.pull_request.draft == false
+    needs: scope
+    if: ${{ github.event.pull_request.draft == false && needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -69,7 +73,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "22.x"
+          node-version: "24.x"
           package-manager-cache: false
 
       - uses: oven-sh/setup-bun@v2
@@ -108,9 +112,12 @@ jobs:
           EOF
 
       - name: Install system dependencies
+        timeout-minutes: 10
+        env:
+          APT_OPTS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30
         run: |
-          sudo apt update -y
-          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt $APT_OPTS update -y
+          sudo apt $APT_OPTS install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -136,7 +143,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           uv sync --inexact --group dev
           make db_init
 
@@ -145,14 +151,7 @@ jobs:
       - name: Refresh SkyPortal dependencies for tested version
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
-
-      # Lint the diff once (on shard 0), not once per shard.
-      - name: Formatting and linting checks
-        if: matrix.shard == 0 && github.ref != 'refs/heads/main'
-        run: |
-          uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Save dependency caches
         if: matrix.shard == 0

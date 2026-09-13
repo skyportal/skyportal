@@ -1,6 +1,7 @@
 import astropy.units as u
 import healpix_alchemy as ha
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 
 from baselayer.app.access import permissions
@@ -12,6 +13,24 @@ from ..base import BaseHandler
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
+
+
+class HealpixUpdatePostQuery(BaseModel):
+    """Query parameters for the healpix backfill."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    numPerPage: int = Field(
+        default=DEFAULT_SOURCES_PER_PAGE,
+        description=(
+            f"Number of objects to update per paginated request. Defaults to "
+            f"{DEFAULT_SOURCES_PER_PAGE}. Capped at {MAX_SOURCES_PER_PAGE}."
+        ),
+    )
 
 
 class HealpixUpdateHandler(BaseHandler):
@@ -62,27 +81,13 @@ class HealpixUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    async def post(self):
+    async def post(self, *, query: HealpixUpdatePostQuery = None):
         """
         ---
         summary: Calculate Healpix values for sources w/o them
         description: calculate healpix values for a batch of sources without a Healpix value
         tags:
           - sources
-        parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
         responses:
             200:
               content:
@@ -107,15 +112,10 @@ class HealpixUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        num_per_page = self.get_query_argument(
-            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
-        )
-        if page_number is None or num_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
+        query = self.parse_query(HealpixUpdatePostQuery)
+
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, MAX_SOURCES_PER_PAGE)
 
         async with self.AsyncSession() as session:
             stmt = sa.select(Obj).where(Obj.healpix.is_(None))

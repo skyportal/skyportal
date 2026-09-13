@@ -14,6 +14,7 @@ export interface ModelFit {
   baseLabel?: string; // model name before run-disambiguation, for grouping runs
   createdAt?: string; // run timestamp — disambiguates repeated runs of a model
   nDet?: number; // detections used in the fit — also disambiguates runs
+  dereddened?: boolean; // fit ran on extinction-corrected (dereddened) photometry
 }
 
 // Build Plotly traces (credible band + median line) per filter to overlay an
@@ -29,6 +30,8 @@ export function buildModelLightcurveTraces(
   filter2color: Record<string, number[]>,
   xOf: (mjd: number) => number,
   plotType: string | null,
+  extinctionByFilter: Record<string, number> = {},
+  showExtinction: boolean = false,
 ): any[] {
   if (plotType !== "mag" || !Array.isArray(modelFits)) return [];
   const traces: any[] = [];
@@ -37,10 +40,19 @@ export function buildModelLightcurveTraces(
     Object.entries(mlc).forEach(([filt, pts]) => {
       if (!Array.isArray(pts) || pts.length === 0) return;
       const color = filter2color?.[filt] || [80, 80, 80];
+      // Keep the overlay in the plot's current extinction frame. A fit run on
+      // dereddened photometry is dereddened-native; the displayed data is
+      // dereddened only when the extinction toggle is on. Shift by A_lambda so
+      // the two always match (dereddened mag = observed mag - A). NaN-gap nulls
+      // are left untouched.
+      const a = extinctionByFilter?.[filt] || 0;
+      const shift = a * ((fit.dereddened ? 1 : 0) - (showExtinction ? 1 : 0));
+      const shifted = (v: number | null | undefined): number | null =>
+        v == null ? null : v + shift;
       const xs = pts.map((p) => xOf(p[0]!));
-      const med = pts.map((p) => p[1]);
-      const lo = pts.map((p) => p[2]);
-      const hi = pts.map((p) => p[3]);
+      const med = pts.map((p) => shifted(p[1]));
+      const lo = pts.map((p) => shifted(p[2]));
+      const hi = pts.map((p) => shifted(p[3]));
       const group = `modelfit-${fit.id ?? fi}-${filt}`;
       const label = fit.label ? ` (${fit.label})` : "";
 

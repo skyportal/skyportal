@@ -19,17 +19,21 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
+from .assistant import AssistantConversationHandler, AssistantMessageHandler
 from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultPhotometryHandler,
+    BrokerFilterAttachHandler,
+    BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
-    BrokerSurveyPhotometryHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
@@ -48,10 +52,16 @@ from .classification import (
     ObjClassificationQueryHandler,
 )
 from .color_mag import ObjColorMagHandler
-from .comment import CommentAttachmentHandler, CommentHandler
+from .comment import CommentAttachmentHandler, CommentChannelHandler, CommentHandler
 from .comment_attachment import CommentAttachmentUpdateHandler
 from .config_handler import ConfigHandler
-from .db_stats import StatsHandler
+from .data_access_request import (
+    DataAccessRequestHandler,
+    DataAvailabilityHandler,
+    DuplicateSchedulingHandler,
+    ScheduledObservationsHandler,
+)
+from .db_stats import StatsHandler, StatsHistoryHandler
 from .earthquake import (
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -74,18 +84,22 @@ from .followup_request import (
 from .galaxy import (
     GalaxyASCIIFileHandler,
     GalaxyCatalogHandler,
-    GalaxyGladeHandler,
+    GalaxyNEDHandler,
+    GalaxyRegaladeHandler,
     ObjHostHandler,
 )
 from .gcn import (
     DefaultGcnTagHandler,
     GcnEventAliasesHandler,
+    GcnEventAssociationsHandler,
     GcnEventCatalogQueryHandler,
+    GcnEventExtractionsHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventNoticeDownloadHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
+    GcnEventSummarizeHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventTagsHandler,
     GcnEventTriggerHandler,
@@ -99,6 +113,12 @@ from .gcn import (
     LocalizationPropertiesHandler,
     LocalizationTagsHandler,
     ObjGcnEventHandler,
+)
+from .gcn_association_rule import GcnAssociationRuleHandler  # noqa: F401
+from .gcn_crossmatch import GcnEventCrossmatchHandler  # noqa: F401
+from .gcn_event_obj import (
+    GcnEventObjHandler,
+    GCNsAssociatedWithSourceHandler,
 )
 from .gcn_gracedb import GcnGraceDBHandler
 from .gcn_tach import GcnTachHandler
@@ -128,7 +148,7 @@ from .mmadetector import (
 from .moving_object import MovingObjectFollowupHandler
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
-from .obj import ObjHandler, ObjPositionHandler
+from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler
 from .observation import (
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
@@ -178,6 +198,7 @@ from .public_pages.public_source_page import PublicSourcePageHandler
 from .recurring_api import RecurringAPIHandler
 from .reminder import ReminderHandler
 from .roles import RoleHandler, UserRoleHandler
+from .scout import ScoutEphemerisHandler  # noqa: F401
 from .sharing import SharingHandler
 from .sharing_service.sharing_service import SharingServiceHandler
 from .sharing_service.sharing_service_coauthor import (
@@ -206,13 +227,11 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
+from .source_interest import SourceInterestHandler
 from .source_labels import SourceLabelsHandler
-from .sources_confirmed_in_gcn import (
-    GCNsAssociatedWithSourceHandler,
-    SourcesConfirmedInGCNHandler,
-)
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
+    BulkSpectraHandler,
     ObjSpectraHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
@@ -222,6 +241,7 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .summary_query import SummaryQueryHandler
+from .super_obj import SuperObjHandler
 from .survey_efficiency import (
     DefaultSurveyEfficiencyRequestHandler,
     SurveyEfficiencyForObservationPlanHandler,
@@ -232,11 +252,13 @@ from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
 from .team import TeamHandler
 from .telescope import TelescopeHandler
+from .terms_of_service import TermsOfServiceHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserHandler,
+    UserPublicProfileHandler,
     set_default_acls,
     set_default_group,
     set_default_role,

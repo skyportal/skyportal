@@ -10,6 +10,7 @@
  * The old websocket `REFRESH_ALLOCATIONS` handler refetched all three lists;
  * here we invalidate the "Allocation" tag so any active variant refetches.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -20,17 +21,7 @@ const buildAllocationUrl = (params?: AllocationQueryParams): string => {
   if (!params || Object.keys(params).length === 0) {
     return "api/allocation";
   }
-  const filtered: Record<string, string> = {};
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") {
-      return;
-    }
-    if (Array.isArray(value) && value.length === 0) {
-      return;
-    }
-    filtered[key] = String(value);
-  });
-  const queryString = new URLSearchParams(filtered).toString();
+  const queryString = buildQueryString(params);
   return queryString ? `api/allocation?${queryString}` : "api/allocation";
 };
 

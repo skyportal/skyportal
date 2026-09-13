@@ -1,5 +1,6 @@
+import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -48,6 +49,8 @@ import {
 
 import {
   BASE_LAYOUT,
+  plotAxisTheme,
+  plotCanvasTheme,
   PHOT_ZP,
   smoothing_func,
   mjdnow,
@@ -56,6 +59,22 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  RequestSpectrumDialog,
+  UNSHARED_SPECTRUM,
+  unsharedSpectrumTraces,
+} from "./UnsharedSpectrumMarkers";
+import {
+  SpectrumAvailability,
+  useGetDataAvailabilityQuery,
+} from "../../ducks/dataAccessRequests";
+import SolarSystemPlot, {
+  SolarSystemControls,
+  useSolarSystemPlot,
+} from "./SolarSystemPlot";
+import PhotometryPlotSkeleton from "./PhotometryPlotSkeleton";
+import { getValidationStatus } from "../photometry/PhotometryValidation";
+import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 
@@ -66,6 +85,30 @@ import CornerPlot from "./CornerPlot";
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+
+// New layouts, keeping the axis ranges already declared. Plotly holds a user's
+// zoom only while the declared range it compares against stays put, so a range
+// recomputed from new points would hand the axis back to us.
+const keepDeclaredRanges = (next: any, current: any): any => {
+  if (!current) {
+    return next;
+  }
+  const merged = { ...next };
+  ["xaxis", "xaxis2", "yaxis", "yaxis2"].forEach((axis) => {
+    if (merged[axis]?.range && current[axis]?.range) {
+      merged[axis] = { ...merged[axis], range: current[axis].range };
+    }
+  });
+  return merged;
+};
+
+// True when an analysis ran on extinction-corrected (dereddened) photometry, so
+// its model overlay is dereddened-native. analysis_parameters may store the flag
+// as a bool or a string.
+const analysisIsDereddened = (a: any): boolean => {
+  const v = a?.analysis_parameters?.correct_extinction;
+  return v === true || v === 1 || v === "true" || v === "True" || v === "1";
+};
 const DASH_GLYPH: Record<string, string> = {
   solid: "──",
   dash: "– –",
@@ -82,6 +125,17 @@ const periodUnitDividers: Record<string, number> = {
 
 const Plot = createPlotlyComponent(Plotly);
 
+const getPhotometryInstrumentLabel = (point: any) =>
+  point.instrument_name || point.instrument || point.telescope || "Unknown";
+
+// Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
+// factors rescale the flux axis to the selected display unit.
+const FLUX_UNIT_FACTORS: Record<string, number> = {
+  µJy: 1,
+  mJy: 1e-3,
+  Jy: 1e-6,
+};
+
 const useStyles = makeStyles()((theme) => ({
   gridContainer: {
     display: "grid",
@@ -91,6 +145,13 @@ const useStyles = makeStyles()((theme) => ({
     columnGap: "2rem",
     width: "100%",
     padding: "0.5rem 1rem 0 1rem",
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "repeat(2, 1fr)",
+      columnGap: "1rem",
+    },
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
   },
   gridItem: {
     display: "flex",
@@ -99,6 +160,13 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "left",
     gap: 0,
     width: "100%",
+    minWidth: 0,
+  },
+  gridItemWide: {
+    gridColumn: "span 2",
+    [theme.breakpoints.down("sm")]: {
+      gridColumn: "1 / -1",
+    },
   },
   sliderContainer: {
     display: "flex",
@@ -130,10 +198,10 @@ const useStyles = makeStyles()((theme) => ({
     [theme.breakpoints.down("md")]: {
       gridTemplateColumns: "1fr 1fr 1fr",
       display: "grid",
-      "& > :first-child": {
+      "& > .MuiSlider-root": {
         gridColumn: "span 2",
       },
-      "& > :last-child": {
+      "& > .MuiIconButton-root": {
         gridColumn: "span 3",
       },
       paddingBottom: "0.5rem",
@@ -191,7 +259,6 @@ const PeriodAnnotationDialog = ({
         items: {
           type: "string",
           enum: groups?.map((group: any) => group.id.toString()),
-          enumNames: groups?.map((group: any) => group.name),
         },
         uniqueItems: true,
       },
@@ -214,13 +281,12 @@ const PeriodAnnotationDialog = ({
 
   const submitPeriodAnnotation = async ({ formData }: { formData: any }) => {
     const periodData = {
-      obj_id,
       origin: formData.origin,
       data: {
         period:
           formData.period / (periodUnitDividers[formData.periodUnitValue] ?? 1),
       },
-      groups: formData.groupIDs,
+      group_ids: formData.groupIDs,
     };
     addAnnotation({ sourceID: obj_id, formData: periodData })
       .unwrap()
@@ -250,6 +316,11 @@ const PeriodAnnotationDialog = ({
         <DialogContent>
           <Form
             schema={schema}
+            uiSchema={{
+              groupIDs: {
+                "ui:enumNames": groups?.map((group: any) => group.name),
+              },
+            }}
             validator={validator}
             customValidate={validate}
             onSubmit={submitPeriodAnnotation as any}
@@ -273,6 +344,8 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Solar-system object flag; enables the geometry-corrected "Solar System" tab.
+  is_roid?: boolean;
   // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
   // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
   modelFits?: ModelFit[];
@@ -291,8 +364,11 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  is_roid = false,
   modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
+  const muiTheme = useTheme();
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
@@ -330,6 +406,7 @@ const PhotometryPlot = ({
                   model, // key into data.posteriors
                   createdAt: a.created_at,
                   nDet: a.n_detections,
+                  dereddened: analysisIsDereddened(a),
                 }),
               );
             }
@@ -351,6 +428,7 @@ const PhotometryPlot = ({
                 // no `model` key -> single fit uses data.posterior_samples
                 createdAt: a.created_at,
                 nDet: a.n_detections,
+                dereddened: analysisIsDereddened(a),
               },
             ];
           });
@@ -505,11 +583,16 @@ const PhotometryPlot = ({
   // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
   const mainPhotParams = useMemo<any>(() => {
     const params: any = { magsys };
-    if (showExtinctionCorrection) {
+    // Fetch per-point extinction when the toggle is on, or when a dereddened
+    // model fit exists (so its overlay can be re-reddened to the observed data).
+    if (
+      showExtinctionCorrection ||
+      effectiveModelFits.some((f) => f.dereddened)
+    ) {
       params.includeExtinction = true;
     }
     return params;
-  }, [magsys, showExtinctionCorrection]);
+  }, [magsys, showExtinctionCorrection, effectiveModelFits]);
 
   const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
     { id: obj_id, params: mainPhotParams },
@@ -554,11 +637,51 @@ const PhotometryPlot = ({
     [obj_id, mainPhotometry, duplicatesPhotometryById],
   );
 
+  // Per-filter Galactic A_lambda (mag), present on the points when the
+  // photometry query includes extinction. Used to shift model overlays into
+  // whatever extinction frame the plot is currently showing.
+  const extinctionByFilter = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {};
+    (mainPhotometry || []).forEach((p: any) => {
+      if (p?.filter != null && typeof p.extinction === "number") {
+        out[p.filter] = p.extinction;
+      }
+    });
+    return out;
+  }, [mainPhotometry]);
+
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
+
+  // Needs per-point geometry (rh/delta/phase in altdata, from BOOM) to fill in.
+  const isSolarSystemTab = is_roid && tabIndex === 3;
+  const solarSystemPoints = useMemo<SsoPoint[]>(
+    () =>
+      (mainPhotometry || [])
+        .filter(
+          (p: any) =>
+            p?.mag != null &&
+            p?.altdata?.rh != null &&
+            p?.altdata?.delta != null &&
+            p?.altdata?.phase != null,
+        )
+        .map((p: any) => ({
+          time: p.mjd,
+          mag: p.mag,
+          magerr: p.magerr ?? 0,
+          band: (p.filter || "").replace(/^ztf/i, "") || p.filter,
+          rh: p.altdata.rh,
+          delta: p.altdata.delta,
+          phase: p.altdata.phase,
+          // Validation doubles as masking: shown on the plot, never fitted.
+          rejected: getValidationStatus(p) === "rejected",
+        })),
+    [mainPhotometry],
+  );
+  const solarSystemCtrl = useSolarSystemPlot(solarSystemPoints);
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");
@@ -567,6 +690,13 @@ const PhotometryPlot = ({
 
   const [photStats, setPhotStats] = useState<any>(null);
   const [layouts, setLayouts] = useState<any>({});
+  // Passed to Plotly as uirevision. The layout prop is rebuilt on every render,
+  // and Plotly.react re-applies the declared axis ranges unless this is
+  // unchanged. Bumped only where the user's view is meant to reset.
+  const [layoutRevision, setLayoutRevision] = useState(0);
+  // Whether the view on screen is one the user dragged to rather than the one
+  // we declared. While it is, the declared ranges are held still.
+  const userZoomed = useRef(false);
 
   const [filter2color, setFilter2Color] = useState<any>(
     config?.bandpassesColors,
@@ -577,6 +707,8 @@ const PhotometryPlot = ({
   const [t0Max, setT0Max] = useState(mjdnow());
   const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
   const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
+  const [displayFluxAxisInLog, setDisplayFluxAxisInLog] = useState(false);
+  const [fluxUnit, setFluxUnit] = useState<string>("µJy");
   const [showNonDetections, setShowNonDetections] = useState(true);
   const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
   const [showOnlyValidated, setShowOnlyValidated] = useState(false);
@@ -618,6 +750,7 @@ const PhotometryPlot = ({
     };
 
     const now = mjdnow();
+    const fluxUnitFactor = FLUX_UNIT_FACTORS[fluxUnit] ?? 1;
 
     const newPhotometryData = photometryData.map((point) => {
       const newPoint = { ...point };
@@ -640,6 +773,14 @@ const PhotometryPlot = ({
         newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
         newPoint.fluxerr = 0;
         newPoint.snr = null;
+      }
+      // Rescale to the selected flux unit (snr is a ratio, so it is unaffected).
+      if (fluxUnitFactor !== 1) {
+        newPoint.flux *= fluxUnitFactor;
+        newPoint.fluxerr *= fluxUnitFactor;
+        if (newPoint.flux_corr !== undefined && newPoint.flux_corr !== null) {
+          newPoint.flux_corr *= fluxUnitFactor;
+        }
       }
       newPoint.streams = (newPoint.streams || [])
         .map((stream: any) => stream?.name || stream)
@@ -700,10 +841,11 @@ const PhotometryPlot = ({
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? newPoint.flux_corr
           : newPoint.flux;
-      const fluxLabel =
+      const fluxLabel = `${
         showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
           ? "Flux (corrected)"
-          : "Flux";
+          : "Flux"
+      } (${fluxUnit})`;
 
       newPoint.text += `
         <br>Limiting Mag: ${
@@ -716,7 +858,7 @@ const PhotometryPlot = ({
       }
       newPoint.text += `
         <br>Filter: ${newPoint.filter}
-        <br>Instrument: ${newPoint.instrument_name}
+        <br>Instrument: ${getPhotometryInstrumentLabel(newPoint)}
       `;
       if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
         newPoint.text += `<br>Origin: ${newPoint.origin}`;
@@ -806,7 +948,8 @@ const PhotometryPlot = ({
     // we will use these values to set the range of the plot
 
     const groupedPhotometry = photometryData.reduce((acc: any, point: any) => {
-      let key = `${point.instrument_name}/${point.filter}`;
+      const instrumentLabel = getPhotometryInstrumentLabel(point);
+      let key = `${instrumentLabel}/${point.filter}`;
       // if we are using duplicates, put the obj_id at the beginning of the key
       if (usingDuplicates) {
         key = `${point.obj_id}/${key}`;
@@ -814,7 +957,8 @@ const PhotometryPlot = ({
       if (
         point?.origin !== "None" &&
         point.origin !== "" &&
-        point.origin !== null
+        point.origin !== null &&
+        point.origin !== undefined
       ) {
         // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
         const remaining = (usingDuplicates ? 33 : 23) - key.length;
@@ -933,7 +1077,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -977,7 +1121,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1162,7 +1306,7 @@ const PhotometryPlot = ({
             },
             visible: existingDetectionTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1197,7 +1341,7 @@ const PhotometryPlot = ({
                 ? false
                 : existingUpperLimitsTraceVisibility,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1236,7 +1380,8 @@ const PhotometryPlot = ({
 
       return newPlotData;
     }
-    return null;
+    // A tab drawing its own plot has no traces, but callers still push onto this.
+    return [];
   };
 
   const createLayouts = (
@@ -1259,6 +1404,7 @@ const PhotometryPlot = ({
           exponentformat: "power",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       } else {
         newLayouts.xaxis = {
@@ -1270,6 +1416,7 @@ const PhotometryPlot = ({
           tickformat: ".6~f",
           zeroline: false,
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
@@ -1281,8 +1428,15 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              tickformat: ".6~f",
+              // Ticks land on fractional days, so let the spacing Plotly picked set the precision.
+              tickformat: ",.0f",
+              tickformatstops: [
+                { dtickrange: [null, 0.1], value: ",.2f" },
+                { dtickrange: [0.1, 1], value: ",.1f" },
+                { dtickrange: [1, null], value: ",.0f" },
+              ],
               ...BASE_LAYOUT,
+              ...axisTheme,
             }
           : {
               title: {
@@ -1295,6 +1449,7 @@ const PhotometryPlot = ({
               zeroline: false,
               tickformat: ",.0f",
               ...BASE_LAYOUT,
+              ...axisTheme,
             };
       }
     } else if (plotType === "period") {
@@ -1306,6 +1461,7 @@ const PhotometryPlot = ({
         range: [0, phase],
         tickformat: ".2f",
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
     }
 
@@ -1320,6 +1476,7 @@ const PhotometryPlot = ({
         range: [...photStats_value.mag.range],
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       };
       if (dm && photStats_value) {
         newLayouts.yaxis2 = {
@@ -1334,20 +1491,45 @@ const PhotometryPlot = ({
           side: "right",
           showgrid: false,
           zeroline: false,
+          // Ticks come from the mag axis, so a fractional DM leaves every label fractional.
+          tickformat: ".1f",
+          tickformatstops: [
+            { dtickrange: [null, 0.1], value: ".2f" },
+            { dtickrange: [0.1, null], value: ".1f" },
+          ],
           ...BASE_LAYOUT,
+          ...axisTheme,
         };
       }
     } else if (plotType === "flux") {
-      const fluxLabel = showExtinctionCorrectionValue
-        ? "Flux (Extinction-Corrected)"
-        : "Flux";
-      newLayouts.yaxis = {
-        title: {
-          text: fluxLabel,
-        },
-        range: [...photStats_value.flux.range],
-        ...BASE_LAYOUT,
-      };
+      const fluxLabel = `${
+        showExtinctionCorrectionValue ? "Flux (Extinction-Corrected)" : "Flux"
+      } (${fluxUnit})`;
+      if (displayFluxAxisInLog) {
+        const [fluxMin, fluxMax] = photStats_value.flux.range;
+        // A log axis can't show non-positive flux, so clamp the lower bound.
+        const lo = fluxMin > 0 ? fluxMin : fluxMax / 1e4;
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [Math.log10(lo), Math.log10(fluxMax)],
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      } else {
+        newLayouts.yaxis = {
+          title: {
+            text: fluxLabel,
+          },
+          range: [...photStats_value.flux.range],
+          ...BASE_LAYOUT,
+          ...axisTheme,
+        };
+      }
     }
     return newLayouts;
   };
@@ -1450,18 +1632,18 @@ const PhotometryPlot = ({
           (mjd: number) =>
             t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
           tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
         ),
       );
 
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
-          if (
-            !(
-              newTrace.name &&
-              ["detections", "upperLimits"].includes(newTrace.dataType)
-            )
-          ) {
+          if (!(
+            newTrace.name &&
+            ["detections", "upperLimits"].includes(newTrace.dataType)
+          )) {
             return newTrace;
           }
           if (
@@ -1487,7 +1669,11 @@ const PhotometryPlot = ({
         dm,
         showExtinctionCorrection,
       );
-      setLayouts(newLayouts);
+      setLayouts((current: any) =>
+        userZoomed.current
+          ? keepDeclaredRanges(newLayouts, current)
+          : newLayouts,
+      );
       setInitialized(true);
     }
   }, [
@@ -1499,15 +1685,37 @@ const PhotometryPlot = ({
     t0,
     displayXAxisSinceT0,
     displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
     showOnlyValidated,
     shownModelFits,
+  ]);
+
+  // Only an axis whose meaning changed invalidates the user's zoom. New or
+  // refetched points reuse the revision, so Plotly keeps the current view.
+  useEffect(() => {
+    if (initialized) {
+      userZoomed.current = false;
+      setLayoutRevision((revision) => revision + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    displayXAxisSinceT0,
+    displayXAxisInlog,
+    displayFluxAxisInLog,
+    fluxUnit,
+    dm,
+    t0,
+    tabIndex,
+    phase,
   ]);
 
   // The main object's photometry (including extinction toggle and magsys) is
   // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
-    if (initialized && filter2color) {
+    // The Solar System tab draws its own plot, so there is nothing to rebuild.
+    if (initialized && filter2color && tabToPlotType(tabIndex)) {
       const traces = createTraces(
         data,
         photStats,
@@ -1529,6 +1737,8 @@ const PhotometryPlot = ({
           (mjd: number) =>
             t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
           tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
         ),
       );
       setPlotData(traces);
@@ -1551,6 +1761,7 @@ const PhotometryPlot = ({
         showExtinctionCorrection,
       );
       setLayouts(newLayouts);
+      setLayoutRevision((revision) => revision + 1);
       setLayoutReset(false);
     }
   }, [layoutReset]);
@@ -1673,6 +1884,15 @@ const PhotometryPlot = ({
     setTabIndex(newValue);
   };
 
+  // Spectra on this source that the viewer cannot open: marked like the others,
+  // in a colour that says so, and clickable to ask the owner for them.
+  const { data: dataAvailability } = useGetDataAvailabilityQuery(obj_id, {
+    skip: !obj_id,
+  });
+  const unsharedSpectra = dataAvailability?.spectra ?? [];
+  const [spectrumToRequest, setSpectrumToRequest] =
+    useState<SpectrumAvailability | null>(null);
+
   const yMarkers: any[] = [];
   if (photStats) {
     yMarkers.push(
@@ -1712,7 +1932,7 @@ const PhotometryPlot = ({
             visible: true,
             showlegend: false,
             hoverlabel: {
-              bgcolor: "white",
+              bgcolor: muiTheme.palette.background.paper,
               font: { size: 14 },
               align: "left",
             },
@@ -1744,7 +1964,7 @@ const PhotometryPlot = ({
               visible: true,
               showlegend: false,
               hoverlabel: {
-                bgcolor: "white",
+                bgcolor: muiTheme.palette.background.paper,
                 font: { size: 14 },
                 align: "left",
               },
@@ -1752,10 +1972,21 @@ const PhotometryPlot = ({
             };
           }),
         )
+        .concat(
+          unsharedSpectrumTraces(
+            unsharedSpectra,
+            yMarkers,
+            {
+              available: muiTheme.palette.warning.main,
+              requested: muiTheme.palette.text.disabled,
+            },
+            muiTheme.palette.background.paper,
+          ),
+        )
     : [];
 
   if (!(photometry && config && photStats)) {
-    return <CircularProgress color="secondary" />;
+    return <PhotometryPlotSkeleton height={plotStyle?.height || "70vh"} />;
   }
 
   return (
@@ -1777,19 +2008,25 @@ const PhotometryPlot = ({
         <Tab label="Mag" />
         <Tab label="Flux" />
         <Tab label="Period" />
+        {is_roid && <Tab label="Solar System" />}
       </Tabs>
+
+      {isSolarSystemTab && <SolarSystemPlot ctrl={solarSystemCtrl} />}
 
       <div
         style={{
           width: "100%",
           height: plotStyle?.height || "70vh",
           overflowX: "scroll",
+          display: isSolarSystemTab ? "none" : undefined,
         }}
       >
         <Plot
           data={(plotData || []).concat(eventMarkers || [])}
           layout={{
             ...layouts,
+            ...plotCanvasTheme(muiTheme),
+            uirevision: layoutRevision,
             legend: {
               orientation: mode === "desktop" ? "v" : "h",
               yanchor: "top",
@@ -1819,7 +2056,7 @@ const PhotometryPlot = ({
                 x1: 1,
                 y1: 1,
                 line: {
-                  color: "black",
+                  color: muiTheme.palette.text.secondary,
                   width: 1,
                 },
               },
@@ -1844,12 +2081,36 @@ const PhotometryPlot = ({
                 name: "Reset",
                 icon: Plotly.Icons.home,
                 click: () => {
+                  userZoomed.current = false;
                   setLayoutReset(true);
                 },
               },
             ],
           }}
           useResizeHandler
+          onRelayout={(event: any) => {
+            const keys = Object.keys(event || {});
+            if (keys.some((key) => key.includes(".range"))) {
+              userZoomed.current = true;
+            }
+            if (keys.some((key) => key.endsWith(".autorange"))) {
+              userZoomed.current = false;
+            }
+          }}
+          onClick={(event: any) => {
+            const point = (event?.points || []).find(
+              (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
+            );
+            if (!point) return;
+            const spectrumId = Array.isArray(point.customdata)
+              ? point.customdata[0]
+              : point.customdata;
+            setSpectrumToRequest(
+              unsharedSpectra.find(
+                (spectrum) => spectrum.id === spectrumId,
+              ) as SpectrumAvailability,
+            );
+          }}
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e: any) => {
             // e contains a curveNumber (index of the trace clicked in the legend)
@@ -1902,6 +2163,11 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      <RequestSpectrumDialog
+        objId={obj_id}
+        spectrum={spectrumToRequest}
+        onClose={() => setSpectrumToRequest(null)}
+      />
       {effectiveModelFits.length > 0 && (
         <div
           style={{
@@ -2032,344 +2298,407 @@ const PhotometryPlot = ({
         </DialogContent>
       </Dialog>
       <div className={classes.gridContainer}>
-        <div className={classes.gridItem} style={{ columnGap: 0 }}>
-          <div
-            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-          >
-            <Typography id="photometry-show-hide" noWrap>
-              Non-Detections
-            </Typography>
-            <Tooltip
-              title={
-                showExtinctionCorrection
-                  ? "Non-detections are hidden when extinction correction is enabled"
-                  : ""
-              }
-            >
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={showNonDetections && !showExtinctionCorrection}
-                  onChange={() => setShowNonDetections(!showNonDetections)}
-                  disabled={showExtinctionCorrection}
-                  slotProps={{ input: { "aria-label": "controlled" } }}
-                  size="small"
-                />
-              </div>
-            </Tooltip>
-          </div>
-          <div
-            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-          >
-            <Typography id="photometry-show-hide" noWrap>
-              Forced Photometry
-            </Typography>
-            <div className={classes.switchContainer}>
-              <Switch
-                checked={showForcedPhotometry}
-                onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
-                slotProps={{ input: { "aria-label": "controlled" } }}
-                size="small"
-              />
-            </div>
-          </div>
-        </div>
-        <div className={classes.gridItem}>
-          {t0 && (
+        {isSolarSystemTab && (
+          <SolarSystemControls
+            ctrl={solarSystemCtrl}
+            gridItemClass={classes.gridItem}
+          />
+        )}
+        {/* The rest drive the mag/flux/period plots only. */}
+        <div style={{ display: isSolarSystemTab ? "none" : "contents" }}>
+          <div className={classes.gridItem} style={{ columnGap: 0 }}>
             <div
               style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
             >
-              <Typography id="T0-start-range" noWrap>
-                X axis since T0
+              <Typography id="photometry-show-hide" noWrap>
+                Non-Detections
               </Typography>
-              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
-                <div className={classes.switchContainer}>
-                  <Switch
-                    disabled={t0 >= t0Max}
-                    checked={displayXAxisSinceT0}
-                    onChange={() => {
-                      setDisplayXAxisInlog(!displayXAxisSinceT0);
-                      setDisplayXAxisSinceT0(!displayXAxisSinceT0);
-                    }}
-                    slotProps={{ input: { "aria-label": "controlled" } }}
-                    size="small"
-                  />
-                </div>
-              </Tooltip>
-            </div>
-          )}
-          {t0 && displayXAxisSinceT0 && (
-            <div
-              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-            >
-              <Typography id="T0-start-range" noWrap>
-                T - T0 in log
-              </Typography>
-              <div className={classes.switchContainer}>
-                <Switch
-                  checked={displayXAxisInlog}
-                  onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
-                  slotProps={{ input: { "aria-label": "controlled" } }}
-                  size="small"
-                />
-              </div>
-            </div>
-          )}
-          {config?.usePhotometryValidation && (
-            <div
-              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
-            >
-              <Typography id="photometry-validation-filter" noWrap>
-                Validated Only
-              </Typography>
-              <Tooltip title="Show only photometry points that have been validated">
-                <div className={classes.switchContainer}>
-                  <Switch
-                    checked={showOnlyValidated}
-                    onChange={() => setShowOnlyValidated(!showOnlyValidated)}
-                    slotProps={{ input: { "aria-label": "controlled" } }}
-                    size="small"
-                  />
-                </div>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-        <div
-          className={classes.gridItem}
-          style={{
-            alignItems: "end",
-          }}
-        >
-          <div
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography id="input-slider" noWrap>
-              Marker Size
-            </Typography>
-            <div style={{ display: "flex", gap: "0.2rem" }}>
-              <IconButton
-                onClick={() =>
-                  setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
+              <Tooltip
+                title={
+                  showExtinctionCorrection
+                    ? "Non-detections are hidden when extinction correction is enabled"
+                    : ""
                 }
-                style={{ padding: 0 }}
               >
-                <RemoveIcon />
-              </IconButton>
-              <TextField
-                value={markerSize}
-                onChange={(e) => {
-                  const newValue = parseInt(e.target.value, 10);
-                  if (!Number.isNaN(newValue)) {
-                    setMarkerSize(Math.max(Math.min(20, newValue), 1));
-                  } else {
-                    setMarkerSize(e.target.value);
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={showNonDetections && !showExtinctionCorrection}
+                    onChange={() => setShowNonDetections(!showNonDetections)}
+                    disabled={showExtinctionCorrection}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
+                    size="small"
+                  />
+                </div>
+              </Tooltip>
+            </div>
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography id="photometry-show-hide" noWrap>
+                Forced Photometry
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={showForcedPhotometry}
+                  onChange={() =>
+                    setshowForcedPhotometry(!showForcedPhotometry)
                   }
-                }}
-                margin="dense"
-                type="text"
-                size="small"
-                slotProps={{
-                  htmlInput: {
-                    style: { textAlign: "center", padding: "4.5px" },
-                  },
-                }}
-                style={{ width: "3rem", margin: 0 }}
-              />
-              <IconButton
-                onClick={() =>
-                  setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
-                }
-                style={{ padding: 0 }}
-              >
-                <AddIcon />
-              </IconButton>
+                  slotProps={{ input: { "aria-label": "controlled" } }}
+                  size="small"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        {duplicateOptions?.length > 0 && (
+          <div className={classes.gridItem}>
+            {t0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography id="T0-start-range" noWrap>
+                  X axis since T0
+                </Typography>
+                <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      disabled={t0 >= t0Max}
+                      checked={displayXAxisSinceT0}
+                      onChange={() => {
+                        setDisplayXAxisInlog(!displayXAxisSinceT0);
+                        setDisplayXAxisSinceT0(!displayXAxisSinceT0);
+                      }}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </div>
+            )}
+            {t0 && displayXAxisSinceT0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography id="T0-start-range" noWrap>
+                  T - T0 in log
+                </Typography>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={displayXAxisInlog}
+                    onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
+                    size="small"
+                  />
+                </div>
+              </div>
+            )}
+            {tabToPlotType(tabIndex) === "flux" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography noWrap>Flux in log</Typography>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={displayFluxAxisInLog}
+                    onChange={() =>
+                      setDisplayFluxAxisInLog(!displayFluxAxisInLog)
+                    }
+                    slotProps={{ input: { "aria-label": "controlled" } }}
+                    size="small"
+                  />
+                </div>
+              </div>
+            )}
+            {tabToPlotType(tabIndex) === "flux" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography noWrap>Flux unit</Typography>
+                <Select
+                  value={fluxUnit}
+                  onChange={(e) => setFluxUnit(e.target.value)}
+                  size="small"
+                  data-testid="fluxUnitSelect"
+                >
+                  {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
+                    <MenuItem key={unit} value={unit}>
+                      {unit}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {config?.usePhotometryValidation && (
+              <div
+                style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+              >
+                <Typography id="photometry-validation-filter" noWrap>
+                  Validated Only
+                </Typography>
+                <Tooltip title="Show only photometry points that have been validated">
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      checked={showOnlyValidated}
+                      onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </div>
+            )}
+          </div>
           <div
             className={classes.gridItem}
-            style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
+            style={{
+              alignItems: "end",
+            }}
           >
-            <Typography id="input-slider">Possible Duplicates</Typography>
-            <div className={classes.switchContainer}>
-              <Select
-                value={selectedDuplicates as any}
-                onChange={(e: any) => {
-                  if (e.target.value.includes("Select all")) {
-                    if (
-                      e.target.value?.length !==
-                      duplicateOptions.length + 1
-                    ) {
-                      setSelectedDuplicates(
-                        duplicateOptions.map((d) => d.obj_id),
-                      );
-                    } else {
-                      setSelectedDuplicates([]);
-                    }
-                  } else {
-                    setSelectedDuplicates(e.target.value);
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
+              <Typography id="input-slider" noWrap>
+                Marker Size
+              </Typography>
+              <div style={{ display: "flex", gap: "0.2rem" }}>
+                <IconButton
+                  onClick={() =>
+                    setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
                   }
-                }}
-                style={{ minWidth: "100%" }}
-                size="small"
-                multiple
-                renderValue={(selected: any) => {
-                  // show chips for each
-                  const duplicatesValue = duplicateOptions.filter((d) =>
-                    selected.includes(d.obj_id),
-                  );
-                  return (
-                    <div className={(classes as any).chips}>
-                      {duplicatesValue.map((d) => (
-                        <Chip
-                          key={d.obj_id}
-                          label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
-                          className={(classes as any).chip}
-                        />
-                      ))}
-                    </div>
-                  );
-                }}
-              >
-                {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
-                {duplicateOptions.length > 1 && (
-                  <MenuItem value="Select all" key="Select all">
-                    <Checkbox
-                      size="small"
-                      checked={
-                        selectedDuplicates.length === duplicateOptions.length
+                  style={{ padding: 0 }}
+                >
+                  <RemoveIcon />
+                </IconButton>
+                <TextField
+                  value={markerSize}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(newValue)) {
+                      setMarkerSize(Math.max(Math.min(20, newValue), 1));
+                    } else {
+                      setMarkerSize(e.target.value);
+                    }
+                  }}
+                  margin="dense"
+                  type="text"
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      style: { textAlign: "center", padding: "4.5px" },
+                    },
+                  }}
+                  style={{ width: "3rem", margin: 0 }}
+                />
+                <IconButton
+                  onClick={() =>
+                    setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
+                  }
+                  style={{ padding: 0 }}
+                >
+                  <AddIcon />
+                </IconButton>
+              </div>
+            </div>
+          </div>
+          {duplicateOptions?.length > 0 && (
+            <div
+              className={classes.gridItem}
+              style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}
+            >
+              <Typography id="input-slider">Possible Duplicates</Typography>
+              <div className={classes.switchContainer}>
+                <Select
+                  value={selectedDuplicates as any}
+                  onChange={(e: any) => {
+                    if (e.target.value.includes("Select all")) {
+                      if (
+                        e.target.value?.length !==
+                        duplicateOptions.length + 1
+                      ) {
+                        setSelectedDuplicates(
+                          duplicateOptions.map((d) => d.obj_id),
+                        );
+                      } else {
+                        setSelectedDuplicates([]);
                       }
-                    />
-                    Select all
-                  </MenuItem>
-                )}
-                {duplicateOptions.map((d) => (
-                  <MenuItem key={d.obj_id} value={d.obj_id}>
-                    <Checkbox
-                      checked={selectedDuplicates.includes(d.obj_id)}
-                      size="small"
-                    />
-                    {d.obj_id} ({d.separation.toFixed(2)} arcsec)
-                  </MenuItem>
-                ))}
-              </Select>
+                    } else {
+                      setSelectedDuplicates(e.target.value);
+                    }
+                  }}
+                  style={{ minWidth: "100%" }}
+                  size="small"
+                  multiple
+                  renderValue={(selected: any) => {
+                    // show chips for each
+                    const duplicatesValue = duplicateOptions.filter((d) =>
+                      selected.includes(d.obj_id),
+                    );
+                    return (
+                      <div className={(classes as any).chips}>
+                        {duplicatesValue.map((d) => (
+                          <Chip
+                            key={d.obj_id}
+                            label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
+                            className={(classes as any).chip}
+                          />
+                        ))}
+                      </div>
+                    );
+                  }}
+                >
+                  {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
+                  {duplicateOptions.length > 1 && (
+                    <MenuItem value="Select all" key="Select all">
+                      <Checkbox
+                        size="small"
+                        checked={
+                          selectedDuplicates.length === duplicateOptions.length
+                        }
+                      />
+                      Select all
+                    </MenuItem>
+                  )}
+                  {duplicateOptions.map((d) => (
+                    <MenuItem key={d.obj_id} value={d.obj_id}>
+                      <Checkbox
+                        checked={selectedDuplicates.includes(d.obj_id)}
+                        size="small"
+                      />
+                      {d.obj_id} ({d.separation.toFixed(2)} arcsec)
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
-            <Typography id="input-slider">Period</Typography>
-            <div className={classes.periodContainer}>
-              <Slider
-                value={period}
-                onChange={(_e, newValue) => setPeriod(newValue)}
-                aria-labelledby="input-slider"
-                valueLabelDisplay="auto"
-                step={0.1}
-                min={0.1}
-                max={365}
-                style={{ minWidth: "14rem", width: "100%" }}
-              />
-              <TextField
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                margin="dense"
-                type="number"
-                slotProps={{
-                  htmlInput: {
-                    step: 0.1,
-                    min: 0.1,
-                    max: 365,
-                    "aria-labelledby": "input-slider",
-                  },
-                }}
-                style={{ minWidth: "8rem", width: "100%" }}
-                size="small"
-              />
-              <Select
-                value={periodUnit}
-                onChange={(e) => setPeriodUnit(e.target.value)}
-                style={{ width: "8rem" }}
-                size="small"
-              >
-                <MenuItem value="minutes">minutes</MenuItem>
-                <MenuItem value="hours">hours</MenuItem>
-                <MenuItem value="days">days</MenuItem>
-              </Select>
-              <Button
-                onClick={() => setPeriod(period * 2)}
-                variant="contained"
-                color="primary"
-              >
-                x2
-              </Button>
-              <Button
-                onClick={() => setPeriod(period / 2)}
-                variant="contained"
-                color="primary"
-              >
-                /2
-              </Button>
-              <PeriodAnnotationDialog
-                obj_id={obj_id}
-                period={period}
-                periodUnit={periodUnit}
-              />
+          )}
+          {tabIndex === 2 && (
+            <div className={classes.gridItem} style={{ gridColumn: "1 / -1" }}>
+              <Typography id="input-slider">Period</Typography>
+              <div className={classes.periodContainer}>
+                <Slider
+                  value={period}
+                  onChange={(_e, newValue) => setPeriod(newValue)}
+                  aria-labelledby="input-slider"
+                  valueLabelDisplay="auto"
+                  step={0.1}
+                  min={0.1}
+                  max={365}
+                  style={{ minWidth: "14rem", width: "100%" }}
+                />
+                <TextField
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  margin="dense"
+                  type="number"
+                  slotProps={{
+                    htmlInput: {
+                      step: 0.1,
+                      min: 0.1,
+                      max: 365,
+                      "aria-labelledby": "input-slider",
+                    },
+                  }}
+                  style={{ minWidth: "8rem", width: "100%" }}
+                  size="small"
+                />
+                <Select
+                  value={periodUnit}
+                  onChange={(e) => setPeriodUnit(e.target.value)}
+                  style={{ width: "8rem" }}
+                  size="small"
+                >
+                  <MenuItem value="minutes">minutes</MenuItem>
+                  <MenuItem value="hours">hours</MenuItem>
+                  <MenuItem value="days">days</MenuItem>
+                </Select>
+                <Button
+                  onClick={() => setPeriod(period * 2)}
+                  variant="contained"
+                  color="primary"
+                >
+                  x2
+                </Button>
+                <Button
+                  onClick={() => setPeriod(period / 2)}
+                  variant="contained"
+                  color="primary"
+                >
+                  /2
+                </Button>
+                <PeriodAnnotationDialog
+                  obj_id={obj_id}
+                  period={period}
+                  periodUnit={periodUnit}
+                />
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
-            <Typography id="input-slider">Smoothing</Typography>
-            <div className={classes.sliderContainer}>
-              <Slider
-                value={smoothing}
-                onChange={(_e, newValue) => setSmoothing(newValue)}
-                aria-labelledby="input-slider"
-                valueLabelDisplay="auto"
-                step={1}
-                min={0}
-                max={100}
-              />
-              <TextField
-                value={smoothing}
-                onChange={(e) => setSmoothing(e.target.value)}
-                margin="dense"
-                type="number"
-                slotProps={{
-                  htmlInput: {
-                    step: 1,
-                    min: 0,
-                    max: 100,
-                    type: "number",
-                    "aria-labelledby": "input-slider",
-                  },
-                }}
-                size="small"
-              />
+          )}
+          {tabIndex === 2 && (
+            <div className={`${classes.gridItem} ${classes.gridItemWide}`}>
+              <Typography id="input-slider">Smoothing</Typography>
+              <div className={classes.sliderContainer}>
+                <Slider
+                  value={smoothing}
+                  onChange={(_e, newValue) => setSmoothing(newValue)}
+                  aria-labelledby="input-slider"
+                  valueLabelDisplay="auto"
+                  step={1}
+                  min={0}
+                  max={100}
+                />
+                <TextField
+                  value={smoothing}
+                  onChange={(e) => setSmoothing(e.target.value)}
+                  margin="dense"
+                  type="number"
+                  slotProps={{
+                    htmlInput: {
+                      step: 1,
+                      min: 0,
+                      max: 100,
+                      type: "number",
+                      "aria-labelledby": "input-slider",
+                    },
+                  }}
+                  size="small"
+                />
+              </div>
             </div>
-          </div>
-        )}
-        {tabIndex === 2 && (
-          <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
-            <Typography id="input-slider">Phase</Typography>
-            <div className={classes.doubleSwitch}>
-              <Typography>1</Typography>
-              <Switch
-                checked={phase === 2}
-                onChange={() => setPhase(phase === 2 ? 1 : 2)}
-                slotProps={{ input: { "aria-label": "controlled" } }}
-              />
-              <Typography>2</Typography>
+          )}
+          {tabIndex === 2 && (
+            <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+              <Typography id="input-slider">Phase</Typography>
+              <div className={classes.doubleSwitch}>
+                <Typography>1</Typography>
+                <Switch
+                  checked={phase === 2}
+                  onChange={() => setPhase(phase === 2 ? 1 : 2)}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
+                />
+                <Typography>2</Typography>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

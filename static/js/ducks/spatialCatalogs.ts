@@ -12,6 +12,7 @@
  * when the pushed id matches a catalog that is currently cached) to cache
  * invalidation.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -23,9 +24,7 @@ export const spatialCatalogsApi = skyportalApi.injectEndpoints({
       Record<string, unknown> | void
     >({
       query: (filterParams) => {
-        const params = new URLSearchParams(
-          (filterParams as Record<string, string>) ?? {},
-        ).toString();
+        const params = buildQueryString(filterParams ?? {});
         return params ? `api/spatial_catalog?${params}` : "api/spatial_catalog";
       },
       providesTags: ["SpatialCatalogs"],

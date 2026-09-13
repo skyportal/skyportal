@@ -65,7 +65,10 @@ const MovingObjectObsPlanPage = () => {
   const dispatch = useAppDispatch();
   const [postMovingObjectObsPlan] = usePostMovingObjectObsPlanMutation();
 
-  const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
+  const [instrumentOptions, setInstrumentOptions] = useState<any>({
+    enum: [],
+    enumNames: [],
+  });
   const [formData, setFormData] = useState<any>({});
 
   const [planData, setPlanData] = useState<any[]>([]);
@@ -76,26 +79,27 @@ const MovingObjectObsPlanPage = () => {
   defaultEndTime.setHours(defaultEndTime.getHours() + 24);
 
   useEffect(() => {
-    let valid_instruments = (instruments || [])
-      .filter(
-        (instrument: any) =>
-          (instrument.filters?.length ?? 0) > 0 &&
-          (instrument as any).has_fields === true,
-      )
-      .map((instrument: any) => ({
-        type: "integer",
-        title: instrument.name,
-        enum: [instrument.id],
-      }));
+    const valid_instruments = (instruments || []).filter(
+      (instrument: any) =>
+        (instrument.filters?.length ?? 0) > 0 &&
+        (instrument as any).has_fields === true,
+    );
 
-    setInstrumentOptions(valid_instruments);
+    setInstrumentOptions({
+      enum: valid_instruments.map((instrument: any) => instrument.id),
+      enumNames: valid_instruments.map((instrument: any) => instrument.name),
+    });
   }, [instruments]);
 
   async function onFormSubmit(params: any) {
     setLoading(true);
     let name = params.formData.name.replace(/\s/g, "");
+    // `name` is the URL path param; the API rejects unknown body keys, so keep
+    // it out of the request body.
     let data = Object.fromEntries(
-      Object.entries(params.formData).filter(([_, v]) => v != null),
+      Object.entries(params.formData).filter(
+        ([k, v]) => k !== "name" && v != null,
+      ),
     );
     try {
       const result = await postMovingObjectObsPlan({ name, data }).unwrap();
@@ -126,7 +130,7 @@ const MovingObjectObsPlanPage = () => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        anyOf: instrumentOptions,
+        enum: instrumentOptions.enum,
       },
       start_time: {
         type: "string",
@@ -196,6 +200,7 @@ const MovingObjectObsPlanPage = () => {
 
   // we want to have a form with a nice layout, with 2 columns
   const uiSchema = {
+    instrument_id: { "ui:enumNames": instrumentOptions.enumNames },
     "ui:grid": [
       {
         name: 12,

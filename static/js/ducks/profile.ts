@@ -72,6 +72,7 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { preferences },
       }),
+      invalidatesTags: ["PublicProfile"],
       // Optimistically merge the new preferences into the cached profile instead
       // of invalidating "Profile": that blanket refetch re-renders the ~89
       // components reading the profile on every settings change, which churns
@@ -99,7 +100,7 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: formData,
       }),
-      invalidatesTags: ["Profile"],
+      invalidatesTags: ["Profile", "PublicProfile"],
     }),
     createToken: build.mutation<unknown, any>({
       query: (form_data) => ({
@@ -152,3 +153,14 @@ export const useIsAnonymous = (): boolean =>
 // specific ACL. Defaults to read-only while the profile is loading.
 export const useIsReadOnly = (): boolean =>
   (useGetProfileQuery().data?.permissions?.length ?? 0) === 0;
+
+// True when the user holds the given ACL. Mirrors the backend @permissions
+// decorator, where "System admin" satisfies any ACL. Defaults to false while
+// the profile is loading.
+export const useHasPermission = (acl: string): boolean => {
+  const permissions = useGetProfileQuery().data?.permissions;
+  return (
+    !!permissions &&
+    (permissions.includes("System admin") || permissions.includes(acl))
+  );
+};

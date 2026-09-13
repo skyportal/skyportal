@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
+import { Link, useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
@@ -10,18 +10,25 @@ import InputLabel from "@mui/material/InputLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Slider from "@mui/material/Slider";
-import Button from "@mui/material/Button";
+import Button from "./Button";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
+import SpectraAggregation from "./SpectraAggregation";
+import { useGetGroupsQuery } from "../ducks/groups";
 import { useGetSourcePhotometryOverlayQuery } from "../ducks/photometry_minimal";
 import { smoothing_func } from "../utils";
+import { GET } from "../API";
+import { useAppDispatch } from "../types/hooks";
+import useDebounced from "../hooks/useDebounced";
 import {
   useGetPhotStatAggregateQuery,
   type PhotStatAggregateArgs,
@@ -30,14 +37,94 @@ import {
 
 const Plot = createPlotlyComponent(Plotly);
 
-// Cap how many light curves render at once to keep the page responsive.
+const SourceIdAutocomplete = ({
+  value,
+  onChange,
+  sx,
+}: {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  sx?: object;
+}) => {
+  const dispatch = useAppDispatch();
+  const [options, setOptions] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const debounced = useDebounced(inputValue, 400);
+  const labels = useRef<Record<string, string>>({});
+  const cache = useRef<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const cached = cache.current[debounced];
+    if (!debounced || cached) {
+      setOptions(cached ?? []);
+      return undefined;
+    }
+    let active = true;
+    setLoading(true);
+    (async () => {
+      const resp: any = await dispatch(
+        GET(
+          `/api/sources?sourceID=${encodeURIComponent(debounced)}&pageNumber=1&numPerPage=25&includeComments=false&removeNested=true`,
+          "skyportal/FETCH_SOURCE_ID_AUTOCOMPLETE",
+        ),
+      );
+      if (!active) return;
+      const ids = (resp?.data?.sources ?? []).map((source: any) => {
+        labels.current[source.id] = source.tns_name
+          ? `${source.id} (${source.tns_name})`
+          : source.id;
+        return source.id;
+      });
+      cache.current[debounced] = ids;
+      setOptions(ids);
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+      setLoading(false);
+    };
+  }, [debounced, dispatch]);
+
+  return (
+    <Autocomplete
+      multiple
+      freeSolo
+      size="small"
+      sx={sx}
+      options={options}
+      loading={loading}
+      value={value}
+      inputValue={inputValue}
+      onInputChange={(_e, input) => setInputValue(input)}
+      filterOptions={(opts) => opts}
+      filterSelectedOptions
+      renderOption={(props, option) => (
+        <li {...props} key={option}>
+          {labels.current[option] ?? option}
+        </li>
+      )}
+      onChange={(_e, values) => {
+        const ids = (values as string[]).flatMap((entry) =>
+          entry.split(/[\s,]+/),
+        );
+        onChange(Array.from(new Set(ids.filter(Boolean))));
+        setInputValue("");
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label="Object IDs"
+          placeholder="Type to search sources…"
+        />
+      )}
+    />
+  );
+};
+
 const MAX_LIGHT_CURVES = 12;
-// Overlaying many curves is cheaper than many separate plots, so allow more.
 const MAX_OVERLAY = 40;
 
-// Invisible child: fetches one source's photometry and hands it up. One per
-// source lets us use the RTK Query hook (a fixed number per render) and share
-// the same cache the source page uses.
 const PhotometryFetcher = ({
   sourceId,
   includeExtinction,
@@ -57,8 +144,7 @@ const PhotometryFetcher = ({
   return null;
 };
 
-// Distance modulus from redshift, matching SkyPortal's Planck18 FlatLambdaCDM
-// (H0=67.66, Om0=0.30966). Simpson integration of the comoving distance.
+// Planck18 FlatLambdaCDM
 const H0 = 67.66;
 const OM = 0.30966;
 const OL = 1 - OM;
@@ -75,7 +161,6 @@ const distanceModulus = (z: number | null): number | null => {
   return 5 * Math.log10(dlPc / 10);
 };
 
-// Linear interpolation of a band's magnitude at a given mjd (null outside range).
 const interpMag = (pts: any[], mjd: number): number | null => {
   if (!pts.length || mjd < pts[0].mjd || mjd > pts[pts.length - 1].mjd)
     return null;
@@ -92,7 +177,6 @@ const interpMag = (pts: any[], mjd: number): number | null => {
 
 type AlignMode = "none" | "peak" | "first";
 
-// t=0 reference for a source's (time-sorted) points, per alignment mode.
 const alignT0 = (sortedPts: any[], alignMode: AlignMode) => {
   if (!sortedPts.length) return 0;
   if (alignMode === "first") return sortedPts[0].mjd;
@@ -108,11 +192,6 @@ const alignAxisLabel = (alignMode: AlignMode) =>
       ? "Days from first detection"
       : "MJD";
 
-// Overlay every source's light curve on one axis, colored by source.
-//  - mode "mag": magnitude (or absolute magnitude) vs time, one band or all.
-//  - mode "color": a color index (band1 - band2), interpolated to shared epochs.
-// `alignMode` sets the t=0 reference; `smoothWindow` (>0) draws a moving-average
-// line instead of markers.
 const LightCurveOverlay = ({
   sourceIds,
   alignMode,
@@ -141,7 +220,6 @@ const LightCurveOverlay = ({
     setPhotMap((prev) => (prev[id] === data ? prev : { ...prev, [id]: data }));
   }, []);
 
-  // Report the bands present so the parent can populate the band/color dropdowns.
   const availableBands = useMemo(() => {
     const bands = new Set<string>();
     sourceIds.forEach((id) =>
@@ -155,9 +233,6 @@ const LightCurveOverlay = ({
 
   const traces = useMemo(() => {
     const smooth = smoothWindow > 0;
-    // With extinction on, use the backend's per-filter de-reddened mag
-    // (`mag_corr`); points whose filter has no extinction coefficient are
-    // dropped. Otherwise use the raw mag. Downstream code reads `.mag`.
     const detections = (id: string) =>
       (photMap[id] ?? [])
         .map((p) => ({
@@ -279,8 +354,6 @@ const LightCurveOverlay = ({
   );
 };
 
-// Fields where a brighter object means a smaller number, so the axis reads
-// naturally (bright at top/right) when reversed.
 const MAGNITUDE_FIELDS = new Set([
   "first_detected_mag",
   "last_detected_mag",
@@ -291,51 +364,18 @@ const MAGNITUDE_FIELDS = new Set([
 ]);
 
 const useStyles = makeStyles()((theme) => ({
-  root: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-    padding: "1rem",
-  },
-  controls: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "flex-end",
-    gap: "1rem",
-    padding: "1rem",
-  },
   control: {
     minWidth: "12rem",
   },
-  slider: {
-    minWidth: "12rem",
+  headerRow: {
     display: "flex",
-    flexDirection: "column",
-  },
-  plotPaper: {
-    padding: "0.5rem",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: "0.5rem",
   },
   selected: {
     padding: "1rem",
-  },
-  selectedList: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.5rem",
-    maxHeight: "8rem",
-    overflowY: "auto",
-  },
-  lcGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(24rem, 1fr))",
-    gap: "0.75rem",
-    marginTop: "0.75rem",
-  },
-  lcCard: {
-    padding: "0.5rem",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
   },
   warning: {
     color: theme.palette.warning.main,
@@ -349,6 +389,12 @@ const SourceStatistics = () => {
   const [selectedClassifications, setSelectedClassifications] = useState<
     string[]
   >([]);
+  const [sourceMode, setSourceMode] = useState<
+    "classification" | "group" | "objects"
+  >("classification");
+  const [selectGroupId, setSelectGroupId] = useState<number | "">("");
+  const [objIds, setObjIds] = useState<string[]>([]);
+  const { data: groupsData } = useGetGroupsQuery();
   const [xField, setXField] = useState("rise_rate");
   const [yField, setYField] = useState("peak_mag_global");
   const [zField, setZField] = useState("");
@@ -360,7 +406,7 @@ const SourceStatistics = () => {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<
-    "stats" | "lightcurves" | "overlay" | "color"
+    "stats" | "lightcurves" | "overlay" | "color" | "spectra"
   >("stats");
   const [lcPage, setLcPage] = useState(0);
   const [alignMode, setAlignMode] = useState<AlignMode>("none");
@@ -371,8 +417,6 @@ const SourceStatistics = () => {
   const [extinction, setExtinction] = useState(false);
   const [colorPair, setColorPair] = useState("");
   const handleAvailableBands = useCallback((bands: string[]) => {
-    // Ignore the transient empty report a freshly-mounted overlay emits before
-    // its photometry loads — otherwise it would clear the band/color options.
     if (bands.length === 0) return;
     setOverlayBands((prev) =>
       prev.length === bands.length && prev.every((b, i) => b === bands[i])
@@ -381,7 +425,6 @@ const SourceStatistics = () => {
     );
   }, []);
 
-  // All band pairs available for a color index, e.g. "ztfg-ztfr".
   const colorPairs = useMemo(() => {
     const pairs: string[] = [];
     for (let i = 0; i < overlayBands.length; i += 1)
@@ -394,16 +437,12 @@ const SourceStatistics = () => {
     if (first && !colorPairs.includes(colorPair)) setColorPair(first);
   }, [colorPairs, colorPair]);
 
-  // Metadata request (no axes) fetches the plottable field list.
   const { data: meta } = useGetPhotStatAggregateQuery({});
   const fields = useMemo(() => meta?.fields ?? [], [meta]);
-  const labelFor = useMemo(() => {
-    const map: Record<string, string> = {};
-    fields.forEach((f) => {
-      map[f.value] = f.label;
-    });
-    return map;
-  }, [fields]);
+  const labelOf = useCallback(
+    (field?: string) => fields.find((f) => f.value === field)?.label ?? field,
+    [fields],
+  );
 
   const { data, isFetching } = useGetPhotStatAggregateQuery(queryArgs ?? {}, {
     skip: !queryArgs,
@@ -411,15 +450,20 @@ const SourceStatistics = () => {
 
   const is3d = Boolean(queryArgs?.zField);
 
-  // Sources whose light curves to show: the box-selection if any, else every
-  // plotted source (capped in the render).
   const plottedIds = useMemo(
     () => (data?.points ?? []).map((p) => p.id),
     [data],
   );
   const lcSourceIds = selectedIds.length > 0 ? selectedIds : plottedIds;
 
-  // Distance modulus per source (from redshift) for the absolute-mag overlay.
+  const specPoints = useMemo(
+    () =>
+      selectedIds.length > 0
+        ? (data?.points ?? []).filter((p) => selectedIds.includes(p.id))
+        : (data?.points ?? []),
+    [data, selectedIds],
+  );
+
   const dmMap = useMemo(() => {
     const m: Record<string, number> = {};
     (data?.points ?? []).forEach((p) => {
@@ -436,11 +480,19 @@ const SourceStatistics = () => {
       xField,
       yField,
       ...(zField ? { zField } : {}),
-      ...(selectedClassifications.length
-        ? { classifications: selectedClassifications.join(",") }
+      ...(sourceMode === "classification" && selectedClassifications.length
+        ? {
+            classifications: selectedClassifications.join(","),
+            ...(probThreshold > 0
+              ? { classificationProbThreshold: probThreshold }
+              : {}),
+          }
         : {}),
-      ...(probThreshold > 0
-        ? { classificationProbThreshold: probThreshold }
+      ...(sourceMode === "group" && selectGroupId !== ""
+        ? { group_id: selectGroupId }
+        : {}),
+      ...(sourceMode === "objects" && objIds.length
+        ? { obj_ids: objIds.join(",") }
         : {}),
     });
   };
@@ -453,9 +505,6 @@ const SourceStatistics = () => {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)?.push(p);
     });
-    const xLabel = labelFor[queryArgs.xField ?? ""] ?? queryArgs.xField;
-    const yLabel = labelFor[queryArgs.yField ?? ""] ?? queryArgs.yField;
-    const zLabel = labelFor[queryArgs.zField ?? ""] ?? queryArgs.zField;
     return Array.from(groups.entries()).map(([name, pts]) => ({
       type: is3d ? "scatter3d" : "scattergl",
       mode: "markers",
@@ -465,20 +514,19 @@ const SourceStatistics = () => {
       ...(is3d ? { z: pts.map((p) => p.z) } : {}),
       customdata: pts.map((p) => p.id),
       text: pts.map((p) => p.id),
-      hovertemplate: `%{text}<br>${xLabel}: %{x}<br>${yLabel}: %{y}${
-        is3d ? `<br>${zLabel}: %{z}` : ""
+      hovertemplate: `%{text}<br>${labelOf(queryArgs.xField)}: %{x}<br>${labelOf(
+        queryArgs.yField,
+      )}: %{y}${
+        is3d ? `<br>${labelOf(queryArgs.zField)}: %{z}` : ""
       }<extra>${name}</extra>`,
       marker: { size: is3d ? 3 : 5, opacity: 0.65 },
     }));
-  }, [data, queryArgs, is3d, labelFor]);
+  }, [data, queryArgs, is3d, labelOf]);
 
   const layout = useMemo(() => {
     if (!queryArgs) return {};
-    const xLabel = labelFor[queryArgs.xField ?? ""] ?? queryArgs.xField;
-    const yLabel = labelFor[queryArgs.yField ?? ""] ?? queryArgs.yField;
-    const zLabel = labelFor[queryArgs.zField ?? ""] ?? queryArgs.zField;
-    const axis = (field: string | undefined, label: any, log: boolean) => ({
-      title: { text: label },
+    const axis = (field: string | undefined, log: boolean) => ({
+      title: { text: labelOf(field) },
       ...(log ? { type: "log" } : {}),
       ...(field && MAGNITUDE_FIELDS.has(field)
         ? { autorange: "reversed" }
@@ -490,9 +538,9 @@ const SourceStatistics = () => {
         height: 650,
         margin: { l: 0, r: 0, t: 10, b: 0 },
         scene: {
-          xaxis: axis(queryArgs.xField, xLabel, false),
-          yaxis: axis(queryArgs.yField, yLabel, false),
-          zaxis: axis(queryArgs.zField, zLabel, false),
+          xaxis: axis(queryArgs.xField, false),
+          yaxis: axis(queryArgs.yField, false),
+          zaxis: axis(queryArgs.zField, false),
         },
       };
     }
@@ -501,11 +549,20 @@ const SourceStatistics = () => {
       height: 650,
       margin: { l: 60, r: 20, t: 10, b: 50 },
       dragmode: "select",
-      xaxis: axis(queryArgs.xField, xLabel, xLog),
-      yaxis: axis(queryArgs.yField, yLabel, yLog),
+      xaxis: axis(queryArgs.xField, xLog),
+      yaxis: axis(queryArgs.yField, yLog),
       legend: { orientation: "v" },
     };
-  }, [queryArgs, is3d, xLog, yLog, labelFor]);
+  }, [queryArgs, is3d, xLog, yLog, labelOf]);
+
+  const isColorView = viewMode === "color";
+  const lcPageCount = Math.max(
+    1,
+    Math.ceil(lcSourceIds.length / MAX_LIGHT_CURVES),
+  );
+  const lcCurrentPage = Math.min(lcPage, lcPageCount - 1);
+  const lcStart = lcCurrentPage * MAX_LIGHT_CURVES;
+  const lcPageIds = lcSourceIds.slice(lcStart, lcStart + MAX_LIGHT_CURVES);
 
   const handleClick = (event: any) => {
     const id = event?.points?.[0]?.customdata;
@@ -547,8 +604,6 @@ const SourceStatistics = () => {
     </FormControl>
   );
 
-  // Alignment (t=0 reference) + smoothing + extinction, shared by the Overlay
-  // and Color views.
   const alignSmoothControls = (
     <>
       <FormControlLabel
@@ -587,40 +642,90 @@ const SourceStatistics = () => {
   );
 
   return (
-    <div className={classes.root}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: "1rem", p: "1rem" }}
+    >
       <Typography variant="h4">Source Statistics</Typography>
       <Typography variant="body2" color="textSecondary">
         Plot photometry statistics across many sources at once to spot outliers.
-        Optionally down-select by classification; points are colored by each
-        source&apos;s highest-probability classification. Click any point to
-        open that source. In 2D, drag a box (or use the lasso/box tools in the
-        plot toolbar) to list a group of outliers below; the 3D view supports
-        rotate and zoom only.
+        Down-select by classification, a group&apos;s sources, or an explicit
+        object list; points are colored by each source&apos;s
+        highest-probability classification. Click any point to open that source.
+        In 2D, drag a box (or use the lasso/box tools in the plot toolbar) to
+        list a group of outliers below; the 3D view supports rotate and zoom
+        only.
       </Typography>
 
-      <Paper className={classes.controls}>
-        <Box className={classes.control}>
-          <ClassificationSelect
-            selectedClassifications={selectedClassifications}
-            setSelectedClassifications={setSelectedClassifications}
+      <Paper
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          gap: "1rem",
+          p: "1rem",
+        }}
+      >
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={sourceMode}
+          onChange={(_e, v) => v && setSourceMode(v)}
+        >
+          <ToggleButton value="classification">Classification</ToggleButton>
+          <ToggleButton value="group">Group</ToggleButton>
+          <ToggleButton value="objects">Object list</ToggleButton>
+        </ToggleButtonGroup>
+        {sourceMode === "classification" && (
+          <Box className={classes.control}>
+            <ClassificationSelect
+              selectedClassifications={selectedClassifications}
+              setSelectedClassifications={setSelectedClassifications}
+            />
+          </Box>
+        )}
+        {sourceMode === "group" && (
+          <FormControl size="small" className={classes.control}>
+            <InputLabel>Group</InputLabel>
+            <Select
+              label="Group"
+              value={selectGroupId}
+              onChange={(e) => setSelectGroupId(e.target.value as number)}
+            >
+              {(groupsData?.userAccessible || []).map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+        {sourceMode === "objects" && (
+          <SourceIdAutocomplete
+            value={objIds}
+            onChange={setObjIds}
+            sx={{ minWidth: "22rem" }}
           />
-        </Box>
+        )}
         {axisSelect("X axis", xField, setXField)}
         {axisSelect("Y axis", yField, setYField)}
         {axisSelect("Z axis", zField, setZField, true)}
-        <Box className={classes.slider}>
-          <Typography variant="caption">
-            Min. classification probability: {probThreshold.toFixed(2)}
-          </Typography>
-          <Slider
-            value={probThreshold}
-            onChange={(_e, v) => setProbThreshold(v as number)}
-            min={0}
-            max={1}
-            step={0.05}
-            valueLabelDisplay="auto"
-          />
-        </Box>
+        {sourceMode === "classification" && (
+          <Box
+            sx={{ minWidth: "12rem", display: "flex", flexDirection: "column" }}
+          >
+            <Typography variant="caption">
+              Min. classification probability: {probThreshold.toFixed(2)}
+            </Typography>
+            <Slider
+              value={probThreshold}
+              onChange={(_e, v) => setProbThreshold(v as number)}
+              min={0}
+              max={1}
+              step={0.05}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
         {!is3d && (
           <Box>
             <FormControlLabel
@@ -645,11 +750,7 @@ const SourceStatistics = () => {
             />
           </Box>
         )}
-        <Button
-          variant="contained"
-          onClick={handlePlot}
-          disabled={!xField || !yField}
-        >
+        <Button primary onClick={handlePlot} disabled={!xField || !yField}>
           Plot
         </Button>
       </Paper>
@@ -658,15 +759,7 @@ const SourceStatistics = () => {
 
       {data && queryArgs && !isFetching && (
         <>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "0.5rem",
-            }}
-          >
+          <Box className={classes.headerRow}>
             <Typography variant="body2">
               Showing {data.count.toLocaleString()} source
               {data.count === 1 ? "" : "s"}.
@@ -688,14 +781,17 @@ const SourceStatistics = () => {
                 <ToggleButton value="lightcurves">Light curves</ToggleButton>
                 <ToggleButton value="overlay">Overlay</ToggleButton>
                 <ToggleButton value="color">Color</ToggleButton>
+                <ToggleButton value="spectra">Spectra</ToggleButton>
               </ToggleButtonGroup>
             )}
           </Box>
 
-          {data.count === 0 ? (
+          {data.count === 0 && (
             <Typography>No sources match the current selection.</Typography>
-          ) : viewMode === "stats" ? (
-            <Paper className={classes.plotPaper}>
+          )}
+
+          {data.count > 0 && viewMode === "stats" && (
+            <Paper sx={{ p: "0.5rem" }}>
               <Plot
                 data={traces as any}
                 layout={layout as any}
@@ -706,192 +802,156 @@ const SourceStatistics = () => {
                 config={{ displaylogo: false, responsive: true } as any}
               />
             </Paper>
-          ) : viewMode === "lightcurves" ? (
-            (() => {
-              const pageCount = Math.max(
-                1,
-                Math.ceil(lcSourceIds.length / MAX_LIGHT_CURVES),
-              );
-              const page = Math.min(lcPage, pageCount - 1);
-              const start = page * MAX_LIGHT_CURVES;
-              const pageIds = lcSourceIds.slice(
-                start,
-                start + MAX_LIGHT_CURVES,
-              );
-              return (
-                <Paper className={classes.selected}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <Typography variant="body2" color="textSecondary">
-                      {selectedIds.length > 0
-                        ? "Light curves for selected sources. "
-                        : "Light curves for all plotted sources (box-select in Statistics to focus). "}
-                      Showing {start + 1}
-                      {"–"}
-                      {start + pageIds.length} of {lcSourceIds.length}.
-                    </Typography>
-                    {pageCount > 1 && (
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
-                        <Button
-                          size="small"
-                          disabled={page === 0}
-                          onClick={() => setLcPage(page - 1)}
-                        >
-                          Previous
-                        </Button>
-                        <Typography variant="body2">
-                          {page + 1} / {pageCount}
-                        </Typography>
-                        <Button
-                          size="small"
-                          disabled={page >= pageCount - 1}
-                          onClick={() => setLcPage(page + 1)}
-                        >
-                          Next
-                        </Button>
-                      </Box>
-                    )}
-                  </Box>
-                  <div className={classes.lcGrid}>
-                    {pageIds.map((id) => (
-                      <Paper
-                        key={id}
-                        variant="outlined"
-                        className={classes.lcCard}
-                      >
-                        <Link to={`/source/${id}`}>{id}</Link>
-                        <VegaPhotometry sourceId={id} />
-                      </Paper>
-                    ))}
-                  </div>
-                </Paper>
-              );
-            })()
-          ) : viewMode === "overlay" ? (
+          )}
+
+          {data.count > 0 && viewMode === "lightcurves" && (
             <Paper className={classes.selected}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                }}
-              >
+              <Box className={classes.headerRow}>
                 <Typography variant="body2" color="textSecondary">
                   {selectedIds.length > 0
-                    ? "Overlaid light curves for selected sources"
-                    : "Overlaid light curves for all plotted sources (box-select in Statistics to focus)"}
-                  {lcSourceIds.length > MAX_OVERLAY &&
-                    ` — first ${MAX_OVERLAY} of ${lcSourceIds.length}`}
-                  , colored by source.
+                    ? "Light curves for selected sources. "
+                    : "Light curves for all plotted sources (box-select in Statistics to focus). "}
+                  Showing {lcStart + 1}
+                  {"–"}
+                  {lcStart + lcPageIds.length} of {lcSourceIds.length}.
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <FormControl size="small" sx={{ minWidth: "8rem" }}>
-                    <InputLabel>Band</InputLabel>
-                    <Select
-                      label="Band"
-                      value={overlayBand}
-                      onChange={(e) => setOverlayBand(e.target.value)}
+                {lcPageCount > 1 && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Button
+                      size="small"
+                      disabled={lcCurrentPage === 0}
+                      onClick={() => setLcPage(lcCurrentPage - 1)}
                     >
-                      <MenuItem value="all">All bands</MenuItem>
-                      {overlayBands.map((b) => (
-                        <MenuItem key={b} value={b}>
-                          {b}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={absoluteMag}
-                        onChange={(e) => setAbsoluteMag(e.target.checked)}
-                        size="small"
-                      />
-                    }
-                    label="Absolute mag"
-                  />
-                  {alignSmoothControls}
-                </Box>
+                      Previous
+                    </Button>
+                    <Typography variant="body2">
+                      {lcCurrentPage + 1} / {lcPageCount}
+                    </Typography>
+                    <Button
+                      size="small"
+                      disabled={lcCurrentPage >= lcPageCount - 1}
+                      onClick={() => setLcPage(lcCurrentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                )}
               </Box>
-              {absoluteMag && (
-                <Typography variant="body2" className={classes.warning}>
-                  Absolute magnitude uses each source&apos;s redshift; sources
-                  without a redshift are hidden.
-                </Typography>
-              )}
-              <LightCurveOverlay
-                sourceIds={lcSourceIds.slice(0, MAX_OVERLAY)}
-                alignMode={alignMode}
-                smoothWindow={smoothWindow}
-                mode="mag"
-                filterBand={overlayBand}
-                colorPair={colorPair}
-                absolute={absoluteMag}
-                extinction={extinction}
-                dmMap={dmMap}
-                onAvailableBands={handleAvailableBands}
-              />
-            </Paper>
-          ) : (
-            <Paper className={classes.selected}>
               <Box
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(24rem, 1fr))",
+                  gap: "0.75rem",
+                  mt: "0.75rem",
                 }}
               >
-                <Typography variant="body2" color="textSecondary">
-                  Color evolution (interpolated to shared epochs)
-                  {lcSourceIds.length > MAX_OVERLAY &&
-                    ` — first ${MAX_OVERLAY} of ${lcSourceIds.length}`}
-                  , colored by source.
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <FormControl size="small" sx={{ minWidth: "9rem" }}>
-                    <InputLabel>Color</InputLabel>
-                    <Select
-                      label="Color"
-                      value={colorPairs.includes(colorPair) ? colorPair : ""}
-                      onChange={(e) => setColorPair(e.target.value)}
-                    >
-                      {colorPairs.map((c) => (
-                        <MenuItem key={c} value={c}>
-                          {c}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  {alignSmoothControls}
-                </Box>
+                {lcPageIds.map((id) => (
+                  <Paper
+                    key={id}
+                    variant="outlined"
+                    sx={{
+                      p: "0.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <Link to={`/source/${id}`}>{id}</Link>
+                    <VegaPhotometry sourceId={id} />
+                  </Paper>
+                ))}
               </Box>
-              <LightCurveOverlay
-                sourceIds={lcSourceIds.slice(0, MAX_OVERLAY)}
-                alignMode={alignMode}
-                smoothWindow={smoothWindow}
-                mode="color"
-                filterBand={overlayBand}
-                colorPair={colorPair}
-                absolute={false}
-                extinction={extinction}
-                dmMap={dmMap}
-                onAvailableBands={handleAvailableBands}
-              />
             </Paper>
           )}
+
+          {data.count > 0 && viewMode === "spectra" && (
+            <SpectraAggregation points={specPoints} />
+          )}
+
+          {data.count > 0 &&
+            (viewMode === "overlay" || viewMode === "color") && (
+              <Paper className={classes.selected}>
+                <Box className={classes.headerRow}>
+                  <Typography variant="body2" color="textSecondary">
+                    {isColorView
+                      ? "Color evolution (interpolated to shared epochs)"
+                      : selectedIds.length > 0
+                        ? "Overlaid light curves for selected sources"
+                        : "Overlaid light curves for all plotted sources (box-select in Statistics to focus)"}
+                    {lcSourceIds.length > MAX_OVERLAY &&
+                      ` — first ${MAX_OVERLAY} of ${lcSourceIds.length}`}
+                    , colored by source.
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {isColorView ? (
+                      <FormControl size="small" sx={{ minWidth: "9rem" }}>
+                        <InputLabel>Color</InputLabel>
+                        <Select
+                          label="Color"
+                          value={
+                            colorPairs.includes(colorPair) ? colorPair : ""
+                          }
+                          onChange={(e) => setColorPair(e.target.value)}
+                        >
+                          {colorPairs.map((c) => (
+                            <MenuItem key={c} value={c}>
+                              {c}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    ) : (
+                      <>
+                        <FormControl size="small" sx={{ minWidth: "8rem" }}>
+                          <InputLabel>Band</InputLabel>
+                          <Select
+                            label="Band"
+                            value={overlayBand}
+                            onChange={(e) => setOverlayBand(e.target.value)}
+                          >
+                            <MenuItem value="all">All bands</MenuItem>
+                            {overlayBands.map((b) => (
+                              <MenuItem key={b} value={b}>
+                                {b}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={absoluteMag}
+                              onChange={(e) => setAbsoluteMag(e.target.checked)}
+                              size="small"
+                            />
+                          }
+                          label="Absolute mag"
+                        />
+                      </>
+                    )}
+                    {alignSmoothControls}
+                  </Box>
+                </Box>
+                {!isColorView && absoluteMag && (
+                  <Typography variant="body2" className={classes.warning}>
+                    Absolute magnitude uses each source&apos;s redshift; sources
+                    without a redshift are hidden.
+                  </Typography>
+                )}
+                <LightCurveOverlay
+                  sourceIds={lcSourceIds.slice(0, MAX_OVERLAY)}
+                  alignMode={alignMode}
+                  smoothWindow={smoothWindow}
+                  mode={isColorView ? "color" : "mag"}
+                  filterBand={overlayBand}
+                  colorPair={colorPair}
+                  absolute={!isColorView && absoluteMag}
+                  extinction={extinction}
+                  dmMap={dmMap}
+                  onAvailableBands={handleAvailableBands}
+                />
+              </Paper>
+            )}
         </>
       )}
 
@@ -900,16 +960,24 @@ const SourceStatistics = () => {
           <Typography variant="subtitle1">
             Selected sources ({selectedIds.length})
           </Typography>
-          <div className={classes.selectedList}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              maxHeight: "8rem",
+              overflowY: "auto",
+            }}
+          >
             {selectedIds.map((id) => (
               <Link key={id} to={`/source/${id}`}>
                 {id}
               </Link>
             ))}
-          </div>
+          </Box>
         </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

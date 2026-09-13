@@ -39,7 +39,8 @@ const SourceRedshiftHistory = ({
   redshiftHistory = null,
 }: SourceRedshiftHistoryProps) => {
   const { classes } = useStyles();
-  const allUsers = useGetUsersQuery().data?.users ?? [];
+  // Only names, to label who set each redshift.
+  const allUsers = useGetUsersQuery({ slim: true }).data?.users ?? [];
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);

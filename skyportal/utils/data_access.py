@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
+from baselayer.app.env import load_env
 from baselayer.app.models import RoleACL, UserACL, UserRole
 from baselayer.log import make_log
 
@@ -31,7 +32,39 @@ from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
 
+_, cfg = load_env()
+
 SHARING_INSTRUMENT_IDS = TNS_INSTRUMENT_IDS
+
+
+def default_share_public_group_name():
+    """Name of the extra group a data product is shared with when the uploader
+    specifies none, or ``None`` to share only with the uploader.
+
+    Controlled by ``misc.share_data_with_public_group_by_default`` so a site can
+    default uploads to sitewide-visible rather than private. One source of truth
+    for the config decision, used by both sync and async group-id resolvers.
+    """
+    if cfg.get("misc.share_data_with_public_group_by_default", False):
+        return cfg["misc.public_group_name"]
+    return None
+
+
+async def default_extra_share_group_ids(session):
+    """Group ids to add when a data product is uploaded with no groups specified.
+
+    Empty by default; the sitewide public group when
+    ``misc.share_data_with_public_group_by_default`` is set. The uploader's
+    single-user group is added separately by each caller.
+    """
+    group_name = default_share_public_group_name()
+    if group_name is None:
+        return []
+    public_group_id = await session.scalar(
+        sa.select(Group.id).where(Group.name == group_name)
+    )
+    return [public_group_id] if public_group_id is not None else []
+
 
 PHOTOMETRY_OPTIONS = {
     "first_and_last_detections": bool,

@@ -1,8 +1,10 @@
 import tempfile
+from typing import Annotated
 
 import arrow
 import sqlalchemy as sa
 from ligo.gracedb.rest import GraceDb
+from pydantic import Field
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tornado.ioloop import IOLoop
 
@@ -115,20 +117,19 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
 
 class GcnGraceDBHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs: str):
+    async def post(
+        self,
+        dateobs: Annotated[
+            str,
+            Field(description="The dateobs of the event, as an arrow parseable string"),
+        ],
+    ):
         """
         ---
         summary: Retrieve GW Event data from GraceDB
         description: Scrape data of a GCN Event from GraceDB
         tags:
           - gcn events
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: string
-            description: The dateobs of the event, as an arrow parseable string
         responses:
           200:
             content:

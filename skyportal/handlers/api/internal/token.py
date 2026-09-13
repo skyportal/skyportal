@@ -1,44 +1,65 @@
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
 from ....model_util import create_token
 from ....models import ACL, Token, User
+from ....utils.assistant import SERVICE_TOKEN_PREFIX
 from ...base import BaseHandler
+
+
+class TokenPostBody(BaseModel):
+    """Request body for creating a new API token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Name of the token")
+    acls: list[str] = Field(description="List of ACL IDs to grant the token")
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to create the token for; defaults to the requesting user",
+    )
+
+
+class TokenPostResponse(BaseModel):
+    """ID of the newly created token."""
+
+    token_id: str = Field(description="Token ID")
+
+
+class TokenPutBody(BaseModel):
+    """Request body for updating a token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="New name of the token")
+    acls: list[str] | None = Field(
+        default=None, description="New list of ACL IDs for the token"
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user whose permissions the new ACLs are checked against; defaults to the requesting user",
+    )
 
 
 class TokenHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: TokenPostBody = None) -> TokenPostResponse:
         """
         ---
         description: Generate new token (limit 1 per user)
-        requestBody:
-          content:
-            application/json:
-              schema: Token
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            token_id:
-                              type: string
-                              description: Token ID
         """
-        data = self.get_json()
+        body = self.parse_body(TokenPostBody)
+
+        if body.name.startswith(SERVICE_TOKEN_PREFIX):
+            return self.error(
+                f'A token name cannot start with "{SERVICE_TOKEN_PREFIX}"'
+            )
 
         async with self.AsyncSession() as session:
-            if "user_id" in data:
-                user_id = data["user_id"]
+            if body.user_id is not None:
+                user_id = body.user_id
                 user = await session.scalar(
                     User.select(session.user_or_token)
                     .options(
@@ -51,7 +72,7 @@ class TokenHandler(BaseHandler):
                 user = self.associated_user_object
                 user_id = user.id
 
-            token_acls = set(data["acls"])
+            token_acls = set(body.acls)
             if not all(acl_id in user.permissions for acl_id in token_acls):
                 return self.error(
                     "User has attempted to grant token ACLs they do not have "
@@ -59,7 +80,8 @@ class TokenHandler(BaseHandler):
                 )
             existing_result = await session.scalars(
                 Token.select(session.user_or_token).where(
-                    Token.created_by_id == user_id
+                    Token.created_by_id == user_id,
+                    Token.name.notlike(f"{SERVICE_TOKEN_PREFIX}%"),
                 )
             )
             existing_tokens = existing_result.all()
@@ -68,7 +90,7 @@ class TokenHandler(BaseHandler):
                     "You have reached the maximum number of tokens "
                     "allowed for your account type."
                 )
-            token_name = data["name"]
+            token_name = body.name
             existing_name = await session.scalar(
                 Token.select(session.user_or_token).where(Token.name == token_name)
             )
@@ -94,12 +116,6 @@ class TokenHandler(BaseHandler):
           description: Retrieve a token
           tags:
             - tokens
-          parameters:
-            - in: path
-              name: token_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -148,22 +164,12 @@ class TokenHandler(BaseHandler):
             return self.success(data=result.all())
 
     @auth_or_token
-    async def put(self, token_id: str):
+    async def put(self, token_id: str, *, body: TokenPutBody = None):
         """
         ---
         description: Update token
         tags:
           - tokens
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: Token
         responses:
           200:
             content:
@@ -174,6 +180,7 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(TokenPutBody)
 
         async with self.AsyncSession() as session:
             try:
@@ -189,35 +196,27 @@ class TokenHandler(BaseHandler):
                         "permissions to update it."
                     )
 
-                data = self.get_json()
-                data["id"] = token_id
-
-                if "user_id" in data:
-                    user_id = data["user_id"]
+                if body.user_id is not None:
                     user = await session.scalar(
                         User.select(session.user_or_token)
                         .options(
                             selectinload(User.acls),
                             selectinload(User.roles),
                         )
-                        .where(User.id == user_id)
+                        .where(User.id == body.user_id)
                     )
                 else:
                     user = self.associated_user_object
-                    user_id = user.id
 
-                schema = Token.__schema__()
-                try:
-                    schema.load(data, partial=True)
-                except ValidationError as e:
-                    return self.error(
-                        f"Invalid/missing parameters: {e.normalized_messages()}"
-                    )
-                if "name" in data:
-                    token.name = data["name"]
+                if body.name is not None:
+                    if body.name.startswith(SERVICE_TOKEN_PREFIX):
+                        return self.error(
+                            f'A token name cannot start with "{SERVICE_TOKEN_PREFIX}"'
+                        )
+                    token.name = body.name
 
-                if "acls" in data:
-                    token_acls = set(data["acls"])
+                if body.acls is not None:
+                    token_acls = set(body.acls)
                     if not all(acl_id in user.permissions for acl_id in token_acls):
                         return self.error(
                             "User has attempted to grant token ACLs they do not have "
@@ -260,12 +259,6 @@ class TokenHandler(BaseHandler):
         """
         ---
         description: Delete a token
-        parameters:
-          - in: path
-            name: token_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

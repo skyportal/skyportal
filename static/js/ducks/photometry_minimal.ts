@@ -14,6 +14,7 @@
  * this duck.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { photometryTag } from "./photometryTags";
 
 export interface MinimalPhotometryDatum {
   id: number;
@@ -75,7 +76,7 @@ export const photometryMinimalApi = skyportalApi.injectEndpoints({
             ? null
             : (datum.origin ?? null),
         })),
-      providesTags: ["Photometry"],
+      providesTags: (_result, _error, arg) => photometryTag(arg),
     }),
     // Photometry for the Source Statistics overlays. When `includeExtinction`
     // is set, the backend adds `mag_corr` (Galactic-extinction-corrected mag,
@@ -105,7 +106,7 @@ export const photometryMinimalApi = skyportalApi.injectEndpoints({
           extinction:
             (datum["extinction"] as number | null | undefined) ?? null,
         })),
-      providesTags: ["Photometry"],
+      providesTags: (_result, _error, arg) => photometryTag(arg.id),
     }),
   }),
 });

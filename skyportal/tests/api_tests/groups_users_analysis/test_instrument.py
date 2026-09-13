@@ -2,8 +2,10 @@ import os
 import time
 import uuid
 
+import astropy.units as u
 import pandas as pd
-from regions import Regions
+from astropy.coordinates import SkyCoord
+from regions import RectangleSkyRegion, Regions
 
 from skyportal.tests import api
 
@@ -213,7 +215,7 @@ def test_token_user_update_instrument(
         },
         token=manage_sources_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
     status, data = api(
@@ -439,6 +441,142 @@ def test_token_user_post_sensitivity_data(super_admin_token):
     assert status == 400
     assert data["status"] == "error"
     assert (
-        data["message"]
-        == "Sensitivity_data filters must be a subset of the instrument filters"
+        "Sensitivity_data filters must be a subset of the instrument filters"
+        in data["message"]
     )
+
+
+def test_instrument_forms_api_classname_reads_telescope(super_admin_token):
+    """Regression: GET /api/internal/instrument_forms?apiType=api_classname must
+    not raise MissingGreenlet. ZTFAPI.custom_json_schema reads
+    instrument.telescope (next_twilight_morning_nautical), which lazy-loads under
+    the async handler unless the telescope relationship is eager-loaded.
+    """
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    telescope_id = data["data"]["id"]
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": instrument_name,
+            "type": "imager",
+            "band": "optical",
+            "filters": ["ztfg"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    instrument_id = data["data"]["id"]
+
+    status, data = api(
+        "GET",
+        "internal/instrument_forms",
+        params={"apiType": "api_classname"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    # The ZTFAPI instrument's form schema is built (via custom_json_schema, which
+    # reads instrument.telescope) rather than crashing with MissingGreenlet.
+    assert str(instrument_id) in data["data"]
+    assert data["data"][str(instrument_id)]["formSchema"] is not None
+
+
+def _span(field):
+    """RA and Dec extent of a field's contour, in degrees."""
+    coords = field["contour"]["features"][0]["geometry"]["coordinates"][0]
+    ras = [c[0] for c in coords]
+    decs = [c[1] for c in coords]
+    return max(ras) - min(ras), max(decs) - min(decs)
+
+
+def test_field_rotation_rolls_the_footprint(super_admin_token):
+    """A survey that rolls between pointings turns its footprint, not just moves it.
+
+    TESS is the case that needs this: its cameras roll every sector, so one
+    shared orientation cannot describe them.
+    """
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    telescope_id = data["data"]["id"]
+
+    # An oblong footprint, so a quarter turn is unmistakable.
+    region = RectangleSkyRegion(
+        center=SkyCoord(0 * u.deg, 0 * u.deg), width=4 * u.deg, height=1 * u.deg
+    )
+
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": str(uuid.uuid4()),
+            "type": "imager",
+            "band": "Optical",
+            "filters": ["ztfg"],
+            "telescope_id": telescope_id,
+            "field_data": {
+                "ID": [1, 2],
+                "RA": [100.0, 100.0],
+                "Dec": [0.0, 0.0],
+                "rotation": [0.0, 90.0],
+            },
+            "field_region": Regions([region]).serialize(format="ds9"),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    instrument_id = data["data"]["id"]
+
+    fields = []
+    for _ in range(5):
+        status, data = api(
+            "GET",
+            f"instrument/{instrument_id}",
+            params={"includeGeoJSON": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        fields = data["data"]["fields"]
+        if len(fields) == 2:
+            break
+        time.sleep(3)
+    assert len(fields) == 2, fields
+
+    by_id = {field["field_id"]: field for field in fields}
+    unrolled_ra, unrolled_dec = _span(by_id[1])
+    rolled_ra, rolled_dec = _span(by_id[2])
+
+    # Unrolled the box is wide in RA; a quarter turn makes it tall in Dec.
+    assert unrolled_ra > 3.5 and unrolled_dec < 1.5
+    assert rolled_dec > 3.5 and rolled_ra < 1.5

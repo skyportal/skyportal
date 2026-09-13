@@ -10,6 +10,16 @@
       href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      try {
+        if (window.localStorage.getItem("skyportal:theme") === "dark") {
+          document.documentElement.style.backgroundColor =
+            window.localStorage.getItem("skyportal:darkScheme") === "graphite"
+              ? "#303030"
+              : "#0e1726";
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="content"></div>

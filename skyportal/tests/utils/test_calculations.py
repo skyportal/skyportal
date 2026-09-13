@@ -13,6 +13,7 @@ from skyportal.utils.calculations import (
     deg2hms,
     dms_to_deg,
     fix_sun_time_calculation_error,
+    gaussian_sigmas_for,
     get_airmass,
     get_altitude,
     get_altitude_from_airmass,
@@ -339,3 +340,16 @@ def test_next_sunrise():
     time = Time("2024-01-01 00:00:00")
     sunrise = next_sunrise(observer, time)
     assert np.isclose(sunrise.unix, 1704087834.57)
+
+
+def test_gaussian_sigmas_for():
+    """Both call sites depend on these: from_cone's Gaussian and AMON's radius."""
+    # 1 sigma of a 2D Gaussian holds 1 - exp(-1/2)
+    assert np.isclose(gaussian_sigmas_for(1 - np.exp(-0.5)), 1.0)
+    assert np.isclose(gaussian_sigmas_for(0.90), 2.145966, atol=1e-6)
+    assert np.isclose(gaussian_sigmas_for(0.95), 2.447747, atol=1e-6)
+    # monotonic, and a wider region is always more sigmas
+    assert gaussian_sigmas_for(0.5) < gaussian_sigmas_for(0.9)
+    # clamped rather than infinite at the ends
+    assert gaussian_sigmas_for(0.0) == 0.0
+    assert np.isfinite(gaussian_sigmas_for(1.0))

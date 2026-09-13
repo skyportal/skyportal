@@ -11,6 +11,7 @@ import time
 import urllib
 import uuid
 from datetime import datetime, timedelta
+from typing import Annotated, ClassVar, Literal
 
 import afterglowpy
 import arrow
@@ -45,6 +46,7 @@ from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
 from marshmallow.exceptions import ValidationError
 from matplotlib import animation, dates
+from pydantic import BaseModel, ConfigDict, Field
 from simsurvey.models import AngularTimeSeriesSource
 from simsurvey.utils import model_tools
 from sncosmo import get_bandpass
@@ -94,7 +96,11 @@ from ...utils.earthquake import COUNTRIES_FILE
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
-from ..base import BaseHandler, format_doc
+from ..base import BaseHandler
+
+LocalizationId = Annotated[
+    int, Field(description="ID of localization to generate observability plot for")
+]
 
 env, cfg = load_env()
 log = make_log("api/observation_plan")
@@ -104,6 +110,7 @@ np.int = int  # noqa: NPY001
 
 DEFAULT_OBSPLAN_OPTIONS = [
     "notice_types",
+    "excluded_notice_types",
     "gcn_tags",
     "localization_tags",
     "localization_properties",
@@ -645,6 +652,14 @@ async def post_observation_plans(
                 f"Payload failed to validate: {e}"
             )
 
+        stamp_localization_name(
+            data,
+            await session.scalar(
+                sa.select(Localization.localization_name).where(
+                    Localization.id == data["localization_id"]
+                )
+            ),
+        )
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
         session.add(observation_plan_request)
@@ -668,6 +683,17 @@ async def post_observation_plans(
         plan_ids.append(observation_plan_request.id)
 
     return plan_ids
+
+
+def stamp_localization_name(data, localization_name):
+    """Record the skymap the plan was made from, so the payload shown on the
+    event page names it rather than only carrying an opaque localization id.
+
+    Applied after schema validation, since the instrument form schemas describe
+    what a requester may send, not what the request stores.
+    """
+    if localization_name:
+        data["payload"] = {**data["payload"], "localization_name": localization_name}
 
 
 def post_observation_plan(
@@ -741,6 +767,14 @@ def post_observation_plan(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)
@@ -828,6 +862,14 @@ async def post_observation_plan_async(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    stamp_localization_name(
+        data,
+        await session.scalar(
+            sa.select(Localization.localization_name).where(
+                Localization.id == data["localization_id"]
+            )
+        ),
+    )
     observation_plan_request = ObservationPlanRequest.__schema__().load(data)
     observation_plan_request.target_groups = target_groups
     session.add(observation_plan_request)
@@ -859,36 +901,109 @@ async def post_observation_plan_async(
     return observation_plan_request_id
 
 
+class ObservationPlanRequestGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_fields: ClassVar[frozenset[str]] = frozenset(
+        {"includePlannedObservations", "rubinFormat"}
+    )
+
+    includePlannedObservations: bool = Field(
+        default=False,
+        description="Boolean indicating whether to include associated planned observations. Defaults to false.",
+    )
+    rubinFormat: bool = Field(
+        default=False,
+        description="Boolean indicating whether to format the response in a way that is compatible with Rubin",
+    )
+    dateobs: str | None = Field(
+        default=None,
+        description="GcnEvent dateobs to filter on",
+    )
+    instrumentID: int | None = Field(
+        default=None,
+        description="Instrument ID to filter on",
+    )
+    startDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at >= startDate",
+    )
+    endDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate",
+    )
+    status: str | None = Field(
+        default=None,
+        description="String to match status of request against",
+    )
+    numPerPage: int = Field(
+        default=100,
+        description=f"Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1",
+    )
+
+
+class ObservationPlanRequestPostBody(BaseModel):
+    """Request body for submitting one or more observation plan requests.
+
+    Accepts either a single plan (the plan fields at the top level) or a
+    `observation_plans` list together with `combine_plans`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_plans: list[dict] | None = Field(
+        None, description="List of observation plan requests to submit."
+    )
+    combine_plans: bool = Field(
+        False,
+        description="Whether to combine the submitted plans into a single request.",
+    )
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the observation plan request with."
+        ),
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class ObservationPlanRequestPostResponse(BaseModel):
+    """Data payload returned when submitting observation plan requests."""
+
+    ids: list[int] = Field(description="New observation plan request IDs")
+
+
 class ObservationPlanRequestHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: ObservationPlanRequestPostBody = None
+    ) -> ObservationPlanRequestPostResponse:
         """
         ---
         summary: Submit observation plan request.
         description: Submit observation plan request.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanRequestPostBody)
+        json_data = body.model_dump(exclude_unset=True)
         if "observation_plans" in json_data:
             observation_plans = json_data["observation_plans"]
         else:
@@ -962,8 +1077,12 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"ids": plan_ids})
 
     @auth_or_token
-    @format_doc(MAX_OBSERVATION_PLAN_REQUESTS=MAX_OBSERVATION_PLAN_REQUESTS)
-    async def get(self, observation_plan_request_id: int | None = None):
+    async def get(
+        self,
+        observation_plan_request_id: int | None = None,
+        *,
+        query: ObservationPlanRequestGetQuery = None,
+    ):
         """
         ---
         single:
@@ -971,26 +1090,6 @@ class ObservationPlanRequestHandler(BaseHandler):
           description: Get an observation plan.
           tags:
             - observation plan requests
-          parameters:
-            - in: path
-              name: observation_plan_id
-              required: true
-              schema:
-                type: string
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
-            - in: query
-              name: rubinFormat
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to format the response in a way that is compatible with Rubin
           responses:
             200:
               content:
@@ -1005,62 +1104,6 @@ class ObservationPlanRequestHandler(BaseHandler):
           description: Get all observation plans.
           tags:
             - observation plan requests
-          parameters:
-            - in: query
-              name: dateobs
-              nullable: true
-              schema:
-                type: string
-              description: GcnEvent dateobs to filter on
-            - in: query
-              name: instrumentID
-              nullable: true
-              schema:
-                type: integer
-              description: Instrument ID to filter on
-            - in: query
-              name: startDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at >= startDate
-            - in: query
-              name: endDate
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                created_at <= endDate
-            - in: query
-              name: status
-              nullable: true
-              schema:
-                type: string
-              description: |
-                String to match status of request against
-            - in: query
-              name: numPerPage
-              nullable: true
-              schema:
-                type: integer
-              description: |
-                Number of observation plan requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATION_PLAN_REQUESTS}.
-            - in: query
-              name: pageNumber
-              nullable: true
-              schema:
-                type: integer
-              description: Page number for paginated query results. Defaults to 1
-            - in: query
-              name: includePlannedObservations
-              nullable: true
-              schema:
-                type: boolean
-              description: |
-                Boolean indicating whether to include associated planned observations. Defaults to false.
           responses:
             200:
               content:
@@ -1085,20 +1128,17 @@ class ObservationPlanRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        start_date = self.get_query_argument("startDate", None)
-        end_date = self.get_query_argument("endDate", None)
-        dateobs = self.get_query_argument("dateobs", None)
-        instrumentID = self.get_query_argument("instrumentID", None)
-        status = self.get_query_argument("status", None)
-        include_planned_observations = self.get_query_argument(
-            "includePlannedObservations", False
-        )
-        rubin_format = self.get_query_argument("rubinFormat", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 100)
+        query = self.parse_query(ObservationPlanRequestGetQuery)
+
+        start_date = query.startDate
+        end_date = query.endDate
+        dateobs = query.dateobs
+        status = query.status
+        include_planned_observations = query.includePlannedObservations
+        rubin_format = query.rubinFormat
         try:
             page_number, n_per_page = get_page_and_n_per_page(
-                page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
+                query.pageNumber, query.numPerPage, MAX_OBSERVATION_PLAN_REQUESTS
             )
         except ValueError as e:
             return self.error(str(e))
@@ -1117,6 +1157,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
         else:
             options = [
@@ -1126,6 +1167,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                 joinedload(ObservationPlanRequest.allocation).joinedload(
                     Allocation.instrument
                 ),
+                joinedload(ObservationPlanRequest.gcnevent),
             ]
 
         async with self.AsyncSession() as session:
@@ -1265,16 +1307,12 @@ class ObservationPlanRequestHandler(BaseHandler):
                     gcn_event_subquery,
                     ObservationPlanRequest.gcnevent_id == gcn_event_subquery.c.id,
                 )
-            if instrumentID:
+            if query.instrumentID is not None:
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
-                try:
-                    instrument_id_int = int(instrumentID)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid instrumentID: {instrumentID}")
                 allocation_query = Allocation.select(self.current_user).where(
-                    Allocation.instrument_id == instrument_id_int
+                    Allocation.instrument_id == query.instrumentID
                 )
                 allocation_subquery = allocation_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1298,7 +1336,20 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plan_requests = result.unique().all()
 
             info = {}
-            info["requests"] = [req.to_dict() for req in observation_plan_requests]
+            # The status page lists requests across every event, so it needs the
+            # event and instrument named on each row rather than as ids to chase.
+            info["requests"] = [
+                {
+                    **req.to_dict(),
+                    "dateobs": req.gcnevent.dateobs if req.gcnevent else None,
+                    "instrument_name": (
+                        req.allocation.instrument.name
+                        if req.allocation and req.allocation.instrument
+                        else None
+                    ),
+                }
+                for req in observation_plan_requests
+            ]
             info["totalMatches"] = int(total_matches)
             return self.success(data=info)
 
@@ -1310,12 +1361,6 @@ class ObservationPlanRequestHandler(BaseHandler):
         description: Delete observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1367,36 +1412,55 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanManualPostBody(BaseModel):
+    """Request body for submitting a manual observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    gcnevent_id: int | None = Field(None, description="ID of the GcnEvent.")
+    dateobs: str | None = Field(
+        None,
+        description="UTC event timestamp, used to look up the GcnEvent when gcnevent_id is not provided.",
+    )
+    localization_id: int | None = Field(None, description="Localization ID.")
+    localization_name: str | None = Field(
+        None,
+        description="Name of the localization, used to look it up when localization_id is not provided.",
+    )
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    status: str | None = Field(None, description="The status of the request.")
+    payload: dict | None = Field(
+        None, description="Content of the observation plan request."
+    )
+    plan_name: str | None = Field(None, description="Name of the observation plan.")
+    observation_plans: list[dict] | None = Field(
+        None,
+        description="Observation plans, each with its validity window and planned observations.",
+    )
+
+
+class ObservationPlanManualPostResponse(BaseModel):
+    """Data payload returned when submitting a manual observation plan request."""
+
+    id: int = Field(description="New observation plan request ID")
+
+
 class ObservationPlanManualRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self):
+    async def post(
+        self, *, body: ObservationPlanManualPostBody = None
+    ) -> ObservationPlanManualPostResponse:
         """
         ---
         summary: Submit manual observation plan request.
         description: Submit manual observation plan.
         tags:
           - observation plan requests
-        requestBody:
-          content:
-            application/json:
-              schema: ObservationPlanManualHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New observation plan request ID
         """
-        json_data = self.get_json()
+        body = self.parse_body(ObservationPlanManualPostBody)
+        json_data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             stmt = GcnEvent.select(session.user_or_token)
@@ -1527,12 +1591,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
         description: Submit an observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1563,12 +1621,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
         description: Remove an observation plan from the queue.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1629,9 +1681,20 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
 
+class ObservationPlanNameGetQuery(BaseModel):
+    """Query parameters for retrieving observation plan names."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="The name of the Observation Plan",
+    )
+
+
 class ObservationPlanNameHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: ObservationPlanNameGetQuery = None):
         """
         ---
         multiple:
@@ -1661,13 +1724,6 @@ class ObservationPlanNameHandler(BaseHandler):
             description: Verify that an Observation Plan name exists
             tags:
               - observation plans
-            parameters:
-              - in: query
-                name: name
-                required: false
-                schema:
-                  type: string
-                description: The name of the Observation Plan
             responses:
               200:
                 content:
@@ -1680,7 +1736,8 @@ class ObservationPlanNameHandler(BaseHandler):
 
 
         """
-        name = self.get_query_argument("name", None)
+        query = self.parse_query(ObservationPlanNameGetQuery)
+        name = query.name
 
         async with self.AsyncSession() as session:
             if name:
@@ -1720,12 +1777,6 @@ class ObservationPlanGCNHandler(BaseHandler):
         description: Get a GCN-izable summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -1947,12 +1998,6 @@ class ObservationPlanMovieHandler(BaseHandler):
         description: Get a movie summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2042,12 +2087,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         description: Submit the observation plan to treasuremap.space
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2213,12 +2252,6 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         description: Remove observation plan from treasuremap.space.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2307,12 +2340,6 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
         description: Get survey efficiency analyses of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2373,12 +2400,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         description: Get GeoJSON summary of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -2437,40 +2458,39 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             return self.success(data={"geojson": geojson})
 
 
+class ObservationPlanFieldsDeleteBody(BaseModel):
+    """Request body for removing fields from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fieldIds: list[int] | None = Field(
+        None, description="List of field IDs to remove from the plan"
+    )
+
+
 class ObservationPlanFieldsHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def delete(self, observation_plan_request_id: int):
+    async def delete(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanFieldsDeleteBody = None,
+    ):
         """
         ---
         summary: Delete fields from the observation plan.
         description: Delete selected fields from the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                properties:
-                  fieldIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: List of field IDs to remove from the plan
         responses:
           200:
             content:
               application/json:
-                schema: SingleObservationPlanRequest
+                schema: Success
         """
 
-        data = self.get_json()
-        field_ids_to_remove = data.pop("fieldIds", None)
+        body = self.parse_body(ObservationPlanFieldsDeleteBody)
+        field_ids_to_remove = body.fieldIds
 
         if field_ids_to_remove is None:
             return self.error("Need to specify field IDs to remove")
@@ -2522,46 +2542,45 @@ class ObservationPlanFieldsHandler(BaseHandler):
             return self.success()
 
 
+class ObservationPlanPlotGetQuery(BaseModel):
+    """Query parameters for the worldmap and observability plots."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAirmass: float = Field(
+        default=2.5,
+        description="Maximum airmass to consider. Defaults to 2.5.",
+    )
+    twilight: Literal["astronomical", "nautical", "civil"] = Field(
+        default="astronomical",
+        description="Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).",
+    )
+
+
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate map for
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
         twilight_dict = {"astronomical": -18, "nautical": -12, "civil": -6}
 
@@ -2680,44 +2699,28 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        *,
+        query: ObservationPlanPlotGetQuery = None,
+    ):
         """
         ---
         summary: Create a summary plot for an event's observability.
         description: Create a summary plot for the observability for a given event.
         tags:
           - localizations
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate observability plot for
-          - in: query
-            name: maximumAirmass
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum airmass to consider. Defaults to 2.5.
-          - in: query
-            name: twilight
-            nullable: true
-            schema:
-              type: string
-            description: |
-                Twilight definition. Choices are astronomical (-18 degrees), nautical (-12 degrees), and civil (-6 degrees).
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanPlotGetQuery)
 
-        max_airmass = self.get_query_argument("maxAirmass", 2.5)
-        twilight = self.get_query_argument("twilight", "astronomical")
+        max_airmass = query.maxAirmass
+        twilight = query.twilight
 
         try:
             localization_id_int = int(localization_id)
@@ -2729,10 +2732,16 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
             result = await session.scalars(stmt)
             telescopes = result.all()
 
-            stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id_int
+            # contour is deferred: load it with the row, or reading it below
+            # emits IO from async context (MissingGreenlet).
+            stmt = (
+                Localization.select(self.current_user)
+                .where(Localization.id == localization_id_int)
+                .options(undefer(Localization.contour))
             )
             localization = await session.scalar(stmt)
+            if localization is None:
+                return self.error(f"Cannot find localization with ID {localization_id}")
             cent = localization.contour["features"][0]["geometry"]["coordinates"]
             coords = astropy.coordinates.SkyCoord(cent[0], cent[1], unit="deg")
 
@@ -2801,28 +2810,19 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id: int, telescope_id: int):
+    async def get(
+        self,
+        localization_id: LocalizationId,
+        telescope_id: Annotated[
+            int, Field(description="ID of telescope to generate airmass chart for")
+        ],
+    ):
         """
         ---
         summary: Create an airmass chart for an event.
         description: Get an airmass chart for the GcnEvent
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: localization_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of localization to generate airmass chart for
-          - in: path
-            name: telescope_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of telescope to generate airmass chart for
         responses:
           200:
             content:
@@ -2895,9 +2895,28 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class ObservationPlanCreateObservingRunPostBody(BaseModel):
+    """Request body for creating an observing run from an observation plan."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of the groups to share the created sources with. "
+            "Defaults to the allocation's group."
+        ),
+    )
+
+
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self, observation_plan_request_id: int):
+    async def post(
+        self,
+        observation_plan_request_id: int,
+        *,
+        body: ObservationPlanCreateObservingRunPostBody = None,
+    ):
         """
         ---
         summary: Create observing run from observation plan.
@@ -2905,14 +2924,6 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
            to an observing run
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: integer
-            description: |
-              ID of observation plan request to create observing run for
         responses:
           200:
             content:
@@ -2924,7 +2935,8 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
+        body = self.parse_body(ObservationPlanCreateObservingRunPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         try:
             observation_plan_request_id_int = int(observation_plan_request_id)
@@ -3411,100 +3423,74 @@ def observation_simsurvey_plot(
     }
 
 
+class ObservationPlanSimSurveyGetQuery(BaseModel):
+    """Query parameters for running a simsurvey efficiency analysis."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numberInjections: int = Field(
+        default=1000,
+        description="Number of simulations to evaluate efficiency with. Defaults to 1000.",
+    )
+    numberDetections: int = Field(
+        default=1,
+        description="Number of detections required for detection. Defaults to 1.",
+    )
+    detectionThreshold: float = Field(
+        default=5.0,
+        description="Threshold (in sigmas) required for detection. Defaults to 5.",
+    )
+    minimumPhase: float = Field(
+        default=0.0,
+        description="Minimum phase (in days) post event time to consider detections. Defaults to 0.",
+    )
+    maximumPhase: float = Field(
+        default=3.0,
+        description="Maximum phase (in days) post event time to consider detections. Defaults to 3.",
+    )
+    modelName: str = Field(
+        default="kilonova",
+        description="Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.",
+    )
+    optionalInjectionParameters: str = Field(
+        default="{}",
+        description="JSON-encoded object of optional parameters to specify the injection type, along with a list of possible values (to be used in a dropdown UI)",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able to view the analyses. Defaults to all of requesting user's groups.",
+    )
+
+
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id: int):
+    async def get(
+        self,
+        observation_plan_request_id: int,
+        *,
+        query: ObservationPlanSimSurveyGetQuery = None,
+    ):
         """
         ---
         summary: Run a simsurvey analysis for an observation plan request
         description: Perform an efficiency analysis of the observation plan.
         tags:
           - observation plan requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-          - in: query
-            name: numberInjections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of simulations to evaluate efficiency with. Defaults to 1000.
-          - in: query
-            name: numberDetections
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Number of detections required for detection. Defaults to 1.
-          - in: query
-            name: detectionThreshold
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Threshold (in sigmas) required for detection. Defaults to 5.
-          - in: query
-            name: minimumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Minimum phase (in days) post event time to consider detections. Defaults to 0.
-          - in: query
-            name: maximumPhase
-            nullable: true
-            schema:
-              type: number
-            description: |
-              Maximum phase (in days) post event time to consider detections. Defaults to 3.
-          - in: query
-            name: model_name
-            nullable: true
-            schema:
-              type: string
-            description: |
-              Model to simulate efficiency for. Must be one of kilonova, afterglow, or linear. Defaults to kilonova.
-          - in: query
-            name: optionalInjectionParameters
-            type: object
-            additionalProperties:
-              type: array
-              items:
-                type: string
-                description: |
-                  Optional parameters to specify the injection type, along
-                  with a list of possible values (to be used in a dropdown UI)
-          - in: query
-            name: group_ids
-            nullable: true
-            schema:
-              type: array
-              items:
-                type: integer
-              description: |
-                List of group IDs corresponding to which groups should be
-                able to view the analyses. Defaults to all of requesting user's
-                groups.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        query = self.parse_query(ObservationPlanSimSurveyGetQuery)
 
-        number_of_injections = int(self.get_query_argument("numberInjections", 1000))
-        number_of_detections = int(self.get_query_argument("numberDetections", 1))
-        detection_threshold = float(self.get_query_argument("detectionThreshold", 5))
-        minimum_phase = float(self.get_query_argument("minimumPhase", 0))
-        maximum_phase = float(self.get_query_argument("maximumPhase", 3))
-        model_name = self.get_query_argument("modelName", "kilonova")
-        optional_injection_parameters = json.loads(
-            self.get_query_argument("optionalInjectionParameters", "{}")
-        )
+        number_of_injections = query.numberInjections
+        number_of_detections = query.numberDetections
+        detection_threshold = query.detectionThreshold
+        minimum_phase = query.minimumPhase
+        maximum_phase = query.maximumPhase
+        model_name = query.modelName
+        optional_injection_parameters = json.loads(query.optionalInjectionParameters)
 
         if model_name not in ["kilonova", "afterglow", "linear"]:
             return self.error(
@@ -3515,7 +3501,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             model_name, optional_injection_parameters
         )
 
-        group_ids = self.get_query_argument("group_ids", None)
+        group_ids = query.group_ids
 
         try:
             observation_plan_request_id_int = int(observation_plan_request_id)
@@ -3694,12 +3680,6 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         description: Delete a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -3741,12 +3721,6 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
         description: Create a summary plot for a simsurvey efficiency calculation.
         tags:
           - survey efficiency
-        parameters:
-          - in: path
-            name: survey_efficiency_analysis_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
@@ -3796,36 +3770,60 @@ class ObservationPlanSimSurveyPlotHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class DefaultObservationPlanPostBody(BaseModel):
+    """Request body for creating a default observation plan request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int | None = Field(
+        None, description="Observation plan request allocation ID."
+    )
+    default_plan_name: str | None = Field(
+        None, description="Unique name of the default observation plan."
+    )
+    payload: dict | None = Field(
+        None, description="Content of the default observation plan request."
+    )
+    target_group_ids: list[int] | None = Field(
+        None,
+        description=(
+            "IDs of groups to share the results of the default observation plan request with."
+        ),
+    )
+    filters: dict | None = Field(
+        None,
+        description=(
+            "Filters to determine which of the default observation plan requests get executed for which events."
+        ),
+    )
+    auto_send: bool | None = Field(
+        None, description="Automatically send to telescope queue?"
+    )
+    requester_id: int | None = Field(
+        None, description="ID of the user making the request."
+    )
+
+
+class DefaultObservationPlanPostResponse(BaseModel):
+    """Data payload returned when creating a default observation plan request."""
+
+    id: int = Field(description="New default observation plan request ID")
+
+
 class DefaultObservationPlanRequestHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    async def post(self):
+    async def post(
+        self, *, body: DefaultObservationPlanPostBody = None
+    ) -> DefaultObservationPlanPostResponse:
         """
         ---
         summary: Create default observation plan requests.
         description: Create default observation plan requests.
         tags:
           - default observation plan
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultObservationPlanPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default observation plan request ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultObservationPlanPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             if "default_plan_name" not in data:
@@ -3945,12 +3943,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
           description: Retrieve a single default observation plan
           tags:
             - default observation plan
-          parameters:
-            - in: path
-              name: default_observation_plan_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -4026,12 +4018,6 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
         description: Delete a default observation plan
         tags:
           - filters
-        parameters:
-          - in: path
-            name: default_observation_plan_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

@@ -210,7 +210,7 @@ def test_add_already_added_stream_to_group(
         token=super_admin_token,
     )
     assert status == 400
-    assert data["message"] == "Specified stream is already associated with this group."
+    assert "Specified stream is already associated with this group." in data["message"]
 
 
 def test_add_stream_to_group_delete_stream(
@@ -509,8 +509,8 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
         data={"userID": user.id, "admin": False},
         token=view_only_token,
     )
-    assert status == 401
-    assert "Unauthorized" in data["message"]
+    assert status == 403
+    assert "Forbidden" in data["message"]
 
 
 def test_group_admin_add_user_to_group(public_group, group_admin_token, user_group2):

@@ -58,8 +58,18 @@ export const {
   usePostLocalizationFromNoticeMutation,
 } = localizationApi;
 
-// The contour/tiles are generated in a background task after a GCN event is
-// ingested, so the localization is first fetched with a null contour (skymap
-// spinner). The backend emits REFRESH_GCN_EVENT once the contour is committed;
-// re-fetch the localization on it so the skymap renders without a manual reload.
-invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["Localization"]);
+// The contour is generated in a background task after ingestion, so a
+// localization is first fetched without one and REFRESH_GCN_EVENT signals it is
+// committed. That message is also pushed for unrelated changes (a comment, an
+// alias update), so only refetch the ones still waiting for their contour.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const waitingForContour = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName === "getLocalization" &&
+      (payload?.gcnEvent_dateobs == null ||
+        entry?.originalArgs?.dateobs === payload.gcnEvent_dateobs) &&
+      !entry?.data?.contour,
+  );
+  return waitingForContour ? ["Localization"] : null;
+});

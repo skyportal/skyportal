@@ -6,7 +6,7 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
-from skyportal.tests import api
+from skyportal.tests import api, expect_vega_plot
 
 from ....utils.naive_datetime import utcnow_naive
 
@@ -123,6 +123,84 @@ def test_candidate_group_filtering(
 
     expect(
         page.locator('//*[contains(., "Found 0 candidates.")]').first
+    ).to_be_visible()
+
+
+@pytest.mark.flaky(reruns=2)
+def test_candidate_filter_selection(
+    page,
+    user,
+    public_filter,
+    public_group,
+    public_stream,
+    upload_data_token,
+    super_admin_token,
+):
+    # A second filter sharing public_filter's group, so the group holds two
+    # filters. The scanning page can narrow a scan to one of them (needed to
+    # isolate e.g. a broker filter that shares a group with others).
+    filter2_name = f"filterB-{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": filter2_name,
+            "stream_id": public_stream.id,
+            "group_id": public_group.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    filter2_id = data["data"]["id"]
+
+    # 3 candidates passing only public_filter, 2 passing only filter2.
+    base = str(uuid.uuid4())
+    for prefix, filter_id, count in (
+        ("a", public_filter.id, 3),
+        ("b", filter2_id, 2),
+    ):
+        for i in range(count):
+            status, _ = api(
+                "POST",
+                "candidates",
+                data={
+                    "id": f"{base}_{prefix}_{i}",
+                    "ra": 234.22,
+                    "dec": -22.33,
+                    "transient": False,
+                    "ra_dis": 2.3,
+                    "passed_at": str(utcnow_naive()),
+                    "filter_ids": [filter_id],
+                },
+                token=upload_data_token,
+            )
+            assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+
+    submit_button = page.locator('//button[text()="Search"]').first
+    submit_button.click()
+
+    # Scanning the whole group shows both filters' candidates (3 + 2).
+    expect(
+        page.locator('//*[contains(., "Found 5 candidates.")]').first
+    ).to_be_visible()
+
+    # Narrow to the second filter only -> just its 2 candidates. This also guards
+    # the backend precedence: groupIDs must be dropped once filterIDs is set,
+    # otherwise the group query would broaden the results back to all 5.
+    filter_input = page.locator("//*[@data-testid='scanFilterSelect']//input").first
+    filter_input.click()
+    filter_input.fill(filter2_name)
+    page.get_by_role("option", name=filter2_name).first.click()
+    submit_button.click()
+
+    expect(
+        page.locator('//*[contains(., "Found 2 candidates.")]').first
     ).to_be_visible()
 
 
@@ -312,9 +390,8 @@ def test_submit_annotations_sorting(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
-            "data": {"numeric_field": 1},
+            "data": {"numeric_field": 1.5},
         },
         token=annotation_token,
     )
@@ -323,9 +400,8 @@ def test_submit_annotations_sorting(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
-            "data": {"numeric_field": 2},
+            "data": {"numeric_field": 2.5},
         },
         token=annotation_token,
     )
@@ -354,12 +430,12 @@ def test_submit_annotations_sorting(
 
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.0000")]]'
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.5000")]]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.0000")]]'
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.5000")]]'
         ).first
     ).to_be_visible()
 
@@ -367,12 +443,12 @@ def test_submit_annotations_sorting(
 
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.0000")]]'
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.5000")]]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.0000")]]'
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.5000")]]'
         ).first
     ).to_be_visible()
 
@@ -510,7 +586,6 @@ def test_candidate_annotations_search(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"alphafield": 1, "betafield": 2},
         },
@@ -803,7 +878,7 @@ def test_candidate_lightcurve_renders(
 
     # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
     # throws on the frozen photometry data.
-    expect(page.locator(".vega-embed svg.marks").first).to_be_visible()
+    expect_vega_plot(page.locator(".vega-embed").first)
     assert not any("not extensible" in err for err in page_errors), page_errors
 
 
@@ -814,7 +889,6 @@ def test_add_scanning_profile(
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "kowalski",
             "data": {"offset_from_host_galaxy": 1.5},
             "group_ids": [public_group.id],
@@ -905,7 +979,9 @@ def test_delete_scanning_profile(page, user, public_group):
     page.locator(".MuiDataGrid-virtualScroller").first.evaluate(
         "el => el.scrollTo({ left: el.scrollWidth })"
     )
-    page.locator('//button[@id="delete_button_0"]').first.click()
+    page.locator(
+        '//div[@data-field="manage"]//button[contains(@class, "MuiIconButton-colorError")]'
+    ).first.click()
     expect(page.locator('//div[text()="123hrs"]').first).to_be_hidden()
 
 

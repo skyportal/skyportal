@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Tooltip from "@mui/material/Tooltip";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Form from "@rjsf/mui";
@@ -56,6 +59,7 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
     data: any[];
   };
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
+  const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [selectedFormData, setSelectedFormData] = useState<any>({
@@ -368,13 +372,13 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       altdata: altdata_json,
     };
 
-    if (!Number.isNaN(mag) || mag !== "") {
+    if (mag) {
       payload.mag = mag;
     }
-    if (!Number.isNaN(magerr) || magerr !== "") {
+    if (magerr) {
       payload.magerr = magerr;
     }
-    if (!Number.isNaN(limiting_mag) || limiting_mag !== "") {
+    if (limiting_mag) {
       payload.limiting_mag = limiting_mag;
     }
     if (
@@ -397,6 +401,10 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
 
     if (origin?.length > 0) {
       payload.origin = origin;
+    }
+
+    if (extinctionCorrected) {
+      payload.extinction_corrected = true;
     }
 
     try {
@@ -428,6 +436,18 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
             </Select>
           </div>
           <div>
+            <Tooltip title="Enable if the magnitude is already corrected for Milky Way (Galactic) extinction; SkyPortal re-reddens it on upload (SFD dust map + G23 law) so storage stays observed.">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={extinctionCorrected}
+                    onChange={(e) => setExtinctionCorrected(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Magnitude is MW-extinction corrected"
+              />
+            </Tooltip>
             <Form
               schema={photFormSchema}
               uiSchema={uiSchema}

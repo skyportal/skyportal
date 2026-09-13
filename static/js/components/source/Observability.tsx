@@ -79,8 +79,8 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
     .map((t: any) => ({ id: t.id, name: t.nickname || t.name }));
 
   const pagedTelescopeIds: number[] = groundTelescopes
-    ? [...groundTelescopes]
-        .splice((page - 1) * 16, page * 16)
+    ? groundTelescopes
+        .slice((page - 1) * 16, page * 16)
         .map((telescope: any) => telescope.id)
     : [];
 
@@ -124,7 +124,7 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
                   ),
               )
               ?.map((telescope: any) => (
-                <Grid key={telescope.id}>
+                <Grid key={telescope.id} size={{ xs: 12, lg: 6 }}>
                   <Paper>
                     <div className={classes.inner}>
                       <Typography variant="h6">{telescope.name}</Typography>

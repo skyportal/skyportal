@@ -4,7 +4,7 @@ To populate SkyPortal with initial data, use `tools/data_loader.py`.
 This is also used when doing `make load_seed_data` and `make
 load_demo_data`.
 
-The data loader reads a data file in YAML format.  This YAML files
+The data loader reads a data file in YAML format. This YAML files
 matches the SkyPortal API: each entry corresponds to an API endpoint,
 and contains a list of objects to post (see `data/db_demo.yaml` for an
 example).

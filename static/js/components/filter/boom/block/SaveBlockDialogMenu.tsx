@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -7,11 +8,12 @@ import {
   Button,
 } from "@mui/material";
 import {
-  useLazyGetFilterElementsQuery,
+  useLazyGetFilterElementByNameQuery,
   usePostFilterElementMutation,
 } from "../../../../ducks/boom_filter_modules";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import ModuleStreams, { surveyToken } from "../dialog/ModuleStreams";
 
 const SaveBlockDialogMenu = () => {
   const {
@@ -27,10 +29,17 @@ const SaveBlockDialogMenu = () => {
     localFiltersUpdater,
   } = useCurrentBuilder();
 
-  const [fetchElement] = useLazyGetFilterElementsQuery();
+  const [fetchElement] = useLazyGetFilterElementByNameQuery();
   const [postElement] = usePostFilterElementMutation();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const stream = boomFilterVersion?.stream?.name;
+  const [moduleStreams, setModuleStreams] = useState<string[]>([]);
+  useEffect(() => {
+    if (saveDialog.open) {
+      const token = surveyToken(stream);
+      setModuleStreams(token ? [token] : []);
+    }
+  }, [saveDialog.open, stream]);
 
   const handleSaveDialogConfirm = async () => {
     if (!saveName || !saveName.trim()) {
@@ -39,20 +48,21 @@ const SaveBlockDialogMenu = () => {
     }
 
     const nameValue = saveName.trim();
-    const streamName = stream?.split(" ")[0];
 
     const notAvailable: any = await fetchElement({
-      survey: nameValue,
+      name: nameValue,
       elements: "blocks",
     });
     if (notAvailable?.data?.blocks != null) {
       const existingStreams = notAvailable.data.blocks.streams;
       // Name conflicts only if the existing block belongs to the same stream
+      // A name is free only where no existing block claims it: an existing
+      // block offered everywhere collides with anything.
       const isConflict =
         !existingStreams ||
         existingStreams.length === 0 ||
-        !streamName ||
-        existingStreams.includes(streamName);
+        moduleStreams.length === 0 ||
+        moduleStreams.some((s: string) => existingStreams.includes(s));
       if (isConflict) {
         setSaveError("Name already exists. Please choose another.");
         return;
@@ -61,7 +71,7 @@ const SaveBlockDialogMenu = () => {
 
     const saved = await postElement({
       name: nameValue,
-      data: { block: saveDialog.block, streams: [stream] },
+      data: { block: saveDialog.block, streams: moduleStreams },
       elements: "blocks",
     });
     if (saved) {
@@ -139,6 +149,7 @@ const SaveBlockDialogMenu = () => {
           helperText={saveError || "Enter a unique name for this custom block"}
           sx={{ mt: 1 }}
         />
+        <ModuleStreams value={moduleStreams} onChange={setModuleStreams} />
       </DialogContent>
       <DialogActions>
         <Button

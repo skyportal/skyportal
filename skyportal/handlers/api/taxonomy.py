@@ -1,6 +1,9 @@
+from typing import Any
+
 import sqlalchemy as sa
 import yaml
 from jsonschema.exceptions import ValidationError as JSONValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 from tdtax import schema, validate
 
@@ -13,6 +16,82 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 
+class TaxonomyPostBody(BaseModel):
+    """Request body for posting a new taxonomy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(
+        description="Short string to make this taxonomy memorable to end users."
+    )
+    version: str = Field(description="Semantic version of this taxonomy name")
+    hierarchy: dict[str, Any] | None = Field(
+        default=None,
+        description="Nested JSON describing the taxonomy which should be "
+        "validated against a schema before entry. One of `hierarchy` or "
+        "`hierarchy_file` must be provided.",
+    )
+    hierarchy_file: str | None = Field(
+        default=None,
+        description="YAML string describing the taxonomy, parsed into "
+        "`hierarchy` when provided.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should "
+        "be able to view the taxonomy. Defaults to the public group.",
+    )
+    provenance: str | None = Field(
+        default=None,
+        description="Identifier (e.g., URL or git hash) that uniquely ties "
+        "this taxonomy back to an origin or place of record",
+    )
+    isLatest: bool = Field(
+        default=True,
+        description="Consider this version of the taxonomy with this name "
+        "the latest? Defaults to True.",
+    )
+
+
+class TaxonomyPostResponse(BaseModel):
+    """Data payload returned when posting a taxonomy."""
+
+    taxonomy_id: int = Field(description="New taxonomy ID")
+
+
+class TaxonomyPutBody(BaseModel):
+    """Request body for updating a taxonomy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="Short string to make this taxonomy memorable to end users.",
+    )
+    version: str | None = Field(
+        default=None, description="Semantic version of this taxonomy name"
+    )
+    provenance: str | None = Field(
+        default=None,
+        description="Identifier (e.g., URL or git hash) that uniquely ties "
+        "this taxonomy back to an origin or place of record",
+    )
+    isLatest: bool | None = Field(
+        default=None,
+        description="Consider this version of the taxonomy with this name the latest?",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should "
+        "be able to view the taxonomy.",
+    )
+    hierarchy: dict[str, Any] | None = Field(
+        default=None,
+        description="Not editable; upload a new taxonomy if a hierarchy "
+        "change is desired.",
+    )
+
+
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
     async def get(self, taxonomy_id: int | None = None):
@@ -23,12 +102,6 @@ class TaxonomyHandler(BaseHandler):
           description: Retrieve a taxonomy
           tags:
             - taxonomies
-          parameters:
-            - in: path
-              name: taxonomy_id
-              required: true
-              schema:
-                type: integer
           responses:
             200:
               content:
@@ -94,90 +167,24 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data=taxonomies)
 
     @permissions(["Post taxonomy"])
-    async def post(self):
+    async def post(self, *, body: TaxonomyPostBody = None) -> TaxonomyPostResponse:
         """
         ---
         summary: Post new taxonomy
         description: Post new taxonomy
         tags:
           - taxonomies
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: |
-                      Short string to make this taxonomy memorable
-                      to end users.
-                  hierarchy:
-                    type: object
-                    description: |
-                       Nested JSON describing the taxonomy
-                       which should be validated against
-                       a schema before entry
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view comment. Defaults to all of requesting
-                      user's groups.
-                  version:
-                    type: string
-                    description: |
-                      Semantic version of this taxonomy name
-                  provenance:
-                    type: string
-                    description: |
-                      Identifier (e.g., URL or git hash) that
-                      uniquely ties this taxonomy back
-                      to an origin or place of record
-                  isLatest:
-                    type: boolean
-                    description: |
-                      Consider this version of the taxonomy with this
-                      name the latest? Defaults to True.
-                required:
-                  - name
-                  - hierarchy
-                  - version
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            taxonomy_id:
-                              type: integer
-                              description: New taxonomy ID
         """
-        data = self.get_json()
-        name = data.get("name", None)
-        if name is None:
-            return self.error("A name must be provided for a taxonomy")
+        body = self.parse_body(TaxonomyPostBody)
+        name = body.name
+        version = body.version
 
-        version = data.get("version", None)
-        if version is None:
-            return self.error("A version string must be provided for a taxonomy")
-
-        hierarchy_file = data.get("hierarchy_file", None)
-        if hierarchy_file is not None:
-            hierarchy_json = yaml.safe_load(hierarchy_file)
+        hierarchy = body.hierarchy
+        if body.hierarchy_file is not None:
+            hierarchy_json = yaml.safe_load(body.hierarchy_file)
             if isinstance(hierarchy_json, list):
                 hierarchy_json = hierarchy_json[0]
-            data["hierarchy"] = hierarchy_json
-            del data["hierarchy_file"]
+            hierarchy = hierarchy_json
 
         async with self.AsyncSession() as session:
             existing_result = await session.scalars(
@@ -194,7 +201,6 @@ class TaxonomyHandler(BaseHandler):
                 )
 
             # Ensure a valid taxonomy
-            hierarchy = data.get("hierarchy", None)
             if hierarchy is None:
                 return self.error("A JSON of the taxonomy must be given")
 
@@ -208,8 +214,8 @@ class TaxonomyHandler(BaseHandler):
                 g.id for g in self.current_user.accessible_groups
             ]
 
-            group_ids = data.pop("group_ids", None)
-            if not isinstance(group_ids, list) or len(group_ids) == 0:
+            group_ids = body.group_ids
+            if not group_ids:
                 public_group = await session.scalar(
                     sa.select(Group.id).where(
                         Group.name == cfg["misc.public_group_name"]
@@ -232,11 +238,11 @@ class TaxonomyHandler(BaseHandler):
             )
             groups = groups_result.all()
 
-            provenance = data.get("provenance", None)
+            provenance = body.provenance
 
             # update others with this name
             # TODO: deal with the same name but different groups?
-            isLatest = data.get("isLatest", True)
+            isLatest = body.isLatest
             if isLatest:
                 to_update_result = await session.scalars(
                     Taxonomy.select(session.user_or_token).where(
@@ -265,23 +271,13 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
-    async def put(self, taxonomy_id: int):
+    async def put(self, taxonomy_id: int, *, body: TaxonomyPutBody = None):
         """
         ---
         summary: Update a taxonomy
         description: Update taxonomy
         tags:
           - taxonomies
-        parameters:
-          - in: path
-            name: taxonomy_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: TaxonomyNoID
         responses:
           200:
             content:
@@ -292,12 +288,9 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(TaxonomyPutBody)
 
-        data = self.get_json()
-        data["id"] = int(taxonomy_id)
-
-        hierarchy = data.get("hierarchy", None)
-        if hierarchy is not None:
+        if body.hierarchy is not None:
             return self.error(
                 "Editing the hierarchy not allowed, upload a new taxonomy if this change is desired."
             )
@@ -312,7 +305,7 @@ class TaxonomyHandler(BaseHandler):
             if taxonomy is None:
                 return self.error(f"Missing taxonomy with ID {taxonomy_id}")
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
             if group_ids:
                 user_accessible_group_ids = [
                     g.id for g in self.current_user.accessible_groups
@@ -326,8 +319,9 @@ class TaxonomyHandler(BaseHandler):
                 groups = groups_result.all()
                 taxonomy.groups = groups
 
-            for k in data:
-                setattr(taxonomy, k, data[k])
+            for field in ("name", "version", "provenance", "isLatest"):
+                if field in body.model_fields_set:
+                    setattr(taxonomy, field, getattr(body, field))
 
             await session.commit()
 
@@ -342,12 +336,6 @@ class TaxonomyHandler(BaseHandler):
         description: Delete a taxonomy
         tags:
           - taxonomies
-        parameters:
-          - in: path
-            name: taxonomy_id
-            required: true
-            schema:
-              type: integer
         responses:
           200:
             content:

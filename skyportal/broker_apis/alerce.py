@@ -19,8 +19,10 @@ DEFAULT_TIMEOUT = 30  # seconds
 _FID_TO_BAND = {1: "g", 2: "r", 3: "i"}
 
 
-def _survey(broker):
-    return ((broker.altdata or {}).get("survey") or "ZTF").upper()
+def _survey(broker, kwargs=None):
+    return (
+        (kwargs or {}).get("survey") or (broker.altdata or {}).get("survey") or "ZTF"
+    ).upper()
 
 
 def _api_url(broker):
@@ -182,26 +184,47 @@ class ALERCEBROKER(BrokerAPI):
                 "type": "string",
                 "title": "ZTF REST API URL",
                 "default": DEFAULT_API_URL,
+                "description": "ALeRCE ZTF REST API base URL.",
             },
             "stamp_url": {
                 "type": "string",
                 "title": "ZTF Stamp API URL",
                 "default": DEFAULT_STAMP_URL,
+                "description": "ALeRCE ZTF cutout/stamp API base URL.",
             },
             "lsst_api_url": {
                 "type": "string",
                 "title": "LSST REST API URL",
                 "default": DEFAULT_LSST_API_URL,
+                "description": "ALeRCE LSST REST API base URL.",
             },
             "lsst_stamp_url": {
                 "type": "string",
                 "title": "LSST Stamp API URL",
                 "default": DEFAULT_LSST_STAMP_URL,
+                "description": "ALeRCE LSST cutout/stamp API base URL.",
             },
             "survey": {
                 "type": "string",
                 "enum": ["ZTF", "LSST"],
                 "default": "ZTF",
+                "title": "Survey",
+                "description": "Which survey's API this connection uses.",
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 3600,
+                "description": (
+                    "How often this broker's filters re-run against ALeRCE. "
+                    "Default 3600 (hourly)."
+                ),
+            },
+            "page_size": {
+                "type": "integer",
+                "title": "Results per page",
+                "default": 100,
+                "description": "Objects fetched per ALeRCE query page.",
             },
         },
     }
@@ -219,7 +242,7 @@ class ALERCEBROKER(BrokerAPI):
         ra, dec = kwargs.get("ra"), kwargs.get("dec")
         if ra is None or dec is None:
             raise ValueError("Provide objectId, or ra+dec.")
-        if _survey(broker) == "LSST":
+        if _survey(broker, kwargs) == "LSST":
             result = _lsst_get(
                 broker,
                 "object_api/list_objects",
@@ -240,7 +263,7 @@ class ALERCEBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        if _survey(broker) == "LSST":
+        if _survey(broker, kwargs) == "LSST":
             meta = {}
             try:
                 meta = _first(
@@ -270,7 +293,7 @@ class ALERCEBROKER(BrokerAPI):
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
-        if _survey(broker) == "LSST":
+        if _survey(broker, kwargs) == "LSST":
             return _lsst_get(
                 broker,
                 "object_api/list_objects",
@@ -293,7 +316,7 @@ class ALERCEBROKER(BrokerAPI):
         ``alert_id`` is the objectId; a detection's candid (ZTF) / measurement_id
         (LSST) keys the stamp. Returns base64 FITS the frontend decodes like any
         other broker."""
-        if _survey(broker) == "LSST":
+        if _survey(broker, kwargs) == "LSST":
             detections = _lsst_get(
                 broker,
                 "lightcurve_api/detections",

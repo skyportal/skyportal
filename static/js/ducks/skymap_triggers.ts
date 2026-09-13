@@ -6,6 +6,7 @@
  * trigger payload for an allocation; post/delete are mutations that invalidate
  * the `Localizations`/`Observations` tags so dependent listings refetch.
  */
+import { buildQueryString as buildQuery } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -21,7 +22,7 @@ export interface RequestSkymapTriggersArg {
 
 export interface PostSkymapTriggerArg {
   allocation_id: number | string;
-  localization_id: number | string | null;
+  localization_id: number | string;
   [key: string]: unknown;
 }
 
@@ -37,7 +38,7 @@ const buildQueryString = (params: Record<string, unknown>): string => {
       filtered[key] = String(value);
     }
   });
-  const queryString = new URLSearchParams(filtered).toString();
+  const queryString = buildQuery(filtered);
   return queryString ? `?${queryString}` : "";
 };
 

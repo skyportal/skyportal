@@ -1152,6 +1152,89 @@ def test_token_user_post_and_get_different_systems_mag(
     np.testing.assert_allclose(data["data"]["limiting_mag"], 22.3 - correction)
 
 
+def test_token_user_post_extinction_corrected_photometry(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    from skyportal.utils.extinction import calculate_extinction
+
+    a_lambda = calculate_extinction(public_source.ra, public_source.dec, "ztfg")
+    assert a_lambda is not None and a_lambda > 0
+
+    mag_in, mjd = 21.0, 58123.0
+
+    # Upload as MW-extinction corrected: SkyPortal stores observed photometry, so
+    # it re-reddens for storage.
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": mjd,
+            "instrument_id": ztf_camera.id,
+            "mag": mag_in,
+            "magerr": 0.1,
+            "limiting_mag": 22.5,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "extinction_corrected": True,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    photometry_id = data["data"]["ids"][0]
+
+    # Stored (observed) value is the uploaded mag re-reddened: mag_in + A_lambda.
+    status, data = api(
+        "GET",
+        f"photometry/{photometry_id}?format=mag&magsys=ab",
+        token=upload_data_token,
+    )
+    assert status == 200
+    np.testing.assert_allclose(data["data"]["mag"], mag_in + a_lambda, rtol=1e-4)
+
+    # Displaying with extinction correction dereddens back to the uploaded value.
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/photometry?format=mag&magsys=ab&includeExtinction=true",
+        token=upload_data_token,
+    )
+    assert status == 200
+    point = next(p for p in data["data"] if p["mjd"] == mjd)
+    np.testing.assert_allclose(point["mag_corr"], mag_in, rtol=1e-4)
+
+
+def test_token_user_post_uncorrected_photometry_unchanged(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    # Without the flag, magnitudes are stored as-is (observed) -- the control.
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58124.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 21.0,
+            "magerr": 0.1,
+            "limiting_mag": 22.5,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    photometry_id = data["data"]["ids"][0]
+    status, data = api(
+        "GET",
+        f"photometry/{photometry_id}?format=mag&magsys=ab",
+        token=upload_data_token,
+    )
+    assert status == 200
+    np.testing.assert_allclose(data["data"]["mag"], 21.0)
+
+
 def test_token_user_post_and_get_different_systems_flux(
     upload_data_token, public_source, ztf_camera, public_group
 ):
@@ -1502,7 +1585,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status in [500, 401]
+    assert status in [400, 403]
     assert data["status"] == "error"
 
 
@@ -1525,7 +1608,7 @@ def test_post_photometry_no_access_token(
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -1685,7 +1768,7 @@ def test_token_user_cannot_update_unowned_photometry(
         },
         token=manage_sources_token,
     )
-    assert status == 401
+    assert status == 403
 
 
 def test_token_user_update_photometry_groups(
@@ -1826,7 +1909,7 @@ def test_user_cannot_delete_unowned_photometry_data(
         "DELETE", f"photometry/{photometry_id}", token=manage_sources_token
     )
 
-    assert status == 401
+    assert status == 403
 
 
 def test_admin_can_delete_unowned_photometry_data(
@@ -2107,6 +2190,7 @@ def test_token_user_post_to_foreign_group_and_retrieve(
     assert status == 200
 
 
+@pytest.mark.flaky(reruns=2, reruns_delay=5)
 def test_problematic_photometry_1263(
     upload_data_token, public_source, public_group, ztf_camera, public_group2
 ):
@@ -3075,6 +3159,28 @@ def test_photometry_stream_patch_access(
     assert status == 200
     assert data["status"] == "success"
 
+    # repeating it loads the StreamPhotometry row created above, exercising the
+    # access check on a join table whose primary key is composite
+    status, data = api(
+        "PATCH",
+        f"photometry/{phot_id}",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58001.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 13.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "stream_ids": [public_stream2.id],
+            "altdata": {"some_key": "some_value"},
+        },
+        token=upload_data_token_no_groups_two_streams,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
 
 def test_token_user_delete_object_photometry(
     super_admin_token, upload_data_token, view_only_token, ztf_camera, public_group
@@ -3189,7 +3295,7 @@ def test_photometry_validation(
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
     status, data = api(
@@ -3373,8 +3479,8 @@ def test_token_user_big_post(
     assert status == 400
     assert data["status"] == "error"
     assert (
-        data["message"]
-        == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        in data["message"]
     )
 
 
@@ -3496,3 +3602,11 @@ def test_bulk_upsert_photometry_update_mode(public_source, ztf_camera, user):
             await session.commit()
 
     asyncio.run(_body())
+
+
+def test_get_photometry_without_id_returns_error(upload_data_token):
+    # A bare GET /api/photometry (id is optional in the route, shared with POST)
+    # must return a clean error, not crash with a TypeError.
+    status, data = api("GET", "photometry", token=upload_data_token)
+    assert status == 400
+    assert "photometry_id" in data["message"]

@@ -34,17 +34,9 @@ module.exports = [
     },
   },
   {
+    // Plain .js files: the default parser handles them (they are ES modules
+    // with no JSX; .ts/.tsx use typescript-eslint below).
     languageOptions: {
-      parser: require("@babel/eslint-parser"),
-      parserOptions: {
-        requireConfigFile: false,
-        babelOptions: {
-          presets: ["@babel/preset-env", "@babel/preset-react"],
-        },
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
       globals: {
         ...globalsLib.browser,
       },

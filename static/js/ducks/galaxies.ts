@@ -10,18 +10,33 @@
  * invalidation, preserving the old guard that only refetched when the
  * currently-loaded GCN event matched the pushed event.
  */
+import { buildQueryString, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-const buildQueryString = (params: Record<string, unknown>): string =>
-  new URLSearchParams(
-    Object.entries(params).reduce<Record<string, string>>((acc, [k, v]) => {
-      if (v !== undefined && v !== null) {
-        acc[k] = String(v);
-      }
-      return acc;
-    }, {}),
-  ).toString();
+const QUERY_KEYS = [
+  "catalog_name",
+  "catalogNamesOnly",
+  "galaxyName",
+  "ra",
+  "dec",
+  "radius",
+  "minDistance",
+  "maxDistance",
+  "minRedshift",
+  "maxRedshift",
+  "minMstar",
+  "maxMstar",
+  "localizationDateobs",
+  "localizationName",
+  "localizationCumprob",
+  "includeGeoJSON",
+  "returnProbability",
+  "numPerPage",
+  "pageNumber",
+  "sortBy",
+  "sortOrder",
+] as const;
 
 interface GcnEventGalaxiesArg {
   dateobs: string;
@@ -48,7 +63,7 @@ export const galaxiesApi = skyportalApi.injectEndpoints({
     getGcnEventGalaxies: build.query<any, GcnEventGalaxiesArg>({
       query: ({ dateobs, filterParams }) => {
         const qs = buildQueryString({
-          ...(filterParams ?? {}),
+          ...pickParams(filterParams ?? {}, QUERY_KEYS),
           localizationDateobs: dateobs,
           includeGeoJSON: true,
         });

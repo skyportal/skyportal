@@ -136,6 +136,8 @@ class FINKBROKER(BrokerAPI):
     science tags (e.g. ``fink_kn_candidates_ztf``).
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["ZTF", "LSST"]
 
     form_json_schema_config = {
@@ -145,15 +147,25 @@ class FINKBROKER(BrokerAPI):
             "fink": {
                 "type": "object",
                 "title": "Fink Kafka",
+                "description": "Fink Kafka credentials for consuming Fink alert streams.",
                 "properties": {
                     "servers": {"type": "string", "title": "Bootstrap servers"},
-                    "username": {"type": "string"},
-                    "password": {"type": "string"},
-                    "group_id": {"type": "string"},
-                    "topics": {"type": "array", "items": {"type": "string"}},
+                    "username": {"type": "string", "title": "Username"},
+                    "password": {"type": "string", "title": "Password"},
+                    "group_id": {"type": "string", "title": "Consumer group id"},
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "title": "Topics",
+                        "description": "Fink topics to subscribe to.",
+                    },
                     "topic_filter_ids": {
                         "type": "object",
                         "title": "Per-topic Filter ids",
+                        "description": (
+                            "Map each topic to the SkyPortal Filter ids its "
+                            "alerts register candidates under."
+                        ),
                         "additionalProperties": {
                             "type": "array",
                             "items": {"type": "integer"},
@@ -166,6 +178,7 @@ class FINKBROKER(BrokerAPI):
                 "title": "Survey",
                 "enum": ["ZTF", "LSST"],
                 "default": "ZTF",
+                "description": "Survey this connection serves.",
             },
         },
     }

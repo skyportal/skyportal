@@ -44,6 +44,7 @@ from ..utils.naive_datetime import utcnow_naive
 from .classification import Classification
 from .group import Group, accessible_by_groups_members
 from .source import Source
+from .spectrum import Spectrum
 from .webhook import WebhookMixin
 
 _, cfg = load_env()
@@ -655,8 +656,23 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
     transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
     yet visible to this fresh session and post_analysis fails with "Obj not found".
     """
+    import time
+
     from skyportal.handlers.api.analysis import post_analysis
-    from skyportal.models import User
+    from skyportal.models import Obj, User
+
+    # Wait for the just-saved obj to be visible: a broker-ingested obj is new in
+    # the still-uncommitted triggering transaction, so a fresh session can miss it.
+    for _ in range(20):
+        with DBSession() as probe:
+            if probe.scalar(sa.select(Obj.id).where(Obj.id == obj_id)) is not None:
+                break
+        time.sleep(0.5)
+    else:
+        log(
+            f"Default analysis {default_analysis_id}: obj {obj_id} never became visible"
+        )
+        return
 
     with DBSession() as db_session:
         try:
@@ -778,6 +794,8 @@ def create_default_analysis_on_save(mapper, connection, target):
             stmt = sa.select(DefaultAnalysis).where(
                 DefaultAnalysis.source_filter["group_id"].astext.cast(sa.Integer)
                 == group_id,
+                # Spectrum-triggered defaults fire only on upload, never on save.
+                DefaultAnalysis.source_filter["spectrum"].astext.is_(None),
                 _default_analysis_under_limit(),
             )
             for default_analysis in session.scalars(stmt).all():
@@ -795,3 +813,58 @@ def create_default_analysis_on_save(mapper, connection, target):
                 )
         except Exception as e:
             log(f"Error creating default analyses on source save: {e}")
+
+
+@event.listens_for(Spectrum, "after_insert")
+def create_default_analysis_on_spectrum(mapper, connection, target):
+    """Trigger default analyses when a spectrum is uploaded. A DefaultAnalysis with
+    ``source_filter={"spectrum": "any"}`` auto-fires here for every new spectrum --
+    the hook for auto-classifying each uploaded spectrum (e.g. NGSF/SNID-SAGE),
+    complementing the save-to-group trigger which only fires at source-save time.
+    Adding ``"group_id": <id>`` restricts it to spectra shared with that group."""
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        try:
+            from skyportal.utils.asynchronous import run_async
+
+            from .group_joins import GroupSpectrum
+
+            obj_id = target.obj_id
+            stmt = sa.select(DefaultAnalysis).where(
+                DefaultAnalysis.source_filter["spectrum"].astext == "any",
+                _default_analysis_under_limit(),
+            )
+            defaults = session.scalars(stmt).all()
+            if not defaults:
+                return
+
+            # Only load the spectrum's groups if a default restricts by group_id.
+            spectrum_group_ids = None
+            for default_analysis in defaults:
+                required_group = default_analysis.source_filter.get("group_id")
+                if required_group is not None:
+                    if spectrum_group_ids is None:
+                        spectrum_group_ids = set(
+                            session.scalars(
+                                sa.select(GroupSpectrum.group_id).where(
+                                    GroupSpectrum.spectr_id == target.id
+                                )
+                            ).all()
+                        )
+                    if int(required_group) not in spectrum_group_ids:
+                        continue
+                log(
+                    f"Creating default analysis {default_analysis.analysis_service.name} "
+                    f"for spectrum {target.id} on {obj_id}"
+                )
+                run_async(
+                    _run_default_analysis,
+                    default_analysis.id,
+                    default_analysis.author_id,
+                    obj_id,
+                    f"Default analysis {default_analysis.analysis_service.name} "
+                    f"triggered by spectrum upload on {obj_id}",
+                )
+        except Exception as e:
+            log(f"Error creating default analyses on spectrum upload: {e}")

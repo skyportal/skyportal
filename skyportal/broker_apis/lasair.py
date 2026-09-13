@@ -1,10 +1,11 @@
 import base64
+import time
 
 import requests
 
 from baselayer.log import make_log
 
-from .interface import BrokerAPI
+from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
 
@@ -40,7 +41,7 @@ def _survey(broker, kwargs=None):
 
 def _normalize_object(obj, object_id):
     """Reshape a Lasair object into the standard alert shape the rest of the
-    stack consumes: ``{objectId, candidate, prv_candidates}``."""
+    stack consumes: ``{objectId, candidate, prv_candidates, annotations}``."""
     object_data = obj.get("objectData") or {}
     candidates = obj.get("candidates") or []
     detections = [c for c in candidates if c.get("magpsf") is not None]
@@ -56,6 +57,30 @@ def _normalize_object(obj, object_id):
         }
         for c in detections
     ]
+    # Extract annotations from external annotators (e.g. NEEDLE_LSST).
+    # Lasair places them in lasairData.annotations when lasair_added=True.
+    lasair_data = obj.get("lasairData") or {}
+    raw_annotations = lasair_data.get("annotations") or obj.get("annotations") or []
+    annotations = []
+    for ann in raw_annotations:
+        topic = ann.get("topic")
+        if not topic:
+            continue
+        entry = {"topic": topic}
+        for key in ("classification", "explanation", "url"):
+            if ann.get(key):
+                entry[key] = ann[key]
+        classdict = ann.get("classdict") or ann.get("classjson")
+        if classdict:
+            if isinstance(classdict, str):
+                try:
+                    import json as _json
+
+                    classdict = _json.loads(classdict)
+                except Exception:
+                    pass
+            entry["classdict"] = classdict
+        annotations.append(entry)
     return {
         "objectId": obj.get("objectId") or object_id,
         "candidate": {
@@ -67,6 +92,7 @@ def _normalize_object(obj, object_id):
             "band": _band(latest),
         },
         "prv_candidates": prv_candidates,
+        "annotations": annotations,
     }
 
 
@@ -142,15 +168,37 @@ def _endpoint(broker):
     return (broker.altdata or {}).get("endpoint", DEFAULT_ENDPOINT)
 
 
+# Lasair rate-limits per account, and ingestion fetches one object at a time, so
+# a busy filter walks straight into 429s. Wait and retry rather than dropping the
+# object: the alternative is a cycle that silently ingests a fraction of what it
+# matched.
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_PAUSE = 10.0
+
+
 def _request(broker, method, data):
     """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
     a ``Authorization: Token`` header (what the ``lasair`` client does, so no
-    dependency). Returns the parsed JSON."""
+    dependency). Returns the parsed JSON.
+
+    Retries on 429, honouring ``Retry-After`` when Lasair sends one.
+    """
     url = _endpoint(broker).rstrip("/") + "/" + method + "/"
     headers = {"Authorization": f"Token {_token(broker)}"}
-    response = requests.post(url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT)
-    response.raise_for_status()
-    return response.json()
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        response = requests.post(
+            url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT
+        )
+        if response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+            response.raise_for_status()
+            return response.json()
+        try:
+            pause = float(response.headers.get("Retry-After", RATE_LIMIT_PAUSE))
+        except (TypeError, ValueError):
+            pause = RATE_LIMIT_PAUSE
+        log(f"Lasair rate-limited ({method}); waiting {pause:.0f}s")
+        time.sleep(min(pause, 60.0))
+    raise RuntimeError("unreachable")
 
 
 def _object(broker, object_id):
@@ -182,6 +230,48 @@ def _query(broker, selected, tables, conditions, limit=1000):
     )
 
 
+async def _save_annotator_annotations(session, user, obj_id, filter_ids, annotations):
+    """Upsert Lasair annotator annotations onto ``obj_id``, scoped to the groups
+    of the ingesting filters. Origin is ``"lasair:{topic}"``."""
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from baselayer.app.models import utcnow
+
+    from ..models import Annotation, Filter, GroupAnnotation
+
+    filters = (
+        await session.scalars(sa.select(Filter).where(Filter.id.in_(filter_ids)))
+    ).all()
+    group_ids = list({f.group_id for f in filters if f.group_id})
+    if not group_ids:
+        return
+
+    for ann in annotations:
+        topic = ann.get("topic")
+        if not topic:
+            continue
+        origin = f"lasair:{topic}"
+        ann_data = {k: v for k, v in ann.items() if k != "topic"}
+        annotation_id = await session.scalar(
+            pg_insert(Annotation)
+            .values(obj_id=obj_id, origin=origin, data=ann_data, author_id=user.id)
+            .on_conflict_do_update(
+                index_elements=["obj_id", "origin"],
+                set_={"data": ann_data, "modified": utcnow},
+                where=Annotation.author_id == user.id,
+            )
+            .returning(Annotation.id)
+        )
+        if annotation_id is not None:
+            for gid in group_ids:
+                await session.execute(
+                    pg_insert(GroupAnnotation)
+                    .values(group_id=gid, annotation_id=annotation_id)
+                    .on_conflict_do_nothing()
+                )
+
+
 class LASAIRBROKER(BrokerAPI):
     """The Lasair broker (https://lasair.lsst.ac.uk).
 
@@ -201,13 +291,47 @@ class LASAIRBROKER(BrokerAPI):
 
     form_json_schema_config = {
         "type": "object",
-        "required": ["token"],
+        "required": ["endpoint"],
         "properties": {
-            "token": {"type": "string", "title": "Lasair API token"},
+            "token": {
+                "type": "string",
+                "title": "Lasair API token",
+                "description": "Your Lasair API token (40 hex characters).",
+            },
             "endpoint": {
                 "type": "string",
                 "title": "API endpoint",
                 "default": DEFAULT_ENDPOINT,
+                "description": (
+                    "Lasair API base URL. LSST instance: "
+                    "https://api.lasair.lsst.ac.uk/api ; ZTF instance: "
+                    "https://lasair-ztf.lsst.ac.uk/api . These are separate "
+                    "systems with separate tokens."
+                ),
+            },
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF", "LSST"],
+                "title": "Survey",
+                "description": (
+                    "Survey this connection serves. Leave unset to infer it "
+                    "from the endpoint."
+                ),
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 86400,
+                "description": (
+                    "How often this broker's filters are re-run against Lasair. "
+                    "Default 86400 (once per day)."
+                ),
+            },
+            "limit": {
+                "type": "integer",
+                "title": "Max results per query",
+                "default": 1000,
+                "description": "Maximum objects returned per Lasair query.",
             },
         },
     }
@@ -216,8 +340,12 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def validate_config(altdata):
-        if not (altdata or {}).get("token"):
-            raise ValueError("Broker altdata must include 'token'.")
+        if not (altdata or {}).get("endpoint"):
+            raise ValueError("Broker altdata must include 'endpoint'.")
+
+    @staticmethod
+    def test_connection(broker):
+        _cone(broker, 0, 0, radius=1)
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
@@ -270,8 +398,7 @@ class LASAIRBROKER(BrokerAPI):
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
             return {"schema": _lasair_schema(_survey(broker, kwargs))}
-        modules = (broker.altdata or {}).get("filter_modules") or {}
-        return {elements: modules.get(elements, [])}
+        return {elements: altdata_filter_modules(broker, elements, kwargs.get("name"))}
 
     @staticmethod
     def test_filter(broker, session, **kwargs):
@@ -368,12 +495,16 @@ class LASAIRBROKER(BrokerAPI):
             # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
             # the broker record. Re-read each cycle so filter edits are picked up.
             async with async_plain_session_factory() as session:
-                rows = (await session.scalars(sa.select(Filter))).all()
+                rows = (
+                    await session.scalars(
+                        sa.select(Filter).where(Filter.broker_id == broker.id)
+                    )
+                ).all()
             queries = []
             for f in rows:
                 ad = f.altdata if isinstance(f.altdata, dict) else {}
                 lasair = ad.get("lasair") if isinstance(ad, dict) else None
-                if ad.get("broker_id") != broker.id or not isinstance(lasair, dict):
+                if not isinstance(lasair, dict):
                     continue
                 if not lasair.get("tables"):
                     continue
@@ -389,8 +520,23 @@ class LASAIRBROKER(BrokerAPI):
             return queries + legacy_queries
 
         count = 0
+        # A broker with nothing to poll otherwise looks identical to a broken
+        # one: the loop just sleeps. Say so once, and again if it recurs.
+        warned_no_queries = False
         while not _stopped():
-            for query in await _collect_queries():
+            queries = await _collect_queries()
+            if not queries:
+                if not warned_no_queries:
+                    log(
+                        f"Lasair broker {broker.id} has no queries to poll: attach "
+                        "a filter to it with a saved Lasair query (selected/tables), "
+                        "or set 'queries' in the broker's altdata."
+                    )
+                    warned_no_queries = True
+            else:
+                warned_no_queries = False
+
+            for query in queries:
                 selected = (
                     query.get("fields")
                     or "objects.objectId, objects.ramean, objects.decmean"
@@ -440,6 +586,13 @@ class LASAIRBROKER(BrokerAPI):
                                 ),
                                 cutouts=cutouts or None,
                             )
+                            # _ingest_object committed; save annotator data next.
+                            lasair_annotations = data.get("annotations") or []
+                            if lasair_annotations:
+                                await _save_annotator_annotations(
+                                    session, user, oid, filter_ids, lasair_annotations
+                                )
+                                await session.commit()
                     except Exception as e:
                         log(f"Error ingesting Lasair object {oid}: {e}")
                     count += 1

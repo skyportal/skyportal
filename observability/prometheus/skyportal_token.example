@@ -1,0 +1,9 @@
+# Copy this file to `skyportal_token` (same directory) and replace the contents
+# with a SkyPortal System admin token. The file must contain only the token id,
+# no "token " prefix and no trailing newline is required.
+#
+# Generate one from an admin account via the API, or reuse the INITIAL_ADMIN
+# token written to .tokens.yaml on first server startup.
+#
+# `skyportal_token` is gitignored so the secret is never committed.
+REPLACE_WITH_A_SYSTEM_ADMIN_TOKEN

@@ -39,6 +39,13 @@ const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
         polygon: formData.polygon,
       };
     }
+    // ra/dec/error/polygon/localization_name are client-side helpers folded into
+    // skymap above; the API only accepts xml/json/dateobs/tags/properties/skymap.
+    delete formData.ra;
+    delete formData.dec;
+    delete formData.error;
+    delete formData.polygon;
+    delete formData.localization_name;
     try {
       await submitGcnEvent(formData).unwrap();
       dispatch(showNotification("GCN Event saved"));

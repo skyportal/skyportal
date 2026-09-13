@@ -1,4 +1,7 @@
+import asyncio
 import uuid
+
+import sqlalchemy as sa
 
 from skyportal.tests import api
 
@@ -442,3 +445,98 @@ def test_default_followup_request_without_constraints_is_null(
     match = next(r for r in data["data"] if r["id"] == new_id)
     # no constraint keys supplied -> stored as null (always submit)
     assert match["constraints"] is None
+
+
+def test_auto_followup_request_flushes_before_submit(
+    public_group_generic_allocation, super_admin_user
+):
+    # The auto-followup path (refresh_source=False) must flush the new request
+    # before the facility submit() re-queries it by id; otherwise submit() gets
+    # None -> "'NoneType' object has no attribute 'obj'". Call it directly: the
+    # DefaultFollowupRequest firing path runs via run_async, whose executor
+    # thread lacks the async session factory under the test harness.
+    from baselayer.app import models as baselayer_models
+    from skyportal.handlers.api.followup_request import post_followup_request_async
+    from skyportal.models import DBSession, FollowupRequest, Obj, User
+    from skyportal.tests.fixtures import ObjFactory
+
+    alloc = public_group_generic_allocation
+    obj = ObjFactory(groups=[alloc.group])
+    DBSession().commit()
+    obj_id = obj.id
+    data = {
+        "obj_id": obj_id,
+        "allocation_id": alloc.id,
+        "requester_id": super_admin_user.id,
+        "last_modified_by_id": super_admin_user.id,
+        "target_group_ids": [alloc.group_id],
+        "payload": {
+            "priority": 5,
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
+            "observation_choices": alloc.instrument.to_dict()["filters"],
+            "exposure_time": 300,
+            "exposure_counts": 1,
+            "maximum_airmass": 2,
+            "minimum_lunar_distance": 30,
+        },
+    }
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            session.user_or_token = await session.get(User, super_admin_user.id)
+            await post_followup_request_async(data, None, session, refresh_source=False)
+            await session.commit()
+
+    asyncio.run(_run())
+
+    DBSession().expire_all()
+    followup_request = DBSession().scalar(
+        sa.select(FollowupRequest).where(
+            FollowupRequest.obj_id == obj_id,
+            FollowupRequest.allocation_id == alloc.id,
+        )
+    )
+    try:
+        assert followup_request is not None, "auto-followup request was not created"
+        # Without the flush fix, submit() re-queries a None id -> None.obj.
+        assert "NoneType" not in (followup_request.status or ""), (
+            followup_request.status
+        )
+        assert followup_request.status == "submitted", followup_request.status
+    finally:
+        if followup_request is not None:
+            DBSession().delete(followup_request)
+        DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
+        DBSession().commit()
+
+
+def test_default_followup_request_rejects_a_duplicate_name(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    """A repeated name is a rejected request, not an uncaught IntegrityError.
+
+    The name is unique in the database, so a second POST used to surface as a
+    500 with a traceback rather than telling the user the name was taken.
+    """
+    request_data = _default_followup_payload(public_group, public_group_sedm_allocation)
+
+    status, data = api(
+        "POST", "default_followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 200, data
+    default_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "default_followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 400, data
+    assert "already exists" in data["message"], data["message"]
+
+    # the first one is untouched, and the name is still usable elsewhere
+    status, data = api(
+        "GET", f"default_followup_request/{default_id}", token=super_admin_token
+    )
+    assert status == 200, data
+
+    api("DELETE", f"default_followup_request/{default_id}", token=super_admin_token)

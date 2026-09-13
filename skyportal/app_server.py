@@ -1,8 +1,14 @@
+import asyncio
+import concurrent.futures
+
 import sentry_sdk
+import sqlalchemy as sa
 import tornado.web
+from astropy.utils.iers import conf as iers_conf
 from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.model_util import create_tables
 from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
@@ -18,19 +24,25 @@ from skyportal.handlers.api import (
     AnalysisWebhookHandler,
     AnnotationHandler,
     AssignmentHandler,
+    AssistantConversationHandler,
+    AssistantMessageHandler,
     BrokerAlertsHandler,
     BrokerAPIsHandler,
     BrokerConeSearchHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultPhotometryHandler,
+    BrokerFilterAttachHandler,
+    BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
-    BrokerSurveyPhotometryHandler,
     BulkDeleteCandidatesHandler,
     BulkDeletePhotometryHandler,
+    BulkSpectraHandler,
     CandidateFilterHandler,
     CandidateHandler,
     CatalogQueryHandler,
@@ -38,14 +50,18 @@ from skyportal.handlers.api import (
     ClassificationVotesHandler,
     CommentAttachmentHandler,
     CommentAttachmentUpdateHandler,
+    CommentChannelHandler,
     CommentHandler,
     ConfigHandler,
+    DataAccessRequestHandler,
+    DataAvailabilityHandler,
     DatalabQueryHandler,
     DefaultAnalysisHandler,
     DefaultFollowupRequestHandler,
     DefaultGcnTagHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
+    DuplicateSchedulingHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
     EarthquakePredictionHandler,
@@ -64,14 +80,21 @@ from skyportal.handlers.api import (
     GaiaQueryHandler,
     GalaxyASCIIFileHandler,
     GalaxyCatalogHandler,
-    GalaxyGladeHandler,
+    GalaxyNEDHandler,
+    GalaxyRegaladeHandler,
+    GcnAssociationRuleHandler,
     GcnEventAliasesHandler,
+    GcnEventAssociationsHandler,
     GcnEventCatalogQueryHandler,
+    GcnEventCrossmatchHandler,
+    GcnEventExtractionsHandler,
     GcnEventHandler,
     GcnEventInstrumentFieldHandler,
     GcnEventNoticeDownloadHandler,
+    GcnEventObjHandler,
     GcnEventObservationPlanRequestsHandler,
     GcnEventPropertiesHandler,
+    GcnEventSummarizeHandler,
     GcnEventSurveyEfficiencyHandler,
     GcnEventTagsHandler,
     GcnEventTriggerHandler,
@@ -107,6 +130,7 @@ from skyportal.handlers.api import (
     MMADetectorTimeIntervalHandler,
     MovingObjectFollowupHandler,
     NewsFeedHandler,
+    ObjAcknowledgmentHandler,
     ObjClassificationHandler,
     ObjClassificationQueryHandler,
     ObjColorMagHandler,
@@ -163,6 +187,8 @@ from skyportal.handlers.api import (
     RoleHandler,
     ScanReportHandler,
     ScanReportItemHandler,
+    ScheduledObservationsHandler,
+    ScoutEphemerisHandler,
     SharingHandler,
     SharingServiceCoauthorHandler,
     SharingServiceGroupAutoPublisherHandler,
@@ -178,11 +204,11 @@ from skyportal.handlers.api import (
     SourceFinderHandler,
     SourceGroupsHandler,
     SourceHandler,
+    SourceInterestHandler,
     SourceLabelsHandler,
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
     SourceOffsetsHandler,
-    SourcesConfirmedInGCNHandler,
     SpatialCatalogASCIIFileHandler,
     SpatialCatalogHandler,
     SpectrumASCIIFileHandler,
@@ -190,9 +216,11 @@ from skyportal.handlers.api import (
     SpectrumHandler,
     SpectrumRangeHandler,
     StatsHandler,
+    StatsHistoryHandler,
     StreamHandler,
     StreamUserHandler,
     SummaryQueryHandler,
+    SuperObjHandler,
     SurveyEfficiencyForObservationPlanHandler,
     SurveyEfficiencyForObservationsHandler,
     SurveyThumbnailHandler,
@@ -202,12 +230,14 @@ from skyportal.handlers.api import (
     TaxonomyHandler,
     TeamHandler,
     TelescopeHandler,
+    TermsOfServiceHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
     UnsourcedFinderHandler,
     UserACLHandler,
     UserHandler,
     UserObjListHandler,
+    UserPublicProfileHandler,
     UserRoleHandler,
     VizierQueryHandler,
     WeatherHandler,
@@ -229,6 +259,7 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     ProfileHandler,
     RecentGcnEventsHandler,
+    RecentGcnExtractionsHandler,
     RecentSourcesHandler,
     RoboticInstrumentsHandler,
     SourceCountHandler,
@@ -237,6 +268,7 @@ from skyportal.handlers.api.internal import (
     StandardsHandler,
     TokenHandler,
 )
+from skyportal.handlers.mcp import MCPHandler
 from skyportal.handlers.public import (
     CachedSourceFinderHandler,
     ReleaseHandler,
@@ -246,7 +278,7 @@ from skyportal.handlers.public import (
 )
 
 from . import model_util, openapi
-from .models import init_db
+from .models import DBSession, init_db
 from .utils.observability import setup_observability
 
 log = make_log("app_server")
@@ -255,9 +287,11 @@ log = make_log("app_server")
 class CustomApplication(tornado.web.Application):
     def log_request(self, handler):
         # We don't want to log expected exceptions intentionally raised
-        # during auth pipeline; such exceptions will have "google-oauth2" in
-        # their request route
-        if "google-oauth2" in str(handler.request.uri):
+        # during auth pipeline; those requests are routed to the auth backend
+        if any(
+            f"/{backend['name']}" in str(handler.request.uri)
+            for backend in configured_backends()
+        ):
             return
         return super().log_request(handler)
 
@@ -282,15 +316,19 @@ skyportal_handlers = [
     ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
     (r"/api/brokers/([0-9]+)/filter/test", BrokerFilterTestHandler),
+    (
+        r"/api/brokers/([0-9]+)/filters/([0-9]+)/validate",
+        BrokerFilterValidateHandler,
+    ),
     (r"/api/brokers/([0-9]+)/filter_modules(?:/([^/]+))?", BrokerFilterModulesHandler),
+    (r"/api/brokers/filters", BrokerFilterCatalogHandler),
+    (r"/api/brokers/filters/([0-9]+)/attach", BrokerFilterAttachHandler),
     (r"/api/brokers/([0-9]+)/filters(?:/([0-9]+))?", BrokerFiltersHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
     (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
-    # Survey-addressed passthrough for the source-page lightcurve (resolves the
-    # broker server-side); "photometry" is non-numeric so it never shadows the
-    # numeric /api/brokers/{id} routes.
-    (r"/api/brokers/photometry/([^/]+)", BrokerSurveyPhotometryHandler),
+    # non-numeric, so this never shadows the numeric /api/brokers/{id} routes
+    (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/alerts(?:/(.+))?", BrokerAlertsHandler),
     (r"/api/brokers(?:/([0-9]+))?", BrokerHandler),
@@ -337,7 +375,8 @@ skyportal_handlers = [
     ),
     (r"/api/followup_request(/.*)?", FollowupRequestHandler),
     (r"/api/photometry_request(/.*)", PhotometryRequestHandler),
-    (r"/api/galaxy_catalog/glade", GalaxyGladeHandler),
+    (r"/api/galaxy_catalog/regalade", GalaxyRegaladeHandler),
+    (r"/api/galaxy_catalog/ned", GalaxyNEDHandler),
     (r"/api/galaxy_catalog/ascii", GalaxyASCIIFileHandler),
     (r"/api/galaxy_catalog(/[0-9A-Za-z-_\.\+]+)?", GalaxyCatalogHandler),
     (
@@ -349,18 +388,18 @@ skyportal_handlers = [
         EarthquakeMeasurementHandler,
     ),
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)?/comments(/[0-9]+)?",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+:]+)?/comments(/[0-9]+)?",
         CommentHandler,
     ),
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)(/[0-9A-Za-z-_\.\+:]+)/comments(/[0-9]+)/attachment",
         CommentAttachmentHandler,
     ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf",
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+:]+)/comments(/[0-9]+)/attachment.pdf",
         CommentAttachmentHandler,
     ),
     (
@@ -383,8 +422,11 @@ skyportal_handlers = [
     (r"/api/earthquake/status", EarthquakeStatusHandler),
     (r"/api/earthquake(/.*)?", EarthquakeHandler),
     (r"/api/gcn_event(/.*)/alias", GcnEventAliasesHandler),
+    (r"/api/gcn_event(/[^/]+)/associations(?:/([0-9]+))?", GcnEventAssociationsHandler),
+    (r"/api/gcn_association_rules(/[0-9]+)?", GcnAssociationRuleHandler),
     (r"/api/gcn_event(/.*)/triggered(/.*)?", GcnEventTriggerHandler),
     (r"/api/gcn_event(/.*)/gracedb", GcnGraceDBHandler),
+    (r"/api/gcn_event/(.*)/crossmatch", GcnEventCrossmatchHandler),
     (r"/api/gcn_event/(.*)/report(/.*)?", GcnReportHandler),
     (r"/api/gcn_event(/.*)/tach", GcnTachHandler),
     (r"/api/gcn_event/(.*)/summary(/.*)?", GcnSummaryHandler),
@@ -392,9 +434,11 @@ skyportal_handlers = [
     (r"/api/gcn_event(/.*)/users(/[0-9]+)?", GcnEventUserHandler),
     (r"/api/gcn_event(/.*)/notice/([0-9]+)/download", GcnEventNoticeDownloadHandler),
     (r"/api/gcn_event/tags(/.*)?", GcnEventTagsHandler),
+    (r"/api/gcn_event/(.*)/extractions", GcnEventExtractionsHandler),
     (r"/api/gcn_event/properties", GcnEventPropertiesHandler),
+    (r"/api/gcn_event/(.*)/summarize", GcnEventSummarizeHandler),
     (r"/api/gcn_event(/.*)?", GcnEventHandler),
-    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", SourcesConfirmedInGCNHandler),
+    (r"/api/sources_in_gcn/([0-9T\\:\\.\\-]+)(/.*)?", GcnEventObjHandler),
     (r"/api/associated_gcns/(.*)", GCNsAssociatedWithSourceHandler),
     (
         r"/api/localization(/[0-9]+)/observability",
@@ -497,6 +541,7 @@ skyportal_handlers = [
     (r"/api/photometry(/[0-9]+)/validation", PhotometryValidationHandler),
     (r"/api/photometric_series(/[0-9]+)?", PhotometricSeriesHandler),
     (r"/api/summary_query", SummaryQueryHandler),
+    (r"/api/data_access_request(/[0-9]+)?", DataAccessRequestHandler),
     (r"/api/sharing", SharingHandler),
     (r"/api/shifts/summary(/[0-9]+)?", ShiftSummary),
     (r"/api/shifts(/[0-9]+)?", ShiftHandler),
@@ -513,18 +558,41 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/host", ObjHostHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets", SourceOffsetsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/finder", SourceFinderHandler),
+    (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/scout_ephemeris",
+        ScoutEphemerisHandler,
+    ),
     (r"/api/finder_chart/facilities", FinderChartFacilitiesHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications", ObjClassificationHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/groups", ObjGroupsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/labels", SourceLabelsHandler),
+    (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/data_availability",
+        DataAvailabilityHandler,
+    ),
+    (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/scheduled_observations",
+        ScheduledObservationsHandler,
+    ),
+    (r"/api/duplicate_scheduling", DuplicateSchedulingHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests", SourceInterestHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests(/[0-9]+)", SourceInterestHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag", ObjColorMagHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
     (
+        r"/api/sources(/[0-9A-Za-z-_\.\+]+)/acknowledgment",
+        ObjAcknowledgmentHandler,
+    ),
+    (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/observability",
         SourceObservabilityPlotHandler,
+    ),
+    (
+        r"/api/(sources|spectra|gcn_event|shift|earthquake)/([0-9A-Za-z-_\.\+:]+)/comments/channels",
+        CommentChannelHandler,
     ),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments", CommentHandler),
     (r"/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?", CommentHandler),
@@ -558,6 +626,7 @@ skyportal_handlers = [
     (r"/api/source_groups(/.*)?", SourceGroupsHandler),
     (r"/api/spatial_catalog/ascii", SpatialCatalogASCIIFileHandler),
     (r"/api/spatial_catalog(/[0-9A-Za-z-_\.\+]+)?", SpatialCatalogHandler),
+    (r"/api/spectra/bulk", BulkSpectraHandler),
     (r"/api/spectra(/[0-9]+)?", SpectrumHandler),
     (r"/api/spectra/parse/ascii", SpectrumASCIIFileParser),
     (r"/api/spectra/ascii(/[0-9]+)?", SpectrumASCIIFileHandler),
@@ -571,6 +640,7 @@ skyportal_handlers = [
     # End deprecated
     (r"/api/streams(/[0-9]+)/users(/.*)?", StreamUserHandler),
     (r"/api/streams(/[0-9]+)?", StreamHandler),
+    (r"/api/super_objs(/[0-9]+)?", SuperObjHandler),
     (
         r"/api/survey_efficiency/observations(/[0-9]+)?",
         SurveyEfficiencyForObservationsHandler,
@@ -580,11 +650,15 @@ skyportal_handlers = [
         SurveyEfficiencyForObservationPlanHandler,
     ),
     (r"/api/db_stats", StatsHandler),
+    (r"/api/db_stats/history", StatsHistoryHandler),
     (r"/api/sysinfo", SysInfoHandler),
     (r"/api/config", ConfigHandler),
+    (r"/api/assistant/conversations", AssistantConversationHandler),
+    (r"/api/assistant/messages", AssistantMessageHandler),
     (r"/api/taxonomy(/.*)?", TaxonomyHandler),
     (r"/api/teams(/[0-9]+)?", TeamHandler),
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
+    (r"/api/terms_of_service", TermsOfServiceHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
     # Sharing service endpoints
@@ -605,8 +679,8 @@ skyportal_handlers = [
         SharingServiceGroupAutoPublisherHandler,
     ),
     (r"/api/sharing_service(/[0-9]+)?", SharingServiceHandler),
-    #
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
+    (r"/api/user/([0-9]+)/profile", UserPublicProfileHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
     (r"/api/user(/[0-9]+)/roles(/.*)?", UserRoleHandler),
     (r"/api/user(/.*)?", UserHandler),
@@ -655,7 +729,10 @@ skyportal_handlers = [
     (r"/api/internal/notifications_test(/[0-9]+)?", NotificationTestHandler),
     (r"/api/internal/survey_thumbnail", SurveyThumbnailHandler),
     (r"/api/internal/recent_gcn_events", RecentGcnEventsHandler),
+    (r"/api/internal/recent_gcn_extractions", RecentGcnExtractionsHandler),
     (r"/api/.*", InvalidEndpointHandler),
+    # Stateless MCP endpoint for AI assistants; see doc/mcp.md
+    (r"/mcp", MCPHandler),
     # Public pages.
     (
         r"/public/sources(?:/)?([0-9A-Za-z-_\.\+]+)?(?:/)?(?:version)?(?:/)?([0-9a-f]+)?",
@@ -706,6 +783,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("  Your server is insecure. Please update the secret string ")
         print("  in the configuration file!")
         print("!" * 80)
+
+    if cfg.get("testing", False):
+        iers_conf.auto_download = False
+        iers_conf.iers_degraded_accuracy = "ignore"
 
     handlers = baselayer_handlers + skyportal_handlers
 
@@ -765,6 +846,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
 
     app = CustomApplication(handlers, **settings)
 
+    thread_pool_size = cfg.get("app.thread_pool_size")
+    if thread_pool_size:
+        asyncio.get_event_loop().set_default_executor(
+            concurrent.futures.ThreadPoolExecutor(max_workers=int(thread_pool_size))
+        )
+
     default_engine_args = {"pool_size": 10, "max_overflow": 15, "pool_recycle": 3600}
     database_cfg = cfg["database"]
     if database_cfg.get("engine_args", {}) in [None, "", {}]:
@@ -784,6 +871,17 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     # in debug mode.  In production, we leave the tables alone, since
     # migrations might be used.
     create_tables(add=env.debug)
+
+    # create_tables() is a no-op outside debug mode, so an unmigrated database
+    # reaches this point empty and every later step fails on a missing table or
+    # type -- once per worker, on every supervisor restart. Say so instead.
+    if not sa.inspect(DBSession.session_factory.kw["bind"]).has_table("users"):
+        raise RuntimeError(
+            "No tables found in the database. Create the schema first: "
+            "`make db_create_tables` (or `alembic upgrade head` where "
+            "migrations are used), then start the app."
+        )
+
     model_util.refresh_enums()
 
     model_util.setup_permissions()

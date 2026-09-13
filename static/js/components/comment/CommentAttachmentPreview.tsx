@@ -176,13 +176,13 @@ interface CommentAttachmentPreviewProps {
   earthquakeID?: string | null;
   shiftID?: number | null;
   commentId: number;
-  associatedResourceType: string;
+  resourceType: string;
 }
 
 const CommentAttachmentPreview = ({
   filename,
   commentId,
-  associatedResourceType,
+  resourceType,
   objectID = null,
   gcnEventID = null,
   shiftID = null,
@@ -205,25 +205,25 @@ const CommentAttachmentPreview = ({
     useLazyGetCommentOnSpectrumTextAttachmentQuery();
 
   let commentAttachment: any = sourceTextAttachment ?? spectrumTextAttachment;
-  if (associatedResourceType === "gcn_event") {
+  if (resourceType === "gcn_event") {
     commentAttachment = gcnEventCommentAttachment;
-  } else if (associatedResourceType === "shift") {
+  } else if (resourceType === "shift") {
     commentAttachment = shiftCommentAttachment;
-  } else if (associatedResourceType === "earthquake") {
+  } else if (resourceType === "earthquake") {
     commentAttachment = earthquakeCommentAttachment;
   }
   const [open, setOpen] = useState(false);
 
   const getURLs = () => {
     let baseUrl = "";
-    if (associatedResourceType === "gcn_event") {
-      baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
-    } else if (associatedResourceType === "shift") {
-      baseUrl = `/api/${associatedResourceType}/${shiftID}/comments/${commentId}/attachment`;
-    } else if (associatedResourceType === "earthquake") {
-      baseUrl = `/api/${associatedResourceType}/${earthquakeID}/comments/${commentId}/attachment`;
+    if (resourceType === "gcn_event") {
+      baseUrl = `/api/${resourceType}/${gcnEventID}/comments/${commentId}/attachment`;
+    } else if (resourceType === "shift") {
+      baseUrl = `/api/${resourceType}/${shiftID}/comments/${commentId}/attachment`;
+    } else if (resourceType === "earthquake") {
+      baseUrl = `/api/${resourceType}/${earthquakeID}/comments/${commentId}/attachment`;
     } else {
-      baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
+      baseUrl = `/api/${resourceType}/${objectID}/comments/${commentId}/attachment`;
     }
     return {
       previewUrl: `${baseUrl}?preview=True&download=False`,
@@ -241,27 +241,27 @@ const CommentAttachmentPreview = ({
       commentId !== commentAttachment?.commentId &&
       open
     ) {
-      if (associatedResourceType === "sources") {
+      if (resourceType === "sources") {
         getSourceCommentAttachment({
           sourceID: objectID!,
           commentID: commentId,
         });
-      } else if (associatedResourceType === "spectra") {
+      } else if (resourceType === "spectra") {
         getSpectrumCommentAttachment({
           spectrumID: objectID!,
           commentID: commentId,
         });
-      } else if (associatedResourceType === "gcn_event") {
+      } else if (resourceType === "gcn_event") {
         getGcnEventCommentAttachment({
           gcnEventID: gcnEventID!,
           commentID: commentId,
         });
-      } else if (associatedResourceType === "earthquake") {
+      } else if (resourceType === "earthquake") {
         getEarthquakeCommentAttachment({
           earthquakeID: earthquakeID!,
           commentID: commentId,
         });
-      } else if (associatedResourceType === "shift") {
+      } else if (resourceType === "shift") {
         getShiftCommentAttachment({ shiftID: shiftID!, commentID: commentId });
       }
     }

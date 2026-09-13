@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -11,6 +11,8 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -26,8 +28,12 @@ import NewPhotometryForm from "./NewPhotometry";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
-import { useUploadPhotometryMutation } from "../../ducks/source";
+import {
+  useGetSourceQuery,
+  useUploadPhotometryMutation,
+} from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useIsReadOnly } from "../../ducks/profile";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
@@ -59,12 +65,18 @@ const UploadPhotometryForm = () => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
   };
-  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const groupsData = useGetGroupsQuery().data?.userAccessible;
+  const groups = useMemo(() => groupsData ?? [], [groupsData]);
   const userGroups = useGetGroupsQuery().data?.user ?? [];
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState<any>({});
   const [successMessage, setSuccessMessage] = useState<string | null>("");
+  // When set, the uploaded magnitudes are already MW-extinction corrected; the
+  // server re-reddens them so storage stays observed (uncorrected).
+  const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const { id } = useParams();
+  const { data: source } = useGetSourceQuery(id as string);
+  const config = useGetConfigQuery().data as any;
   const {
     handleSubmit,
     reset,
@@ -77,6 +89,31 @@ const UploadPhotometryForm = () => {
   const formState = getValues();
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  // Preselect the source's groups (so uploaded photometry defaults to the same
+  // sharing as the source), plus the sitewide public group when the instance
+  // defaults uploads to public. Runs once, after the source/groups load, and
+  // does not clobber a later manual change.
+  const didInitGroups = useRef(false);
+  useEffect(() => {
+    if (didInitGroups.current || !groups?.length) {
+      return;
+    }
+    const defaultIds = new Set<number>(
+      ((source as any)?.groups ?? []).map((g: any) => g.id),
+    );
+    if (config?.shareDataWithPublicGroupByDefault) {
+      const publicGroup = groups.find(
+        (g: any) => g.name === config.publicGroupName,
+      );
+      if (publicGroup) {
+        defaultIds.add(publicGroup.id);
+      }
+    }
+    if (defaultIds.size > 0) {
+      setSelectedGroupIds([...defaultIds]);
+    }
+    didInitGroups.current = true;
+  }, [source, groups, config]);
 
   // only show instruments that have an imaging mode
   const sortedInstrumentList = [...instrumentList].filter((instrument: any) =>
@@ -208,6 +245,9 @@ const UploadPhotometryForm = () => {
     if (selectedGroupIds.length >= 0) {
       data.group_ids = selectedGroupIds;
     }
+    if (extinctionCorrected) {
+      data.extinction_corrected = true;
+    }
     try {
       const result: any = await uploadPhotometry(data).unwrap();
       handleReset();
@@ -225,6 +265,21 @@ const UploadPhotometryForm = () => {
   userGroups.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
+
+  // The user's own single-user group is filtered out of the shareable list, so
+  // surface it as "Only me (private)". Selecting it makes group_ids non-empty,
+  // which opts the upload out of the sitewide default-share (share only with me).
+  const ownGroup = userGroups.find((g) => g["single_user_group"]);
+  const groupList = ownGroup
+    ? [
+        {
+          ...ownGroup,
+          name: "Only me (private)",
+          nickname: "Only me (private)",
+        },
+        ...groups,
+      ]
+    : groups;
 
   const useStyles = makeStyles()((theme) => ({
     formControl: {
@@ -413,9 +468,17 @@ const UploadPhotometryForm = () => {
                         below.
                         <br />
                       </Font>
-                      {errors["instrumentID"] && (
+                      {/* Always reserve the warning's space so selecting an
+                          instrument doesn't shift the form below it. */}
+                      <div
+                        style={{
+                          visibility: errors["instrumentID"]
+                            ? "visible"
+                            : "hidden",
+                        }}
+                      >
                         <FormValidationError message="Select an instrument" />
-                      )}
+                      </div>
                       <FormControl className={classes.formControl}>
                         <InputLabel id="instrumentSelectLabel">
                           Instrument
@@ -465,10 +528,27 @@ const UploadPhotometryForm = () => {
                     }}
                   >
                     <GroupShareSelect
-                      groupList={groups}
+                      groupList={groupList}
                       setGroupIDs={setSelectedGroupIds}
                       groupIDs={selectedGroupIds}
                     />
+                  </Box>
+                  <Box sx={{ mt: 1 }}>
+                    <Tooltip title="Enable if the uploaded magnitudes are already corrected for Milky Way (Galactic) extinction; SkyPortal re-reddens them on upload (SFD dust map + G23 law) so storage stays observed.">
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={extinctionCorrected}
+                            onChange={(e) =>
+                              setExtinctionCorrected(e.target.checked)
+                            }
+                            size="small"
+                            data-testid="extinction-corrected-toggle"
+                          />
+                        }
+                        label="Magnitudes are MW-extinction corrected"
+                      />
+                    </Tooltip>
                   </Box>
                 </Box>
                 <Box

@@ -168,7 +168,7 @@ def test_cannot_create_team_without_name(manage_teams_token, public_group):
         token=manage_teams_token,
     )
     assert status == 400
-    assert "Missing required parameter" in data["message"]
+    assert "name: Field required" in data["message"]
 
 
 def test_manage_teams_acl_required_to_create(group_admin_token, public_group):
@@ -179,7 +179,7 @@ def test_manage_teams_acl_required_to_create(group_admin_token, public_group):
         data={"name": str(uuid.uuid4()), "group_ids": [public_group.id]},
         token=group_admin_token,
     )
-    assert status in (401, 403)
+    assert status == 403
 
 
 def test_newsfeed_accepts_team_scope(manage_teams_token, public_group):

@@ -1,4 +1,5 @@
 import Box from "@mui/material/Box";
+import ButtonGroup from "@mui/material/ButtonGroup";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -85,7 +86,7 @@ const GroupAdmissionRequestsManagement = ({
     const request = params.row;
     if (request.status === "pending") {
       return (
-        <>
+        <ButtonGroup>
           <Button
             primary
             size="small"
@@ -107,7 +108,7 @@ const GroupAdmissionRequestsManagement = ({
           >
             Decline
           </Button>
-        </>
+        </ButtonGroup>
       );
     }
     if (request.status === "declined") {

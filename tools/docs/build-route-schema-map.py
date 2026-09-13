@@ -271,8 +271,10 @@ type PaginationBonusFields = {
 };
 
 /**
- * Curated path: routes whose response `data` is a named component schema resolve
- * to a clean `Schema` / `Schema[]` / pagination-wrapper type.
+ * Resolve a route key to the typed shape of its response `data` field.
+ * - Wrapper routes (`wrapper` set) → `{ [W]: Schema[] | Schema } & PaginationBonusFields`,
+ *   where the map's `list` flag picks array-vs-scalar for the wrapped value.
+ * - Otherwise the map's `list` flag picks scalar-vs-array automatically.
  *
  * Caveat: PaginationBonusFields makes `totalMatches`/`pageNumber`/`numPerPage`/`page`
  * optional. Routes that historically declared these as required will need `?.`
@@ -280,7 +282,9 @@ type PaginationBonusFields = {
  */
 type MappedRouteData<P extends RouteKey> =
   RouteEntry<P> extends { wrapper: infer W extends string; schema: infer S extends SchemaName }
-    ? { [K in W]: components["schemas"][S][] } & PaginationBonusFields
+    ? { [K in W]: RouteEntry<P>["list"] extends true
+        ? components["schemas"][S][]
+        : components["schemas"][S] } & PaginationBonusFields
     : RouteEntry<P>["list"] extends true
       ? components["schemas"][RouteEntry<P>["schema"]][]
       : components["schemas"][RouteEntry<P>["schema"]];

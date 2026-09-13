@@ -18,7 +18,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
         "required_users_number": 2,
     }
     status, data = api("POST", "shifts", data=request_data, token=view_only_token)
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
     status, data = api("POST", "shifts", data=request_data, token=super_admin_token)

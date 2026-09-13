@@ -102,7 +102,7 @@ def test_add_tag(super_admin_token):
 
     # Verification that we can't create a tag without a name
     status, data = api("POST", "objtagoption", data="", token=super_admin_token)
-    assert status == 500
+    assert status == 400
     assert data["status"] == "error"
     assert "Please ensure posted data is of type application/json" in data["message"]
 
@@ -144,7 +144,7 @@ def test_modify_tag(super_admin_token):
     status, data = api(
         "PATCH", f"objtagoption/{tag_id}", data="", token=super_admin_token
     )
-    assert status == 500
+    assert status == 400
     assert data["status"] == "error"
     assert "Please ensure posted data is of type application/json" in data["message"]
 

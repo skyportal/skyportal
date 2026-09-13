@@ -102,34 +102,46 @@ class RecentSourcesHandler(BaseHandler):
             for tag in tags:
                 tags_dict[tag["obj_id"]].append(tag)
 
+            # One query each for the objs and their source rows, rather than a
+            # pair per object: this list is up to maxNumSources long.
+            objs_result = await session.scalars(
+                Obj.select(
+                    session.user_or_token,
+                    options=[
+                        selectinload(Obj.thumbnails),
+                        selectinload(Obj.classifications),
+                    ],
+                ).where(Obj.id.in_(list(set(query_results))))
+            )
+            objs_by_id = {obj.id: obj for obj in objs_result.all()}
+
+            source_rows_result = await session.scalars(
+                Source.select(session.user_or_token)
+                .where(Source.obj_id.in_(list(set(query_results))))
+                .order_by(Source.obj_id, desc(Source.created_at))
+            )
+            source_rows = defaultdict(list)
+            for row in source_rows_result.all():
+                source_rows[row.obj_id].append(row)
+
             sources = []
-            sources_seen = defaultdict(lambda: 1)
+            sources_seen = defaultdict(int)
             for obj_id in query_results:
                 # The recency_index is how current a source row was saved for a given
                 # object. If recency_index = 0, this is the most recent time a source
                 # was saved; recency_index = 1 is the second-latest time the source
-                # was saved, etc.
-                recency_index = 0
-                if obj_id in sources_seen:
-                    recency_index = sources_seen[obj_id]
-                    sources_seen[obj_id] += 1
+                # was saved, etc. Counting every occurrence, not just repeats, is
+                # what makes the count below the number of times the object appears.
+                recency_index = sources_seen[obj_id]
+                sources_seen[obj_id] += 1
 
-                s = await session.scalar(
-                    Obj.select(
-                        session.user_or_token,
-                        options=[
-                            selectinload(Obj.thumbnails),
-                            selectinload(Obj.classifications),
-                        ],
-                    ).where(Obj.id == obj_id)
-                )
+                s = objs_by_id.get(obj_id)
 
-                # Get the entry in the Source table to get the accurate saved_at time
-                source_entry = await session.scalar(
-                    Source.select(session.user_or_token)
-                    .where(Source.obj_id == obj_id)
-                    .order_by(desc(Source.created_at))
-                    .offset(recency_index)
+                # The source row carries the accurate saved_at time; the rows are
+                # newest first, so recency_index selects among repeat saves.
+                rows = source_rows.get(obj_id, [])
+                source_entry = (
+                    rows[recency_index] if recency_index < len(rows) else None
                 )
 
                 if s is None or source_entry is None:

@@ -3,6 +3,9 @@ groups:
     =id: program_A
   - name: Program B
     =id: program_B
+  # Holds data a fresh login cannot see, and so can ask for.
+  - name: Private Collaboration
+    =id: private_collab
 
 user:
   - username: testadmin
@@ -48,6 +51,10 @@ groups/=program_B/users:
   - userID: =fulluser
     admin: false
 
+groups/=private_collab/users:
+  - userID: =groupadmin
+    admin: true
+
 teams:
   - name: ZTF
     nickname: ZTF
@@ -74,40 +81,36 @@ teams:
     group_ids: ["=program_A"]
     =id: team_tvs
 
-# Public (no-auth) alert brokers, available out of the box. Credentialed ones
-# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
-# /broker_admin. See doc/broker_plugins.md.
+# Alert brokers available out of the box; see doc/broker_plugins.md.
 brokers:
-  - name: ALeRCE (ZTF)
+  - name: ALeRCE
     broker_classname: ALERCEBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: ALeRCE (LSST)
-    broker_classname: ALERCEBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: ANTARES (ZTF)
+    default_alert_search: true
+  - name: ANTARES
     broker_classname: ANTARESBROKER
     active: true
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: false
+    default_crossmatch: true
     altdata:
-      survey: ZTF
-  - name: ANTARES (LSST)
-    broker_classname: ANTARESBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: Fink (ZTF)
+      protocol: https
+      host: api.kaboom.caltech.edu
+    =id: BOOM
+  - name: Fink
     broker_classname: FINKBROKER
     active: true
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: ZTF
-  - name: Fink (LSST)
-    broker_classname: FINKBROKER
-    active: true
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: false
     altdata:
-      survey: LSST
+      endpoint: https://api.lasair.lsst.ac.uk/api
 
 streams:
   - name: ZTF Public
@@ -130,6 +133,12 @@ streams:
       collection: LSST_alerts
       selector: [1]
     =id: lsst
+
+streams/=lsst/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
 
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
@@ -157,13 +166,15 @@ filters:
   - name: Yellow transients
     group_id: =program_A
     stream_id: =ztf_partnership
+    broker_id: =BOOM
     =id: example_filter
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    broker_id: =BOOM
     altdata:
       boom:
-          filter_id: FILTER_ID
+        filter_id: FILTER_ID
     =id: example_filter2
 
 mmadetector:
@@ -211,6 +222,10 @@ mmadetector:
     =id: IceCube
   - name: Fermi Gamma-Ray Burst Monitor
     nickname: FermiGBM
+    aliases:
+      - Fermi
+      - Fermi-GBM
+      - GBM
     fixed_location: false
     type: gamma-ray-burst
     =id: FermiGBM
@@ -219,6 +234,24 @@ mmadetector:
     fixed_location: false
     type: gamma-ray-burst
     =id: SwiftGRB
+  # nickname matches the GCN tag EP notices carry, which is what links an event
+  # to its detector
+  - name: Einstein Probe
+    nickname: EP
+    aliases:
+      - Einstein Probe
+      - WXT
+    fixed_location: false
+    type: x-ray
+    =id: EinsteinProbe
+  - name: SVOM
+    nickname: SVOM
+    aliases:
+      - SVOM
+      - ECLAIRs
+    fixed_location: false
+    type: gamma-ray-burst
+    =id: SVOM
 
 telescope:
   - name: Palomar 1.2m
@@ -227,6 +260,7 @@ telescope:
     lon: -116.861944
     elevation: 1706
     diameter: 1.26
+    mpc_obscode: I41
     robotic: true
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
     weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
@@ -354,6 +388,54 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: NICER
+  - diameter: 1.0
+    nickname: EP
+    name: Einstein Probe
+    skycam_link: null
+    fixed_location: false
+    =id: EP
+  - diameter: 1.0
+    nickname: SVOM
+    name: Space Variable Objects Monitor
+    skycam_link: null
+    fixed_location: false
+    =id: SVOMtel
+  - diameter: 1.0
+    nickname: Konus
+    name: Konus-Wind
+    skycam_link: null
+    fixed_location: false
+    =id: KonusWind
+  - diameter: 1.0
+    nickname: INTEGRAL
+    name: INTErnational Gamma-Ray Astrophysics Laboratory
+    skycam_link: null
+    fixed_location: false
+    =id: INTEGRAL
+  - diameter: 1.0
+    nickname: Fermi
+    name: Fermi Gamma-ray Space Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: Fermi
+  - diameter: 1.0
+    nickname: CALET
+    name: CALorimetric Electron Telescope
+    skycam_link: null
+    fixed_location: false
+    =id: CALET
+  - diameter: 1.0
+    nickname: NuSTAR
+    name: Nuclear Spectroscopic Telescope Array
+    skycam_link: null
+    fixed_location: false
+    =id: NuSTAR
+  - diameter: 1.0
+    nickname: MAXI
+    name: Monitor of All-sky X-ray Image
+    skycam_link: null
+    fixed_location: false
+    =id: MAXI
   - diameter: 0.94
     nickname: Gaia
     name: Gaia
@@ -368,6 +450,22 @@ telescope:
     nickname: PS1
     skycam_link: null
     =id: PS1
+  - diameter: 25.0
+    elevation: 2124.0
+    lat: 34.078745
+    lon: -107.618283
+    name: Karl G. Jansky Very Large Array
+    nickname: VLA
+    skycam_link: null
+    =id: VLA
+  - diameter: 22.0
+    elevation: 237.0
+    lat: -30.312778
+    lon: 149.550278
+    name: Australia Telescope Compact Array
+    nickname: ATCA
+    skycam_link: null
+    =id: ATCA
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -539,6 +637,15 @@ telescope:
     robotic: false
     fixed_location: true
     =id: SSO
+  - name: Palomar 200-inch (Hale) Telescope
+    nickname: P200
+    lat: 33.3563
+    lon: -116.865
+    elevation: 1713
+    diameter: 5.08
+    robotic: false
+    fixed_location: true
+    =id: P200
 
 instrument:
   - name: ZTF
@@ -553,12 +660,41 @@ instrument:
     field_data:
       file: ../data/ZTF_Fields.csv
     field_region:
-#      file: ../data/ZTF_Region.reg
+      # file: ../data/ZTF_Region.reg
       file: ../data/ZTF_Square_Region.reg
     references:
       file: ../data/ZTF_Ref.csv
-    sensitivity_data: {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfr': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'ztfi': {'limiting_magnitude': 19.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
-    configuration_data: {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}
+    sensitivity_data:
+      {
+        "ztfg":
+          {
+            "limiting_magnitude": 20.3,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.3,
+          },
+        "ztfr":
+          {
+            "limiting_magnitude": 20.3,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.3,
+          },
+        "ztfi":
+          {
+            "limiting_magnitude": 19.6,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.3,
+          },
+      }
+    configuration_data:
+      {
+        "overhead_per_exposure": 2.0,
+        "readout": 8.0,
+        "slew_rate": 2.6,
+        "filt_change_time": 60.0,
+      }
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -582,6 +718,13 @@ instrument:
     api_classname: SEDMAPI
     listener_classname: SEDMListener
     =id: SEDM
+  - name: NGPS
+    type: spectrograph
+    band: optical
+    telescope_id: =P200
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
+    api_classname: NGPSAPI
+    =id: NGPS
   - name: IOO
     type: imager
     band: V
@@ -612,7 +755,7 @@ instrument:
     name: TRT
     telescope_id: =TRT0p7m
     type: imager
-    filters: ['bessellb', 'bessellv', 'bessellr', 'besselli']
+    filters: ["bessellb", "bessellv", "bessellr", "besselli"]
     api_classname: TRTAPI
     =id: TRT
   - band: optical
@@ -622,7 +765,8 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi"]
     api_classname: TAROTAPI
     =id: TCA
-    configuration_data: { 'specific_configuration': {'station_name': 'Tarot_Calern'}}
+    configuration_data:
+      { "specific_configuration": { "station_name": "Tarot_Calern" } }
   - band: optical
     name: TAROT Reunion
     telescope_id: =TRE
@@ -630,15 +774,17 @@ instrument:
     filters: []
     api_classname: TAROTAPI
     =id: TRE
-    configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Reunion'}}
+    configuration_data:
+      { "specific_configuration": { "station_name": "Tarot_Reunion" } }
   - band: optical
     name: TAROT Chili
     telescope_id: =TCH
     type: imager
-    filters: [ "sdssg", "sdssr", "sdssi"]
+    filters: ["sdssg", "sdssr", "sdssi"]
     api_classname: TAROTAPI
     =id: TCH
-    configuration_data: { 'specific_configuration': { 'station_name': 'Tarot_Chili'}}
+    configuration_data:
+      { "specific_configuration": { "station_name": "Tarot_Chili" } }
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
@@ -663,22 +809,72 @@ instrument:
     name: NEWFIRM
     telescope_id: =CTIO-4m
     type: imager
-    filters: ['cspjs','csphs','cspk']
+    filters: ["cspjs", "csphs", "cspk"]
     api_classname: NEWFIRMAPI
     =id: NEWFIRM
   - band: optical
     name: DECam
     telescope_id: =CTIO-4m
     type: imager
-    filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
+    filters: ["sdssu", "desg", "desr", "desi", "desz", "desy"]
     # field_data:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
     # references:
     #   file: ../data/DECam_Ref.csv
-    sensitivity_data: {'sdssu': {'limiting_magnitude': 21.6, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.87,}, 'desg': {'limiting_magnitude': 23.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.91,}, 'desr': {'limiting_magnitude': 25.5, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 29.06,}, 'desi': {'limiting_magnitude': 22.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.97,}, 'desz': {'limiting_magnitude': 22.1, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 28.68,}, 'desy': {'limiting_magnitude': 20.9, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 27.57,}}
-    configuration_data: {'overhead_per_exposure': 2.0, 'readout': 28.0, 'slew_rate': 0.36, 'filt_change_time': 8.0}
+    sensitivity_data:
+      {
+        "sdssu":
+          {
+            "limiting_magnitude": 21.6,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.87,
+          },
+        "desg":
+          {
+            "limiting_magnitude": 23.3,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 28.91,
+          },
+        "desr":
+          {
+            "limiting_magnitude": 25.5,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 29.06,
+          },
+        "desi":
+          {
+            "limiting_magnitude": 22.8,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 28.97,
+          },
+        "desz":
+          {
+            "limiting_magnitude": 22.1,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 28.68,
+          },
+        "desy":
+          {
+            "limiting_magnitude": 20.9,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 27.57,
+          },
+      }
+    configuration_data:
+      {
+        "overhead_per_exposure": 2.0,
+        "readout": 28.0,
+        "slew_rate": 0.36,
+        "filt_change_time": 8.0,
+      }
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
@@ -686,7 +882,17 @@ instrument:
     =id: UVOTXRT
     telescope_id: =Swift
     type: imager
-    filters: ['uvot::b', 'uvot::u', 'uvot::v', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::white', 'swiftxrt']
+    filters:
+      [
+        "uvot::b",
+        "uvot::u",
+        "uvot::v",
+        "uvot::uvm2",
+        "uvot::uvw1",
+        "uvot::uvw2",
+        "uvot::white",
+        "swiftxrt",
+      ]
     field_region:
       file: ../data/Swift_Region.reg
   - band: X-ray
@@ -695,32 +901,187 @@ instrument:
     =id: XTI
     telescope_id: =NICER
     type: imaging spectrograph
-    filters: ['nicerxti']
+    filters: ["nicerxti"]
+  - band: X-ray
+    name: WXT
+    telescope_id: =EP
+    type: imager
+    filters: ["epwxt"]
+    =id: WXT
+  - band: X-ray
+    name: FXT
+    telescope_id: =EP
+    type: imager
+    filters: ["epfxt"]
+    =id: FXT
+  - band: X-ray
+    name: ECLAIRs
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ["svomeclairs"]
+    =id: ECLAIRs
+  - band: X-ray
+    name: MXT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ["svommxt"]
+    =id: MXT
+  - band: X-ray
+    name: GRM
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ["svomgrm"]
+    =id: GRM
+  - band: optical
+    name: VT
+    telescope_id: =SVOMtel
+    type: imager
+    filters: ["svomvtb", "svomvtr"]
+    =id: VT
+  - band: X-ray
+    name: BAT
+    telescope_id: =Swift
+    type: imager
+    filters: ["swiftbat"]
+    =id: BAT
+  - band: X-ray
+    name: GBM
+    telescope_id: =Fermi
+    type: imager
+    filters: ["fermigbm"]
+    =id: GBM
+  - band: X-ray
+    name: LAT
+    telescope_id: =Fermi
+    type: imager
+    filters: ["fermilat"]
+    =id: LAT
+  - band: X-ray
+    name: Konus
+    telescope_id: =KonusWind
+    type: imager
+    filters: ["konus"]
+    =id: Konus
+  - band: X-ray
+    name: SPI-ACS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ["integralacs"]
+    =id: SPIACS
+  - band: X-ray
+    name: IBIS
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ["integralibis"]
+    =id: IBIS
+  - band: X-ray
+    name: JEM-X
+    telescope_id: =INTEGRAL
+    type: imager
+    filters: ["integraljemx"]
+    =id: JEMX
+  - band: X-ray
+    name: CGBM
+    telescope_id: =CALET
+    type: imager
+    filters: ["caletcgbm"]
+    =id: CGBM
+  - band: X-ray
+    name: FPMA
+    telescope_id: =NuSTAR
+    type: imager
+    filters: ["nustar"]
+    =id: FPMA
+  - band: X-ray
+    name: GSC
+    telescope_id: =MAXI
+    type: imager
+    filters: ["maxigsc"]
+    =id: GSC
   - band: Optical
     name: Gaia
     =id: Gaia
     telescope_id: =Gaia
     type: imaging spectrograph
-    filters: ['gaia::gbp', 'gaia::g', 'gaia::grp', 'gaia::grvs']
+    filters: ["gaia::gbp", "gaia::g", "gaia::grp", "gaia::grvs"]
   - band: optical
     name: PS1
     telescope_id: =PS1
     type: imager
     api_classname: PS1API
     =id: PS1
-    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
+    filters:
+      [
+        "ps1::open",
+        "ps1::g",
+        "ps1::r",
+        "ps1::i",
+        "ps1::z",
+        "ps1::y",
+        "ps1::w",
+        "2massh",
+        "2massj",
+        "2massks",
+        "bessellv",
+        "sdssu",
+      ]
+  - band: radio
+    name: VLA
+    telescope_id: =VLA
+    type: imager
+    filters:
+      [
+        "radio-0.34GHz",
+        "radio-1.4GHz",
+        "radio-3GHz",
+        "radio-6GHz",
+        "radio-10GHz",
+        "radio-15GHz",
+        "radio-22GHz",
+        "radio-33GHz",
+        "radio-45GHz",
+      ]
+    =id: VLA
+  - band: radio
+    name: ATCA
+    telescope_id: =ATCA
+    type: imager
+    filters:
+      [
+        "radio-1.4GHz",
+        "radio-3GHz",
+        "radio-6GHz",
+        "radio-10GHz",
+        "radio-22GHz",
+        "radio-33GHz",
+        "radio-45GHz",
+        "radio-93GHz",
+        "radio-95GHz",
+      ]
+    =id: ATCA
   - band: optical
     name: KAIT
     telescope_id: =KAIT
     type: imager
-    filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+    filters:
+      [
+        "bessellux",
+        "sdssg",
+        "sdssr",
+        "sdssi",
+        "sdssz",
+        "bessellb",
+        "bessellv",
+        "bessellr",
+        "besselli",
+      ]
     api_classname: KAITAPI
     =id: KAIT
   - band: optical
     name: COLIBRI
     telescope_id: =COLIBRI
     type: imager
-    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: COLIBRIAPI
     =id: COLIBRI
   - name: SEDMv2
@@ -737,7 +1098,7 @@ instrument:
     name: T80CAM
     telescope_id: =JAST
     type: imager
-    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SLACKAPI
     =id: T80CAM
   - band: optical
@@ -752,6 +1113,7 @@ instrument:
     band: optical
     telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    api_classname_obsplan: RUBINMMAAPI
     # field_data:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
@@ -766,7 +1128,23 @@ instrument:
     filters: ["lsstr", "lssti"]
     field_fov_type: rectangle
     field_fov_attributes: [0.12, 0.12]
-    sensitivity_data: {'lsstr': {'limiting_magnitude': 20.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}, 'lssti': {'limiting_magnitude': 20.8, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}
+    sensitivity_data:
+      {
+        "lsstr":
+          {
+            "limiting_magnitude": 20.8,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.3,
+          },
+        "lssti":
+          {
+            "limiting_magnitude": 20.8,
+            "magsys": "ab",
+            "exposure_time": 30,
+            "zeropoint": 26.3,
+          },
+      }
   - band: optical
     name: GIT
     telescope_id: =GIT-0p7m
@@ -786,7 +1164,7 @@ instrument:
     api_classname: WINTERAPI
     filters: ["desy", "2massj", "2massh"]
     field_fov_type: rectangle
-    field_fov_attributes: [1.2,1]
+    field_fov_attributes: [1.2, 1]
     # field_data:
     #   file: ../data/WINTER_Fields.csv.bz2
   - band: optical
@@ -795,16 +1173,16 @@ instrument:
     type: imager
     =id: SPRING
     api_classname: SPRINGAPI
-    filters: [ "desy", "2massj", "2massh" ]
+    filters: ["desy", "2massj", "2massh"]
     field_fov_type: rectangle
-    field_fov_attributes: [1.2,1]
+    field_fov_attributes: [1.2, 1]
   - band: Optical
     name: TESS
     =id: TESS
     api_classname: TESSAPI
     telescope_id: =TESS
     type: imager
-    filters: ['tess']
+    filters: ["tess"]
   - band: optical
     name: KAO
     telescope_id: =KAO-1p9m
@@ -838,7 +1216,7 @@ instrument:
     api_classname_obsplan: MMAAPI
     filters: ["ps1::open", "sdssg", "sdssr", "sdssi", "sdssz"]
     field_fov_type: rectangle
-    field_fov_attributes: [1,1]
+    field_fov_attributes: [1, 1]
   - band: optical/ir
     name: Gemini South
     telescope_id: =GS
@@ -851,7 +1229,7 @@ instrument:
     telescope_id: =MMT
     type: imaging spectrograph
     api_classname: BINOSPECAPI
-    filters: [ "sdssg", "sdssr", "sdssi", "sdssz"]
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     =id: Binospec
   - band: NEAR-IR
     name: MMIRS
@@ -864,19 +1242,19 @@ instrument:
     telescope_id: =TTT
     type: imager
     api_classname: TTTAPI
-    filters: [ "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
     =id: TTT
   - name: GOTO
     type: imager
     band: optical
     telescope_id: =GOTO-N
-    filters: [ 'gotob', 'gotog', 'gotol', 'gotor' ]
+    filters: ["gotob", "gotog", "gotol", "gotor"]
     =id: GOTO
   - name: ASAS-SN
     type: imager
     band: optical
     telescope_id: =ASAS-SN
-    filters: ['sdssg']
+    filters: ["sdssg"]
     =id: ASAS-SN
   - name: Goodman
     type: imaging spectrograph
@@ -928,6 +1306,15 @@ allocation:
     instrument_id: =SEDM
     =id: SEDM_allocation
     default_share_group_ids: [=program_A, =program_B]
+  - pi: Michael Coughlin
+    proposal_id: NGPS-001
+    validity_ranges:
+      - start_date: "2020-02-12T00:00:00.000Z"
+        end_date: "3030-07-12T00:00:00.000Z"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =NGPS
+    =id: NGPS_allocation
   - pi: Michael Coughlin
     proposal_id: LT-001
     validity_ranges:
@@ -1207,6 +1594,12 @@ galaxy_catalog:
       file: ../data/CLU_mini.hdf5
 
 candidates:
+  - id: ZTF26abmjjnm
+    filter_ids:
+      - =example_filter
+    ra: 12.30653
+    dec: 35.56105
+    passed_at: "2026-08-07 11:00:00"
   - id: ZTF21aaqjmps
     filter_ids:
       - =example_filter
@@ -1251,6 +1644,40 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
+  # A moving object, for the Solar System tab. The photometry is synthetic:
+  # generated from H = 15.2 with g-r = 0.51 and r-i = -0.12, real HG12* phase
+  # behaviour and two apparitions of changing geometry, so reducing it should
+  # flatten the curve and recover those numbers. Three deliberately bad points
+  # are rejected below, and the last few nights carry a real brightening for the
+  # outburst statistic to find.
+  - id: SSO2026DM1
+    ra: 138.4471
+    dec: 19.2033
+    is_roid: true
+    mpc_name: "2026 DM1"
+    alias: ["SSO 2026 DM1"]
+    group_ids:
+      - =public_group_id
+      - =program_A
+  # Real EP/ZTF pair: optical counterpart to X-ray transient EP260806a
+  # (GCN #45299), reported in a ZTF circular as detected at T0+12 hrs. Paired
+  # with the gcn_event entry below so the GCN crossmatch has a genuine match to
+  # find in demo data.
+  - id: ZTF26abmjjnm
+    ra: 12.30653
+    dec: 35.56105
+    group_ids:
+      - =public_group_id
+      - =program_A
+  - id: AT2017gfo
+    ra: 197.450375
+    dec: -23.381500
+    t0: 57982.5285
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    alias: ["GW170817"]
   - id: ZTF21aaqjmps
     ra: 202.5050541
     dec: 13.4111859
@@ -1259,7 +1686,7 @@ sources:
       - =program_A
       - =program_B
     origin: "ZTF"
-    alias: [ "SN 2021gvm" ]
+    alias: ["SN 2021gvm"]
   - id: ZTF18aabcvnq
     ra: 172.0534465
     dec: 25.6596908
@@ -1330,52 +1757,42 @@ sources:
     origin: TESS
 
 sources/ZTF21aaqjmps/comments:
-  - obj_id: ZTF21aaqjmps
-    text: "Kilroy was here"
-  - obj_id: ZTF21aaqjmps
-    text: "Birds aren't real"
-  - obj_id: ZTF21aaqjmps
-    text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
+  - text: "Kilroy was here"
+  - text: "Birds aren't real"
+  - text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
 sources/ZTF18aabcvnq/comments:
-  - obj_id: ZTF18aabcvnq
-    text: "Gosh, stars are cool"
-  - obj_id: ZTF18aabcvnq
-    text: "You're a star! <3"
+  - text: "Gosh, stars are cool"
+  - text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
-  - obj_id: ZTF21aaqjmps
-    origin: "Program A"
+  - origin: "Program A"
     data:
       numeric_field: 0.11235813
       some_boolean: true
       class: "SNe II"
 
 sources/ZTF18aabcvnq/annotations:
-  - obj_id: ZTF18aabcvnq
-    origin: "Program b"
+  - origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
 
 sources/ZTFe028h94k/annotations:
-  - obj_id: ZTFe028h94k
-    origin: "Program B"
+  - origin: "Program B"
     data:
       period: 0.5281475
     group_ids:
       - =program_B
-  - obj_id: ZTFe028h94k
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 0.5281217208459
     group_ids:
       - =program_B
 
 sources/ZTFrlh6cyjh/annotations:
-  - obj_id: ZTFrlh6cyjh
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 1.107332
     group_ids:
@@ -1384,13 +1801,6 @@ sources/ZTFrlh6cyjh/annotations:
 listing:
   - obj_id: ZTF21aaqjmps
     list_name: "favorite"
-
-  - obj_id: ZTF21aaqjmps
-    list_name: "watchlist"
-    params:
-      arcsec: 1000
-      cadence: 1
-      after_night: False
 
 taxonomy:
   file: taxonomy_demo.yaml
@@ -1433,6 +1843,118 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
+  # Solar-system demo: per-point rh/delta/phase in altdata is what the Solar
+  # System tab reduces with. Without it the tab has nothing to plot.
+  - obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+    file: SSO2026DM1_phot.csv
+  - =ids: sso_bad_1
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60004.003]
+    filter: ["ztfr"]
+    mag: [16.848]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.4026]
+      delta: [1.4468]
+      phase: [12.714]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # Rejected below; posted alone so it has an id of its own to validate.
+  - =ids: sso_bad_2
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60026.028]
+    filter: ["ztfg"]
+    mag: [20.625]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.0846]
+      delta: [1.2242]
+      phase: [5.857]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # Rejected below; posted alone so it has an id of its own to validate.
+  - =ids: sso_bad_3
+    obj_id: SSO2026DM1
+    instrument_id: =ZTF
+    magsys: ab
+    mjd: [60706.028]
+    filter: ["ztfg"]
+    mag: [17.134]
+    magerr: [0.05]
+    limiting_mag: [21.5]
+    altdata:
+      rh: [2.4831]
+      delta: [1.5481]
+      phase: [11.571]
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # g/r detections at T0+12 hrs and non-detections ~4 days earlier, converted
+  # from the ZTF circular for EP260806a.
+  - obj_id: ZTF26abmjjnm
+    instrument_id: =ZTF
+    file: ZTF26abmjjnm_phot.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+    stream_ids:
+      - =ztf_public
+  # AT2017gfo (GW170817): multi-wavelength demo. Instruments are assigned by
+  # band regime (radio->VLA, X-ray->Swift, optical/IR->PS1), not physically exact.
+  - obj_id: AT2017gfo
+    instrument_id: =VLA
+    file: AT2017gfo_radio.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =UVOTXRT
+    file: AT2017gfo_xray.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - obj_id: AT2017gfo
+    instrument_id: =PS1
+    file: AT2017gfo_optical.csv
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  # Private Collaboration only: shows up as unshared data to ask for.
+  - obj_id: AT2017gfo
+    instrument_id: =SEDM
+    filter: sdssr
+    magsys: ab
+    zp: 23.9
+    origin: private_collab_followup
+    mjd: [57983.6, 57984.6, 57985.6, 57986.6]
+    flux: [184.3, 131.9, 96.2, 71.4]
+    fluxerr: [12.2, 10.6, 9.9, 9.1]
+    group_ids:
+      - =private_collab
   - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
@@ -1514,7 +2036,6 @@ photometric_series:
     group_ids: all
     filter: tess
 
-
 followup_request:
   - obj_id: ZTFrlh6cyjh
     allocation_id: =SEDM_allocation
@@ -1585,6 +2106,24 @@ spectrum:
     assignment_id: 1
     units: erg/s/cm/cm/AA
     followup_request_id: =request_3
+  # A pair on one source: the plot marks the first "S" normally and the second
+  # in the unshared colour, which opens a request when clicked.
+  - obj_id: AT2017gfo
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2017-08-19T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =public_group_id
+  - obj_id: AT2017gfo
+    file: spec2.csv
+    instrument_id: =SEDM
+    observed_at: "2017-08-21T00:00:00"
+    origin: "demo_data"
+    units: erg/s/cm/cm/AA
+    group_ids:
+      - =private_collab
 
 spectra/=spectrum1/annotations:
   - origin: "Kowalski"
@@ -1645,22 +2184,63 @@ thumbnail:
 
 default_gcn_tag:
   - default_tag_name: "Default Tag"
-    filters: {gcn_tags: ['Fermi']}
+    filters: { gcn_tags: ["Fermi"] }
 
 gcn_event:
-#  - xml:
-#      file: ../skyportal/tests/data/GW190425_initial.xml
+  #  - xml:
+  #      file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
   - xml:
       file: ./GW190814.xml
   - xml:
       file: ./AMON.xml
+  # EP260806a, as a cone localization -- the counterpart above sits 2.1' from
+  # this centre, inside the 3.1' error circle.
+  - dateobs: "2026-08-06T23:02:28"
+    skymap:
+      ra: 12.278
+      dec: 35.588
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
+
+  # A second EP trigger 40 minutes later, 1' from the first: close enough in
+  # time and sky for the two to be proposed as one physical event.
+  - dateobs: "2026-08-06T23:42:11"
+    skymap:
+      ra: 12.291
+      dec: 35.601
+      error: 0.05183
+    tags:
+      - Einstein Probe
+      - X-ray
+
+# Tags a scanner can filter on. XRFcandidate is applied automatically to the
+# objects of an event whose circular extraction classifies it as an X-ray Flash
+# (app.gcn_extraction_tags); XRF is set by hand once one is confirmed.
+objtagoption:
+  - name: XRF
+    color: "#b8860b"
+  - name: XRFcandidate
+    color: "#daa520"
+
+# Association cuts are per user and gate the search: without one, no pairs are
+# looked for at all.
+gcn_association_rules:
+  - group_id: =program_A
+    detector_type_1: x-ray
+    detector_type_2: x-ray
+    days: 1.0
+    min_consistency: 0.5
+
+# Find the pair now rather than waiting for the crossmatch service's next pass.
+gcn_event/2026-08-06T23:02:28/associations:
+  - {}
 
 gcn_event/1/comments:
   - text: "This is a test comment"
-    author_id: testadmin
-    created_at: "2022-03-18 16:00:00"
 
 earthquake:
   - xml:
@@ -1685,41 +2265,64 @@ shifts:
     required_users_number: 4
     =id: gcnshift
 
-
 shifts/=gcnshift/users:
   - userID: =viewonlyuser
     admin: false
     needs_replacement: true
 
 spatial_catalog:
-  - catalog_name: '4FGL-DR2'
+  - catalog_name: "4FGL-DR2"
     catalog_data:
       file: ./gll_psc_v27.csv
 
 default_observation_plan:
   - allocation_id: =ZTF_allocation
     default_plan_name: "ZTF-Default-Plan"
-    payload: {'filter_strategy': 'block', 'schedule_type': 'greedy', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': 300, 'filters': 'ztfg,ztfr,ztfg', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB', 'galactic_plane': True, 'galactic_latitude': 10}
+    payload:
+      {
+        "filter_strategy": "block",
+        "schedule_type": "greedy",
+        "schedule_strategy": "tiling",
+        "galaxy_catalog": "CLU_mini",
+        "exposure_time": 300,
+        "filters": "ztfg,ztfr,ztfg",
+        "maximum_airmass": 2,
+        "integrated_probability": 90,
+        "minimum_time_difference": 30,
+        "program_id": "Partnership",
+        "subprogram_name": "GRB",
+        "galactic_plane": True,
+        "galactic_latitude": 10,
+      }
     =id: ZTF_default_plan
 
 default_survey_efficiency:
   - default_observationplan_request_id: =ZTF_default_plan
-    payload: {
-        'localizationCumprob': 0.95,
-        'numberInjections': 1000,
-        'numberDetections': 1,
-        'detectionThreshold': 5.0,
-        'minimumPhase': 0.0,
-        'maximumPhase': 3.0,
-        'modelName': 'kilonova',
-    }
+    payload:
+      {
+        "localizationCumprob": 0.95,
+        "numberInjections": 1000,
+        "numberDetections": 1,
+        "detectionThreshold": 5.0,
+        "minimumPhase": 0.0,
+        "maximumPhase": 3.0,
+        "modelName": "kilonova",
+      }
 
 default_followup_request:
   - allocation_id: =SEDMv2_allocation
     default_followup_name: "SEDMv2-Default-Plan"
-    payload: {'priority': 1, 'exposure_time': 300, 'maximum_airmass': 2, 'observation_choice': 'g', 'minimum_lunar_distance': 30, 'too': True, 'observation_type': 'transient'}
-    source_filter: {'classification': 'microlensing'}
-
+    payload:
+      {
+        "priority": 1,
+        "exposure_time": 300,
+        "maximum_airmass": 2,
+        "observation_choice": "g",
+        "minimum_lunar_distance": 30,
+        "too": True,
+        "observation_type": "transient",
+      }
+    source_filter: { "classification": "microlensing" }
 
 analysis_service:
   # Upload-only service used to seed an example fit (model_lightcurve overlay)
@@ -1733,7 +2336,7 @@ analysis_service:
     authentication_type: "none"
     analysis_type: "lightcurve_fitting"
     input_data_types: ["photometry"]
-    optional_analysis_parameters: '{}'
+    optional_analysis_parameters: "{}"
     upload_only: true
     group_ids:
       - =program_A
@@ -1748,7 +2351,15 @@ analysis_service:
     authentication_type: "header_token"
     _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
     analysis_type: "lightcurve_fitting"
-    input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
+    input_data_types:
+      [
+        "photometry",
+        "redshift",
+        "spectra",
+        "annotations",
+        "classifications",
+        "comments",
+      ]
     # `source` is the model kw name defined in SNcosmo (https://sncosmo.readthedocs.io/en/stable/source-list.html)
     optional_analysis_parameters: '{"source": ["nugent-sn2p", "salt3", "v19-1998bw", "mlcs2k2", "nugent-sn2n"], "fix_z": ["True", "False"]}'
     group_ids:
@@ -1791,27 +2402,26 @@ analysis_service:
     authentication_type: "none"
     analysis_type: "meta_analysis"
     input_data_types: ["redshift", "annotations", "classifications", "comments"]
-    optional_analysis_parameters: '{}'
+    optional_analysis_parameters: "{}"
     is_summary: true
     display_on_resource_dropdown: false
     group_ids:
       - =program_A
       - =program_B
-  # - name: "NMMA_Analysis"
-  #   display_name: "NMMA analysis"
-  #   description: "Use NMMA to fit fast transient light curves"
-  #   version: "1.0"
-  #   contact_name: "Michael Coughlin"
-  #   url: "http://localhost:4000/analysis"
-  #   authentication_type: "header_token"
-  #   _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
-  #   analysis_type: "lightcurve_fitting"
-  #   input_data_types: ["photometry", "redshift"]
-  #   optional_analysis_parameters: '{"source": ["Me2017", "Piro2021", "nugent-hyper", "TrPi2018", "Bu2022Ye"], "tmin": {"type": "number", "default": 0.01}, "tmax": {"type": "number", "default": 7}, "dt": {"type": "number", "default": 0.1}}'
-  #   group_ids:
-  #     - =program_A
-  #     - =program_B
-
+#  - name: "NMMA_Analysis"
+#    display_name: "NMMA analysis"
+#    description: "Use NMMA to fit fast transient light curves"
+#    version: "1.0"
+#    contact_name: "Michael Coughlin"
+#    url: "http://localhost:4000/analysis"
+#    authentication_type: "header_token"
+#    _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
+#    analysis_type: "lightcurve_fitting"
+#    input_data_types: ["photometry", "redshift"]
+#    optional_analysis_parameters: '{"source": ["Me2017", "Piro2021", "nugent-hyper", "TrPi2018", "Bu2022Ye"], "tmin": {"type": "number", "default": 0.01}, "tmax": {"type": "number", "default": 7}, "dt": {"type": "number", "default": 0.1}}'
+#    group_ids:
+#      - =program_A
+#      - =program_B
 
 analysis_service/=Demo_Analysis/default_analysis:
   - default_analysis_parameters: '{"source": "salt3"}'
@@ -1837,3 +2447,16 @@ obj/ZTF21aaqjmps/analysis_upload/=Fiesta_Demo:
       - =program_B
     show_plots: true
     show_parameters: true
+
+photometry/=sso_bad_1/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."
+photometry/=sso_bad_2/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."
+photometry/=sso_bad_3/validation:
+  - validated: false
+    explanation: "Bad subtraction"
+    notes: "Demo: rejected so the Solar System tab can show masking."

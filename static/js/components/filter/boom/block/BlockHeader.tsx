@@ -503,7 +503,11 @@ const BlockHeader = ({
         {/* Controls (except Save) */}
         {isRootCustomBlock && isCollapsed ? null : (
           <>
-            <FormControl size="small" sx={{ minWidth: 80 }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: 80 }}
+              data-testid="tour-filter-operator"
+            >
               <Select
                 value={(block?.operator || block?.logic || "$and")
                   .replace("$", "")

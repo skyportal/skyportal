@@ -17,11 +17,11 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
 import Grid from "@mui/material/Grid";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+import SearchableSelect from "../SearchableSelect";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -32,15 +32,18 @@ import {
   setFilterFormData,
   setCandidatesAnnotationSortOptions,
 } from "../../ducks/candidate/candidates";
+import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
+import { filterAnnotationOrigins } from "./annotationSortOptions";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
+import { Link } from "react-router-dom";
 import { Group } from "../../types";
 
 dayjs.extend(utc);
@@ -302,6 +305,8 @@ const FilterCandidateList = ({
 
   const [showAllGroups, setShowAllGroups] = useState(true);
 
+  const [annotationFilteringKeyOptions, setAnnotationFilteringKeyOptions] =
+    useState<any[]>([]);
   const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
     useState<any[]>([]);
 
@@ -317,6 +322,16 @@ const FilterCandidateList = ({
       endDate: defaultEndDate,
     },
   });
+
+  // Filters accessible to the user, used to optionally narrow a scan to specific
+  // filters within the selected groups (e.g. isolate a single broker filter that
+  // shares a group with others).
+  const { data: allFilters } = useGetFiltersQuery();
+  // Re-read at each render; group toggles call reset(), which re-renders here.
+  const scanSelectedGroupIDs = getValues("groupIDs") || [];
+  const availableFilters = (allFilters || []).filter((f: any) =>
+    scanSelectedGroupIDs.includes(f.group_id),
+  );
 
   useEffect(() => {
     // set the default values for the firstDetectionAfter and lastDetectionBefore
@@ -377,6 +392,7 @@ const FilterCandidateList = ({
       startDate,
       endDate,
       groupIDs: scanningProfile?.groupIDs || [],
+      filterIDs: [],
       classifications: scanningProfile?.classifications || [],
       redshiftMinimum: scanningProfile?.redshiftMinimum || "",
       redshiftMaximum: scanningProfile?.redshiftMaximum || "",
@@ -391,6 +407,16 @@ const FilterCandidateList = ({
       lastDetectionBefore: "",
       numberDetections: "",
       localizationCumprob: "",
+      maxSgscore: scanningProfile?.maxSgscore ?? "",
+      minNdethist: scanningProfile?.minNdethist ?? "",
+      minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
+      promptDeltaT: scanningProfile?.promptDeltaT ?? "",
+      maxDeltaT: scanningProfile?.maxDeltaT ?? "",
+      filterOrigin: null,
+      filterKey: null,
+      filterValue: "",
+      filterMin: "",
+      filterMax: "",
     });
   };
 
@@ -461,6 +487,46 @@ const FilterCandidateList = ({
     return true;
   };
 
+  // The endpoint takes either a value or both bounds, so a half-filled
+  // annotation filter is rejected here rather than server-side.
+  const validateAnnotationFilter = () => {
+    const f = getValues();
+    if (!f.filterOrigin) return true;
+    if (!f.filterKey) return false;
+    const hasValue = String(f.filterValue ?? "") !== "";
+    const hasMin = String(f.filterMin ?? "") !== "";
+    const hasMax = String(f.filterMax ?? "") !== "";
+    return hasValue ? !hasMin && !hasMax : hasMin && hasMax;
+  };
+
+  // "true"/"false" become booleans: the endpoint casts the stored value to
+  // boolean for those, and compares as text otherwise.
+  const buildAnnotationFilter = (f: any) => {
+    if (!f.filterOrigin || !f.filterKey) return null;
+    const value = String(f.filterValue ?? "");
+    if (value !== "") {
+      const lowered = value.trim().toLowerCase();
+      const parsed =
+        lowered === "true" ? true : lowered === "false" ? false : value;
+      return JSON.stringify({
+        origin: f.filterOrigin,
+        key: f.filterKey,
+        value: parsed,
+      });
+    }
+    const min = String(f.filterMin ?? "");
+    const max = String(f.filterMax ?? "");
+    if (min !== "" && max !== "") {
+      return JSON.stringify({
+        origin: f.filterOrigin,
+        key: f.filterKey,
+        min,
+        max,
+      });
+    }
+    return null;
+  };
+
   const validateSorting = () => {
     const formState = getValues();
     return (
@@ -471,10 +537,20 @@ const FilterCandidateList = ({
 
   const onSubmit = async (formData: any) => {
     setQueryInProgress(true);
-    const data: any = {
-      groupIDs: formData.groupIDs,
-      savedStatus: formData.savedStatus,
-    };
+    // Optionally narrow the scan to specific filters within the selected groups.
+    // The backend treats groupIDs and filterIDs as mutually exclusive (groupIDs
+    // wins), so when filters are chosen we send filterIDs and omit groupIDs.
+    const selectedFilterIDs = (formData.filterIDs || []).filter((id: number) =>
+      (allFilters || []).some(
+        (f: any) => f.id === id && formData.groupIDs.includes(f.group_id),
+      ),
+    );
+    const data: any = { savedStatus: formData.savedStatus };
+    if (selectedFilterIDs.length > 0) {
+      data.filterIDs = selectedFilterIDs;
+    } else {
+      data.groupIDs = formData.groupIDs;
+    }
     // decide if to show rejected candidates
     if (formData.rejectedStatus === "hide") {
       data.listNameReject = "rejected_candidates";
@@ -499,15 +575,35 @@ const FilterCandidateList = ({
     if (formData.redshiftMaximum) {
       data.maxRedshift = formData.redshiftMaximum;
     }
+    // These read the GCN crossmatch annotation, so a candidate without one
+    // cannot pass them. Off unless a scanning profile sets them, so a scan of
+    // a group that is not crossmatched is unaffected.
+    if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
+      data.maxSgscore = formData.maxSgscore;
+    }
+    if (formData.minNdethist !== "" && formData.minNdethist != null) {
+      data.minNdethist = formData.minNdethist;
+    }
+    if (
+      formData.minAbsGalacticLatitude !== "" &&
+      formData.minAbsGalacticLatitude != null
+    ) {
+      data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
+    }
+    if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
+      data.promptDeltaT = formData.promptDeltaT;
+    }
+    if (formData.maxDeltaT !== "" && formData.maxDeltaT != null) {
+      data.maxDeltaT = formData.maxDeltaT;
+    }
     if (formData.gcneventid !== "" || formData.localizationid !== "") {
       // data.gcneventid = formData.gcneventid;
       // data.localizationid = formData.localizationid;
       data.localizationDateobs = gcnEventsLookUp[formData.gcneventid]?.dateobs;
       data.localizationName = gcnEventsLookUp[
         formData.gcneventid
-      ]?.localizations?.filter(
-        (l: any) => l.id === formData.localizationid,
-      )[0]?.localization_name;
+      ]?.localizations?.filter((l: any) => l.id === formData.localizationid)[0]
+        ?.localization_name;
       if (formData.localizationCumprob) {
         data.localizationCumprob = formData.localizationCumprob;
       }
@@ -538,11 +634,27 @@ const FilterCandidateList = ({
     }
 
     // Submit a new search for candidates
-    if (annotationFilterList) {
+    const annotationFilter = buildAnnotationFilter(formData);
+    if (annotationFilter) {
+      data.annotationFilterList = annotationFilter;
+    } else if (annotationFilterList) {
       data.annotationFilterList = annotationFilterList;
     }
+    // Which groups to display columns for: the selected filters' groups when
+    // scanning by filter, otherwise the selected groups.
+    const displayGroupIDs =
+      selectedFilterIDs.length > 0
+        ? [
+            ...new Set(
+              selectedFilterIDs.map(
+                (id: number) =>
+                  (allFilters || []).find((f: any) => f.id === id)?.group_id,
+              ),
+            ),
+          ]
+        : formData.groupIDs;
     setFilterGroups(
-      userAccessibleGroups?.filter((g) => data.groupIDs.includes(g.id)),
+      userAccessibleGroups?.filter((g) => displayGroupIDs.includes(g.id)),
     );
     const fetchParams = { ...data };
 
@@ -607,6 +719,11 @@ const FilterCandidateList = ({
           <Tooltip title="Generate a report of saved candidates">
             <Button secondary onClick={() => setGenerateReportDialogOpen(true)}>
               Generate report
+            </Button>
+          </Tooltip>
+          <Tooltip title="View previously generated scanning reports">
+            <Button secondary component={Link} to="/candidates/scan_reports">
+              View reports
             </Button>
           </Tooltip>
           <GenerateReportForm
@@ -874,6 +991,42 @@ const FilterCandidateList = ({
                   </div>
                 </div>
               </Paper>
+              <Typography
+                variant="h6"
+                className={classes.title}
+                style={{ marginTop: "0.5rem" }}
+              >
+                Filter(s)&nbsp;
+                <span style={{ fontWeight: "normal", fontSize: "0.8rem" }}>
+                  (optional — scan specific filters within the selected groups)
+                </span>
+              </Typography>
+              <Controller
+                name="filterIDs"
+                control={control}
+                defaultValue={[]}
+                render={({ field: { onChange, value } }) => (
+                  <SearchableSelect
+                    multiple
+                    options={availableFilters}
+                    disabled={availableFilters.length === 0}
+                    getOptionLabel={(option: any) => option?.name ?? ""}
+                    isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+                    value={availableFilters.filter((f: any) =>
+                      (value || []).includes(f.id),
+                    )}
+                    onChange={(_event, newValue: any) =>
+                      onChange(newValue.map((f: any) => f.id))
+                    }
+                    placeholder={
+                      availableFilters.length === 0
+                        ? "Select group(s) first"
+                        : "All filters in selected group(s)"
+                    }
+                    textFieldProps={{ "data-testid": "scanFilterSelect" }}
+                  />
+                )}
+              />
             </div>
           </Paper>
         </Grid>
@@ -962,8 +1115,9 @@ const FilterCandidateList = ({
               <div className={classes.gcnGrid}>
                 <Controller
                   render={() => (
-                    <Autocomplete
+                    <SearchableSelect
                       id="gcn-event-filtering"
+                      label="Dateobs/Name"
                       options={gcnEvents?.events || []}
                       getOptionLabel={(option: any) =>
                         `${option?.dateobs}${
@@ -1005,9 +1159,6 @@ const FilterCandidateList = ({
                           setSelectedGcnEventId("");
                         }
                       }}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Dateobs/Name" />
-                      )}
                     />
                   )}
                   name="gcneventid"
@@ -1056,6 +1207,76 @@ const FilterCandidateList = ({
                     />
                   )}
                   name="localizationCumprob"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxSgscore"
+                      label="Max star score (sgscore)"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
+                    />
+                  )}
+                  name="maxSgscore"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minNdethist"
+                      label="Min detections in history"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0 } }}
+                    />
+                  )}
+                  name="minNdethist"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minAbsGalacticLatitude"
+                      label="Min |galactic latitude| [deg]"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 1, min: 0, max: 90 } }}
+                    />
+                  )}
+                  name="minAbsGalacticLatitude"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="promptDeltaT"
+                      label="Always show within [days] of event"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="promptDeltaT"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxDeltaT"
+                      label="Max days since event"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="maxDeltaT"
                   control={control}
                 />
                 <Controller
@@ -1145,6 +1366,128 @@ const FilterCandidateList = ({
               style={{ marginTop: "0.5rem", marginBottom: 0 }}
             >
               <Typography variant="h6" className={classes.title}>
+                Annotation Filtering
+              </Typography>
+              {errors["filterOrigin"] && (
+                <FormValidationError message="Choose an origin and key, then either a value or both bounds" />
+              )}
+              <div className={classes.annotationSorting}>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterOrigin"
+                    control={control}
+                    defaultValue={null}
+                    render={({ field: { onChange, value } }) => (
+                      <SearchableSelect
+                        id="annotationFilteringOriginSelect"
+                        label="Origin"
+                        data-testid="annotationFilteringOriginSelect"
+                        options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => {
+                          onChange(newValue);
+                          if (newValue === null) {
+                            reset({
+                              ...getValues(),
+                              filterOrigin: null,
+                              filterKey: null,
+                              filterValue: "",
+                              filterMin: "",
+                              filterMax: "",
+                            });
+                            setAnnotationFilteringKeyOptions([]);
+                          } else {
+                            setAnnotationFilteringKeyOptions(
+                              (availableAnnotationsInfo[newValue] || [])
+                                .map((annotation: any) =>
+                                  Object.keys(annotation || {}),
+                                )
+                                .flat(),
+                            );
+                          }
+                        }}
+                      />
+                    )}
+                    rules={{ validate: validateAnnotationFilter }}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterKey"
+                    control={control}
+                    defaultValue={null}
+                    render={({ field: { onChange, value } }) => (
+                      <SearchableSelect
+                        id="annotationFilteringKeySelect"
+                        label="Key"
+                        data-testid="annotationFilteringKeySelect"
+                        options={annotationFilteringKeyOptions}
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => onChange(newValue)}
+                      />
+                    )}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="filterValue"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <Tooltip title="Exact match. Use true or false for a boolean; leave blank to filter on a numeric range instead.">
+                        <TextField
+                          id="annotationFilteringValue"
+                          label="Value"
+                          type="text"
+                          value={value ?? ""}
+                          onChange={(event) => onChange(event.target.value)}
+                          style={{ minWidth: "100%" }}
+                        />
+                      </Tooltip>
+                    )}
+                  />
+                </div>
+                <div
+                  style={{ display: "flex", gap: "0.5rem", minWidth: "100%" }}
+                >
+                  <Controller
+                    name="filterMin"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        id="annotationFilteringMin"
+                        label="Min"
+                        type="number"
+                        value={value ?? ""}
+                        onChange={(event) => onChange(event.target.value)}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="filterMax"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <TextField
+                        id="annotationFilteringMax"
+                        label="Max"
+                        type="number"
+                        value={value ?? ""}
+                        onChange={(event) => onChange(event.target.value)}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              className={classes.formRow}
+              style={{ marginTop: "0.5rem", marginBottom: 0 }}
+            >
+              <Typography variant="h6" className={classes.title}>
                 Annotation Sorting
               </Typography>
               {errors["sortingOrigin"] && (
@@ -1159,10 +1502,14 @@ const FilterCandidateList = ({
                       selectedScanningProfile?.sortingOrigin || null
                     }
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingOriginSelect"
+                        label="Origin"
                         data-testid="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
                         style={{ minWidth: "100%" }}
                         value={value}
                         onChange={(_event, newValue) => {
@@ -1186,13 +1533,6 @@ const FilterCandidateList = ({
                             setAnnotationSortingKeyOptions(newOptions);
                           }
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Origin"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                     rules={{ validate: validateSorting }}
@@ -1204,8 +1544,9 @@ const FilterCandidateList = ({
                     control={control}
                     defaultValue={selectedScanningProfile?.sortingKey || null}
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingKeySelect"
+                        label="Key"
                         data-testid="annotationSortingKeySelect"
                         options={annotationSortingKeyOptions}
                         style={{ minWidth: "100%" }}
@@ -1227,13 +1568,6 @@ const FilterCandidateList = ({
                             onChange(newValue);
                           }
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Key"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                     rules={{ validate: validateSorting }}
@@ -1247,8 +1581,9 @@ const FilterCandidateList = ({
                       selectedScanningProfile?.sortingOrder || "asc"
                     }
                     render={({ field: { onChange, value } }) => (
-                      <Autocomplete
+                      <SearchableSelect
                         id="annotationSortingOrderSelect"
+                        label="Order"
                         data-testid="annotationSortingOrderSelect"
                         options={["asc", "desc"]}
                         style={{ minWidth: "100%" }}
@@ -1265,13 +1600,6 @@ const FilterCandidateList = ({
                         onChange={(_event, newValue) => {
                           onChange(newValue);
                         }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Order"
-                            variant="outlined"
-                          />
-                        )}
                       />
                     )}
                   />

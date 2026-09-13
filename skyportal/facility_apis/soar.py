@@ -206,6 +206,11 @@ class SOAR_GHTS_Request:
             "GHTS_R_2100_5000A_1x2_slit1p0": 0.5,
         }
 
+        # accept both shapes: modes used to be a single string
+        instrument_modes = request.payload["instrument_mode"]
+        if isinstance(instrument_modes, str):
+            instrument_modes = [instrument_modes]
+
         configurations = [
             {
                 "type": "SPECTRUM",
@@ -218,7 +223,7 @@ class SOAR_GHTS_Request:
                     {
                         "exposure_time": exp_time,
                         "exposure_count": exp_count,
-                        "mode": request.payload["instrument_mode"],
+                        "mode": instrument_mode,
                         "rotator_mode": "SKY",
                         "extra_params": {
                             "offset_ra": 0,
@@ -227,6 +232,7 @@ class SOAR_GHTS_Request:
                         },
                         "optical_elements": {},
                     }
+                    for instrument_mode in instrument_modes
                 ],
             },
         ]
@@ -238,10 +244,8 @@ class SOAR_GHTS_Request:
                     "instrument_configs": [
                         {
                             "exposure_count": 3,
-                            "exposure_time": arc_exposure_time[
-                                request.payload["instrument_mode"]
-                            ],
-                            "mode": request.payload["instrument_mode"],
+                            "exposure_time": arc_exposure_time[instrument_mode],
+                            "mode": instrument_mode,
                             "rotator_mode": "SKY",
                             "extra_params": {
                                 "offset_ra": 0,
@@ -250,6 +254,7 @@ class SOAR_GHTS_Request:
                             },
                             "optical_elements": {},
                         }
+                        for instrument_mode in instrument_modes
                     ],
                     "acquisition_config": {"mode": "OFF", "extra_params": {}},
                     "guiding_config": {},
@@ -832,12 +837,17 @@ class SOARGHTSAPI(SOARAPI):
                                 "enum": ["SOAR_GHTS_BLUECAM"],
                             },
                             "instrument_mode": {
-                                "type": "string",
-                                "enum": [
-                                    "GHTS_B_400m1_2x2",
-                                ],
-                                "default": "GHTS_B_400m1_2x2",
-                                "title": "Instrument Mode",
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "GHTS_B_400m1_2x2",
+                                    ],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                                "default": ["GHTS_B_400m1_2x2"],
+                                "title": "Instrument Mode(s)",
                             },
                         }
                     },
@@ -847,16 +857,21 @@ class SOARGHTSAPI(SOARAPI):
                                 "enum": ["SOAR_GHTS_REDCAM"],
                             },
                             "instrument_mode": {
-                                "type": "string",
-                                "enum": [
-                                    "GHTS_R_400m2_2x2",
-                                    "GHTS_R_2100_6507A_1x2_slit0p45",
-                                    "GHTS_R_400m1_2x2",
-                                    "GHTS_R_1200_CaNIR_1x2_slit0p8",
-                                    "GHTS_R_2100_5000A_1x2_slit1p0",
-                                ],
-                                "default": "GHTS_R_400m1_2x2",
-                                "title": "Instrument Mode",
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "GHTS_R_400m2_2x2",
+                                        "GHTS_R_2100_6507A_1x2_slit0p45",
+                                        "GHTS_R_400m1_2x2",
+                                        "GHTS_R_1200_CaNIR_1x2_slit0p8",
+                                        "GHTS_R_2100_5000A_1x2_slit1p0",
+                                    ],
+                                },
+                                "uniqueItems": True,
+                                "minItems": 1,
+                                "default": ["GHTS_R_400m1_2x2"],
+                                "title": "Instrument Mode(s)",
                             },
                         }
                     },
@@ -872,7 +887,7 @@ class SOARGHTSAPI(SOARAPI):
         ],
     }
 
-    ui_json_schema = {}
+    ui_json_schema = {"instrument_mode": {"ui:widget": "checkboxes"}}
 
 
 class SOARTSPECAPI(SOARAPI):

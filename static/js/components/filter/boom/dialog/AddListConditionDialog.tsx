@@ -29,6 +29,7 @@ import BlockComponent from "../block/BlockComponent";
 import MapExpressionEditor from "./MapExpressionEditor";
 import { usePostFilterElementMutation } from "../../../../ducks/boom_filter_modules";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import ModuleStreams, { surveyToken } from "./ModuleStreams";
 
 const OPERATORS_NEEDING_CONDITIONS = [
   "$anyElementTrue",
@@ -586,6 +587,14 @@ const AddListConditionDialog = () => {
   const [postElement] = usePostFilterElementMutation();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const stream = boomFilterVersion?.stream?.name;
+  // Defaults to the survey being edited, which is what it was fixed to before.
+  const [moduleStreams, setModuleStreams] = useState<string[]>([]);
+  useEffect(() => {
+    if (listConditionDialog.open) {
+      const token = surveyToken(stream);
+      setModuleStreams(token ? [token] : []);
+    }
+  }, [listConditionDialog.open, stream]);
 
   // Auto-populate form when opening inline with condition data
   useEffect(() => {
@@ -853,7 +862,7 @@ const AddListConditionDialog = () => {
       data: {
         listCondition: listCondition,
         type: "array",
-        streams: [stream],
+        streams: moduleStreams,
       },
       elements: "listVariables",
     });
@@ -961,6 +970,11 @@ const AddListConditionDialog = () => {
                 conditionName={form.conditionName}
                 onNameChange={form.handleNameChange}
                 nameError={form.nameError}
+              />
+
+              <ModuleStreams
+                value={moduleStreams}
+                onChange={setModuleStreams}
               />
 
               <ConditionBuilderSection

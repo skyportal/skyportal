@@ -6,6 +6,7 @@
  * the `ScanReport` tag so the list refetches. The websocket
  * `REFRESH_SCAN_REPORTS` message is bridged to cache invalidation.
  */
+import { buildQueryString } from "../../API";
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
 import type { RouteData } from "../../types/routeSchemaMap";
@@ -17,7 +18,7 @@ export const scanReportsApi = skyportalApi.injectEndpoints({
       Record<string, any> | undefined
     >({
       query: (params) => {
-        const queryString = new URLSearchParams(params ?? {}).toString();
+        const queryString = buildQueryString(params ?? {});
         return queryString
           ? `api/candidates/scan_reports?${queryString}`
           : "api/candidates/scan_reports";

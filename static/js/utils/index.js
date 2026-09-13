@@ -1,7 +1,16 @@
 // this should expose all the functions that are in this folder
 // so that they can be used in the main app.js file
 
-export { C, PHOT_ZP, BASE_LAYOUT, LINES, LOGTYPE_TO_COLOR } from "./constants";
+export {
+  C,
+  PHOT_ZP,
+  BASE_LAYOUT,
+  LINES,
+  LOGTYPE_TO_COLOR,
+  plotAxisTheme,
+  plotCanvasTheme,
+  legibleLineColors,
+} from "./constants";
 
 export {
   median,

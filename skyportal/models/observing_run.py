@@ -9,13 +9,29 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, accessible_by_owner
 
+from .group import accessible_by_groups_members
+
 TZINFO = tzutc()
 
 
 class ObservingRun(Base):
     """A classical observing run with a target list (of Objs)."""
 
+    # A run's target list says what a group is working on tonight, so it is
+    # visible to the groups it is shared with rather than to everyone. Runs
+    # are attached to the sitewide group by default, which keeps the previous
+    # behaviour for anyone who does not care to restrict them.
+    read = accessible_by_groups_members
+
     update = delete = accessible_by_owner
+
+    groups = relationship(
+        "Group",
+        secondary="group_observingruns",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can see this observing run and its target list.",
+    )
 
     instrument_id = sa.Column(
         sa.ForeignKey("instruments.id", ondelete="CASCADE"),

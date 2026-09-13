@@ -4,8 +4,10 @@ from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
 from baselayer.app.access import auth_or_token
+from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
+from skyportal.utils.assistant import is_enabled as assistant_enabled
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 
 from ...enum_types import (
@@ -32,6 +34,22 @@ cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 
 # we convert it to a list of hex colors
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
+
+
+def configured_backends_public():
+    """Sign-in providers, without their credentials."""
+    return [
+        {"name": backend["name"], "label": backend["label"]}
+        for backend in configured_backends()
+    ]
+
+
+def cosmology_parameter_rows(cosmology):
+    """Cosmology parameters at full precision for display; astropy's repr rounds
+    some values (e.g. H0 -> 67.7 instead of 67.66)."""
+    rows = [{"name": "name", "value": str(cosmology.name)}]
+    rows += [{"name": k, "value": str(v)} for k, v in cosmology.parameters.items()]
+    return rows
 
 
 class ConfigHandler(BaseHandler):
@@ -83,20 +101,25 @@ class ConfigHandler(BaseHandler):
                               type: object
                               description: allowed classifications classes.
         """
-        openai_summary_parameters = copy.deepcopy(
+        summary_parameters = copy.deepcopy(
             cfg["analysis_services.openai_analysis_service.summary"]
         )
-        openai_summary_apikey_set = openai_summary_parameters.get("api_key") is not None
-        openai_summary_parameters.pop("api_key", None)
+        summary_apikey_set = summary_parameters.get("api_key") is not None
+        summary_parameters.pop("api_key", None)
+        summary_parameters.pop("base_url", None)
 
         return self.success(
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
-                "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
+                "assistantEnabled": assistant_enabled(cfg),
                 "cosmology": str(cosmo),
-                "openai_summary_apikey_set": openai_summary_apikey_set,
-                "openai_summary_parameters": openai_summary_parameters,
+                "cosmologyParams": cosmology_parameter_rows(cosmo),
+                "summary_apikey_set": summary_apikey_set,
+                "summary_parameters": summary_parameters,
+                # The old names, until consumers outside this repo have moved.
+                "openai_summary_apikey_set": summary_apikey_set,
+                "openai_summary_parameters": summary_parameters,
                 "cosmoref": cosmo.__doc__,
                 "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
@@ -115,5 +138,10 @@ class ConfigHandler(BaseHandler):
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "usePinecone": USE_PINECONE,
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
+                "authBackends": configured_backends_public(),
+                "publicGroupName": cfg["misc.public_group_name"],
+                "shareDataWithPublicGroupByDefault": cfg.get(
+                    "misc.share_data_with_public_group_by_default", False
+                ),
             }
         )

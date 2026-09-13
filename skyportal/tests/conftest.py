@@ -21,14 +21,17 @@ from skyportal.models import (
     AnalysisService,
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
+    AssistantMessage,
     Broker,
     Candidate,
     CatalogQuery,
+    ClassificationEdit,
     ClassificationVote,
     CommentOnEarthquake,
     CommentOnGCN,
     CommentOnShift,
     CommentOnSpectrum,
+    DataAccessRequest,
     DBSession,
     DefaultAnalysis,
     DefaultFollowupRequest,
@@ -48,7 +51,12 @@ from skyportal.models import (
     FollowupRequestUser,
     Galaxy,
     GalaxyCatalog,
+    GcnAssociationRule,
     GcnEvent,
+    GcnEventAssociation,
+    GcnEventCrossmatchState,
+    GcnEventExtraction,
+    GcnEventObj,
     GcnEventUser,
     GcnNotice,
     GcnProperty,
@@ -67,10 +75,12 @@ from skyportal.models import (
     GroupCommentOnShift,
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
+    GroupGcnEvent,
     GroupMMADetectorSpectrum,
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
     GroupObjTag,
+    GroupObservingRun,
     GroupPhotometricSeries,
     GroupPhotometry,
     GroupPublicRelease,
@@ -122,8 +132,8 @@ from skyportal.models import (
     Shift,
     ShiftUser,
     Source,
+    SourceInterest,
     SourceLabel,
-    SourcesConfirmedInGCN,
     SourceView,
     SpatialCatalog,
     Spectrum,
@@ -139,6 +149,7 @@ from skyportal.models import (
     SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
     Telescope,
+    TermsOfServiceAcceptance,
     Thumbnail,
     User,
     UserInvitation,
@@ -169,6 +180,7 @@ from skyportal.tests.fixtures import (
     ThumbnailFactory,
     UserFactory,
     UserNotificationFactory,
+    resilient_delete,
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
@@ -245,7 +257,9 @@ def test_failed_check(request):
     yield
     # request.node is an "item" because we use the default
     # "function" scope
-    if request.node.rep_call.failed and "page" in request.node.funcargs:
+    # No rep_call when a fixture skipped the test: it never reached the call phase.
+    rep_call = getattr(request.node, "rep_call", None)
+    if rep_call is not None and rep_call.failed and "page" in request.node.funcargs:
         take_playwright_screenshot_and_page_source(
             request.node.funcargs["page"], request.node.nodeid
         )
@@ -340,19 +354,6 @@ def group_with_stream(
     group = GroupFactory(
         users=[super_admin_user, group_admin_user, user, view_only_user],
         streams=[public_stream],
-    )
-    group_id = group.id
-    yield group
-    GroupFactory.teardown(group_id)
-
-
-@pytest.fixture()
-def group_with_stream_with_users(
-    super_admin_user, group_admin_user, user, view_only_user, stream_with_users
-):
-    group = GroupFactory(
-        users=[super_admin_user, group_admin_user, user, view_only_user],
-        streams=[stream_with_users],
     )
     group_id = group.id
     yield group
@@ -911,13 +912,6 @@ def public_assignment(red_transients_run, user, public_source):
 
 
 @pytest.fixture()
-def private_source():
-    obj = ObjFactory(groups=[])
-    yield obj
-    ObjFactory.teardown(obj)
-
-
-@pytest.fixture()
 def user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
@@ -1125,23 +1119,6 @@ def user_two_groups(public_group, public_group2, public_stream):
 
 @pytest.fixture()
 def view_only_user(public_group, public_stream):
-    user = UserFactory(
-        groups=[public_group],
-        roles=[
-            DBSession()
-            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
-            .scalars()
-            .first()
-        ],
-        streams=[public_stream],
-    )
-    user_id = user.id
-    yield user
-    UserFactory.teardown(user_id)
-
-
-@pytest.fixture()
-def view_only_user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
         roles=[
@@ -1406,23 +1383,6 @@ def super_admin_token(super_admin_user):
     token_id = create_token(
         ACLs=[a.id for a in role.acls],
         user_id=super_admin_user.id,
-        name=str(uuid.uuid4()),
-    )
-    yield token_id
-    delete_token(token_id)
-
-
-@pytest.fixture()
-def super_admin_token_two_groups(super_admin_user_two_groups):
-    role = (
-        DBSession()
-        .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
-        .scalars()
-        .first()
-    )
-    token_id = create_token(
-        ACLs=[a.id for a in role.acls],
-        user_id=super_admin_user_two_groups.id,
         name=str(uuid.uuid4()),
     )
     yield token_id
@@ -1725,6 +1685,78 @@ def public_taxonomy(public_group):
     taxonomy_id = taxonomy.id
     yield taxonomy
     TaxonomyFactory.teardown(taxonomy_id)
+
+
+@pytest.fixture()
+def public_group_gcnevent(public_group, public_gcnevent):
+    """The GroupGcnEvent row tying public_gcnevent to public_group.
+
+    public_gcnevent is attached to its creating user's groups, which include
+    public_group, so this row exists by the time the fixture runs.
+    """
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupGcnEvent).filter(
+                GroupGcnEvent.group_id == public_group.id,
+                GroupGcnEvent.gcnevent_id == public_gcnevent.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_group_observingrun(public_group, user):
+    """The GroupObservingRun row tying an observing run to public_group.
+
+    The factory defaults a run to the sitewide group, which is not this
+    fixture's group, so attach it explicitly.
+    """
+    run = ObservingRunFactory(owner=user, groups=[public_group])
+    row = (
+        DBSession()
+        .execute(
+            sa.select(GroupObservingRun).filter(
+                GroupObservingRun.group_id == public_group.id,
+                GroupObservingRun.observingrun_id == run.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    yield row
+    ObservingRunFactory.teardown(run)
+
+
+@pytest.fixture()
+def public_gcnevent_crossmatch_state(public_gcnevent, public_filter, user):
+    # State is tracked per localization (one event can carry several), so the
+    # row needs one belonging to this event.
+    localization = Localization(
+        dateobs=public_gcnevent.dateobs,
+        localization_name=str(uuid.uuid4()),
+        sent_by_id=user.id,
+        uniq=[4 * (4**29) + i for i in range(4)],
+        probdensity=[0.25, 0.25, 0.25, 0.25],
+    )
+    DBSession().add(localization)
+    DBSession().commit()
+    localization_id = localization.id
+
+    state = GcnEventCrossmatchState(
+        gcnevent_id=public_gcnevent.id,
+        filter_id=public_filter.id,
+        localization_id=localization_id,
+        status="pending",
+    )
+    DBSession().add(state)
+    DBSession().commit()
+    state_id = state.id
+    yield state
+    resilient_delete(GcnEventCrossmatchState, state_id)
+    resilient_delete(Localization, localization_id)
 
 
 @pytest.fixture()
@@ -2443,7 +2475,7 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    df["flux"] = np.random.normal(-50, 50, 100)
+    df["flux"] = np.random.default_rng(1).normal(-50, 50, 100)
 
     data = {
         "obj_id": public_source.id,
@@ -2658,6 +2690,40 @@ def public_classificationvote(public_group, public_source, user):
 
 
 @pytest.fixture()
+def public_classificationedit(public_group, public_source, user):
+    taxonomy = TaxonomyFactory(groups=[public_group])
+    taxonomy_id = taxonomy.id
+    classification = ClassificationFactory(
+        obj=public_source,
+        groups=[public_group],
+        author=user,
+        taxonomy=taxonomy,
+    )
+    edit = ClassificationEdit(
+        classification_id=classification.id,
+        editor_id=user.id,
+        editor_name=user.username,
+        old_probability=1.0,
+        new_probability=0.0,
+    )
+    DBSession.add(edit)
+    DBSession.commit()
+    edit_id = edit.id
+    yield edit
+    edit_obj = (
+        DBSession()
+        .execute(sa.select(ClassificationEdit).filter(ClassificationEdit.id == edit_id))
+        .scalars()
+        .first()
+    )
+    if edit_obj is not None:
+        DBSession().delete(edit_obj)
+        DBSession().commit()
+    ClassificationFactory.teardown(classification)
+    TaxonomyFactory.teardown(taxonomy_id)
+
+
+@pytest.fixture()
 def public_comment_on_earthquake(public_group, user):
     event = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
@@ -2699,6 +2765,7 @@ def public_comment_on_gcn_perm(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -3298,6 +3365,7 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
         dateobs=dateobs,
         sent_by_id=super_admin_user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=super_admin_user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3525,6 +3593,7 @@ def public_gcnevent(user):
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int)[:10],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3549,6 +3618,7 @@ def public_gcn_event_mmadetector(user):
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int % 1000000000),
+        groups=user.groups,
     )
     DBSession.add(event)
     DBSession.commit()
@@ -3613,6 +3683,7 @@ def public_gcnevent_user(user):
     gcnevent = GcnEvent(
         dateobs=str(uuid.uuid4()),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     # dateobs must be a real datetime; use a unique time to satisfy the unique
     # constraint without colliding with other tests
@@ -3654,6 +3725,7 @@ def public_gcn_property(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3680,12 +3752,49 @@ def public_gcn_property(public_group, user):
 
 
 @pytest.fixture()
+def public_gcn_event_extraction(public_group, user):
+    dateobs = utcnow_naive().replace(microsecond=0) + timedelta(
+        seconds=int(uuid.uuid4().int % 1000000)
+    )
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+        groups=user.groups,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+
+    extraction = GcnEventExtraction(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+        origin="test",
+        circular_id=12345,
+        data={"event": {"event_name": "GRB 260604C"}},
+    )
+    DBSession.add(extraction)
+    DBSession.commit()
+    extraction_id = extraction.id
+    yield extraction
+    for model, ident, col in (
+        (GcnEventExtraction, extraction_id, GcnEventExtraction.id),
+        (GcnEvent, dateobs, GcnEvent.dateobs),
+    ):
+        row = (
+            DBSession().execute(sa.select(model).filter(col == ident)).scalars().first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
 def public_gcn_report(public_group, user):
     # Create a parent GcnEvent inline (only sent_by_id and dateobs are required).
     dateobs = utcnow_naive().replace(microsecond=0)
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3724,6 +3833,7 @@ def public_gcn_summary(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3771,6 +3881,7 @@ def public_gcn_tag(public_group, user):
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3816,6 +3927,42 @@ def public_group_admission_request(public_group, user):
             sa.select(GroupAdmissionRequest).filter(
                 GroupAdmissionRequest.id == request_id
             )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_data_access_request(
+    public_group, user, user_group2, ztf_camera, public_source
+):
+    """`user` asking `user_group2` for photometry they hold on a source.
+
+    `owner_group_ids` names public_group, so its admins are the third party who
+    can answer it.
+    """
+    request = DataAccessRequest(
+        requester_id=user.id,
+        owner_id=user_group2.id,
+        obj_id=public_source.id,
+        data_type="photometry",
+        instrument_id=ztf_camera.id,
+        filter="ztfg",
+        owner_group_ids=[public_group.id],
+        status="pending",
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(DataAccessRequest).filter(DataAccessRequest.id == request_id)
         )
         .scalars()
         .first()
@@ -4167,6 +4314,7 @@ def public_gcn_notice(user):
         dateobs=dateobs,
         trigger_id=str(uuid.uuid4().int)[:10],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -4459,6 +4607,7 @@ def public_group_comment_on_gcn(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcn_event)
     DBSession.commit()
@@ -5143,6 +5292,7 @@ def public_group_reminder_on_gcn(public_group, user):
         dateobs=utcnow_naive(),
         trigger_id=str(uuid.uuid4().int)[:12],
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -5591,12 +5741,35 @@ def public_listing(public_source, user):
 
 
 @pytest.fixture()
+def public_assistant_message(user):
+    message = AssistantMessage(
+        user_id=user.id,
+        channel=str(uuid.uuid4()),
+        text="What is this source?",
+    )
+    DBSession.add(message)
+    DBSession.commit()
+    message_id = message.id
+    yield message
+    row = (
+        DBSession()
+        .execute(sa.select(AssistantMessage).filter(AssistantMessage.id == message_id))
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
 def public_localization(user):
     dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -5732,36 +5905,6 @@ def public_mmadetector_time_interval(public_group, user):
         if row is not None:
             DBSession().delete(row)
             DBSession().commit()
-
-
-@pytest.fixture()
-def public_obj_model(public_group):
-    obj_id = str(uuid.uuid4())
-    obj = Obj(
-        id=obj_id,
-        ra=10.0,
-        dec=20.0,
-        internal_key=str(uuid.uuid4()),
-    )
-    DBSession.add(obj)
-    DBSession.commit()
-    source = Source(obj_id=obj.id, group_id=public_group.id)
-    DBSession.add(source)
-    DBSession.commit()
-    yield obj
-    src = (
-        DBSession()
-        .execute(sa.select(Source).filter(Source.obj_id == obj_id))
-        .scalars()
-        .first()
-    )
-    if src is not None:
-        DBSession().delete(src)
-        DBSession().commit()
-    row = DBSession().execute(sa.select(Obj).filter(Obj.id == obj_id)).scalars().first()
-    if row is not None:
-        DBSession().delete(row)
-        DBSession().commit()
 
 
 @pytest.fixture()
@@ -6259,6 +6402,7 @@ def public_reminder_on_gcn(public_group, user):
         dateobs=dateobs,
         trigger_id=uuid.uuid4().hex,
         sent_by_id=user.id,
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -6772,6 +6916,100 @@ def public_source_label(public_source, public_group, user):
 
 
 @pytest.fixture()
+def public_source_interest(public_source, user_no_groups):
+    interest = SourceInterest(
+        obj_id=public_source.id,
+        user_id=user_no_groups.id,
+        title=str(uuid.uuid4()),
+    )
+    DBSession.add(interest)
+    DBSession.commit()
+    interest_id = interest.id
+    yield interest
+    obj = (
+        DBSession()
+        .execute(sa.select(SourceInterest).filter(SourceInterest.id == interest_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_event_association(user):
+    """Two events proposed as one physical event."""
+    first = utcnow_naive().replace(microsecond=0)
+    second = first + timedelta(hours=1)
+
+    events = []
+    for dateobs in (first, second):
+        event = GcnEvent(
+            dateobs=dateobs,
+            sent_by_id=user.id,
+            trigger_id=str(uuid.uuid4())[:20],
+            groups=user.groups,
+        )
+        DBSession.add(event)
+        events.append(event)
+    DBSession.commit()
+
+    association = GcnEventAssociation(
+        dateobs_1=first,
+        dateobs_2=second,
+        overlap=42.0,
+        consistency=0.9,
+        dt_days=1 / 24,
+        confirmer_id=user.id,
+    )
+    DBSession.add(association)
+    DBSession.commit()
+    association_id = association.id
+    dateobs_list = [event.dateobs for event in events]
+
+    yield association
+
+    row = DBSession().scalar(
+        sa.select(GcnEventAssociation).where(GcnEventAssociation.id == association_id)
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+    for dateobs in dateobs_list:
+        event = DBSession().scalar(
+            sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+        )
+        if event is not None:
+            DBSession().delete(event)
+    DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_association_rule(public_group):
+    """One group's cut for a pair of messengers."""
+    rule = GcnAssociationRule(
+        group_id=public_group.id,
+        detector_type_1="gravitational-wave",
+        detector_type_2="neutrino",
+        days=0.0001,
+        min_consistency=0.5,
+    )
+    DBSession.add(rule)
+    DBSession.commit()
+    rule_id = rule.id
+
+    yield rule
+
+    row = DBSession().scalar(
+        sa.select(GcnAssociationRule).where(GcnAssociationRule.id == rule_id)
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
 def public_source_view(public_source, user):
     source_view = SourceView(
         obj_id=public_source.id,
@@ -6794,39 +7032,36 @@ def public_source_view(public_source, user):
 
 
 @pytest.fixture()
-def public_sources_confirmed_in_gcn(public_source, user):
+def public_gcn_event_obj(public_source, user):
     dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4())[:20],
+        groups=user.groups,
     )
     DBSession.add(gcnevent)
     DBSession.commit()
 
-    sources_confirmed_in_gcn = SourcesConfirmedInGCN(
+    gcn_event_obj = GcnEventObj(
         obj_id=public_source.id,
         dateobs=dateobs,
         confirmer_id=user.id,
-        confirmed=True,
+        status="confirmed",
         explanation="test confirmation",
         notes="test notes",
     )
-    DBSession.add(sources_confirmed_in_gcn)
+    DBSession.add(gcn_event_obj)
     DBSession.commit()
-    sources_confirmed_in_gcn_id = sources_confirmed_in_gcn.id
+    gcn_event_obj_id = gcn_event_obj.id
     gcnevent_dateobs = gcnevent.dateobs
 
-    yield sources_confirmed_in_gcn
+    yield gcn_event_obj
 
     row = (
         DBSession()
-        .execute(
-            sa.select(SourcesConfirmedInGCN).filter(
-                SourcesConfirmedInGCN.id == sources_confirmed_in_gcn_id
-            )
-        )
+        .execute(sa.select(GcnEventObj).filter(GcnEventObj.id == gcn_event_obj_id))
         .scalars()
         .first()
     )
@@ -7016,7 +7251,7 @@ def public_stream_invitation(public_stream, user):
     # Look up the "Full user" Role required by the NOT NULL role_id column.
     role = DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
     # Invitation has several nullable=False columns: token, role_id,
-    # admin_for_groups, can_save_to_groups, used. Fill them all.
+    # admin_for_groups, can_save_to_groups, can_share_photometry_for_groups, used. Fill them all.
     # NOTE: Invitation fires an after_insert listener that sends an email; the
     # test suite sets invitations.disable_emailing so it only logs instead.
     invitation = Invitation(
@@ -7024,6 +7259,7 @@ def public_stream_invitation(public_stream, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="user@email.com",
         invited_by=user,
         used=False,
@@ -7491,6 +7727,7 @@ def public_user_invitation(public_group, user):
         role=role,
         admin_for_groups=[False],
         can_save_to_groups=[True],
+        can_share_photometry_for_groups=[False],
         user_email="invitee@email.com",
         used=False,
         groups=[public_group],
@@ -7567,3 +7804,25 @@ def public_weather():
         DBSession().delete(row)
         DBSession().commit()
     TelescopeFactory.teardown(telescope_id)
+
+
+@pytest.fixture()
+def public_terms_of_service_acceptance(user):
+    acceptance = TermsOfServiceAcceptance(user_id=user.id, version="1")
+    DBSession.add(acceptance)
+    DBSession.commit()
+    acceptance_id = acceptance.id
+    yield acceptance
+    row = (
+        DBSession()
+        .execute(
+            sa.select(TermsOfServiceAcceptance).filter(
+                TermsOfServiceAcceptance.id == acceptance_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()

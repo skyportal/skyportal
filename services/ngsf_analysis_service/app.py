@@ -1,6 +1,7 @@
 import ast
 import base64
 import functools
+import glob
 import io
 import json
 import os
@@ -118,36 +119,50 @@ def run_ngsf_model(data_dict):
 
     SUPERFIT_PATH = "services/ngsf_analysis_service/NGSF"
     SUPERFIT_DATA_PATH = f"{SUPERFIT_PATH}/data"
-    SUPERFIT_PARAMETERS_JSON = "services/ngsf_analysis_service/parameters.json"
-    NGSF = "https://github.com/samanthagoldwasser25/NGSF.git"
-    NGSF_bank = "https://www.wiserep.org/sites/default/files/supyfit_bank.zip"
+    # Maintained NGSF fork, pinned to a commit so the fit is reproducible and does
+    # not break on upstream drift. SUPERFIT_PATH is the repo root and
+    # SUPERFIT_PATH/NGSF the importable package; the template bank downloads
+    # alongside it.
+    NGSF = "https://github.com/skyportal/NGSF.git"
+    NGSF_COMMIT = "f1129ac"
+    # Bank mirror hosted on the fork's releases: WISeREP rate-limits and 403s
+    # repeated automated pulls, which breaks a fresh clone's first fit.
+    NGSF_bank = "https://github.com/skyportal/NGSF/releases/download/template-bank-v1/supyfit_bank.zip"
     NGSF_zip = f"{SUPERFIT_PATH}/{NGSF_bank.split('/')[-1]}"
 
     if not os.path.isdir(SUPERFIT_PATH):
         os.makedirs(SUPERFIT_PATH)
-        git_command = f"git clone {NGSF} {SUPERFIT_PATH}"
-        os.system(git_command)
+        os.system(f"git clone {NGSF} {SUPERFIT_PATH}")
+        os.system(f"cd {SUPERFIT_PATH}; git checkout {NGSF_COMMIT}")
         curl_command = f'curl -L -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36" -o {NGSF_zip} {NGSF_bank}'
         os.system(curl_command)
-
         with zipfile.ZipFile(NGSF_zip, "r") as zp:
             zp.extractall(SUPERFIT_PATH)
 
-        # NGSF is somewhat outdated, and uses np.float which doesn't exist anymore in a method called
-        # JD, in get_metadata.py. We need to change it to float. For that we simply
-        # open the file and replace the string.
-        with open(f"{SUPERFIT_PATH}/NGSF/get_metadata.py") as file:
-            filedata = file.read()
+    os.makedirs(SUPERFIT_DATA_PATH, exist_ok=True)
+    for sub in ("fit_results", "fit_results_z"):
+        os.makedirs(os.path.join(SUPERFIT_PATH, sub), exist_ok=True)
 
-        # Replace the target string
-        filedata = filedata.replace("np.float", "float")
+    # The bank zip may unpack binnings/ at its root or one level down; find it.
+    bank_hits = glob.glob(f"{SUPERFIT_PATH}/**/binnings", recursive=True)
+    bank_dir = os.path.dirname(bank_hits[0]) if bank_hits else SUPERFIT_PATH
 
-        # Write the file out again
-        with open(f"{SUPERFIT_PATH}/NGSF/get_metadata.py", "w") as file:
-            file.write(filedata)
-
-    if not os.path.isdir(SUPERFIT_DATA_PATH):
-        os.makedirs(SUPERFIT_DATA_PATH)
+    # run.py reads its base config from NGSFCONFIG and takes the spectrum, the
+    # redshift and the wavelength window positionally. Start from the fork's
+    # shipped template and point pkg_dir/bank_dir at this checkout.
+    NGSF_CONFIG = os.path.abspath(
+        os.path.join(SUPERFIT_PATH, "config", "job_parameters.json")
+    )
+    base_cfg = json.loads(
+        open(os.path.join(SUPERFIT_PATH, "config", "parameters.json")).read()
+    )
+    base_cfg["pkg_dir"] = os.path.abspath(SUPERFIT_PATH) + "/"
+    base_cfg["bank_dir"] = os.path.abspath(bank_dir) + "/"
+    base_cfg["show_plot"] = 0
+    base_cfg["show_plot_png"] = 1
+    with open(NGSF_CONFIG, "w") as fcfg:
+        json.dump(base_cfg, fcfg)
+    WAV_MIN, WAV_MAX = 4000.0, 9500.0
 
     local_temp_files = []
     plot_data = []
@@ -169,21 +184,32 @@ def run_ngsf_model(data_dict):
                 for w, f in zip(wavelengths.tolist(), fluxes.tolist()):
                     fid.write(f"{w} {f}\n")
 
-            params = json.loads(open(SUPERFIT_PARAMETERS_JSON).read())
-            params["object_to_fit"] = f"data/{filebase}.dat"
-            if fix_z:
-                params["use_exact_z"] = 1
-                params["z_exact"] = z
-
-            JSON_FILE = f"{SUPERFIT_DATA_PATH}/{filebase}.json"
-            with open(JSON_FILE, "w") as f:
-                json.dump(params, f)
-
+            # z=100 runs the free-redshift scan (results in fit_results/); any
+            # other value pins that redshift (results in fit_results_z/).
+            z_arg = float(z) if fix_z else 100.0
+            env = {
+                **os.environ,
+                "NGSFCONFIG": NGSF_CONFIG,
+                "PYTHONPATH": os.path.abspath(SUPERFIT_PATH),
+                "MPLBACKEND": "Agg",
+            }
             subprocess.call(
-                f"cd {SUPERFIT_PATH}; python run.py data/{filebase}.json", shell=True
+                [
+                    "python",
+                    "run.py",
+                    f"data/{filebase}.dat",
+                    str(z_arg),
+                    str(WAV_MIN),
+                    str(WAV_MAX),
+                ],
+                cwd=SUPERFIT_PATH,
+                env=env,
             )
+            results_subdir = "fit_results_z" if fix_z else "fit_results"
 
-            results_path = os.path.join(SUPERFIT_PATH, f"{filebase}.csv")
+            results_path = os.path.join(
+                SUPERFIT_PATH, results_subdir, f"{filebase}.csv"
+            )
             results = pd.read_csv(results_path)
             results.sort_values(by=["CHI2/dof"], inplace=True)
 
@@ -212,7 +238,9 @@ def run_ngsf_model(data_dict):
                 suffix=".png", prefix="ngsfplot_", delete=False
             )
             f.close()
-            plot_file = os.path.join(SUPERFIT_PATH, f"{filebase}_0.png")
+            plot_file = os.path.join(
+                SUPERFIT_PATH, results_subdir, f"{filebase}_ngsf0.png"
+            )
             plot_data_2 = base64.b64encode(open(plot_file, "rb").read())
             local_temp_files.append(f.name)
 

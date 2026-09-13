@@ -18,6 +18,10 @@ export interface PhotStatPoint {
   dec: number | null;
   redshift: number | null;
   classification: string | null;
+  // t0 candidates for phase-stacking spectra.
+  first_detected_mjd?: number | null;
+  peak_mjd?: number | null;
+  tns_discovery_date?: string | null;
   x: number | null;
   y: number | null;
   z?: number | null;
@@ -36,6 +40,9 @@ export interface PhotStatAggregateArgs {
   zField?: string;
   classifications?: string;
   classificationProbThreshold?: number;
+  // Alternatives to classification-based selection.
+  group_id?: number;
+  obj_ids?: string;
   maxMatches?: number;
 }
 

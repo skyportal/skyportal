@@ -2,7 +2,10 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import { sourcePublishOptionsSchema } from "../source/source_publish/SourcePublishOptions";
+import {
+  sourcePublishOptionsSchema,
+  sourcePublishOptionsUiSchema,
+} from "../source/source_publish/SourcePublishOptions";
 import {
   useSubmitPublicReleaseMutation,
   useUpdatePublicReleaseMutation,
@@ -112,6 +115,7 @@ const ReleaseForm = ({
         group_ids: {
           "ui:enumNames": groups.map((group: any) => group.name),
         },
+        options: sourcePublishOptionsUiSchema(streams as any, groups as any),
       }}
     >
       <div style={{ display: "flex", justifyContent: "center" }}>

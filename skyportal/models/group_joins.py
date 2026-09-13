@@ -27,6 +27,8 @@ __all__ = [
     "GroupDefaultAnalysis",
     "GroupPublicRelease",
     "GroupScanReport",
+    "GroupGcnEvent",
+    "GroupObservingRun",
 ]
 
 import sqlalchemy as sa
@@ -50,9 +52,11 @@ from .comment import (
     CommentOnSpectrum,
 )
 from .filter import Filter
+from .gcn import GcnEvent
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
 from .invitation import Invitation
 from .mmadetector import MMADetectorSpectrum, MMADetectorTimeInterval
+from .observing_run import ObservingRun
 from .photometric_series import PhotometricSeries
 from .photometry import Photometry
 from .public_pages.public_release import PublicRelease
@@ -336,3 +340,15 @@ GroupPublicRelease.update = GroupPublicRelease.delete = (
 
 GroupScanReport = join_model("group_scan_reports", Group, ScanReport)
 GroupScanReport.__doc__ = "Join table mapping Groups to Scan Reports."
+
+GroupGcnEvent = join_model("group_gcnevents", Group, GcnEvent)
+GroupGcnEvent.__doc__ = "Join table mapping Groups to GcnEvents."
+GroupGcnEvent.delete = GroupGcnEvent.update = (
+    accessible_by_group_admins & GroupGcnEvent.read
+)
+
+GroupObservingRun = join_model("group_observingruns", Group, ObservingRun)
+GroupObservingRun.__doc__ = "Join table mapping Groups to ObservingRuns."
+GroupObservingRun.delete = GroupObservingRun.update = (
+    accessible_by_group_admins & GroupObservingRun.read
+)

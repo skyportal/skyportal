@@ -56,13 +56,13 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 def validate_fluxerr(fluxerr):
     try:
         if isinstance(fluxerr, float | int | str):
-            non_negative = float(fluxerr) >= 0
+            positive = float(fluxerr) > 0
         else:
-            non_negative = all(float(el) >= 0 for el in fluxerr)
+            positive = all(float(el) > 0 for el in fluxerr)
     except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
-    if not non_negative:
-        raise ValidationError("Invalid value: fluxerr must be non-negative")
+    if not positive:
+        raise ValidationError("Invalid value: fluxerr must be positive (non-zero)")
 
 
 class ApispecEnumField(fields.Enum):
@@ -412,7 +412,7 @@ class PhotBaseFlexible:
     group_ids = fields.Raw(
         metadata={
             "description": "List of group IDs to which photometry points will be visible. "
-            "If 'all', will be shared with site-wide public group (visible to all users "
+            "If 'all', will be shared with sitewide public group (visible to all users "
             "who can view associated source)."
         },
         required=False,
@@ -565,7 +565,6 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
 
     required_keys = [
         "magsys",
-        "limiting_mag",
         "mjd",
         "filter",
         "obj_id",
@@ -618,9 +617,10 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
             "in the magnitude system `magsys`. "
             "Can be given as a scalar or a 1D list. "
             "If a scalar, will be broadcast to all values "
-            "given as lists. Null values not allowed."
+            "given as lists. Required for non-detections (when mag is null)."
         },
-        required=True,
+        required=False,
+        load_default=None,
     )
 
     limiting_mag_nsigma = fields.Raw(
@@ -968,6 +968,8 @@ class PhotometryFlux(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
@@ -1164,6 +1166,8 @@ class PhotometryMag(_Schema, PhotBase):
             p.alert_id = data["alert_id"]
         if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
             p.origin = data["origin"]
+        if data.get("altdata") is not None:
+            p.altdata = data["altdata"]
         return p
 
 
@@ -1262,6 +1266,14 @@ class ObservingRunPost(_Schema):
     )
     group_id = fields.Integer(
         metadata={"description": "The ID of the group this run is associated with."}
+    )
+    group_ids = fields.List(
+        fields.Integer(),
+        metadata={
+            "description": "IDs of the groups that can see this run and its "
+            "target list. Defaults to the sitewide group, which is what a run "
+            "was visible to before runs became group-scoped."
+        },
     )
     calendar_date = fields.Date(
         metadata={"description": "The local calendar date of the run."}, required=True
@@ -2385,6 +2397,31 @@ class MMADetectorSpectrumPost(_Schema):
     )
 
 
+class FilterListItem(_Schema):
+    """One filter as returned by the filter list.
+
+    The list leaves out altdata, which holds the whole broker definition and
+    runs to tens of kilobytes per filter. GET on a single filter returns it.
+    """
+
+    id = fields.Integer(metadata={"description": "Filter ID."})
+    name = fields.String(metadata={"description": "Filter name."})
+    group_id = fields.Integer(metadata={"description": "ID of the Filter's Group."})
+    stream_id = fields.Integer(metadata={"description": "ID of the Filter's Stream."})
+    broker_id = fields.Integer(
+        allow_none=True,
+        metadata={"description": "ID of the Broker this Filter runs on, if any."},
+    )
+    autosave = fields.Boolean(
+        metadata={
+            "description": "Whether objects passing this filter are auto-saved as "
+            "Sources to the Filter's Group."
+        }
+    )
+    created_at = fields.DateTime()
+    modified = fields.DateTime()
+
+
 class GroupIDList(_Schema):
     group_ids = fields.List(fields.Integer, required=True)
 
@@ -2754,5 +2791,6 @@ ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 SpectrumHead = SpectrumHead()
+FilterListItem = FilterListItem()
 GroupIDList = GroupIDList()
 ObjAnalysisDetail = ObjAnalysisDetail()

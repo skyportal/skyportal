@@ -11,3 +11,34 @@ instrument:
 
 taxonomy:
   file: taxonomy_sitewide.yaml
+
+brokers:
+  - name: ALeRCE
+    broker_classname: ALERCEBROKER
+    active: true
+    # Broker use by default for alert search.
+    default_alert_search: true
+  - name: ANTARES
+    broker_classname: ANTARESBROKER
+    active: true
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: false
+    # Broker use by default for crossmatch.
+    default_crossmatch: true
+    altdata:
+      protocol: https
+      host: api.kaboom.caltech.edu
+  - name: Fink
+    broker_classname: FINKBROKER
+    active: true
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
+    active: false
+    altdata:
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: false
+    altdata:
+      endpoint: https://api.lasair.lsst.ac.uk/api

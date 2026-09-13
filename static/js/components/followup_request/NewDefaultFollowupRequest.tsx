@@ -16,6 +16,7 @@ import {
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { localeSafeFields } from "./LocaleSafeNumberField";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -217,6 +218,7 @@ const NewDefaultFollowupRequest = () => {
             schema={formSchemaCopy as any}
             validator={validator}
             uiSchema={uiSchema}
+            fields={localeSafeFields}
             onSubmit={handleSubmit as any}
           />
         </div>

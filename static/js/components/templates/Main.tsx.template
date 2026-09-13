@@ -20,6 +20,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import store from "../../store";
 import { useAppSelector } from "../../types/hooks";
 import { useIsAnonymous } from "../../ducks/profile";
+import { useGetTermsOfServiceQuery } from "../../ducks/terms_of_service";
 
 // Actions
 import hydrate from "../../actions";
@@ -32,6 +33,11 @@ import NoMatchingRoute from "../NoMatchingRoute";
 import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "../ErrorBoundary";
 import PageTourProvider from "../PageTourProvider";
+import FeatureAnnouncementProvider from "../FeatureAnnouncementProvider";
+import TermsOfServiceDialog from "../TermsOfServiceDialog";
+import { CommentPanelProvider } from "../../contexts/CommentPanelContext";
+
+const CommentPanel = React.lazy(() => import("../comment/CommentPanel"));
 
 {% for route in app.routes -%}
 const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
@@ -47,7 +53,7 @@ const useStyles = makeStyles()((theme) => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
     marginTop: "2.5em", // top bar height
-    "& a": {
+    "& a:not(.MuiLink-root):not(.MuiButtonBase-root)": {
       textDecoration: "none",
       color: "gray",
       fontWeight: "bold",
@@ -64,7 +70,7 @@ const LazyRoute = ({ Component }: LazyRouteProps) => (
 );
 
 const AnonymousLoginPrompt = () => (
-  <p>Please <a href="/login/google-oauth2">log in</a> to view this page.</p>
+  <p>Please <a href="/">log in</a> to view this page.</p>
 );
 
 interface MainContentInternalProps {
@@ -75,24 +81,37 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
   const { open } = useAppSelector((state) => (state as any).sidebar);
   const { classes } = useStyles();
   const isAnonymous = useIsAnonymous();
+  const { data: terms } = useGetTermsOfServiceQuery();
+  const termsRequired = terms?.required === true;
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
-  const marginLeft = isSmall ? "0" : open ? "170px" : "65px";
+  const marginLeft = isSmall ? "0" : open ? "220px" : "65px";
 
   useEffect(() => {
+    if (termsRequired) return undefined;
     store.dispatch(rotateLogoActions.rotateLogo());
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       // Refresh the dashboard widgets after first render; everything else is
       // fetched on-demand by each page's RTK Query hooks.
       store.dispatch(hydrate() as any);
       store.dispatch(rotateLogoActions.rotateLogo());
     }, 1500);
-  }, []);
+    return () => clearTimeout(timeout);
+  }, [termsRequired]);
 
   const location = useLocation();
   useEffect(() => {
     document.title = "{{ app.title }}";
   }, [location.pathname]);
+
+  if (terms?.required) {
+    return (
+      <>
+        <SidebarAndHeader/>
+        <TermsOfServiceDialog terms={terms} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -105,6 +124,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
       />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <PageTourProvider />
+        <FeatureAnnouncementProvider />
         <SidebarAndHeader/>
         <div
           role="main"
@@ -125,6 +145,11 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
             </Routes>
           </ErrorBoundary>
         </div>
+        {!isAnonymous && (
+          <Suspense fallback={null}>
+            <CommentPanel />
+          </Suspense>
+        )}
       </LocalizationProvider>
     </>
   );
@@ -138,7 +163,9 @@ root.render(
     <ErrorBoundary>
       <Theme {% if testing %} disableTransitions {% endif %}>
         <BrowserRouter basename="/">
-          <MainContentInternal root={`${window.location.host}/`} />
+          <CommentPanelProvider>
+            <MainContentInternal root={`${window.location.host}/`} />
+          </CommentPanelProvider>
         </BrowserRouter>
       </Theme>
     </ErrorBoundary>

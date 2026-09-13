@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -15,25 +13,14 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
 import { useDeleteAssignmentMutation } from "../../ducks/source";
-import { useGetUsersQuery } from "../../ducks/users";
-import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-
-const useStyles = makeStyles()(() => ({
-  assignmentManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
+import Box from "@mui/material/Box";
 
 interface AssignmentListProps {
   assignments: any[];
 }
 
 const AssignmentList = ({ assignments }: AssignmentListProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
 
@@ -42,9 +29,6 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const [assignmentToEditDelete, setAssignmentToEditDelete] =
     useState<any>(null);
 
-  const { data: usersData } = useGetUsersQuery();
-  const allUsers = usersData?.users ?? [];
-  const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
   };
@@ -79,42 +63,18 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       });
   };
 
-  if (allUsers.length === 0) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
   if (assignments.length === 0) {
     return <b>No assignments to show for this object...</b>;
   }
 
-  if (observingRunList.length === 0) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  const observingRunDict: any = {};
-  observingRunList.forEach((run: any) => {
-    observingRunDict[run.id] = run;
-  });
-
   // `assignments` is frozen RTK Query data, so copy before sorting in place.
   assignments = [...assignments].sort((a, b) =>
-    observingRunDict[a.run_id]?.calendar_date &&
-    observingRunDict[b.run_id]?.calendar_date
-      ? dayjs(observingRunDict[a.run_id].calendar_date).unix() -
-        dayjs(observingRunDict[b.run_id].calendar_date).unix()
+    a.run?.calendar_date && b.run?.calendar_date
+      ? dayjs(a.run.calendar_date).unix() - dayjs(b.run.calendar_date).unix()
       : 0,
   );
 
-  const runForRow = (row: any) =>
-    observingRunList?.filter((r: any) => r.id === row.run_id)[0];
+  const runForRow = (row: any) => row.run;
 
   const columns: any[] = [
     {
@@ -133,9 +93,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 120,
       sortable: false,
-      valueGetter: (_value: any, row: any) =>
-        allUsers.find((user: any) => user.id === row.requester_id)?.username ||
-        "Loading...",
+      valueGetter: (_value: any, row: any) => row.requester?.username || "",
     },
     {
       field: "instrument",
@@ -199,11 +157,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       renderCell: (params: any) => {
         const assignment = params.row;
         return (
-          <div className={classes.assignmentManage}>
-            <IconButton
-              id={`edit_button_assignment_${assignment.id}`}
-              onClick={() => openEditDialog(assignment.id)}
-            >
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+            }}
+          >
+            <IconButton onClick={() => openEditDialog(assignment.id)}>
               <EditIcon />
             </IconButton>
             <IconButton
@@ -212,7 +174,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
             >
               <DeleteIcon />
             </IconButton>
-          </div>
+          </Box>
         );
       },
     },

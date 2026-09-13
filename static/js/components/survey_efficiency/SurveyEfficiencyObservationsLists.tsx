@@ -286,7 +286,11 @@ const SurveyEfficiencyObservationsLists = ({
   ).length;
 
   const CustomToolbar = () => (
-    <DataGridToolbar showColumns={false} showQuickFilter={false}>
+    <DataGridToolbar
+      showExport={false}
+      showColumns={false}
+      showQuickFilter={false}
+    >
       <TableProgressText nbItems={runningCount} />
       <Tooltip title="Download CSV">
         <IconButton

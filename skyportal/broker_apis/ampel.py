@@ -60,6 +60,8 @@ class AMPELBROKER(BrokerAPI):
     (username/password, optional servers/group_id/topics) + ``filter_ids``.
     """
 
+    parallel_ingestion = True  # shared Kafka consumer group
+
     surveys = ["LSST"]
     filter_kind = "tags"  # the Hopskotch topics are the science-tag menu
 
@@ -70,15 +72,31 @@ class AMPELBROKER(BrokerAPI):
             "scimma": {
                 "type": "object",
                 "title": "SCIMMA Hopskotch",
+                "description": "SCIMMA Hopskotch Kafka credentials for consuming AMPEL alerts.",
                 "properties": {
-                    "username": {"type": "string"},
-                    "password": {"type": "string"},
-                    "servers": {"type": "string", "default": DEFAULT_SERVERS},
-                    "group_id": {"type": "string"},
-                    "topics": {"type": "array", "items": {"type": "string"}},
+                    "username": {"type": "string", "title": "Username"},
+                    "password": {"type": "string", "title": "Password"},
+                    "servers": {
+                        "type": "string",
+                        "title": "Bootstrap servers",
+                        "default": DEFAULT_SERVERS,
+                    },
+                    "group_id": {"type": "string", "title": "Consumer group id"},
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "title": "Topics",
+                        "description": "Kafka topics to subscribe to.",
+                    },
                 },
             },
-            "survey": {"type": "string", "enum": ["LSST"], "default": "LSST"},
+            "survey": {
+                "type": "string",
+                "enum": ["LSST"],
+                "default": "LSST",
+                "title": "Survey",
+                "description": "Survey this connection serves.",
+            },
         },
     }
 

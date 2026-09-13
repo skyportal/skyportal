@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -194,13 +195,16 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
       <div className={styles["saverInfo"]}>
         <UserAvatar
           size={32}
+          userId={author.id}
           firstName={author.first_name}
           lastName={author.last_name}
           username={author.username}
           gravatarUrl={author.gravatar_url}
           isBot={author?.is_bot || false}
         />
-        <p>{author.username}</p>
+        <p>
+          <Link to={`/user/${author.id}`}>{author.username}</Link>
+        </p>
       </div>
     );
   };

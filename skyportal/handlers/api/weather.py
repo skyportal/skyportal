@@ -1,6 +1,7 @@
 import datetime
 
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -15,9 +16,21 @@ weather_refresh = cfg.get("weather.refresh_time")
 openweather_api_key = cfg.get("weather.openweather_api_key")
 
 
+class WeatherGetQuery(BaseModel):
+    """Query parameters for retrieving weather at a telescope site."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    telescope_id: int | None = Field(
+        default=None,
+        description="ID of the telescope to report weather for. If not given, "
+        "the telescope saved in the user's preferences is used.",
+    )
+
+
 class WeatherHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: WeatherGetQuery = None):
         """
         ---
         summary: Get weather info at telescope site
@@ -25,12 +38,6 @@ class WeatherHandler(BaseHandler):
                      or telescope specified by `telescope_id` parameter
         tags:
           - telescopes
-        parameters:
-            - in: query
-              name: telescope_id
-              required: false
-              schema:
-                type: integer
         responses:
           200:
             content:
@@ -75,7 +82,9 @@ class WeatherHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        telescope_id = self.get_query_argument("telescope_id", None, type=int)
+        query = self.parse_query(WeatherGetQuery)
+
+        telescope_id = query.telescope_id
         async with self.AsyncSession() as session:
             # use the query telescope ID otherwise fall back to preferences id
             if telescope_id is None:

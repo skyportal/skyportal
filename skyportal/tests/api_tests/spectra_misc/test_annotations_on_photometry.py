@@ -30,13 +30,12 @@ def test_add_and_retrieve_annotation_group_id(
         "POST",
         f"photometry/{photometry_id}/annotations",
         data={
-            "photometry_id": photometry_id,
             "data": {"offset_from_host_galaxy": 1.5},
             "group_ids": [public_group.id],
         },
         token=annotation_token,
     )
-    assert_api_fail(status, data, 400, "origin must be specified")
+    assert_api_fail(status, data, 400, "origin: Field required")
 
     # this should not work, since "origin" is empty
     status, data = api(
@@ -50,8 +49,8 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status in [400, 401]
-    assert "Input `origin` must begin with alphanumeric/underscore" in data["message"]
+    assert status in [400, 403]
+    assert "origin: String should match pattern" in data["message"]
 
     # first time adding an annotation to this object from Kowalski
     status, data = api(
@@ -129,7 +128,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"photometry/{photometry_id}/annotations",
         data={
             "origin": "IPAC",
-            "photometry_id": photometry_id,
             "data": {"distance_from_host": 7.4},
             "group_ids": [public_group2.id],
         },
@@ -161,7 +159,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"photometry/{photometry_id}/annotations",
         data={
             "origin": "kowalski",
-            "photometry_id": photometry_id,
             "data": {"ACAI_class": "type Ia"},
             "group_ids": [public_group.id, public_group2.id],
         },
@@ -212,7 +209,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"photometry/{photometry_id}/annotations",
         data={
             "origin": "kowalski",
-            "photometry_id": photometry_id,
             "data": {"ACAI_class": "type Ia"},
             "group_ids": [public_group2.id],
         },
@@ -281,7 +277,7 @@ def test_cannot_add_annotation_without_permission(
         data={"origin": "kowalski", "data": {"gaia_G": 14.5}},
         token=view_only_token,
     )
-    assert status in [401, 405]
+    assert status in [403, 405]
     assert data["status"] == "error"
 
 

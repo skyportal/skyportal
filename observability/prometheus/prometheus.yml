@@ -1,0 +1,31 @@
+# Prometheus scrape config for SkyPortal's OpenTelemetry metrics.
+#
+# Each app worker exposes /api/internal/metrics on its own internal port
+# (ports.app_internal + worker number, default 65000..65003 for 4 processes).
+# Scrape every worker directly -- do NOT scrape through nginx/the public port,
+# which round-robins across workers and returns inconsistent partial counters.
+#
+# The endpoint requires a System admin token; provide one in the file mounted
+# at credentials_file (see doc/observability.md).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: skyportal-app
+    metrics_path: /api/internal/metrics
+    # Produces the `Authorization: token <id>` header SkyPortal expects.
+    authorization:
+      type: token
+      credentials_file: /etc/prometheus/skyportal_token
+    static_configs:
+      - targets:
+          - "127.0.0.1:65000"
+          - "127.0.0.1:65001"
+          - "127.0.0.1:65002"
+          - "127.0.0.1:65003"
+    relabel_configs:
+      # Label each series with its worker so panels can aggregate across them.
+      - source_labels: [__address__]
+        target_label: worker

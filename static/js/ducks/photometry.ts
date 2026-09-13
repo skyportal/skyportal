@@ -1,19 +1,10 @@
 /**
- * Source photometry.
- *
- * RTK Query conversion of the old `FETCH_SOURCE_PHOTOMETRY` duck. The query
- * fetches a source's photometry and is tagged `Photometry`; the mutations
+ * Source photometry: the query is tagged `Photometry` and the mutations
  * (delete, submit, update) invalidate it so the list refetches.
- *
- * The websocket `REFRESH_SOURCE_PHOTOMETRY` message is bridged to `Photometry`
- * tag invalidation via `invalidateOnMessage`, preserving the old conditional
- * logic (only refresh when the currently-loaded source matches the pushed
- * obj_id).
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import store from "../store";
-import { configApi } from "./config";
+import { photometryTag } from "./photometryTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
@@ -26,37 +17,20 @@ export interface PhotometryPoint {
 
 export const photometryApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    // Photometry points carry many optional, app-specific fields, so the element
-    // type is `any` (the `PhotometryPoint` interface above documents the stable
-    // fields).
     fetchSourcePhotometry: build.query<
       PhotometryPoint[],
       { id: number | string; params?: { [key: string]: any } }
     >({
-      query: ({ id, params = {} }) => {
-        // A deployment can route the source-page photometry fetch through a
-        // custom endpoint via the `photometry_display_endpoint` config (e.g. a
-        // broker passthrough that merges saved DB photometry with on-demand
-        // broker photometry). "{id}" is substituted with the object id; when
-        // unset, the standard sources endpoint is used. The endpoint must
-        // return the same response shape (a bare list of photometry points).
-        const template = configApi.endpoints.getConfig.select()(
-          store.getState() as any,
-        )?.data?.["photometryDisplayEndpoint"] as string | undefined;
-        const url = template
-          ? template.replace("{id}", encodeURIComponent(String(id)))
-          : `/api/sources/${id}/photometry`;
-        return {
-          url,
-          params: {
-            includeOwnerInfo: true,
-            includeStreamInfo: true,
-            includeValidationInfo: true,
-            ...params,
-          },
-        };
-      },
-      providesTags: ["Photometry"],
+      query: ({ id, params = {} }) => ({
+        url: `/api/brokers/photometry/${encodeURIComponent(String(id))}`,
+        params: {
+          includeOwnerInfo: true,
+          includeStreamInfo: true,
+          includeValidationInfo: true,
+          ...params,
+        },
+      }),
+      providesTags: (_result, _error, arg) => photometryTag(arg.id),
     }),
     deletePhotometry: build.mutation<
       RouteData<"DELETE /api/photometry/{photometry_id}">,
@@ -90,11 +64,9 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Websocket-driven invalidation: refresh photometry on
-// REFRESH_SOURCE_PHOTOMETRY. Active queries already keyed to the pushed obj_id
-// will refetch; others stay untouched.
+// scoped to the pushed object, so one source's push cannot refetch another page's
 invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload) =>
-  payload?.obj_id != null ? ["Photometry"] : null,
+  payload?.obj_id != null ? photometryTag(payload.obj_id) : null,
 );
 
 export const {

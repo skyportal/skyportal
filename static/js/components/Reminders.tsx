@@ -281,7 +281,9 @@ const Reminders = ({
       function RemindersToolbar() {
         return (
           <DataGridToolbar
+            title="Reminders"
             showColumns={false}
+            showExport={false}
             quickFilterTestId="reminders-quick-filter"
           >
             {!isReadOnly && (
@@ -366,7 +368,6 @@ const Reminders = ({
 
   return (
     <div data-testid="reminders-table">
-      <Typography variant="h6">Reminders</Typography>
       <Box sx={{ width: "100%" }}>
         <StyledDataGrid
           autoHeight

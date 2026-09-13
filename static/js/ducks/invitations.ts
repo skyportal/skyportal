@@ -10,6 +10,7 @@
  * Invite/update/delete are mutations that invalidate the `Invitations` tag so
  * the active list query refetches. This duck has no websocket refresh.
  */
+import { buildQueryString as toQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 
 export interface InvitationsParams {
@@ -28,13 +29,7 @@ export interface InvitationsResult {
 }
 
 const buildQueryString = (params: InvitationsParams): string => {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      search.append(key, String(value));
-    }
-  });
-  const qs = search.toString();
+  const qs = toQueryString(params);
   return qs ? `?${qs}` : "";
 };
 

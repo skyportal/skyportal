@@ -280,9 +280,10 @@ async def submit_mmt_request(
         if id_to_upload_chart_to is None:
             raise ValueError("No ID found in response to upload finder chart to")
 
-        finder_callable = get_finding_chart_callable(
+        finder_callable = await get_finding_chart_callable(
             obj_id=request.obj.id,
             session=session,
+            user=request.requester,
             imsize=4.0,
             use_cache=True,
             facility="Keck",
@@ -298,7 +299,7 @@ async def submit_mmt_request(
             finder_callable,
             id_to_upload_chart_to,
             altdata,
-            session.user_or_token.id,
+            request.requester_id,
         )
 
     try:

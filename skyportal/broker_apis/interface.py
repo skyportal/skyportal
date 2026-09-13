@@ -1,11 +1,61 @@
+from ..utils.survey import survey_from_object_id
 from ._base import _Base
+
+
+def normalize_module_streams(payload):
+    """Store the bare survey token in a custom module's ``streams``.
+
+    The builder posts full stream names ("ZTF Alerts", "ZTF (1, 2)") but filters
+    saved modules on the survey token alone, so a module saved verbatim would be
+    invisible in the builder that wrote it.
+    """
+    streams = payload.get("streams")
+    if not isinstance(streams, list):
+        return payload
+    tokens = []
+    for stream in streams:
+        token = (
+            stream.split()[0] if isinstance(stream, str) and stream.split() else stream
+        )
+        if token not in tokens:
+            tokens.append(token)
+    return {**payload, "streams": tokens}
+
+
+def survey_permissions(streams):
+    """Map survey -> sorted programids the given Streams grant, read from each
+    Stream's altdata ``{collection, selector}`` (``ZTF_alerts``/``[1, 2]`` ->
+    ``{"ZTF": [1, 2]}``). Providers scope alert queries to this so a user only
+    ever sees the alerts their streams cover.
+    """
+    permissions: dict = {}
+    for stream in streams:
+        altdata = stream.altdata or {}
+        collection, selector = altdata.get("collection"), altdata.get("selector")
+        if not collection or not selector:
+            continue
+        survey = str(collection).split("_")[0].upper()
+        permissions.setdefault(survey, set()).update(int(s) for s in selector)
+    return {survey: sorted(programids) for survey, programids in permissions.items()}
+
+
+def altdata_filter_modules(broker, elements, name=None):
+    """Read custom filter modules from a broker's ``altdata`` (the default store).
+
+    Returns the list for ``elements``, or — when ``name`` is given — the single
+    matching module, or ``None`` if there is no such module.
+    """
+    modules = (broker.altdata or {}).get("filter_modules") or {}
+    items = modules.get(elements, [])
+    if name is None:
+        return items
+    return next((i for i in items if i.get("name") == name), None)
 
 
 class BrokerAPI(_Base):
     """An interface that broker providers must implement.
 
-    A "broker" is an external source of alerts (e.g. BOOM, Kowalski, Fink,
-    Lasair). A provider is a registered class that knows how to talk to one
+    A "broker" is an external source of alerts (e.g. BOOM, Fink, Lasair). A provider is a registered class that knows how to talk to one
     broker; a configured instance lives in the ``Broker`` model, which supplies
     per-instance credentials/endpoints via its encrypted ``altdata``.
 
@@ -15,6 +65,11 @@ class BrokerAPI(_Base):
     is a ``staticmethod`` taking the configured ``broker`` (a ``Broker`` model
     instance) plus a DB ``session`` and operation-specific keyword arguments.
     """
+
+    # Safe to run in multiple broker_ingest processes at once? True only for
+    # providers that consume via a shared Kafka consumer group (Kafka rebalances
+    # partitions across them); False for REST pollers, which would duplicate.
+    parallel_ingestion = False
 
     # ------------------------------------------------------------------ #
     # Interactive operations (skyportal -> broker)                       #
@@ -32,7 +87,18 @@ class BrokerAPI(_Base):
             A database session.
         kwargs: dict
             Query parameters (e.g. ``objectId``, ``candid``, ``ra``, ``dec``,
-            ``radius``).
+            ``radius``), plus ``permissions``: the requester's survey ->
+            programids scope (see ``survey_permissions``), which handlers always
+            inject and providers serving restricted data must honour. ``None``
+            means unrestricted; a missing key must grant nothing.
+
+            Optionally ``jd_start`` / ``jd_end``: bound the alert JD, either
+            bound alone being valid. Callers matching against a transient event
+            need alerts near it in time, and an unbounded cone search returns
+            every alert ever recorded at that position. Honouring these is
+            best-effort -- a provider whose backend cannot express it may ignore
+            them, so callers that require the window must still enforce it on
+            the returned alerts.
 
         Returns
         -------
@@ -65,15 +131,23 @@ class BrokerAPI(_Base):
         available), then hand off to the shared, survey-keyed writer
         (``_save.save_object_as_source``). Override only for a non-standard
         alert shape.
+
+        The survey is inferred from the object id before falling back to the
+        broker's ``altdata`` default, which names a single survey: a multi-survey
+        broker would otherwise ingest an LSST object's bands as ZTF ones.
         """
         from ._save import save_object_as_source
 
+        kwargs["survey"] = kwargs.get("survey") or survey_from_object_id(
+            alert_id, cls.surveys
+        )
         data = cls.get_alert(broker, alert_id, session, **kwargs)
         survey = (
-            kwargs.get("survey")
+            kwargs["survey"]
             or (data.get("survey") if isinstance(data, dict) else None)
             or (broker.altdata or {}).get("survey")
         )
+        kwargs["survey"] = survey
         cutouts = None
         candid = None
         if isinstance(data, dict):
@@ -90,14 +164,9 @@ class BrokerAPI(_Base):
     @classmethod
     async def get_photometry(cls, broker, alert_id, session, user, **kwargs):
         """Display-only photometry for an object (``alert_id`` = objectId): the
-        persisted, access-controlled DB photometry merged with photometry fetched
-        on demand from the broker, cached per access scope and never written to
-        Postgres (the broker-canonical / marshal-as-cache pattern).
-
-        Default implementation, free to any provider that implements
-        ``get_alert``: fetch the object and hand off to the shared, survey-keyed
-        transform + cache (``_photometry.display_photometry``). Override only for
-        a non-standard alert shape.
+        access-controlled DB photometry merged with photometry fetched on demand
+        from the broker, never written to Postgres. Free to any provider that
+        implements ``get_alert``; override only for a non-standard alert shape.
         """
         from ._photometry import display_photometry
 
@@ -119,6 +188,11 @@ class BrokerAPI(_Base):
         raise NotImplementedError
 
     @staticmethod
+    def validate_filter(broker, session, **kwargs):
+        """Validate a filter version for activation without changing state."""
+        raise NotImplementedError
+
+    @staticmethod
     def delete_filter(broker, session, **kwargs):
         """Delete a filter on the broker."""
         raise NotImplementedError
@@ -132,6 +206,38 @@ class BrokerAPI(_Base):
     def filter_modules(broker, session, **kwargs):
         """Return the pipeline stages/modules the broker's filters support."""
         raise NotImplementedError
+
+    @staticmethod
+    def write_filter_module(broker, session, name, elements, payload, insert):
+        """Persist one custom filter module (variable/listVariable/switchCase/block).
+
+        Concrete default — not a stub — storing modules broker-scoped in
+        ``altdata``; providers owning a separate module store override it. It is
+        deliberately left out of ``_base._methods`` so capability gating stays on
+        ``filter_modules`` (same pattern as ``save_as_source``).
+
+        Raises ``ValueError`` when updating (``insert=False``) a name that does
+        not exist.
+        """
+        payload = normalize_module_streams(payload)
+        altdata = broker.altdata or {}
+        modules = altdata.setdefault("filter_modules", {})
+        items = modules.setdefault(elements, [])
+        existing = next((i for i in items if i.get("name") == name), None)
+        if insert:
+            item = {"name": name, **payload}
+            if existing is not None:
+                items[items.index(existing)] = item
+            else:
+                items.append(item)
+        elif existing is None:
+            raise ValueError(f"No {elements} named '{name}'.")
+        else:
+            existing.update(payload)
+        # Round-trip the whole altdata (credentials preserved, never exposed);
+        # only the filter_modules sub-key is mutated.
+        broker.altdata = altdata
+        session.commit()
 
     # ------------------------------------------------------------------ #
     # Ingestion (broker -> skyportal). Implemented in a later stage on    #
@@ -151,6 +257,13 @@ class BrokerAPI(_Base):
     @staticmethod
     def validate_config(altdata):
         """Validate a broker instance's ``altdata`` (credentials/endpoints)."""
+        raise NotImplementedError
+
+    @staticmethod
+    def test_connection(broker):
+        """Reach the broker with its stored credentials, raising on failure.
+        Implemented by providers that need credentials; skyportal runs it before
+        activating a broker."""
         raise NotImplementedError
 
     # jsonschema for the "configure this broker" frontend form (react-jsonschema-form).
@@ -178,3 +291,12 @@ class BrokerAPI(_Base):
     # cross-match overlay. Providers whose cone_search returns their own alert
     # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
     cross_match_catalogs = False
+
+    # False where get_alert is too slow or too costly to run on every page view.
+    photometry_passthrough = True
+
+    # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
+    # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo
+    # pipeline and runs an unconstrained query instead of erroring, so callers
+    # that build one must check this rather than the test_filter capability.
+    filter_pipeline = None

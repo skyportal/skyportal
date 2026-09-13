@@ -59,7 +59,11 @@ function EditSourceToolbar(props: EditSourceToolbarProps) {
   };
 
   return (
-    <DataGridToolbar showColumns={false} showQuickFilter={false}>
+    <DataGridToolbar
+      showColumns={false}
+      showQuickFilter={false}
+      showExport={false}
+    >
       <Button color="primary" startIcon={<AddIcon />} onClick={handleClick}>
         Add Source Manually (by name)
       </Button>

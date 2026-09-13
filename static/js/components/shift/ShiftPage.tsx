@@ -15,9 +15,9 @@ import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
 import ManageRecurringShifts from "./ManageRecurringShifts";
 import { useGetShiftsQuery, useGetShiftQuery } from "../../ducks/shifts";
-import { useIsReadOnly } from "../../ducks/profile";
+import { useHasPermission } from "../../ducks/profile";
 
-const CommentList = React.lazy(() => import("../comment/CommentList"));
+const CommentThread = React.lazy(() => import("../comment/CommentThread"));
 
 const useStyles = makeStyles()((theme) => ({
   paperContent: {
@@ -48,7 +48,7 @@ interface ShiftPageProps {
 
 const ShiftPage = ({ route = null }: ShiftPageProps) => {
   const { classes } = useStyles();
-  const isReadOnly = useIsReadOnly();
+  const canManageShifts = useHasPermission("Manage shifts");
   const [endDateLimit, setEndDateLimit] = useState(() =>
     getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
   );
@@ -104,7 +104,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
               width: "100%",
             }}
           >
-            {!isReadOnly && (
+            {canManageShifts && (
               <Button
                 secondary
                 name="add_shift_button"
@@ -121,12 +121,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                     boxShadow: isNewShift
                       ? "4px 0 4px -3px rgba(0, 0, 0, 0.2)"
                       : "none",
-                    backgroundColor: isNewShift ? "#f0f2f5" : "#e0e0e0",
+                    backgroundColor: isNewShift
+                      ? "background.paper"
+                      : "action.disabledBackground",
                   },
                   ...(isNewShift && {
                     boxShadow: "4px 0 4px -3px rgba(0, 0, 0, 0.2)",
                     zIndex: 3,
-                    backgroundColor: "#f0f2f5",
+                    backgroundColor: "background.paper",
                     borderBottom: "none",
                   }),
                 }}
@@ -151,10 +153,12 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                 "&:hover": {
                   boxShadow:
                     "-4px 0 4px -3px rgba(0, 0, 0, 0.2), 4px 0 4px -3px rgba(0, 0, 0, 0.2)",
-                  backgroundColor: isManageShift ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isManageShift
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isManageShift && {
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -178,12 +182,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                   boxShadow: isRecurring
                     ? "-4px 0 4px -3px rgba(0, 0, 0, 0.2)"
                     : "none",
-                  backgroundColor: isRecurring ? "#f0f2f5" : "#e0e0e0",
+                  backgroundColor: isRecurring
+                    ? "background.paper"
+                    : "action.disabledBackground",
                 },
                 ...(isRecurring && {
                   boxShadow: "-4px 0 4px -3px rgba(0, 0, 0, 0.2)",
                   zIndex: 3,
-                  backgroundColor: "#f0f2f5",
+                  backgroundColor: "background.paper",
                   borderBottom: "none",
                 }),
               }}
@@ -192,7 +198,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             </Button>
           </Box>
           <div className={classes.paperContent}>
-            {show === "new shift" && !isReadOnly && (
+            {show === "new shift" && canManageShifts && (
               <NewShift
                 preSelectedRange={preSelectedRange}
                 setPreSelectedRange={setPreSelectedRange}
@@ -224,9 +230,10 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             <Paper>
               <div className={classes.comments}>
                 <Suspense fallback={<CircularProgress />}>
-                  <CommentList
-                    associatedResourceType="shift"
+                  <CommentThread
+                    resourceType="shift"
                     shiftID={currentShift?.id}
+                    maxHeightList="350px"
                   />
                 </Suspense>
               </div>

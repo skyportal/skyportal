@@ -1320,10 +1320,10 @@ def test_token_user_get_range_spectrum(
     assert data["data"][0]["fluxes"][0] == 434.2
     assert data["data"][0]["obj_id"] == public_source.id
 
-    # 2020-01-15T00:00:00+00:00
+    # 2020-01-15T00:00:00
     status, data = api(
         "GET",
-        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00",
+        f"spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00",
         token=upload_data_token,
     )
     assert status == 200
@@ -1450,7 +1450,7 @@ def test_token_user_post_spectrum_no_access(
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -1538,7 +1538,7 @@ def test_token_user_cannot_update_unowned_spectrum(
         token=manage_sources_token,
     )
 
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -1657,7 +1657,7 @@ def test_user_cannot_delete_unowned_spectrum_data(
     assert data["data"]["obj_id"] == public_source.id
 
     status, data = api("DELETE", f"spectrum/{spectrum_id}", token=manage_sources_token)
-    assert status == 401
+    assert status == 403
 
 
 def test_user_can_delete_owned_spectrum_data(
@@ -1735,11 +1735,13 @@ def test_jsonify_spectrum_header(
                 "POST",
                 "spectrum/parse/ascii",
                 data={
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": f.read(),
                 },
                 token=upload_data_token,
@@ -1829,11 +1831,13 @@ def test_jsonify_spectrum_data(
                 "POST",
                 "spectrum/parse/ascii",
                 data={
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": f.read(),
                 },
                 token=upload_data_token,
@@ -1891,11 +1895,13 @@ def test_upload_bad_spectrum_from_ascii_file(
                     "observed_at": observed_at,
                     "instrument_id": lris.id,
                     "group_ids": [public_group.id],
-                    "fluxerr_column": 3
-                    if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
-                    else 2
-                    if "P60" in filename
-                    else None,
+                    "fluxerr_column": (
+                        3
+                        if "ZTF20abpuxna_20200915_Keck1_v1.ascii" in filename
+                        else 2
+                        if "P60" in filename
+                        else None
+                    ),
                     "ascii": content,
                     "filename": filename,
                 },
@@ -1983,6 +1989,55 @@ def test_spectrum_external_reducer_and_observer(
     assert data["data"]["external_pi"] == "Test external PI"
 
 
+def test_obj_spectra_external_fields(
+    upload_data_token, public_source, public_group, lris, user
+):
+    """The obj-spectra listing reports the external fields per spectrum, and
+    distinguishes a spectrum with no association row from one whose row is null."""
+    common = {
+        "obj_id": str(public_source.id),
+        "observed_at": str(datetime.datetime.now()),
+        "instrument_id": lris.id,
+        "wavelengths": [664, 665, 666],
+        "fluxes": [234.2, 232.1, 235.3],
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            **common,
+            "reduced_by": [user.id],
+            "external_reducer": "Test external reducer",
+            "observed_by": [user.id],
+            "external_observer": "Test external observer",
+            "pi": [user.id],
+            "external_pi": "Test external PI",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    with_external = data["data"]["id"]
+
+    status, data = api("POST", "spectrum", data=common, token=upload_data_token)
+    assert status == 200
+    without_external = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/spectra", token=upload_data_token
+    )
+    assert status == 200
+    by_id = {spec["id"]: spec for spec in data["data"]["spectra"]}
+
+    assert by_id[with_external]["external_reducer"] == "Test external reducer"
+    assert by_id[with_external]["external_observer"] == "Test external observer"
+    assert by_id[with_external]["external_pi"] == "Test external PI"
+
+    # No association row at all, so the keys are absent rather than null.
+    for key in ("external_pi", "external_reducer", "external_observer"):
+        assert key not in by_id[without_external]
+
+
 def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
     # post this spectrum without a type (should default to "source")
     status, data = api(
@@ -2055,3 +2110,58 @@ def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group
     )
     assert status == 400
     assert "Must be one of: " in data["message"]
+
+
+def test_bulk_spectra(
+    super_admin_user, super_admin_token, public_source, public_group, lris
+):
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": public_source.id,
+            "observed_at": "2020-01-10T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [234.3, 232.1, 235.3],
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    def check(result):
+        source_ids = [s["id"] for s in result["sources"]]
+        assert public_source.id in source_ids
+        src = next(s for s in result["sources"] if s["id"] == public_source.id)
+        # Phase anchors are always present (values may be null without a PhotStat).
+        for key in ("redshift", "first_detected_mjd", "peak_mjd", "tns_discovery_date"):
+            assert key in src
+        spectra = [sp for sp in result["spectra"] if sp["obj_id"] == public_source.id]
+        assert len(spectra) >= 1
+        assert spectra[0]["wavelengths"][0] == 664
+        assert spectra[0]["fluxes"][0] == 234.3
+        assert spectra[0]["observed_at"] is not None
+
+    # Select by explicit object list.
+    status, data = api(
+        "POST",
+        "spectra/bulk",
+        data={"obj_ids": [public_source.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    check(data["data"])
+
+    # Select by group.
+    status, data = api(
+        "POST",
+        "spectra/bulk",
+        data={"group_id": public_group.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    check(data["data"])

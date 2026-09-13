@@ -26,6 +26,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import { buildQueryString as buildQuery } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { components } from "../types/api";
@@ -37,11 +38,7 @@ dayjs.extend(utc);
 type FilterParams = Record<string, unknown>;
 
 const buildQueryString = (filterParams: FilterParams): string => {
-  const params = new URLSearchParams(
-    Object.fromEntries(
-      Object.entries(filterParams).map(([key, value]) => [key, String(value)]),
-    ),
-  ).toString();
+  const params = buildQuery(filterParams);
   return params ? `api/observation?${params}` : "api/observation";
 };
 
@@ -145,11 +142,7 @@ export const queuedObservationsApi = skyportalApi.injectEndpoints({
       RequestAPIQueuesArg
     >({
       query: ({ id, data = { queuesOnly: true } }) => {
-        const params = new URLSearchParams(
-          Object.fromEntries(
-            Object.entries(data).map(([key, value]) => [key, String(value)]),
-          ),
-        ).toString();
+        const params = buildQuery(data);
         return params
           ? `api/observation/external_api/${id}?${params}`
           : `api/observation/external_api/${id}`;

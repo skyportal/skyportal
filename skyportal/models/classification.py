@@ -1,4 +1,4 @@
-__all__ = ["Classification", "ClassificationVote"]
+__all__ = ["Classification", "ClassificationEdit", "ClassificationVote"]
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
@@ -89,6 +89,14 @@ class Classification(Base):
         passive_deletes=True,
         doc="Classification votes for this classification.",
     )
+    edits = relationship(
+        "ClassificationEdit",
+        back_populates="classification",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        order_by="ClassificationEdit.created_at",
+        doc="Record of the probability edits made to this classification.",
+    )
 
     def format_author(self):
         user = self.author
@@ -120,6 +128,47 @@ class Classification(Base):
             "ml": self.ml,
             "taxname": self.taxonomy.name if self.taxonomy else None,
         }
+
+
+class ClassificationEdit(Base):
+    """Record of a change to an existing Classification's probability, so that
+    updating a classification in place (e.g. with the sliders) keeps a trace of
+    who changed what and when.
+    """
+
+    create = read = update = delete = AccessibleIfRelatedRowsAreAccessible(
+        classification="read"
+    )
+
+    classification_id = sa.Column(
+        sa.ForeignKey("classifications.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Classification that was edited.",
+    )
+    classification = relationship(
+        "Classification",
+        back_populates="edits",
+        doc="The Classification this edit was made to.",
+    )
+    editor_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the User that made this edit.",
+    )
+    editor = relationship("User", doc="The User that made this edit.")
+    editor_name = sa.Column(
+        sa.String,
+        nullable=False,
+        doc="User.username or Token.id of the editor.",
+    )
+    old_probability = sa.Column(
+        sa.Float, nullable=True, doc="Probability before the edit."
+    )
+    new_probability = sa.Column(
+        sa.Float, nullable=True, doc="Probability after the edit."
+    )
 
 
 class ClassificationVote(Base):

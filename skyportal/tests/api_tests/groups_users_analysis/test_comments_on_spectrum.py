@@ -204,12 +204,11 @@ def test_cannot_add_comment_on_spectrum_without_permission(
         "POST",
         f"spectra/{spectrum_id}/comments",
         data={
-            "spectrum_id": spectrum_id,
             "text": "Comment text",
         },
         token=view_only_token,
     )
-    assert status == 401
+    assert status == 403
     assert data["status"] == "error"
 
 
@@ -236,7 +235,6 @@ def test_delete_comment_on_spectrum(
         "POST",
         f"spectra/{spectrum_id}/comments",
         data={
-            "spectrum_id": spectrum_id,
             "text": "Comment text",
         },
         token=comment_token,

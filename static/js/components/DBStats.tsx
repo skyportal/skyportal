@@ -12,6 +12,7 @@ import Box from "@mui/material/Box";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Button from "./Button";
+import DBStatsHistory from "./DBStatsHistory";
 
 import { useGetDbStatsQuery } from "../ducks/dbStats";
 
@@ -27,23 +28,14 @@ const DBStats = () => {
 
   const dialogOpen = Boolean(clickedCronjobOutput);
 
-  if (dbStats == null) {
-    return (
-      <>
-        <br />
-        <CircularProgress />
-      </>
-    );
-  }
-
   return (
-    <>
-      <br />
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
       <Typography variant="h5">DB Stats</Typography>
-      <br />
+      <DBStatsHistory />
+      {dbStats == null && <CircularProgress />}
       <Table>
         <TableBody>
-          {Object.keys(dbStats).map((key) => (
+          {Object.keys(dbStats ?? {}).map((key) => (
             <TableRow key={key}>
               <TableCell>
                 <em>{key}</em>
@@ -105,7 +97,7 @@ const DBStats = () => {
           ))}
         </TableBody>
       </Table>
-    </>
+    </Box>
   );
 };
 

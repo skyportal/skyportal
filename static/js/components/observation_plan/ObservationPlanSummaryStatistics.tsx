@@ -45,39 +45,23 @@ const ObservationPlanSummaryStatistics = ({
       observationplanRequest?.status as string,
     )
   ) {
-    return (
-      <div>
-        <p>Only available for completed requests.</p>
-      </div>
-    );
+    return "Only available for completed requests.";
   }
 
-  if (!summaryStatistics || summaryStatistics?.length === 0) {
-    return (
-      <div>
-        <div>
-          <CircularProgress />
-        </div>
-      </div>
-    );
-  }
+  if (!summaryStatistics?.length) return <CircularProgress />;
 
   const stats = summaryStatistics[0]!.statistics;
 
   return (
-    <div>
-      <div>
-        <ul>
-          <li> Number of Observations: {stats.num_observations} </li>
-          <li> Delay from Trigger: {stats.dt} </li>
-          <li> Start of Observations: {stats.start_observation} </li>
-          <li> Unique filters: {stats.unique_filters?.join(", ")} </li>
-          <li> Total time [s]: {stats.total_time} </li>
-          <li> Probability: {stats.probability?.toFixed(3)} </li>
-          <li> Area [sq. deg.]: {stats.area?.toFixed(1)} </li>
-        </ul>
-      </div>
-    </div>
+    <ul>
+      <li> Number of Observations: {stats.num_observations} </li>
+      <li> Delay from Trigger: {stats.dt} </li>
+      <li> Start of Observations: {stats.start_observation} </li>
+      <li> Unique filters: {stats.unique_filters?.join(", ")} </li>
+      <li> Total time [s]: {stats.total_time} </li>
+      <li> Probability: {stats.probability?.toFixed(3)} </li>
+      <li> Area [sq. deg.]: {stats.area?.toFixed(1)} </li>
+    </ul>
   );
 };
 

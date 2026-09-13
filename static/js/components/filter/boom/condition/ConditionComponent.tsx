@@ -405,6 +405,7 @@ const ConditionComponentInner = ({
   return (
     <Box
       key={conditionOrBlock.id}
+      data-testid="tour-filter-condition"
       sx={{
         ml: 2,
         pr: "140px",

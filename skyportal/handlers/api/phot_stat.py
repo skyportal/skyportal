@@ -1,5 +1,8 @@
+from typing import Annotated
+
 import arrow
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +17,8 @@ from ...models import (
     Source,
 )
 from ..base import BaseHandler
+
+ObjId = Annotated[str, Field(description="object ID to get statistics on")]
 
 log = make_log("api/source")
 
@@ -48,20 +53,13 @@ DEFAULT_AGGREGATE_POINTS = 20000
 
 class PhotStatHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id: str = None):
+    async def get(self, obj_id: ObjId = None):
         """
         ---
         summary: Get photometry stats for a source
         description: retrieve the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -79,7 +77,6 @@ class PhotStatHandler(BaseHandler):
                   schema: Error
 
         """
-
         async with self.AsyncSession() as session:
             obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -112,20 +109,13 @@ class PhotStatHandler(BaseHandler):
         return self.success(data=phot_stat)
 
     @permissions(["system admin"])
-    async def post(self, obj_id: str = None):
+    async def post(self, obj_id: ObjId = None):
         """
         ---
         summary: Create new phot stats for a source
         description: create a new PhotStat to be associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -166,20 +156,13 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def put(self, obj_id: str = None):
+    async def put(self, obj_id: ObjId = None):
         """
         ---
         summary: Update phot stats for a source
         description: create or update the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -217,20 +200,13 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def delete(self, obj_id: str = None):
+    async def delete(self, obj_id: ObjId = None):
         """
         ---
         summary: Delete phot stats of a source
         description: delete the PhotStat associated with the obj_id.
         tags:
           - photometry
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-            description: object ID to get statistics on
         responses:
           200:
             content:
@@ -265,72 +241,168 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
 
+class PhotStatUpdateGetQuery(BaseModel):
+    """Query parameters for counting sources with and without PhotStats."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    createdAtStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created after this time "
+            "will be checked for missing/existing PhotStats."
+        ),
+    )
+    createdAtEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created before this time "
+            "will be checked for missing/existing PhotStats."
+        ),
+    )
+    quickUpdateStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been updated (either full update or "
+            "an update at insert time) after this time "
+            "will be recalculated."
+        ),
+    )
+    quickUpdateEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been updated (either full update or "
+            "an update at insert time) before this time "
+            "will be recalculated."
+        ),
+    )
+    fullUpdateStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been fully updated after this time "
+            "will be counted."
+        ),
+    )
+    fullUpdateEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been fully updated before this time "
+            "will be counted."
+        ),
+    )
+
+
+class PhotStatUpdatePostQuery(BaseModel):
+    """Query parameters for calculating PhotStats for a batch of sources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numPerPage: int = Field(
+        default=DEFAULT_SOURCES_PER_PAGE,
+        description="Number of sources to check for updates. Defaults to 100. Max 500.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for iterating through all sources. Defaults to 1",
+    )
+    createdAtStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created after this time "
+            "will be checked for missing PhotStats."
+        ),
+    )
+    createdAtEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created before this time "
+            "will be checked for missing PhotStats."
+        ),
+    )
+
+
+class PhotStatUpdatePatchQuery(BaseModel):
+    """Query parameters for recalculating PhotStats for a batch of sources."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numPerPage: int = Field(
+        default=DEFAULT_SOURCES_PER_PAGE,
+        description="Number of sources to check for updates. Defaults to 100. Max 500.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for iterating through all sources. Defaults to 1",
+    )
+    createdAtStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created after this time "
+            "will be checked for missing/existing PhotStats."
+        ),
+    )
+    createdAtEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, only objects "
+            "that have been created before this time "
+            "will be checked for missing/existing PhotStats."
+        ),
+    )
+    quickUpdateStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been updated (either full update or "
+            "an update at insert time) after this time "
+            "will be recalculated."
+        ),
+    )
+    quickUpdateEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been updated (either full update or "
+            "an update at insert time) before this time "
+            "will be recalculated."
+        ),
+    )
+    fullUpdateStartTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been fully updated after this time "
+            "will be recalculated."
+        ),
+    )
+    fullUpdateEndTime: str | None = Field(
+        default=None,
+        description=(
+            "arrow parseable string, any object's PhotStat "
+            "that has been fully updated before this time "
+            "will be recalculated."
+        ),
+    )
+
+
 class PhotStatUpdateHandler(BaseHandler):
     @permissions(["System admin"])
-    async def get(self):
+    async def get(self, *, query: PhotStatUpdateGetQuery = None):
         """
         ---
         summary: Get counts of sources w/ and w/o PhotStats
         description: find the number of sources with and without a PhotStat object
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: createdAtStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created after this time
-              will be checked for missing/existing PhotStats.
-          - in: query
-            name: createdAtEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created before this time
-              will be checked for missing/existing PhotStats.
-          - in: query
-            name: quickUpdateStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been updated (either full update or
-              an update at insert time) after this time
-              will be recalculated.
-          - in: query
-            name: quickUpdateEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been updated (either full update or
-              an update at insert time) before this time
-              will be recalculated.
-          - in: query
-            name: fullUpdateStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been fully updated after this time
-              will be counted.
-          - in: query
-            name: fullUpdateEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been fully updated before this time
-              will be counted.
         responses:
             200:
               content:
@@ -354,12 +426,14 @@ class PhotStatUpdateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
-        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
-        quick_update_start_time = self.get_query_argument("quickUpdateStartTime", None)
-        quick_update_end_time = self.get_query_argument("quickUpdateEndTime", None)
-        full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
-        full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
+        query = self.parse_query(PhotStatUpdateGetQuery)
+
+        created_at_start_time = query.createdAtStartTime
+        created_at_end_time = query.createdAtEndTime
+        quick_update_start_time = query.quickUpdateStartTime
+        quick_update_end_time = query.quickUpdateEndTime
+        full_update_start_time = query.fullUpdateStartTime
+        full_update_end_time = query.fullUpdateEndTime
 
         async with self.AsyncSession() as session:
             try:
@@ -441,45 +515,13 @@ class PhotStatUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    async def post(self):
+    async def post(self, *, query: PhotStatUpdatePostQuery = None):
         """
         ---
         summary: Calculate phot stats for a batch of sources
         description: calculate photometric stats for a batch of sources without a PhotStat
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
-          - in: query
-            name: createdAtStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created after this time
-              will be checked for missing PhotStats.
-          - in: query
-            name: createdAtEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created before this time
-              will be checked for missing PhotStats.
         responses:
             200:
               content:
@@ -504,18 +546,13 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        num_per_page = self.get_query_argument(
-            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
-        )
-        if page_number is None or num_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
+        query = self.parse_query(PhotStatUpdatePostQuery)
 
-        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
-        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, MAX_SOURCES_PER_PAGE)
+
+        created_at_start_time = query.createdAtStartTime
+        created_at_end_time = query.createdAtEndTime
 
         async with self.AsyncSession() as session:
             stmt = sa.select(Obj).options(selectinload(Obj.photstats))
@@ -570,83 +607,13 @@ class PhotStatUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    async def patch(self):
+    async def patch(self, *, query: PhotStatUpdatePatchQuery = None):
         """
         ---
         summary: Recalculate phot stats for a batch of sources
         description: manually recalculate the photometric stats for a batch of sources
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of sources to check for updates. Defaults to 100. Max 500.
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for iterating through all sources. Defaults to 1
-          - in: query
-            name: createdAtStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created after this time
-              will be checked for missing/existing PhotStats.
-          - in: query
-            name: createdAtEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, only objects
-              that have been created before this time
-              will be checked for missing/existing PhotStats.
-          - in: query
-            name: quickUpdateStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been updated (either full update or
-              an update at insert time) after this time
-              will be recalculated.
-          - in: query
-            name: quickUpdateEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been updated (either full update or
-              an update at insert time) before this time
-              will be recalculated.
-          - in: query
-            name: fullUpdateStartTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been fully updated after this time
-              will be recalculated.
-          - in: query
-            name: fullUpdateEndTime
-            required: false
-            schema:
-              type: string
-            description: |
-              arrow parseable string, any object's PhotStat
-              that has been fully updated before this time
-              will be recalculated.
         responses:
             200:
               content:
@@ -671,22 +638,17 @@ class PhotStatUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        num_per_page = self.get_query_argument(
-            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
-        )
-        if page_number is None or num_per_page is None:
-            return self.error(
-                "Cannot parse inputs pageNumber or numPerPage as integers."
-            )
-        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
+        query = self.parse_query(PhotStatUpdatePatchQuery)
 
-        created_at_start_time = self.get_query_argument("createdAtStartTime", None)
-        created_at_end_time = self.get_query_argument("createdAtEndTime", None)
-        quick_update_start_time = self.get_query_argument("quickUpdateStartTime", None)
-        quick_update_end_time = self.get_query_argument("quickUpdateEndTime", None)
-        full_update_start_time = self.get_query_argument("fullUpdateStartTime", None)
-        full_update_end_time = self.get_query_argument("fullUpdateEndTime", None)
+        page_number = query.pageNumber
+        num_per_page = min(query.numPerPage, MAX_SOURCES_PER_PAGE)
+
+        created_at_start_time = query.createdAtStartTime
+        created_at_end_time = query.createdAtEndTime
+        quick_update_start_time = query.quickUpdateStartTime
+        quick_update_end_time = query.quickUpdateEndTime
+        full_update_start_time = query.fullUpdateStartTime
+        full_update_end_time = query.fullUpdateEndTime
 
         async with self.AsyncSession() as session:
             stmt = sa.select(Obj).options(selectinload(Obj.photstats))
@@ -783,9 +745,60 @@ class PhotStatUpdateHandler(BaseHandler):
         return self.success(data=results)
 
 
+class PhotStatAggregateGetQuery(BaseModel):
+    """Query parameters for bulk photometry statistics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    xField: str | None = Field(
+        default=None,
+        description="PhotStat field for the x axis (see the returned `fields`).",
+    )
+    yField: str | None = Field(
+        default=None,
+        description="PhotStat field for the y axis.",
+    )
+    zField: str | None = Field(
+        default=None,
+        description="Optional PhotStat field for a third (z) axis.",
+    )
+    classifications: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated classification names to down-select sources "
+            "(matches any). Omit to include all accessible sources."
+        ),
+    )
+    classificationProbThreshold: float | None = Field(
+        default=None,
+        description="Only count classifications at or above this probability.",
+    )
+    group_id: int | None = Field(
+        default=None,
+        description=(
+            "Restrict to sources saved to this group (an alternative to "
+            "classification-based selection)."
+        ),
+    )
+    obj_ids: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated object IDs to restrict to (an alternative to "
+            "classification-based selection)."
+        ),
+    )
+    maxMatches: int = Field(
+        default=DEFAULT_AGGREGATE_POINTS,
+        description=(
+            "Maximum number of points to return (default 20000, capped at "
+            "100000). If more match, the response is truncated."
+        ),
+    )
+
+
 class PhotStatAggregateHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    async def get(self, *, query: PhotStatAggregateGetQuery = None):
         """
         ---
         summary: Bulk photometry statistics for plotting
@@ -798,41 +811,6 @@ class PhotStatAggregateHandler(BaseHandler):
           the list of plottable fields only.
         tags:
           - photometry
-        parameters:
-          - in: query
-            name: xField
-            schema:
-              type: string
-            description: PhotStat field for the x axis (see the returned `fields`).
-          - in: query
-            name: yField
-            schema:
-              type: string
-            description: PhotStat field for the y axis.
-          - in: query
-            name: zField
-            schema:
-              type: string
-            description: Optional PhotStat field for a third (z) axis.
-          - in: query
-            name: classifications
-            schema:
-              type: string
-            description: |
-              Comma-separated classification names to down-select sources
-              (matches any). Omit to include all accessible sources.
-          - in: query
-            name: classificationProbThreshold
-            schema:
-              type: number
-            description: Only count classifications at or above this probability.
-          - in: query
-            name: maxMatches
-            schema:
-              type: integer
-            description: |
-              Maximum number of points to return (default 20000, capped at
-              100000). If more match, the response is truncated.
         responses:
           200:
             content:
@@ -843,14 +821,16 @@ class PhotStatAggregateHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        query = self.parse_query(PhotStatAggregateGetQuery)
+
         fields_meta = [
             {"value": value, "label": label}
             for value, label in PHOT_STAT_PLOT_FIELDS.items()
         ]
 
-        x_field = self.get_query_argument("xField", None)
-        y_field = self.get_query_argument("yField", None)
-        z_field = self.get_query_argument("zField", None)
+        x_field = query.xField
+        y_field = query.yField
+        z_field = query.zField
 
         # Metadata-only request: let the UI populate its axis dropdowns.
         if not x_field or not y_field:
@@ -870,28 +850,28 @@ class PhotStatAggregateHandler(BaseHandler):
             if value not in PHOT_STAT_PLOT_FIELDS:
                 return self.error(f"Invalid {name}: {value}")
 
-        classifications = self.get_query_argument("classifications", None)
-        prob_threshold = self.get_query_argument("classificationProbThreshold", None)
-        if prob_threshold is not None:
-            try:
-                prob_threshold = float(prob_threshold)
-            except ValueError:
-                return self.error("classificationProbThreshold must be a number")
+        classifications = query.classifications
+        prob_threshold = query.classificationProbThreshold
 
-        try:
-            max_matches = int(
-                self.get_query_argument("maxMatches", DEFAULT_AGGREGATE_POINTS)
-            )
-        except ValueError:
-            return self.error("maxMatches must be an integer")
-        max_matches = max(1, min(max_matches, MAX_AGGREGATE_POINTS))
+        # Alternative source selections (used instead of classification): a group
+        # or an explicit object list.
+        group_id = query.group_id
+        obj_ids = query.obj_ids
+        if obj_ids:
+            obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
+
+        max_matches = max(1, min(query.maxMatches, MAX_AGGREGATE_POINTS))
 
         async with self.AsyncSession() as session:
             # Restrict to sources the user can access, and to classifications
             # they can see (non-ML), then color by the highest-probability one.
-            accessible_source_obj_ids = sa.select(
-                Source.select(self.current_user).subquery().c.obj_id
-            )
+            # A group or explicit object list narrows the accessible source set.
+            src = Source.select(self.current_user)
+            if group_id is not None:
+                src = src.where(Source.group_id == group_id)
+            if obj_ids:
+                src = src.where(Source.obj_id.in_(obj_ids))
+            accessible_source_obj_ids = sa.select(src.subquery().c.obj_id)
             accessible_cls = (
                 Classification.select(self.current_user)
                 .where(Classification.ml.is_(False))
@@ -917,6 +897,9 @@ class PhotStatAggregateHandler(BaseHandler):
                 Obj.ra.label("ra"),
                 Obj.dec.label("dec"),
                 Obj.redshift.label("redshift"),
+                Obj.tns_info.label("tns_info"),
+                PhotStat.first_detected_mjd.label("first_detected_mjd"),
+                PhotStat.peak_mjd_global.label("peak_mjd"),
                 x_col.label("x"),
                 y_col.label("y"),
                 primary_cls.c.classification.label("classification"),
@@ -924,7 +907,7 @@ class PhotStatAggregateHandler(BaseHandler):
             if z_field:
                 columns.append(getattr(PhotStat, z_field).label("z"))
 
-            query = (
+            stmt = (
                 sa.select(*columns)
                 .select_from(PhotStat)
                 .join(Obj, Obj.id == PhotStat.obj_id)
@@ -934,7 +917,7 @@ class PhotStatAggregateHandler(BaseHandler):
                 .where(y_col.isnot(None))
             )
             if z_field:
-                query = query.where(getattr(PhotStat, z_field).isnot(None))
+                stmt = stmt.where(getattr(PhotStat, z_field).isnot(None))
 
             if classifications:
                 names = [c.strip() for c in classifications.split(",") if c.strip()]
@@ -946,10 +929,10 @@ class PhotStatAggregateHandler(BaseHandler):
                         match = match.where(
                             accessible_cls.c.probability >= prob_threshold
                         )
-                    query = query.where(PhotStat.obj_id.in_(match))
+                    stmt = stmt.where(PhotStat.obj_id.in_(match))
 
             # Fetch one extra row to detect truncation.
-            rows = (await session.execute(query.limit(max_matches + 1))).all()
+            rows = (await session.execute(stmt.limit(max_matches + 1))).all()
             truncated = len(rows) > max_matches
             rows = rows[:max_matches]
 
@@ -961,6 +944,14 @@ class PhotStatAggregateHandler(BaseHandler):
                     "dec": row.dec,
                     "redshift": row.redshift,
                     "classification": row.classification,
+                    # t0 candidates for phase-stacking spectra (SpectraAggregation).
+                    "first_detected_mjd": row.first_detected_mjd,
+                    "peak_mjd": row.peak_mjd,
+                    "tns_discovery_date": (
+                        (row.tns_info or {}).get("discoverydate")
+                        if isinstance(row.tns_info, dict)
+                        else None
+                    ),
                     "x": row.x,
                     "y": row.y,
                 }

@@ -9,6 +9,7 @@
  * `FETCH_EARTHQUAKE_STATUSES` message arrived, unconditionally. The RTK Query
  * equivalent invalidates the `EarthquakeStatus` tag so any active query refetches.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -25,9 +26,7 @@ export const earthquakeStatusesApi = skyportalApi.injectEndpoints({
       EarthquakeStatusesArg | void
     >({
       query: (filterParams) => {
-        const params = new URLSearchParams(
-          (filterParams as Record<string, string>) ?? {},
-        ).toString();
+        const params = buildQueryString(filterParams ?? {});
         return params
           ? `api/earthquake/status?${params}`
           : "api/earthquake/status";

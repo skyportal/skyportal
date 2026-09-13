@@ -430,7 +430,6 @@ const ListConditionPopover = ({
                       onChange={(e: any) => setEditedOperator(e.target.value)}
                       style={{
                         fontSize: 14,
-                        backgroundColor: "white",
                       }}
                     >
                       {getCompatibleOperators(

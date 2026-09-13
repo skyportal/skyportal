@@ -1,3 +1,4 @@
+import { useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
@@ -12,8 +13,16 @@ import Tab from "@mui/material/Tab";
 import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 
+import { useGetAnalysesQuery } from "../../ducks/source";
+import {
+  buildModelSpectrumTraces,
+  ModelSpectrumFit,
+} from "./modelSpectrumTraces";
 import {
   BASE_LAYOUT,
+  legibleLineColors,
+  plotAxisTheme,
+  plotCanvasTheme,
   C,
   colorScaleRainbow,
   LINES,
@@ -23,6 +32,16 @@ import {
 } from "../../utils";
 
 const Plot = createPlotlyComponent(Plotly);
+
+// Distinct colors for overlaid model-spectrum fits (kept off the rainbow scale
+// used for the data traces so an overlay stands out from the spectra).
+const MODEL_OVERLAY_COLORS = [
+  "#e6194B",
+  "#3cb44b",
+  "#4363d8",
+  "#f58231",
+  "#911eb4",
+];
 
 const useStyles = makeStyles()(() => ({
   gridContainerLines: {
@@ -95,6 +114,10 @@ const SpectraPlot = ({
   mode = "desktop",
   plotStyle = { height: "55vh" },
 }: SpectraPlotProps) => {
+  const muiTheme = useTheme();
+  // Memoize to keep plotLayout referentially stable; a fresh object each render
+  // rebuilt the layout and reset the user's zoom on redshift-slider changes.
+  const axisTheme = useMemo(() => plotAxisTheme(muiTheme), [muiTheme]);
   const { classes } = useStyles();
   const plotRef = useRef<any>(null);
   const [data, setData] = useState<any>(null);
@@ -116,6 +139,35 @@ const SpectraPlot = ({
   const { preferences } = useGetProfileQuery().data ?? {};
   const spectroscopyButtons = (preferences as any)?.spectroscopyButtons;
 
+  // Best-fit model spectra from spectral-classification analyses (e.g.
+  // SNID-SAGE, NGSF) to overlay on demand -- the analog of the photometry
+  // model-lightcurve overlay. Fetched by obj (the spectra carry obj_id).
+  const objId = spectra?.[0]?.obj_id;
+  const { data: objAnalyses } = useGetAnalysesQuery(
+    { analysis_resource_type: "obj", params: { objID: objId } },
+    { skip: !objId },
+  );
+  const modelSpectrumFits = useMemo<ModelSpectrumFit[]>(
+    () =>
+      ((objAnalyses as any[]) || [])
+        .filter((a) => a.obj_id === objId && a.model_spectrum)
+        .map((a) => ({
+          id: a.id,
+          label:
+            a.analysis_parameters?.source ||
+            a.model_name ||
+            a.analysis_service_name ||
+            `analysis ${a.id}`,
+          summary: a.model_spectrum_summary,
+          model_spectrum: a.model_spectrum,
+        })),
+    [objAnalyses, objId],
+  );
+  // Which fits are overlaid; default none (opt-in, like the photometry overlay).
+  const [shownModelIds, setShownModelIds] = useState<Set<string | number>>(
+    new Set(),
+  );
+
   // Memoize user custom lines to avoid recreating on every render
   const userCustomLines = useMemo(() => {
     return Object.entries(spectroscopyButtons || {}).map(
@@ -129,8 +181,12 @@ const SpectraPlot = ({
 
   // Memoize the combined lines array to avoid recreating on every render
   const allLines = useMemo(
-    () => LINES.concat(userCustomLines),
-    [userCustomLines],
+    () =>
+      legibleLineColors(
+        LINES.concat(userCustomLines),
+        muiTheme.palette.mode === "dark",
+      ),
+    [userCustomLines, muiTheme.palette.mode],
   );
 
   const [types, setTypes] = useState<any[]>([]);
@@ -316,7 +372,7 @@ const SpectraPlot = ({
             color: colorScaleRainbow(index, spectraFiltered.length - 1),
           },
           hoverlabel: {
-            bgcolor: "white",
+            bgcolor: muiTheme.palette.background.paper,
             font: { size: 14 },
             align: "left",
           },
@@ -480,9 +536,27 @@ const SpectraPlot = ({
         plotData,
       );
       const lineTraces = createLineTraces();
-      setPlotData([...traces, ...lineTraces]);
+      // Overlay the opted-in best-fit model spectra (normalized to the plot's scale).
+      const shownFits = modelSpectrumFits.filter((f) =>
+        shownModelIds.has(f.id as string | number),
+      );
+      const modelTraces = buildModelSpectrumTraces(
+        shownFits,
+        (i) =>
+          MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length] ?? "#888888",
+      );
+      setPlotData([...traces, ...lineTraces, ...modelTraces]);
     }
-  }, [data, types, specStats, selectedLines, tabIndex, allLines]);
+  }, [
+    data,
+    types,
+    specStats,
+    selectedLines,
+    tabIndex,
+    allLines,
+    modelSpectrumFits,
+    shownModelIds,
+  ]);
 
   // Effect for updating only smoothing (update y-values in place)
   useEffect(() => {
@@ -611,6 +685,7 @@ const SpectraPlot = ({
     const denom = 1 + redshift_value;
 
     return {
+      ...plotCanvasTheme(muiTheme),
       uirevision: layoutReset, // Use the number directly instead of string template
       xaxis: {
         title: { text: "Wavelength (Å)" },
@@ -619,12 +694,14 @@ const SpectraPlot = ({
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       yaxis: {
         title: { text: "Flux" },
         side: "left",
         range: [...specStats[spectrumType].flux.range],
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       xaxis2: {
         title: { text: "Rest Wavelength (Å)" },
@@ -637,6 +714,7 @@ const SpectraPlot = ({
         tickformat: ".6~f",
         zeroline: false,
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       legend: {
         orientation: mode === "desktop" ? "v" : "h",
@@ -671,7 +749,16 @@ const SpectraPlot = ({
         },
       ],
     };
-  }, [types, tabIndex, specStats, mode, plotData?.length, layoutReset]);
+  }, [
+    types,
+    tabIndex,
+    specStats,
+    mode,
+    plotData?.length,
+    layoutReset,
+    muiTheme,
+    axisTheme,
+  ]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // Use Plotly.relayout to update only the secondary axis when redshift changes
@@ -939,11 +1026,11 @@ const SpectraPlot = ({
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="spectroscopy-plot">
-      {types?.length > 0 && (
+      {types?.length > 1 && (
         <Tabs
           value={tabIndex}
           onChange={handleChangeTab}
-          aria-label="gcn_tabs"
+          aria-label="spectrum_type_tabs"
           variant="scrollable"
           {...({ xs: 12 } as any)}
           sx={{
@@ -980,6 +1067,40 @@ const SpectraPlot = ({
           onRelayout={handleRelayout}
         />
       </div>
+      {modelSpectrumFits.length > 0 && (
+        <div className={classes.gridContainerLines}>
+          <span style={{ alignSelf: "center", marginRight: "0.5rem" }}>
+            Overlay fit:
+          </span>
+          {modelSpectrumFits.map((fit, i) => {
+            const key = fit.id as string | number;
+            const shown = shownModelIds.has(key);
+            const color = MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length];
+            return (
+              <Button
+                key={key}
+                size="small"
+                variant={shown ? "contained" : "outlined"}
+                style={
+                  shown
+                    ? { backgroundColor: color, color: "#fff" }
+                    : { borderColor: color, color }
+                }
+                onClick={() =>
+                  setShownModelIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
+                    return next;
+                  })
+                }
+              >
+                {fit.label}
+              </Button>
+            );
+          })}
+        </div>
+      )}
       <div className={classes.gridContainerLines}>
         {/* we want to display a grid with buttons to toggle each of the lines */}
         {/* the buttons should have a rectangle of the color of the lines, and then the button itself with the name of the line */}

@@ -608,28 +608,293 @@ const LSPSC = {
   default: null,
 };
 
-export const ztf_crossmatch_fields = {
-  name: "cross_matches",
-  type: {
-    type: "array",
-    items: {
+const DESI_DR1 = {
+  name: "DESI_DR1",
+  type: [
+    "null",
+    {
       type: "record",
-      name: "CrossMatch",
+      name: "DESI_DR1Match",
       fields: [
-        Gaia_DR3,
-        milliquas_v8,
-        NED,
-        TWOMASS_PSC,
-        GALEX,
-        VSX,
-        CatWISE2020,
-        TNS,
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "survey",
+          type: "string",
+        },
+        {
+          name: "program",
+          type: "string",
+        },
+        {
+          name: "z",
+          type: "double",
+        },
+        {
+          name: "zerr",
+          type: "double",
+        },
+        {
+          name: "zwarn",
+          type: "int",
+        },
+        {
+          name: "chi2",
+          type: "double",
+        },
+        {
+          name: "deltachi2",
+          type: "double",
+        },
+        {
+          name: "spectype",
+          type: "string",
+        },
+        {
+          name: "zcat_nspec",
+          type: "int",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
       ],
     },
-  },
+  ],
+  default: null,
 };
 
-export const lsst_crossmatch_fields = {
+const PS1_DR2 = {
+  name: "PS1_DR2",
+  type: [
+    "null",
+    {
+      type: "record",
+      name: "PS1_DR2Match",
+      fields: [
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "gMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "gMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "rMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "rMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "iMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "iMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "zMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "zMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "yMeanPSFMag",
+          type: "float",
+        },
+        {
+          name: "yMeanPSFMagErr",
+          type: "float",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "strm_class",
+          type: "string",
+        },
+        {
+          name: "strm_prob_galaxy",
+          type: "float",
+        },
+        {
+          name: "strm_prob_qso",
+          type: "float",
+        },
+        {
+          name: "strm_prob_star",
+          type: "float",
+        },
+        {
+          name: "strm_uid",
+          type: "double",
+        },
+        {
+          name: "strm_z_phot",
+          type: "float",
+        },
+        {
+          name: "strm_z_phot_err",
+          type: "float",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
+      ],
+    },
+  ],
+  default: null,
+};
+
+const LSDR10 = {
+  name: "LSDR10",
+  type: [
+    "null",
+    {
+      type: "record",
+      name: "LSDR10Match",
+      fields: [
+        {
+          name: "_id",
+          type: "double",
+        },
+        {
+          name: "ra",
+          type: "double",
+        },
+        {
+          name: "dec",
+          type: "double",
+        },
+        {
+          name: "objtype",
+          type: "string",
+        },
+        {
+          name: "ebv",
+          type: "float",
+        },
+        {
+          name: "z_spec",
+          type: "double",
+        },
+        {
+          name: "survey",
+          type: "string",
+        },
+        {
+          name: "z_phot_mean",
+          type: "double",
+        },
+        {
+          name: "z_phot_median",
+          type: "double",
+        },
+        {
+          name: "z_phot_std",
+          type: "double",
+        },
+        {
+          name: "z_phot_l95",
+          type: "double",
+        },
+        {
+          name: "z_phot_u95",
+          type: "double",
+        },
+        {
+          name: "flux_g",
+          type: "float",
+        },
+        {
+          name: "flux_r",
+          type: "float",
+        },
+        {
+          name: "flux_i",
+          type: "float",
+        },
+        {
+          name: "flux_z",
+          type: "float",
+        },
+        {
+          name: "flux_w1",
+          type: "float",
+        },
+        {
+          name: "flux_w2",
+          type: "float",
+        },
+        {
+          name: "flux_w3",
+          type: "float",
+        },
+        {
+          name: "flux_w4",
+          type: "float",
+        },
+        {
+          name: "shape_r",
+          type: "float",
+        },
+        {
+          name: "shape_e1",
+          type: "float",
+        },
+        {
+          name: "shape_e2",
+          type: "float",
+        },
+        {
+          name: "sersic",
+          type: "float",
+        },
+        {
+          name: "flux_ivar_r",
+          type: "float",
+        },
+        {
+          name: "fracflux_r",
+          type: "float",
+        },
+        {
+          name: "distance_arcsec",
+          type: "float",
+        },
+      ],
+    },
+  ],
+  default: null,
+};
+
+export const crossmatch_fields = {
   name: "cross_matches",
   type: {
     type: "array",
@@ -646,6 +911,9 @@ export const lsst_crossmatch_fields = {
         VSX,
         CatWISE2020,
         TNS,
+        DESI_DR1,
+        PS1_DR2,
+        LSDR10,
       ],
     },
   },

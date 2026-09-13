@@ -1,9 +1,20 @@
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Role, User, UserRole
 from ..base import BaseHandler
+
+
+class UserRolePostBody(BaseModel):
+    """Request body for granting roles to a user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    roleIds: list[str] = Field(
+        description="Array of Role IDs (strings) to be granted to user"
+    )
 
 
 class RoleHandler(BaseHandler):
@@ -47,48 +58,21 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
-    async def post(self, user_id: int, *ignored_args):
+    async def post(self, user_id: int, *ignored_args, body: UserRolePostBody = None):
         """
         ---
         summary: Grant new Role(s) to a user
         description: Grant new Role(s) to a user
         tags:
           - roles
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  roleIds:
-                    type: array
-                    items:
-                      type: string
-                    description: Array of Role IDs (strings) to be granted to user
-                required:
-                  - roleIds
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        new_role_ids = data.get("roleIds")
-        if new_role_ids is None:
-            return self.error("Missing required parameter roleIds")
-        if not isinstance(new_role_ids, list) or not all(
-            isinstance(role_id, str) for role_id in new_role_ids
-        ):
-            return self.error(
-                "Improperly formatted parameter roleIds; must be an array of strings."
-            )
+        body = self.parse_body(UserRolePostBody)
+        new_role_ids = body.roleIds
 
         async with self.AsyncSession() as session:
             user = await session.scalar(
@@ -127,17 +111,6 @@ class UserRoleHandler(BaseHandler):
         description: Delete user role
         tags:
           - roles
-        parameters:
-          - in: path
-            name: user_id
-            required: true
-            schema:
-              type: integer
-          - in: path
-            name: role_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:

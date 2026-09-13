@@ -45,6 +45,20 @@ To add a new comment on <something> you need to
 class CommentMixin:
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
 
+    channel = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="Conversation the comment belongs to, NULL for the main thread.",
+    )
+
+    system = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether the comment was posted by the app rather than typed by its author.",
+    )
+
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
     )
@@ -120,6 +134,7 @@ class CommentMixin:
         return {
             field: getattr(self.author, field)
             for field in (
+                "id",
                 "username",
                 "first_name",
                 "last_name",

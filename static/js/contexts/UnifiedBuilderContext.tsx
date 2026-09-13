@@ -13,6 +13,7 @@ import {
   convertArithmeticExpression,
 } from "../utils/mongoPipelineBuilder";
 import { flattenFieldOptions } from "../constants/filterConstants";
+import { isRawMongoPipeline } from "../components/filter/boom/pipelineFormat";
 
 export const UnifiedBuilderContext = createContext<any>(undefined);
 
@@ -122,6 +123,12 @@ export const UnifiedBuilderProvider = ({
 
   // MongoDB aggregation conversion
   const generateMongoQuery = () => {
+    // Imported filters are already a raw Mongo pipeline (not a block tree);
+    // the block-tree converter below can't read them, so pass them through.
+    if (isRawMongoPipeline(filters)) {
+      return filters;
+    }
+
     // Determine if we're in annotation mode (projections exist)
     const hasAnnotations = projectionFields && projectionFields.length > 0;
 
@@ -138,8 +145,13 @@ export const UnifiedBuilderProvider = ({
         );
 
         if (arithVar) {
-          // Arithmetic variable - scan its expression for variable references
-          // that need to be materialized
+          // Arithmetic variable - it must be included itself so its schema-field
+          // dependencies get marked "used" and survive the $project stage(s)
+          // (see mongoPipelineBuilder.js's additionalFieldsToProject handling).
+          annotationFieldsSet.add(f.fieldName);
+
+          // Also scan its expression for variable references that need to be
+          // materialized
           if (arithVar.variable) {
             const expression = arithVar.variable.includes("=")
               ? arithVar.variable.split("=")[1].trim()
@@ -361,6 +373,11 @@ export const UnifiedBuilderProvider = ({
     // Use localFilterData if it exists and has been modified, otherwise use filters
     const dataToCheck =
       hasBeenModified && localFilterData ? localFilterData : filters;
+    // Already a raw pipeline (active in boom); no need to re-run the
+    // block-tree validator over it.
+    if (isRawMongoPipeline(dataToCheck)) {
+      return true;
+    }
     const pipeline = convertToMongoAggregation(
       dataToCheck,
       schema,

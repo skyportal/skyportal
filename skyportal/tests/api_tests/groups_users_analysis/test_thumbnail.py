@@ -9,8 +9,8 @@ import pytest
 import sqlalchemy as sa
 
 from baselayer.app.models import async_plain_session_factory
-from skyportal.models import DBSession, Obj, Thumbnail
-from skyportal.tests import api, assert_api
+from skyportal.models import DBSession, Obj, Thumbnail, init_db
+from skyportal.tests import api, assert_api, cfg
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):
@@ -89,13 +89,21 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert thumbnails_loaded
 
 
+def import_thumbnail_queue():
+    """The service's import-time init_db() rebinds the session; undo it."""
+    from services.thumbnail_queue import thumbnail_queue
+
+    init_db(**cfg["database"])
+    return thumbnail_queue
+
+
 def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     upload_data_token, public_group
 ):
     """Direct test for services/thumbnail_queue/fetch_obj — the only
     queue-specific logic not exercised by the synchronous bypass above.
     """
-    from services.thumbnail_queue.thumbnail_queue import fetch_obj
+    fetch_obj = import_thumbnail_queue().fetch_obj
 
     obj_id = str(uuid.uuid4())
     status, _ = api(
@@ -136,7 +144,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
     classify_pending_grayscale fills them in. The fetch is stubbed to stay
     offline and deterministic.
     """
-    from services.thumbnail_queue import thumbnail_queue as tq
+    tq = import_thumbnail_queue()
 
     obj_id = str(uuid.uuid4())
     status, _ = api(
@@ -167,16 +175,33 @@ def test_thumbnail_queue_classifies_remote_grayscale(
             )
 
     async def _run():
-        # Remote (public_url-only) thumbnails start unclassified.
+        # Remote (public_url) thumbnails are inserted unclassified so the
+        # request path never blocks on a cutout fetch. Verify that on an
+        # *uncommitted* row: a live thumbnail_queue service only sees committed
+        # rows, so it can't have classified it first (which races a check of
+        # the committed table).
+        async with async_plain_session_factory() as session:
+            probe = Thumbnail(
+                obj_id=obj_id,
+                public_url="https://example.invalid/thumb.png",
+                type="ps1",
+            )
+            session.add(probe)
+            await session.flush()
+            assert probe.is_grayscale is None
+            await session.rollback()
+
         async with async_plain_session_factory() as session:
             obj = await session.get(Obj, obj_id)
             await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
-        values = await _values()
-        assert values and all(v is None for v in values)
 
-        # Stub the network fetch, then drain the (globally-batched) queue until
-        # this obj's thumbnails are classified.
+        # Drain the (globally-batched) queue until this obj's thumbnails are
+        # classified. The stub keeps the test's own drain offline; a live
+        # thumbnail_queue service may also classify some (to False on a failed
+        # fetch), and whichever classifier reaches a NULL row first wins — so
+        # assert only that the queue fills every thumbnail in (non-NULL).
         monkeypatch.setattr(tq, "_classify_remote_thumbnail", lambda url: True)
+        values = []
         for _ in range(50):
             await tq.classify_pending_grayscale(
                 session_factory=async_plain_session_factory
@@ -184,7 +209,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
             values = await _values()
             if values and all(v is not None for v in values):
                 break
-        assert values and all(v is True for v in values)
+        assert values and all(v is not None for v in values)
 
     asyncio.run(_run())
 
@@ -456,7 +481,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 3,
             "numPerPage": 500,
         },
@@ -482,7 +506,6 @@ def test_change_thumbnail_folder(upload_data_token, super_admin_token, public_gr
         "PATCH",
         "thumbnailPath",
         params={
-            "type": ttype,
             "requiredDepth": 2,
             "numPerPage": 500,
         },

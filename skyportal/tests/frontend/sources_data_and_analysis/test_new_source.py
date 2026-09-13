@@ -8,14 +8,26 @@ def test_new_source(page, user, super_admin_token, view_only_token, public_group
     page.goto(f"/become_user/{user.id}")
     page.goto("/sources")
 
-    page.locator('//button[@name="new_source"]').first.click()
+    # The page shows a spinner until the source-list fetch resolves, so the button
+    # only exists once that request lands. Nothing re-issues a dropped fetch, so
+    # reload rather than waiting longer.
+    new_source_button = page.locator('//button[@name="new_source"]').first
+    try:
+        expect(new_source_button).to_be_visible(timeout=30000)
+    except AssertionError:
+        page.reload()
+        expect(new_source_button).to_be_visible(timeout=30000)
+    new_source_button.click()
 
     source_name = uuid.uuid4().hex
     page.locator("//div[@id='selectGroups']").first.click()
-    page.locator(f'//div[@data-testid="group_{public_group.id}"]').first.click()
+    group_option = page.locator(f'//div[@data-testid="group_{public_group.id}"]').first
+    group_option.click()
 
-    # Dismiss the open group-select dropdown
+    # Dismiss the group-select dropdown and wait for it to close, so it can't
+    # overlay (and swallow the fills on) the form fields below.
     page.keyboard.press("Escape")
+    expect(group_option).to_be_hidden(timeout=15000)
 
     # test add sources form
     page.locator('//*[@id="root_id"]').first.fill(source_name)
@@ -24,10 +36,19 @@ def test_new_source(page, user, super_admin_token, view_only_token, public_group
 
     page.locator('//button[@type="submit"]').first.click()
 
+    # The "Source saved" toast is transient; the durable check is the source
+    # showing up on the home page below.
     try:
         expect(page.locator('//*[text()="Source saved"]').first).to_be_visible()
     except AssertionError:
         pass
 
+    # The recent-sources list updates over websocket; give it time and reload
+    # once (re-querying from the DB) if that push was missed.
     page.goto("/")
-    expect(page.locator(f'//*[text()="{source_name}"]').first).to_be_visible()
+    source_link = page.locator(f'//*[text()="{source_name}"]').first
+    try:
+        expect(source_link).to_be_visible(timeout=20000)
+    except AssertionError:
+        page.reload()
+        expect(source_link).to_be_visible(timeout=20000)

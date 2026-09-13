@@ -1,10 +1,10 @@
+import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
-import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import UpdateTokenACLs from "./UpdateTokenACLs";
 import SharePage from "../SharePage";
 
@@ -13,12 +13,7 @@ import {
   useGetProfileQuery,
 } from "../../ducks/profile";
 
-const useStyles = makeStyles()(() => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-}));
+dayjs.extend(utc);
 
 const copyToken = (elementID: string) => {
   const el = document.getElementById(elementID) as HTMLInputElement;
@@ -26,110 +21,118 @@ const copyToken = (elementID: string) => {
   document.execCommand("copy");
 };
 
+const TokenListToolbar = () => <DataGridToolbar title="My Tokens" />;
+
 interface TokenListProps {
   tokens: any[];
 }
 
 const TokenList = ({ tokens }: TokenListProps) => {
-  const { classes } = useStyles();
-  const [deleteTokenMutation] = useDeleteTokenMutation();
-
+  const [deleteToken] = useDeleteTokenMutation();
   const { data: profile } = useGetProfileQuery();
 
   if (!tokens) {
-    return <div />;
+    return null;
   }
-
-  const deleteToken = (token_id: any) => {
-    deleteTokenMutation(token_id);
-  };
-
-  const renderValue = (value: any) => (
-    <div>
-      <TextField id={value} value={value} {...({ readOnly: 1 } as any)} />
-      <Button secondary size="small" onClick={() => copyToken(value)}>
-        Copy to Clipboard
-      </Button>
-    </div>
-  );
-
-  const renderQRCode = (params: any) => (
-    <div>
-      <SharePage value={params.row.id} />
-    </div>
-  );
-
-  const renderACLs = (params: any) => {
-    const tokenId = params.row.id;
-    const tokenACLs = params.row.acls;
-    return (
-      <div>
-        {(params.row.acls || []).join(", ")}
-        <div className={(classes as any).sourceInfo}>
-          <UpdateTokenACLs
-            tokenId={tokenId}
-            currentACLs={tokenACLs}
-            availableACLs={profile?.permissions ?? []}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const renderDelete = (params: any) => (
-    <Button secondary size="small" onClick={() => deleteToken(params.row.id)}>
-      Delete
-    </Button>
-  );
 
   const columns: any[] = [
     {
       field: "id",
       headerName: "Value",
-      flex: 1,
-      minWidth: 200,
+      width: 400,
       sortable: false,
-      renderCell: (params: any) => renderValue(params.value),
+      renderCell: ({ value }: any) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            width: "100%",
+          }}
+        >
+          <TextField
+            id={value}
+            value={value}
+            size="small"
+            fullWidth
+            slotProps={{ htmlInput: { readOnly: true } }}
+          />
+          <Button
+            secondary
+            size="small"
+            sx={{ flexShrink: 0 }}
+            onClick={() => copyToken(value)}
+          >
+            Copy
+          </Button>
+        </div>
+      ),
     },
     {
       field: "qr",
-      headerName: "QR Code",
-      width: 120,
+      headerName: "QR",
+      width: 70,
       sortable: false,
-      renderCell: renderQRCode,
+      renderCell: ({ row }: any) => <SharePage value={row.id} />,
     },
-    { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
+    { field: "name", headerName: "Name", width: 130 },
     {
       field: "acls",
       headerName: "ACLs",
       flex: 1,
-      minWidth: 160,
+      minWidth: 320,
       sortable: false,
-      renderCell: renderACLs,
+      renderCell: ({ row }: any) => (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "0.25rem",
+          }}
+        >
+          {(row.acls || []).map((acl: string) => (
+            <Chip key={acl} label={acl} size="small" />
+          ))}
+          <UpdateTokenACLs
+            tokenId={row.id}
+            currentACLs={row.acls}
+            availableACLs={profile?.permissions ?? []}
+          />
+        </div>
+      ),
     },
-    { field: "created_at", headerName: "Created", flex: 1, minWidth: 160 },
+    {
+      field: "created_at",
+      headerName: "Created",
+      width: 150,
+      valueFormatter: (value: any) =>
+        value ? dayjs.utc(value).format("YYYY/MM/DD HH:mm") : "",
+    },
     {
       field: "delete",
       headerName: "Delete",
-      width: 110,
+      width: 90,
       sortable: false,
-      renderCell: renderDelete,
+      renderCell: ({ row }: any) => (
+        <Button secondary size="small" onClick={() => deleteToken(row.id)}>
+          Delete
+        </Button>
+      ),
     },
   ];
 
   return (
-    <div>
-      <Typography variant="h5">My Tokens</Typography>
-      <Paper className={classes.container}>
-        <StyledDataGrid
-          autoHeight
-          rows={tokens}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          showToolbar
-        />
-      </Paper>
-    </div>
+    <StyledDataGrid
+      autoHeight
+      rows={tokens}
+      columns={columns}
+      getRowId={(row: any) => row.id}
+      getRowHeight={() => "auto"}
+      sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", py: 1 } }}
+      slots={{ toolbar: TokenListToolbar }}
+      showToolbar
+    />
   );
 };
 

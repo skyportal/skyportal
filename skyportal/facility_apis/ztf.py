@@ -18,9 +18,9 @@ from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory
 from baselayer.log import make_log
 
 from ..utils import http
@@ -352,8 +352,8 @@ def commit_photometry(
         session = parent_session
 
     try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
+        request = session.get(FollowupRequest, request_id)
+        instrument = session.get(Instrument, instrument_id)
         allocation = request.allocation
         if not allocation:
             raise ValueError("Missing request's allocation information.")
@@ -567,7 +567,8 @@ class ZTFAPI(FollowUpAPI):
                 )
             )
             if transaction is not None:
-                if transaction.status == "complete":
+                # ZTF returning data is not a commit; the status records that.
+                if request.status.startswith("Photometry committed"):
                     raise ValueError("Request already complete. Cannot delete.")
                 await session.delete(transaction)
             await session.delete(request)
@@ -934,7 +935,7 @@ class ZTFMMAAPI(MMAAPI):
 
         # No session is passed; open our own async session and reload the
         # request with the lazy chains this method walks eager-loaded.
-        async with async_plain_session_factory() as session:
+        async with baselayer_models.async_plain_session_factory() as session:
             request = await session.scalar(
                 sa.select(ObservationPlanRequest)
                 .where(ObservationPlanRequest.id == request.id)
@@ -1065,7 +1066,7 @@ class ZTFMMAAPI(MMAAPI):
         # check if there is an observation plan request associated with this queue (same queue name)
         # if so, mark it as removed from queue
         try:
-            async with async_plain_session_factory() as session:
+            async with baselayer_models.async_plain_session_factory() as session:
                 observation_plan_request = await session.scalar(
                     sa.select(ObservationPlanRequest)
                     .where(

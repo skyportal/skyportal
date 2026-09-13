@@ -221,11 +221,7 @@ const RecentSourcesList = ({
   }, [sources]);
 
   if (sources === undefined) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress />;
   }
 
   if (sources.length === 0 && !search) {
@@ -416,8 +412,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const invertThumbnails = profile?.preferences?.["invertThumbnails"] as
-    | boolean
-    | undefined;
+    boolean | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
   const { activeTeam } = useActiveTeam();

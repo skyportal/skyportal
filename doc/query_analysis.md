@@ -59,7 +59,7 @@ x = %(x_1)s
 ```
 
 Finally, you should note that in the SkyPortal API handlers, most of the SQLAlchemy `Query` objects
-that you would print out in this manner originate from our [permissions framework](permissions.html)
+that you would print out in this manner originate from our [permissions framework](permissions.html#create-a-new-policy)
 through the `query_accessible_rows()` method. Thus, if you're ever lost looking for those
 `DBSession().query()...` lines to do this sort of print-debugging, you may want to look for the
 `query_accessible_rows()` lines instead. Similarly, if you're ever wondering where certain parts of
