@@ -36,9 +36,7 @@ from matplotlib import dates
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import (
-    scoped_session,
     selectinload,
-    sessionmaker,
 )
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import bindparam, text
@@ -134,8 +132,6 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 log = make_log("api/source")
 
 MAX_LOCALIZATION_SOURCES = 50000
-
-Session = scoped_session(sessionmaker())
 
 
 def confirmed_in_gcn_status_to_str(status):

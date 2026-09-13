@@ -15,7 +15,7 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from requests import Session
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app import models as baselayer_models
@@ -340,16 +340,9 @@ def commit_photometry(
         SQLAlchemy session object. If None, a new session is created.
     """
 
-    from ..models import DBSession, FollowupRequest, Instrument
+    from ..models import FollowupRequest, Instrument, new_session
 
-    if parent_session is None:
-        Session = scoped_session(sessionmaker())
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    session = new_session() if parent_session is None else parent_session
 
     try:
         request = session.get(FollowupRequest, request_id)
@@ -482,7 +475,6 @@ def commit_photometry(
     finally:
         if parent_session is None:
             session.close()
-            Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):

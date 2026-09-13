@@ -20,9 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from regions import Regions
 from sqlalchemy.orm import (
     joinedload,
-    scoped_session,
     selectinload,
-    sessionmaker,
     undefer,
 )
 from tornado.ioloop import IOLoop
@@ -35,7 +33,6 @@ from baselayer.log import make_log
 
 from ...models import (
     Allocation,
-    DBSession,
     ExecutedObservation,
     GcnEvent,
     Group,
@@ -48,6 +45,7 @@ from ...models import (
     SurveyEfficiencyForObservationPlan,
     SurveyEfficiencyForObservations,
     Telescope,
+    new_session,
 )
 from ...models.schema import ObservationExternalAPIHandlerPost
 from ...utils.cache import Cache, cache_folder
@@ -75,8 +73,6 @@ env, cfg = load_env()
 
 log = make_log("api/observation")
 
-Session = scoped_session(sessionmaker())
-
 cache_dir = f"{cache_folder}/localization_instrument_queries"
 cache = Cache(
     cache_dir=cache_dir,
@@ -96,10 +92,7 @@ def add_queued_observations(instrument_id, obstable):
         A dataframe returned from the ZTF scheduler queue
     """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     # Schedulers that report pointings by position (e.g. Rubin ObsLocTAP) rather
     # than a fixed field grid: create the fields on the fly, as add_observations does.
@@ -157,7 +150,6 @@ def add_queued_observations(instrument_id, obstable):
         )
     finally:
         session.close()
-        Session.remove()
 
 
 def add_observations(instrument_id, obstable):
@@ -179,10 +171,7 @@ def add_observations(instrument_id, obstable):
 4   ztfr                 1.0    None
      """
 
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     # if the fields do not yet exist, we need to add them
     if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
@@ -293,7 +282,6 @@ def add_observations(instrument_id, obstable):
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
@@ -2391,7 +2379,7 @@ class ObservationSimSurveyHandler(BaseHandler):
             instrument_id_final = instrument.id
 
             def _run_simsurvey():
-                sync_session = Session(bind=DBSession.session_factory.kw["bind"])
+                sync_session = new_session()
                 try:
                     sync_session.user_or_token = self.current_user
                     retrieve_observations_and_simsurvey(
@@ -2405,7 +2393,6 @@ class ObservationSimSurveyHandler(BaseHandler):
                     )
                 finally:
                     sync_session.close()
-                    Session.remove()
 
             IOLoop.current().run_in_executor(None, _run_simsurvey)
 

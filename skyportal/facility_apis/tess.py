@@ -4,7 +4,7 @@ import numpy as np
 import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
-from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -37,13 +37,9 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         User SkyPortal ID
     """
 
-    from ..models import DBSession, FollowupRequest, PhotometricSeries
+    from ..models import FollowupRequest, PhotometricSeries, new_session
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
+    session = new_session()
 
     try:
         request = session.get(FollowupRequest, request_id)
@@ -164,7 +160,6 @@ def commit_photometry(lc, request_id, instrument_id, user_id):
         log(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         session.close()
-        Session.remove()
 
 
 class TESSAPI(FollowUpAPI):
