@@ -1147,7 +1147,7 @@ def add_tiles(
                         )
                     session.add(field)
             session.commit()
-            return
+            return field_ids
 
         # Loop over the telescope tiles and create fields for each.
         # A survey whose footprint rolls between pointings (TESS's cameras roll
@@ -1423,7 +1423,8 @@ def add_tiles(
     finally:
         if own_session:
             session.close()
-        return field_ids
+
+    return field_ids
 
 
 class InstrumentFieldHandler(BaseHandler):
