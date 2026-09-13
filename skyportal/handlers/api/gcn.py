@@ -3353,19 +3353,30 @@ def add_tiles_and_properties_and_contour(
             )
 
         log(f"Adding tiles for localization {localization_id}")
-        tiles = [
-            LocalizationTile(
-                localization_id=localization_id,
-                healpix=uniq,
-                probdensity=probdensity,
-                dateobs=localization.dateobs,
-            )
-            for uniq, probdensity in zip(localization.uniq, localization.probdensity)
-        ]
-
         if parent_session is None:
             session.add(localization)
-        session.add_all(tiles)
+
+        # COPY rather than ORM inserts: ~2x faster, and no row object per tile.
+        # uniq/probdensity are deferred, so read them before opening the COPY:
+        # a lazy load inside it would query a connection stuck in COPY and hang.
+        uniqs, probdensities = localization.uniq, localization.probdensity
+        now = utcnow_naive().isoformat()
+        dateobs = localization.dateobs.isoformat()
+        to_tile = LocalizationTile.healpix.type.process_bind_param
+        connection = session.connection().connection
+        with (
+            connection.cursor() as cursor,
+            cursor.copy(
+                "COPY localizationtiles "
+                "(localization_id, probdensity, dateobs, healpix, created_at, modified) "
+                "FROM STDIN"
+            ) as copy,
+        ):
+            for uniq, probdensity in zip(uniqs, probdensities):
+                copy.write(
+                    f"{localization_id}\t{probdensity}\t{dateobs}\t"
+                    f"{to_tile(uniq, None)}\t{now}\t{now}\n"
+                )
         session.commit()
 
         log(f"Adding contour for localization {localization_id}")
