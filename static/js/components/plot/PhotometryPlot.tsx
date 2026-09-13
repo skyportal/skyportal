@@ -685,7 +685,31 @@ const PhotometryPlot = ({
         })),
     [mainPhotometry],
   );
-  const solarSystemCtrl = useSolarSystemPlot(solarSystemPoints);
+  // The outburst statistic is the broker's, not ours: it is computed against the
+  // object's fitted phase curve over the whole archive and stored on the
+  // annotation, so the plot shows that number rather than deriving its own.
+  const outburstAnnotation = (annotations || []).find(
+    (a: any) => Array.isArray(a?.data?.points) && a.data.points.length > 0,
+  );
+  const brokerOutburst = useMemo(
+    () =>
+      outburstAnnotation
+        ? {
+            origin: outburstAnnotation.origin as string,
+            sigma:
+              typeof outburstAnnotation.data.outburst_sigma === "number"
+                ? outburstAnnotation.data.outburst_sigma
+                : null,
+            points: outburstAnnotation.data.points as {
+              jd: number;
+              sigma: number;
+            }[],
+          }
+        : null,
+    [outburstAnnotation],
+  );
+
+  const solarSystemCtrl = useSolarSystemPlot(solarSystemPoints, brokerOutburst);
 
   const [period, setPeriod] = useState<any>(1);
   const [periodUnit, setPeriodUnit] = useState("days");

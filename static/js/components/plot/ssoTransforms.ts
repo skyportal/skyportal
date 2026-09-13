@@ -298,21 +298,7 @@ export const fitBandColors = (
   return { reference, colors };
 };
 
-export interface OutburstReport {
-  medianO: number;
-  nPoints: number;
-  testValue: number;
-  dt: number[];
-  bands: string[];
-  unc: number[];
-  m: number[]; // apparent
-  H: number[]; // geometry-corrected
-  Hcolor: number[]; // colour-removed
-  ostats: number[];
-  color: Record<string, number>;
-}
-
-const median = (a: number[]): number => {
+export const median = (a: number[]): number => {
   const v = a.filter((x) => Number.isFinite(x)).sort((p, q) => p - q);
   if (v.length === 0) return NaN;
   const mid = Math.floor(v.length / 2);
@@ -358,59 +344,5 @@ export const histogram = (
     ),
     counts,
     width,
-  };
-};
-
-// Run the statistic on the trailing `window` days (most recent point tested).
-export const outburstReport = (
-  points: SsoPoint[],
-  { window = 14, rhSlope = -2, deltaSlope = -2 } = {},
-): OutburstReport | null => {
-  const sorted = fittable(points).sort((a, b) => a.time - b.time);
-  if (sorted.length < 2) return null;
-  const tLast = sorted[sorted.length - 1]!.time;
-  const win = sorted.filter(
-    (p) => p.time - tLast > -window && p.time - tLast <= 0,
-  );
-  if (win.length < 2) return null;
-
-  const time = win.map((p) => p.time);
-  const m = win.map((p) => p.mag);
-  const unc = win.map((p) => p.magerr);
-  const bands = win.map((p) => p.band);
-  const rh = win.map((p) => p.rh);
-  const delta = win.map((p) => p.delta);
-  const phase = win.map((p) => p.phase);
-  const last = m.length - 1;
-  const testBand = bands[last]!;
-  const testMag = m[last]!;
-  const testUnc = unc[last]!;
-
-  if (!bands.slice(0, -1).includes(testBand)) return null; // no colour for test band
-
-  const geom = scaleByGeometry(rh, delta, phase, rhSlope, deltaSlope);
-  const H = m.map((mk, k) => mk + geom[k]!);
-  const color = colorScales(H, unc, bands);
-  const Hcolor = H.map((hk, k) => hk - color[bands[k]!]!);
-
-  const ostats: number[] = [];
-  for (let k = 0; k < last; k++) {
-    const x = Hcolor[k]! - testMag;
-    const y = Math.sqrt(testUnc ** 2 + unc[k]! ** 2);
-    ostats.push(x / y);
-  }
-
-  return {
-    medianO: median(ostats),
-    nPoints: m.length,
-    testValue: testMag,
-    dt: time.map((t) => t - tLast),
-    bands,
-    unc,
-    m,
-    H,
-    Hcolor,
-    ostats,
-    color,
   };
 };
