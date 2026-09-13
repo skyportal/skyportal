@@ -48,15 +48,23 @@ const CustomizeOpenAIParameters = () => {
   };
 
   const handleAISubmit = ({ formData }: { formData: any }) => {
-    const prefs = {
-      summary: {
-        OpenAI: {
-          active: user_openai_summary_parameters?.active,
-          ...formData,
-        },
-      },
-    };
-    updateUserPreferences(prefs);
+    // The form is seeded with the instance's settings so its required fields
+    // have values, but writing those back would copy them into this user's
+    // preferences and pin them there: a later change to the instance default
+    // would then never reach this user. Only fields edited away from what was
+    // shown are saved. A null is never written, since preferences are merged
+    // rather than replaced, so a null would be stored and read back as one.
+    const changed: Record<string, any> = {};
+    Object.keys(formData || {}).forEach((key) => {
+      if (formData[key] !== default_openai_summary_parameters[key]) {
+        changed[key] = formData[key];
+      }
+    });
+    if (Object.keys(changed).length === 0) {
+      handleAIClose();
+      return;
+    }
+    updateUserPreferences({ summary: { OpenAI: changed } });
     handleAIClose();
   };
 
@@ -66,13 +74,10 @@ const CustomizeOpenAIParameters = () => {
       model: {
         type: "string",
         title: "model",
-        examples: [
-          "gpt-4",
-          "gpt-3.5-turbo",
-          "text-davinci-003",
-          "davinci",
-          "gpt-4-32k",
-        ],
+        // Whatever the base URL serves, which is not something this form can
+        // know: these are examples from one provider at one moment, not a list
+        // to choose from. Check your provider for what it currently offers.
+        examples: ["minimax-m2", "qwen3", "glm-5", "gpt-oss", "gemma4-12b"],
       },
       prompt: {
         type: "string",
@@ -126,6 +131,10 @@ const CustomizeOpenAIParameters = () => {
   };
 
   const uiSchema = {
+    model: {
+      "ui:help":
+        "The model name your base URL serves. The examples come from one provider at one moment and may not be available to you: check with your provider for what it currently offers.",
+    },
     temperature: {
       "ui:widget": "updown",
       "ui:help":
