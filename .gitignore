@@ -18,6 +18,7 @@ geckodriver.log
 *.swo
 .DS_Store
 __pycache__/
+*.egg-info/
 .pytest_cache/
 node_modules/
 *.pyc
