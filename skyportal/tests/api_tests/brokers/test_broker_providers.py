@@ -1617,3 +1617,77 @@ def test_lasair_stream_selected_only_when_topics_configured():
     assert _stream_configured({"queries": []}) is False
     assert _stream_configured({}) is False
     assert _stream_configured(None) is False
+
+
+def test_transient_photometry_resolves_ids_once_per_request():
+    """Instrument and obj ids are resolved across all of an object's groups, so
+    the query count does not grow with the number of groups."""
+    import asyncio
+
+    from skyportal.broker_apis._photometry import transient_photometry
+    from skyportal.models import Instrument, Obj, Telescope
+
+    instrument = Instrument(
+        id=1,
+        name="ZTF",
+        type="imager",
+        band="optical",
+        filters=["ztfg"],
+        telescope=Telescope(
+            id=1,
+            name="P48",
+            nickname="P48",
+            lat=33.0,
+            lon=-116.0,
+            elevation=1700.0,
+            diameter=1.2,
+        ),
+    )
+    obj_id = "ZTF26abcdefg"
+
+    class _Result:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def all(self):
+            return self._rows
+
+    class _RecordingSession:
+        """Answers the id lookups and counts them."""
+
+        def __init__(self):
+            self.calls = []
+
+        async def scalars(self, stmt):
+            entity = stmt.column_descriptions[0]["entity"]
+            self.calls.append(entity)
+            return _Result([instrument] if entity is Instrument else [obj_id])
+
+    def groups(n):
+        return {
+            f"g{i}": {
+                "obj_id": [obj_id],
+                "instrument_id": [instrument.id],
+                "mjd": [59000.0 + i],
+                "filter": ["ztfg"],
+                "flux": [100.0 + i],
+                "fluxerr": [10.0],
+                "zp": [23.9],
+                "magsys": ["ab"],
+            }
+            for i in range(n)
+        }
+
+    async def query_counts():
+        counts = {}
+        for n in (1, 6):
+            session = _RecordingSession()
+            phots = await transient_photometry(groups(n), session)
+            assert len(phots) == n
+            # serialize() reads phot.instrument, which no query would load here
+            assert all(p.instrument is instrument for p in phots)
+            counts[n] = len(session.calls)
+        return counts
+
+    # One for the instruments, one for the objs, however many groups there are.
+    assert asyncio.run(query_counts()) == {1: 2, 6: 2}
