@@ -30,8 +30,17 @@ def source_create_access_logic(cls, user_or_token):
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        query = query.join(Group).join(GroupUser)
-        query = query.where(GroupUser.user_id == user_id, GroupUser.can_save.is_(True))
+        member_who_can_save = sa.exists().where(
+            GroupUser.group_id == cls.group_id,
+            GroupUser.user_id == user_id,
+            GroupUser.can_save.is_(True),
+        )
+        query = query.where(
+            sa.or_(
+                member_who_can_save,
+                sa.and_(cls.requested.is_(True), cls.active.is_(False)),
+            )
+        )
     return query
 
 
