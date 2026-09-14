@@ -192,10 +192,17 @@ async def _upsert_analysis_annotations(session, analysis, results):
     import sqlalchemy as sa
 
     annotations = results.get("annotations") if isinstance(results, dict) else None
+    # A run scoped to only the author's single-user group is private: namespace
+    # its annotation origin so it neither clobbers nor leaks into the shared
+    # per-service annotation, which is matched by obj_id + origin alone.
+    groups = list(analysis.groups)
+    is_private = len(groups) == 1 and groups[0].single_user_group
     for ann in annotations or []:
         if not isinstance(ann, dict) or not isinstance(ann.get("data"), dict):
             continue
         origin = ann.get("origin") or analysis.analysis_service.name
+        if is_private:
+            origin = f"{origin} [{analysis.author.username}]"
         existing = await session.scalar(
             sa.select(Annotation).where(
                 Annotation.obj_id == analysis.obj_id,

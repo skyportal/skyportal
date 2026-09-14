@@ -4,6 +4,8 @@ import SearchableSelect from "../SearchableSelect";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -109,9 +111,15 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   // selected service's groups, so users can't share with a group they're not in.
   const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
   const userAccessibleGroups = groupsData?.userAccessible ?? null;
+  // Each user has one single-user group; scoping a run to it keeps the result
+  // (and its annotation) private to that user, no shared annotation written.
+  const singleUserGroup = (groupsData?.user ?? []).find(
+    (g: any) => g.single_user_group,
+  );
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
+  const [runPrivately, setRunPrivately] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Selected files for `file`-type analysis parameters, handled outside rjsf.
   const fileValues = useRef<Record<string, File | null>>({});
@@ -218,6 +226,10 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
             return;
           } else if (params?.type === "string") {
             OptionalParameters[key] = { type: "string", title: key };
+          } else if (params?.type === "boolean") {
+            // Object-form boolean: a labeled checkbox (the bare ["True","False"]
+            // array renders a checkbox too, but can't carry a title/description).
+            OptionalParameters[key] = { type: "boolean", title: key };
           }
           if (OptionalParameters[key]) {
             if (params?.default !== undefined)
@@ -443,7 +455,10 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
       input_filters,
     };
 
-    if (selectedGroupIds.length >= 0) {
+    if (runPrivately && singleUserGroup) {
+      // Private run: scope to the user's own single-user group only.
+      params["group_ids"] = [singleUserGroup.id];
+    } else {
       params["group_ids"] = selectedGroupIds;
     }
     try {
@@ -501,11 +516,24 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
           </p>
         )}
       </div>
-      <GroupShareSelect
-        groupList={shareableGroups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
+      <FormControlLabel
+        control={
+          <Switch
+            checked={runPrivately}
+            onChange={(e) => setRunPrivately(e.target.checked)}
+            disabled={!singleUserGroup}
+            data-testid="analysis-run-privately"
+          />
+        }
+        label="Run privately (results and annotation visible only to me)"
       />
+      {!runPrivately && (
+        <GroupShareSelect
+          groupList={shareableGroups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
+      )}
       <div data-testid="analysis-service-request-form">
         {fileKeys.map((key: string) => (
           <div key={key} className={classes.marginTop}>
