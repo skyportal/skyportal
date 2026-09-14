@@ -70,11 +70,6 @@ const SharingServicesDialog = ({
     };
   const [selectedSharingServiceId, setselectedSharingServiceId] =
     useState<any>(null);
-  const [defaultSharersString, setdefaultSharersString] = useState<any>(null);
-  const [defaultArchivalComment, setDefaultArchivalComment] =
-    useState<any>(null);
-  const [defaultInstrumentIds, setDefaultInstrumentIds] = useState<any[]>([]);
-  const [defaultStreamIds, setDefaultStreamIds] = useState<any[]>([]);
   const [sendToTNS, setSendToTNS] = useState(false);
   const [sendToHermes, setSendToHermes] = useState(false);
   // request in process
@@ -97,6 +92,46 @@ const SharingServicesDialog = ({
           ),
       )
     : [];
+  const allowedInstrumentIds = allowedInstruments.map(
+    (instrument: any) => instrument.id,
+  );
+
+  const defaultStreams = (streams || [])
+    .filter((stream: any) =>
+      (selectedSharingService?.streams || []).some(
+        (s: any) => s.id === stream.id,
+      ),
+    )
+    .sort((a: any, b: any) => a.id - b.id);
+  const defaultStreamIds = defaultStreams.map((stream: any) => stream.id);
+
+  const defaultArchivalComment = `No non-detections prior to first detection${
+    defaultStreams.length
+      ? ` in ${defaultStreams
+          .map((stream: any) => stream.name)
+          .join(", ")} alert stream${defaultStreams.length > 1 ? "s" : ""}`
+      : ""
+  }`;
+
+  const coauthorsString = (selectedSharingService?.coauthors || [])
+    .filter((coauthor: any) => coauthor.user_id !== currentUser?.id)
+    .map((coauthor: any) =>
+      userLabel(
+        allUsers.find((user: any) => user.id === coauthor.user_id),
+        false,
+        true,
+      ),
+    )
+    .join(", ");
+
+  const defaultSharersString =
+    currentUser && allUsers.length > 0
+      ? `${userLabel(currentUser, false, true)}${
+          coauthorsString ? `, ${coauthorsString}` : ""
+        } ${
+          selectedSharingService?.acknowledgments || "on the behalf of ..."
+        }`.replace(/\s+/g, " ")
+      : null;
 
   useEffect(() => {
     const getSharingServices = async () => {
@@ -115,84 +150,14 @@ const SharingServicesDialog = ({
   ]);
 
   useEffect(() => {
-    if (
-      sharingServicesList?.length > 0 &&
-      selectedSharingServiceId &&
-      currentUser &&
-      allUsers?.length > 0
-    ) {
-      const coauthors = (selectedSharingService?.coauthors || []).filter(
-        (coauthor: any) => coauthor.user_id !== currentUser.id,
-      );
-      const authorString = userLabel(currentUser, false, true);
-      const coauthorsString = coauthors
-        .map((coauthor: any) =>
-          userLabel(
-            allUsers.find((user: any) => user.id === coauthor.user_id),
-            false,
-            true,
-          ),
-        )
-        .join(", ");
-      const acknowledgments =
-        selectedSharingService?.acknowledgments || "on the behalf of ...";
-
-      const finalString = `${authorString}${
-        coauthorsString ? `, ${coauthorsString}` : ""
-      } ${acknowledgments}`.replace(/\s+/g, " ");
-
-      setdefaultSharersString(finalString);
-    }
-  }, [sharingServicesList, selectedSharingServiceId, currentUser, allUsers]);
-
-  useEffect(() => {
-    if (
-      !sharingServicesList?.length ||
-      !selectedSharingServiceId ||
-      !selectedSharingService
-    )
-      return;
-    let archivalComment = "No non-detections prior to first detection";
-
-    // Set publish to
-    if (sendToTNS !== selectedSharingService.enable_sharing_with_tns) {
-      setSendToTNS(
-        selectedSharingService.enable_sharing_with_tns && !isNoAffiliation,
-      );
-    }
-    if (sendToHermes !== selectedSharingService.enable_sharing_with_hermes) {
-      setSendToHermes(selectedSharingService.enable_sharing_with_hermes);
-    }
-
-    // Set instruments
-    if (instrumentList?.length && selectedSharingService.instruments?.length) {
-      const instrumentIds = selectedSharingService.instruments.map(
-        (i: any) => i.id,
-      );
-      setDefaultInstrumentIds(instrumentIds);
-    }
-
-    // Set streams
-    if (streams?.length && selectedSharingService.streams?.length) {
-      const streamIds = selectedSharingService.streams
-        .map((s: any) => s.id)
-        .sort((a: any, b: any) => a - b);
-
-      setDefaultStreamIds(streamIds);
-
-      const streamNames = streamIds
-        .map((id: any) => streams.find((s: any) => s.id === id)?.name)
-        .filter(Boolean);
-
-      if (streamNames.length) {
-        archivalComment = `${archivalComment} in ${streamNames.join(
-          ", ",
-        )} alert stream${streamNames.length > 1 ? "s" : ""}`;
-      }
-    }
-
-    setDefaultArchivalComment(archivalComment);
-  }, [sharingServicesList, selectedSharingServiceId, instrumentList, streams]);
+    setSendToTNS(
+      Boolean(selectedSharingService?.enable_sharing_with_tns) &&
+        !isNoAffiliation,
+    );
+    setSendToHermes(
+      Boolean(selectedSharingService?.enable_sharing_with_hermes),
+    );
+  }, [selectedSharingServiceId, selectedSharingService, isNoAffiliation]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setSharingRequestInProcess(true);
@@ -235,10 +200,10 @@ const SharingServicesDialog = ({
         type: "array",
         items: {
           type: "integer",
-          enum: allowedInstruments.map((instrument: any) => instrument.id),
+          enum: allowedInstrumentIds,
         },
         uniqueItems: true,
-        default: defaultInstrumentIds,
+        default: allowedInstrumentIds,
         title: "Instrument(s)",
       },
       stream_ids: {
@@ -377,6 +342,7 @@ const SharingServicesDialog = ({
 
     return (
       <Form
+        key={selectedSharingServiceId}
         schema={formSchema}
         uiSchema={uiSchema}
         validator={validator as any}
