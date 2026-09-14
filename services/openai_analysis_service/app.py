@@ -29,6 +29,9 @@ log = make_log("openai_analysis_service")
 summarize_embedding_config = cfg[
     "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
+# The embedding model need not sit with the chat model. An index is built by one
+# particular model and only that model can query it, so the two move separately.
+summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 pinecone_client = None
 USE_PINECONE = False
 if (
@@ -314,10 +317,21 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if USE_PINECONE:
+        embedding_model = summarize_embedding_config.get(
+            "model", "text-embedding-3-small"
+        )
+        embedding_client = (
+            OpenAI(
+                api_key=analysis_parameters.get("openai_api_key"),
+                base_url=summarize_embedding_base_url,
+            )
+            if summarize_embedding_base_url
+            else client
+        )
         try:
-            e = client.embeddings.create(
+            e = embedding_client.embeddings.create(
                 input=openai_summary,
-                model=summarize_embedding_config.get("model", "text-embedding-3-small"),
+                model=embedding_model,
             )
         except Exception as e:
             log(f"OpenAI embedding failed {e}")
@@ -328,6 +342,22 @@ def run_openai_summarization(data_dict):
                 }
             )
             return rez
+
+        # An index holds vectors of the width it was created with, and pinecone
+        # reports a mismatch only as a shape error on upsert.
+        index_size = summarize_embedding_config.get("index_size")
+        vector = e.data[0].embedding
+        if index_size and len(vector) != index_size:
+            message = (
+                f"{embedding_model} returns {len(vector)}-d vectors but index "
+                f"{summarize_embedding_index} holds {index_size}-d ones. Point "
+                "embeddings_store.summary at the model the index was built with, "
+                "or rebuild the index at this width."
+            )
+            log(message)
+            rez.update({"status": "failure", "message": message})
+            return rez
+
         pinecone_index = pinecone_client.Index(summarize_embedding_index)
         metadata = {}
         if z is not None:
@@ -340,8 +370,8 @@ def run_openai_summarization(data_dict):
 
         metadata["summary"] = openai_summary
 
-        pinecone_index.upsert([(source_id, e.data[0].embedding, metadata)])
-        result["embedding"] = e.data[0].embedding
+        pinecone_index.upsert([(source_id, vector, metadata)])
+        result["embedding"] = vector
 
     f = tempfile.NamedTemporaryFile(suffix=".joblib", prefix="results_", delete=False)
     f.close()
