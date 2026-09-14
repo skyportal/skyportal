@@ -377,6 +377,7 @@ const SharingServicesDialog = ({
 
     return (
       <Form
+        key={selectedSharingServiceId}
         schema={formSchema}
         uiSchema={uiSchema}
         validator={validator as any}
