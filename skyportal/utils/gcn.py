@@ -266,6 +266,11 @@ def get_tags(root, notice_type):
     elif notice_type in {"ICECUBE_ASTROTRACK_GOLD", "ICECUBE_ASTROTRACK_BRONZE"}:
         yield "Neutrino"
         yield "IceCube"
+    elif notice_type == "SNEWS":
+        # Deliberately not tagged "Neutrino": the default observation plans gate
+        # on that tag, so adding it here would silently start triggering ZTF on
+        # an all-sky localization. Whether to follow one up is a separate call.
+        yield "Supernova"
 
     if notice_type == "ICECUBE_ASTROTRACK_GOLD":
         yield "Gold"
@@ -968,6 +973,8 @@ def get_xml_notice_type(root):
     # but it's unclear if these will be used for future notices.
     # So we will just look at the ivorn which is guaranteed to be there
     ivorn = str(root.attrib.get("ivorn", ""))
+    if ivorn.startswith("ivo://nasa.gsfc.gcn/SNEWS"):
+        return "SNEWS"
     if str(ivorn).startswith("ivo://org.svom/"):
         if "_eclairs" in ivorn:
             return "svom.voevent.eclairs"

@@ -1308,6 +1308,7 @@ gcn:
       - gcn.classic.voevent.SWIFT_XRT_POSITION
       # - gcn.classic.voevent.AMON_ICECUBE_COINC
       # - gcn.classic.voevent.AMON_ICECUBE_HESE
+      - gcn.classic.voevent.SNEWS
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE
       # - gcn.classic.voevent.MAXI_UNKNOWN
