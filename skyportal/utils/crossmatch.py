@@ -32,6 +32,10 @@ DEFAULT_CREDIBLE_LEVEL = 90
 # the localizationCumprob default on the source query.
 DEFAULT_CUMPROB = 0.95
 
+# Area of a level-0 HEALPix cell: the sphere's 4*pi steradians over 12 base
+# pixels. A cell at level k covers this over 4**k.
+BASE_PIXEL_AREA_SR = np.pi / 3.0
+
 
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
     """Angular separation in degrees, vectorized over the second position.
@@ -322,6 +326,60 @@ def _uniq_ranges(uniq, probdensity):
     end = np.left_shift(ipix + 1, shift)
     order = np.argsort(start)
     return start[order], end[order], density[order]
+
+
+def localization_moc(localization, credible_level=DEFAULT_CREDIBLE_LEVEL):
+    """The localization's credible region as a MOC, or None if it has no map.
+
+    A search that cannot be reduced to one cone is sent as the region itself.
+    The MOC carries only which sky is included, not the probability in it, so it
+    is orders of magnitude smaller than the multi-order map it comes from: a
+    125,781-tile Fermi map is 2.0 MB as a skymap and 8.6 kB as a 90% MOC.
+
+    `credible_level` is a percentage, matching `search_cone`.
+    """
+    from mocpy import MOC
+
+    uniq = np.asarray(localization.uniq or [], dtype=np.int64)
+    density = np.asarray(localization.probdensity or [], dtype=float)
+    if uniq.size == 0 or uniq.size != density.size:
+        return None
+
+    level = (np.log2(uniq / 4) / 2).astype(np.int64)
+    # Probability per cell, not density: cells span different areas, so the
+    # densities cannot be ranked against each other directly.
+    probability = density * (BASE_PIXEL_AREA_SR / (4.0**level))
+    total = probability.sum()
+    if not np.isfinite(total) or total <= 0:
+        return None
+
+    # Smallest set of cells holding the requested probability, densest first.
+    order = np.argsort(-probability)
+    cumulative = np.cumsum(probability[order])
+    keep = order[cumulative <= (credible_level / 100.0) * total]
+    if keep.size == 0:
+        # A single cell already exceeds the level; keep the densest one.
+        keep = order[:1]
+
+    ipix = uniq[keep] - 4 * (4 ** level[keep])
+    return MOC.from_healpix_cells(ipix, level[keep], max_depth=int(level[keep].max()))
+
+
+def moc_fits_base64(moc):
+    """A MOC as a base64 FITS payload, for sending to a broker."""
+    import base64
+    import os
+    import tempfile
+
+    # mocpy writes to a path rather than a buffer.
+    handle, path = tempfile.mkstemp(suffix=".fits")
+    os.close(handle)
+    try:
+        moc.save(path, format="fits", overwrite=True)
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode("ascii")
+    finally:
+        os.unlink(path)
 
 
 def _density_on_segments(start, end, density, seg_start):

@@ -1078,6 +1078,10 @@ class BOOMBROKER(BrokerAPI):
             "start_jd": kwargs.get("start_jd"),
             "end_jd": kwargs.get("end_jd"),
         }
+        # A region search: BOOM expands the MOC into covering cones and prepends
+        # the match itself, so the pipeline stays the caller's own cuts.
+        if kwargs.get("moc_fits_base64"):
+            payload["moc_fits_base64"] = kwargs["moc_fits_base64"]
         if kwargs.get("sort_by"):
             payload.update(
                 {
