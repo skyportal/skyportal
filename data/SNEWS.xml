@@ -1,0 +1,124 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<voe:VOEvent
+      ivorn="ivo://nasa.gsfc.gcn/SNEWS#Event2018-09-18T16:00:01.00_1000194-580"
+      role="test" version="2.0"
+      xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.ivoa.net/xml/VOEvent/v2.0  http://www.ivoa.net/xml/VOEvent/VOEvent-v2.0.xsd" >
+  <Who>
+    <AuthorIVORN>ivo://nasa.gsfc.tan/gcn</AuthorIVORN>
+    <Author>
+      <shortName>SNEWS (via VO-TAN)</shortName>
+      <contactName>Kate Scholberg</contactName>
+      <contactEmail>schol@phy.duke.edu</contactEmail>
+    </Author>
+    <Date>2018-09-18T16:00:10</Date>
+    <Description>This VOEvent message was created with GCN VOE version: 1.29 09aug18</Description>
+  </Who>
+  <What>
+    <Param name="Packet_Type"   value="149" />
+    <Param name="Pkt_Ser_Num"   value="1" />
+    <Param name="TrigID"        value="1000194" ucd="meta.id" />
+    <Param name="Event_TJD"     value="18379" unit="days" ucd="time" />
+    <Param name="Event_SOD"     value="57601.00" unit="sec" ucd="time" />
+    <Param name="Event_Signal"  value="0" unit="counts" />
+    <Param name="Trigger_ID"    value="0x7" />
+    <Param name="Misc_flags"    value="0x353055" />
+    <Group name="Trigger_ID" >
+      <Param name="SubType"        value="coinc" />
+      <Param name="Test"           value="true" />
+      <Param name="RADec_valid"    value="false" />
+      <Param name="Retraction"     value="false" />
+      <Param name="InternalTest"   value="false" />
+    </Group>
+    <Group name="Misc_Flags" >
+      <Param name="Detector_A_Participate" value="true"  />
+      <Param name="Detector_A_Possible"    value="false"  />
+      <Param name="Detector_A_Good"        value="true"  />
+      <Param name="Detector_A_Override"    value="false"  />
+      <Param name="Detector_B_Participate" value="true"  />
+      <Param name="Detector_B_Possible"    value="false"  />
+      <Param name="Detector_B_Good"        value="true"  />
+      <Param name="Detector_B_Override"    value="false"  />
+      <Param name="Detector_C_Participate" value="false"  />
+      <Param name="Detector_C_Possible"    value="false"  />
+      <Param name="Detector_C_Good"        value="false"  />
+      <Param name="Detector_C_Override"    value="false"  />
+      <Param name="Detector_D_Participate" value="true"  />
+      <Param name="Detector_D_Possible"    value="true"  />
+      <Param name="Detector_D_Good"        value="false"  />
+      <Param name="Detector_D_Override"    value="false"  />
+      <Param name="Detector_E_Participate" value="true"  />
+      <Param name="Detector_E_Possible"    value="false"  />
+      <Param name="Detector_E_Good"        value="true"  />
+      <Param name="Detector_E_Override"    value="false"  />
+      <Param name="Detector_F_Participate" value="true"  />
+      <Param name="Detector_F_Possible"    value="true"  />
+      <Param name="Detector_F_Good"        value="false"  />
+      <Param name="Detector_F_Override"    value="false"  />
+      <Param name="Detector_G_Participate" value="false"  />
+      <Param name="Detector_G_Possible"    value="false"  />
+      <Param name="Detector_G_Good"        value="false"  />
+      <Param name="Detector_G_Override"    value="false"  />
+      <Param name="Detector_H_Participate" value="false"  />
+      <Param name="Detector_H_Possible"    value="false"  />
+      <Param name="Detector_H_Good"        value="false"  />
+      <Param name="Detector_H_Override"    value="false"  />
+    </Group>
+    <Param name="Coords_Type"   value="1" unit="dn" />
+    <Param name="Coords_String" value="source_object" />
+    <Group name="Obs_Support_Info" >
+      <Description>The Sun and Moon values are valid at the time the VOEvent XML message was created.</Description>
+      <Param name="Sun_RA"        value="176.05" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Sun_Dec"       value="1.71" unit="deg" ucd="pos.eq.dec" />
+      <Param name="Sun_Distance"  value="175.43" unit="deg" ucd="pos.angDistance" />
+      <Param name="Sun_Hr_Angle"  value="11.72" unit="hr" />
+      <Param name="Moon_RA"       value="285.54" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Moon_Dec"      value="-20.83" unit="deg" ucd="pos.eq.dec" />
+      <Param name="MOON_Distance" value="75.76" unit="deg" ucd="pos.angDistance" />
+      <Param name="Moon_Illum"    value="66.14" unit="%" ucd="arith.ratio" />
+      <Param name="Galactic_Long" value="96.34" unit="deg" ucd="pos.galactic.lon" />
+      <Param name="Galactic_Lat"  value="-60.19" unit="deg" ucd="pos.galactic.lat" />
+      <Param name="Ecliptic_Long" value="0.00" unit="deg" ucd="pos.ecliptic.lon" />
+      <Param name="Ecliptic_Lat"  value="0.00" unit="deg" ucd="pos.ecliptic.lat" />
+    </Group>
+    <Description>A transient location detected by network of detectors in the SuperNova Early Warning System.</Description>
+  </What>
+  <WhereWhen>
+    <ObsDataLocation>
+      <ObservatoryLocation id="GEOLUN" />
+      <ObservationLocation>
+        <AstroCoordSystem id="UTC-FK5-GEO" />
+        <AstroCoords coord_system_id="UTC-FK5-GEO">
+          <Time unit="s">
+            <TimeInstant>
+              <ISOTime>2018-09-18T16:00:01.00Z</ISOTime>
+            </TimeInstant>
+          </Time>
+          <Position2D unit="deg">
+            <Name1>RA</Name1>
+            <Name2>Dec</Name2>
+            <Value2>
+              <C1>0.0000</C1>
+              <C2>0.0000</C2>
+            </Value2>
+            <Error2Radius>360.0000</Error2Radius>
+          </Position2D>
+        </AstroCoords>
+      </ObservationLocation>
+    </ObsDataLocation>
+  <Description>The RA,Dec coordinates are of the type: source_object.</Description>
+  </WhereWhen>
+  <How>
+    <Description>SNEWS: SuperNova Early Warning System</Description>
+    <Reference uri="http://gcn.gsfc.nasa.gov/snews.html" type="url" />
+    <Reference uri="http://gcn.gsfc.nasa.gov/snews_trans.html" type="url" />
+  </How>
+  <Why importance="1.0">
+    <Inference probability="1.0">
+      <Concept>process.variation.burst;phys.particle.neutrino</Concept>
+    </Inference>
+  </Why>
+  <Description>
+  </Description>
+</voe:VOEvent>

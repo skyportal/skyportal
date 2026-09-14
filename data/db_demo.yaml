@@ -2195,6 +2195,8 @@ gcn_event:
       file: ./GW190814.xml
   - xml:
       file: ./AMON.xml
+  - xml:
+      file: ./SNEWS.xml
   # EP260806a, as a cone localization -- the counterpart above sits 2.1' from
   # this centre, inside the 3.1' error circle.
   - dateobs: "2026-08-06T23:02:28"

@@ -316,16 +316,43 @@ async def extinction_by_filter(phots, session):
     }
 
 
+def _payload_ids(payloads, key):
+    """The distinct values of ``key`` across payloads, whether given per point or once."""
+    ids = set()
+    for payload in payloads:
+        value = payload.get(key)
+        if isinstance(value, list | tuple):
+            ids.update(v for v in value if v is not None)
+        elif value is not None:
+            ids.add(value)
+    return ids
+
+
 async def transient_photometry(groups, session):
     from sqlalchemy.orm.attributes import set_committed_value
 
-    from ..handlers.api.photometry import standardize_photometry_data
+    from ..handlers.api.photometry import (
+        resolve_photometry_refs,
+        standardize_photometry_data,
+    )
     from ..models import Photometry
 
+    payloads = [
+        {k: group[k] for k in _PAYLOAD_KEYS if k in group} for group in groups.values()
+    ]
+    # The groups of one object share its obj id and mostly its instrument, so
+    # resolve across all of them once rather than per payload.
+    refs = await resolve_photometry_refs(
+        _payload_ids(payloads, "instrument_id"),
+        _payload_ids(payloads, "obj_id"),
+        session,
+    )
+
     phots = []
-    for group in groups.values():
-        payload = {k: group[k] for k in _PAYLOAD_KEYS if k in group}
-        df, instrument_cache = await standardize_photometry_data(payload, session)
+    for payload in payloads:
+        df, instrument_cache = await standardize_photometry_data(
+            payload, session, refs=refs
+        )
         for row in df.to_dict("records"):
             phot = Photometry(
                 obj_id=row["obj_id"],
