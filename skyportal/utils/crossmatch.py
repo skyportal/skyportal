@@ -365,21 +365,9 @@ def localization_moc(localization, credible_level=DEFAULT_CREDIBLE_LEVEL):
     return MOC.from_healpix_cells(ipix, level[keep], max_depth=int(level[keep].max()))
 
 
-def moc_fits_base64(moc):
-    """A MOC as a base64 FITS payload, for sending to a broker."""
-    import base64
-    import os
-    import tempfile
-
-    # mocpy writes to a path rather than a buffer.
-    handle, path = tempfile.mkstemp(suffix=".fits")
-    os.close(handle)
-    try:
-        moc.save(path, format="fits", overwrite=True)
-        with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode("ascii")
-    finally:
-        os.unlink(path)
+def moc_ascii(moc):
+    """A MOC in IVOA ASCII serialization, e.g. ``5/1-3 8 11/1234``."""
+    return moc.to_string(format="ascii")
 
 
 def _density_on_segments(start, end, density, seg_start):

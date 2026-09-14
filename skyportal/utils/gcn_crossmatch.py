@@ -65,7 +65,7 @@ from skyportal.utils.crossmatch import (
     equatorial_to_galactic,
     great_circle_distance,
     localization_moc,
-    moc_fits_base64,
+    moc_ascii,
     search_cone,
     skymap_consistency,
     skymap_overlap_integral,
@@ -572,10 +572,10 @@ async def process_event_filter(
                 if cone is not None
                 else list(cuts)
             ),
-            # BOOM expands the region into covering cones and prepends the
-            # match, so the cuts reach it unchanged and a skymap event runs
-            # the same versioned filter a cone event does.
-            moc_fits_base64=(moc_fits_base64(moc) if moc is not None else None),
+            # BOOM prepends the region match itself, so the cuts reach it
+            # unchanged and a skymap event runs the same versioned filter a
+            # cone event does.
+            moc_ascii=(moc_ascii(moc) if moc is not None else None),
             survey=survey,
             permissions=permissions,
             start_jd=jd_start,
