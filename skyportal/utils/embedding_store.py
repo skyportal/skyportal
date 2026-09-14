@@ -7,6 +7,9 @@ pgvector holds them in a column with no declared width, so changing embedding
 model needs no migration. Postgres will not compare vectors of different widths,
 though, so every read is scoped to the model named in the config: vectors from a
 previous model stay in place, ignored, until they are written over.
+
+Callers pass the objs the requester may read as a subquery. Keeping it out of
+here means the one access rule in `Obj.select` decides, rather than a copy of it.
 """
 
 __all__ = [
@@ -19,12 +22,34 @@ __all__ = [
     "search_embeddings_by_obj",
 ]
 
-from typing import Any
-
 import sqlalchemy as sa
 
 PINECONE = "pinecone"
 PGVECTOR = "pgvector"
+
+
+class Vector(sa.types.UserDefinedType):
+    """pgvector's type, named so a query can cast to it."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw):
+        return "vector"
+
+
+# Lightweight table handles: the columns a search touches, not a second
+# declaration of tables the ORM already maps.
+_embeddings = sa.table(
+    "summary_embeddings",
+    sa.column("obj_id"),
+    sa.column("embedding"),
+    sa.column("model"),
+    sa.column("summary"),
+)
+_objs = sa.table("objs", sa.column("id"), sa.column("redshift"))
+_classifications = sa.table(
+    "classifications", sa.column("obj_id"), sa.column("classification")
+)
 
 
 def store_location(config: dict) -> str | None:
@@ -40,28 +65,6 @@ def vector_literal(vector) -> str:
     pgvector-specific type registration.
     """
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
-
-
-def _filtered_obj_ids(z_min, z_max, classification_types):
-    """A subquery of obj ids passing the redshift and classification filters.
-
-    Read against the live tables rather than a copy taken when the summary was
-    written, so a reclassification is reflected without re-embedding.
-    """
-    clauses = []
-    if z_min is not None:
-        clauses.append("o.redshift >= :z_min")
-    if z_max is not None:
-        clauses.append("o.redshift <= :z_max")
-    if z_min is not None or z_max is not None:
-        # A source with no redshift cannot satisfy a redshift cut.
-        clauses.append("o.redshift IS NOT NULL")
-    if classification_types:
-        clauses.append(
-            "EXISTS (SELECT 1 FROM classifications c "
-            "WHERE c.obj_id = o.id AND c.classification = ANY(:classes))"
-        )
-    return " AND ".join(clauses)
 
 
 async def upsert_embedding(session, obj_id, vector, model, summary=None):
@@ -83,48 +86,60 @@ async def upsert_embedding(session, obj_id, vector, model, summary=None):
     )
 
 
-def _search_statement(model, k, z_min, z_max, classification_types, by_obj=False):
-    """The similarity query and its parameters.
+def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
+    """Everything a search is allowed to look at, before similarity is considered."""
+    stmt = stmt.where(_embeddings.c.model == model)
+
+    if accessible_objs is not None:
+        stmt = stmt.where(_embeddings.c.obj_id.in_(accessible_objs))
+
+    # Read against the live tables rather than a copy taken when the summary was
+    # written, so a reclassification is reflected without re-embedding.
+    if z_min is not None or z_max is not None:
+        stmt = stmt.where(
+            sa.exists(
+                sa.select(sa.literal(1))
+                .select_from(_objs)
+                .where(
+                    _objs.c.id == _embeddings.c.obj_id,
+                    # A source with no redshift cannot satisfy a redshift cut.
+                    _objs.c.redshift.isnot(None),
+                    *([_objs.c.redshift >= z_min] if z_min is not None else []),
+                    *([_objs.c.redshift <= z_max] if z_max is not None else []),
+                )
+            )
+        )
+
+    if classification_types:
+        stmt = stmt.where(
+            sa.exists(
+                sa.select(sa.literal(1))
+                .select_from(_classifications)
+                .where(
+                    _classifications.c.obj_id == _embeddings.c.obj_id,
+                    _classifications.c.classification.in_(list(classification_types)),
+                )
+            )
+        )
+    return stmt
+
+
+async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, classes):
+    """The k rows closest to `target`.
 
     `<=>` is cosine distance, so 0 is identical and 2 is opposite; the score
     returned is 1 - distance, matching pinecone's cosine similarity.
     """
-    params: dict[str, Any] = {"model": model, "k": k}
-    where = ["e.model = :model"]
-    if by_obj:
-        # The obj itself would otherwise always come back as its own best match.
-        where.append("e.obj_id != :obj_id")
-    filters = _filtered_obj_ids(z_min, z_max, classification_types)
-    join = ""
-    if filters:
-        join = "JOIN objs o ON o.id = e.obj_id"
-        where.append(filters)
-        if z_min is not None:
-            params["z_min"] = z_min
-        if z_max is not None:
-            params["z_max"] = z_max
-        if classification_types:
-            params["classes"] = list(classification_types)
-
-    if by_obj:
-        target = (
-            "(SELECT embedding FROM summary_embeddings "
-            "WHERE obj_id = :obj_id AND model = :model)"
-        )
-    else:
-        target = "CAST(:embedding AS vector)"
-
-    sql = (
-        f"SELECT e.obj_id, e.summary, 1 - (e.embedding <=> {target}) AS score "
-        f"FROM summary_embeddings e {join} "
-        f"WHERE {' AND '.join(where)} "
-        f"ORDER BY e.embedding <=> {target} LIMIT :k"
+    distance = _embeddings.c.embedding.op("<=>")(target)
+    stmt = sa.select(
+        _embeddings.c.obj_id,
+        _embeddings.c.summary,
+        (1 - distance).label("score"),
     )
-    return sql, params
+    stmt = _restrict(stmt, model, accessible_objs, z_min, z_max, classes)
+    stmt = stmt.order_by(distance).limit(k)
 
-
-async def _run_search(session, sql, params):
-    rows = (await session.execute(sa.text(sql), params)).mappings().all()
+    rows = (await session.execute(stmt)).mappings().all()
     return [
         {
             "id": row["obj_id"],
@@ -136,20 +151,55 @@ async def _run_search(session, sql, params):
 
 
 async def search_embeddings(
-    session, vector, k, model, z_min=None, z_max=None, classification_types=None
+    session,
+    vector,
+    k,
+    model,
+    accessible_objs=None,
+    z_min=None,
+    z_max=None,
+    classification_types=None,
 ):
     """Summaries most similar to `vector`, nearest first."""
-    sql, params = _search_statement(model, k, z_min, z_max, classification_types)
-    params["embedding"] = vector_literal(vector)
-    return await _run_search(session, sql, params)
+    target = sa.cast(sa.literal(vector_literal(vector)), Vector())
+    return await _nearest(
+        session, target, k, model, accessible_objs, z_min, z_max, classification_types
+    )
 
 
 async def search_embeddings_by_obj(
-    session, obj_id, k, model, z_min=None, z_max=None, classification_types=None
+    session,
+    obj_id,
+    k,
+    model,
+    accessible_objs=None,
+    z_min=None,
+    z_max=None,
+    classification_types=None,
 ):
-    """Summaries most similar to `obj_id`'s own, which is itself excluded."""
-    sql, params = _search_statement(
-        model, k, z_min, z_max, classification_types, by_obj=True
+    """Summaries most similar to `obj_id`'s own, which is itself excluded.
+
+    Nothing is returned for a source the requester cannot read: otherwise the
+    neighbours of a private summary would be an answer about it.
+    """
+    anchor_where = [_embeddings.c.obj_id == obj_id, _embeddings.c.model == model]
+    if accessible_objs is not None:
+        anchor_where.append(_embeddings.c.obj_id.in_(accessible_objs))
+    anchor = await session.scalar(
+        sa.select(_embeddings.c.embedding).where(*anchor_where)
     )
-    params["obj_id"] = obj_id
-    return await _run_search(session, sql, params)
+    if anchor is None:
+        return []
+
+    target = sa.cast(sa.literal(anchor), Vector())
+    results = await _nearest(
+        session,
+        target,
+        k + 1,
+        model,
+        accessible_objs,
+        z_min,
+        z_max,
+        classification_types,
+    )
+    return [r for r in results if r["id"] != obj_id][:k]
