@@ -136,7 +136,10 @@ if (
         index.name for index in pinecone_client.list_indexes().indexes
     ]:
         USE_PINECONE = True
-elif cfg["database.database"] == "skyportal_test":
+elif EMBEDDING_LOCATION == PINECONE and cfg["database.database"] == "skyportal_test":
+    # Pinecone cannot be reached from a test run, so the tests that do not touch
+    # it are let through. pgvector needs no such allowance: it is the database
+    # the tests already have.
     USE_PINECONE = True
     log("Setting USE_PINECONE=True as it seems like we are in a test environment")
 
