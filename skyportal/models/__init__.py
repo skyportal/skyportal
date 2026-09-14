@@ -55,6 +55,7 @@ from .source_view import *
 from .spatial_catalog import *
 from .spectrum import *
 from .stream import *
+from .summary_embedding import *
 from .super_obj import *
 from .survey_efficiency import *
 from .tag import *

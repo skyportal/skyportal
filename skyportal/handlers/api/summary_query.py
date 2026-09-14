@@ -11,7 +11,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ...models import Obj, User
+from ...models import Source, User
 from ...utils.embedding_store import (
     PGVECTOR,
     PINECONE,
@@ -260,10 +260,13 @@ class SummaryQueryHandler(BaseHandler):
             # Without this, anyone could ask what a source they cannot read is
             # similar to. The message does not distinguish "no such obj" from
             # "not yours", so it says nothing about what exists.
+            #
+            # Obj itself is public; what a user may see is the Source rows tying
+            # an obj to their groups, so that is what decides here.
             async with self.AsyncSession() as session:
                 anchor = await session.scalar(
-                    Obj.select(session.user_or_token, columns=[Obj.id]).where(
-                        Obj.id == objID
+                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
+                        Source.obj_id == objID
                     )
                 )
             if anchor is None:
@@ -273,9 +276,12 @@ class SummaryQueryHandler(BaseHandler):
             classes = body.classificationTypes or None
             try:
                 async with self.AsyncSession() as session:
-                    # A summary is as readable as the source it describes, so the
-                    # search sees exactly the objs the requester could open.
-                    accessible = Obj.select(session.user_or_token, columns=[Obj.id])
+                    # A summary is as readable as the source it describes, so
+                    # the search sees exactly the sources saved to the
+                    # requester's groups.
+                    accessible = Source.select(
+                        session.user_or_token, columns=[Source.obj_id]
+                    )
                     if query:
                         vector = embed_query_text(query, user_openai_key)
                         results = await search_embeddings(
@@ -354,9 +360,9 @@ class SummaryQueryHandler(BaseHandler):
                 allowed = set(
                     (
                         await session.scalars(
-                            Obj.select(session.user_or_token, columns=[Obj.id]).where(
-                                Obj.id.in_(ids)
-                            )
+                            Source.select(
+                                session.user_or_token, columns=[Source.obj_id]
+                            ).where(Source.obj_id.in_(ids))
                         )
                     ).all()
                 )

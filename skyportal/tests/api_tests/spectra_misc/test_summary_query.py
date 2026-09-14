@@ -32,3 +32,27 @@ def test_bad_queries(view_only_token):
     status, data = api("POST", "summary_query", data=query_data, token=view_only_token)
     assert status == 400
     assert data["message"].find("Cannot specify both") != -1
+
+
+def test_cannot_search_from_a_source_you_cannot_see(
+    view_only_token, public_source_group2
+):
+    """The neighbours of a summary describe it, so a source the requester cannot
+    read is refused rather than answered."""
+    status, data = api(
+        "POST",
+        "summary_query",
+        data={"objID": public_source_group2.id},
+        token=view_only_token,
+    )
+    assert status == 403, data
+    assert "Cannot access object" in data["message"]
+
+
+def test_searching_from_a_visible_source_is_not_refused(view_only_token, public_source):
+    """The same request for a readable source gets past the access check; what it
+    does next depends on the configured store."""
+    status, data = api(
+        "POST", "summary_query", data={"objID": public_source.id}, token=view_only_token
+    )
+    assert status != 403, data
