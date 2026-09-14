@@ -1459,6 +1459,11 @@ analysis_services:
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
       summary:
+        # `pinecone` for the hosted service, `pgvector` to keep the vectors in
+        # SkyPortal's own database. pgvector needs no index_name, index_size or
+        # key of its own, and its column has no fixed width, so the model can be
+        # changed without a migration: reads are scoped to the model named
+        # below, leaving vectors from an earlier one unread until rewritten.
         location: pinecone
         # The pinecone key. The embedding model is reached with the key from
         # analysis_services.openai_analysis_service.summary.

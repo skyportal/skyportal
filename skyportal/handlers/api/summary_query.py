@@ -12,10 +12,28 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ...models import User
+from ...utils.embedding_store import (
+    PGVECTOR,
+    PINECONE,
+    search_embeddings,
+    search_embeddings_by_obj,
+    store_location,
+)
 from ..base import BaseHandler
 
 _, cfg = load_env()
 log = make_log("query")
+
+
+def embed_query_text(query: str, openai_api_key: str) -> list[float]:
+    """The query's vector, from whichever server the embedding config names."""
+    embeddings = OpenAIEmbeddings(
+        model=summarize_embedding_model,
+        embedding_ctx_length=summarize_embedding_index_size,
+        openai_api_key=openai_api_key,
+        base_url=summarize_embedding_base_url,
+    )
+    return embeddings.embed_query(query)
 
 
 def search_sources(
@@ -47,13 +65,7 @@ def search_sources(
     if openai_api_key is None:
         raise ValueError("openai_api_key must be provided")
 
-    embeddings = OpenAIEmbeddings(
-        model=summarize_embedding_model,
-        embedding_ctx_length=summarize_embedding_index_size,
-        openai_api_key=openai_api_key,
-        base_url=summarize_embedding_base_url,
-    )
-    query_vector = embeddings.embed_query(query)
+    query_vector = embed_query_text(query, openai_api_key)
 
     # The index stores vectors of one width, set when it was built. Asking a
     # different model for the query vector is the easy mistake once the endpoint
@@ -103,9 +115,14 @@ summarize_embedding_model = summarize_embedding_config.get("model")
 # Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 
+EMBEDDING_LOCATION = store_location(summarize_embedding_config)
+# pgvector keeps the vectors in our own database, so there is nothing to reach
+# for and nothing to check beyond the table the migration creates.
+USE_PGVECTOR = EMBEDDING_LOCATION == PGVECTOR
+
 USE_PINECONE = False
 if (
-    summarize_embedding_config.get("location") == "pinecone"
+    EMBEDDING_LOCATION == PINECONE
     and summarize_embedding_config.get("api_key")
     and summarize_embedding_index_name
     and summarize_embedding_index_size
@@ -190,10 +207,30 @@ class SummaryQueryHandler(BaseHandler):
         """
         body = self.parse_body(SummaryQueryPostBody)
 
-        if not USE_PINECONE:
+        if not (USE_PINECONE or USE_PGVECTOR):
             return self.error(
-                "No valid pinecone configuration found. Please check your config file."
+                "No valid embeddings_store configuration found. Please check your "
+                "config file."
             )
+
+        query = body.q
+        objID = body.objID
+        if not query and not objID:
+            return self.error('Missing one of the required: "q" or "objID"')
+        if query is not None and objID is not None:
+            return self.error('Cannot specify both "q" and "objID"')
+
+        k = body.k
+        if k < 1 or k > 100:
+            return self.error("k must be 1<=k<=100")
+        z_min, z_max = body.z_min, body.z_max
+        if z_min is not None and z_max is not None and z_min > z_max:
+            return self.error("z_min must be <= z_max")
+
+        # Searching from a source uses the vector already stored for it, so only
+        # a text query needs the embedding service — and so only it needs a key.
+        needs_embedding = bool(query) and not (USE_PGVECTOR and objID)
+
         user_openai_key = None
         if not openai_api_key:
             user_id = self.associated_user_object.id
@@ -216,22 +253,37 @@ class SummaryQueryHandler(BaseHandler):
                     )
         else:
             user_openai_key = openai_api_key
-        if not user_openai_key:
+        if needs_embedding and not user_openai_key:
             return self.error("No OpenAI API key found.", status=400)
 
-        query = body.q
-        objID = body.objID
-        if not query and not objID:
-            return self.error('Missing one of the required: "q" or "objID"')
-        if query is not None and objID is not None:
-            return self.error('Cannot specify both "q" and "objID"')
-
-        k = body.k
-        if k < 1 or k > 100:
-            return self.error("k must be 1<=k<=100")
-        z_min, z_max = body.z_min, body.z_max
-        if z_min is not None and z_max is not None and z_min > z_max:
-            return self.error("z_min must be <= z_max")
+        if USE_PGVECTOR:
+            classes = body.classificationTypes or None
+            try:
+                async with self.AsyncSession() as session:
+                    if query:
+                        vector = embed_query_text(query, user_openai_key)
+                        results = await search_embeddings(
+                            session,
+                            vector,
+                            k,
+                            summarize_embedding_model,
+                            z_min,
+                            z_max,
+                            classes,
+                        )
+                    else:
+                        results = await search_embeddings_by_obj(
+                            session,
+                            objID,
+                            k,
+                            summarize_embedding_model,
+                            z_min,
+                            z_max,
+                            classes,
+                        )
+            except Exception as e:
+                return self.error(f"Could not search sources: {e}")
+            return self.success(data={"query_results": results})
 
         filters = []
         if z_min is not None:

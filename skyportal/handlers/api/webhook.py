@@ -9,6 +9,11 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Annotation, ObjAnalysis
+from ...utils.embedding_store import (
+    PGVECTOR,
+    store_location,
+    upsert_embedding,
+)
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -18,6 +23,11 @@ from .candidate.candidate import (
 log = make_log("app/webhook")
 
 _, cfg = load_env()
+
+_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
+_EMBED_TO_PGVECTOR = store_location(_embedding_config) == PGVECTOR
 
 
 class AnalysisWebhookPostBody(BaseModel):
@@ -162,6 +172,7 @@ class AnalysisWebhookHandler(BaseHandler):
                     update_summary_history_if_relevant(
                         summary, analysis.obj, analysis.author
                     )
+                    await _store_summary_embedding(session, analysis)
                     await session.commit()
                     log("analysis is a summary. Pushing to source.")
                     flow.push(
@@ -180,6 +191,37 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(f"Error pushing update to source: {e}")
 
         return self.success(data={"status": "success"})
+
+
+async def _store_summary_embedding(session, analysis):
+    """Keep the summary's vector with the summary, in the same transaction.
+
+    The analysis service has no database of its own and returns the vector
+    alongside the text. Writing it here means a summary and its embedding commit
+    together instead of one outliving the other.
+    """
+    if not _EMBED_TO_PGVECTOR:
+        return
+    try:
+        results = analysis.serialize_results_data()
+    except Exception as e:
+        log(f"Could not read analysis results to store the embedding: {e}")
+        return
+    vector = results.get("embedding")
+    if not vector:
+        return
+    try:
+        await upsert_embedding(
+            session,
+            analysis.obj_id,
+            vector,
+            _embedding_config.get("model"),
+            results.get("summary"),
+        )
+    except Exception as e:
+        # A summary without its vector is still worth keeping; it is missing from
+        # the search until the next run, not lost.
+        log(f"Could not store the summary embedding for {analysis.obj_id}: {e}")
 
 
 async def _upsert_analysis_annotations(session, analysis, results):
