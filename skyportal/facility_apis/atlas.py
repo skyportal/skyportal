@@ -133,7 +133,7 @@ def commit_photometry(
          """
 
         try:
-            df = pd.read_csv(StringIO(s.text.replace("###MJD", "mjd")), sep="\\s+")
+            df = pd.read_csv(StringIO(s.text.replace("###MJD", "mjd")), sep=r"\s+")
         except Exception as e:
             raise ValueError(f"Format of response not understood: {e.message}")
 

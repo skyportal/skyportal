@@ -64,6 +64,8 @@ from skyportal.utils.crossmatch import (
     credible_levels_in_localization,
     equatorial_to_galactic,
     great_circle_distance,
+    localization_moc,
+    moc_ascii,
     search_cone,
     skymap_consistency,
     skymap_overlap_integral,
@@ -283,10 +285,14 @@ def build_annotation_data(
 
     position = alert_position(alert)
     if position is not None:
-        separation = float(great_circle_distance(ra0, dec0, *position))
-        data["distance_arcmin"] = round(separation * 60.0, 4)
-        if radius_deg:
-            data["distance_ratio"] = round(separation / radius_deg, 4)
+        # A region search has no centre to measure from, so the distance fields
+        # are omitted rather than filled with a number that means nothing. Key
+        # absence is what a scanner filter already treats as "not applicable".
+        if ra0 is not None and dec0 is not None:
+            separation = float(great_circle_distance(ra0, dec0, *position))
+            data["distance_arcmin"] = round(separation * 60.0, 4)
+            if radius_deg:
+                data["distance_ratio"] = round(separation / radius_deg, 4)
         gal_lat, gal_long = equatorial_to_galactic(*position)
         data["gal_lat"] = round(float(gal_lat), 4)
         data["gal_long"] = round(float(gal_long), 4)
@@ -506,12 +512,27 @@ async def process_event_filter(
             int(conf(config, "credible_level")), math.ceil(cumprob * 100)
         ),
     )
-    if cone is None:
+    # A localization no single cone bounds usefully is searched as its own
+    # region instead. Only the pipeline path can carry one, so a provider
+    # without filter support still has nothing to query with.
+    moc = None
+    supports_moc = (
+        filter_.broker.broker_class.implements().get("filter_pipeline") == "mongo"
+    )
+    if cone is None and supports_moc:
+        moc = localization_moc(
+            localization,
+            credible_level=max(
+                int(conf(config, "credible_level")), math.ceil(cumprob * 100)
+            ),
+        )
+
+    if cone is None and moc is None:
         state.status = "skipped"
         state.last_queried = utcnow_naive()
         return 0
 
-    ra0, dec0, radius = cone
+    ra0, dec0, radius = cone if cone is not None else (None, None, None)
     event_jd = float(Time(event.dateobs).jd)
 
     if archival:
@@ -546,7 +567,15 @@ async def process_event_filter(
         result = broker.broker_class.test_filter(
             broker,
             session,
-            pipeline=[cone_match_stage(ra0, dec0, radius), *cuts],
+            pipeline=(
+                [cone_match_stage(ra0, dec0, radius), *cuts]
+                if cone is not None
+                else list(cuts)
+            ),
+            # BOOM prepends the region match itself, so the cuts reach it
+            # unchanged and a skymap event runs the same versioned filter a
+            # cone event does.
+            moc_ascii=(moc_ascii(moc) if moc is not None else None),
             survey=survey,
             permissions=permissions,
             start_jd=jd_start,

@@ -2,9 +2,53 @@
 // (e.g. SNID-SAGE, NGSF): [[wavelength, flux], ...].
 export type ModelSpectrumPoints = number[][];
 
+// "09/12/26 14:32" from an ISO timestamp; the time is what separates two
+// spectra taken with the same instrument on the same night.
+export const formatObservedAt = (value?: string | null): string => {
+  if (!value) return "";
+  const [date = "", rest = ""] = String(value).split("T");
+  // Anything that is not an ISO date comes back untouched rather than being
+  // sliced into nonsense.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return String(value);
+  const [year, month, day] = date.split("-") as [string, string, string];
+  const time = rest.slice(0, 5);
+  const stamp = `${month}/${day}/${year.slice(-2)}`;
+  return time ? `${stamp} ${time}` : stamp;
+};
+
+/** Name a fit by the spectrum it was made against, not just by its service.
+ *
+ * Several runs of one service on one object all carry that service's name, so
+ * the spectrum is what tells them apart; a service that does not report which
+ * spectrum it used falls back to when the fit ran.
+ */
+export const describeFit = (analysis: any): ModelSpectrumFit => {
+  const service =
+    analysis.analysis_parameters?.source ||
+    analysis.model_name ||
+    analysis.analysis_service_name ||
+    `analysis ${analysis.id}`;
+  const source = analysis.model_spectrum_source || {};
+  const spectrum = source.observed_at
+    ? `${source.instrument_name || "spectrum"} ${formatObservedAt(source.observed_at)}`
+    : formatObservedAt(analysis.created_at);
+  return {
+    id: analysis.id,
+    label: spectrum ? `${service} \u00b7 ${spectrum}` : service,
+    service,
+    spectrum,
+    sortKey: `${source.observed_at || analysis.created_at || ""}|${service}`,
+    summary: analysis.model_spectrum_summary,
+    model_spectrum: analysis.model_spectrum,
+  };
+};
+
 export interface ModelSpectrumFit {
   id?: number | string;
   label?: string;
+  service?: string; // the analysis service that produced the fit
+  spectrum?: string; // the spectrum it was fitted against, or its run time
+  sortKey?: string;
   summary?: string; // classification headline (type/subtype/z/quality) for the hover
   dash?: string; // Plotly line dash, to distinguish overlaid models
   model_spectrum: ModelSpectrumPoints;

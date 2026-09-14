@@ -16,6 +16,8 @@ import Button from "../Button";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import {
   buildModelSpectrumTraces,
+  describeFit,
+  formatObservedAt,
   ModelSpectrumFit,
 } from "./modelSpectrumTraces";
 import {
@@ -151,16 +153,9 @@ const SpectraPlot = ({
     () =>
       ((objAnalyses as any[]) || [])
         .filter((a) => a.obj_id === objId && a.model_spectrum)
-        .map((a) => ({
-          id: a.id,
-          label:
-            a.analysis_parameters?.source ||
-            a.model_name ||
-            a.analysis_service_name ||
-            `analysis ${a.id}`,
-          summary: a.model_spectrum_summary,
-          model_spectrum: a.model_spectrum,
-        })),
+        .map(describeFit)
+        // A stable order: oldest spectrum first, then by service name.
+        .sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || "")),
     [objAnalyses, objId],
   );
   // Which fits are overlaid; default none (opt-in, like the photometry overlay).
@@ -339,13 +334,10 @@ const SpectraPlot = ({
         });
       }
 
-      // Helper to format date once per spectrum
-      const formatTraceName = (spectrum: any) => {
-        const date = spectrum.observed_at.split("T")[0].split("-");
-        return `${spectrum.instrument_name} (${date[1]}/${date[2].slice(
-          -2,
-        )}/${date[0].slice(-2)})`;
-      };
+      // Two spectra from one instrument on one night are common, so the time
+      // is what distinguishes them.
+      const formatTraceName = (spectrum: any) =>
+        `${spectrum.instrument_name} (${formatObservedAt(spectrum.observed_at)})`;
 
       const traces = spectraFiltered.map((spectrum: any, index: number) => {
         const name = formatTraceName(spectrum);

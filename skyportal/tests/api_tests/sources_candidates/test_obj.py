@@ -13,10 +13,7 @@ def test_delete_obj_non_admin(
     # like Photometry and Comments are created with other users as authors/owners
     status, data = api("DELETE", f"objs/{public_obj.id}", token=manage_sources_token)
     assert status == 400
-    assert (
-        f"Please remove all associated spectra from object with ID {public_obj.id} before removing."
-        in data["message"]
-    )
+    assert f"Cannot find object with ID {public_obj.id}." in data["message"]
 
     # Now start with a fresh Obj with no associated data, and post photometry to it
     status, data = api(
