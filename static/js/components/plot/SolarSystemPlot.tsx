@@ -15,7 +15,7 @@ import {
   fitBandColors,
   histogram,
   SsoPoint,
-  outburstReport,
+  median,
   reduceToUnitGeometry,
 } from "./ssoTransforms";
 
@@ -59,7 +59,16 @@ const Y_AXES: { key: YKey; label: string; title: string }[] = [
 ];
 
 /** Light curve of a solar system object; the reduced views are the informative ones. */
-export const useSolarSystemPlot = (points: SsoPoint[]) => {
+export interface BrokerOutburst {
+  origin: string;
+  sigma: number | null;
+  points: { jd: number; sigma: number }[];
+}
+
+export const useSolarSystemPlot = (
+  points: SsoPoint[],
+  brokerOutburst: BrokerOutburst | null = null,
+) => {
   const [xKey, setXKey] = useState<XKey>("mjd");
   const [yKey, setYKey] = useState<YKey>("H");
   const [slopeText, setSlopeText] = useState(String(INERT_SLOPE));
@@ -71,10 +80,24 @@ export const useSolarSystemPlot = (points: SsoPoint[]) => {
   const rhSlope =
     slopeText.trim() !== "" && Number.isFinite(typed) ? typed : INERT_SLOPE;
 
-  const report = useMemo(() => outburstReport(points), [points]);
+  // Per-detection sigmas come from the broker, so the panel shows a stored,
+  // reproducible quantity rather than one this component invents.
   const oHist = useMemo(
-    () => (report ? histogram(report.ostats) : null),
-    [report],
+    () =>
+      brokerOutburst
+        ? histogram(brokerOutburst.points.map((p) => p.sigma))
+        : null,
+    [brokerOutburst],
+  );
+  const unavailable = brokerOutburst
+    ? null
+    : "no broker outburst statistic on this object";
+  // Marks the middle of what is plotted, which is the per-detection sigmas --
+  // not the baseline statistic on the chip, which is a different quantity.
+  const medianO = useMemo(
+    () =>
+      brokerOutburst ? median(brokerOutburst.points.map((p) => p.sigma)) : null,
+    [brokerOutburst],
   );
   const colorFit = useMemo(
     () => fitBandColors(points, { rhSlope }),
@@ -115,7 +138,7 @@ export const useSolarSystemPlot = (points: SsoPoint[]) => {
   }, [points, xKey, yKey, rhSlope, removeColor, colorFit]);
 
   const maskedCount = points.filter((p) => p.rejected).length;
-  const isOutburst = (report?.medianO ?? 0) > OUTBURST_THRESHOLD;
+  const isOutburst = (brokerOutburst?.sigma ?? 0) > OUTBURST_THRESHOLD;
 
   // Nights are quoted with the value: a colour from one night is barely a measurement.
   const colorSummary = colorFit
@@ -145,7 +168,9 @@ export const useSolarSystemPlot = (points: SsoPoint[]) => {
     showMasked,
     setShowMasked,
     rhSlope,
-    report,
+    brokerOutburst,
+    unavailable,
+    medianO,
     oHist,
     colorFit,
     series,
@@ -247,13 +272,13 @@ export const SolarSystemControls = ({
             </Tooltip>
           </div>
         )}
-        {ctrl.report && (
+        {ctrl.brokerOutburst?.sigma != null && (
           <div style={labelledRow}>
             <Tooltip
-              title={`Median of the per-point outburst statistics over the trailing window (${ctrl.report.nPoints} points, threshold ${OUTBURST_THRESHOLD} sigma)`}
+              title={`Outburst significance from ${ctrl.brokerOutburst.origin}, measured against the object's fitted phase curve (threshold ${OUTBURST_THRESHOLD} sigma)`}
             >
               <Chip
-                label={`median O = ${ctrl.report.medianO.toFixed(2)}${
+                label={`outburst = ${ctrl.brokerOutburst.sigma.toFixed(2)}σ${
                   ctrl.isOutburst ? " — outburst" : ""
                 }`}
                 color={ctrl.isOutburst ? "error" : "success"}
@@ -274,7 +299,8 @@ const SolarSystemPlot = ({ ctrl }: { ctrl: SolarSystemPlotState }) => {
     colorSummary,
     removeColor,
     showMasked,
-    report,
+    unavailable,
+    medianO,
     oHist,
     rhSlope,
     xKey,
@@ -383,7 +409,16 @@ const SolarSystemPlot = ({ ctrl }: { ctrl: SolarSystemPlotState }) => {
         useResizeHandler
         style={{ width: "100%" }}
       />
-      {report && (
+      {unavailable && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", px: 2, pb: 1 }}
+        >
+          {`No outburst statistic: ${unavailable}.`}
+        </Typography>
+      )}
+      {oHist && (
         <Plot
           data={
             [
@@ -407,8 +442,8 @@ const SolarSystemPlot = ({ ctrl }: { ctrl: SolarSystemPlotState }) => {
                 {
                   type: "line",
                   yref: "paper",
-                  x0: report.medianO,
-                  x1: report.medianO,
+                  x0: medianO ?? 0,
+                  x1: medianO ?? 0,
                   y0: 0,
                   y1: 1,
                   line: { color: "#000", width: 2 },

@@ -982,7 +982,47 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Re-share an analysis with a set of groups
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Change which groups can see an existing analysis and its annotation,
+         *     e.g. share a privately-run fit with a group later, or make it private
+         *     again by scoping it to only the requester's single-user group. Author
+         *     only.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_resource_type: string;
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/{analysis_resource_type}/analysis/{obj_id_path}": {
@@ -1192,7 +1232,47 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Re-share an analysis with a set of groups
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Change which groups can see an existing analysis and its annotation,
+         *     e.g. share a privately-run fit with a group later, or make it private
+         *     again by scoping it to only the requester's single-user group. Author
+         *     only.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_resource_type: string;
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/{analysis_resource_type}/analysis/{analysis_id}/{product_type}/{plot_number}": {
@@ -16784,6 +16864,61 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{obj_id}/annotations/alma": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add ALMA archive annotations
+         * @description Ask the ALMA Science Archive what it holds at this source's position
+         *     and post a summary of the coverage as an annotation. Records the
+         *     dataset identifiers too, which is what an ALMA reduction needs.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the object to retrieve the Vizier crossmatch for */
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ALMAQueryBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -39098,6 +39233,17 @@ export interface components {
             group_ids: number[] | null;
         };
         /**
+         * AnalysisPatchBody
+         * @description Request body for re-sharing an existing analysis with a set of groups.
+         */
+        AnalysisPatchBody: {
+            /**
+             * Group Ids
+             * @description Group IDs the analysis and its annotation should be visible to. Set to only the requester's single-user group to keep it private.
+             */
+            group_ids: number[];
+        };
+        /**
          * AssignmentPostBody
          * @description Request body for posting a new observing-run assignment.
          */
@@ -44674,6 +44820,30 @@ export interface components {
              * @default 1
              */
             search_radius: number;
+        };
+        /**
+         * ALMAQueryBody
+         * @description Request body for posting ALMA archive coverage annotations.
+         */
+        ALMAQueryBody: {
+            /**
+             * Crossmatchradius
+             * @description Search radius (in arcseconds) around the source. Default is 30.
+             * @default 30
+             */
+            crossmatchRadius: number | null;
+            /**
+             * Publiconly
+             * @description Only observations whose proprietary period has lapsed. Default is true.
+             * @default true
+             */
+            publicOnly: boolean | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * GaiaQueryBody

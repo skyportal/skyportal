@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import GalaxyCatalog, Instrument
+from ....models import GalaxyCatalog, Instrument, InstrumentField
 from ...base import BaseHandler
 
 
@@ -41,11 +41,27 @@ class RoboticInstrumentsHandler(BaseHandler):
                         sa.select(GalaxyCatalog.name).distinct()
                     )
                     galaxy_catalog_names = galaxy_result.all()
+
+                    # Likewise the instruments that have any field with reference
+                    # filters: one query for all of them, rather than a count per
+                    # instrument inside the schema builder.
+                    references_result = await session.scalars(
+                        sa.select(InstrumentField.instrument_id)
+                        .where(
+                            InstrumentField.reference_filters.isnot(None),
+                            sa.func.cardinality(InstrumentField.reference_filters) > 0,
+                        )
+                        .distinct()
+                    )
+                    instrument_ids_with_references = set(references_result.all())
                     retval = {
                         i.id: i.api_class_obsplan.frontend_render_info(
                             i,
                             session.user_or_token,
                             galaxy_catalog_names=galaxy_catalog_names,
+                            instrument_ids_with_references=(
+                                instrument_ids_with_references
+                            ),
                         )
                         for i in instruments
                     }

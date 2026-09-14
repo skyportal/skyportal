@@ -87,6 +87,20 @@ def matched_user(user, social):
     session flushes, so `associate_user` would otherwise create a second
     association and collide on (provider, uid).
     """
+    # An expired account authenticates fine and then fails every request, which
+    # the user sees as being returned to the login screen with no explanation.
+    # Refuse here instead, where the reason reaches the login error page.
+    if user is not None and not user.is_active():
+        expired_on = (
+            user.expiration_date.strftime("%Y-%m-%d")
+            if user.expiration_date is not None
+            else "an earlier date"
+        )
+        raise Exception(
+            f"Authentication Error: your account expired on {expired_on}. "
+            "Ask an administrator to extend it."
+        )
+
     result = {"is_new": False, "user": user}
     if social is not None:
         result["social"] = social
