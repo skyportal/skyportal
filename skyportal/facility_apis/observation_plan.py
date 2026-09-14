@@ -485,17 +485,23 @@ class MMAAPI(FollowUpAPI):
             end_date = Time(end_date, format="jd").iso
 
         # we add a use_references boolean to the schema if any of the instrument's fields has reference filters
-        has_references = (
-            DBSession()
-            .query(InstrumentField)
-            .filter(
-                InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters.isnot(None),
-                sa.func.cardinality(InstrumentField.reference_filters) > 0,
+        instrument_ids_with_references = kwargs.get("instrument_ids_with_references")
+        if instrument_ids_with_references is None:
+            # Counting per instrument costs a query each; a caller rendering many
+            # of them passes the whole set in instead.
+            has_references = (
+                DBSession()
+                .query(InstrumentField)
+                .filter(
+                    InstrumentField.instrument_id == instrument.id,
+                    InstrumentField.reference_filters.isnot(None),
+                    sa.func.cardinality(InstrumentField.reference_filters) > 0,
+                )
+                .count()
+                > 0
             )
-            .count()
-            > 0
-        )
+        else:
+            has_references = instrument.id in instrument_ids_with_references
 
         form_json_schema = {
             "type": "object",

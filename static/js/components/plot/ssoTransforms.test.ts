@@ -4,7 +4,6 @@ import {
   fitBandColors,
   fittable,
   hg12PhaseFunction,
-  outburstReport,
   SsoPoint,
   reduceToUnitGeometry,
   scaleByGeometry,
@@ -47,40 +46,6 @@ const flatWindow = (): SsoPoint[] =>
     delta: 1,
     phase: 0,
   }));
-
-describe("outburstReport", () => {
-  it("reports no outburst for a flat, colour-offset light curve", () => {
-    const r = outburstReport(flatWindow())!;
-    expect(r.nPoints).toBe(14);
-    expect(r.medianO).toBeCloseTo(0, 9);
-    // colour removal collapses the two bands
-    const spread = Math.max(...r.Hcolor) - Math.min(...r.Hcolor);
-    expect(spread).toBeCloseTo(0, 9);
-  });
-
-  it("detects a brightening of the most recent point", () => {
-    const pts = flatWindow();
-    pts[pts.length - 1].mag = 17.0 - 0.5; // most recent r point 0.5 mag brighter
-    const r = outburstReport(pts)!;
-    expect(r.medianO).toBeCloseTo(0.5 / (0.1 * Math.sqrt(2)), 9);
-  });
-
-  it("orders points and drops those outside the window", () => {
-    const pts = flatWindow();
-    pts.push({
-      time: -30,
-      mag: 10,
-      magerr: 0.1,
-      band: "r",
-      rh: 1,
-      delta: 1,
-      phase: 0,
-    });
-    const r = outburstReport(pts)!;
-    expect(r.nPoints).toBe(14); // the out-of-window point is dropped
-    expect(r.dt[r.dt.length - 1]).toBeCloseTo(0, 9); // test point is most recent
-  });
-});
 
 describe("reduceToUnitGeometry", () => {
   it("leaves a point already at unit geometry and zero phase alone", () => {
@@ -294,12 +259,15 @@ describe("rejected photometry", () => {
     expect(fitted.colors.g!.nights).toBe(clean.colors.g!.nights);
   });
 
-  it("cannot raise a false outburst", () => {
-    const flat = [0, 1, 2, 3, 4].map((n) => at(n, "r", 18));
-    const spike = [...flat, at(5, "r", 14, true)];
-    // The rejected spike is the most recent point, the one the statistic tests.
-    const report = outburstReport(spike)!;
-    expect(Math.abs(report.medianO)).toBeLessThan(1);
+  it("cannot skew a fit by being the most recent point", () => {
+    const good = [0, 1, 2].flatMap((n) => [at(n, "r", 18), at(n, "g", 18.4)]);
+    const clean = fitBandColors(good)!;
+    // A wildly wrong g point on the latest night, marked rejected: the newest
+    // measurement is the one most likely to be read as a new signal.
+    const spiked = [...good, at(3, "r", 18), at(3, "g", 14, true)];
+    const fitted = fitBandColors(spiked)!;
+    expect(fitted.colors.g!.offset).toBeCloseTo(clean.colors.g!.offset, 9);
+    expect(fitted.colors.g!.nights).toBe(clean.colors.g!.nights);
   });
 });
 

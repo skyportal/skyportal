@@ -689,6 +689,7 @@ async def get_analysis(handler, args):
         "show_corner": _prop("boolean", "Show the corner/posterior plot."),
     },
     required=("obj_id", "analysis_service_id"),
+    writes=True,
 )
 async def run_analysis(handler, args):
     obj_id = args.pop("obj_id")
@@ -843,6 +844,7 @@ async def get_observation_plan_form(handler, args):
     },
     required=("allocation_id", "gcnevent_id", "localization_id", "payload"),
     passthrough="POST /api/observation_plan",
+    writes=True,
 )
 async def post_observation_plan(handler, args):
     if "queue_name" not in (args.get("payload") or {}):
