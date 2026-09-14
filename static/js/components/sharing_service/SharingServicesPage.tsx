@@ -1162,6 +1162,7 @@ const SharingServicesPage = () => {
 
   const CustomToolbar = () => (
     <DataGridToolbar
+      title="Sharing Services"
       showColumns={false}
       showQuickFilter={false}
       showExport={false}
@@ -1184,7 +1185,6 @@ const SharingServicesPage = () => {
 
   return (
     <div>
-      <Typography variant="h6">Sharing Services</Typography>
       <StyledDataGrid
         autoHeight
         rows={[...sharingServicesList].sort((a: any, b: any) =>
