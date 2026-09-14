@@ -36,7 +36,7 @@ def search_sources(
         filter: Dictionary of argument(s) to filter on metadata
         index_name: Name of the index to search in.
         namespace: Namespace to search in. Default will search in '' namespace.
-        openai_api_key: OpenAI API key to use for embeddings.
+        openai_api_key: API key for the embedding service.
     Returns:
         List of source dictionaries most similar to the query and score for each
     """
@@ -51,8 +51,23 @@ def search_sources(
         model=summarize_embedding_model,
         embedding_ctx_length=summarize_embedding_index_size,
         openai_api_key=openai_api_key,
+        base_url=summarize_embedding_base_url,
     )
     query_vector = embeddings.embed_query(query)
+
+    # The index stores vectors of one width, set when it was built. Asking a
+    # different model for the query vector is the easy mistake once the endpoint
+    # is configurable, and pinecone reports it only as a shape error.
+    if (
+        summarize_embedding_index_size
+        and len(query_vector) != summarize_embedding_index_size
+    ):
+        raise ValueError(
+            f"{summarize_embedding_model} returns {len(query_vector)}-d vectors but index "
+            f"{index_name} holds {summarize_embedding_index_size}-d ones. Point "
+            "embeddings_store.summary at the model the index was built with, or rebuild "
+            "the index at this width."
+        )
 
     index = client.Index(index_name)
     results = index.query(
@@ -80,21 +95,25 @@ pinecone_client = None
 summarize_embedding_config = cfg[
     "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
+# Bound unconditionally: the test path turns pinecone on without taking the
+# branch below, and search_sources reads these at call time either way.
+summarize_embedding_index_name = summarize_embedding_config.get("index_name")
+summarize_embedding_index_size = summarize_embedding_config.get("index_size")
+summarize_embedding_model = summarize_embedding_config.get("model")
+# Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
+summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
+
 USE_PINECONE = False
 if (
     summarize_embedding_config.get("location") == "pinecone"
     and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("index_name")
-    and summarize_embedding_config.get("index_size")
+    and summarize_embedding_index_name
+    and summarize_embedding_index_size
 ):
     log("initializing pinecone access...")
     pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
     )
-
-    summarize_embedding_index_name = summarize_embedding_config.get("index_name")
-    summarize_embedding_index_size = summarize_embedding_config.get("index_size")
-    summarize_embedding_model = summarize_embedding_config.get("model")
 
     if summarize_embedding_index_name in [
         index.name for index in pinecone_client.list_indexes().indexes
