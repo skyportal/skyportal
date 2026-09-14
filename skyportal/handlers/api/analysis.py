@@ -1845,6 +1845,7 @@ class AnalysisHandler(BaseHandler):
                         analysis_dict["model_lightcurves"] = None
                         analysis_dict["model_spectrum"] = None
                         analysis_dict["model_spectrum_summary"] = None
+                        analysis_dict["model_spectrum_source"] = None
                         analysis_dict["model_name"] = None
                         analysis_dict["n_detections"] = None
                         try:
@@ -1862,6 +1863,12 @@ class AnalysisHandler(BaseHandler):
                             )
                             analysis_dict["model_spectrum_summary"] = adata.get(
                                 "model_spectrum_summary"
+                            )
+                            # Which spectrum the fit was made against, so the
+                            # overlay can say so rather than showing several
+                            # identically-named buttons.
+                            analysis_dict["model_spectrum_source"] = adata.get(
+                                "model_spectrum_source"
                             )
                             analysis_dict["model_name"] = adata.get("model_name")
                             analysis_dict["n_detections"] = adata.get("n_detections")

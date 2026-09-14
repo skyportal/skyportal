@@ -621,12 +621,14 @@ async def get_source(
 
     if include_spectrum_exists:
         spectrum_exists = await session.scalar(
-            Spectrum.select(user).where(Spectrum.obj_id == obj_id)
+            Spectrum.select(user, columns=[Spectrum.id]).where(
+                Spectrum.obj_id == obj_id
+            )
         )
         source_info["spectrum_exists"] = spectrum_exists is not None
     if include_comment_exists:
         comment_exists = await session.scalar(
-            Comment.select(user)
+            Comment.select(user, columns=[Comment.id])
             .where(Comment.obj_id == obj_id)
             .where(Comment.channel.is_(None))
         )
