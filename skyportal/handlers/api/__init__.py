@@ -13,6 +13,7 @@ from .analysis import (
 )
 from .annotation import AnnotationHandler
 from .annotation_services import (
+    ALMAQueryHandler,
     DatalabQueryHandler,
     GaiaQueryHandler,
     IRSAQueryWISEHandler,

@@ -1,0 +1,98 @@
+[
+  {
+    "band_list": "3",
+    "frequency": 92.41713474165347,
+    "member_ous_uid": "uid://A001/X35f5/X589",
+    "obs_id": "uid://A001/X35f5/X589.source.Cen_A.spw.6",
+    "obs_release_date": "2024-05-05T21:45:05.000",
+    "proposal_id": "2022.1.01487.S",
+    "spatial_resolution": 11.922918917955425,
+    "t_exptime": 453.6,
+    "target_name": "Cen_A",
+    "velocity_resolution": 90528.58290691503
+  },
+  {
+    "band_list": "7",
+    "frequency": 336.5164417513515,
+    "member_ous_uid": "uid://A001/X35f5/X594",
+    "obs_id": "uid://A001/X35f5/X594.source.Cen_A.spw.4",
+    "obs_release_date": "2024-04-30T22:54:36.000",
+    "proposal_id": "2022.1.01487.S",
+    "spatial_resolution": 3.1979043301918253,
+    "t_exptime": 453.6,
+    "target_name": "Cen_A",
+    "velocity_resolution": 26806.488910456388
+  },
+  {
+    "band_list": "6",
+    "frequency": 242.0004113763335,
+    "member_ous_uid": "uid://A001/X35f5/X582",
+    "obs_id": "uid://A001/X35f5/X582.source.Cen_A.spw.22",
+    "obs_release_date": "2024-05-12T15:16:03.000",
+    "proposal_id": "2022.1.01487.S",
+    "spatial_resolution": 5.048934090972774,
+    "t_exptime": 453.6,
+    "target_name": "Cen_A",
+    "velocity_resolution": 38872.24355701299
+  },
+  {
+    "band_list": "3",
+    "frequency": 86.27249127315065,
+    "member_ous_uid": "uid://A001/X35f5/Xa3f",
+    "obs_id": "uid://A001/X35f5/Xa3f.source.Cen_A.spw.18",
+    "obs_release_date": "2025-07-09T09:52:21.000",
+    "proposal_id": "2022.1.00853.V",
+    "spatial_resolution": 0.4147137207084295,
+    "t_exptime": 1854.72,
+    "target_name": "Cen_A",
+    "velocity_resolution": 23565.72012706379
+  },
+  {
+    "band_list": "5",
+    "frequency": 208.03178184525808,
+    "member_ous_uid": "uid://A001/X35f5/Xb9a",
+    "obs_id": "uid://A001/X35f5/Xb9a.source.Centaurus_A.spw.9",
+    "obs_release_date": "2024-06-10T17:22:16.000",
+    "proposal_id": "2022.1.00506.S",
+    "spatial_resolution": 0.11417366220559226,
+    "t_exptime": 979.776,
+    "target_name": "Centaurus_A",
+    "velocity_resolution": 44828.25590970953
+  },
+  {
+    "band_list": "6",
+    "frequency": 265.39415468327104,
+    "member_ous_uid": "uid://A001/X2d20/X30e",
+    "obs_id": "uid://A001/X2d20/X30e.source.NGC5128.spw.20",
+    "obs_release_date": "2025-06-13T13:16:17.000",
+    "proposal_id": "2022.1.01713.S",
+    "spatial_resolution": 3.9136250215847754,
+    "t_exptime": 28939.68,
+    "target_name": "NGC5128",
+    "velocity_resolution": 2184.27606387077
+  },
+  {
+    "band_list": "7",
+    "frequency": 350.4656473406843,
+    "member_ous_uid": "uid://A001/X15bc/X822",
+    "obs_id": "uid://A001/X15bc/X822.source.Cen_A.spw.10",
+    "obs_release_date": "2023-03-29T17:57:26.000",
+    "proposal_id": "2021.1.01398.S",
+    "spatial_resolution": 3.4642645984751113,
+    "t_exptime": 302.4,
+    "target_name": "Cen_A",
+    "velocity_resolution": 26806.488910456388
+  },
+  {
+    "band_list": "6",
+    "frequency": 230.07188303317835,
+    "member_ous_uid": "uid://A001/X15bc/X3bb",
+    "obs_id": "uid://A001/X15bc/X3bb.source.Cen_A.spw.22",
+    "obs_release_date": "2023-03-30T15:17:28.000",
+    "proposal_id": "2021.1.01398.S",
+    "spatial_resolution": 5.465805163818542,
+    "t_exptime": 453.6,
+    "target_name": "Cen_A",
+    "velocity_resolution": 40894.90516857597
+  }
+]
