@@ -33,6 +33,8 @@ interface ObservationListProps {
   handleTableChange: (...a: any[]) => void;
   handleFilterSubmit: (...a: any[]) => void;
   downloadCallback: (...a: any[]) => void;
+  filterModel?: any;
+  onFilterModelChange?: ((model: any) => void) | undefined;
 }
 
 const useStyles = makeStyles()((theme) => ({
@@ -80,6 +82,8 @@ const ExecutedObservationList = ({
   handleTableChange,
   handleFilterSubmit,
   downloadCallback,
+  filterModel,
+  onFilterModelChange,
 }: ObservationListProps) => {
   return (
     <ExecutedObservationsTable
@@ -90,6 +94,8 @@ const ExecutedObservationList = ({
       handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations?.totalMatches ?? 0}
       downloadCallback={downloadCallback}
+      filterModel={filterModel}
+      onFilterModelChange={onFilterModelChange}
     />
   );
 };
@@ -100,6 +106,8 @@ const QueuedObservationList = ({
   handleTableChange,
   handleFilterSubmit,
   downloadCallback,
+  filterModel,
+  onFilterModelChange,
 }: ObservationListProps) => {
   return (
     <QueuedObservationsTable
@@ -110,6 +118,8 @@ const QueuedObservationList = ({
       handleFilterSubmit={handleFilterSubmit}
       totalMatches={observations?.totalMatches ?? 0}
       downloadCallback={downloadCallback}
+      filterModel={filterModel}
+      onFilterModelChange={onFilterModelChange}
     />
   );
 };
@@ -140,6 +150,12 @@ const ObservationPage = () => {
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
+  // Shared across tabs so a search typed in one table survives switching
+  // tabs; it only resets when this component unmounts (i.e. leaving the page).
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+    quickFilterValues: [],
+  });
 
   if (observations == null) {
     return <p>No observations available...</p>;
@@ -412,6 +428,8 @@ const ObservationPage = () => {
               handleTableChange={handleExecutedTableChange}
               handleFilterSubmit={handleExecutedFilterSubmit}
               downloadCallback={handleExecutedDownload}
+              filterModel={filterModel}
+              onFilterModelChange={setFilterModel}
             />
             <Dialog open={downloadProgressTotal > 0} maxWidth="md">
               <DialogContent
@@ -460,6 +478,8 @@ const ObservationPage = () => {
               handleTableChange={handleQueuedTableChange}
               handleFilterSubmit={handleQueuedFilterSubmit}
               downloadCallback={handleQueuedDownload}
+              filterModel={filterModel}
+              onFilterModelChange={setFilterModel}
             />
           </div>
         </Grid>
