@@ -1,5 +1,6 @@
 from typing import Annotated
 
+import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
@@ -31,6 +32,16 @@ class SharingServiceCoauthorPostResponse(BaseModel):
     """Data payload returned when adding a coauthor."""
 
     id: int = Field(description="New SharingServiceCoauthor ID")
+
+
+class SharingServiceCoauthorPatchBody(BaseModel):
+    """Request body for reordering the coauthors of an external sharing service."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_ids: list[int] = Field(
+        description="IDs of all the coauthors of the sharing service, in the order they should be published"
+    )
 
 
 class SharingServiceCoauthorHandler(BaseHandler):
@@ -97,9 +108,11 @@ class SharingServiceCoauthorHandler(BaseHandler):
             if user.is_bot:
                 return self.error(f"User {user_id} is a bot and cannot be a coauthor")
 
-            # add the coauthor
+            # add the coauthor, last in the published author list
             coauthor = SharingServiceCoauthor(
-                sharing_service_id=sharing_service_id, user_id=user_id
+                sharing_service_id=sharing_service_id,
+                user_id=user_id,
+                order=len(sharing_service.coauthors),
             )
             session.add(coauthor)
             await session.commit()
@@ -107,6 +120,64 @@ class SharingServiceCoauthorHandler(BaseHandler):
                 action="skyportal/REFRESH_SHARING_SERVICES",
             )
             return self.success(data={"id": coauthor.id})
+
+    @permissions(["Manage sharing services"])
+    async def patch(
+        self,
+        sharing_service_id: SharingServiceId,
+        user_id: Annotated[
+            int | None, Field(description="Unused, the order is given in the body")
+        ] = None,
+        *,
+        body: SharingServiceCoauthorPatchBody = None,
+    ):
+        """
+        ---
+        summary: Reorder the coauthors of an external sharing service
+        description: Reorder the coauthors of an external sharing service, the order is the one used to publish
+        tags:
+            - external sharing service
+        responses:
+            200:
+                content:
+                    application/json:
+                        schema: Success
+            400:
+                content:
+                    application/json:
+                        schema: Error
+        """
+        body = self.parse_body(SharingServiceCoauthorPatchBody)
+        try:
+            sharing_service_id = int(sharing_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
+        async with self.AsyncSession() as session:
+            sharing_service = await session.scalar(
+                SharingService.select(session.user_or_token)
+                .options(selectinload(SharingService.coauthors))
+                .where(SharingService.id == sharing_service_id)
+            )
+            if sharing_service is None:
+                return self.error(
+                    f"No sharing service with ID {sharing_service_id}, or inaccessible"
+                )
+
+            if sorted(body.user_ids) != sorted(
+                coauthor.user_id for coauthor in sharing_service.coauthors
+            ):
+                return self.error(
+                    "The user IDs must be exactly the coauthors of the sharing service"
+                )
+
+            for coauthor in sharing_service.coauthors:
+                coauthor.order = body.user_ids.index(coauthor.user_id)
+
+            await session.commit()
+            self.push(
+                action="skyportal/REFRESH_SHARING_SERVICES",
+            )
+            return self.success()
 
     @permissions(["Manage sharing services"])
     async def delete(
@@ -167,6 +238,16 @@ class SharingServiceCoauthorHandler(BaseHandler):
                 )
 
             await session.delete(coauthor)
+            await session.flush()
+
+            remaining = await session.scalars(
+                sa.select(SharingServiceCoauthor)
+                .where(SharingServiceCoauthor.sharing_service_id == sharing_service_id)
+                .order_by(SharingServiceCoauthor.order)
+            )
+            for position, remaining_coauthor in enumerate(remaining):
+                remaining_coauthor.order = position
+
             await session.commit()
             self.push(
                 action="skyportal/REFRESH_SHARING_SERVICES",

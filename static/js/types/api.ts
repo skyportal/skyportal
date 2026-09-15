@@ -21488,7 +21488,46 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Reorder the coauthors of an external sharing service
+         * @description <b>Permission(s) required:</b> <em>Manage sharing services (or System admin)</em><br><br>Reorder the coauthors of an external sharing service, the order is the one used to publish
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the external sharing service */
+                    sharing_service_id: number;
+                    /** @description Unused, the order is given in the body */
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SharingServiceCoauthorPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/sharing_service/{sharing_service_id}/group/{group_id}": {
@@ -35829,6 +35868,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -35849,6 +35890,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
         };
         SingleSharingServiceCoauthorNoID: {
             /** @enum {string} */
@@ -46676,6 +46719,17 @@ export interface components {
              * @description New SharingServiceCoauthor ID
              */
             id: number;
+        };
+        /**
+         * SharingServiceCoauthorPatchBody
+         * @description Request body for reordering the coauthors of an external sharing service.
+         */
+        SharingServiceCoauthorPatchBody: {
+            /**
+             * User Ids
+             * @description IDs of all the coauthors of the sharing service, in the order they should be published
+             */
+            user_ids: number[];
         };
         /**
          * SharingServiceGroupPutBody
