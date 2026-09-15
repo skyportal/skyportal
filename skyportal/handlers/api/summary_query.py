@@ -3,7 +3,7 @@ import os
 from typing import Any
 
 import yaml
-from langchain_openai import OpenAIEmbeddings
+from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 from tornado.ioloop import IOLoop
 
@@ -22,16 +22,16 @@ log = make_log("query")
 
 def embed_query_text(query: str, openai_api_key: str) -> list[float]:
     """The query's vector, from whichever server the embedding config names."""
-    embeddings = OpenAIEmbeddings(
-        model=summarize_embedding_model,
+    client = OpenAI(
         # A server of one's own may want no key at all, but the client insists.
-        openai_api_key=openai_api_key or "none",
+        api_key=openai_api_key or "none",
         base_url=summarize_embedding_base_url,
-        # Send the text itself, as the analysis service does, rather than the
-        # token ids langchain sends by default and other servers reject.
-        check_embedding_ctx_length=False,
     )
-    return embeddings.embed_query(query)
+    embedding = client.embeddings.create(
+        input=query,
+        model=summarize_embedding_model,
+    )
+    return embedding.data[0].embedding
 
 
 summarize_embedding_config = (
