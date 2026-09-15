@@ -14,11 +14,11 @@ __all__ = [
 
 import sqlalchemy as sa
 
-from ..models.summary_embedding import SummaryEmbedding, Vector
+from ..models import Obj, SummaryEmbedding
+from ..models.summary_embedding import Vector
 
 _embeddings = SummaryEmbedding.c
-# Lightweight handle for the few obj columns a search reads.
-_objs = sa.table("objs", sa.column("id"), sa.column("redshift"), sa.column("summary"))
+_objs = Obj.__table__
 
 
 def vector_literal(vector) -> str:
