@@ -29,9 +29,13 @@ def deciding_acls() -> tuple[str, ...]:
 
 
 def may_decide(user_or_token) -> bool:
-    """Whether this user may endorse or decline applications."""
+    """Whether this user may endorse or decline applications.
+
+    `permissions`, not `acls`: the latter holds only directly granted ACLs, and
+    these are granted through a role.
+    """
     if not user_applications_enabled():
         return False
     if user_or_token.is_system_admin:
         return True
-    return bool(set(deciding_acls()) & {acl.id for acl in user_or_token.acls})
+    return bool(set(deciding_acls()) & set(user_or_token.permissions))

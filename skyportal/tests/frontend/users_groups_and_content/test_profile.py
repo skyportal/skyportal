@@ -5,15 +5,18 @@ import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
+from skyportal.model_util import role_acls
 from skyportal.tests import api, open_preferences_panel, retry_until
 
 
 def test_token_acls_options_rendering1(page, user):
+    """The form offers exactly the ACLs the user's role grants, and no others."""
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
-    for i in range(6):
+    granted = len(role_acls["Full user"])
+    for i in range(granted):
         expect(page.locator(f'//*[@data-testid="acls[{i}]"]').first).to_be_visible()
-    expect(page.locator('//*[@data-testid="acls[6]"]').first).to_be_hidden()
+    expect(page.locator(f'//*[@data-testid="acls[{granted}]"]').first).to_be_hidden()
 
 
 def test_token_acls_options_rendering2(page, super_admin_user):

@@ -20154,6 +20154,16 @@ export interface paths {
                                  */
                                 invitationsEnabled?: boolean;
                                 /**
+                                 * @description Boolean indicating whether account applications are
+                                 *     enabled in current deployment.
+                                 */
+                                userApplicationsEnabled?: boolean;
+                                /**
+                                 * @description Boolean indicating whether the requesting user may
+                                 *     endorse or decline account applications.
+                                 */
+                                canDecideUserApplications?: boolean;
+                                /**
                                  * @description URL preamble used for forwarding slack notifications.
                                  *     The default is "https://hooks.slack.com/".
                                  */
@@ -21912,6 +21922,213 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user_applications/{application_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an account application
+         * @description Retrieve an account application
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete an account application
+         * @description Delete an account application
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Endorse or decline an account application
+         * @description Endorsing issues the invitation the applicant signs up with, and emails
+         *     it to them. Groups are limited to those the endorser belongs to.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserApplicationPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/user_applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get account applications
+         * @description Retrieve account applications awaiting endorsement
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only return applications with this status. */
+                    status?: "pending" | "endorsed" | "declined" | null;
+                    /** @description Only return applications naming the requesting user as endorser. */
+                    mine?: boolean;
+                    /** @description Number of applications per paginated request. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated results. */
+                    pageNumber?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Apply for an account
+         * @description Submit an application for an account, to be endorsed by an existing
+         *     user. Open to unauthenticated callers.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserApplicationPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/{user_id}/profile": {
         parameters: {
             query?: never;
@@ -23100,6 +23317,44 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display the account application form
+         * @description Display the form for applying for an account
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
                     };
                 };
             };
@@ -38322,6 +38577,108 @@ export interface components {
             message?: string;
             data?: components["schemas"]["UserACLNoID"][];
         };
+        UserApplication: {
+            /** @description The User the applicant named as their endorser. */
+            readonly endorser?: components["schemas"]["User"];
+            /** @description The User who endorsed or declined the application. */
+            readonly endorsed_by?: components["schemas"]["User"];
+            /** @description The Invitation the endorsement issued. */
+            readonly invitation?: components["schemas"]["Invitation"];
+            /** @description Applicant's first name. */
+            first_name: string;
+            /** @description Applicant's last name. */
+            last_name: string;
+            /** @description Address the invitation is sent to once the application is endorsed. */
+            contact_email: string;
+            /** @description Applicant's stated institution or affiliation. */
+            affiliation?: string | null;
+            /** @description Applicant's stated reason for wanting access. */
+            statement?: string | null;
+            /** @description Address of the endorser the applicant named, as typed by them. */
+            endorser_email?: string | null;
+            /** @description ID of the User matching `endorser_email`, if the address is one we know. */
+            endorser_id?: number | null;
+            /**
+             * @description Application status. Can be one of either 'pending', 'endorsed', or 'declined'.
+             * @enum {string}
+             */
+            status?: "pending" | "endorsed" | "declined";
+            /** @description ID of the User who endorsed or declined the application. */
+            endorsed_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description UTC time the application was endorsed or declined.
+             */
+            decided_at?: string | null;
+            /** @description Why the application was declined. */
+            decline_reason?: string | null;
+            /** @description ID of the Invitation the endorsement issued. */
+            invitation_id?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleUserApplication: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplication"];
+        };
+        ArrayOfUserApplications: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplication"][];
+        };
+        UserApplicationNoID: {
+            /** @description The User the applicant named as their endorser. */
+            readonly endorser?: components["schemas"]["User"];
+            /** @description The User who endorsed or declined the application. */
+            readonly endorsed_by?: components["schemas"]["User"];
+            /** @description The Invitation the endorsement issued. */
+            readonly invitation?: components["schemas"]["Invitation"];
+            /** @description Applicant's first name. */
+            first_name: string;
+            /** @description Applicant's last name. */
+            last_name: string;
+            /** @description Address the invitation is sent to once the application is endorsed. */
+            contact_email: string;
+            /** @description Applicant's stated institution or affiliation. */
+            affiliation?: string | null;
+            /** @description Applicant's stated reason for wanting access. */
+            statement?: string | null;
+            /** @description Address of the endorser the applicant named, as typed by them. */
+            endorser_email?: string | null;
+            /** @description ID of the User matching `endorser_email`, if the address is one we know. */
+            endorser_id?: number | null;
+            /**
+             * @description Application status. Can be one of either 'pending', 'endorsed', or 'declined'.
+             * @enum {string}
+             */
+            status?: "pending" | "endorsed" | "declined";
+            /** @description ID of the User who endorsed or declined the application. */
+            endorsed_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description UTC time the application was endorsed or declined.
+             */
+            decided_at?: string | null;
+            /** @description Why the application was declined. */
+            decline_reason?: string | null;
+            /** @description ID of the Invitation the endorsement issued. */
+            invitation_id?: number | null;
+        };
+        SingleUserApplicationNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplicationNoID"];
+        };
+        ArrayOfUserApplicationNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplicationNoID"][];
+        };
         UserInvitation: {
             readonly user?: components["schemas"]["User"];
             readonly invitation?: components["schemas"]["Invitation"];
@@ -46874,6 +47231,76 @@ export interface components {
              * @description New Sharing Service ID
              */
             id: number;
+        };
+        /**
+         * UserApplicationPostBody
+         * @description Request body for applying for an account.
+         */
+        UserApplicationPostBody: {
+            /**
+             * Firstname
+             * @description Applicant's first name.
+             */
+            firstName: string;
+            /**
+             * Lastname
+             * @description Applicant's last name.
+             */
+            lastName: string;
+            /**
+             * Email
+             * @description Address the invitation is sent to once the application is endorsed.
+             */
+            email: string;
+            /**
+             * Affiliation
+             * @description Applicant's institution or affiliation.
+             * @default null
+             */
+            affiliation: string | null;
+            /**
+             * Statement
+             * @description Why the applicant wants access.
+             * @default null
+             */
+            statement: string | null;
+            /**
+             * Endorseremail
+             * @description Address of an existing user the applicant asks to endorse them.
+             * @default null
+             */
+            endorserEmail: string | null;
+        };
+        /**
+         * UserApplicationPatchBody
+         * @description Request body for endorsing or declining an account application.
+         */
+        UserApplicationPatchBody: {
+            /**
+             * Status
+             * @description One of either 'endorsed' or 'declined'.
+             * @enum {string}
+             */
+            status: "endorsed" | "declined";
+            /**
+             * Groupids
+             * @description IDs of groups to add the applicant to. The endorser must belong to each of them. Defaults to none, which still lands the applicant in the sitewide public group.
+             * @default null
+             */
+            groupIDs: number[] | null;
+            /**
+             * Role
+             * @description The role the new user will have in the system.
+             * @default Full user
+             * @enum {string}
+             */
+            role: "Full user" | "View only";
+            /**
+             * Declinereason
+             * @description Why the application was declined.
+             * @default null
+             */
+            declineReason: string | null;
         };
         /**
          * UserACLPostBody

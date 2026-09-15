@@ -179,6 +179,7 @@ from skyportal.tests.fixtures import (
     TaxonomyFactory,
     TelescopeFactory,
     ThumbnailFactory,
+    UserApplicationFactory,
     UserFactory,
     UserNotificationFactory,
     resilient_delete,
@@ -2062,6 +2063,13 @@ def invitation(user):
     invitation = InvitationFactory(invited_by=user)
     yield invitation
     InvitationFactory.teardown(invitation)
+
+
+@pytest.fixture()
+def user_application(user):
+    application = UserApplicationFactory(endorser=user)
+    yield application
+    UserApplicationFactory.teardown(application)
 
 
 @pytest.fixture()

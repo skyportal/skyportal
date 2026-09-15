@@ -40,22 +40,31 @@ def test_admins_alone_decide_until_peer_endorsement_is_on(monkeypatch):
     assert user_applications.deciding_acls() == ("Endorse users", "Manage users")
 
 
-class FakeACL:
-    def __init__(self, id):
-        self.id = id
-
-
 class FakeUser:
-    def __init__(self, acls=(), is_system_admin=False):
-        self.acls = [FakeACL(a) for a in acls]
+    """`permissions` is the union of direct and role-granted ACLs, which is what
+    `may_decide` must read; `acls` alone would miss the role-granted ones."""
+
+    def __init__(self, permissions=(), is_system_admin=False):
+        self.acls = []
+        self.permissions = list(permissions)
         self.is_system_admin = is_system_admin
 
 
 ON = {"user_applications.enabled": True, "invitations.enabled": True}
 
 
+def test_a_role_granted_acl_counts(monkeypatch):
+    """Roles, not direct grants, are how these ACLs reach a user."""
+    monkeypatch.setattr(
+        user_applications, "cfg", {**ON, "user_applications.peer_endorsement": True}
+    )
+    from_role = FakeUser(permissions=["Endorse users"])
+    assert from_role.acls == []
+    assert user_applications.may_decide(from_role) is True
+
+
 def test_endorse_acl_only_counts_under_peer_endorsement(monkeypatch):
-    endorser = FakeUser(acls=["Endorse users"])
+    endorser = FakeUser(permissions=["Endorse users"])
 
     monkeypatch.setattr(user_applications, "cfg", ON)
     assert user_applications.may_decide(endorser) is False
@@ -68,7 +77,7 @@ def test_endorse_acl_only_counts_under_peer_endorsement(monkeypatch):
 
 def test_admins_decide_in_either_mode(monkeypatch):
     monkeypatch.setattr(user_applications, "cfg", ON)
-    assert user_applications.may_decide(FakeUser(acls=["Manage users"])) is True
+    assert user_applications.may_decide(FakeUser(permissions=["Manage users"])) is True
     assert user_applications.may_decide(FakeUser(is_system_admin=True)) is True
 
 

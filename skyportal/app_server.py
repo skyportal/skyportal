@@ -754,7 +754,7 @@ skyportal_handlers = [
     (r"/public/finding_charts(?:/)?(.*)?", CachedSourceFinderHandler),
     (r"/public/.*", InvalidEndpointHandler),
     # Account application form, for people who do not have an account yet.
-    (r"/apply/?", ApplyPageHandler),
+    (r"/apply(?:/)?", ApplyPageHandler),
     # Debug and logout pages.
     (r"/become_user(/.*)?", BecomeUserHandler),
     (r"/logout", LogoutHandler),
