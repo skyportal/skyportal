@@ -125,6 +125,7 @@ class SharingService(Base):
     coauthors = relationship(
         "SharingServiceCoauthor",
         back_populates="sharing_service",
+        order_by="SharingServiceCoauthor.order",
         passive_deletes=True,
         doc="Coauthors associated with this sharing service.",
     )
@@ -145,6 +146,13 @@ class SharingServiceCoauthor(Base):
         nullable=False,
     )
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    order = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default="0",
+        doc="Position of the coauthor in the published author list, ascending.",
+    )
 
     sharing_service = relationship(
         "SharingService",

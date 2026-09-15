@@ -18163,6 +18163,67 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/data_sharing/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-share one group's data with another group
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant (or revoke) a target group's access to every spectrum and/or
+         *     photometry point already shared with a source group, in one
+         *     set-based operation. Additive and idempotent: it only inserts or
+         *     deletes group associations and never touches the data itself. This
+         *     is the supported way to re-expose narrowly-shared legacy/imported
+         *     data collaboration-wide.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        from_group_id: number;
+                        to_group_id: number;
+                        data_types?: ("spectra" | "photometry")[];
+                        /** @enum {string} */
+                        action?: "add" | "remove";
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/spatial_catalog/ascii": {
         parameters: {
             query?: never;
@@ -18420,6 +18481,56 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spectra/{spectrum_id}/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a group from a spectrum
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Revoke a single group's access to one spectrum. Used to undo an
+         *     accidental over-share; refuses to remove a spectrum's only group.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spectrum_id: string;
+                    group_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -21498,7 +21609,46 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Reorder the coauthors of an external sharing service
+         * @description <b>Permission(s) required:</b> <em>Manage sharing services (or System admin)</em><br><br>Reorder the coauthors of an external sharing service, the order is the one used to publish
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the external sharing service */
+                    sharing_service_id: number;
+                    /** @description Unused, the order is given in the body */
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SharingServiceCoauthorPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/sharing_service/{sharing_service_id}/group/{group_id}": {
@@ -36084,6 +36234,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -36104,6 +36256,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
         };
         SingleSharingServiceCoauthorNoID: {
             /** @enum {string} */
@@ -47033,6 +47187,17 @@ export interface components {
              * @description New SharingServiceCoauthor ID
              */
             id: number;
+        };
+        /**
+         * SharingServiceCoauthorPatchBody
+         * @description Request body for reordering the coauthors of an external sharing service.
+         */
+        SharingServiceCoauthorPatchBody: {
+            /**
+             * User Ids
+             * @description IDs of all the coauthors of the sharing service, in the order they should be published
+             */
+            user_ids: number[];
         };
         /**
          * SharingServiceGroupPutBody

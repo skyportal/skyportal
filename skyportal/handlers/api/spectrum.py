@@ -1731,10 +1731,13 @@ class ObjSpectraHandler(BaseHandler):
                         Instrument.telescope
                     ),
                     selectinload(Spectrum.groups),
-                    selectinload(Spectrum.owner),
-                    selectinload(Spectrum.pis),
-                    selectinload(Spectrum.reducers),
-                    selectinload(Spectrum.observers),
+                    # noload("*") keeps each user's columns but suppresses their
+                    # acls/groups/roles (lazy subquery/selectin), which the
+                    # response does not need and which otherwise fire per user.
+                    selectinload(Spectrum.owner).noload("*"),
+                    selectinload(Spectrum.pis).noload("*"),
+                    selectinload(Spectrum.reducers).noload("*"),
+                    selectinload(Spectrum.observers).noload("*"),
                     *(
                         []
                         if include_original_file
@@ -1765,7 +1768,7 @@ class ObjSpectraHandler(BaseHandler):
             spectrum_ids = [spec.id for spec in spectra]
             comments_result = await session.scalars(
                 CommentOnSpectrum.select(session.user_or_token)
-                .options(selectinload(CommentOnSpectrum.author))
+                .options(selectinload(CommentOnSpectrum.author).noload("*"))
                 .where(CommentOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             comments_by_spectrum = defaultdict(list)
@@ -1774,7 +1777,7 @@ class ObjSpectraHandler(BaseHandler):
 
             annotations_result = await session.scalars(
                 AnnotationOnSpectrum.select(session.user_or_token)
-                .options(selectinload(AnnotationOnSpectrum.author))
+                .options(selectinload(AnnotationOnSpectrum.author).noload("*"))
                 .where(AnnotationOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             annotations_by_spectrum = defaultdict(list)

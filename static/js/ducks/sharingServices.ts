@@ -63,6 +63,11 @@ interface SharingServiceCoauthorArg {
   user_id: number | string;
 }
 
+interface ReorderSharingServiceCoauthorsArg {
+  sharing_service_id: number | string;
+  user_ids: number[];
+}
+
 interface EditSharingServiceArg {
   id: number | string;
   data: any;
@@ -192,6 +197,17 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["SharingService"],
     }),
+    reorderSharingServiceCoauthors: build.mutation<
+      unknown,
+      ReorderSharingServiceCoauthorsArg
+    >({
+      query: ({ sharing_service_id, user_ids }) => ({
+        url: `api/sharing_service/${sharing_service_id}/coauthor`,
+        method: "PATCH",
+        body: { user_ids },
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
     addSharingServiceSubmission: build.mutation<
       components["schemas"]["SharingServiceSubmission"],
       any
@@ -219,7 +235,6 @@ invalidateOnMessage("skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS", () => [
 
 export const {
   useGetSharingServicesQuery,
-  useLazyGetSharingServicesQuery,
   useGetSharingServiceSubmissionsQuery,
   useAddSharingServiceMutation,
   useEditSharingServiceMutation,
@@ -231,5 +246,6 @@ export const {
   useDeleteSharingServiceGroupAutoPublishersMutation,
   useAddSharingServiceCoauthorMutation,
   useDeleteSharingServiceCoauthorMutation,
+  useReorderSharingServiceCoauthorsMutation,
   useAddSharingServiceSubmissionMutation,
 } = sharingServicesApi;

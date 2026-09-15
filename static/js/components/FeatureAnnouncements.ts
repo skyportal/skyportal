@@ -142,4 +142,20 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "sharing-service-coauthor-order",
+    path: /^\/sharing_services\/?$/,
+    announcedAt: "2026-09-15",
+    steps: [
+      {
+        target: '[data-testid="tour-sharing-service-coauthors"]',
+        acl: "Manage sharing services",
+        title: "Coauthors are now ordered",
+        content:
+          "Coauthors are listed in the order they are published in, right " +
+          "after the publisher and before the acknowledgments. Drag a name to " +
+          "change that order.",
+      },
+    ],
+  },
 ];
