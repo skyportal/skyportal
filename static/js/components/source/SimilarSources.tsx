@@ -28,16 +28,13 @@ const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
     if (source?.id && useSummarySearch) {
       const queryBundle = {
         objID: source.id,
-        // get an extra source to account for the source itself
-        k: k + 1,
+        k,
       };
       fetchSummaryQuery(queryBundle)
         .unwrap()
         .then((data: any) => {
           let tmpList: any[] = data?.query_results ?? [];
           if (tmpList.length > 0) {
-            // remove the source itself from the list
-            tmpList = tmpList.filter((item) => item.id !== source.id);
             // remove any sources with a score below the threshold
             if (threshold != null) {
               tmpList = tmpList.filter((item) => item.score >= threshold);
