@@ -172,8 +172,8 @@ class AnalysisWebhookHandler(BaseHandler):
                     update_summary_history_if_relevant(
                         summary, analysis.obj, analysis.author
                     )
-                    await _store_summary_embedding(session, analysis)
                     await session.commit()
+                    await _store_summary_embedding(session, analysis)
                     log("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
@@ -194,11 +194,10 @@ class AnalysisWebhookHandler(BaseHandler):
 
 
 async def _store_summary_embedding(session, analysis):
-    """Keep the summary's vector with the summary, in the same transaction.
+    """Record the vector the analysis service returned with the summary.
 
-    The analysis service has no database of its own and returns the vector
-    alongside the text. Writing it here means a summary and its embedding commit
-    together instead of one outliving the other.
+    Written after the summary is committed: a failure here must not take the
+    summary down with it, and a failed statement leaves the transaction unusable.
     """
     if not _EMBED_TO_PGVECTOR:
         return
@@ -218,9 +217,11 @@ async def _store_summary_embedding(session, analysis):
             _embedding_config.get("model"),
             results.get("summary"),
         )
+        await session.commit()
     except Exception as e:
         # A summary without its vector is still worth keeping; it is missing from
         # the search until the next run, not lost.
+        await session.rollback()
         log(f"Could not store the summary embedding for {analysis.obj_id}: {e}")
 
 
