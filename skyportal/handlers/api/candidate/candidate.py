@@ -1970,6 +1970,9 @@ async def grab_query_results(
         options.append(selectinload(Obj.thumbnails))
     if include_detection_stats:
         options.append(selectinload(Obj.photstats))
+    # super_objs is serialized for every candidate; batch it so the
+    # per-object lazy load does not become an N+1.
+    options.append(selectinload(Obj.super_objs))
 
     items = []
     if len(obj_ids_in_page) > 0:

@@ -1731,10 +1731,13 @@ class ObjSpectraHandler(BaseHandler):
                         Instrument.telescope
                     ),
                     selectinload(Spectrum.groups),
-                    selectinload(Spectrum.owner),
-                    selectinload(Spectrum.pis),
-                    selectinload(Spectrum.reducers),
-                    selectinload(Spectrum.observers),
+                    # noload("*") keeps each user's columns but suppresses their
+                    # acls/groups/roles (lazy subquery/selectin), which the
+                    # response does not need and which otherwise fire per user.
+                    selectinload(Spectrum.owner).noload("*"),
+                    selectinload(Spectrum.pis).noload("*"),
+                    selectinload(Spectrum.reducers).noload("*"),
+                    selectinload(Spectrum.observers).noload("*"),
                     *(
                         []
                         if include_original_file
