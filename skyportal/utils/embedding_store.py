@@ -13,6 +13,8 @@ __all__ = [
     "search_embeddings_by_obj",
 ]
 
+import math
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 
@@ -25,7 +27,11 @@ _objs = Obj.__table__
 
 def vector_literal(vector) -> str:
     """A float sequence in the text form pgvector parses, cast in the statement."""
-    return "[" + ",".join(repr(float(v)) for v in vector) + "]"
+    components = [float(v) for v in vector]
+    # pgvector takes no NaN or infinity, and says so from deep inside a statement.
+    if not all(math.isfinite(v) for v in components):
+        raise ValueError("A vector cannot hold NaN or infinity")
+    return "[" + ",".join(repr(v) for v in components) + "]"
 
 
 def upsert_embedding(obj_id, vector, model):
