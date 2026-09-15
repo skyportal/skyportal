@@ -92,7 +92,6 @@ dependencies = [
     "PyAstronomy==0.24.0",
     "shapely==2.1.2",
     "openai==2.40.0",
-    "tiktoken==0.14.0",
     "simplejson==4.1.1",
     "pydantic==2.13.4",
     # Optional observability stack (opt-in via config `observability.enabled`)
