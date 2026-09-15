@@ -138,11 +138,9 @@ class SummaryQueryHandler(BaseHandler):
             return self.error("z_min must be <= z_max")
 
         # Searching from a source uses the vector already stored for it, so only
-        # a text query needs the embedding service — and so only it needs a key.
-        needs_embedding = bool(query) and not (USE_PGVECTOR and objID)
-
-        user_openai_key = None
-        if not openai_api_key:
+        # a text query needs the embedding service, and so only it needs a key.
+        user_openai_key = openai_api_key
+        if query and not user_openai_key:
             user_id = self.associated_user_object.id
             async with self.AsyncSession() as session:
                 user = await session.scalar(
@@ -161,10 +159,8 @@ class SummaryQueryHandler(BaseHandler):
                     user_openai_key = user.preferences["summary"]["OpenAI"].get(
                         "apikey"
                     )
-        else:
-            user_openai_key = openai_api_key
-        if needs_embedding and not user_openai_key:
-            return self.error("No OpenAI API key found.", status=400)
+            if not user_openai_key:
+                return self.error("No OpenAI API key found.", status=400)
 
         if objID:
             # Without this, anyone could ask what a source they cannot read is
@@ -184,6 +180,9 @@ class SummaryQueryHandler(BaseHandler):
 
         classes = body.classificationTypes or None
         try:
+            # An HTTP round-trip, so it is made before a session is taken rather
+            # than holding a database connection open for its duration.
+            vector = embed_query_text(query, user_openai_key) if query else None
             async with self.AsyncSession() as session:
                 # A summary is as readable as the source it describes, so
                 # the search sees exactly the sources saved to the
@@ -192,7 +191,6 @@ class SummaryQueryHandler(BaseHandler):
                     session.user_or_token, columns=[Source.obj_id]
                 ).where(Source.active.is_(True))
                 if query:
-                    vector = embed_query_text(query, user_openai_key)
                     results = await search_embeddings(
                         session,
                         vector,
