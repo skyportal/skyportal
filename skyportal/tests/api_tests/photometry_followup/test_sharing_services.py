@@ -197,6 +197,66 @@ def test_post_and_delete_sharing_service(
     assert status == 200
     assert data["status"] == "success"
 
+    # add a second coauthor, appended at the end of the author list
+    status, data = api(
+        "POST",
+        f"sharing_service/{id}/coauthor/{view_only_user.id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
+    assert status == 200
+    coauthors = sorted(data["data"]["coauthors"], key=lambda c: c["order"])
+    assert [c["user_id"] for c in coauthors] == [
+        super_admin_user.id,
+        view_only_user.id,
+    ]
+
+    # reordering with anything else than the exact coauthor list should fail
+    status, data = api(
+        "PATCH",
+        f"sharing_service/{id}/coauthor",
+        data={"user_ids": [view_only_user.id]},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "must be exactly the coauthors" in data["message"]
+
+    # reorder the coauthors
+    status, data = api(
+        "PATCH",
+        f"sharing_service/{id}/coauthor",
+        data={"user_ids": [view_only_user.id, super_admin_user.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
+    assert status == 200
+    coauthors = sorted(data["data"]["coauthors"], key=lambda c: c["order"])
+    assert [c["user_id"] for c in coauthors] == [
+        view_only_user.id,
+        super_admin_user.id,
+    ]
+
+    # removing a coauthor renumbers the remaining ones
+    status, data = api(
+        "DELETE",
+        f"sharing_service/{id}/coauthor/{view_only_user.id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"sharing_service/{id}", token=super_admin_token)
+    assert status == 200
+    assert len(data["data"]["coauthors"]) == 1
+    assert data["data"]["coauthors"][0]["user_id"] == super_admin_user.id
+    assert data["data"]["coauthors"][0]["order"] == 0
+
     # now add the auto_publisher
     status, data = api(
         "POST",

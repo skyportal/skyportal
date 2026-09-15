@@ -101,9 +101,9 @@ def build_reporters_and_remarks_string(
         author_ids.append(user_id)
 
         coauthor_ids = session.scalars(
-            sa.select(SharingServiceCoauthor.user_id).where(
-                SharingServiceCoauthor.sharing_service_id == sharing_service_id
-            )
+            sa.select(SharingServiceCoauthor.user_id)
+            .where(SharingServiceCoauthor.sharing_service_id == sharing_service_id)
+            .order_by(SharingServiceCoauthor.order)
         ).all()
         author_ids += [uid for uid in coauthor_ids if uid not in author_ids]
 
