@@ -1768,7 +1768,7 @@ class ObjSpectraHandler(BaseHandler):
             spectrum_ids = [spec.id for spec in spectra]
             comments_result = await session.scalars(
                 CommentOnSpectrum.select(session.user_or_token)
-                .options(selectinload(CommentOnSpectrum.author))
+                .options(selectinload(CommentOnSpectrum.author).noload("*"))
                 .where(CommentOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             comments_by_spectrum = defaultdict(list)
@@ -1777,7 +1777,7 @@ class ObjSpectraHandler(BaseHandler):
 
             annotations_result = await session.scalars(
                 AnnotationOnSpectrum.select(session.user_or_token)
-                .options(selectinload(AnnotationOnSpectrum.author))
+                .options(selectinload(AnnotationOnSpectrum.author).noload("*"))
                 .where(AnnotationOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             annotations_by_spectrum = defaultdict(list)
