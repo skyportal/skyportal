@@ -26,7 +26,6 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useAddSharingServiceSubmissionMutation,
   useGetSharingServicesQuery,
-  useLazyGetSharingServicesQuery,
 } from "../../ducks/sharingServices";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useGetConfigQuery } from "../../ducks/config";
@@ -49,31 +48,25 @@ const SharingServicesDialog = ({
   setDialogOpen,
 }: SharingServicesDialogProps) => {
   const dispatch = useAppDispatch();
-  const [triggerFetchSharingServices] = useLazyGetSharingServicesQuery();
   const [addSharingServiceSubmission] =
     useAddSharingServiceSubmissionMutation();
-  // Mounted on every source page but only read once the dialog is open, and
-  // the response is the whole user table. Wait for the dialog.
+  // Skipped until the dialog opens: the response is the whole user table.
   const allUsers =
     useGetUsersQuery(undefined, { skip: !dialogOpen }).data?.users ?? [];
   const { data: currentUser } = useGetProfileQuery();
-  const { data: streams } = useGetStreamsQuery();
+  const { data: streams = [] } = useGetStreamsQuery();
   const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
     "allowedInstrumentsForSharing"
   ] as string[] | undefined;
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
   const { data: sharingServicesList = [], isLoading: loading } =
-    useGetSharingServicesQuery() as {
-      data: any[];
-      isLoading: boolean;
-    };
-  const [selectedSharingServiceId, setselectedSharingServiceId] =
+    useGetSharingServicesQuery() as { data: any[]; isLoading: boolean };
+  const [selectedSharingServiceId, setSelectedSharingServiceId] =
     useState<any>(null);
   const [sendToTNS, setSendToTNS] = useState(false);
   const [sendToHermes, setSendToHermes] = useState(false);
-  // request in process
-  const [SharingRequestInProcess, setSharingRequestInProcess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -96,7 +89,7 @@ const SharingServicesDialog = ({
     (instrument: any) => instrument.id,
   );
 
-  const defaultStreams = (streams || [])
+  const defaultStreams = streams
     .filter((stream: any) =>
       (selectedSharingService?.streams || []).some(
         (s: any) => s.id === stream.id,
@@ -134,20 +127,10 @@ const SharingServicesDialog = ({
       : null;
 
   useEffect(() => {
-    const getSharingServices = async () => {
-      const data: any = await triggerFetchSharingServices().unwrap();
-      setselectedSharingServiceId(data?.[0]?.id);
-    };
-    if (!sharingServicesList) {
-      getSharingServices();
-    } else if (sharingServicesList?.length > 0 && !selectedSharingServiceId) {
-      setselectedSharingServiceId(sharingServicesList[0]?.id);
+    if (!selectedSharingServiceId && sharingServicesList.length) {
+      setSelectedSharingServiceId(sharingServicesList[0]?.id);
     }
-  }, [
-    triggerFetchSharingServices,
-    sharingServicesList,
-    selectedSharingServiceId,
-  ]);
+  }, [sharingServicesList, selectedSharingServiceId]);
 
   useEffect(() => {
     setSendToTNS(
@@ -160,31 +143,21 @@ const SharingServicesDialog = ({
   }, [selectedSharingServiceId, selectedSharingService, isNoAffiliation]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    setSharingRequestInProcess(true);
-
-    const payload: any = {
-      ...formData,
-      obj_id: obj_id,
+    setSubmitting(true);
+    const { first_and_last_detections, remarks, ...rest } = formData;
+    const result = await addSharingServiceSubmission({
+      ...rest,
+      ...(remarks && { remarks }),
+      obj_id,
       sharing_service_id: selectedSharingServiceId,
-      photometry_options: {
-        first_and_last_detections: formData.first_and_last_detections,
-      },
+      photometry_options: { first_and_last_detections },
       publish_to_tns: sendToTNS,
       publish_to_hermes: sendToHermes,
-    };
-
-    delete payload.first_and_last_detections;
-    if (payload?.remarks?.length === 0) {
-      delete payload.remarks;
-    }
-
-    try {
-      await addSharingServiceSubmission(payload).unwrap();
+    });
+    if (!("error" in result)) {
       dispatch(showNotification("Successfully queued for submission."));
-    } catch {
-      // error notification handled by the API layer
     }
-    setSharingRequestInProcess(false);
+    setSubmitting(false);
     setDialogOpen(false);
   };
 
@@ -210,7 +183,7 @@ const SharingServicesDialog = ({
         type: "array",
         items: {
           type: "integer",
-          enum: (streams || []).map((stream: any) => stream.id),
+          enum: streams.map((stream: any) => stream.id),
         },
         uniqueItems: true,
         default: defaultStreamIds,
@@ -282,7 +255,7 @@ const SharingServicesDialog = ({
       ),
     },
     stream_ids: {
-      "ui:enumNames": (streams || []).map((stream: any) => stream.name),
+      "ui:enumNames": streams.map((stream: any) => stream.name),
     },
   };
 
@@ -298,17 +271,18 @@ const SharingServicesDialog = ({
         "Please specify the group you are publishing on behalf of",
       );
     }
-    if (publishers === `on behalf of...`) {
+    if (publishers === "on behalf of...") {
       errors.publishers.addError(
         "Please edit the publishers field before submitting",
       );
     }
-    if (publishers.includes("on behalf of")) {
-      if (!/on behalf of\s*[a-zA-Z]+/i.test(publishers)) {
-        errors.publishers.addError(
-          "Please specify the group you are publishing on behalf of",
-        );
-      }
+    if (
+      publishers.includes("on behalf of") &&
+      !/on behalf of\s*[a-zA-Z]+/i.test(publishers)
+    ) {
+      errors.publishers.addError(
+        "Please specify the group you are publishing on behalf of",
+      );
     }
     if (formData.archival === true && !formData.archival_comment) {
       errors.archival.addError(
@@ -322,13 +296,7 @@ const SharingServicesDialog = ({
     if (!sharingServicesList?.length || !selectedSharingServiceId) return null;
     if (!defaultSharersString) {
       return (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            mt: 2,
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
           <CircularProgress />
         </Box>
       );
@@ -347,7 +315,7 @@ const SharingServicesDialog = ({
         uiSchema={uiSchema}
         validator={validator as any}
         onSubmit={handleSubmit as any}
-        disabled={SharingRequestInProcess}
+        disabled={submitting}
         customValidate={validate}
       />
     );
@@ -356,12 +324,7 @@ const SharingServicesDialog = ({
   return (
     <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
       <DialogTitle>
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-          }}
-        >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           Send to
           <Tooltip
             title={
@@ -416,7 +379,7 @@ const SharingServicesDialog = ({
       </DialogTitle>
       <DialogContent>
         <FormControl
-          sx={{ marginTop: 1 }}
+          sx={{ mt: 1 }}
           fullWidth
           required
           error={!sharingServicesList?.length && !loading}
@@ -429,11 +392,11 @@ const SharingServicesDialog = ({
             labelId="sharingServiceSelectLabel"
             label="Sharing Service"
             value={selectedSharingServiceId || ""}
-            onChange={(e) => setselectedSharingServiceId(e.target.value)}
+            onChange={(e) => setSelectedSharingServiceId(e.target.value)}
           >
             {sharingServicesList?.map((sharingService: any) => (
               <MenuItem value={sharingService.id} key={sharingService.id}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   {sharingService.testing === true && (
                     <Tooltip
                       title={
@@ -448,12 +411,10 @@ const SharingServicesDialog = ({
                       }
                       placement="right"
                     >
-                      <BugReportIcon style={{ color: "orange" }} />
+                      <BugReportIcon sx={{ color: "orange" }} />
                     </Tooltip>
                   )}
-                  <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-                    {sharingService.name}
-                  </Typography>
+                  <Typography variant="body1">{sharingService.name}</Typography>
                 </Box>
               </MenuItem>
             ))}

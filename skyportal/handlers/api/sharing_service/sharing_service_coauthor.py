@@ -69,15 +69,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.error(
                 "You must specify a coauthor_id when adding a coauthor to a sharing service"
             )
-        try:
-            sharing_service_id = int(sharing_service_id)
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
-            )
         async with self.AsyncSession() as session:
-            # verify that the user has access to the sharing_service
             sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token)
                 .options(selectinload(SharingService.coauthors))
@@ -88,7 +80,6 @@ class SharingServiceCoauthorHandler(BaseHandler):
                     f"No sharing service with ID {sharing_service_id}, or inaccessible"
                 )
 
-            # verify that the user has access to the coauthor
             user = await session.scalar(
                 User.select(session.user_or_token).where(User.id == user_id)
             )
@@ -108,7 +99,6 @@ class SharingServiceCoauthorHandler(BaseHandler):
             if user.is_bot:
                 return self.error(f"User {user_id} is a bot and cannot be a coauthor")
 
-            # add the coauthor, last in the published author list
             coauthor = SharingServiceCoauthor(
                 sharing_service_id=sharing_service_id,
                 user_id=user_id,
@@ -148,10 +138,6 @@ class SharingServiceCoauthorHandler(BaseHandler):
                         schema: Error
         """
         body = self.parse_body(SharingServiceCoauthorPatchBody)
-        try:
-            sharing_service_id = int(sharing_service_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
         async with self.AsyncSession() as session:
             sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token)
@@ -204,15 +190,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
                         schema: Error
         """
 
-        try:
-            sharing_service_id = int(sharing_service_id)
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
-            )
         async with self.AsyncSession() as session:
-            # verify that the user has access to the sharing_service
             sharing_service = await session.scalar(
                 SharingService.select(session.user_or_token).where(
                     SharingService.id == sharing_service_id
@@ -223,7 +201,6 @@ class SharingServiceCoauthorHandler(BaseHandler):
                     f"No sharing service with ID {sharing_service_id}, or inaccessible"
                 )
 
-            # verify that the coauthor exists and/or can be deleted
             coauthor = await session.scalar(
                 SharingServiceCoauthor.select(
                     session.user_or_token, mode="delete"

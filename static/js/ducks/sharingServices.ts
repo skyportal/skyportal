@@ -235,7 +235,6 @@ invalidateOnMessage("skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS", () => [
 
 export const {
   useGetSharingServicesQuery,
-  useLazyGetSharingServicesQuery,
   useGetSharingServiceSubmissionsQuery,
   useAddSharingServiceMutation,
   useEditSharingServiceMutation,
