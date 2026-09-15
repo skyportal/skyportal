@@ -172,13 +172,13 @@ class AnalysisWebhookHandler(BaseHandler):
                         summary, analysis.obj, analysis.author
                     )
                     await session.commit()
-                    await _store_summary_embedding(session, analysis, summary_results)
                     log("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
                         "skyportal/REFRESH_SOURCE",
                         payload={"obj_key": analysis.obj.internal_key},
                     )
+                    await _store_summary_embedding(session, analysis, summary_results)
                 else:
                     if analysis_resource_type.lower() == "obj":
                         flow.push(
@@ -195,8 +195,8 @@ class AnalysisWebhookHandler(BaseHandler):
 async def _store_summary_embedding(session, analysis, summary_results):
     """Record the vector the analysis service returned with the summary.
 
-    Written after the summary is committed, as a failed statement would leave the
-    transaction unusable and take the summary down with it.
+    Written last: a failed statement leaves the transaction unusable, and the
+    rollback that clears it expires everything else the handler was holding.
     """
     if not _EMBED_TO_PGVECTOR:
         return
