@@ -22,7 +22,7 @@ from .photometry import BANDPASSES_COLORS, BANDPASSES_WAVELENGTHS
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
 from .recurring_api import ALLOWED_RECURRING_API_METHODS
 from .source import MAX_NUM_DAYS_USING_LOCALIZATION
-from .summary_query import USE_PINECONE
+from .summary_query import USE_PGVECTOR
 
 _, cfg = load_env()
 
@@ -136,7 +136,7 @@ class ConfigHandler(BaseHandler):
                 "colorPalette": cmap,
                 "bandpassesColors": BANDPASSES_COLORS,
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
-                "usePinecone": USE_PINECONE,
+                "useSummarySearch": USE_PGVECTOR,
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
                 "authBackends": configured_backends_public(),
                 "publicGroupName": cfg["misc.public_group_name"],

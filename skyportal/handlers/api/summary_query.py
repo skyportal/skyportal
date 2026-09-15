@@ -4,7 +4,6 @@ from typing import Any
 
 import yaml
 from langchain_openai import OpenAIEmbeddings
-from pinecone import Pinecone
 from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
@@ -14,7 +13,6 @@ from baselayer.log import make_log
 from ...models import Source, User
 from ...utils.embedding_store import (
     PGVECTOR,
-    PINECONE,
     search_embeddings,
     search_embeddings_by_obj,
     store_location,
@@ -29,119 +27,25 @@ def embed_query_text(query: str, openai_api_key: str) -> list[float]:
     """The query's vector, from whichever server the embedding config names."""
     embeddings = OpenAIEmbeddings(
         model=summarize_embedding_model,
-        embedding_ctx_length=summarize_embedding_index_size,
         openai_api_key=openai_api_key,
         base_url=summarize_embedding_base_url,
     )
     return embeddings.embed_query(query)
 
 
-def search_sources(
-    client: Pinecone,
-    query: str,
-    k: int = 4,
-    filter: dict | None = None,
-    index_name: str | None = None,
-    namespace: str | None = None,
-    openai_api_key: str | None = None,
-) -> list[dict]:
-    """Return pinecone documents most similar to query, along with scores.
-
-    Args:
-        client: Pinecone client object.
-        query: Text to look up documents similar to.
-        k: Number of Documents to return. Defaults to 4.
-        filter: Dictionary of argument(s) to filter on metadata
-        index_name: Name of the index to search in.
-        namespace: Namespace to search in. Default will search in '' namespace.
-        openai_api_key: API key for the embedding service.
-    Returns:
-        List of source dictionaries most similar to the query and score for each
-    """
-    if client is None:
-        raise ValueError("pinecone_client must be provided")
-    if index_name is None:
-        raise ValueError("index_name must be provided")
-    if openai_api_key is None:
-        raise ValueError("openai_api_key must be provided")
-
-    query_vector = embed_query_text(query, openai_api_key)
-
-    # The index stores vectors of one width, set when it was built. Asking a
-    # different model for the query vector is the easy mistake once the endpoint
-    # is configurable, and pinecone reports it only as a shape error.
-    if (
-        summarize_embedding_index_size
-        and len(query_vector) != summarize_embedding_index_size
-    ):
-        raise ValueError(
-            f"{summarize_embedding_model} returns {len(query_vector)}-d vectors but index "
-            f"{index_name} holds {summarize_embedding_index_size}-d ones. Point "
-            "embeddings_store.summary at the model the index was built with, or rebuild "
-            "the index at this width."
-        )
-
-    index = client.Index(index_name)
-    results = index.query(
-        top_k=k,
-        vector=query_vector,
-        include_values=False,
-        include_metadata=True,
-        namespace=namespace,
-        filter=filter,
-    )
-
-    sources = []
-    for res in results["matches"]:
-        try:
-            sources.append(
-                {"id": res["id"], "score": res["score"], "metadata": res["metadata"]}
-            )
-        except Exception as e:
-            log(f"Error: {e}")
-    return sources
-
-
-pinecone_client = None
-
 summarize_embedding_config = cfg[
     "analysis_services.openai_analysis_service.embeddings_store.summary"
 ]
-# Bound unconditionally: the test path turns pinecone on without taking the
-# branch below, and search_sources reads these at call time either way.
-summarize_embedding_index_name = summarize_embedding_config.get("index_name")
-summarize_embedding_index_size = summarize_embedding_config.get("index_size")
 summarize_embedding_model = summarize_embedding_config.get("model")
 # Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 
-EMBEDDING_LOCATION = store_location(summarize_embedding_config)
-# pgvector keeps the vectors in our own database, so there is nothing to reach
-# for and nothing to check beyond the table the migration creates.
-USE_PGVECTOR = EMBEDDING_LOCATION == PGVECTOR
-
-USE_PINECONE = False
-if (
-    EMBEDDING_LOCATION == PINECONE
-    and summarize_embedding_config.get("api_key")
-    and summarize_embedding_index_name
-    and summarize_embedding_index_size
-):
-    log("initializing pinecone access...")
-    pinecone_client = Pinecone(
-        api_key=summarize_embedding_config.get("api_key"),
-    )
-
-    if summarize_embedding_index_name in [
-        index.name for index in pinecone_client.list_indexes().indexes
-    ]:
-        USE_PINECONE = True
-elif EMBEDDING_LOCATION == PINECONE and cfg["database.database"] == "skyportal_test":
-    # Pinecone cannot be reached from a test run, so the tests that do not touch
-    # it are let through. pgvector needs no such allowance: it is the database
-    # the tests already have.
-    USE_PINECONE = True
-    log("Setting USE_PINECONE=True as it seems like we are in a test environment")
+# The vectors live in our own database, so there is nothing to reach for: the
+# search is on when the config names the store and the model that filled it.
+USE_PGVECTOR = (
+    store_location(summarize_embedding_config) == PGVECTOR
+    and summarize_embedding_model is not None
+)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
@@ -210,10 +114,10 @@ class SummaryQueryHandler(BaseHandler):
         """
         body = self.parse_body(SummaryQueryPostBody)
 
-        if not (USE_PINECONE or USE_PGVECTOR):
+        if not USE_PGVECTOR:
             return self.error(
-                "No valid embeddings_store configuration found. Please check your "
-                "config file."
+                "No summary embeddings store is configured. Set "
+                "analysis_services.openai_analysis_service.embeddings_store.summary."
             )
 
         query = body.q
@@ -275,100 +179,38 @@ class SummaryQueryHandler(BaseHandler):
             if anchor is None:
                 return self.error(f"Cannot access object {objID}", status=403)
 
-        if USE_PGVECTOR:
-            classes = body.classificationTypes or None
-            try:
-                async with self.AsyncSession() as session:
-                    # A summary is as readable as the source it describes, so
-                    # the search sees exactly the sources saved to the
-                    # requester's groups.
-                    accessible = Source.select(
-                        session.user_or_token, columns=[Source.obj_id]
-                    )
-                    if query:
-                        vector = embed_query_text(query, user_openai_key)
-                        results = await search_embeddings(
-                            session,
-                            vector,
-                            k,
-                            summarize_embedding_model,
-                            accessible,
-                            z_min,
-                            z_max,
-                            classes,
-                        )
-                    else:
-                        results = await search_embeddings_by_obj(
-                            session,
-                            objID,
-                            k,
-                            summarize_embedding_model,
-                            accessible,
-                            z_min,
-                            z_max,
-                            classes,
-                        )
-            except Exception as e:
-                return self.error(f"Could not search sources: {e}")
-            return self.success(data={"query_results": results})
-
-        filters = []
-        if z_min is not None:
-            filters.append({"redshift": {"$gte": z_min}})
-        if z_max is not None:
-            filters.append({"redshift": {"$lte": z_max}})
-        if body.classificationTypes:
-            filters.append({"class": {"$in": body.classificationTypes}})
-        if not filters:
-            filt = {}
-        elif len(filters) == 1:
-            filt = filters[0]
-        else:
-            filt = {"$and": filters}
-
-        if query:
-            try:
-                results = search_sources(
-                    pinecone_client,
-                    query,
-                    k,
-                    filt,
-                    summarize_embedding_index_name,
-                    "",
-                    user_openai_key,
-                )
-            except Exception as e:
-                return self.error(f"Could not search sources: {e}")
-        else:
-            try:
-                index = pinecone_client.Index(summarize_embedding_index_name)
-                query_response = index.query(
-                    top_k=k,
-                    index=summarize_embedding_index_name,
-                    include_values=False,
-                    include_metadata=True,
-                    id=objID,
-                    filter=filt,
-                )
-                results = query_response.get("matches", [])
-            except Exception as e:
-                return self.error(f"Could not query index: {e}")
-
-        # Pinecone cannot express who may read a source, so its results are
-        # filtered here. That can leave fewer than k: another reason to prefer
-        # the pgvector backend, which applies the same rule inside the query.
-        ids = [r["id"] for r in results if r.get("id")]
-        if ids:
+        classes = body.classificationTypes or None
+        try:
             async with self.AsyncSession() as session:
-                allowed = set(
-                    (
-                        await session.scalars(
-                            Source.select(
-                                session.user_or_token, columns=[Source.obj_id]
-                            ).where(Source.obj_id.in_(ids))
-                        )
-                    ).all()
+                # A summary is as readable as the source it describes, so
+                # the search sees exactly the sources saved to the
+                # requester's groups.
+                accessible = Source.select(
+                    session.user_or_token, columns=[Source.obj_id]
                 )
-            results = [r for r in results if r.get("id") in allowed]
-
+                if query:
+                    vector = embed_query_text(query, user_openai_key)
+                    results = await search_embeddings(
+                        session,
+                        vector,
+                        k,
+                        summarize_embedding_model,
+                        accessible,
+                        z_min,
+                        z_max,
+                        classes,
+                    )
+                else:
+                    results = await search_embeddings_by_obj(
+                        session,
+                        objID,
+                        k,
+                        summarize_embedding_model,
+                        accessible,
+                        z_min,
+                        z_max,
+                        classes,
+                    )
+        except Exception as e:
+            return self.error(f"Could not search sources: {e}")
         return self.success(data={"query_results": results})

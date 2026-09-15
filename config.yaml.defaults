@@ -1459,26 +1459,18 @@ analysis_services:
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
       summary:
-        # `pinecone` for the hosted service, `pgvector` to keep the vectors in
-        # SkyPortal's own database. pgvector needs no index_name, index_size or
-        # key of its own, and its column has no fixed width, so the model can be
-        # changed without a migration: reads are scoped to the model named
-        # below, leaving vectors from an earlier one unread until rewritten.
-        location: pinecone
-        # The pinecone key. The embedding model is reached with the key from
-        # analysis_services.openai_analysis_service.summary.
-        api_key:
-        index_name: openai-skyportal-summary
-        # Must equal the width of the vectors `model` returns: the index is
-        # built at this size and a query vector of any other shape is rejected.
-        index_size: 1536
+        # Where the summary vectors are kept. `pgvector` holds them in
+        # SkyPortal's own database; leave unset to switch the summary search
+        # off. Both this and `model` must be set for the search to run.
+        location:
+        # The embedding model. Vectors only compare with others from the same
+        # model, so reads are scoped to whatever is named here and a change
+        # leaves earlier vectors unread until each summary is embedded again.
         model: text-embedding-3-small
-        # Set to use any server speaking the OpenAI embeddings protocol.
-        # Changing provider changes the vectors, so the index has to be
-        # rebuilt with the new model rather than queried with it.
+        # Any server speaking the OpenAI embeddings protocol. Unset means
+        # OpenAI's own. The key comes from
+        # analysis_services.openai_analysis_service.summary.
         base_url:
-        cloud: aws
-        region: us-east-1
 
 # Root for on-disk caches; everything under it is regenerable and safe to delete.
 cache_folder: cache

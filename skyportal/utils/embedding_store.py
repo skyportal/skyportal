@@ -1,7 +1,7 @@
 """Where source-summary embeddings are kept, and how they are searched.
 
-The backend is named by `embeddings_store.summary.location`: `pinecone` talks to
-the hosted service, `pgvector` keeps the vectors in SkyPortal's own database.
+`embeddings_store.summary.location` names the store; `pgvector` keeps the vectors
+in SkyPortal's own database, beside the summaries they were made from.
 
 pgvector holds them in a column with no declared width, so changing embedding
 model needs no migration. Postgres will not compare vectors of different widths,
@@ -14,7 +14,6 @@ here means the one access rule in `Obj.select` decides, rather than a copy of it
 
 __all__ = [
     "PGVECTOR",
-    "PINECONE",
     "store_location",
     "vector_literal",
     "upsert_embedding",
@@ -24,7 +23,6 @@ __all__ = [
 
 import sqlalchemy as sa
 
-PINECONE = "pinecone"
 PGVECTOR = "pgvector"
 
 
@@ -128,7 +126,7 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
     """The k rows closest to `target`.
 
     `<=>` is cosine distance, so 0 is identical and 2 is opposite; the score
-    returned is 1 - distance, matching pinecone's cosine similarity.
+    returned is 1 - distance, so 1 is identical and 0 is unrelated.
     """
     distance = _embeddings.c.embedding.op("<=>")(target)
     stmt = sa.select(

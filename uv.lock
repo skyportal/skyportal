@@ -3168,45 +3168,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b8/02/5bf3639f5b77e9b183011c08541c5039ba3d04f5316c70312b48a8e003a9/pims-0.7.tar.gz", hash = "sha256:55907a4c301256086d2aa4e34a5361b9109f24e375c2071e1117b9491e82946b", size = 87779, upload-time = "2024-06-10T19:20:42.842Z" }
 
 [[package]]
-name = "pinecone"
-version = "8.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "certifi" },
-    { name = "orjson" },
-    { name = "pinecone-plugin-assistant" },
-    { name = "pinecone-plugin-interface" },
-    { name = "python-dateutil" },
-    { name = "typing-extensions" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/33/13/f4c481a6a93dab92132d6d863b70a0e6c903f62940389435b31cf0c7d7d2/pinecone-8.0.0.tar.gz", hash = "sha256:feca7ff607706c09ffbd127ec93fa3b7110896b30c0d7a57672da73c69698d53", size = 1092653, upload-time = "2025-11-18T18:21:30.584Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/6c/1d870a9211eb8f0bf60214182de001b480f94590eca9d6164a5d6d7de031/pinecone-8.0.0-py3-none-any.whl", hash = "sha256:95f714a496a91d80f3405165aedfea76ca8ac16e51e618df0434241838e353f8", size = 745902, upload-time = "2025-11-18T18:21:25.584Z" },
-]
-
-[[package]]
-name = "pinecone-plugin-assistant"
-version = "3.0.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/95/b5/308758742255b072e633947f9c016f5bf12aab1f592b4f81968e98fdf36d/pinecone_plugin_assistant-3.0.3.tar.gz", hash = "sha256:53f548ede60a95d79ff48d7865a3d0afd665ced9e77758272e62ba0c6c63bd26", size = 151895, upload-time = "2026-03-27T22:13:41.008Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/0d/188293ade97616983cc6764d64867322dc40a4ee7009f21a1cf99f10149c/pinecone_plugin_assistant-3.0.3-py3-none-any.whl", hash = "sha256:a42cff1e0b28df40596e440527c41888881eefedb1008117819506db60273808", size = 280675, upload-time = "2026-03-27T22:13:42.292Z" },
-]
-
-[[package]]
-name = "pinecone-plugin-interface"
-version = "0.0.7"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f4/fb/e8a4063264953ead9e2b24d9b390152c60f042c951c47f4592e9996e57ff/pinecone_plugin_interface-0.0.7.tar.gz", hash = "sha256:b8e6675e41847333aa13923cc44daa3f85676d7157324682dc1640588a982846", size = 3370, upload-time = "2024-06-05T01:57:52.093Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/1d/a21fdfcd6d022cb64cef5c2a29ee6691c6c103c4566b41646b080b7536a5/pinecone_plugin_interface-0.0.7-py3-none-any.whl", hash = "sha256:875857ad9c9fc8bbc074dbe780d187a2afd21f5bfe0f3b08601924a61ef1bba8", size = 6249, upload-time = "2024-06-05T01:57:50.583Z" },
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.9.4"
 source = { registry = "https://pypi.org/simple" }
@@ -4662,7 +4623,6 @@ dependencies = [
     { name = "pandas" },
     { name = "paramiko" },
     { name = "pillow" },
-    { name = "pinecone" },
     { name = "prometheus-client" },
     { name = "pyastronomy" },
     { name = "pydantic" },
@@ -4799,7 +4759,6 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.0,<4.0.0" },
     { name = "paramiko", specifier = "==5.0.0" },
     { name = "pillow", specifier = ">=8.4.0" },
-    { name = "pinecone", specifier = "==8.0.0" },
     { name = "prometheus-client", specifier = ">=0.20.0" },
     { name = "pyastronomy", specifier = "==0.24.0" },
     { name = "pydantic", specifier = "==2.13.4" },

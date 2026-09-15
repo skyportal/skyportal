@@ -19,12 +19,12 @@ const SimilarSources = ({
   min_score = 0.9,
   k = 3,
 }: SimilarSourcesProps) => {
-  const usePinecone = (useGetConfigQuery().data as any)?.usePinecone;
+  const useSummarySearch = (useGetConfigQuery().data as any)?.useSummarySearch;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 
   useEffect(() => {
-    if (source?.id && usePinecone) {
+    if (source?.id && useSummarySearch) {
       const queryBundle = {
         objID: source.id,
         // get an extra source to account for the source itself
@@ -48,7 +48,7 @@ const SimilarSources = ({
           // Don't show an error if the query fails, just don't show any similar sources
         });
     }
-  }, [fetchSummaryQuery, source, k, min_score, usePinecone]);
+  }, [fetchSummaryQuery, source, k, min_score, useSummarySearch]);
 
   return (
     <>
