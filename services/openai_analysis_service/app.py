@@ -24,9 +24,9 @@ _, cfg = load_env()
 log = make_log("openai_analysis_service")
 
 # Preamble: get the embeddings and summary parameters ready
-summarize_embedding_config = cfg[
-    "analysis_services.openai_analysis_service.embeddings_store.summary"
-]
+summarize_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
 # The embedding model need not sit with the chat model. Vectors are comparable
 # only with others from the same model, so the two are configured separately.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None

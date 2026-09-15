@@ -36,9 +36,9 @@ def embed_query_text(query: str, openai_api_key: str) -> list[float]:
     return embeddings.embed_query(query)
 
 
-summarize_embedding_config = cfg[
-    "analysis_services.openai_analysis_service.embeddings_store.summary"
-]
+summarize_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
 summarize_embedding_model = summarize_embedding_config.get("model")
 # Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
