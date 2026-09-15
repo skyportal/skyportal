@@ -7,12 +7,16 @@ import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import BugReportIcon from "@mui/icons-material/BugReport";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import Tooltip from "@mui/material/Tooltip";
+import { alpha } from "@mui/material/styles";
 
 import ReactJson from "react-json-view";
 
@@ -32,21 +36,21 @@ const StyledDataGrid: any = StyledDataGridBase;
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
-function getStatusStyle(status: string) {
+function getStatusVariant(status: string) {
   const value = status.toLowerCase();
   if (value.startsWith("complete") || value.startsWith("success")) {
-    return { color: "white", backgroundColor: "rgba(11,181,119,0.90)" };
+    return { severity: "success", Icon: CheckCircleIcon };
   }
   if (value.includes("already posted to tns")) {
-    return { color: "#212121", backgroundColor: "rgba(255,152,0,0.90)" };
+    return { severity: "warning", Icon: InfoOutlinedIcon };
   }
   if (value.startsWith("error")) {
-    return { color: "white", backgroundColor: "rgba(244,67,54,0.90)" };
+    return { severity: "error", Icon: ErrorIcon };
   }
   if (value.startsWith("testing mode")) {
-    return { color: "white", backgroundColor: "rgba(125,163,227,0.9)" };
+    return { severity: "info", Icon: BugReportIcon };
   }
-  return { color: "text.primary", backgroundColor: "action.selected" };
+  return { severity: null, Icon: null };
 }
 
 const SharingServiceSubmissionsPage = () => {
@@ -89,21 +93,39 @@ const SharingServiceSubmissionsPage = () => {
           &mdash;
         </Typography>
       );
+    const { severity, Icon } = getStatusVariant(status);
     return (
       <Box
-        sx={{
-          ...getStatusStyle(status),
-          width: "fit-content",
-          maxWidth: "100%",
-          padding: "0.35rem 0.75rem",
-          borderRadius: "1rem",
-          fontSize: "0.8125rem",
-          fontWeight: 500,
-          lineHeight: 1.45,
-          whiteSpace: "normal",
-          overflowWrap: "anywhere",
+        sx={(theme: any) => {
+          // tint from the text shade: the theme's `info.main` is an off-white
+          const shade = theme.palette.mode === "dark" ? "light" : "dark";
+          const base = severity ? theme.palette[severity][shade] : null;
+          return {
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 0.5,
+            width: "fit-content",
+            maxWidth: "100%",
+            padding: "0.3rem 0.6rem",
+            borderRadius: 1.5,
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+            lineHeight: 1.45,
+            whiteSpace: "normal",
+            overflowWrap: "anywhere",
+            color: base || theme.palette.text.secondary,
+            backgroundColor: base
+              ? alpha(base, 0.12)
+              : theme.palette.action.selected,
+            border: `1px solid ${
+              base ? alpha(base, 0.3) : theme.palette.divider
+            }`,
+          };
         }}
       >
+        {Icon && (
+          <Icon sx={{ fontSize: "1rem", mt: "0.15rem", flexShrink: 0 }} />
+        )}
         {status.trim()}
       </Box>
     );
