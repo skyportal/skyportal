@@ -284,7 +284,7 @@ def run_openai_summarization(data_dict):
     joblib.dump(result, f.name, compress=3)
     result_data = base64.b64encode(open(f.name, "rb").read())
     try:
-        os.remove(f)
+        os.remove(f.name)
     except:  # noqa E722
         pass
 
