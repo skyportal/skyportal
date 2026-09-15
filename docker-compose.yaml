@@ -31,7 +31,7 @@ services:
         condition: service_healthy
 
   db:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: postgres17
     environment:
       POSTGRES_USER: skyportal

@@ -9,6 +9,8 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Annotation, ObjAnalysis
+from ...utils.embedding_store import delete_embedding, upsert_embedding
+from ...utils.embedding_store_config import PGVECTOR, store_location
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -18,6 +20,11 @@ from .candidate.candidate import (
 log = make_log("app/webhook")
 
 _, cfg = load_env()
+
+_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
+_EMBED_TO_PGVECTOR = store_location(_embedding_config) == PGVECTOR
 
 
 class AnalysisWebhookPostBody(BaseModel):
@@ -151,9 +158,8 @@ class AnalysisWebhookHandler(BaseHandler):
                         except Exception:
                             pass
                     try:
-                        summary = {
-                            "summary": analysis.serialize_results_data()["summary"]
-                        }
+                        summary_results = analysis.serialize_results_data()
+                        summary = {"summary": summary_results["summary"]}
                     except Exception as e:
                         raise ValueError(f"Error serializing summary: {e}")
                     summary["created_at"] = analysis.created_at
@@ -169,6 +175,7 @@ class AnalysisWebhookHandler(BaseHandler):
                         "skyportal/REFRESH_SOURCE",
                         payload={"obj_key": analysis.obj.internal_key},
                     )
+                    await _store_summary_embedding(session, analysis, summary_results)
                 else:
                     if analysis_resource_type.lower() == "obj":
                         flow.push(
@@ -180,6 +187,32 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(f"Error pushing update to source: {e}")
 
         return self.success(data={"status": "success"})
+
+
+async def _store_summary_embedding(session, analysis, summary_results):
+    """Record the vector the analysis service returned with the summary.
+
+    Written last: the rollback clearing a failed statement expires everything
+    else the handler holds.
+    """
+    if not _EMBED_TO_PGVECTOR:
+        return
+    vector = summary_results.get("embedding")
+    # The service names the model it actually used; ours may have moved on, and
+    # vectors of different widths cannot be compared.
+    model = summary_results.get("embedding_model")
+    try:
+        if vector and model:
+            await session.execute(upsert_embedding(analysis.obj_id, vector, model))
+        else:
+            # This summary was never embedded, so any vector the obj holds
+            # describes text it no longer has.
+            await session.execute(delete_embedding(analysis.obj_id))
+        await session.commit()
+    except Exception as e:
+        # A summary without its vector is missing from the search, not lost.
+        await session.rollback()
+        log(f"Could not store the summary embedding for {analysis.obj_id}: {e}")
 
 
 async def _upsert_analysis_annotations(session, analysis, results):

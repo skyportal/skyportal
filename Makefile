@@ -91,14 +91,21 @@ db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
 
+db_init: ## Create the databases, and the extensions the schema needs in them.
+db_init: | baselayer/Makefile
+	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_init
+	@$(PYTHON) tools/enable_pgvector.py $(FLAGS)
+
 db_clear_test: ## Drop and recreate only the test database.
 db_clear_test: | baselayer/Makefile
 	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
+	@$(PYTHON) tools/enable_pgvector.py --test-only $(FLAGS)
 
 db_clear: ## Drop and recreate all the databases, and delete the on-disk data tied to them.
 db_clear: | baselayer/Makefile
 	@$(PYTHON) tools/clear_data.py $(FLAGS)
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_clear
+	@$(PYTHON) tools/enable_pgvector.py $(FLAGS)
 
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))

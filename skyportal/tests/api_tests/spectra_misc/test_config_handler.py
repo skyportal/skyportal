@@ -22,7 +22,7 @@ _REQUIRED_KEYS = {
     "colorPalette",
     "bandpassesColors",
     "bandpassesWavelengths",
-    "usePinecone",
+    "useSummarySearch",
     "usePhotometryValidation",
     "summary_apikey_set",
     "summary_parameters",

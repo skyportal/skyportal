@@ -85,8 +85,10 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 Using Homebrew, install core dependencies:
 
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust bun
+brew install supervisor nginx postgresql node llvm libomp gsl rust bun pgvector
 ```
+
+`pgvector` supplies the `vector` type the source-summary embeddings table uses. The table is created when the database is initialised, so pgvector has to be present even if you never turn the summary search on. `make db_init` enables it in each database.
 
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 
@@ -221,10 +223,22 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 1. Install dependencies
 
    ```
-   sudo apt install supervisor postgresql \
-         libpq-dev npm python3-pip \
+   sudo apt install supervisor postgresql libpq-dev npm python3-pip \
          libcurl4-gnutls-dev libgnutls28-dev
    ```
+
+   `pgvector` supplies the `vector` type the source-summary embeddings table
+   uses. The table is created when the database is initialised, so pgvector has
+   to be present even if you never turn the summary search on. Its package is
+   named for the PostgreSQL version, which `pg_config` reports once the command
+   above has run:
+
+   ```
+   sudo apt install postgresql-$(pg_config --version | \
+         grep -oE '[0-9]+' | head -1)-pgvector
+   ```
+
+   `make db_init` enables it in each database.
 
    If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:
 

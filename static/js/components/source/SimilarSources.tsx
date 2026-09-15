@@ -14,31 +14,29 @@ interface SimilarSourcesProps {
   k?: number;
 }
 
-const SimilarSources = ({
-  source,
-  min_score = 0.9,
-  k = 3,
-}: SimilarSourcesProps) => {
-  const usePinecone = (useGetConfigQuery().data as any)?.usePinecone;
+const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
+  const config = useGetConfigQuery().data as any;
+  const useSummarySearch = config?.useSummarySearch;
+  // The search already applies the configured cut; a prop raises it for a caller
+  // that wants closer matches than the rest of the app.
+  const threshold = min_score;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 
   useEffect(() => {
-    if (source?.id && usePinecone) {
+    if (source?.id && useSummarySearch) {
       const queryBundle = {
         objID: source.id,
-        // get an extra source to account for the source itself
-        k: k + 1,
+        k,
       };
       fetchSummaryQuery(queryBundle)
         .unwrap()
         .then((data: any) => {
           let tmpList: any[] = data?.query_results ?? [];
           if (tmpList.length > 0) {
-            // remove the source itself from the list
-            tmpList = tmpList.filter((item) => item.id !== source.id);
-            // remove any sources with a score below the threshold
-            tmpList = tmpList.filter((item) => item.score >= min_score);
+            if (threshold != null) {
+              tmpList = tmpList.filter((item) => item.score >= threshold);
+            }
             setSimSourceList(tmpList);
           } else {
             setSimSourceList([]);
@@ -48,7 +46,7 @@ const SimilarSources = ({
           // Don't show an error if the query fails, just don't show any similar sources
         });
     }
-  }, [fetchSummaryQuery, source, k, min_score, usePinecone]);
+  }, [fetchSummaryQuery, source, k, threshold, useSummarySearch]);
 
   return (
     <>
@@ -61,7 +59,11 @@ const SimilarSources = ({
           }}
         >
           <Tooltip
-            title={`Highest AI summary similarity scores s>${min_score}`}
+            title={
+              threshold != null
+                ? `Highest AI summary similarity scores s>${threshold}`
+                : "Highest AI summary similarity scores"
+            }
           >
             <b style={{ textWrap: "nowrap", marginRight: "0.5rem" }}>
               Similar Sources:

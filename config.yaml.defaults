@@ -1459,13 +1459,24 @@ analysis_services:
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
     embeddings_store:
       summary:
-        location: pinecone
-        api_key:
-        index_name: openai-skyportal-summary
-        index_size: 1536
+        # Where the summary vectors are kept. `pgvector` holds them in
+        # SkyPortal's own database; leave unset to switch the summary search
+        # off. Both this and `model` must be set for the search to run.
+        location:
+        # The embedding model. Vectors only compare with others from the same
+        # model, so reads are scoped to whatever is named here and a change
+        # leaves earlier vectors unread until each summary is embedded again.
         model: text-embedding-3-small
-        cloud: aws
-        region: us-east-1
+        # Any server speaking the OpenAI embeddings protocol. Unset means
+        # OpenAI's own, which is the only case where a user's own OpenAI key is
+        # sent; anywhere else is reached with `api_key` below, or with no key.
+        base_url:
+        api_key:
+        # Cosine similarity below which a source is not offered as similar: 1 is
+        # identical, 0 unrelated, -1 opposite. What counts as close varies by
+        # model, so set this from the spread `model` actually produces. Unset
+        # shows the closest matches whatever they score.
+        min_score: 0.9
 
 # Root for on-disk caches; everything under it is regenerable and safe to delete.
 cache_folder: cache
