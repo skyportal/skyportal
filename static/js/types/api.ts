@@ -18163,6 +18163,67 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/data_sharing/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-share one group's data with another group
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant (or revoke) a target group's access to every spectrum and/or
+         *     photometry point already shared with a source group, in one
+         *     set-based operation. Additive and idempotent: it only inserts or
+         *     deletes group associations and never touches the data itself. This
+         *     is the supported way to re-expose narrowly-shared legacy/imported
+         *     data collaboration-wide.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        from_group_id: number;
+                        to_group_id: number;
+                        data_types?: ("spectra" | "photometry")[];
+                        /** @enum {string} */
+                        action?: "add" | "remove";
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/spatial_catalog/ascii": {
         parameters: {
             query?: never;
@@ -18420,6 +18481,56 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spectra/{spectrum_id}/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a group from a spectrum
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Revoke a single group's access to one spectrum. Used to undo an
+         *     accidental over-share; refuses to remove a spectrum's only group.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spectrum_id: string;
+                    group_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
