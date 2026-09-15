@@ -7,7 +7,10 @@ from sqlalchemy.sql.expression import func
 from baselayer.app.access import auth_or_token
 
 from ....models import Candidate, Obj, Source
-from ....utils.data_access import accessible_group_and_filter_ids
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_ids_async,
+)
 from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ...base import BaseHandler
 
@@ -22,11 +25,17 @@ SAVED_STATUSES = (
 )
 
 
-def get_subquery_for_saved_status(stmt, saved_status, group_ids, user):
+async def get_subquery_for_saved_status(stmt, saved_status, group_ids, user, session):
+    """Restrict ``stmt`` by whether the obj is already saved, per ``saved_status``.
+
+    Async because ``User.accessible_groups`` is a lazy relationship: reading it
+    under an async session raises MissingGreenlet, which took out every
+    saved-status option except "all".
+    """
     if saved_status == "all":
         return stmt
 
-    accessible_group_ids = [g.id for g in user.accessible_groups]
+    accessible_group_ids = await accessible_group_ids_async(user, session)
     group_ids = [g for g in group_ids if g in accessible_group_ids]
     # sources data access is group_id based and the accessible group ids are
     # already filtered above, so sa.select is safe here instead of Source.select
@@ -147,8 +156,8 @@ class CandidateFilterHandler(BaseHandler):
                 stmt = stmt.where(Candidate.passed_at >= start_date)
             if end_date:
                 stmt = stmt.where(Candidate.passed_at <= end_date)
-            stmt = get_subquery_for_saved_status(
-                stmt, query.savedStatus, group_ids, session.user_or_token
+            stmt = await get_subquery_for_saved_status(
+                stmt, query.savedStatus, group_ids, session.user_or_token, session
             )
 
             # ascending so candidates added mid-pagination land at the end:

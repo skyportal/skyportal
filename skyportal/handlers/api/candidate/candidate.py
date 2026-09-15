@@ -1104,8 +1104,8 @@ class CandidateHandler(BaseHandler):
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
-            q = get_subquery_for_saved_status(
-                q, saved_status, group_ids, session.user_or_token
+            q = await get_subquery_for_saved_status(
+                q, saved_status, group_ids, session.user_or_token, session
             )
 
             if min_redshift is not None:
