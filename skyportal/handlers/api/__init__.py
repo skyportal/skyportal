@@ -63,6 +63,7 @@ from .data_access_request import (
     DuplicateSchedulingHandler,
     ScheduledObservationsHandler,
 )
+from .data_sharing import BulkDataShareHandler, SpectrumGroupsHandler
 from .db_stats import StatsHandler, StatsHistoryHandler
 from .earthquake import (
     EarthquakeHandler,
