@@ -9,7 +9,6 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 
 from ...models import Classification, Source, User
 from ...utils.embedding_store import search_embeddings, search_embeddings_by_obj
@@ -17,7 +16,6 @@ from ...utils.embedding_store_config import PGVECTOR, store_location
 from ..base import BaseHandler
 
 _, cfg = load_env()
-log = make_log("query")
 
 
 def embed_query_text(query: str, openai_api_key: str) -> list[float]:
