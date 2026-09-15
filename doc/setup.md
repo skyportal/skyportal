@@ -88,7 +88,7 @@ Using Homebrew, install core dependencies:
 brew install supervisor nginx postgresql node llvm libomp gsl rust bun pgvector
 ```
 
-`pgvector` supplies the `vector` type the source-summary embeddings table uses. The table is created when the database is initialised, so pgvector has to be present even if you never turn the summary search on. It is enabled per database once the databases exist, in [Launch](#launch) below.
+`pgvector` supplies the `vector` type the source-summary embeddings table uses. The table is created when the database is initialised, so pgvector has to be present even if you never turn the summary search on. `make db_init` enables it in each database.
 
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 
@@ -238,8 +238,7 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
          grep -oE '[0-9]+' | head -1)-pgvector
    ```
 
-   It is enabled per database once the databases exist, in
-   [Launch](#launch) below.
+   `make db_init` enables it in each database.
 
    If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you have to install NGINX and the brotli module from another source with:
 
@@ -308,16 +307,7 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 
 0. Make sure you are in the skyportal env: `uv sync && source .venv/bin/activate`.
 1. Initialize the database with `make db_init` (this only needs to
-   happen once), then enable pgvector in the databases it created. Installing an
-   extension needs superuser rights, which the SkyPortal role does not have:
-
-   ```
-   psql -d skyportal -c 'CREATE EXTENSION vector;'
-   psql -d skyportal_test -c 'CREATE EXTENSION vector;'
-   ```
-
-   On Debian-based Linux and WSL, prefix each with `sudo -u postgres`.
-
+   happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
 4. Direct your browser to `http://localhost:5000` (or `http://localhost:<port>` if you changed the default port in `config.yaml`).
