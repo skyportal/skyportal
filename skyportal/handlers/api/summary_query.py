@@ -10,7 +10,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ...models import Source, User
+from ...models import Classification, Source, User
 from ...utils.embedding_store import (
     PGVECTOR,
     search_embeddings,
@@ -180,10 +180,15 @@ class SummaryQueryHandler(BaseHandler):
             # holding a database connection.
             vector = embed_query_text(query, user_openai_key) if query else None
             async with self.AsyncSession() as session:
-                # A summary is as readable as the source it describes.
+                # A summary is as readable as the source it describes, and a
+                # classification only as readable as the groups it was posted to.
                 accessible = Source.select(
                     session.user_or_token, columns=[Source.obj_id]
                 ).where(Source.active.is_(True))
+                accessible_classifications = Classification.select(
+                    session.user_or_token,
+                    columns=[Classification.obj_id, Classification.classification],
+                )
                 if query:
                     results = await search_embeddings(
                         session,
@@ -191,6 +196,7 @@ class SummaryQueryHandler(BaseHandler):
                         k,
                         summarize_embedding_model,
                         accessible,
+                        accessible_classifications,
                         z_min,
                         z_max,
                         classes,
@@ -202,6 +208,7 @@ class SummaryQueryHandler(BaseHandler):
                         k,
                         summarize_embedding_model,
                         accessible,
+                        accessible_classifications,
                         z_min,
                         z_max,
                         classes,

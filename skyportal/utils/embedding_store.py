@@ -21,11 +21,8 @@ from ..models.summary_embedding import SummaryEmbedding, Vector
 PGVECTOR = "pgvector"
 
 _embeddings = SummaryEmbedding.c
-# Lightweight handles for the few columns a search reads off other tables.
+# Lightweight handle for the few obj columns a search reads.
 _objs = sa.table("objs", sa.column("id"), sa.column("redshift"), sa.column("summary"))
-_classifications = sa.table(
-    "classifications", sa.column("obj_id"), sa.column("classification")
-)
 
 
 def store_location(config: dict) -> str | None:
@@ -57,7 +54,9 @@ async def upsert_embedding(session, obj_id, vector, model):
     )
 
 
-def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
+def _restrict(
+    stmt, model, accessible_objs, classifications, z_min, z_max, classification_types
+):
     """Everything a search is allowed to look at, before similarity is considered."""
     stmt = stmt.where(_embeddings.model == model)
 
@@ -85,17 +84,19 @@ def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
         stmt = stmt.where(
             sa.exists(
                 sa.select(sa.literal(1))
-                .select_from(_classifications)
+                .select_from(classifications)
                 .where(
-                    _classifications.c.obj_id == _embeddings.obj_id,
-                    _classifications.c.classification.in_(list(classification_types)),
+                    classifications.c.obj_id == _embeddings.obj_id,
+                    classifications.c.classification.in_(list(classification_types)),
                 )
             )
         )
     return stmt
 
 
-async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, classes):
+async def _nearest(
+    session, target, k, model, accessible_objs, classifications, z_min, z_max, classes
+):
     """The k rows closest to `target`, scored 1 (identical) to 0 (unrelated)."""
     distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
     stmt = sa.select(
@@ -110,12 +111,14 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
         .where(_objs.c.id == _embeddings.obj_id)
         .scalar_subquery()
         .label("redshift"),
-        sa.select(sa.func.array_agg(sa.distinct(_classifications.c.classification)))
-        .where(_classifications.c.obj_id == _embeddings.obj_id)
+        sa.select(sa.func.array_agg(sa.distinct(classifications.c.classification)))
+        .where(classifications.c.obj_id == _embeddings.obj_id)
         .scalar_subquery()
         .label("classes"),
     )
-    stmt = _restrict(stmt, model, accessible_objs, z_min, z_max, classes)
+    stmt = _restrict(
+        stmt, model, accessible_objs, classifications, z_min, z_max, classes
+    )
     stmt = stmt.order_by(distance).limit(k)
 
     rows = (await session.execute(stmt)).mappings().all()
@@ -138,7 +141,8 @@ async def search_embeddings(
     vector,
     k,
     model,
-    accessible_objs=None,
+    accessible_objs,
+    accessible_classifications,
     z_min=None,
     z_max=None,
     classification_types=None,
@@ -146,7 +150,15 @@ async def search_embeddings(
     """Summaries most similar to `vector`, nearest first."""
     target = sa.cast(sa.literal(vector_literal(vector)), Vector())
     return await _nearest(
-        session, target, k, model, accessible_objs, z_min, z_max, classification_types
+        session,
+        target,
+        k,
+        model,
+        accessible_objs,
+        accessible_classifications.subquery(),
+        z_min,
+        z_max,
+        classification_types,
     )
 
 
@@ -155,7 +167,8 @@ async def search_embeddings_by_obj(
     obj_id,
     k,
     model,
-    accessible_objs=None,
+    accessible_objs,
+    accessible_classifications,
     z_min=None,
     z_max=None,
     classification_types=None,
@@ -175,6 +188,7 @@ async def search_embeddings_by_obj(
         k + 1,
         model,
         accessible_objs,
+        accessible_classifications.subquery(),
         z_min,
         z_max,
         classification_types,
