@@ -697,6 +697,7 @@ const SharingServiceCoauthors = ({
 
   return (
     <Box
+      data-testid="tour-sharing-service-coauthors"
       sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
     >
       {userIds.map((userId, index) => (
