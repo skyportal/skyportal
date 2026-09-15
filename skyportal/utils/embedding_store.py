@@ -8,6 +8,7 @@ the access rule stays in `Source.select` rather than being copied here.
 __all__ = [
     "vector_literal",
     "upsert_embedding",
+    "delete_embedding",
     "search_embeddings",
     "search_embeddings_by_obj",
 ]
@@ -42,6 +43,11 @@ def upsert_embedding(obj_id, vector, model):
             "modified": sa.func.now(),
         },
     )
+
+
+def delete_embedding(obj_id):
+    """The statement dropping an obj's vector, for a summary it no longer has."""
+    return sa.delete(SummaryEmbedding).where(_embeddings.obj_id == obj_id)
 
 
 def _restrict(

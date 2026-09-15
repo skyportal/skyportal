@@ -90,6 +90,7 @@ from ...utils.data_access import (
     auto_source_publishing,
     auto_source_publishing_async,
 )
+from ...utils.embedding_store import delete_embedding
 from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.offset import (
     ALL_NGPS_SNCOSMO_BANDS,
@@ -2488,6 +2489,9 @@ class SourceHandler(BaseHandler):
                 )
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
             update_summary_history_if_relevant(data, obj, self.associated_user_object)
+            if "summary" in data:
+                # The stored vector describes the summary it was made from.
+                await session.execute(delete_embedding(obj.id))
 
             update_healpix_if_relevant(data, obj)
 

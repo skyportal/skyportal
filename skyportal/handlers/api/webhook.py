@@ -9,7 +9,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Annotation, ObjAnalysis
-from ...utils.embedding_store import upsert_embedding
+from ...utils.embedding_store import delete_embedding, upsert_embedding
 from ...utils.embedding_store_config import PGVECTOR, store_location
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
@@ -201,10 +201,13 @@ async def _store_summary_embedding(session, analysis, summary_results):
     # The service names the model it actually used; ours may have moved on, and
     # vectors of different widths cannot be compared.
     model = summary_results.get("embedding_model")
-    if not vector or not model:
-        return
     try:
-        await session.execute(upsert_embedding(analysis.obj_id, vector, model))
+        if vector and model:
+            await session.execute(upsert_embedding(analysis.obj_id, vector, model))
+        else:
+            # The summary the obj now has was never embedded, so any vector it
+            # holds describes text that is gone.
+            await session.execute(delete_embedding(analysis.obj_id))
         await session.commit()
     except Exception as e:
         # A summary without its vector is missing from the search, not lost.
