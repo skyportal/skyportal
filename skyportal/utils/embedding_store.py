@@ -97,7 +97,16 @@ def _restrict(
 
 
 async def _nearest(
-    session, target, k, model, accessible_objs, classifications, z_min, z_max, classes
+    session,
+    target,
+    k,
+    model,
+    accessible_objs,
+    classifications,
+    z_min,
+    z_max,
+    classes,
+    min_score,
 ):
     """The k rows closest to `target`.
 
@@ -115,6 +124,8 @@ async def _nearest(
     # A target that does not exist is near nothing: an obj with no stored vector
     # gives a NULL target, and every distance to it is NULL.
     nearest = nearest.where(distance.isnot(None))
+    if min_score is not None:
+        nearest = nearest.where((1 - distance) >= min_score)
     nearest = nearest.order_by(distance).limit(k).subquery()
 
     # Described after the cut, so the k rows that survive it are the only ones
@@ -159,6 +170,7 @@ async def search_embeddings(
     z_min=None,
     z_max=None,
     classification_types=None,
+    min_score=None,
 ):
     """Summaries most similar to `vector`, nearest first."""
     target = sa.cast(sa.literal(vector_literal(vector)), Vector())
@@ -172,6 +184,7 @@ async def search_embeddings(
         z_min,
         z_max,
         classification_types,
+        min_score,
     )
 
 
@@ -185,6 +198,7 @@ async def search_embeddings_by_obj(
     z_min=None,
     z_max=None,
     classification_types=None,
+    min_score=None,
 ):
     """Summaries most similar to `obj_id`'s own, which is itself excluded."""
     anchor = SummaryEmbedding.alias("anchor")
@@ -203,5 +217,6 @@ async def search_embeddings_by_obj(
         z_min,
         z_max,
         classification_types,
+        min_score,
     )
     return [r for r in results if r["id"] != obj_id][:k]

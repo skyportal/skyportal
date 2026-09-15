@@ -23,7 +23,6 @@ _REQUIRED_KEYS = {
     "bandpassesColors",
     "bandpassesWavelengths",
     "useSummarySearch",
-    "summarySearchMinScore",
     "usePhotometryValidation",
     "summary_apikey_set",
     "summary_parameters",

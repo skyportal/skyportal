@@ -17,10 +17,9 @@ interface SimilarSourcesProps {
 const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
   const config = useGetConfigQuery().data as any;
   const useSummarySearch = config?.useSummarySearch;
-  // Scores only mean something relative to the embedding model in use, so the
-  // cut comes from the config that names it. A prop still wins where a caller
-  // has a reason to differ.
-  const threshold = min_score ?? config?.summarySearchMinScore;
+  // The search already applies the configured cut; a prop raises it for a caller
+  // that wants closer matches than the rest of the app.
+  const threshold = min_score;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 
@@ -35,7 +34,6 @@ const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
         .then((data: any) => {
           let tmpList: any[] = data?.query_results ?? [];
           if (tmpList.length > 0) {
-            // remove any sources with a score below the threshold
             if (threshold != null) {
               tmpList = tmpList.filter((item) => item.score >= threshold);
             }

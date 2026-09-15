@@ -41,6 +41,7 @@ summarize_embedding_model = summarize_embedding_config.get("model")
 # Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
+summarize_embedding_min_score = summarize_embedding_config.get("min_score")
 
 # The vectors live in our own database, so there is nothing to reach for: the
 # search is on when the config names the store and the model that filled it.
@@ -206,6 +207,7 @@ class SummaryQueryHandler(BaseHandler):
                         z_min,
                         z_max,
                         classes,
+                        summarize_embedding_min_score,
                     )
                 else:
                     results = await search_embeddings_by_obj(
@@ -218,6 +220,7 @@ class SummaryQueryHandler(BaseHandler):
                         z_min,
                         z_max,
                         classes,
+                        summarize_embedding_min_score,
                     )
         except Exception as e:
             return self.error(f"Could not search sources: {e}")
