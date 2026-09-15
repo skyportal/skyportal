@@ -126,7 +126,7 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
             "metadata": {
                 "summary": row["summary"],
                 "redshift": row["redshift"],
-                "class": row["classes"] or [],
+                "class": row["classes"],
             },
         }
         for row in rows
