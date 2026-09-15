@@ -161,9 +161,8 @@ class AnalysisWebhookHandler(BaseHandler):
                         except Exception:
                             pass
                     try:
-                        summary = {
-                            "summary": analysis.serialize_results_data()["summary"]
-                        }
+                        summary_results = analysis.serialize_results_data()
+                        summary = {"summary": summary_results["summary"]}
                     except Exception as e:
                         raise ValueError(f"Error serializing summary: {e}")
                     summary["created_at"] = analysis.created_at
@@ -173,7 +172,7 @@ class AnalysisWebhookHandler(BaseHandler):
                         summary, analysis.obj, analysis.author
                     )
                     await session.commit()
-                    await _store_summary_embedding(session, analysis, results)
+                    await _store_summary_embedding(session, analysis, summary_results)
                     log("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
@@ -193,7 +192,7 @@ class AnalysisWebhookHandler(BaseHandler):
         return self.success(data={"status": "success"})
 
 
-async def _store_summary_embedding(session, analysis, results):
+async def _store_summary_embedding(session, analysis, summary_results):
     """Record the vector the analysis service returned with the summary.
 
     Written after the summary is committed, as a failed statement would leave the
@@ -201,10 +200,10 @@ async def _store_summary_embedding(session, analysis, results):
     """
     if not _EMBED_TO_PGVECTOR:
         return
-    vector = results.get("embedding")
+    vector = summary_results.get("embedding")
     # The service names the model it actually used; ours may have moved on, and
     # vectors of different widths cannot be compared.
-    model = results.get("embedding_model")
+    model = summary_results.get("embedding_model")
     if not vector or not model:
         return
     try:
