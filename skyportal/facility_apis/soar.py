@@ -1,3 +1,5 @@
+import asyncio
+import functools
 import json
 from datetime import timedelta
 
@@ -11,6 +13,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
+from ..utils.offset import get_finding_chart
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -18,6 +21,41 @@ env, cfg = load_env()
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
 
 log = make_log("facility_apis/soar")
+
+
+async def get_offset_star(request):
+    """The best nearby offset star for a request, or None.
+
+    SOAR acquires faint targets by pointing at a brighter star and offsetting,
+    so the star becomes the request's target and the offset moves the slit onto
+    the source. Returns the star as the finding chart reports it, with
+    `dra_arcsec`/`ddec_arcsec` measured from the star to the source.
+    """
+    # Blocking IO (catalog queries, image fetch); keep it off the event loop.
+    finder = await asyncio.to_thread(
+        functools.partial(
+            get_finding_chart,
+            source_ra=request.obj.ra,
+            source_dec=request.obj.dec,
+            source_name=request.obj.id,
+            use_cache=True,
+            how_many=1,
+            radius_degrees=2 / 60,
+            mag_limit=18,
+            mag_min=10,
+            min_sep_arcsec=2,
+            use_source_pos_in_starlist=False,
+        )
+    )
+    if not finder.get("success", True):
+        raise ValueError(
+            f"Could not find an offset star for {request.obj.id}: "
+            f"{finder.get('reason', 'unknown error')}"
+        )
+    stars = [s for s in finder.get("starlist", []) if s.get("dra_arcsec") is not None]
+    if not stars:
+        raise ValueError(f"No offset star available for {request.obj.id}")
+    return stars[0]
 
 
 class SOAR_GHTS_IMAGER_Request:
@@ -140,7 +178,7 @@ class SOAR_GHTS_IMAGER_Request:
 class SOAR_GHTS_Request:
     """A JSON structure for SOAR GHTS requests."""
 
-    def __init__(self, request):
+    def __init__(self, request, offset_star=None):
         """Initialize SOAR GHTS request.
 
         Parameters
@@ -148,12 +186,15 @@ class SOAR_GHTS_Request:
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        offset_star: dict, optional
+            Star to acquire on instead of the source, as returned by
+            `get_offset_star`.
 
         """
 
-        self.requestgroup = self._build_payload(request)
+        self.requestgroup = self._build_payload(request, offset_star)
 
-    def _build_payload(self, request):
+    def _build_payload(self, request, offset_star=None):
         """Payload header for SOAR GHTS queue requests.
 
         Parameters
@@ -191,6 +232,21 @@ class SOAR_GHTS_Request:
             "epoch": 2000,
         }
 
+        # A source too faint to centre on the guider is acquired by pointing at a
+        # nearby star and offsetting, so the star is the target the telescope
+        # acquires and the offset carries the slit onto the source.
+        extra_params = {"offset_ra": 0, "offset_dec": 0, "rotator_angle": 0}
+        if offset_star:
+            target |= {
+                "name": offset_star["name"],
+                "ra": offset_star["ra"],
+                "dec": offset_star["dec"],
+            }
+            extra_params |= {
+                "offset_ra": offset_star["dra_arcsec"],
+                "offset_dec": offset_star["ddec_arcsec"],
+            }
+
         # The telescope class that should be used for this observation
         location = {"telescope_class": "4m0"}
 
@@ -225,11 +281,7 @@ class SOAR_GHTS_Request:
                         "exposure_count": exp_count,
                         "mode": instrument_mode,
                         "rotator_mode": "SKY",
-                        "extra_params": {
-                            "offset_ra": 0,
-                            "offset_dec": 0,
-                            "rotator_angle": 0,
-                        },
+                        "extra_params": dict(extra_params),
                         "optical_elements": {},
                     }
                     for instrument_mode in instrument_modes
@@ -247,11 +299,7 @@ class SOAR_GHTS_Request:
                             "exposure_time": arc_exposure_time[instrument_mode],
                             "mode": instrument_mode,
                             "rotator_mode": "SKY",
-                            "extra_params": {
-                                "offset_ra": 0,
-                                "offset_dec": 0,
-                                "rotator_angle": 0,
-                            },
+                            "extra_params": dict(extra_params),
                             "optical_elements": {},
                         }
                         for instrument_mode in instrument_modes
@@ -293,7 +341,7 @@ class SOAR_GHTS_Request:
 class SOAR_TripleSpec_Request:
     """A JSON structure for SOAR TripleSpec requests."""
 
-    def __init__(self, request):
+    def __init__(self, request, offset_star=None):
         """Initialize SOAR TripleSpec request.
 
         Parameters
@@ -301,12 +349,15 @@ class SOAR_TripleSpec_Request:
 
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        offset_star: dict, optional
+            Star to acquire on instead of the source, as returned by
+            `get_offset_star`.
 
         """
 
-        self.requestgroup = self._build_payload(request)
+        self.requestgroup = self._build_payload(request, offset_star)
 
-    def _build_payload(self, request):
+    def _build_payload(self, request, offset_star=None):
         """Payload header for SOAR TripleSpec queue requests.
 
         Parameters
@@ -339,6 +390,21 @@ class SOAR_TripleSpec_Request:
             "epoch": 2000,
         }
 
+        # A source too faint to centre on the guider is acquired by pointing at a
+        # nearby star and offsetting, so the star is the target the telescope
+        # acquires and the offset carries the slit onto the source.
+        extra_params = {"offset_ra": 0, "offset_dec": 0, "rotator_angle": 90}
+        if offset_star:
+            target |= {
+                "name": offset_star["name"],
+                "ra": offset_star["ra"],
+                "dec": offset_star["dec"],
+            }
+            extra_params |= {
+                "offset_ra": offset_star["dra_arcsec"],
+                "offset_dec": offset_star["ddec_arcsec"],
+            }
+
         # The telescope class that should be used for this observation
         location = {"telescope_class": "4m0"}
 
@@ -359,11 +425,7 @@ class SOAR_TripleSpec_Request:
                         "exposure_count": exp_count,
                         "mode": request.payload["instrument_mode"],
                         "rotator_mode": "SKY",
-                        "extra_params": {
-                            "offset_ra": 0,
-                            "offset_dec": 0,
-                            "rotator_angle": 90,
-                        },
+                        "extra_params": dict(extra_params),
                         "optical_elements": {},
                     }
                 ],
@@ -728,7 +790,10 @@ class SOARGHTSAPI(SOARAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        soarreq = SOAR_GHTS_Request(request)
+        offset_star = None
+        if request.payload.get("use_offset_star", False):
+            offset_star = await get_offset_star(request)
+        soarreq = SOAR_GHTS_Request(request, offset_star=offset_star)
         requestgroup = soarreq.requestgroup
 
         url = requestpath
@@ -785,6 +850,11 @@ class SOARGHTSAPI(SOARAPI):
             "include_calibrations": {
                 "title": "Include calibrations?",
                 "type": "boolean",
+            },
+            "use_offset_star": {
+                "title": "Acquire on an offset star?",
+                "type": "boolean",
+                "default": False,
             },
             "exposure_time": {
                 "title": "Exposure Time [s]",
@@ -926,7 +996,10 @@ class SOARTSPECAPI(SOARAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        soarreq = SOAR_TripleSpec_Request(request)
+        offset_star = None
+        if request.payload.get("use_offset_star", False):
+            offset_star = await get_offset_star(request)
+        soarreq = SOAR_TripleSpec_Request(request, offset_star=offset_star)
         requestgroup = soarreq.requestgroup
 
         url = requestpath
@@ -985,6 +1058,11 @@ class SOARTSPECAPI(SOARAPI):
                 ],
                 "default": "fowler16_coadds1",
                 "title": "Instrument Mode",
+            },
+            "use_offset_star": {
+                "title": "Acquire on an offset star?",
+                "type": "boolean",
+                "default": False,
             },
             "exposure_time": {
                 "title": "Exposure Time [s]",
