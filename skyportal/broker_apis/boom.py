@@ -20,6 +20,9 @@ DEFAULT_TIMEOUT = 30  # seconds
 # Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
 # the default; give the slow endpoints their own budget.
 VALIDATE_TIMEOUT = 180  # seconds
+# A filter test over a wide localization scans far more than a cone: a Fermi
+# GBM region takes minutes, where the default 30s is sized for a point query.
+TEST_TIMEOUT = 600  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
 
@@ -1108,6 +1111,7 @@ class BOOMBROKER(BrokerAPI):
                     "POST",
                     "filters/test",
                     json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                    timeout=TEST_TIMEOUT,
                 )
                 if isinstance(res, dict) and isinstance(res.get("results"), list):
                     # stringify Mongo _id so large ids survive JS number precision.
@@ -1121,4 +1125,6 @@ class BOOMBROKER(BrokerAPI):
                     results = _top_n(results, payload["sort_by"], sort_order, limit)
                 return {**res, "results": results}
             return res
-        return _request(broker, "POST", "filters/test/count", json=payload)
+        return _request(
+            broker, "POST", "filters/test/count", json=payload, timeout=TEST_TIMEOUT
+        )
