@@ -24,7 +24,8 @@ def embed_query_text(query: str, openai_api_key: str) -> list[float]:
     """The query's vector, from whichever server the embedding config names."""
     embeddings = OpenAIEmbeddings(
         model=summarize_embedding_model,
-        openai_api_key=openai_api_key,
+        # A server of one's own may want no key at all, but the client insists.
+        openai_api_key=openai_api_key or "none",
         base_url=summarize_embedding_base_url,
         # Send the text itself, as the analysis service does, rather than the
         # token ids langchain sends by default and other servers reject.
@@ -39,6 +40,7 @@ summarize_embedding_config = (
 summarize_embedding_model = summarize_embedding_config.get("model")
 # Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
+summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
 
 # The vectors live in our own database, so there is nothing to reach for: the
 # search is on when the config names the store and the model that filled it.
@@ -136,27 +138,32 @@ class SummaryQueryHandler(BaseHandler):
 
         # Searching from a source uses the vector already stored for it, so only
         # a text query needs the embedding service, and so only it needs a key.
-        user_openai_key = openai_api_key
-        if query and not user_openai_key:
-            user_id = self.associated_user_object.id
-            async with self.AsyncSession() as session:
-                user = await session.scalar(
-                    User.select(session.user_or_token, mode="read").where(
-                        User.id == user_id
+        # A configured server gets the key configured with it; only OpenAI itself
+        # is ever reached with the requester's own.
+        embedding_key = summarize_embedding_api_key
+        if query and not summarize_embedding_base_url:
+            embedding_key = openai_api_key
+            if not embedding_key:
+                user_id = self.associated_user_object.id
+                async with self.AsyncSession() as session:
+                    user = await session.scalar(
+                        User.select(session.user_or_token, mode="read").where(
+                            User.id == user_id
+                        )
                     )
-                )
-                if user is None:
-                    return self.error(
-                        "No global OpenAI key found and cannot find user.", status=400
-                    )
+                    if user is None:
+                        return self.error(
+                            "No global OpenAI key found and cannot find user.",
+                            status=400,
+                        )
 
-                if user.preferences is not None and user.preferences.get(
-                    "summary", {}
-                ).get("OpenAI", {}).get("active", False):
-                    user_openai_key = user.preferences["summary"]["OpenAI"].get(
-                        "apikey"
-                    )
-            if not user_openai_key:
+                    if user.preferences is not None and user.preferences.get(
+                        "summary", {}
+                    ).get("OpenAI", {}).get("active", False):
+                        embedding_key = user.preferences["summary"]["OpenAI"].get(
+                            "apikey"
+                        )
+            if not embedding_key:
                 return self.error("No OpenAI API key found.", status=400)
 
         if objID:
@@ -177,7 +184,7 @@ class SummaryQueryHandler(BaseHandler):
             # session is taken rather than while holding a connection.
             vector = (
                 await IOLoop.current().run_in_executor(
-                    None, embed_query_text, query, user_openai_key
+                    None, embed_query_text, query, embedding_key
                 )
                 if query
                 else None

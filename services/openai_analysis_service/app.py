@@ -31,6 +31,7 @@ summarize_embedding_config = (
 # The embedding model is configured apart from the chat model, and vectors are
 # comparable only with others from the same one.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
+summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
 summarize_embedding_model = summarize_embedding_config.get("model")
 # This service only produces the vector; SkyPortal stores it when the result
 # comes back, so there is nothing to embed into without pgvector.
@@ -255,9 +256,11 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if EMBED_SUMMARIES:
+        # Only OpenAI itself is reached with the key this run was given, which
+        # may be the requesting user's own.
         embedding_client = (
             OpenAI(
-                api_key=analysis_parameters.get("openai_api_key"),
+                api_key=summarize_embedding_api_key or "none",
                 base_url=summarize_embedding_base_url,
             )
             if summarize_embedding_base_url
