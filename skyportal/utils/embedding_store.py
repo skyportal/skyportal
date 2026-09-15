@@ -13,6 +13,7 @@ __all__ = [
 ]
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert
 
 from ..models import Obj, SummaryEmbedding
 from ..models.summary_embedding import Vector
@@ -26,20 +27,19 @@ def vector_literal(vector) -> str:
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
 
 
-async def upsert_embedding(session, obj_id, vector, model):
-    """Record one summary's vector, replacing any the obj already had."""
-    await session.execute(
-        sa.text(
-            "INSERT INTO summary_embeddings (obj_id, embedding, model) "
-            "VALUES (:obj_id, CAST(:embedding AS vector), :model) "
-            "ON CONFLICT (obj_id) DO UPDATE SET "
-            "embedding = EXCLUDED.embedding, model = EXCLUDED.model, "
-            "modified = now()"
-        ),
-        {
-            "obj_id": obj_id,
-            "embedding": vector_literal(vector),
-            "model": model,
+def upsert_embedding(obj_id, vector, model):
+    """The statement recording one summary's vector, replacing any the obj had."""
+    stmt = insert(SummaryEmbedding).values(
+        obj_id=obj_id,
+        embedding=sa.cast(vector_literal(vector), Vector()),
+        model=model,
+    )
+    return stmt.on_conflict_do_update(
+        index_elements=[_embeddings.obj_id],
+        set_={
+            "embedding": stmt.excluded.embedding,
+            "model": stmt.excluded.model,
+            "modified": sa.func.now(),
         },
     )
 

@@ -2,7 +2,7 @@ import sqlalchemy as sa
 
 from baselayer.app.models import DBSession
 from skyportal.tests import api
-from skyportal.utils.embedding_store import vector_literal
+from skyportal.utils.embedding_store import upsert_embedding
 
 
 def test_bad_queries(view_only_token):
@@ -67,19 +67,7 @@ MODEL = "test-embedding"
 
 def _store(obj_id, vector):
     """Put one vector in the store the way the webhook would."""
-    DBSession().execute(
-        sa.text(
-            "INSERT INTO summary_embeddings (obj_id, embedding, model) "
-            "VALUES (:obj_id, CAST(:embedding AS vector), :model) "
-            "ON CONFLICT (obj_id) DO UPDATE SET embedding = EXCLUDED.embedding, "
-            "model = EXCLUDED.model"
-        ),
-        {
-            "obj_id": obj_id,
-            "embedding": vector_literal(vector),
-            "model": MODEL,
-        },
-    )
+    DBSession().execute(upsert_embedding(obj_id, vector, MODEL))
     DBSession().commit()
 
 
