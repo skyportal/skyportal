@@ -48,6 +48,7 @@ import {
   useDeleteSharingServiceGroupAutoPublishersMutation,
   useAddSharingServiceCoauthorMutation,
   useDeleteSharingServiceCoauthorMutation,
+  useReorderSharingServiceCoauthorsMutation,
 } from "../../ducks/sharingServices";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useGetConfigQuery } from "../../ducks/config";
@@ -490,26 +491,28 @@ const NewSharingServiceGroup = ({
 
 interface SharingServiceCoauthorProps {
   sharing_service_id: number;
-  sharing_service_coauthor: any;
+  user_id: number;
   usersLookup: Record<string, any>;
+  position: number;
 }
 
 const SharingServiceCoauthor = ({
   sharing_service_id,
-  sharing_service_coauthor,
+  user_id,
   usersLookup,
+  position,
 }: SharingServiceCoauthorProps) => {
   const dispatch = useAppDispatch();
   const [deleteSharingServiceCoauthor] =
     useDeleteSharingServiceCoauthorMutation();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const user = usersLookup[sharing_service_coauthor.user_id];
+  const label = `${position}. ${userLabel(usersLookup[user_id], false, true)}`;
 
   const deleteCoauthor = async () => {
     try {
       await deleteSharingServiceCoauthor({
         sharing_service_id,
-        user_id: user.id,
+        user_id,
       }).unwrap();
       dispatch(showNotification(`Successfully removed user`));
     } catch {
@@ -520,11 +523,9 @@ const SharingServiceCoauthor = ({
 
   return (
     <>
-      <Chip
-        label={userLabel(user, false, true)}
-        size="small"
-        onDelete={() => setDeleteOpen(true)}
-      />
+      <Tooltip title={label} placement="right">
+        <Chip label={label} size="small" onDelete={() => setDeleteOpen(true)} />
+      </Tooltip>
       <ConfirmDeletionDialog
         deleteFunction={deleteCoauthor}
         dialogOpen={deleteOpen}
@@ -625,6 +626,105 @@ const NewSharingServiceCoauthor = ({
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+interface SharingServiceCoauthorsProps {
+  sharingService: any;
+  usersLookup: Record<string, any>;
+}
+
+const SharingServiceCoauthors = ({
+  sharingService,
+  usersLookup,
+}: SharingServiceCoauthorsProps) => {
+  const dispatch = useAppDispatch();
+  const [reorderSharingServiceCoauthors] =
+    useReorderSharingServiceCoauthorsMutation();
+  const coauthors = sharingService.coauthors;
+  const [userIds, setUserIds] = useState<number[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setUserIds((coauthors || []).map((coauthor: any) => coauthor.user_id));
+  }, [coauthors]);
+
+  const moveTo = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return;
+    const reordered = [...userIds];
+    const [moved] = reordered.splice(draggedIndex, 1);
+    if (moved === undefined) return;
+    reordered.splice(index, 0, moved);
+    setUserIds(reordered);
+    setDraggedIndex(index);
+  };
+
+  const saveOrder = async () => {
+    setDraggedIndex(null);
+    const published = (coauthors || []).map(
+      (coauthor: any) => coauthor.user_id,
+    );
+    if (userIds.join() === published.join()) return;
+    try {
+      await reorderSharingServiceCoauthors({
+        sharing_service_id: sharingService.id,
+        user_ids: userIds,
+      }).unwrap();
+      dispatch(showNotification("Successfully reordered coauthors"));
+    } catch {
+      setUserIds(published);
+    }
+  };
+
+  const draggable = userIds.length > 1;
+
+  return (
+    <Box
+      sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+    >
+      {userIds.map((userId, index) => (
+        <Box
+          key={userId}
+          draggable={draggable}
+          onDragStart={(event) => {
+            // Firefox only starts a drag once data is set
+            event.dataTransfer.setData("text/plain", "");
+            setDraggedIndex(index);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            moveTo(index);
+          }}
+          onDragEnd={saveOrder}
+          sx={{ display: "flex", cursor: draggable ? "grab" : "default" }}
+        >
+          <SharingServiceCoauthor
+            sharing_service_id={sharingService.id}
+            user_id={userId}
+            usersLookup={usersLookup}
+            position={index + 1}
+          />
+        </Box>
+      ))}
+      <NewSharingServiceCoauthor
+        sharingService={sharingService}
+        usersLookup={usersLookup}
+      />
+      {sharingService.acknowledgments && (
+        <Tooltip
+          title={`Acknowledgments, added at the end of the author list: "${sharingService.acknowledgments}"`}
+          placement="right"
+        >
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<InfoIcon />}
+            label={sharingService.acknowledgments}
+            sx={{ maxWidth: "12rem" }}
+          />
+        </Tooltip>
+      )}
+    </Box>
   );
 };
 
@@ -848,54 +948,12 @@ const SharingServicesPage = () => {
     );
   };
 
-  const renderCoauthors = (params: any) => {
-    const sharingService = params.row;
-    const coauthors = [...(sharingService?.coauthors || [])];
-    coauthors.sort((a, b) =>
-      userLabel(usersLookup[a.user_id] || "", false, true).localeCompare(
-        userLabel(usersLookup[b.user_id] || "", false, true),
-      ),
-    );
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 0.5,
-        }}
-      >
-        {coauthors.map((coauthor, idx) => (
-          <SharingServiceCoauthor
-            key={`${coauthor.user_id}-${idx}`}
-            sharing_service_id={sharingService?.id}
-            sharing_service_coauthor={coauthor}
-            usersLookup={usersLookup}
-          />
-        ))}
-        <NewSharingServiceCoauthor
-          sharingService={sharingService}
-          usersLookup={usersLookup}
-        />
-      </Box>
-    );
-  };
-
-  const renderAcknowledgments = (params: any) => {
-    const sharingService = params.row;
-    return (
-      <Tooltip
-        title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
-          sharingService?.acknowledgments || "..."
-        }'`}
-        placement="top"
-      >
-        <Typography variant="body1">
-          {sharingService.acknowledgments}
-        </Typography>
-      </Tooltip>
-    );
-  };
+  const renderCoauthors = (params: any) => (
+    <SharingServiceCoauthors
+      sharingService={params.row}
+      usersLookup={usersLookup}
+    />
+  );
 
   const renderGroups = (params: any) => {
     const sharingService = params.row;
@@ -1123,14 +1181,6 @@ const SharingServicesPage = () => {
       minWidth: 180,
       sortable: false,
       renderCell: renderCoauthors,
-    },
-    {
-      field: "acknowledgments",
-      headerName: "Acknowledgments",
-      flex: 1.2,
-      minWidth: 180,
-      sortable: false,
-      renderCell: renderAcknowledgments,
     },
     {
       field: "instruments",
