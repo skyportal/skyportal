@@ -5,6 +5,7 @@ from typing import Any
 import yaml
 from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel, ConfigDict, Field
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -172,9 +173,15 @@ class SummaryQueryHandler(BaseHandler):
 
         classes = body.classificationTypes or None
         try:
-            # An HTTP round-trip: made before a session is taken, not while
-            # holding a database connection.
-            vector = embed_query_text(query, user_openai_key) if query else None
+            # A blocking HTTP round-trip: run off the event loop, and before a
+            # session is taken rather than while holding a connection.
+            vector = (
+                await IOLoop.current().run_in_executor(
+                    None, embed_query_text, query, user_openai_key
+                )
+                if query
+                else None
+            )
             async with self.AsyncSession() as session:
                 # A summary is as readable as the source it describes, and a
                 # classification only as readable as the groups it was posted to.
