@@ -11,7 +11,7 @@ import {
 } from "redux-state-sync";
 
 import { skyportalApi } from "./api/skyportalApi";
-import type { AppStore } from "./types/store";
+import type { AppStore, RootState } from "./types/store";
 
 declare global {
   interface Window {
@@ -35,6 +35,14 @@ const syncConfig = {
     // they don't trigger any fetching of data
   ],
 };
+
+const receiveState = (
+  prevState: RootState | undefined,
+  nextState: RootState,
+) => ({
+  ...nextState,
+  [skyportalApi.reducerPath]: prevState?.[skyportalApi.reducerPath],
+});
 
 const logger: Middleware = (store) => (next) => (action) => {
   const prevState = store.getState();
@@ -86,7 +94,9 @@ function configureStore(): AppStore {
 
   store.injectReducer = (key, reducer) => {
     store.reducers[key] = reducer;
-    store.replaceReducer(withReduxStateSync(combineReducers(store.reducers)));
+    store.replaceReducer(
+      withReduxStateSync(combineReducers(store.reducers), receiveState),
+    );
   };
 
   return store;
