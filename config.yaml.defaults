@@ -1475,7 +1475,7 @@ analysis_services:
         # only comparable within one model -- what counts as close for one is
         # unreachable for another -- so set this from the spread `model`
         # actually produces. Unset shows the closest matches whatever they score.
-        min_score:
+        min_score: 0.9
 
 # Root for on-disk caches; everything under it is regenerable and safe to delete.
 cache_folder: cache
