@@ -99,29 +99,34 @@ async def _nearest(
     for opposite.
     """
     distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
-    stmt = sa.select(
+    nearest = sa.select(
         _embeddings.obj_id,
         (1 - distance).label("score"),
-        # From the obj, so an edited summary is not left behind by a copy.
-        sa.select(_objs.c.summary)
-        .where(_objs.c.id == _embeddings.obj_id)
-        .scalar_subquery()
-        .label("summary"),
-        sa.select(_objs.c.redshift)
-        .where(_objs.c.id == _embeddings.obj_id)
-        .scalar_subquery()
-        .label("redshift"),
-        sa.select(sa.func.array_agg(sa.distinct(classifications.c.classification)))
-        .where(classifications.c.obj_id == _embeddings.obj_id)
-        .scalar_subquery()
-        .label("classes"),
     )
-    stmt = _restrict(
-        stmt, model, accessible_objs, classifications, z_min, z_max, classes
+    nearest = _restrict(
+        nearest, model, accessible_objs, classifications, z_min, z_max, classes
     )
-    # Nothing is near a target that does not exist: an obj with no stored vector
+    # A target that does not exist is near nothing: an obj with no stored vector
     # gives a NULL target, and every distance to it is NULL.
-    stmt = stmt.where(distance.isnot(None)).order_by(distance).limit(k)
+    nearest = nearest.where(distance.isnot(None))
+    nearest = nearest.order_by(distance).limit(k).subquery()
+
+    # Described after the cut, so the k rows that survive it are the only ones
+    # these lookups run for.
+    stmt = (
+        sa.select(
+            nearest.c.obj_id,
+            nearest.c.score,
+            _objs.c.summary,
+            _objs.c.redshift,
+            sa.select(sa.func.array_agg(sa.distinct(classifications.c.classification)))
+            .where(classifications.c.obj_id == nearest.c.obj_id)
+            .scalar_subquery()
+            .label("classes"),
+        )
+        .select_from(nearest.join(_objs, _objs.c.id == nearest.c.obj_id))
+        .order_by(nearest.c.score.desc())
+    )
 
     rows = (await session.execute(stmt)).mappings().all()
     return [
