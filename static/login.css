@@ -74,17 +74,51 @@ body {
 .applyForm {
   display: flex;
   flex-direction: column;
+  gap: 1em;
   max-width: 30em;
 }
 
+/* `display: flex` above would otherwise beat the UA rule for [hidden] */
+.applyForm[hidden] {
+  display: none;
+}
+
+.applyRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+
+.applyField {
+  display: flex;
+  flex-direction: column;
+}
+
+.applyRow .applyField {
+  flex: 1 1 10em;
+}
+
 .applyForm label {
-  margin-top: 1em;
+  margin-bottom: 0.3em;
   font-weight: bold;
   font-size: 90%;
 }
 
+.applyOptional {
+  color: #757575;
+  font-weight: normal;
+  font-style: italic;
+}
+
+.applyHint {
+  margin-top: 0.3em;
+  color: #757575;
+  font-size: 85%;
+}
+
 .applyForm input,
 .applyForm textarea {
+  box-sizing: border-box;
   padding: 0.5em;
   border: 1px solid #ccc;
   border-radius: 3px;
@@ -92,25 +126,90 @@ body {
   font-size: 100%;
 }
 
+.applyForm input:focus,
+.applyForm textarea:focus {
+  border-color: #141b44;
+  outline: 1px solid #141b44;
+}
+
+.applyForm textarea {
+  resize: vertical;
+}
+
 .applyForm button {
-  margin-top: 1.5em;
+  margin-top: 0.5em;
+  align-self: flex-start;
+  padding: 0.6em 1.4em;
+  border: none;
+  border-radius: 3px;
+  background-color: #141b44;
+  color: white;
+  font-family: inherit;
+  font-size: 100%;
   cursor: pointer;
-  background: none;
+}
+
+.applyForm button:hover {
+  background-color: #232c60;
+}
+
+.applyForm button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.applyResult {
+  max-width: 30em;
+  padding: 0.75em 1em;
+  border-radius: 3px;
 }
 
 .applyResult.success {
   color: #1b5e20;
+  background-color: #edf7ed;
 }
 
 .applyResult.error {
   color: #b71c1c;
+  background-color: #fdeded;
+}
+
+.applyBack {
+  margin-top: 2em;
 }
 
 .applyDetails {
-  margin-top: 1.5em;
+  margin-top: 2em;
+  padding-top: 1.5em;
+  border-top: 1px solid #e0e0e0;
 }
 
 .applyDetails summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  list-style: none;
   cursor: pointer;
+  color: #141b44;
   font-weight: bold;
+}
+
+.applyDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.applyDetails summary::before {
+  content: "";
+  border-left: 0.4em solid currentcolor;
+  border-top: 0.3em solid transparent;
+  border-bottom: 0.3em solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.applyDetails[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.applyDetails summary:hover {
+  text-decoration: underline;
 }

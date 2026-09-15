@@ -1,33 +1,66 @@
 {#- The account application form, shared by the login page and /apply. -#}
 <form id="applyForm" class="applyForm">
-  <label for="firstName">First name</label>
-  <input id="firstName" name="firstName" type="text" maxlength="100" required />
+  <div class="applyRow">
+    <div class="applyField">
+      <label for="firstName">First name</label>
+      <input
+        id="firstName"
+        name="firstName"
+        type="text"
+        maxlength="100"
+        required
+      />
+    </div>
+    <div class="applyField">
+      <label for="lastName">Last name</label>
+      <input
+        id="lastName"
+        name="lastName"
+        type="text"
+        maxlength="100"
+        required
+      />
+    </div>
+  </div>
 
-  <label for="lastName">Last name</label>
-  <input id="lastName" name="lastName" type="text" maxlength="100" required />
+  <div class="applyField">
+    <label for="email">Your email address</label>
+    <input id="email" name="email" type="email" maxlength="255" required />
+  </div>
 
-  <label for="email">Your email address</label>
-  <input id="email" name="email" type="email" maxlength="255" required />
+  <div class="applyField">
+    <label for="affiliation">
+      Affiliation <span class="applyOptional">optional</span>
+    </label>
+    <input id="affiliation" name="affiliation" type="text" maxlength="255" />
+  </div>
 
-  <label for="affiliation">Affiliation</label>
-  <input id="affiliation" name="affiliation" type="text" maxlength="255" />
+  <div class="applyField">
+    <label for="endorserEmail">
+      Endorser's email address <span class="applyOptional">optional</span>
+    </label>
+    <input
+      id="endorserEmail"
+      name="endorserEmail"
+      type="email"
+      maxlength="255"
+    />
+    <span class="applyHint">An existing user who can vouch for you.</span>
+  </div>
 
-  <label for="endorserEmail"
-    >Email address of an existing user who can endorse you</label
-  >
-  <input id="endorserEmail" name="endorserEmail" type="email" maxlength="255" />
+  <div class="applyField">
+    <label for="statement">
+      Why do you need access? <span class="applyOptional">optional</span>
+    </label>
+    <textarea
+      id="statement"
+      name="statement"
+      rows="4"
+      maxlength="2000"
+    ></textarea>
+  </div>
 
-  <label for="statement">Why do you need access?</label>
-  <textarea
-    id="statement"
-    name="statement"
-    rows="4"
-    maxlength="2000"
-  ></textarea>
-
-  <button type="submit" class="loginButtonText" id="applySubmit">
-    Submit application
-  </button>
+  <button type="submit" id="applySubmit">Submit application</button>
 </form>
 <p id="applyResult" class="applyResult" hidden></p>
 <script>

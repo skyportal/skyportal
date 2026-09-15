@@ -23,7 +23,7 @@
         <p>{{ user_applications.form_preamble }}</p>
         {%- endblock %}
         {% include "_apply_form.html" %}
-        <p><a href="/">Back to sign in</a></p>
+        <p class="applyBack"><a href="/">Back to sign in</a></p>
       </div>
     </div>
   </body>

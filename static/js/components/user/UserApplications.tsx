@@ -13,13 +13,14 @@ import Select from "@mui/material/Select";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
-import { userLabel } from "../../utils/format";
+import { capitalize, userLabel } from "../../utils/format";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetProfileQuery } from "../../ducks/profile";
 import {
@@ -115,6 +116,12 @@ const EndorseDialog = ({
             label="Groups"
             value={groupIDs}
             onChange={(event) => setGroupIDs(event.target.value as number[])}
+            renderValue={(selected) =>
+              myGroups
+                .filter((group: any) => selected.includes(group.id))
+                .map((group: any) => group.name)
+                .join(", ")
+            }
           >
             {myGroups.map((group: any) => (
               <MenuItem key={group.id} value={group.id}>
@@ -237,8 +244,23 @@ const UserApplications = () => {
       flex: 1.5,
       minWidth: 200,
       sortable: false,
+      renderCell: ({ value }: { value?: string }) =>
+        value ? (
+          <Tooltip title={value}>
+            <Typography variant="body2" noWrap>
+              {value}
+            </Typography>
+          </Tooltip>
+        ) : null,
     },
-    { field: "created_at", headerName: "Applied", flex: 1, minWidth: 170 },
+    {
+      field: "created_at",
+      headerName: "Applied",
+      flex: 1,
+      minWidth: 160,
+      valueGetter: (value: string) =>
+        (value ?? "").slice(0, 19).replace("T", " "),
+    },
     {
       field: "status",
       headerName: "Status",
@@ -248,7 +270,7 @@ const UserApplications = () => {
         <Chip
           size="small"
           variant="outlined"
-          label={row.status}
+          label={capitalize(row.status)}
           color={STATUS_COLOR[row.status]}
         />
       ),
@@ -280,17 +302,12 @@ const UserApplications = () => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <Typography variant="body2" color="textSecondary">
-        People applying for an account name an existing user to vouch for them.
-        Endorsing one emails the applicant an invitation.
-      </Typography>
       <Tabs
         value={tabIndex}
         onChange={(_event, value) => {
           setTabIndex(value);
           setFetchParams({ ...fetchParams, pageNumber: 1 });
         }}
-        centered
       >
         <Tab label="Pending" />
         <Tab label="Endorsed" />
@@ -323,6 +340,10 @@ const UserApplications = () => {
           slots={{ toolbar: ApplicationsToolbar }}
         />
       )}
+      <Typography variant="body2" color="textSecondary">
+        People applying for an account name an existing user to vouch for them.
+        Endorsing one emails the applicant an invitation.
+      </Typography>
       {endorsing && (
         <EndorseDialog
           application={endorsing}
